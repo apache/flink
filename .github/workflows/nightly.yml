@@ -129,8 +129,8 @@ jobs:
         env:
           # Skip -musllinux on Linux builds
           CIBW_SKIP: "*-musllinux*"
-          # Use manylinux2014 on Linux
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          # Use manylinux_2_28 on Linux
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_BEFORE_ALL_LINUX: pip install patchelf
           CIBW_BEFORE_BUILD_LINUX: pip install --upgrade pip && pip install --group flink-python/pyproject.toml:dev
           CIBW_ENVIRONMENT_LINUX: CFLAGS="-I. -include ./dev/glibc_version_fix.h"

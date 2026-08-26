@@ -132,7 +132,7 @@ class UnalignedCheckpointRescaleWithMixedExchangesITCase {
         String checkpointPath1 =
                 CommonTestUtils.waitForCheckpointWithInflightBuffers(
                         jobClient1.getJobID(), miniCluster);
-        jobClient1.cancel().get();
+        CommonTestUtils.terminateJob(jobClient1);
         LOG.info("First checkpoint path: {}", checkpointPath1);
 
         // Step 2: Restore the job with a different parallelism
@@ -144,7 +144,7 @@ class UnalignedCheckpointRescaleWithMixedExchangesITCase {
         String checkpointPath2 =
                 CommonTestUtils.waitForCheckpointWithInflightBuffers(
                         jobClient2.getJobID(), miniCluster);
-        jobClient2.cancel().get();
+        CommonTestUtils.terminateJob(jobClient2);
         LOG.info("Second checkpoint path: {}", checkpointPath2);
 
         // Step 3: Restore from Step 2's checkpoint with random parallelism. This validates
@@ -156,7 +156,7 @@ class UnalignedCheckpointRescaleWithMixedExchangesITCase {
         CommonTestUtils.waitForAllTaskRunning(miniCluster, jobClient3.getJobID(), false);
         // Wait for at least one checkpoint to verify the recovery was successful
         CommonTestUtils.waitForCheckpointWithInflightBuffers(jobClient3.getJobID(), miniCluster);
-        jobClient3.cancel().get();
+        CommonTestUtils.terminateJob(jobClient3);
     }
 
     private StreamExecutionEnvironment getUnalignedCheckpointEnv(@Nullable String recoveryPath)

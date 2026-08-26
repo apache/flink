@@ -406,24 +406,20 @@ public class SqlJsonUtils {
         return jsonLengthValue(parsedInput.obj);
     }
 
-    /** Accepts a pre-parsed context from {@link #jsonParse}. */
-    public static Integer jsonLength(final JsonValueContext parsedInput, final String pathSpec) {
+    /**
+     * Accepts a pre-parsed context from {@link #jsonParse}. {@code isPathDefinite} is computed at
+     * plan time by {@link #isPathDefinite}.
+     */
+    public static Integer jsonLength(
+            final JsonValueContext parsedInput,
+            final String pathSpec,
+            final boolean isPathDefinite) {
         // An empty path is ruled out up front because JsonPath rejects it with an
         // IllegalArgumentException instead of the InvalidPathException caught below.
         if (parsedInput == null || parsedInput.hasException() || pathSpec.isEmpty()) {
             return null;
         }
 
-        final Matcher matcher = JSON_PATH_BASE.matcher(pathSpec);
-        final boolean isExplicitLaxStrict = matcher.matches();
-        if (isExplicitLaxStrict) {
-            throw new TableRuntimeException(
-                    String.format(
-                            "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: '%s'). "
-                                    + "Use a plain path such as '$.a.b'. To check path existence or handle "
-                                    + "invalid input, use JSON_EXISTS or IS JSON.",
-                            pathSpec));
-        }
         // JsonPath rejects a null root document, so a whole document that is a JSON null literal
         // has to be resolved here. Only the root path matches it, as a scalar of length 1.
         if (parsedInput.obj == null) {
@@ -437,7 +433,7 @@ public class SqlJsonUtils {
             return null;
         }
 
-        if (!JsonPath.isPathDefinite(pathSpec)) {
+        if (!isPathDefinite) {
             final List<?> matched = (List<?>) value;
             return matched.size() == 1 ? jsonLengthValue(matched.get(0)) : null;
         }
@@ -567,7 +563,7 @@ public class SqlJsonUtils {
      * exactly one value. {@code definite} is computed at plan time by {@link #isPathDefinite}.
      */
     public static String jsonType(
-            final JsonValueContext parsedInput, final String path, final boolean definite) {
+            final JsonValueContext parsedInput, final String path, final boolean isPathDefinite) {
         if (parsedInput == null || parsedInput.hasException() || path.isEmpty()) {
             return null;
         }
@@ -584,7 +580,7 @@ public class SqlJsonUtils {
             return null;
         }
 
-        if (!definite) {
+        if (!isPathDefinite) {
             // Indefinite paths (e.g. wildcards) read back as a list; only one match has one type.
             final List<?> matched = (List<?>) value;
             return matched.size() == 1 ? getJsonType(matched.get(0)) : null;

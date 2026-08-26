@@ -50,6 +50,7 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.variant.Variant;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -889,7 +890,25 @@ class TypeInferenceExtractorTest {
                                 "Logical type 'BITMAP' does not support a conversion from or to class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$CustomBitmap'."),
                 TestSpec.forScalarFunction("Custom Bitmap", InvalidCustomBitmapTypeFunction2.class)
                         .expectErrorMessage(
-                                "Could not extract a valid type inference for function class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$InvalidCustomBitmapTypeFunction2'."));
+                                "Could not extract a valid type inference for function class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$InvalidCustomBitmapTypeFunction2'."),
+                // ---
+                TestSpec.forScalarFunction("Variant in scalar function", VariantTypeFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("v", DataTypes.VARIANT(), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "array", DataTypes.ARRAY(DataTypes.VARIANT()), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "map",
+                                        DataTypes.MAP(DataTypes.INT(), DataTypes.VARIANT()),
+                                        false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "row",
+                                        DataTypes.ROW(DataTypes.FIELD("a", DataTypes.VARIANT())),
+                                        false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.VARIANT())));
     }
 
     private static Stream<TestSpec> procedureSpecs() {
@@ -2719,6 +2738,17 @@ class TypeInferenceExtractorTest {
 
     private static class BitmapTypeProcedure implements Procedure {
         public Bitmap[] call(Object procedureContext, Bitmap bitmap) {
+            return null;
+        }
+    }
+
+    @FunctionHint(output = @DataTypeHint("VARIANT"))
+    private static class VariantTypeFunction extends ScalarFunction {
+        public Variant eval(
+                Variant v,
+                Variant[] array,
+                Map<Integer, Variant> map,
+                @DataTypeHint("ROW<a VARIANT>") Row row) {
             return null;
         }
     }

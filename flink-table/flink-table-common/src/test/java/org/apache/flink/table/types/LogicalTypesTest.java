@@ -65,7 +65,6 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.bitmap.RoaringBitmapData;
-import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 
 import org.assertj.core.api.ThrowingConsumer;
@@ -610,9 +609,7 @@ public class LogicalTypesTest {
                 .hasSerializableString("VARIANT")
                 .hasSummaryString("VARIANT")
                 .supportsOutputConversion(Variant.class)
-                .supportsOutputConversion(BinaryVariant.class)
-                .supportsInputConversion(Variant.class)
-                .supportsInputConversion(BinaryVariant.class);
+                .supportsInputConversion(Variant.class);
     }
 
     @Test

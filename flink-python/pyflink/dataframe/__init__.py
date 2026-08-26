@@ -38,7 +38,14 @@ Example::
     <Row(1, 'Alice', 31)>
 """
 
-from pyflink.dataframe.convert import from_dict, from_records
+from pyflink.dataframe.convert import (
+    from_arrow,
+    from_dict,
+    from_pandas,
+    from_records,
+    from_table,
+    range,
+)
 from pyflink.dataframe.context import (
     get_or_create_table_environment,
     get_table_environment,
@@ -46,6 +53,7 @@ from pyflink.dataframe.context import (
 )
 from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit
 from pyflink.dataframe.datatype import DataType
+from pyflink.dataframe.io import read_generic
 
 __all__ = [
     "DataFrame",
@@ -53,8 +61,13 @@ __all__ = [
     "DataType",
     "col",
     "lit",
+    "from_arrow",
     "from_dict",
+    "from_pandas",
     "from_records",
+    "from_table",
+    "range",
+    "read_generic",
     "set_table_environment",
     "get_table_environment",
     "get_or_create_table_environment",

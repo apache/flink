@@ -16,9 +16,14 @@
 # limitations under the License.
 ################################################################################
 
+import array
+import decimal
 import unittest
+from datetime import date, datetime, time, timedelta, timezone
 from typing import NamedTuple
 
+import pandas as pd
+import pyarrow as pa
 import pyflink.dataframe as pf
 from py4j.protocol import Py4JJavaError
 from pyflink.common import Row
@@ -26,8 +31,10 @@ from pyflink.table import (
     DataTypes as TableDataTypes,
     EnvironmentSettings,
     TableEnvironment,
+    TableSchema,
 )
 from pyflink.table.expression import Expression
+from pyflink.table.types import LocalZonedTimestampType, TimestampType
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
     PyFlinkITTestCase,
@@ -77,6 +84,17 @@ class _Table:
         return _TableResult(self._iterator)
 
 
+class _PandasTable:
+    def __init__(self, result=None, error=None):
+        self._result = result
+        self._error = error
+
+    def to_pandas(self):
+        if self._error is not None:
+            raise self._error
+        return self._result
+
+
 class DataFrameCollectTests(unittest.TestCase):
     def test_collect_returns_all_rows_and_closes_iterator(self):
         iterator = _CloseableIterator([Row(1, "Alice")])
@@ -93,6 +111,43 @@ class DataFrameCollectTests(unittest.TestCase):
             dataframe.collect()
 
         self.assertTrue(iterator.closed)
+
+
+class DataFrameConversionTests(unittest.TestCase):
+    def test_to_table_returns_underlying_table(self):
+        table = _PandasTable()
+
+        self.assertIs(pf.DataFrame(table).to_table(), table)
+
+    def test_to_pandas_delegates_to_underlying_table(self):
+        expected = pd.DataFrame({"id": [1]})
+
+        self.assertIs(pf.DataFrame(_PandasTable(expected)).to_pandas(), expected)
+
+    def test_to_pandas_propagates_errors(self):
+        with self.assertRaisesRegex(RuntimeError, "conversion failed"):
+            pf.DataFrame(
+                _PandasTable(error=RuntimeError("conversion failed"))
+            ).to_pandas()
+
+
+class DataFrameCompositionTests(unittest.TestCase):
+    def test_pipe_forwards_dataframe_arguments_and_return_value(self):
+        dataframe = pf.DataFrame(object())
+        expected = object()
+
+        def transform(current, value, *, label):
+            self.assertIs(current, dataframe)
+            self.assertEqual(value, 42)
+            self.assertEqual(label, "answer")
+            return expected
+
+        self.assertIs(dataframe.pipe(transform, 42, label="answer"), expected)
+
+    def test_aliases_reference_the_original_methods(self):
+        self.assertIs(pf.DataFrame.where, pf.DataFrame.filter)
+        self.assertIs(pf.DataFrame.drop, pf.DataFrame.drop_columns)
+        self.assertIs(pf.DataFrame.rename, pf.DataFrame.rename_columns)
 
 
 class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
@@ -192,6 +247,202 @@ class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
             [TableDataTypes.STRING(), TableDataTypes.BIGINT()],
         )
 
+    def test_from_pandas_and_arrow_rename_columns_positionally(self):
+        inputs = [
+            pd.DataFrame(
+                {"original_id": [1], "original_ts": [datetime(2026, 1, 1)]}
+            ),
+            pa.table(
+                {
+                    "original_id": pa.array([1], type=pa.int64()),
+                    "original_ts": pa.array(
+                        [datetime(2026, 1, 1)], type=pa.timestamp("us")
+                    ),
+                }
+            ),
+        ]
+        for creator, data in zip((pf.from_pandas, pf.from_arrow), inputs):
+            with self.subTest(creator=creator.__name__):
+                dataframe = creator(data, schema=["id", "ts"])
+                self.assert_dataframe_schema(dataframe, ["id", "ts"])
+
+        duplicate_pdf = pd.DataFrame(
+            [[1, "Alice"], [2, "Bob"]], columns=["value", "value"]
+        )
+        dataframe = pf.from_pandas(duplicate_pdf, schema=["id", "name"])
+        self.assert_dataframe_schema(
+            dataframe,
+            ["id", "name"],
+            [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
+        )
+
+    def test_from_pandas_normalizes_inferred_column_names(self):
+        dataframe = pf.from_pandas(pd.DataFrame([[1, 2]]))
+
+        self.assert_dataframe_schema(
+            dataframe,
+            ["0", "1"],
+            [TableDataTypes.BIGINT(), TableDataTypes.BIGINT()],
+        )
+
+    def test_empty_pandas_and_arrow_inputs_preserve_inferred_types(self):
+        inputs = [
+            (
+                pf.from_pandas,
+                pd.DataFrame({"id": pd.Series([], dtype="int64")}),
+            ),
+            (
+                pf.from_arrow,
+                pa.table({"id": pa.array([], type=pa.int64())}),
+            ),
+        ]
+        for creator, data in inputs:
+            with self.subTest(creator=creator.__name__):
+                dataframe = creator(data)
+                self.assert_dataframe_schema(
+                    dataframe,
+                    ["id"],
+                    [TableDataTypes.BIGINT()],
+                )
+
+    def test_from_pandas_schema_inference(self):
+        pdf = pd.DataFrame(
+            {
+                "original_id": [1.0, None],
+                "original_name": ["Alice", None],
+                "original_ts": pd.Series(
+                    pd.to_datetime(
+                        ["2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"]
+                    )
+                ),
+            }
+        )
+        names = ["id", "name", "ts"]
+
+        dataframe_schema = (
+            pf.from_pandas(pdf, schema=names).to_table().get_resolved_schema()
+        )
+        table_schema = self.t_env.from_pandas(
+            pdf, schema=names
+        ).get_resolved_schema()
+
+        self.assertEqual(
+            table_schema.get_column_names(), dataframe_schema.get_column_names()
+        )
+        self.assertEqual(
+            table_schema.get_column_data_types(),
+            dataframe_schema.get_column_data_types(),
+        )
+
+        empty_pdf = pd.DataFrame(
+            {
+                "original_id": pd.Series([], dtype="float64"),
+                "original_name": pd.Series([], dtype="string"),
+                "original_ts": pd.Series([], dtype="datetime64[ns, UTC]"),
+            }
+        )
+        empty_schema = pf.from_pandas(
+            empty_pdf, schema=names
+        ).to_table().get_resolved_schema()
+        self.assertEqual(
+            dataframe_schema.get_column_names(), empty_schema.get_column_names()
+        )
+        self.assertEqual(
+            dataframe_schema.get_column_data_types(),
+            empty_schema.get_column_data_types(),
+        )
+
+    def test_timezone_aware_creation_supports_java_timezone_ids(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("SystemV/PST8PDT")
+        try:
+            dataframe = pf.from_arrow(
+                pa.table({
+                    "ts": pa.array([0], type=pa.timestamp("ms", tz="UTC")),
+                })
+            )
+            self.assert_dataframe_schema(
+                dataframe,
+                ["ts"],
+                [TableDataTypes.TIMESTAMP(3)],
+            )
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
+
+    def test_creators_attach_and_normalize_watermarks(self):
+        timestamp = datetime(2026, 1, 1, 0, 0, 0, 123456)
+        creators = [
+            (
+                lambda: pf.from_dict(
+                    {"ts": [timestamp]},
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                LocalZonedTimestampType,
+            ),
+            (
+                lambda: pf.from_records(
+                    [{"ts": timestamp}],
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                LocalZonedTimestampType,
+            ),
+            (
+                lambda: pf.from_pandas(
+                    pd.DataFrame(
+                        {
+                            "ts": pd.Series(
+                                [timestamp.replace(tzinfo=timezone.utc)],
+                                dtype="datetime64[us, UTC]",
+                            )
+                        }
+                    ),
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                TimestampType,
+            ),
+            (
+                lambda: pf.from_arrow(
+                    pa.table(
+                        {
+                            "ts": pa.array(
+                                [timestamp.replace(tzinfo=timezone.utc)],
+                                type=pa.timestamp("us", tz="UTC"),
+                            )
+                        }
+                    ),
+                    watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                ),
+                TimestampType,
+            ),
+        ]
+        for creator, expected_type in creators:
+            with self.subTest(creator=creator):
+                resolved_schema = creator().to_table().get_resolved_schema()
+                timestamp_type = resolved_schema.get_column_data_types()[0]
+                self.assertIsInstance(timestamp_type, expected_type)
+                self.assertEqual(timestamp_type.precision, 3)
+                watermark_specs = resolved_schema.get_watermark_specs()
+                self.assertEqual(len(watermark_specs), 1)
+                self.assertEqual(watermark_specs[0].get_rowtime_attribute(), "ts")
+
+    def test_watermark_requires_existing_timestamp_column(self):
+        invalid_watermarks = [
+            (("missing", "ts"), "watermark column 'missing' is not present"),
+            (("id", "id"), "watermark column 'id' must have a timestamp type"),
+        ]
+        for watermark, message in invalid_watermarks:
+            with self.subTest(watermark=watermark):
+                with self.assertRaisesRegex(ValueError, message):
+                    pf.from_records(
+                        [{"id": 1, "ts": datetime(2026, 1, 1)}],
+                        watermark=watermark,
+                    )
+
+    def test_from_table_and_to_table_preserve_identity(self):
+        table = self.t_env.from_elements([(1,)], ["id"])
+
+        self.assertIs(pf.from_table(table).to_table(), table)
+
 
 class DataFrameSelectTests(PyFlinkDataFrameUTTestCase):
     def setUp(self):
@@ -289,6 +540,210 @@ class DataFrameWithColumnTests(PyFlinkDataFrameUTTestCase):
     def test_with_column_rejects_non_string_name(self):
         with self.assertRaisesRegex(TypeError, "name must be a string"):
             self.dataframe.with_column(42, object())
+
+    def test_with_columns_adds_and_replaces_positional_and_named_columns(self):
+        result = self.dataframe.with_columns(
+            (pf.col("id") + 1).alias("id"),
+            (pf.col("age") + 2).alias("age_in_two_years"),
+            age_next_year=pf.col("age") + 1,
+            doubled_age=pf.col("age") * 2,
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            [
+                "id",
+                "name",
+                "age",
+                "age_in_two_years",
+                "age_next_year",
+                "doubled_age",
+            ],
+            [
+                TableDataTypes.BIGINT(),
+                TableDataTypes.STRING(),
+                TableDataTypes.BIGINT(),
+                TableDataTypes.BIGINT(),
+                TableDataTypes.BIGINT(),
+                TableDataTypes.BIGINT(),
+            ],
+        )
+
+    def test_with_columns_rejects_non_expressions(self):
+        invalid_calls = [
+            ("positional", lambda: self.dataframe.with_columns(42), "exprs"),
+            (
+                "named",
+                lambda: self.dataframe.with_columns(answer=42),
+                "named_exprs",
+            ),
+        ]
+        for name, invalid_call, message in invalid_calls:
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(TypeError, message):
+                    invalid_call()
+
+
+class DataFrameDropColumnsTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(1, "Alice", 30)],
+            schema=["id", "name", "age"],
+        )
+
+    def test_drop_alias_accepts_names_and_expressions(self):
+        result = self.dataframe.drop("name", pf.col("age"))
+
+        self.assert_dataframe_schema(
+            result,
+            ["id"],
+            [TableDataTypes.BIGINT()],
+        )
+
+    def test_drop_columns_handles_missing_names_and_no_op(self):
+        with self.assertRaisesRegex(ValueError, "Column 'missing' not found"):
+            self.dataframe.drop_columns("missing")
+
+        self.assertIs(
+            self.dataframe.drop_columns("missing", strict=False),
+            self.dataframe,
+        )
+        self.assertIs(self.dataframe.drop_columns(), self.dataframe)
+
+    def test_drop_columns_rejects_invalid_arguments(self):
+        invalid_calls = [
+            (
+                "column",
+                lambda: self.dataframe.drop_columns(42),
+                "columns must be strings or expressions",
+            ),
+            (
+                "strict",
+                lambda: self.dataframe.drop_columns("id", strict="yes"),
+                "strict must be a boolean",
+            ),
+        ]
+        for name, invalid_call, message in invalid_calls:
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(TypeError, message):
+                    invalid_call()
+
+
+class DataFrameRenameColumnsTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(1, "Alice", 30)],
+            schema=["id", "name", "age"],
+        )
+
+    def test_rename_columns_supports_all_input_forms(self):
+        cases = [
+            (
+                "mapping_alias",
+                lambda: self.dataframe.rename(
+                    {"id": "identifier", "missing": "ignored"}
+                ),
+                ["identifier", "name", "age"],
+            ),
+            (
+                "mapping_keyword",
+                lambda: self.dataframe.rename_columns(
+                    mapping={"name": "customer"}
+                ),
+                ["id", "customer", "age"],
+            ),
+            (
+                "callable",
+                lambda: self.dataframe.rename_columns(str.upper),
+                ["ID", "NAME", "AGE"],
+            ),
+            (
+                "pairs",
+                lambda: self.dataframe.rename_columns(
+                    "id", "identifier", "age", "years"
+                ),
+                ["identifier", "name", "years"],
+            ),
+        ]
+        for name, rename, expected_columns in cases:
+            with self.subTest(name=name):
+                self.assert_dataframe_schema(rename(), expected_columns)
+
+    def test_rename_columns_returns_self_when_nothing_changes(self):
+        self.assertIs(
+            self.dataframe.rename_columns({"missing": "ignored"}),
+            self.dataframe,
+        )
+
+    def test_rename_columns_rejects_invalid_arguments(self):
+        invalid_calls = [
+            (
+                "missing_mapping",
+                lambda: self.dataframe.rename_columns(),
+                TypeError,
+                "mapping must be a dictionary or callable",
+            ),
+            (
+                "odd_pairs",
+                lambda: self.dataframe.rename_columns("id", "identifier", "age"),
+                ValueError,
+                "must be old/new name pairs",
+            ),
+            (
+                "non_string_pair",
+                lambda: self.dataframe.rename_columns("id", 42),
+                TypeError,
+                "column names must be strings",
+            ),
+            (
+                "non_string_mapping",
+                lambda: self.dataframe.rename_columns({"id": 42}),
+                TypeError,
+                "mapping keys and values must be strings",
+            ),
+            (
+                "invalid_callable_result",
+                lambda: self.dataframe.rename_columns(lambda name: 42),
+                TypeError,
+                "callable must return a string",
+            ),
+            (
+                "ambiguous_mapping",
+                lambda: self.dataframe.rename_columns(
+                    {"id": "identifier"}, mapping={"name": "customer"}
+                ),
+                ValueError,
+                "either positional arguments or mapping",
+            ),
+        ]
+        for name, invalid_call, error, message in invalid_calls:
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(error, message):
+                    invalid_call()
+
+
+class DataFramePropertyTests(PyFlinkDataFrameUTTestCase):
+    def test_schema_exposes_ordered_metadata(self):
+        dataframe = pf.from_records(
+            [(1, "Alice")],
+            schema=["id", "name"],
+        )
+
+        self.assertIsInstance(dataframe.schema, TableSchema)
+        self.assertEqual(dataframe.schema.get_field_names(), ["id", "name"])
+
+    def test_columns_returns_defensive_ordered_list(self):
+        dataframe = pf.from_records(
+            [(1, "Alice")],
+            schema=["id", "name"],
+        )
+
+        columns = dataframe.columns
+        self.assertEqual(columns, ["id", "name"])
+        columns.append("mutated")
+        self.assertEqual(dataframe.columns, ["id", "name"])
 
 
 class DataFrameFilterTests(PyFlinkDataFrameUTTestCase):
@@ -401,30 +856,142 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
         super().setUp()
         self.dataframe = pf.from_records([(1,)], schema=["id"])
 
-    def test_lit_supports_inferred_and_explicit_types(self):
+    def test_lit_infers_supported_python_types(self):
+        literal_values = {
+            "inferred_bool": True,
+            "inferred_int": 2,
+            "inferred_bigint": 1 << 40,
+            "inferred_float": 1.25,
+            "inferred_string": "x",
+            "inferred_bytes": b"x",
+            "inferred_bytearray": bytearray(b"x"),
+            "inferred_decimal": decimal.Decimal("1.25"),
+            "inferred_date": date(2026, 8, 3),
+            "inferred_time": time(1, 2, 3),
+            "inferred_timestamp": datetime(2026, 8, 3, 1, 2, 3),
+            "inferred_aware_timestamp": datetime(
+                2026, 8, 3, 1, 2, 3, tzinfo=timezone.utc
+            ),
+            "inferred_timedelta": timedelta(days=1, seconds=2, microseconds=3000),
+            "inferred_list": ["abc"],
+            "inferred_nested_list": [[date(2026, 8, 3)]],
+            "inferred_tuple": (1, 2),
+            "inferred_array": array.array("h", [1, 2]),
+        }
         result = self.dataframe.select(
-            inferred_int=pf.lit(2),
-            inferred_string=pf.lit("x"),
-            explicit_int=pf.lit(3, pf.DataType.int64()),
-            explicit_large_int=pf.lit(1 << 40, pf.DataType.int64()),
+            **{name: pf.lit(value) for name, value in literal_values.items()}
+        )
+
+        self.assert_dataframe_schema(
+            result,
+            list(literal_values),
+            [
+                TableDataTypes.BOOLEAN().not_null(),
+                TableDataTypes.INT().not_null(),
+                TableDataTypes.BIGINT().not_null(),
+                TableDataTypes.DOUBLE().not_null(),
+                TableDataTypes.CHAR(1).not_null(),
+                TableDataTypes.BINARY(1).not_null(),
+                TableDataTypes.BINARY(1).not_null(),
+                TableDataTypes.DECIMAL(3, 2).not_null(),
+                TableDataTypes.DATE().not_null(),
+                TableDataTypes.TIME().not_null(),
+                TableDataTypes.TIMESTAMP(0).not_null(),
+                TableDataTypes.TIMESTAMP(0).not_null(),
+                TableDataTypes.INTERVAL(
+                    TableDataTypes.DAY(1), TableDataTypes.SECOND(3)
+                ),
+                TableDataTypes.ARRAY(TableDataTypes.CHAR(3)).not_null(),
+                TableDataTypes.ARRAY(
+                    TableDataTypes.ARRAY(TableDataTypes.DATE())
+                ).not_null(),
+                TableDataTypes.ARRAY(TableDataTypes.INT()).not_null(),
+                TableDataTypes.ARRAY(TableDataTypes.SMALLINT()).not_null(),
+            ],
+        )
+
+    def test_lit_supports_explicit_types(self):
+        list_type = pf.DataType.list(pf.DataType.int16())
+        map_type = pf.DataType.map(pf.DataType.int16(), pf.DataType.float32())
+        struct_type = pf.DataType.struct(
+            {
+                "small_value": pf.DataType.int16(),
+                "float_value": pf.DataType.float32(),
+            }
+        )
+        result = self.dataframe.select(
+            explicit_int8=pf.lit(3, pf.DataType.int8()),
+            explicit_int16=pf.lit(3, pf.DataType.int16()),
+            explicit_int32=pf.lit(3, pf.DataType.int32()),
+            explicit_int64=pf.lit(3, pf.DataType.int64()),
+            explicit_float32=pf.lit(1.25, pf.DataType.float32()),
+            explicit_float64=pf.lit(1.25, pf.DataType.float64()),
+            explicit_decimal=pf.lit(decimal.Decimal("1.25"), pf.DataType.decimal(3, 2)),
+            explicit_bool=pf.lit(True, pf.DataType.bool()),
             explicit_string=pf.lit("y", pf.DataType.string()),
+            explicit_fixed_string=pf.lit("y", pf.DataType.fixed_size_string(1)),
+            explicit_binary=pf.lit(b"y", pf.DataType.binary()),
+            explicit_fixed_binary=pf.lit(b"y", pf.DataType.fixed_size_binary(1)),
+            explicit_date=pf.lit(date(2026, 8, 3), pf.DataType.date()),
+            explicit_time=pf.lit(time(1, 2, 3, 4000), pf.DataType.time(6)),
+            explicit_timestamp=pf.lit(
+                datetime(2026, 8, 3, 1, 2, 3, 4000),
+                pf.DataType.timestamp(6),
+            ),
+            explicit_timestamp_ltz=pf.lit(
+                datetime(
+                    2026, 8, 3, 1, 2, 3, 4000, tzinfo=timezone.utc
+                ),
+                pf.DataType.timestamp_ltz(6),
+            ),
+            explicit_list=pf.lit([1, 2], list_type),
+            explicit_map=pf.lit({1: 1.25}, map_type),
+            explicit_struct=pf.lit((1, 1.25), struct_type),
         )
 
         self.assert_dataframe_schema(
             result,
             [
-                "inferred_int",
-                "inferred_string",
-                "explicit_int",
-                "explicit_large_int",
+                "explicit_int8",
+                "explicit_int16",
+                "explicit_int32",
+                "explicit_int64",
+                "explicit_float32",
+                "explicit_float64",
+                "explicit_decimal",
+                "explicit_bool",
                 "explicit_string",
+                "explicit_fixed_string",
+                "explicit_binary",
+                "explicit_fixed_binary",
+                "explicit_date",
+                "explicit_time",
+                "explicit_timestamp",
+                "explicit_timestamp_ltz",
+                "explicit_list",
+                "explicit_map",
+                "explicit_struct",
             ],
             [
+                TableDataTypes.TINYINT().not_null(),
+                TableDataTypes.SMALLINT().not_null(),
                 TableDataTypes.INT().not_null(),
-                TableDataTypes.CHAR(1).not_null(),
                 TableDataTypes.BIGINT().not_null(),
-                TableDataTypes.BIGINT().not_null(),
+                TableDataTypes.FLOAT().not_null(),
+                TableDataTypes.DOUBLE().not_null(),
+                TableDataTypes.DECIMAL(3, 2).not_null(),
+                TableDataTypes.BOOLEAN().not_null(),
                 TableDataTypes.STRING().not_null(),
+                TableDataTypes.CHAR(1).not_null(),
+                TableDataTypes.BYTES().not_null(),
+                TableDataTypes.BINARY(1).not_null(),
+                TableDataTypes.DATE().not_null(),
+                TableDataTypes.TIME(6).not_null(),
+                TableDataTypes.TIMESTAMP(6).not_null(),
+                TableDataTypes.TIMESTAMP_LTZ(6).not_null(),
+                list_type._to_table_data_type().not_null(),
+                map_type._to_table_data_type().not_null(),
+                struct_type._to_table_data_type().not_null(),
             ],
         )
 
@@ -432,12 +999,33 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
         result = self.dataframe.select(
             null_int=pf.lit(None, pf.DataType.int64()),
             null_string=pf.lit(None, pf.DataType.string()),
+            null_list=pf.lit(None, pf.DataType.list(pf.DataType.int16())),
+            null_map=pf.lit(
+                None, pf.DataType.map(pf.DataType.int16(), pf.DataType.float32())
+            ),
+            null_struct=pf.lit(
+                None, pf.DataType.struct({"value": pf.DataType.int16()})
+            ),
         )
 
         self.assert_dataframe_schema(
             result,
-            ["null_int", "null_string"],
-            [TableDataTypes.BIGINT(), TableDataTypes.STRING()],
+            [
+                "null_int",
+                "null_string",
+                "null_list",
+                "null_map",
+                "null_struct",
+            ],
+            [
+                TableDataTypes.BIGINT(),
+                TableDataTypes.STRING(),
+                TableDataTypes.ARRAY(TableDataTypes.SMALLINT()),
+                TableDataTypes.MAP(TableDataTypes.SMALLINT(), TableDataTypes.FLOAT()),
+                TableDataTypes.ROW(
+                    [TableDataTypes.FIELD("value", TableDataTypes.SMALLINT())]
+                ),
+            ],
         )
 
     def test_lit_supports_small_int_for_non_nullable_bigint(self):
@@ -455,6 +1043,7 @@ class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
             (3.14, pf.DataType.int64()),
             ("abc", pf.DataType.int64()),
             (42, pf.DataType.string()),
+            ([1.25], pf.DataType.list(pf.DataType.int16())),
         ]
         for value, data_type in incompatible_values:
             with self.subTest(value=value, data_type=data_type):
@@ -572,6 +1161,115 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
             [Row(1, "Alice"), Row(2, "Bob")],
         )
 
+    def test_watermark_precision_normalization_floors_pre_epoch_timestamps(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("UTC")
+        try:
+            timestamp = datetime(1969, 12, 31, 23, 59, 59, 999999)
+            creators = [
+                (
+                    "from_dict",
+                    lambda: pf.from_dict(
+                        {"ts": [timestamp]},
+                        watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                    ),
+                ),
+                (
+                    "from_records",
+                    lambda: pf.from_records(
+                        [{"ts": timestamp}],
+                        watermark=("ts", "ts - INTERVAL '1' SECOND"),
+                    ),
+                ),
+            ]
+
+            for name, creator in creators:
+                with self.subTest(creator=name):
+                    result = creator().select(
+                        ts=pf.col("ts").cast(TableDataTypes.STRING())
+                    )
+                    self.assertEqual(
+                        result.collect(), [Row("1969-12-31 23:59:59.999")]
+                    )
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
+
+    def test_pandas_to_pandas_round_trip(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.t_env.get_config().set_local_timezone("America/New_York")
+        try:
+            first_fold = pd.Timestamp("2026-11-01T05:30:00.123Z")
+            second_fold = pd.Timestamp("2026-11-01T06:30:00.123Z")
+            pdf = pd.DataFrame(
+                {
+                    "id": [0, 1, 2, 3],
+                    "ts": pd.Series(
+                        [None, first_fold, second_fold, None],
+                        dtype="datetime64[ms, UTC]",
+                    ),
+                }
+            )
+
+            result = (
+                pf.from_pandas(pdf)
+                .filter(pf.col("id") > 0)
+                .with_column("id_plus_one", pf.col("id") + 1)
+                .select("id", "id_plus_one", "ts")
+                .to_pandas()
+                .sort_values("id")
+                .reset_index(drop=True)
+            )
+
+            self.assertEqual(list(result.columns), ["id", "id_plus_one", "ts"])
+            self.assertEqual(result["id"].tolist(), [1, 2, 3])
+            self.assertEqual(result["id_plus_one"].tolist(), [2, 3, 4])
+            self.assertEqual(result["ts"].isna().tolist(), [False, False, True])
+            local_fold = pd.Timestamp("2026-11-01T01:30:00.123")
+            self.assertEqual(
+                result["ts"].tolist()[:2],
+                [local_fold, local_fold],
+            )
+        finally:
+            self.t_env.get_config().set_local_timezone(original_timezone)
+
+    def test_lit_supports_inferred_and_explicit_types(self):
+        dataframe = pf.from_records([(1,)], schema=["id"])
+        map_type = pf.DataType.map(pf.DataType.int16(), pf.DataType.float32())
+        struct_type = pf.DataType.struct(
+            {
+                "small_value": pf.DataType.int16(),
+                "float_value": pf.DataType.float32(),
+            }
+        )
+
+        result = dataframe.select(
+            inferred_date=pf.lit(date(2026, 8, 3)),
+            inferred_list=pf.lit(["abc"]),
+            explicit_small_int=pf.lit(1, pf.DataType.int16()),
+            explicit_float=pf.lit(1.25, pf.DataType.float32()),
+            explicit_list=pf.lit(
+                [1, 2],
+                pf.DataType.list(pf.DataType.int16()),
+            ),
+            explicit_map=pf.lit({1: 1.25}, map_type),
+            explicit_struct=pf.lit((1, 1.25), struct_type),
+        )
+
+        self.assertEqual(
+            result.collect(),
+            [
+                Row(
+                    date(2026, 8, 3),
+                    ["abc"],
+                    1,
+                    1.25,
+                    [1, 2],
+                    {1: 1.25},
+                    Row(1, 1.25),
+                )
+            ],
+        )
+
     def test_basic_functionality(self):
         df = pf.from_dict(
             {
@@ -595,7 +1293,7 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
 
         result = (
             df[df["id"] > 0]
-            .filter(
+            .where(
                 "score >= 0.9",
                 lambda current: current["id"] < 6,
                 city="SF",
@@ -606,11 +1304,19 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
                 lambda current: current["age"] + 1,
             )
             .with_column("age", pf.col("age") + 1)
+            .with_columns(
+                (pf.col("age_next_year") + 1).alias("age_in_two_years"),
+                score_percent=pf.col("score") * 100,
+            )
+            .drop("score", "city", "destination")
+            .rename({"name": "customer_name"})
             .select(
                 "id",
-                "name",
+                "customer_name",
                 "age",
-                age_next_year=pf.col("age_next_year"),
+                "age_next_year",
+                "age_in_two_years",
+                "score_percent",
                 inferred_int=pf.lit(2),
                 inferred_string=pf.lit("x"),
                 explicit_int=pf.lit(3, pf.DataType.int64()),
@@ -624,10 +1330,12 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
                 ),
             )[
                 (
-                    "name",
+                    "customer_name",
                     "id",
                     "age",
                     "age_next_year",
+                    "age_in_two_years",
+                    "score_percent",
                     "inferred_int",
                     "inferred_string",
                     "explicit_int",
@@ -642,7 +1350,24 @@ class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
 
         self.assertEqual(
             result.collect(),
-            [Row("Alice", 1, 31, 31, 2, "x", 3, 1 << 40, "y", None, None, 3)],
+            [
+                Row(
+                    "Alice",
+                    1,
+                    31,
+                    31,
+                    32,
+                    95.0,
+                    2,
+                    "x",
+                    3,
+                    1 << 40,
+                    "y",
+                    None,
+                    None,
+                    3,
+                )
+            ],
         )
 
 

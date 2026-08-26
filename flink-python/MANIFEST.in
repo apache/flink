@@ -25,5 +25,6 @@ include README.md
 include LICENSE
 include NOTICE
 include pyflink/README.txt
+include pyflink/py.typed
 recursive-include pyflink/fn_execution *.pxd
 recursive-include pyflink/fn_execution *.pyx

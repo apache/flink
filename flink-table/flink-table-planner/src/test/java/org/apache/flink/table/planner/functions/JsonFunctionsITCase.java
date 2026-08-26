@@ -31,6 +31,8 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
+import org.apache.flink.types.variant.Variant;
 
 import org.apache.commons.io.IOUtils;
 
@@ -62,6 +64,7 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.json;
@@ -117,10 +120,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "$",
                         "{\"a\":[true, false, null]}",
                         "{}",
-                        "[]")
+                        "[]",
+                        "{\"lax\": {\"strict\": 2}, \"strict value\": 1}")
                 .andDataTypes(
                         STRING(), STRING(), STRING(), STRING(), STRING(), STRING(), STRING(),
-                        STRING(), STRING(), STRING(), STRING())
+                        STRING(), STRING(), STRING(), STRING(), STRING())
                 // path exists but resolves to a JSON null literal -> scalar, length 1
                 .testResult(
                         $("f8").jsonLength("$.a[2]"),
@@ -310,19 +314,32 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         null,
                         INT().nullable())
 
-                // lax/strict path modes are not supported and are rejected at runtime
-                .testSqlRuntimeError(
+                // lax/strict path modes are not supported and are rejected at planning time
+                .testSqlValidationError(
                         "JSON_LENGTH(f0, 'strict $.type')",
-                        TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'strict $.type').")
-                .testSqlRuntimeError(
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'strict $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.")
+                .testSqlValidationError(
                         "JSON_LENGTH(f0, 'lax $.type')",
-                        TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'lax $.type').")
-                .testTableApiRuntimeError(
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'lax $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.")
+                .testTableApiValidationError(
                         $("f0").jsonLength("strict $.type"),
-                        TableRuntimeException.class,
-                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix (got: 'strict $.type').");
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'strict $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.")
+                .testResult(
+                        $("f11").jsonLength("lax"), "JSON_LENGTH(f11, 'lax')", 1, INT().nullable())
+                .testResult(
+                        $("f11").jsonLength("$[\"strict value\"]"),
+                        "JSON_LENGTH(f11, '$[\"strict value\"]')",
+                        1,
+                        INT().nullable());
     }
 
     private static TestSetSpec jsonExistsSpec() {
@@ -1034,7 +1051,31 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString(call("TRY_PARSE_JSON", $("f1"))),
                                 "JSON_STRING(TRY_PARSE_JSON(f1))",
                                 null,
-                                STRING()));
+                                STRING()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.PARSE_JSON,
+                                "VARIANT expression preceding another expression in a"
+                                        + " constant-folded projection")
+                        .onFieldsWithData("{\"a\": 1}")
+                        .andDataTypes(STRING().notNull())
+                        .withConstantFoldingEnabled()
+                        .testResult(
+                                resultSpec(
+                                        call("PARSE_JSON", $("f0")),
+                                        "PARSE_JSON(f0)",
+                                        getVariantForJson("{\"a\": 1}"),
+                                        VARIANT().notNull(),
+                                        VARIANT().notNull()),
+                                resultSpec(
+                                        jsonString(call("PARSE_JSON", $("f0"))),
+                                        "JSON_STRING(PARSE_JSON(f0))",
+                                        "{\"a\":1}",
+                                        STRING().notNull(),
+                                        STRING().notNull()))
+                        .testSqlResult(
+                                "PARSE_JSON(f0), JSON_STRING(PARSE_JSON(f0))",
+                                List.of(getVariantForJson("{\"a\": 1}"), "{\"a\":1}"),
+                                List.of(VARIANT().notNull(), STRING().notNull())));
     }
 
     private static List<TestSetSpec> jsonSpec() {
@@ -2238,6 +2279,14 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
 
         try {
             return IOUtils.toString(jsonResource, Charset.defaultCharset());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Variant getVariantForJson(String json) {
+        try {
+            return BinaryVariantInternalBuilder.parseJson(json, false);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

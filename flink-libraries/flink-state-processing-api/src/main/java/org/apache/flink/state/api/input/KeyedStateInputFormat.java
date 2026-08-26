@@ -24,7 +24,8 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.common.typeutils.CustomRestoreSerializerFactory;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.filter.SavepointKeyFilter;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
+import org.apache.flink.state.api.input.deserializer.MissingClassSerializerFactory;
 import org.apache.flink.state.api.input.operator.StateReaderOperator;
 import org.apache.flink.state.api.input.splits.KeyGroupRangeInputSplit;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
@@ -92,7 +94,7 @@ public class KeyedStateInputFormat<K, N, OUT>
 
     private transient BufferingCollector<OUT> out;
 
-    private transient CloseableIterator<Tuple2<K, N>> keysAndNamespaces;
+    private transient CloseableIterator<Tuple3<K, N, Integer>> keysAndNamespaces;
 
     /**
      * Creates an input format for reading partitioned state from an operator in a savepoint.
@@ -211,15 +213,10 @@ public class KeyedStateInputFormat<K, N, OUT>
         registry = new CloseableRegistry();
 
         RuntimeContext runtimeContext = getRuntimeContext();
-        ExecutionConfig executionConfig;
-        try {
-            executionConfig =
-                    serializedExecutionConfig.deserializeValue(
-                            runtimeContext.getUserCodeClassLoader());
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException("Could not deserialize ExecutionConfig.", e);
-        }
-        final StreamOperatorStateContext context =
+        ExecutionConfig executionConfig =
+                deserialize(serializedExecutionConfig, runtimeContext.getUserCodeClassLoader());
+
+        StreamOperatorContextBuilder builder =
                 new StreamOperatorContextBuilder(
                                 runtimeContext,
                                 configuration,
@@ -229,19 +226,29 @@ public class KeyedStateInputFormat<K, N, OUT>
                                 stateBackend,
                                 executionConfig)
                         .withMaxParallelism(split.getNumKeyGroups())
-                        .withKey(operator, runtimeContext.createSerializer(operator.getKeyType()))
-                        .build(LOG);
+                        .withKey(operator, runtimeContext.createSerializer(operator.getKeyType()));
 
-        AbstractKeyedStateBackend<K> keyedStateBackend =
-                (AbstractKeyedStateBackend<K>) context.keyedStateBackend();
+        // Deserialize any POJO/Avro state whose class is missing from the classpath into
+        // RowData/GenericRecord instead of failing the restore. PojoSerializerSnapshot and
+        // AvroSerializerSnapshot only consult this factory once they've already determined that the
+        // class they need is genuinely missing, so registering it unconditionally is safe and has
+        // no effect on states whose classes are present.
+        CustomRestoreSerializerFactory.set(MissingClassSerializerFactory::create);
 
-        final DefaultKeyedStateStore keyedStateStore =
-                new DefaultKeyedStateStore(keyedStateBackend, runtimeContext::createSerializer);
-        SavepointRuntimeContext ctx = new SavepointRuntimeContext(runtimeContext, keyedStateStore);
-
-        InternalTimeServiceManager<K> timeServiceManager =
-                (InternalTimeServiceManager<K>) context.internalTimerServiceManager();
         try {
+            final StreamOperatorStateContext context = builder.build(LOG);
+
+            AbstractKeyedStateBackend<K> keyedStateBackend =
+                    (AbstractKeyedStateBackend<K>) context.keyedStateBackend();
+
+            final DefaultKeyedStateStore keyedStateStore =
+                    new DefaultKeyedStateStore(keyedStateBackend, runtimeContext::createSerializer);
+            SavepointRuntimeContext ctx =
+                    new SavepointRuntimeContext(runtimeContext, keyedStateStore);
+
+            InternalTimeServiceManager<K> timeServiceManager =
+                    (InternalTimeServiceManager<K>) context.internalTimerServiceManager();
+
             operator.setup(
                     runtimeContext::createSerializer, keyedStateBackend, timeServiceManager, ctx);
             operator.open();
@@ -280,8 +287,8 @@ public class KeyedStateInputFormat<K, N, OUT>
             return out.next();
         }
 
-        final Tuple2<K, N> keyAndNamespace = keysAndNamespaces.next();
-        operator.setCurrentKey(keyAndNamespace.f0);
+        final Tuple3<K, N, Integer> keyAndNamespace = keysAndNamespaces.next();
+        operator.setCurrentKeyAndKeyGroup(keyAndNamespace.f0, keyAndNamespace.f2);
 
         try {
             operator.processElement(keyAndNamespace.f0, keyAndNamespace.f1, out);
@@ -324,5 +331,15 @@ public class KeyedStateInputFormat<K, N, OUT>
 
         keyGroups.sort(Comparator.comparing(KeyGroupRange::getStartKeyGroup));
         return keyGroups;
+    }
+
+    static ExecutionConfig deserialize(
+            SerializedValue<ExecutionConfig> serializedExecutionConfig, ClassLoader classLoader)
+            throws IOException {
+        try {
+            return serializedExecutionConfig.deserializeValue(classLoader);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException("Could not deserialize ExecutionConfig.", e);
+        }
     }
 }

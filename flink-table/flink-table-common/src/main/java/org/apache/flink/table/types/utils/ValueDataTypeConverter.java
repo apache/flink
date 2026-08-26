@@ -92,7 +92,9 @@ public final class ValueDataTypeConverter {
             return convertToArrayType((Object[]) value)
                     .map(dt -> dt.notNull().bridgedTo(value.getClass()));
         } else if (value instanceof Variant) {
-            convertedDataType = DataTypes.VARIANT();
+            // BinaryVariant is internal, so the conversion class is the Variant interface rather
+            // than the runtime class of the value.
+            return Optional.of(DataTypes.VARIANT().notNull());
         } else if (value instanceof RoaringBitmapData) {
             convertedDataType = DataTypes.BITMAP();
         }

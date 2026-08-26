@@ -27,5 +27,6 @@ This page gives an overview of all public PyFlink DataFrame APIs.
 
     dataframe
     creation
+    io
     datatype
     environment

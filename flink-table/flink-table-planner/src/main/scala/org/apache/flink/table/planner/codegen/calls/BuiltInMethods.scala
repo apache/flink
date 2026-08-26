@@ -497,7 +497,8 @@ object BuiltInMethods {
     classOf[SqlJsonUtils],
     "jsonLength",
     classOf[SqlJsonUtils.JsonValueContext],
-    classOf[String])
+    classOf[String],
+    classOf[Boolean])
 
   val JSON_QUERY = Types.lookupMethod(
     classOf[SqlJsonUtils],

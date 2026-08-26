@@ -407,5 +407,22 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
 
             return intermediateResult.getFinalResult();
         }
+
+        /** Returns the logical types stored in this snapshot. */
+        @Internal
+        public LogicalType[] getTypes() {
+            return types;
+        }
+
+        /**
+         * Returns the field names stored in this snapshot, in the same order as {@link
+         * #getTypes()}, or {@code null} if the originating serializer was built from a bare {@link
+         * LogicalType} array or the snapshot predates field name tracking.
+         */
+        @Internal
+        @Nullable
+        public String[] getFieldNames() {
+            return fieldNames;
+        }
     }
 }

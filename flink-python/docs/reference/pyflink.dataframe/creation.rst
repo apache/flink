@@ -30,6 +30,16 @@ Example::
     ...     {"id": 2, "name": "Bob"},
     ... ])
     >>> users = pf.from_dict({"id": [1, 2], "name": ["Alice", "Bob"]})
+    >>> import pandas as pd
+    >>> import pyarrow as pa
+    >>> pandas_users = pf.from_pandas(
+    ...     pd.DataFrame({"id": [1, 2], "name": ["Alice", "Bob"]})
+    ... )
+    >>> arrow_users = pf.from_arrow(
+    ...     pa.table({"id": [1, 2], "name": ["Alice", "Bob"]})
+    ... )
+    >>> table_users = pf.from_table(users.to_table())
+    >>> identifiers = pf.range(5)
 
 .. currentmodule:: pyflink.dataframe
 
@@ -38,3 +48,7 @@ Example::
 
     from_records
     from_dict
+    from_pandas
+    from_arrow
+    from_table
+    range

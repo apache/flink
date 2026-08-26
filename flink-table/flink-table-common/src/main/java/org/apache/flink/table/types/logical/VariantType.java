@@ -19,7 +19,6 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 
 import java.util.Collections;
@@ -40,7 +39,7 @@ import java.util.Set;
 public final class VariantType extends LogicalType {
 
     private static final Set<String> INPUT_OUTPUT_CONVERSION =
-            conversionSet(Variant.class.getName(), BinaryVariant.class.getName());
+            conversionSet(Variant.class.getName());
 
     public VariantType(boolean isNullable) {
         super(isNullable, LogicalTypeRoot.VARIANT);

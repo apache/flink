@@ -1131,16 +1131,19 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      * when the upsert key has columns outside sink pk. This differs from batch job's unique key
      * inference.
      *
-     * <p>A sink without a primary key is satisfied whenever the input carries any upsert key.
+     * <p>A sink without a primary key is satisfied whenever the input carries a real (non-empty)
+     * upsert key; an empty candidate ("at most one row") never counts, even alongside a real one.
      */
     private def canUpsertKeysWithImmutableColsSatisfyPk(sink: StreamPhysicalSink): Boolean = {
       val sinkDefinedPks = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
       val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
       val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
       if (sinkDefinedPks.isEmpty) {
-        // A keyless sink cannot apply UPDATE_AFTER in place, so it can only accept upsert when the
-        // input itself carries an upsert key; otherwise fall back to beforeAndAfter.
-        return changeLogUpsertKeys != null && !changeLogUpsertKeys.isEmpty
+        // A keyless sink can only stay upsert when the input has a real, column-based upsert
+        // key. An empty candidate means "at most one row" (e.g. a global aggregate), not columns
+        // to match on - UpsertKeyUtil.getSmallestKey would otherwise prefer it over a real one.
+        return changeLogUpsertKeys != null && changeLogUpsertKeys.nonEmpty &&
+          !changeLogUpsertKeys.exists(_.isEmpty)
       }
       val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
       // if upsert key is null, pk cannot be satisfied, should fall back to beforeAndAfter

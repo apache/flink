@@ -67,6 +67,15 @@ public final class InMemoryNativeS3Operations extends NativeS3ObjectOperations {
     /** uploadId → partNumber → uploaded bytes for in-flight MPUs. */
     public final Map<String, Map<Integer, byte[]>> openMultipartUploads = new HashMap<>();
 
+    /** When {@code true}, {@link #uploadPart} throws to simulate a part-upload failure. */
+    public boolean failUploadPart = false;
+
+    /** When {@code true}, {@link #abortMultiPartUpload} throws to simulate an abort failure. */
+    public boolean failAbortMultiPartUpload = false;
+
+    /** Number of times {@link #abortMultiPartUpload} was invoked, including failed attempts. */
+    public int abortAttempts = 0;
+
     private final String bucketName;
     private final AtomicInteger uploadIdSeq = new AtomicInteger();
     private final AtomicInteger putObjectSeq = new AtomicInteger();
@@ -91,6 +100,9 @@ public final class InMemoryNativeS3Operations extends NativeS3ObjectOperations {
     public UploadPartResult uploadPart(
             String key, String uploadId, int partNumber, File file, long length)
             throws IOException {
+        if (failUploadPart) {
+            throw new IOException("injected uploadPart failure for uploadId: " + uploadId);
+        }
         Map<Integer, byte[]> parts = openMultipartUploads.get(uploadId);
         if (parts == null) {
             throw new IOException("unknown uploadId: " + uploadId);
@@ -154,7 +166,11 @@ public final class InMemoryNativeS3Operations extends NativeS3ObjectOperations {
     }
 
     @Override
-    public void abortMultiPartUpload(String key, String uploadId) {
+    public void abortMultiPartUpload(String key, String uploadId) throws IOException {
+        abortAttempts++;
+        if (failAbortMultiPartUpload) {
+            throw new IOException("injected abort failure for uploadId: " + uploadId);
+        }
         openMultipartUploads.remove(uploadId);
     }
 

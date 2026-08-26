@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.s3native.writer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3native.writer.NativeS3Recoverable.PartETag;
@@ -26,7 +27,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.BufferedOutputStream;
@@ -96,7 +96,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             long minPartSize,
             List<PartETag> existingParts,
             long numBytesInParts,
-            @Nullable File incompleteTailFile)
+            File incompleteTailFile)
             throws IOException {
         this.s3AccessHelper = s3AccessHelper;
         this.key = key;
@@ -198,8 +198,8 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         currentOutputStream.close();
 
         // Do not delete the temp file if uploadPart fails: propagate the original exception
-        // unmasked and let close() perform cleanup. nextPartNumber is only advanced on success so a
-        // failed attempt does not leave a gap in the part sequence.
+        // unmasked and let the cleanup path (close() or the closeForCommit() failure handler)
+        // delete it and abort the upload. nextPartNumber is only advanced on success.
         NativeS3ObjectOperations.UploadPartResult result =
                 s3AccessHelper.uploadPart(
                         key, uploadId, nextPartNumber, currentTempFile, currentPartSize);
@@ -219,17 +219,30 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 throw new IOException("Stream is already closed");
             }
 
-            currentOutputStream.close();
+            final NativeS3Recoverable recoverable;
+            try {
+                currentOutputStream.close();
 
-            if (currentPartSize > 0) {
-                uploadCurrentPart();
-            } else {
-                Files.delete(currentTempFile.toPath());
+                if (currentPartSize > 0) {
+                    uploadCurrentPart();
+                } else {
+                    Files.delete(currentTempFile.toPath());
+                }
+
+                recoverable =
+                        new NativeS3Recoverable(
+                                key, uploadId, new ArrayList<>(completedParts), numBytesInParts);
+            } catch (IOException e) {
+                // The commit failed after the multipart upload had been created and parts may
+                // already have been uploaded. Abort it so it does not leak as an orphan upload.
+                closed = true;
+                try {
+                    tryAbortUploadAndReleaseResources();
+                } catch (IOException cleanup) {
+                    e.addSuppressed(cleanup);
+                }
+                throw e;
             }
-
-            NativeS3Recoverable recoverable =
-                    new NativeS3Recoverable(
-                            key, uploadId, new ArrayList<>(completedParts), numBytesInParts);
 
             closed = true;
             return new NativeS3Committer(s3AccessHelper, recoverable);
@@ -272,39 +285,49 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         try {
             if (!closed) {
                 closed = true;
-                IOException cleanupException = null;
-                if (currentOutputStream != null) {
-                    try {
-                        currentOutputStream.close();
-                    } catch (IOException e) {
-                        cleanupException = ExceptionUtils.firstOrSuppressed(e, cleanupException);
-                    }
-                }
-                if (currentTempFile != null && currentTempFile.exists()) {
-                    try {
-                        Files.delete(currentTempFile.toPath());
-                    } catch (IOException e) {
-                        cleanupException = ExceptionUtils.firstOrSuppressed(e, cleanupException);
-                    }
-                }
-
-                try {
-                    s3AccessHelper.abortMultiPartUpload(key, uploadId);
-                } catch (IOException e) {
-                    LOG.warn(
-                            "Multipart upload failed (key={}, uploadId={}). "
-                                    + "S3 lifecycle rules should eventually clean up the incomplete upload.",
-                            key,
-                            uploadId,
-                            e);
-                }
-                if (cleanupException != null) {
-                    throw cleanupException;
-                }
+                tryAbortUploadAndReleaseResources();
             }
         } finally {
             unlock();
         }
+    }
+
+    /** Aborts the multipart upload and releases local resources on the best effort basis. */
+    private void tryAbortUploadAndReleaseResources() throws IOException {
+        IOException collected = null;
+        if (currentOutputStream != null) {
+            try {
+                currentOutputStream.close();
+            } catch (IOException e) {
+                collected = ExceptionUtils.firstOrSuppressed(e, collected);
+            }
+        }
+        if (currentTempFile != null && currentTempFile.exists()) {
+            try {
+                deleteTempFile(currentTempFile);
+            } catch (IOException e) {
+                collected = ExceptionUtils.firstOrSuppressed(e, collected);
+            }
+        }
+        try {
+            s3AccessHelper.abortMultiPartUpload(key, uploadId);
+        } catch (IOException e) {
+            LOG.warn(
+                    "Failed to abort multipart upload (key={}, uploadId={}); it may be left as an "
+                            + "orphan upload in S3. Propagating the failure to the caller.",
+                    key,
+                    uploadId,
+                    e);
+            collected = ExceptionUtils.firstOrSuppressed(e, collected);
+        }
+        if (collected != null) {
+            throw collected;
+        }
+    }
+
+    @VisibleForTesting
+    protected void deleteTempFile(File file) throws IOException {
+        Files.delete(file.toPath());
     }
 
     private void lock() throws IOException {
