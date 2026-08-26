@@ -58,6 +58,9 @@ Transformations
     DataFrame.rename
     DataFrame.filter
     DataFrame.where
+    DataFrame.drop_duplicates
+    DataFrame.distinct
+    DataFrame.unique
     DataFrame.__getitem__
 
 Aggregations

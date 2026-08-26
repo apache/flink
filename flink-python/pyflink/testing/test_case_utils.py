@@ -29,7 +29,6 @@ import unittest
 from abc import abstractmethod
 from decimal import Decimal
 from functools import wraps
-
 from py4j.java_gateway import JavaObject
 
 from pyflink.common import JobExecutionResult, Time, Instant, Row
@@ -182,6 +181,27 @@ class PyFlinkDataFrameUTTestCase(PyFlinkUTTestCase):
                 resolved_schema.get_column_data_types(),
                 expected_column_data_types,
             )
+
+    def assert_dataframe_sql(self, dataframe, expected_sql, invoke):
+        environment = dataframe._table._t_env
+        original = environment.sql_query
+        captured = {}
+
+        def capture(query):
+            captured["sql"] = query
+            return original(query)
+
+        environment.sql_query = capture
+        try:
+            invoke()
+        finally:
+            del environment.sql_query
+
+        if "sql" in captured:
+            actual_sql = re.sub(r"UnnamedTable\$\d+", "SRC", captured["sql"])
+        else:
+            actual_sql = None
+        self.assertEqual(actual_sql, expected_sql)
 
 
 class PyFlinkStreamTableTestCase(PyFlinkITTestCase):
