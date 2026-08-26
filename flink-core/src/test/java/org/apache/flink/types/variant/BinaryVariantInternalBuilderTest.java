@@ -138,9 +138,11 @@ class BinaryVariantInternalBuilderTest {
     @ValueSource(strings = {"NaN", "Infinity", "-Infinity", "1e400", "-1e400"})
     void testParseJsonRejectsNonFiniteNumbers(final String nonFiniteNumber) {
         // NaN and the infinities are not valid JSON; 1e400 is valid JSON but overflows the double
-        // range. Both must be rejected so PARSE_JSON errors and TRY_PARSE_JSON returns NULL.
+        // range. Both must be rejected so PARSE_JSON errors and TRY_PARSE_JSON returns NULL. The
+        // error keeps the JSON location, whether it comes from Jackson or from the builder.
         assertThatThrownBy(() -> BinaryVariantInternalBuilder.parseJson(nonFiniteNumber, false))
-                .isInstanceOf(IOException.class);
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("line:");
     }
 
     @Test
