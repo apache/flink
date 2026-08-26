@@ -69,7 +69,20 @@ public class StatusWatermarkValve {
     /** The last watermark status emitted from the valve. */
     private WatermarkStatus lastOutputWatermarkStatus;
 
-    /** A heap-based priority queue to help find the minimum watermark. */
+    /**
+     * A heap-based priority queue to help find the minimum watermark. It contains exactly the
+     * watermark-aligned subpartitions, for which the following invariants hold:
+     *
+     * <ul>
+     *   <li>only active subpartitions can be aligned
+     *   <li>the watermark of an aligned subpartition is never smaller than {@link
+     *       #lastOutputWatermark}
+     *   <li>whenever the queue is non-empty, its minimum watermark equals {@link
+     *       #lastOutputWatermark}; this is maintained by re-deriving the min watermark via {@link
+     *       #findAndOutputNewMinWatermarkAcrossAlignedSubpartitions} after every change to the
+     *       aligned set or to an aligned subpartition's watermark
+     * </ul>
+     */
     private final HeapPriorityQueue<SubpartitionStatus> alignedSubpartitionStatuses;
 
     /** Whether there are multiple subpartitions transmitted through the same input channel. */
@@ -231,10 +244,10 @@ public class StatusWatermarkValve {
 
                 lastOutputWatermarkStatus = WatermarkStatus.IDLE;
                 output.emitWatermarkStatus(lastOutputWatermarkStatus);
-            } else if (subpartitionStatus.watermark == lastOutputWatermark) {
-                // if the watermark of the subpartition that just became idle equals the last output
-                // watermark (the previous overall min watermark), we may be able to find a new
-                // min watermark from the remaining aligned subpartitions
+            } else {
+                // the min watermark across the remaining aligned subpartitions may be larger than
+                // the last output watermark, now that the subpartition that just became idle is no
+                // longer part of the aligned set
                 findAndOutputNewMinWatermarkAcrossAlignedSubpartitions(output);
             }
         } else if (watermarkStatus.isActive() && subpartitionStatus.watermarkStatus.isIdle()) {
@@ -242,21 +255,26 @@ public class StatusWatermarkValve {
             subpartitionStatus.watermarkStatus = WatermarkStatus.ACTIVE;
 
             // if the last watermark of the subpartition, before it was marked idle, is still
-            // larger than
-            // the overall last output watermark of the valve, then we can set the subpartition to
-            // be
-            // aligned already.
+            // larger than the overall last output watermark of the valve, then we can set the
+            // subpartition to be aligned already.
             if (subpartitionStatus.watermark >= lastOutputWatermark) {
                 markWatermarkAligned(subpartitionStatus);
             }
 
             // if the valve was previously marked to be idle, mark it as active and output an active
-            // stream
-            // status because at least one of the subpartitions is now active
+            // stream status because at least one of the subpartitions is now active
             if (lastOutputWatermarkStatus.isIdle()) {
                 lastOutputWatermarkStatus = WatermarkStatus.ACTIVE;
                 output.emitWatermarkStatus(lastOutputWatermarkStatus);
             }
+
+            // the subpartition that just realigned may hold the new min watermark of the aligned
+            // set (e.g. if it is the only aligned subpartition), in which case its watermark must
+            // be emitted now; otherwise it would be stalled until an even larger watermark arrives
+            // on the subpartition. This must happen after the ACTIVE status was emitted, so that
+            // downstream inputs do not drop the watermark while they still consider this input
+            // idle.
+            findAndOutputNewMinWatermarkAcrossAlignedSubpartitions(output);
         }
     }
 
