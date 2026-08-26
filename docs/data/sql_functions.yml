@@ -932,7 +932,7 @@ collection:
       NULL. If the search key is NULL, the function returns TRUE when the map contains a NULL key.
       The given key is cast implicitly to the map's key type where Flink's implicit casting rules
       allow it; otherwise the call fails validation.
-      eg.
+      e.g.
         -- TRUE
         MAP_CONTAINS_KEY(MAP['a', 1, 'b', 2], 'a')
 
