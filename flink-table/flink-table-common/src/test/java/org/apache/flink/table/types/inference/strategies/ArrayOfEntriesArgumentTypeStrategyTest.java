@@ -86,14 +86,14 @@ class ArrayOfEntriesArgumentTypeStrategyTest extends InputTypeStrategiesTestBase
                 TestSpec.forStrategy(
                                 "Non-array argument is rejected", MAP_FROM_ENTRIES_INPUT_STRATEGY)
                         .calledWithArgumentTypes(DataTypes.STRING())
-                        .expectErrorMessage("The input argument should be ARRAY<ROW<key, value>>"),
+                        .expectErrorMessage("The 'input' argument must be ARRAY<ROW<key, value>>"),
                 TestSpec.forStrategy(
                                 "Array of non-row elements is rejected",
                                 MAP_FROM_ENTRIES_INPUT_STRATEGY)
                         .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.INT()))
                         .expectErrorMessage(
-                                "The input argument should be ARRAY<ROW<key, value>>, but the array "
-                                        + "element type is 'INT'. The element must be a ROW with "
+                                "The 'input' argument must be ARRAY<ROW<key, value>>, but the array "
+                                        + "element type was 'INT'. The element must be a ROW with "
                                         + "exactly two fields."),
                 TestSpec.forStrategy(
                                 "Array of rows without exactly two fields is rejected",

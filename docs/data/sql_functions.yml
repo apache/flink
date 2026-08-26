@@ -936,7 +936,7 @@ collection:
 
       If there are duplicate keys, the value of the last entry with that key wins; NULL keys are
       treated as equal and collapse into a single entry. If the array itself or any of its entries
-      is null, null is returned.
+      is NULL, NULL is returned.
 
       ```sql
       -- Returns {1=one, 2=two}
@@ -945,7 +945,7 @@ collection:
       -- Returns {1=uno, 2=two}
       MAP_FROM_ENTRIES(ARRAY[ROW(1, 'one'), ROW(2, 'two'), ROW(1, 'uno')])
 
-      -- Returns {null=b}
+      -- Returns {NULL=b}
       MAP_FROM_ENTRIES(ARRAY[ROW(CAST(NULL AS INT), 'a'), ROW(CAST(NULL AS INT), 'b')])
 
       -- Returns NULL

@@ -57,8 +57,8 @@ public final class ArrayOfEntriesArgumentTypeStrategy implements ArgumentTypeStr
                 || LogicalTypeChecks.getFieldCount(elementType) != 2) {
             return callContext.fail(
                     throwOnFailure,
-                    "The input argument should be ARRAY<ROW<key, value>>, but the array element "
-                            + "type is '%s'. The element must be a ROW with exactly two fields.",
+                    "The 'input' argument must be ARRAY<ROW<key, value>>, but the array element "
+                            + "type was '%s'. The element must be a ROW with exactly two fields.",
                     elementType.asSummaryString());
         }
 
