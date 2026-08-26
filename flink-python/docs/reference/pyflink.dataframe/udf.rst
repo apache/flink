@@ -16,18 +16,33 @@
     limitations under the License.
    ################################################################################
 
-==================
-PyFlink DataFrame
-==================
+=============================
+User-Defined Scalar Functions
+=============================
 
-This page gives an overview of all public PyFlink DataFrame APIs.
+Use :func:`pyflink.dataframe.udf` to apply Python code to one or more DataFrame
+columns. A scalar UDF produces one logical output column and can be used in
+:meth:`~pyflink.dataframe.DataFrame.with_column`,
+:meth:`~pyflink.dataframe.DataFrame.with_columns`, and
+:meth:`~pyflink.dataframe.DataFrame.select`.
 
-.. toctree::
-    :maxdepth: 1
+DataFrame scalar UDFs support synchronous, asynchronous, and pandas-vectorized
+callables. See :func:`pyflink.dataframe.udf` for declaration forms, type
+inference, execution modes, and examples.
 
-    dataframe
+API Reference
+=============
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
     udf
-    creation
-    io
-    datatype
-    environment
+
+.. currentmodule:: pyflink.dataframe.udf
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrameUDFWrapper

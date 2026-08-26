@@ -54,6 +54,7 @@ from pyflink.dataframe.context import (
 from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit
 from pyflink.dataframe.datatype import DataType
 from pyflink.dataframe.io import read_generic
+from pyflink.dataframe.udf import udf
 
 __all__ = [
     "DataFrame",
@@ -61,6 +62,7 @@ __all__ = [
     "DataType",
     "col",
     "lit",
+    "udf",
     "from_arrow",
     "from_dict",
     "from_pandas",
