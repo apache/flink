@@ -55,7 +55,7 @@ be subject to recovery in highly-available Clusters.
 
 #### Channel
 
-Also *Stream Partitions*.
+Also called *Stream Partitions*.
 
 A Channel is the physical link between a [Sub-Task](#sub-task) and a downstream Sub-Task, and the
 edge of a [Physical Graph](#physical-graph). Parts of the documentation refer to Channels as *Stream
@@ -87,7 +87,7 @@ Storage](#checkpoint-storage).
 
 A Checkpoint contains the [State](#managed-state) of all stateful [Operators](#operator). This also
 includes source positions (for example Kafka partition offsets), assignment of [Source Splits](#source-split)
-to [Sub-Tasks](#sub-task),  and Sink transaction metadata. Async I/O in-flight data and buffered data
+to [Sub-Tasks](#sub-task), and Sink transaction metadata. Async I/O in-flight data and buffered data
 of some asynchronous Sink connectors are also part of the [Operator](#operator) [State](#managed-state)
 and are saved in the Checkpoint.
 When [Unaligned Checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#unaligned-checkpointing)
@@ -130,15 +130,17 @@ A distributed system consisting of (typically) one [JobManager](#flink-jobmanage
 [Flink TaskManager](#flink-taskmanager) processes. Each of these processes runs in a separate JVM,
 usually on a separate container or machine, although this is not a requirement.
 
+See also [Flink Architecture: Anatomy of a Flink Cluster]({{< ref "docs/concepts/flink-architecture" >}}#anatomy-of-a-flink-cluster).
+
 #### Event
 
-An Event is a statement about a change of the state of the domain modelled by the
+An Event is a statement about a change of the state of the domain modeled by the
 Application. Events can be input and/or output of a stream or batch processing Application.
 Events are special types of records.
 
 #### Execution Graph
 
-Also *ExecutionGraph*.
+Also called *ExecutionGraph*.
 
 See [Physical Graph](#physical-graph)
 
@@ -162,7 +164,7 @@ provides detailed archives for analysis via Web UI or REST API after the Cluster
 #### Instance
 
 The term *instance* is used to describe a specific instance of a specific type (usually
-[Operator](#operator) or [Function](#function)) during runtime. As Apache Flink is mostly written in
+[Operator](#operator) or [Function](#function)) at runtime. As Apache Flink is mostly written in
 Java, this corresponds to the definition of *Instance* or *Object* in Java. In the context of Apache
 Flink, the term *parallel instance* is also frequently used to emphasize that multiple instances of
 the same [Operator](#operator) or [Function](#function) type are running in parallel.
@@ -189,24 +191,22 @@ This deployment mode has been deprecated since Flink 1.15.
 
 #### Job Graph
 
-Also *JobGraph*.
+Also called *JobGraph* or *Optimized Dataflow*.
 
 A Job Graph is the optimized representation of a [Logical Graph](#logical-graph), and the
 representation that a [Flink Application](#flink-application) submits to the [Flink
 Cluster](#flink-cluster).
 
-Producing the Job Graph is mainly a matter of chaining: consecutive [Operators](#operator) that are
-not separated by a repartitioning are merged into a single [Task](#task). The nodes of a Job Graph
-are therefore [Tasks](#task), each implementing one Operator or one [Operator
-Chain](#operator-chain).
+Producing the Job Graph is mainly a matter of chaining [Operators](#operator): consecutive 
+[Operators](#operator) that are not separated by a repartitioning are merged into a single 
+[Task](#task). The nodes of a Job Graph are therefore [Tasks](#task), each implementing one Operator 
+or one [Operator Chain](#operator-chain).
 
 The Job Graph is translated into a [Physical Graph](#physical-graph) for execution.
 
-Job Graph is sometimes referred to as *Optimized Dataflow*.
-
 #### Flink JobManager
 
-Also *Job Manager*.
+Also called *Job Manager*.
 
 The JobManager is the orchestrator of a [Flink Cluster](#flink-cluster). It does not process any
 data itself: it translates the submitted [Job Graph](#job-graph) into a [Physical
@@ -214,6 +214,8 @@ Graph](#physical-graph), schedules the resulting [Sub-Tasks](#sub-task) on the
 [TaskManagers](#flink-taskmanager), and coordinates [Checkpoints](#checkpoint) and
 [Savepoints](#savepoint). It contains three distinct components: Flink Resource Manager, Flink
 Dispatcher and one [Flink JobMaster](#flink-jobmaster) per running [Flink Job](#flink-job).
+
+See also [Flink Architecture: JobManager]({{< ref "docs/concepts/flink-architecture" >}}#jobmanager).
 
 #### Flink JobMaster
 
@@ -246,7 +248,7 @@ distributed across all [Sub-Tasks](#sub-task).
 #### Logical Graph
 
 A Logical Graph is a Directed Acyclic Graph (DAG) where the nodes are [Operators](#operator)
-and the edges define input/output-relationships of the Operators and correspond
+and the edges define input/output relationships of the Operators and correspond
 to data streams or data sets. A Logical Graph is created by submitting Jobs
 from a [Flink Application](#flink-application). For the Table API and SQL, the Logical Graph is the
 result of parsing and optimizing the [Table Program](#table-program) in the table planner.
@@ -263,7 +265,7 @@ For Managed State, Apache Flink takes care of persistence and rescaling, among o
 
 #### Operator
 
-Node of a [Logical Graph](#logical-graph). An Operator performs a certain operation, such as a join,
+A node of a [Logical Graph](#logical-graph). An Operator performs a certain operation, such as a join,
 an aggregation or a stateless transformation, which is usually executed by a [Function](#function).
 
 Sources and Sinks are special Operators for data ingestion and data egress: a Logical Graph always
@@ -283,6 +285,8 @@ the handover between them.
 An Operator Chain becomes a single [Task](#task) in the [Job Graph](#job-graph). Chains are
 recognizable in graphical representations of the Job Graph, such as the Flink Web UI, because the
 name of the Task is the composition of the names of the chained Operators.
+
+See also [Flink Architecture: Tasks and Operator Chains]({{< ref "docs/concepts/flink-architecture" >}}#tasks-and-operator-chains).
 
 #### Parallelism
 
@@ -305,7 +309,7 @@ often called repartitioning.
 
 *Logical Partitioning* is how records and State are divided in the [Logical
 Graph](#logical-graph) and the [Job Graph](#job-graph), in order to implement the semantics of an
-operation. A `JOIN` or `GROUP BY` in SQL, or a `keyBy()` in DataStream API, for example, requires the 
+operation. A `JOIN` or `GROUP BY` in SQL, or a `keyBy()` in the DataStream API, for example, requires the 
 data to be logically partitioned by a key, and the number of Logical Partitions is then the number of
 distinct keys. Keyed State is isolated per Logical Partition: a [Function](#function) can only access
 the State of the key of the record or timer it is currently processing. Operator State and Broadcast
@@ -338,7 +342,7 @@ Records are the constituent elements of a data set or data stream. [Operators](#
 #### (Runtime) Execution Mode
 
 DataStream API programs can be executed in one of two Execution Modes: `BATCH`
-or `STREAMING`. See [Execution Mode]({{< ref "/docs/dev/datastream/execution_mode" >}}) for more details.
+or `STREAMING`. See [Execution Mode]({{< ref "docs/dev/datastream/execution_mode" >}}) for more details.
 
 In `STREAMING` mode, Flink processes unbounded data as it arrives, uses [Watermarks](#watermark) to implement
 event-time semantics, keeps State in the [State Backend](#state-backend) and relies on
@@ -351,7 +355,7 @@ by key through sorting, so that Flink only has to hold the State of one key at a
 local disk when memory is insufficient.
 
 Note that a bounded data set can also be processed in `STREAMING` mode, for example by setting
-`scan.bounded.mode` on the Kafka Source (SQL and Table API) or `.setBounded()` in DataStream API.
+`scan.bounded.mode` on the Kafka Source (SQL and Table API) or `.setBounded()` in the DataStream API.
 
 #### Savepoint
 
@@ -378,7 +382,7 @@ Formerly, a Flink Session Cluster was also known as a Flink Cluster in *session 
 
 #### Source Split
 
-Also *Split*.
+Also called *Split*.
 
 A Source Split is the unit of work a [Source Operator](#operator) distributes across its parallel
 [Sub-Tasks](#sub-task): the smallest portion of the input that one Source Sub-Task reads
@@ -428,7 +432,7 @@ See [Logical Graph](#logical-graph)
 
 #### Sub-Task
 
-Also *Subtask*.
+Also called *Subtask*.
 
 A Sub-Task is a node of the [Physical Graph](#physical-graph) and the smallest unit of execution in
 the Flink runtime, distributed across the [Flink Cluster](#flink-cluster) to process data. Each
@@ -462,9 +466,11 @@ representation of a Job in the Flink Web UI.
 At runtime, each Task is executed as one [Sub-Task](#sub-task) per [Physical
 Partition](#partition) of the data.
 
+See also [Flink Architecture: Tasks and Operator Chains]({{< ref "docs/concepts/flink-architecture" >}}#tasks-and-operator-chains).
+
 #### Flink TaskManager
 
-Also *Task Manager*.
+Also called *Task Manager*.
 
 TaskManagers are the worker processes of a [Flink Cluster](#flink-cluster), and the processes that do
 the actual data processing. [Sub-Tasks](#sub-task) are scheduled to TaskManagers for execution, and
@@ -475,9 +481,11 @@ Each TaskManager manages its own local [State Backend](#state-backend), and read
 [Checkpoint Storage](#checkpoint-storage) independently during [Checkpoints](#checkpoint) and
 [Savepoints](#savepoint).
 
+See also [Flink Architecture: Anatomy of a Flink Cluster]({{< ref "docs/concepts/flink-architecture" >}}#anatomy-of-a-flink-cluster).
+
 #### Transformation
 
-A Transformation is applied on one or more data streams or data sets and results in one or more
+A Transformation is applied to one or more data streams or data sets and results in one or more
 output data streams or data sets. A Transformation might change a data stream or data set on a
 per-record basis, but might also only change its Partitioning or perform an aggregation. While
 [Operators](#operator) and [Functions](#function) are the "physical" parts of Flink's API,
@@ -488,7 +496,7 @@ correspond to repartitioning between [Operators](#operator).
 #### UID
 
 A unique identifier of an [Operator](#operator), either provided by the user or determined from the
-structure of the Job. When the [Application](#flink-application) is submitted this is converted to
+structure of the Job. When the [Application](#flink-application) is submitted, this is converted to
 a [UID Hash](#uid-hash).
 
 #### UID Hash
