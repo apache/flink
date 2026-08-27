@@ -43,6 +43,7 @@ import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -149,6 +150,32 @@ public class ShowCreateUtil {
                 additionalSensitiveKeys);
     }
 
+    /**
+     * Package-private overload of the convenience {@code buildShowCreateMaterializedTableRow}
+     * accepting a {@link Clock}, for the same reason as above.
+     */
+    static String buildShowCreateMaterializedTableRow(
+            ResolvedCatalogMaterializedTable table,
+            ObjectIdentifier tableIdentifier,
+            boolean isTemporary,
+            boolean createOrAlter,
+            ZoneId timeZoneId,
+            SqlFactory sqlFactory,
+            List<String> additionalSensitiveKeys,
+            Clock clock) {
+        return buildShowCreateMaterializedTableRow(
+                table,
+                tableIdentifier,
+                isTemporary,
+                createOrAlter,
+                timeZoneId,
+                sqlFactory,
+                true,
+                true,
+                additionalSensitiveKeys,
+                clock);
+    }
+
     /** Show create materialized table statement only for materialized tables. */
     public static String buildShowCreateMaterializedTableRow(
             ResolvedCatalogMaterializedTable table,
@@ -160,6 +187,36 @@ public class ShowCreateUtil {
             boolean includeFreshness,
             boolean includeRefreshMode,
             List<String> additionalSensitiveKeys) {
+        return buildShowCreateMaterializedTableRow(
+                table,
+                tableIdentifier,
+                isTemporary,
+                createOrAlter,
+                timeZoneId,
+                sqlFactory,
+                includeFreshness,
+                includeRefreshMode,
+                additionalSensitiveKeys,
+                Clock.systemUTC());
+    }
+
+    /**
+     * Show create materialized table statement only for materialized tables.
+     *
+     * <p>Package-private overload accepting a {@link Clock} so tests can pin the "Evaluated to
+     * FROM_TIMESTAMP(...)" comment for FROM_NOW/RESUME_OR_FROM_NOW to a deterministic value.
+     */
+    static String buildShowCreateMaterializedTableRow(
+            ResolvedCatalogMaterializedTable table,
+            ObjectIdentifier tableIdentifier,
+            boolean isTemporary,
+            boolean createOrAlter,
+            ZoneId timeZoneId,
+            SqlFactory sqlFactory,
+            boolean includeFreshness,
+            boolean includeRefreshMode,
+            List<String> additionalSensitiveKeys,
+            Clock clock) {
         validateTableKind(table, tableIdentifier, TableKind.MATERIALIZED_TABLE);
         StringBuilder sb =
                 new StringBuilder()
@@ -184,7 +241,7 @@ public class ShowCreateUtil {
                 .ifPresent(partitionedBy -> sb.append(formatPartitionedBy(partitionedBy)));
         extractFormattedOptions(table.getOptions(), PRINT_INDENT, additionalSensitiveKeys)
                 .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
-        sb.append(extractStartMode(table, timeZoneId)).append("\n");
+        sb.append(extractStartMode(table, timeZoneId, clock)).append("\n");
         if (includeFreshness) {
             sb.append(extractFreshness(table)).append("\n");
         }
@@ -386,7 +443,7 @@ public class ShowCreateUtil {
     }
 
     static String extractStartMode(
-            ResolvedCatalogMaterializedTable materializedTable, ZoneId timeZoneId) {
+            ResolvedCatalogMaterializedTable materializedTable, ZoneId timeZoneId, Clock clock) {
         StringBuilder sb = new StringBuilder("START_MODE = ");
         StartMode startMode = materializedTable.getStartMode().get();
         switch (startMode.getKind()) {
@@ -414,7 +471,9 @@ public class ShowCreateUtil {
                         .append(" /* Evaluated to FROM_TIMESTAMP(TIMESTAMP '")
                         .append(
                                 getFormattedLocalDateTime(
-                                        LocalDateTime.now().plus(amount).toInstant(ZoneOffset.UTC),
+                                        LocalDateTime.now(clock.withZone(ZoneOffset.UTC))
+                                                .minus(amount)
+                                                .toInstant(ZoneOffset.UTC),
                                         ZoneOffset.UTC))
                         .append("') at execution */");
                 break;
