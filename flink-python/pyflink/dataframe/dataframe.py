@@ -23,6 +23,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Set,
     Tuple,
     TypeVar,
     Union,
@@ -464,6 +465,83 @@ class DataFrame:
 
         return DataFrame(self._table.select(*expressions))
 
+    @PublicEvolving()
+    def drop_duplicates(
+        self,
+        subset: Union[str, List[str]] = None,
+        *,
+        keep: str = "first",
+        order_by: Union[str, Expression, List[Union[str, Expression]]] = None,
+        nulls_first: Union[bool, List[bool]] = None,
+    ) -> "DataFrame":
+        """
+        Remove duplicate rows.
+
+        When ``subset`` is omitted, fully identical rows are dropped, equivalent to a whole-row
+        ``DISTINCT``. When ``subset`` is given, rows are deduplicated by those key columns, keeping
+        one row per key; ``order_by`` together with ``keep`` decides which row survives. When
+        ``order_by`` is omitted, processing time is used, so ``keep`` keeps the first or last row to
+        arrive.
+
+        :param subset: Column name or list of column names that define a duplicate. When omitted,
+            all columns are considered.
+        :param keep: ``"first"`` keeps the earliest row, ``"last"`` the latest, in ``order_by``
+            order. Ignored when ``subset`` is omitted.
+        :param order_by: Column name or expression (or a list of them) defining the order in which
+            ``keep`` selects the surviving row. When omitted, processing time is used.
+        :param nulls_first: Where NULLs rank in ``order_by``: a single boolean applied to every key,
+            or a list with one boolean per key. When omitted, the engine default applies. Requires
+            ``order_by``.
+        :return: A new DataFrame with duplicate rows removed.
+        :raises ValueError: If ``keep`` is not ``"first"`` or ``"last"``, if ``order_by`` or
+            ``nulls_first`` is combined with an omitted ``subset``, if ``nulls_first`` is given
+            without ``order_by`` or with a mismatched length, or if a named column does not exist.
+        :raises TypeError: If ``subset``, ``order_by`` or ``nulls_first`` has an unsupported type.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"id": 1, "ts": 1}, {"id": 1, "ts": 2}])
+            >>> unique_rows = df.drop_duplicates()
+            >>> latest_per_id = df.drop_duplicates("id", order_by="ts", keep="last")
+
+        .. versionadded:: 2.4.0
+        """
+        if keep not in ("first", "last"):
+            raise ValueError('keep must be "first" or "last"')
+
+        subset_keys = _normalize_subset(subset)
+        order_keys = _normalize_order_by(order_by)
+
+        if nulls_first is not None and order_keys is None:
+            raise ValueError("nulls_first requires order_by")
+        nulls = _normalize_nulls_first(
+            nulls_first, len(order_keys) if order_keys else 0
+        )
+
+        if subset_keys is None:
+            if order_keys is not None:
+                raise ValueError(
+                    "order_by requires subset; whole-row duplicates cannot be ordered"
+                )
+            return DataFrame(self._table.distinct())
+
+        columns = self._table.get_resolved_schema().get_column_names()
+        for name in subset_keys:
+            if name not in columns:
+                raise ValueError(
+                    "subset column '%s' does not exist, available columns: %s" % (name, columns)
+                )
+
+        return DataFrame(
+            _build_deduplication_query(
+                self._table, columns, subset_keys, order_keys, keep, nulls
+            )
+        )
+
+    distinct = drop_duplicates
+    unique = drop_duplicates
+
     # ======================== Aggregation ========================
 
     @PublicEvolving()
@@ -834,6 +912,132 @@ class GroupedDataFrame:
 
 
 # ======================== Internal Helpers ========================
+
+
+def _normalize_subset(subset: Union[str, List[str], None]) -> Optional[List[str]]:
+    if subset is None:
+        return None
+    if isinstance(subset, str):
+        return [subset]
+    if isinstance(subset, (list, tuple)):
+        if not subset:
+            raise ValueError("subset must not be empty")
+        for name in subset:
+            if not isinstance(name, str):
+                raise TypeError("subset must be a string or a list of strings")
+        return list(subset)
+    raise TypeError("subset must be a string or a list of strings")
+
+
+def _normalize_order_by(
+    order_by: Union[str, Expression, List[Union[str, Expression]], None],
+) -> Optional[List[Union[str, Expression]]]:
+    if order_by is None:
+        return None
+
+    values = order_by if isinstance(order_by, (list, tuple)) else [order_by]
+    keys: List[Union[str, Expression]] = []
+    for value in values:
+        if isinstance(value, (str, Expression)):
+            keys.append(value)
+        else:
+            raise TypeError(
+                "order_by must be a string, an expression, or a list or tuple of them"
+            )
+
+    if not keys:
+        raise ValueError("order_by must not be empty")
+
+    return keys
+
+
+def _normalize_nulls_first(
+    nulls_first: Union[bool, List[bool], None], order_len: int
+) -> Optional[List[bool]]:
+    if nulls_first is None:
+        return None
+
+    if isinstance(nulls_first, bool):
+        values = [nulls_first] * order_len
+    elif isinstance(nulls_first, (list, tuple)):
+        for value in nulls_first:
+            if not isinstance(value, bool):
+                raise TypeError("nulls_first must be a boolean or a list of booleans")
+        values = list(nulls_first)
+    else:
+        raise TypeError("nulls_first must be a boolean or a list of booleans")
+
+    if len(values) != order_len:
+        raise ValueError("nulls_first must have the same length as order_by")
+
+    return values
+
+
+def _build_deduplication_query(
+    table: Table,
+    columns: List[str],
+    subset_keys: List[str],
+    order_keys: Optional[List[Union[str, Expression]]],
+    keep: str,
+    nulls: Optional[List[bool]],
+) -> Table:
+    direction = "DESC" if keep == "last" else "ASC"
+    taken = set(columns)
+
+    if order_keys is None:
+        # Arrival order (processing time); keep decides its direction.
+        order_terms = ["PROCTIME() " + direction]
+    else:
+        order_terms = []
+        for index, key in enumerate(order_keys):
+            if isinstance(key, str):
+                if key not in columns:
+                    raise ValueError(
+                        "order_by column '%s' does not exist, available columns: %s"
+                        % (key, columns)
+                    )
+                name = key
+            else:
+                # An Expression cannot be rendered to SQL text, so materialize it as a helper
+                # column and reference it by name.
+                name = _unique_name("__pf_order_%d" % index, taken)
+                taken.add(name)
+                table = table.add_columns(key.alias(name))
+            term = _quote_identifier(name) + " " + direction
+            if nulls is not None:
+                term += " NULLS FIRST" if nulls[index] else " NULLS LAST"
+            order_terms.append(term)
+
+    rank_column = _quote_identifier(_unique_name("__pf_row_number", taken))
+    source = _quote_identifier(str(table))
+    select_list = ", ".join(_quote_identifier(name) for name in columns)
+    partition_by = ", ".join(_quote_identifier(name) for name in subset_keys)
+    query = (
+        "SELECT %s FROM (\n"
+        "  SELECT *, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s) AS %s\n"
+        "  FROM %s\n"
+        ") WHERE %s = 1"
+        % (
+            select_list,
+            partition_by,
+            ", ".join(order_terms),
+            rank_column,
+            source,
+            rank_column,
+        )
+    )
+    return table._t_env.sql_query(query)
+
+
+def _unique_name(base: str, taken: Set[str]) -> str:
+    name = base
+    while name in taken:
+        name += "_"
+    return name
+
+
+def _quote_identifier(name: str) -> str:
+    return "`" + name.replace("`", "``") + "`"
 
 
 def _normalize_aggregations(

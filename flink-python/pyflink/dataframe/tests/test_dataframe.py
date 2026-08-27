@@ -16,17 +16,18 @@
 # limitations under the License.
 ################################################################################
 
+import inspect
 import array
 import decimal
 import unittest
+from py4j.protocol import Py4JJavaError
 from datetime import date, datetime, time, timedelta, timezone
 from typing import NamedTuple
 
 import pandas as pd
 import pyarrow as pa
 import pyflink.dataframe as pf
-from py4j.protocol import Py4JJavaError
-from pyflink.common import Row
+from pyflink.common import Row, RowKind
 from pyflink.table import (
     DataTypes as TableDataTypes,
     EnvironmentSettings,
@@ -1147,6 +1148,432 @@ class DataFrameAggregationTests(PyFlinkDataFrameUTTestCase):
             self.dataframe.group_by("department").agg(
                 department=pf.col("amount").sum
             )
+
+
+class DataFrameDropDuplicatesTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [
+                {"id": 1, "name": "a", "score": 10},
+                {"id": 1, "name": "b", "score": 20},
+                {"id": 2, "name": "c", "score": 30},
+            ]
+        )
+
+    def test_sql_proctime_default_keep_first(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY PROCTIME() ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(subset="id"),
+        )
+
+    def test_sql_proctime_default_keep_last(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY PROCTIME() DESC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(subset="id", keep="last"),
+        )
+
+    def test_sql_multi_column_subset(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id`, `name` ORDER BY PROCTIME() ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(subset=["id", "name"]),
+        )
+
+    def test_sql_order_by_column_name(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY `score` DESC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(subset="id", order_by="score", keep="last"),
+        )
+
+    def test_sql_nulls_first_per_key(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id`"
+            " ORDER BY `score` ASC NULLS FIRST, `name` ASC NULLS LAST) AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(
+                subset="id", order_by=["score", "name"], nulls_first=[True, False]
+            ),
+        )
+
+    def test_sql_order_by_expression_is_materialized(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY `__pf_order_0` ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.drop_duplicates(subset="id", order_by=pf.col("score")),
+        )
+
+    def test_sql_after_select_lists_only_source_columns(self):
+        source = self.dataframe.select("id", "score")
+        self.assert_dataframe_sql(
+            source,
+            "SELECT `id`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY PROCTIME() ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: source.drop_duplicates(subset="id"),
+        )
+
+    def test_sql_rank_column_avoids_collision(self):
+        dataframe = pf.from_records([{"__pf_row_number": 1, "value": 2}])
+        self.assert_dataframe_sql(
+            dataframe,
+            "SELECT `__pf_row_number`, `value` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `value` ORDER BY PROCTIME() ASC)"
+            " AS `__pf_row_number_`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number_` = 1",
+            lambda: dataframe.drop_duplicates(subset="value"),
+        )
+
+    def test_whole_row_produces_no_sql(self):
+        # Whole-row deduplication uses distinct(), not a generated query.
+        self.assert_dataframe_sql(
+            self.dataframe, None, lambda: self.dataframe.drop_duplicates()
+        )
+
+    def test_schema_preserved(self):
+        self.assert_dataframe_schema(
+            self.dataframe.drop_duplicates("id", order_by="score", keep="last"),
+            ["id", "name", "score"],
+        )
+
+    def test_whole_row_schema_preserved(self):
+        self.assert_dataframe_schema(
+            self.dataframe.drop_duplicates(), ["id", "name", "score"]
+        )
+
+    def test_rejects_invalid_keep(self):
+        with self.assertRaises(ValueError) as error:
+            self.dataframe.drop_duplicates("id", keep="middle")
+        self.assertEqual(str(error.exception), 'keep must be "first" or "last"')
+
+    def test_rejects_empty_subset_list(self):
+        with self.assertRaises(ValueError) as error:
+            self.dataframe.drop_duplicates([])
+        self.assertEqual(str(error.exception), "subset must not be empty")
+
+    def test_rejects_non_string_subset(self):
+        with self.assertRaises(TypeError) as error:
+            self.dataframe.drop_duplicates([1])
+        self.assertEqual(
+            str(error.exception), "subset must be a string or a list of strings"
+        )
+
+    def test_rejects_unknown_subset_column(self):
+        # The message embeds the (py4j) column list, so match only the stable prefix.
+        with self.assertRaisesRegex(ValueError, "subset column 'nope' does not exist"):
+            self.dataframe.drop_duplicates("nope")
+
+    def test_rejects_unknown_order_column(self):
+        # The message embeds the (py4j) column list, so match only the stable prefix.
+        with self.assertRaisesRegex(ValueError, "order_by column 'nope' does not exist"):
+            self.dataframe.drop_duplicates("id", order_by="nope")
+
+    def test_rejects_order_by_without_subset(self):
+        with self.assertRaises(ValueError) as error:
+            self.dataframe.drop_duplicates(order_by="score")
+        self.assertEqual(
+            str(error.exception),
+            "order_by requires subset; whole-row duplicates cannot be ordered",
+        )
+
+    def test_rejects_nulls_first_without_order_by(self):
+        with self.assertRaises(ValueError) as error:
+            self.dataframe.drop_duplicates("id", nulls_first=True)
+        self.assertEqual(str(error.exception), "nulls_first requires order_by")
+
+    def test_rejects_nulls_first_length_mismatch(self):
+        with self.assertRaises(ValueError) as error:
+            self.dataframe.drop_duplicates(
+                "id", order_by="score", nulls_first=[True, False]
+            )
+        self.assertEqual(
+            str(error.exception), "nulls_first must have the same length as order_by"
+        )
+
+    def test_rejects_nulls_first_wrong_type(self):
+        with self.assertRaises(TypeError) as error:
+            self.dataframe.drop_duplicates("id", order_by="score", nulls_first=["x"])
+        self.assertEqual(
+            str(error.exception), "nulls_first must be a boolean or a list of booleans"
+        )
+
+
+class DataFrameDistinctTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [{"id": 1, "score": 10}, {"id": 1, "score": 20}]
+        )
+
+    def test_shares_drop_duplicates_signature(self):
+        self.assertEqual(
+            inspect.signature(pf.DataFrame.distinct),
+            inspect.signature(pf.DataFrame.drop_duplicates),
+        )
+
+    def test_produces_the_same_sql_as_drop_duplicates(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY `score` ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.distinct(subset="id", order_by="score"),
+        )
+
+
+class DataFrameUniqueTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [{"id": 1, "score": 10}, {"id": 1, "score": 20}]
+        )
+
+    def test_shares_drop_duplicates_signature(self):
+        self.assertEqual(
+            inspect.signature(pf.DataFrame.unique),
+            inspect.signature(pf.DataFrame.drop_duplicates),
+        )
+
+    def test_produces_the_same_sql_as_drop_duplicates(self):
+        self.assert_dataframe_sql(
+            self.dataframe,
+            "SELECT `id`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (PARTITION BY `id` ORDER BY `score` ASC)"
+            " AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` = 1",
+            lambda: self.dataframe.unique(subset="id", order_by="score"),
+        )
+
+
+class DataFrameDropDuplicatesITTests(PyFlinkStreamDataFrameTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.t_env.get_config().set("table.exec.resource.default-parallelism", "1")
+
+    @staticmethod
+    def _materialize(dataframe, key=None):
+        # Fold the collected changelog into the final table so assertions read as the
+        # resulting rows rather than the raw +I/-U/+U events.
+        columns = dataframe._table.get_resolved_schema().get_column_names()
+        if key is None:
+            indices = list(range(len(columns)))
+        else:
+            indices = [columns.index(name) for name in key]
+
+        state = {}
+        for row in dataframe.collect():
+            key_value = tuple(row[index] for index in indices)
+            if row.get_row_kind() in (RowKind.INSERT, RowKind.UPDATE_AFTER):
+                state[key_value] = tuple(row)
+            else:
+                state.pop(key_value, None)
+        return sorted(state.values())
+
+    def test_whole_row_removes_identical_rows(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "a"), (2, "b")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            self._materialize(dataframe.drop_duplicates()),
+            [(1, "a"), (2, "b")],
+        )
+
+    def test_whole_row_keeps_rows_differing_in_any_column(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "b"), (1, "a")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            self._materialize(dataframe.drop_duplicates()),
+            [(1, "a"), (1, "b")],
+        )
+
+    def test_distinct_alias_removes_identical_rows(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "a"), (2, "b")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            self._materialize(dataframe.distinct()),
+            [(1, "a"), (2, "b")],
+        )
+
+    def test_unique_alias_removes_identical_rows(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "a"), (2, "b")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            self._materialize(dataframe.unique()),
+            [(1, "a"), (2, "b")],
+        )
+
+    def test_from_dict_input(self):
+        dataframe = pf.from_dict({"id": [1, 1, 2], "name": ["a", "a", "b"]})
+
+        self.assertEqual(
+            self._materialize(dataframe.drop_duplicates()),
+            [(1, "a"), (2, "b")],
+        )
+
+    def test_subset_keep_first_by_order_column(self):
+        dataframe = pf.from_records(
+            [
+                (1, "a", 10),
+                (1, "b", 20),
+                (2, "c", 30),
+                (2, "d", 5),
+                (3, "e", 7),
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = dataframe.drop_duplicates("id", order_by="score", keep="first")
+
+        self.assertEqual(
+            self._materialize(result, key=["id"]),
+            [(1, "a", 10), (2, "d", 5), (3, "e", 7)],
+        )
+
+    def test_subset_keep_last_by_order_column(self):
+        dataframe = pf.from_records(
+            [
+                (1, "a", 10),
+                (1, "b", 20),
+                (2, "c", 30),
+                (2, "d", 5),
+                (3, "e", 7),
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = dataframe.drop_duplicates("id", order_by="score", keep="last")
+
+        self.assertEqual(
+            self._materialize(result, key=["id"]),
+            [(1, "b", 20), (2, "c", 30), (3, "e", 7)],
+        )
+
+    def test_multi_column_subset_keep_first_by_order_column(self):
+        dataframe = pf.from_records(
+            [
+                (1, "a", 10),
+                (1, "a", 20),
+                (1, "b", 30),
+                (2, "a", 40),
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = dataframe.drop_duplicates(["id", "name"], order_by="score", keep="first")
+
+        self.assertEqual(
+            self._materialize(result, key=["id", "name"]),
+            [(1, "a", 10), (1, "b", 30), (2, "a", 40)],
+        )
+
+    def test_subset_keep_first_by_arrival(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "b"), (2, "c")],
+            schema=["id", "name"],
+        )
+
+        self.assertEqual(
+            self._materialize(dataframe.drop_duplicates("id"), key=["id"]),
+            [(1, "a"), (2, "c")],
+        )
+
+    def test_subset_keep_last_by_arrival(self):
+        dataframe = pf.from_records(
+            [(1, "a"), (1, "b"), (2, "c")],
+            schema=["id", "name"],
+        )
+
+        result = dataframe.drop_duplicates("id", keep="last")
+
+        self.assertEqual(
+            self._materialize(result, key=["id"]),
+            [(1, "b"), (2, "c")],
+        )
+
+    def test_dedup_after_select_and_filter(self):
+        dataframe = pf.from_records(
+            [
+                (1, "a", 10),
+                (1, "b", 20),
+                (2, "c", 30),
+                (3, "d", 40),
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = (
+            dataframe.filter(pf.col("id") > 1)
+            .select("id", "score")
+            .drop_duplicates("id", order_by="score", keep="last")
+        )
+
+        self.assertEqual(
+            self._materialize(result, key=["id"]),
+            [(2, 30), (3, 40)],
+        )
+
+    def test_filter_after_dedup(self):
+        dataframe = pf.from_records(
+            [
+                (1, "a", 10),
+                (1, "b", 20),
+                (2, "c", 30),
+            ],
+            schema=["id", "name", "score"],
+        )
+
+        result = dataframe.drop_duplicates("id", order_by="score", keep="last").filter(
+            pf.col("id") > 1
+        )
+
+        self.assertEqual(
+            self._materialize(result, key=["id"]),
+            [(2, "c", 30)],
+        )
 
 
 class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
