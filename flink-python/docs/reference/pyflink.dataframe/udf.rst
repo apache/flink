@@ -45,6 +45,12 @@ DataFrame table UDFs support synchronous functions, callable classes and instanc
 declaration forms, type inference, lifecycle, and examples, and
 :meth:`~pyflink.dataframe.DataFrame.flat_map` for row input and output semantics.
 
+Use the ``concurrency`` argument to set the parallelism of the Python operator
+that executes a UDF. UDFs with different explicit concurrency values are placed
+in separate operators. For pandas and Arrow UDFs, ``batch_size`` sets the maximum
+Arrow batch size. If compatible vectorized UDFs share an operator, the smallest
+explicit batch size is used; otherwise the configured default applies.
+
 Aggregate Functions
 ===================
 

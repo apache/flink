@@ -27,6 +27,15 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.junit.jupiter.api.{BeforeEach, Test}
 
+class ResourceRowPythonScalarFunction(
+    name: String,
+    parallelism: Int = -1,
+    maxArrowBatchSize: Int = -1)
+  extends RowPythonScalarFunction(name) {
+  override def getParallelism: Int = parallelism
+  override def getMaxArrowBatchSize: Int = maxArrowBatchSize
+}
+
 /** Test for [[PythonMapMergeRule]]. */
 class PythonMapMergeRuleTest extends TableTestBase {
   private val util = batchTestUtil()
@@ -72,6 +81,42 @@ class PythonMapMergeRuleTest extends TableTestBase {
     val result = sourceTable
       .map(general_func(withColumns('*)))
       .map(pandas_func(withColumns('*)))
+    util.verifyRelPlan(result)
+  }
+
+  @Test
+  def testCompatibleExecutionOptionsAreMerged(): Unit = {
+    val sourceTable = util.addTableSource[(Int, Int, Int)]("source", 'a, 'b, 'c)
+    val explicit = new ResourceRowPythonScalarFunction("explicit", 2, 64)
+    val unspecified = new ResourceRowPythonScalarFunction("unspecified")
+    val result = sourceTable
+      .map(explicit(withColumns('*)))
+      .map(unspecified(withColumns('*)))
+      .map(explicit(withColumns('*)))
+    util.verifyRelPlan(result)
+  }
+
+  @Test
+  def testNestedConflictingConcurrencyIsNotMerged(): Unit = {
+    val sourceTable = util.addTableSource[(Int, Int, Int)]("source", 'a, 'b, 'c)
+    val parallelism2 = new ResourceRowPythonScalarFunction("parallelism2", parallelism = 2)
+    val unspecified = new ResourceRowPythonScalarFunction("unspecified")
+    val parallelism4 = new ResourceRowPythonScalarFunction("parallelism4", parallelism = 4)
+    val result = sourceTable
+      .map(parallelism2(withColumns('*)))
+      .map(unspecified(withColumns('*)))
+      .map(parallelism4(withColumns('*)))
+    util.verifyRelPlan(result)
+  }
+
+  @Test
+  def testConflictingBatchSizesAreNotMerged(): Unit = {
+    val sourceTable = util.addTableSource[(Int, Int, Int)]("source", 'a, 'b, 'c)
+    val batch64 = new ResourceRowPythonScalarFunction("batch64", maxArrowBatchSize = 64)
+    val batch128 = new ResourceRowPythonScalarFunction("batch128", maxArrowBatchSize = 128)
+    val result = sourceTable
+      .map(batch64(withColumns('*)))
+      .map(batch128(withColumns('*)))
     util.verifyRelPlan(result)
   }
 
