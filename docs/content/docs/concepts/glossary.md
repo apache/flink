@@ -172,7 +172,8 @@ the same [Operator](#operator) or [Function](#function) type are running in para
 #### Flink Job
 
 A Flink Job is the unit of data processing execution in Flink: a Job as a whole is submitted,
-started, stopped and resumed, although under some conditions Flink may restart a Job only partially.
+started, stopped and resumed, although under some conditions Flink may restart a Job only partially
+(See [Restart Pipelined Region Failover Strategy]({{< ref "docs/ops/state/task_failure_recovery" >}}#restart-pipelined-region-failover-strategy)).
 
 A Job is submitted either by a [Flink Application](#flink-application), by calling `execute()` on an
 execution environment, or as a single [Flink SQL Statement](#flink-sql-statement) or [Statement
