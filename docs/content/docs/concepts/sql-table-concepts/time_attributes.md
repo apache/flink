@@ -60,7 +60,7 @@ Event time attributes can be defined in `CREATE` table DDL or during DataStream-
 The event time attribute is defined using a `WATERMARK` statement in `CREATE` table DDL. A watermark statement defines a watermark generation expression on an existing event time field, which marks the event time field as the event time attribute. Please see [CREATE TABLE DDL]({{< ref "docs/sql/reference/ddl/create" >}}#create-table) for more information about watermark statement and watermark strategies.
 
 Flink supports defining event time attribute on TIMESTAMP column and TIMESTAMP_LTZ column. 
-If the timestamp data in the source is represented as year-month-day-hour-minute-second, usually a string value without time-zone information, e.g. `2020-04-15 20:13:40.564`, it's recommended to define the event time attribute as a `TIMESTAMP` column::
+If the timestamp data in the source is represented as year-month-day-hour-minute-second, usually a string value without time-zone information, e.g. `2020-04-15 20:13:40.564`, it's recommended to define the event time attribute as a `TIMESTAMP` column:
 ```sql
 
 CREATE TABLE user_actions (
@@ -184,7 +184,7 @@ Of course, you can also still use the `OPTIONS` hint.
 
 ```sql
 -- use 'OPTIONS' hint
-select ... from source_table /*+ OPTIONS('scan.watermark.alignment.group'='alignment-group-1', 'scan.watermark.alignment.max-drift'='1min', 'scan. watermark.alignment.update-interval'='1s') */
+select ... from source_table /*+ OPTIONS('scan.watermark.alignment.group'='alignment-group-1', 'scan.watermark.alignment.max-drift'='1min', 'scan.watermark.alignment.update-interval'='1s') */
 ```
 
 There are three parameters :
