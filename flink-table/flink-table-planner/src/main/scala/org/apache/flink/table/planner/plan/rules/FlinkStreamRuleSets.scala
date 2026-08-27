@@ -419,6 +419,8 @@ object FlinkStreamRuleSets {
     PythonCalcSplitRule.SPLIT_PROJECT,
     // Splits calcs which contain both general Python functions and pandas Python functions
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
+    // Splits calcs which contain Python functions with different concurrency values
+    PythonCalcSplitRule.SPLIT_CONCURRENCY_IN_PROJECT,
     // Avoid accessing a field as input to an async call with a single calc.
     PythonCalcSplitRule.EXPAND_PROJECT,
     // Avoid having any condition in a python calc by pushing it first.

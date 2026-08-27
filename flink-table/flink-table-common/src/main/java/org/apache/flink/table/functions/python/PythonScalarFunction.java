@@ -44,6 +44,8 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
     private final boolean deterministic;
     private final PythonEnv pythonEnv;
     private final boolean takesRowAsInput;
+    private final int parallelism;
+    private final int maxArrowBatchSize;
 
     private DataType[] inputTypes;
     private String[] inputTypesString;
@@ -62,10 +64,36 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
         this(
                 name,
                 serializedScalarFunction,
+                inputTypes,
+                resultType,
                 pythonFunctionKind,
                 deterministic,
                 takesRowAsInput,
-                pythonEnv);
+                pythonEnv,
+                -1,
+                -1);
+    }
+
+    public PythonScalarFunction(
+            String name,
+            byte[] serializedScalarFunction,
+            DataType[] inputTypes,
+            DataType resultType,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv,
+            int parallelism,
+            int maxArrowBatchSize) {
+        this(
+                name,
+                serializedScalarFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv,
+                parallelism,
+                maxArrowBatchSize);
         this.inputTypes = inputTypes;
         this.resultType = resultType;
     }
@@ -82,10 +110,36 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
         this(
                 name,
                 serializedScalarFunction,
+                inputTypesString,
+                resultTypeString,
                 pythonFunctionKind,
                 deterministic,
                 takesRowAsInput,
-                pythonEnv);
+                pythonEnv,
+                -1,
+                -1);
+    }
+
+    public PythonScalarFunction(
+            String name,
+            byte[] serializedScalarFunction,
+            String[] inputTypesString,
+            String resultTypeString,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv,
+            int parallelism,
+            int maxArrowBatchSize) {
+        this(
+                name,
+                serializedScalarFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv,
+                parallelism,
+                maxArrowBatchSize);
         this.inputTypesString = inputTypesString;
         this.resultTypeString = resultTypeString;
     }
@@ -97,12 +151,34 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
             boolean deterministic,
             boolean takesRowAsInput,
             PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedScalarFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv,
+                -1,
+                -1);
+    }
+
+    public PythonScalarFunction(
+            String name,
+            byte[] serializedScalarFunction,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv,
+            int parallelism,
+            int maxArrowBatchSize) {
         this.name = name;
         this.serializedScalarFunction = serializedScalarFunction;
         this.pythonFunctionKind = pythonFunctionKind;
         this.deterministic = deterministic;
         this.pythonEnv = pythonEnv;
         this.takesRowAsInput = takesRowAsInput;
+        this.parallelism = parallelism;
+        this.maxArrowBatchSize = maxArrowBatchSize;
     }
 
     public Object eval(Object... args) {
@@ -128,6 +204,16 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
     @Override
     public boolean takesRowAsInput() {
         return takesRowAsInput;
+    }
+
+    @Override
+    public int getParallelism() {
+        return parallelism;
+    }
+
+    @Override
+    public int getMaxArrowBatchSize() {
+        return maxArrowBatchSize;
     }
 
     @Override

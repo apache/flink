@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
@@ -33,7 +34,9 @@ import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -94,7 +97,36 @@ public class PythonMapMergeRule extends RelOptRule {
 
         return PythonUtil.isFlattenCalc(middleCalc)
                 && isTopCalcTakesWholeMiddleCalcAsInputs(
-                        (RexCall) topProjects.get(0), middleCalc.getRowType().getFieldCount());
+                        (RexCall) topProjects.get(0), middleCalc.getRowType().getFieldCount())
+                && hasCompatibleExecutionOptions(
+                        (RexCall) topProjects.get(0), (RexCall) bottomProjects.get(0));
+    }
+
+    private boolean hasCompatibleExecutionOptions(RexCall topCall, RexCall bottomCall) {
+        final Set<Integer> parallelisms = new HashSet<>();
+        final Set<Integer> batchSizes = new HashSet<>();
+        collectExecutionOptions(topCall, parallelisms, batchSizes);
+        collectExecutionOptions(bottomCall, parallelisms, batchSizes);
+        return parallelisms.size() <= 1 && batchSizes.size() <= 1;
+    }
+
+    private void collectExecutionOptions(
+            RexNode node, Set<Integer> parallelisms, Set<Integer> batchSizes) {
+        if (!(node instanceof RexCall)) {
+            return;
+        }
+        final RexCall call = (RexCall) node;
+        final PythonFunction function = PythonUtil.extractPythonFunction(call);
+        if (function != null) {
+            if (function.getParallelism() > 0) {
+                parallelisms.add(function.getParallelism());
+            }
+            if (function.getMaxArrowBatchSize() > 0) {
+                batchSizes.add(function.getMaxArrowBatchSize());
+            }
+        }
+        call.getOperands()
+                .forEach(operand -> collectExecutionOptions(operand, parallelisms, batchSizes));
     }
 
     private boolean isTopCalcTakesWholeMiddleCalcAsInputs(

@@ -58,9 +58,9 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 
 import java.lang.reflect.Constructor;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -121,21 +121,32 @@ public abstract class CommonExecPythonAsyncCalc extends ExecNodeBase<RowData>
             ClassLoader classLoader,
             Configuration pythonConfig) {
 
+        final Tuple2<int[], PythonFunctionInfo[]> extractResult =
+                extractPythonFunctionInfos(classLoader);
+        final Optional<Integer> explicitParallelism =
+                CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
+                        extractResult.f1, "Python async functions");
+
         InternalTypeInfo<RowData> inputTypeInfo =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
         InternalTypeInfo<RowData> outputTypeInfo = InternalTypeInfo.of((RowType) getOutputType());
 
         OneInputStreamOperator<RowData, RowData> pythonAsyncOperator =
                 getPythonAsyncOperator(
-                        config, classLoader, pythonConfig, inputTypeInfo, outputTypeInfo);
+                        config,
+                        classLoader,
+                        pythonConfig,
+                        inputTypeInfo,
+                        outputTypeInfo,
+                        extractResult);
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 createTransformationMeta(PYTHON_ASYNC_CALC_TRANSFORMATION, config),
                 pythonAsyncOperator,
                 outputTypeInfo,
-                inputTransform.getParallelism(),
-                false);
+                explicitParallelism.orElse(inputTransform.getParallelism()),
+                explicitParallelism.isPresent());
     }
 
     /** Gets the async operator for executing Python async scalar functions. */
@@ -144,7 +155,8 @@ public abstract class CommonExecPythonAsyncCalc extends ExecNodeBase<RowData>
             ClassLoader classLoader,
             Configuration pythonConfig,
             InternalTypeInfo<RowData> inputTypeInfo,
-            InternalTypeInfo<RowData> outputTypeInfo) {
+            InternalTypeInfo<RowData> outputTypeInfo,
+            Tuple2<int[], PythonFunctionInfo[]> extractResult) {
         boolean isInProcessMode =
                 CommonPythonUtil.isPythonWorkerInProcessMode(pythonConfig, classLoader);
 
@@ -153,28 +165,12 @@ public abstract class CommonExecPythonAsyncCalc extends ExecNodeBase<RowData>
                     "Python async scalar function is still not supported for 'thread' mode.");
         }
 
-        // Separate async function calls from forwarded fields
-        List<RexCall> asyncRexCalls = new ArrayList<>();
-        List<Integer> forwardedFields = new ArrayList<>();
-
-        for (RexNode rexNode : projection) {
-            if (rexNode instanceof RexCall) {
-                RexCall rexCall = (RexCall) rexNode;
-                if (isPythonAsyncCall(rexCall)) {
-                    asyncRexCalls.add(rexCall);
-                }
-            } else if (rexNode instanceof RexInputRef) {
-                forwardedFields.add(((RexInputRef) rexNode).getIndex());
-            }
-        }
-
-        if (asyncRexCalls.isEmpty()) {
-            throw new IllegalStateException("No Python async scalar function found in projection");
-        }
-
-        // Extract Python function information
-        Tuple2<int[], PythonFunctionInfo[]> extractResult =
-                extractPythonAsyncScalarFunctionInfos(asyncRexCalls, classLoader);
+        final List<Integer> forwardedFields =
+                projection.stream()
+                        .filter(RexInputRef.class::isInstance)
+                        .map(RexInputRef.class::cast)
+                        .map(RexInputRef::getIndex)
+                        .collect(Collectors.toList());
         int[] udfInputOffsets = extractResult.f0;
         PythonFunctionInfo[] pythonFunctionInfos = extractResult.f1;
 
@@ -279,6 +275,20 @@ public abstract class CommonExecPythonAsyncCalc extends ExecNodeBase<RowData>
                         .mapToInt(i -> i)
                         .toArray();
         return Tuple2.of(udfInputOffsets, pythonFunctionInfos);
+    }
+
+    private Tuple2<int[], PythonFunctionInfo[]> extractPythonFunctionInfos(
+            ClassLoader classLoader) {
+        List<RexCall> asyncRexCalls =
+                projection.stream()
+                        .filter(RexCall.class::isInstance)
+                        .map(RexCall.class::cast)
+                        .filter(this::isPythonAsyncCall)
+                        .collect(Collectors.toList());
+        if (asyncRexCalls.isEmpty()) {
+            throw new IllegalStateException("No Python async scalar function found in projection");
+        }
+        return extractPythonAsyncScalarFunctionInfos(asyncRexCalls, classLoader);
     }
 
     private boolean isPythonAsyncCall(RexCall rexCall) {

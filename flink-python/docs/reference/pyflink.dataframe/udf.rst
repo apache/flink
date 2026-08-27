@@ -30,6 +30,12 @@ DataFrame scalar UDFs support synchronous, asynchronous, and pandas-vectorized
 callables. See :func:`pyflink.dataframe.udf` for declaration forms, type
 inference, execution modes, and examples.
 
+Use the ``concurrency`` argument to set the parallelism of the Python operator
+that executes a UDF. UDFs with different explicit concurrency values are placed
+in separate operators. For pandas UDFs, ``batch_size`` sets the maximum Arrow
+batch size. If compatible pandas UDFs share an operator, the smallest explicit
+batch size is used; otherwise the configured default applies.
+
 API Reference
 =============
 

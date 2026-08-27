@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
@@ -61,6 +62,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -166,6 +168,17 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         fieldsLogicalTypes.addAll(pythonCallLogicalTypes);
         InternalTypeInfo<RowData> pythonOperatorResultTyeInfo =
                 InternalTypeInfo.ofFields(fieldsLogicalTypes.toArray(new LogicalType[0]));
+        final int maxArrowBatchSize = CommonPythonUtil.deriveArrowBatchSize(pythonFunctionInfos);
+        if (maxArrowBatchSize > 0) {
+            pythonConfig.set(
+                    ConfigOptions.key("python.fn-execution.arrow.batch.size")
+                            .intType()
+                            .noDefaultValue(),
+                    maxArrowBatchSize);
+        }
+        final Optional<Integer> explicitParallelism =
+                CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
+                        pythonFunctionInfos, "Python functions");
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonScalarFunctionOperator(
                         config,
@@ -187,8 +200,8 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                 createTransformationMeta(PYTHON_CALC_TRANSFORMATION, config),
                 pythonOperator,
                 pythonOperatorResultTyeInfo,
-                inputTransform.getParallelism(),
-                false);
+                explicitParallelism.orElse(inputTransform.getParallelism()),
+                explicitParallelism.isPresent());
     }
 
     private Tuple2<int[], PythonFunctionInfo[]> extractPythonScalarFunctionInfos(

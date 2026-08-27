@@ -16,6 +16,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testCompatibleExecutionOptionsAreMerged">
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
++- FlinkLogicalCalc(select=[*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$dddd33ac71e225348cef5025358a743d*(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$2442a506a3814268cc4b57505ca536d0*(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$dddd33ac71e225348cef5025358a743d*(a, b, c))) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, source]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConflictingBatchSizesAreNotMerged">
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
++- FlinkLogicalCalc(select=[*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$60351279ece0caebba4691e7e0575a00*(f0, f1) AS f0])
+   +- FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
+      +- FlinkLogicalCalc(select=[*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$d0fc9845db5b1c8ea29ebfbf7cc1df48*(a, b, c) AS f0])
+         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, source]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMapOperationMixedWithPandasUDFAndGeneralUDF">
     <Resource name="ast">
       <![CDATA[
@@ -45,6 +65,23 @@ LogicalProject(f0=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefi
 FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
 +- FlinkLogicalCalc(select=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(a, b, c))) AS f0])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, source]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedConflictingConcurrencyIsNotMerged">
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
++- FlinkLogicalCalc(select=[*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$071cba3666ff4779e7fbb56b7c7d2134*(f0, f1) AS f0])
+   +- FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
+      +- FlinkLogicalCalc(select=[*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$2442a506a3814268cc4b57505ca536d0*(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$62064ca9217508c2d932935d2b228c76*(a, b, c)) AS f0])
+         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, source]], fields=[a, b, c])
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$071cba3666ff4779e7fbb56b7c7d2134*(AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$2442a506a3814268cc4b57505ca536d0*(AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$62064ca9217508c2d932935d2b228c76*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$62064ca9217508c2d932935d2b228c76*($0, $1, $2).f1, _UTF-16LE'f1')).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$2442a506a3814268cc4b57505ca536d0*(AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$62064ca9217508c2d932935d2b228c76*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$62064ca9217508c2d932935d2b228c76*($0, $1, $2).f1, _UTF-16LE'f1')).f1, _UTF-16LE'f1')).f0, _UTF-16LE'f0')], f1=[AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$071cba3666ff4779e7fbb56b7c7d2134*(AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$2442a506a3814268cc4b57505ca536d0*(AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$62064ca9217508c2d932935d2b228c76*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$62064ca9217508c2d932935d2b228c76*($0, $1, $2).f1, _UTF-16LE'f1')).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$2442a506a3814268cc4b57505ca536d0*(AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$62064ca9217508c2d932935d2b228c76*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.plan.rules.logical.ResourceRowPythonScalarFunction$62064ca9217508c2d932935d2b228c76*($0, $1, $2).f1, _UTF-16LE'f1')).f1, _UTF-16LE'f1')).f1, _UTF-16LE'f1')])
++- LogicalTableScan(table=[[default_catalog, default_database, source]])
 ]]>
     </Resource>
   </TestCase>

@@ -175,6 +175,21 @@ public class JavaUserDefinedScalarFunctions {
         }
     }
 
+    /** Test Python scalar function with explicitly configured parallelism. */
+    public static class ParallelPythonScalarFunction extends PythonScalarFunction {
+        private final int parallelism;
+
+        public ParallelPythonScalarFunction(String name, int parallelism) {
+            super(name);
+            this.parallelism = parallelism;
+        }
+
+        @Override
+        public int getParallelism() {
+            return parallelism;
+        }
+    }
+
     /** Test for Python Scalar Function. */
     public static class BooleanPythonScalarFunction extends ScalarFunction
             implements PythonFunction {

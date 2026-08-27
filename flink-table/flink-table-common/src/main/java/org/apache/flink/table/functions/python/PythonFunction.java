@@ -44,4 +44,14 @@ public interface PythonFunction extends Serializable {
     default boolean takesRowAsInput() {
         return false;
     }
+
+    /** Returns the configured parallelism, or a non-positive value if it is not configured. */
+    default int getParallelism() {
+        return -1;
+    }
+
+    /** Returns the maximum Arrow batch size, or a non-positive value if it is not configured. */
+    default int getMaxArrowBatchSize() {
+        return -1;
+    }
 }

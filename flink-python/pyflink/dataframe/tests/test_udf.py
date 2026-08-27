@@ -32,7 +32,12 @@ from pyflink.common import Row, RowKind
 from pyflink.table import DataTypes as TableDataTypes
 from pyflink.table.expression import Expression
 from pyflink.table.types import RowType
-from pyflink.table.udf import AsyncScalarFunction, ScalarFunction, TableFunction
+from pyflink.table.udf import (
+    AsyncScalarFunction,
+    ScalarFunction,
+    TableFunction,
+    udf as table_udf,
+)
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
     PyFlinkStreamDataFrameTestCase,
@@ -446,6 +451,104 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         for case_name, declare, error_type, message in invalid_declarations:
             with self.subTest(case=case_name):
                 with self.assertRaisesRegex(error_type, message):
+                    declare()
+
+    def test_execution_resource_options_are_propagated(self):
+        def add_one(value: int) -> int:
+            return value + 1
+
+        def pandas_add_one(values: pd.Series) -> pd.Series:
+            return values + 1
+
+        general = pf.udf(add_one, concurrency=2)
+        pandas = pf.udf(
+            pandas_add_one,
+            return_dtype=pf.DataType.int64(),
+            concurrency=3,
+            batch_size=64,
+        )
+        table_pandas = table_udf(
+            pandas_add_one,
+            result_type=TableDataTypes.BIGINT(),
+            func_type="pandas",
+            concurrency=4,
+            batch_size=128,
+        )
+
+        declarations = [
+            (general, 2, None),
+            (pandas, 3, 64),
+        ]
+        for declaration, expected_concurrency, expected_batch_size in declarations:
+            with self.subTest(declaration=declaration.__name__):
+                self.assertEqual(declaration._concurrency, expected_concurrency)
+                self.assertEqual(declaration._batch_size, expected_batch_size)
+                self.assertEqual(
+                    declaration._table_udf_wrapper._concurrency,
+                    expected_concurrency,
+                )
+                self.assertEqual(
+                    declaration._table_udf_wrapper._batch_size,
+                    expected_batch_size,
+                )
+
+        self.assertEqual(table_pandas._concurrency, 4)
+        self.assertEqual(table_pandas._batch_size, 128)
+
+    def test_execution_resource_options_are_validated(self):
+        def add_one(value: int) -> int:
+            return value + 1
+
+        def pandas_add_one(values: pd.Series) -> pd.Series:
+            return values + 1
+
+        invalid_declarations = [
+            (
+                "zero concurrency",
+                lambda: pf.udf(add_one, concurrency=0),
+                "concurrency must be a positive integer",
+            ),
+            (
+                "boolean concurrency",
+                lambda: pf.udf(add_one, concurrency=True),
+                "concurrency must be a positive integer",
+            ),
+            (
+                "batch size on general UDF",
+                lambda: pf.udf(add_one, batch_size=32),
+                "batch_size is only supported for pandas UDFs",
+            ),
+            (
+                "negative pandas batch size",
+                lambda: pf.udf(
+                    pandas_add_one,
+                    return_dtype=pf.DataType.int64(),
+                    batch_size=-1,
+                ),
+                "batch_size must be a positive integer",
+            ),
+            (
+                "Table API boolean concurrency",
+                lambda: table_udf(
+                    add_one,
+                    result_type=TableDataTypes.BIGINT(),
+                    concurrency=True,
+                ),
+                "concurrency must be a positive integer",
+            ),
+            (
+                "Table API general batch size",
+                lambda: table_udf(
+                    add_one,
+                    result_type=TableDataTypes.BIGINT(),
+                    batch_size=32,
+                ),
+                "batch_size is only supported for pandas UDFs",
+            ),
+        ]
+        for case_name, declare, message in invalid_declarations:
+            with self.subTest(case=case_name):
+                with self.assertRaisesRegex(ValueError, message):
                     declare()
 
     def test_determinism_and_name_metadata(self):
@@ -1091,6 +1194,41 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
 
 
 class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
+    def test_execution_resource_options_reach_java_functions(self):
+        @pf.udf(concurrency=2)
+        def add_one(value: int) -> int:
+            return value + 1
+
+        @pf.udf(concurrency=3)
+        async def async_add_one(value: int) -> int:
+            return value + 1
+
+        @pf.udf(
+            return_dtype=pf.DataType.int64(),
+            func_type="pandas",
+            concurrency=4,
+            batch_size=64,
+        )
+        def pandas_add_one(values: pd.Series) -> pd.Series:
+            return values + 1
+
+        cases = [
+            (add_one, 2, -1),
+            (async_add_one, 3, -1),
+            (pandas_add_one, 4, 64),
+        ]
+        for declaration, expected_concurrency, expected_batch_size in cases:
+            with self.subTest(declaration=declaration.__name__):
+                java_function = (
+                    declaration._table_udf_wrapper._java_user_defined_function()
+                )
+                self.assertEqual(
+                    java_function.getParallelism(), expected_concurrency
+                )
+                self.assertEqual(
+                    java_function.getMaxArrowBatchSize(), expected_batch_size
+                )
+
     def test_with_columns_binds_expressions_and_resolves_output_schema(self):
         sql_typed = pf.udf(lambda value: value, return_dtype="BIGINT")
 
@@ -1141,15 +1279,20 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
             doubled: int
             labels: list
 
-        @pf.udf
+        @pf.udf(concurrency=1)
         def add_one(value: int) -> int:
             return value + 1
 
-        @pf.udf
+        @pf.udf(concurrency=1)
         async def add_two(value: int) -> int:
             return value + 2
 
-        @pf.udf(return_dtype=pf.DataType.int64(), func_type="pandas")
+        @pf.udf(
+            return_dtype=pf.DataType.int64(),
+            func_type="pandas",
+            concurrency=1,
+            batch_size=1,
+        )
         def add_three(values: pd.Series) -> pd.Series:
             return values + 3
 

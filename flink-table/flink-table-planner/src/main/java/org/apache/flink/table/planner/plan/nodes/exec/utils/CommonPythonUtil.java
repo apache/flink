@@ -83,10 +83,14 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 /** A utility class used in PyFlink. */
@@ -117,6 +121,61 @@ public class CommonPythonUtil {
             return (Configuration) method.invoke(null, tableConfig);
         } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new TableException("Method extractPythonConfiguration accessed failed.", e);
+        }
+    }
+
+    public static Optional<Integer> deriveExplicitPythonFunctionParallelism(
+            PythonFunctionInfo[] pythonFunctionInfos, String functionsDescription) {
+        int explicitParallelism = -1;
+        for (PythonFunction function : collectPythonFunctions(pythonFunctionInfos)) {
+            final int parallelism = function.getParallelism();
+            if (parallelism > 0) {
+                if (explicitParallelism > 0 && explicitParallelism != parallelism) {
+                    throw new TableException(
+                            functionsDescription
+                                    + " with different concurrency values should have been split "
+                                    + "into different operators.");
+                }
+                explicitParallelism = parallelism;
+            }
+        }
+        return explicitParallelism > 0 ? Optional.of(explicitParallelism) : Optional.empty();
+    }
+
+    public static int deriveArrowBatchSize(PythonFunctionInfo[] pythonFunctionInfos) {
+        int minBatchSize = -1;
+        for (PythonFunction function : collectPythonFunctions(pythonFunctionInfos)) {
+            final int batchSize = function.getMaxArrowBatchSize();
+            if (batchSize > 0) {
+                minBatchSize = minBatchSize > 0 ? Math.min(minBatchSize, batchSize) : batchSize;
+            }
+        }
+        return minBatchSize;
+    }
+
+    private static List<PythonFunction> collectPythonFunctions(
+            PythonFunctionInfo[] pythonFunctionInfos) {
+        final List<PythonFunction> functions = new ArrayList<>();
+        final Set<PythonFunctionInfo> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (PythonFunctionInfo functionInfo : pythonFunctionInfos) {
+            collectPythonFunctions(functionInfo, functions, visited);
+        }
+        return functions;
+    }
+
+    private static void collectPythonFunctions(
+            PythonFunctionInfo functionInfo,
+            List<PythonFunction> functions,
+            Set<PythonFunctionInfo> visited) {
+        if (!visited.add(functionInfo)) {
+            return;
+        }
+
+        functions.add(functionInfo.getPythonFunction());
+        for (Object input : functionInfo.getInputs()) {
+            if (input instanceof PythonFunctionInfo) {
+                collectPythonFunctions((PythonFunctionInfo) input, functions, visited);
+            }
         }
     }
 
