@@ -58,6 +58,9 @@ class PythonCalcSplitRuleTest extends TableTestBase {
     util.addTemporarySystemFunction("pyFunc3", new PythonScalarFunction("pyFunc3"))
     util.addTemporarySystemFunction("pyFunc4", new BooleanPythonScalarFunction("pyFunc4"))
     util.addTemporarySystemFunction("pyFunc5", new RowPythonScalarFunction("pyFunc5"))
+    util.addTemporarySystemFunction("pyFuncP1", new ParallelPythonScalarFunction("pyFuncP1", 1))
+    util.addTemporarySystemFunction("pyFuncP2", new ParallelPythonScalarFunction("pyFuncP2", 2))
+    util.addTemporarySystemFunction("pyFuncP4", new ParallelPythonScalarFunction("pyFuncP4", 4))
     util.addTemporarySystemFunction("RowJavaFunc", new RowJavaScalarFunction("RowJavaFunc"))
     util.addTemporarySystemFunction("pandasFunc1", new PandasScalarFunction("pandasFunc1"))
     util.addTemporarySystemFunction("pandasFunc2", new PandasScalarFunction("pandasFunc2"))
@@ -195,6 +198,30 @@ class PythonCalcSplitRuleTest extends TableTestBase {
   @Test
   def testChainingPythonFunctionWithCompositeInputs(): Unit = {
     val sqlQuery = "SELECT a, pyFunc1(b, pyFunc1(c, d._1)) FROM MyTable"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testDifferentConcurrencySplitsCalc(): Unit = {
+    val sqlQuery = "SELECT pyFuncP2(a, b), pyFuncP4(a, c) FROM MyTable"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testSameAndUnspecifiedConcurrencyStayTogether(): Unit = {
+    val sqlQuery = "SELECT pyFuncP2(a, b), pyFuncP2(a, c), pyFunc1(a, b) FROM MyTable"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testNestedDifferentConcurrencySplitsDeterministically(): Unit = {
+    val sqlQuery = "SELECT pyFuncP2(a, pyFuncP1(a, c)) FROM MyTable"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testUnspecifiedOuterWithDifferentInnerConcurrencies(): Unit = {
+    val sqlQuery = "SELECT pyFunc1(pyFuncP1(a, b), pyFuncP2(a, c)) FROM MyTable"
     util.verifyRelPlan(sqlQuery)
   }
 

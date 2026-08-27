@@ -44,8 +44,10 @@ import org.apache.calcite.rex.RexNodeAndFieldIndex;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -163,6 +165,82 @@ public class PythonUtil {
             return ((PythonFunction) bsf.getDefinition()).takesRowAsInput();
         }
         return false;
+    }
+
+    /** Returns the Python function represented by the call, or {@code null} for other calls. */
+    public static PythonFunction extractPythonFunction(RexCall call) {
+        final FunctionDefinition definition;
+        if (call.getOperator() instanceof ScalarSqlFunction) {
+            definition = ((ScalarSqlFunction) call.getOperator()).scalarFunction();
+        } else if (call.getOperator() instanceof TableSqlFunction) {
+            definition = ((TableSqlFunction) call.getOperator()).udtf();
+        } else if (call.getOperator() instanceof BridgingSqlFunction) {
+            definition = ((BridgingSqlFunction) call.getOperator()).getDefinition();
+        } else {
+            return null;
+        }
+        return definition instanceof PythonFunction ? (PythonFunction) definition : null;
+    }
+
+    /** Returns the call's explicit parallelism without inspecting nested calls. */
+    public static Optional<Integer> getOwnParallelism(RexNode node) {
+        if (!(node instanceof RexCall)) {
+            return Optional.empty();
+        }
+        final PythonFunction function = extractPythonFunction((RexCall) node);
+        if (function == null || function.getParallelism() <= 0) {
+            return Optional.empty();
+        }
+        return Optional.of(function.getParallelism());
+    }
+
+    /** Returns the first explicit Python parallelism in a pre-order traversal. */
+    public static Optional<Integer> firstExplicitParallelism(RexNode node) {
+        final Optional<Integer> ownParallelism = getOwnParallelism(node);
+        if (ownParallelism.isPresent()) {
+            return ownParallelism;
+        }
+        if (node instanceof RexCall) {
+            for (RexNode operand : ((RexCall) node).getOperands()) {
+                final Optional<Integer> nestedParallelism = firstExplicitParallelism(operand);
+                if (nestedParallelism.isPresent()) {
+                    return nestedParallelism;
+                }
+            }
+        } else if (node instanceof RexFieldAccess) {
+            return firstExplicitParallelism(((RexFieldAccess) node).getReferenceExpr());
+        }
+        return Optional.empty();
+    }
+
+    /** Returns all explicit Python parallelisms in the expression tree. */
+    public static Set<Integer> extractDistinctParallelisms(RexNode node) {
+        final Set<Integer> parallelisms = new LinkedHashSet<>();
+        node.accept(
+                new RexDefaultVisitor<Void>() {
+                    @Override
+                    public Void visitCall(RexCall call) {
+                        getOwnParallelism(call).ifPresent(parallelisms::add);
+                        call.getOperands().forEach(operand -> operand.accept(this));
+                        return null;
+                    }
+
+                    @Override
+                    public Void visitFieldAccess(RexFieldAccess fieldAccess) {
+                        return fieldAccess.getReferenceExpr().accept(this);
+                    }
+
+                    @Override
+                    public Void visitNode(RexNode rexNode) {
+                        return null;
+                    }
+
+                    @Override
+                    public Void visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
+                        throw new UnsupportedOperationException("not supported yet");
+                    }
+                });
+        return parallelisms;
     }
 
     private static boolean isPythonFunction(
