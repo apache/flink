@@ -34,28 +34,32 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
- * Rule that eliminates common Python UDF sub-expressions between the condition and projection of a
- * Calc node.
+ * Rule that eliminates common remote (e.g. Python or async) UDF sub-expressions between the
+ * condition and projection of a Calc node.
  *
- * <p>After {@link RemoteCalcSplitConditionRule} splits a Calc with Python UDFs in its condition,
- * the result is a two-level Calc structure:
- *
- * <pre>
- * TopCalc(projection=[pyFunc(a, b) + 1, pyFunc(a, b) + 2], condition=[$2 > 0])
- *   BottomCalc(projection=[a, b, pyFunc(a, b) AS f0])
- * </pre>
- *
- * <p>The TopCalc's projection still contains {@code pyFunc(a, b)} which is structurally identical
- * to the already-computed {@code f0} in the BottomCalc. This rule detects such duplicates and
- * rewrites the TopCalc's projection to reference the BottomCalc's output directly:
+ * <p>After {@link RemoteCalcSplitConditionRule} splits a Calc with remote UDFs in its condition, the
+ * result is a two-level Calc structure:
  *
  * <pre>
- * TopCalc(projection=[$2 + 1, $2 + 2], condition=[$2 > 0])
- *   BottomCalc(projection=[a, b, pyFunc(a, b) AS f0])
+ * TopCalc(projection=[remoteFunc(a, b) + 1, remoteFunc(a, b) + 2], condition=[$2 &gt; 0])
+ *   BottomCalc(projection=[a, b, remoteFunc(a, b) AS f0])
  * </pre>
+ *
+ * <p>The TopCalc's projection still contains {@code remoteFunc(a, b)} which is structurally
+ * identical to the already-computed {@code f0} in the BottomCalc. This rule detects such duplicates
+ * and rewrites the TopCalc's projection to reference the BottomCalc's output directly:
+ *
+ * <pre>
+ * TopCalc(projection=[$2 + 1, $2 + 2], condition=[$2 &gt; 0])
+ *   BottomCalc(projection=[a, b, remoteFunc(a, b) AS f0])
+ * </pre>
+ *
+ * <p>Note that the two Calcs do not share a coordinate system: the BottomCalc's expressions are
+ * written against its own input, while the TopCalc's are written against the BottomCalc's output.
+ * The BottomCalc's calls are therefore translated into the TopCalc's frame of reference before
+ * being compared, so that calls which merely look alike are not treated as equal.
  */
 @Value.Enclosing
 public class RemoteCalcConditionProjectionCseRule
@@ -76,16 +80,14 @@ public class RemoteCalcConditionProjectionCseRule
             return false;
         }
 
-        List<RexNode> topProjects = RemoteCalcCseUtil.expandProjects(topCalc);
-        Map<RexNode, Integer> bottomPythonCalls = buildBottomPythonCallMap(bottomCalc, callFinder);
-
-        if (bottomPythonCalls.isEmpty()) {
+        Map<RexNode, Integer> bottomRemoteCalls = buildBottomRemoteCallMap(bottomCalc, callFinder);
+        if (bottomRemoteCalls.isEmpty()) {
             return false;
         }
 
-        // Check if any top projection contains a call matching the bottom calc's output.
+        List<RexNode> topProjects = RemoteCalcCseUtil.expandProjects(topCalc);
         return topProjects.stream()
-                .anyMatch(node -> containsCallMatchingBottom(node, bottomPythonCalls, callFinder));
+                .anyMatch(node -> containsCallMatchingBottom(node, bottomRemoteCalls, callFinder));
     }
 
     @Override
@@ -97,15 +99,13 @@ public class RemoteCalcConditionProjectionCseRule
 
         List<RexNode> topProjects = RemoteCalcCseUtil.expandProjects(topCalc);
         RexNode topCondition =
-                topCalc.getProgram().getCondition() != null
-                        ? topCalc.getProgram().expandLocalRef(topCalc.getProgram().getCondition())
-                        : null;
+                topCalc.getProgram().expandLocalRef(topCalc.getProgram().getCondition());
 
-        Map<RexNode, Integer> bottomPythonCalls = buildBottomPythonCallMap(bottomCalc, callFinder);
+        Map<RexNode, Integer> bottomRemoteCalls = buildBottomRemoteCallMap(bottomCalc, callFinder);
         RelDataType bottomRowType = bottomCalc.getRowType();
 
         // Rewrite top projections: replace matching calls with RexInputRef.
-        CseRewriteShuttle rewriter = new CseRewriteShuttle(bottomPythonCalls, bottomRowType);
+        CseRewriteShuttle rewriter = new CseRewriteShuttle(bottomRemoteCalls, bottomRowType);
         List<RexNode> newTopProjects =
                 topProjects.stream().map(p -> p.accept(rewriter)).collect(Collectors.toList());
 
@@ -127,32 +127,43 @@ public class RemoteCalcConditionProjectionCseRule
     }
 
     /**
-     * Builds a map from deterministic Python UDF calls in the bottom calc's projection to their
-     * output index.
+     * Builds a map from the bottom calc's reusable remote calls to their output index, with each
+     * call rewritten into the top calc's frame of reference.
+     *
+     * <p>The bottom calc's expressions are written against its own input, whereas the top calc
+     * addresses the bottom calc's output, so the two must be brought into a common frame before
+     * being compared. See {@link RemoteCalcCseUtil#translateToOutputFrame}.
      */
-    private Map<RexNode, Integer> buildBottomPythonCallMap(
+    private static Map<RexNode, Integer> buildBottomRemoteCallMap(
             FlinkLogicalCalc bottomCalc, RemoteCallFinder callFinder) {
         List<RexNode> bottomProjects = RemoteCalcCseUtil.expandProjects(bottomCalc);
+        Map<Integer, Integer> forwardedFieldPositions =
+                RemoteCalcCseUtil.forwardedFieldPositions(bottomProjects);
 
         Map<RexNode, Integer> result = new HashMap<>();
-        IntStream.range(0, bottomProjects.size())
-                .filter(
-                        i ->
-                                RemoteCalcCseUtil.containsReusableRemoteCall(
-                                        bottomProjects.get(i), callFinder))
-                .forEach(i -> result.put(bottomProjects.get(i), i));
+        for (int i = 0; i < bottomProjects.size(); i++) {
+            RexNode project = bottomProjects.get(i);
+            if (!RemoteCalcCseUtil.containsReusableRemoteCall(project, callFinder)) {
+                continue;
+            }
+            RexNode translated =
+                    RemoteCalcCseUtil.translateToOutputFrame(project, forwardedFieldPositions);
+            if (translated != null) {
+                result.put(translated, i);
+            }
+        }
         return result;
     }
 
-    private boolean containsCallMatchingBottom(
-            RexNode node, Map<RexNode, Integer> bottomPythonCalls, RemoteCallFinder callFinder) {
+    private static boolean containsCallMatchingBottom(
+            RexNode node, Map<RexNode, Integer> bottomRemoteCalls, RemoteCallFinder callFinder) {
         if (node instanceof RexCall) {
             RexCall rexCall = (RexCall) node;
-            if (callFinder.isRemoteCall(rexCall) && bottomPythonCalls.containsKey(rexCall)) {
+            if (callFinder.isRemoteCall(rexCall) && bottomRemoteCalls.containsKey(rexCall)) {
                 return true;
             }
             return rexCall.getOperands().stream()
-                    .anyMatch(op -> containsCallMatchingBottom(op, bottomPythonCalls, callFinder));
+                    .anyMatch(op -> containsCallMatchingBottom(op, bottomRemoteCalls, callFinder));
         }
         return false;
     }
@@ -180,16 +191,16 @@ public class RemoteCalcConditionProjectionCseRule
     // -------------------------------------------------------------------------
 
     /**
-     * Replaces Python UDF calls in the top calc's projection with RexInputRef pointing to the
+     * Replaces remote UDF calls in the top calc's projection with a RexInputRef pointing at the
      * bottom calc's output position where the same call was already computed.
      */
     private static class CseRewriteShuttle extends RexShuttle {
-        private final Map<RexNode, Integer> bottomPythonCalls;
+        private final Map<RexNode, Integer> bottomRemoteCalls;
         private final RelDataType bottomRowType;
         private boolean rewritten = false;
 
-        CseRewriteShuttle(Map<RexNode, Integer> bottomPythonCalls, RelDataType bottomRowType) {
-            this.bottomPythonCalls = bottomPythonCalls;
+        CseRewriteShuttle(Map<RexNode, Integer> bottomRemoteCalls, RelDataType bottomRowType) {
+            this.bottomRemoteCalls = bottomRemoteCalls;
             this.bottomRowType = bottomRowType;
         }
 
@@ -199,7 +210,7 @@ public class RemoteCalcConditionProjectionCseRule
 
         @Override
         public RexNode visitCall(RexCall call) {
-            Integer idx = bottomPythonCalls.get(call);
+            Integer idx = bottomRemoteCalls.get(call);
             if (idx != null) {
                 rewritten = true;
                 return new RexInputRef(idx, bottomRowType.getFieldList().get(idx).getType());

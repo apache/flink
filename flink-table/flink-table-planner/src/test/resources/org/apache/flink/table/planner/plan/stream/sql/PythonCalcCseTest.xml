@@ -165,4 +165,44 @@ Calc(select=[(f0 + 1) AS EXPR$0, (f0 + 2) AS EXPR$1], where=[(f0 > 0)])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSameUdfWithDifferentArgsInConditionAndProjection">
+    <Resource name="sql">
+      <![CDATA[SELECT pyFunc1(b, c) FROM MyTable WHERE pyFunc1(a, b) > 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[pyFunc1($1, $2)])
++- LogicalFilter(condition=[>(pyFunc1($0, $1), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+PythonCalc(select=[pyFunc1(b, c) AS EXPR$0])
++- Calc(select=[b, c], where=[(f0 > 0)])
+   +- PythonCalc(select=[b, c, pyFunc1(a, b) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSameUdfWithSwappedArgsInConditionAndProjection">
+    <Resource name="sql">
+      <![CDATA[SELECT pyFunc1(b, a) FROM MyTable WHERE pyFunc1(a, b) > 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[pyFunc1($1, $0)])
++- LogicalFilter(condition=[>(pyFunc1($0, $1), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+PythonCalc(select=[pyFunc1(b, a) AS EXPR$0])
++- Calc(select=[b, a], where=[(f0 > 0)])
+   +- PythonCalc(select=[b, a, pyFunc1(a, b) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

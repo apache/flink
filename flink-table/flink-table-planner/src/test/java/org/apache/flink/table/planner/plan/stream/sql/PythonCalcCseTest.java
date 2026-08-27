@@ -107,4 +107,20 @@ class PythonCalcCseTest extends TableTestBase {
         util.verifyExecPlan(
                 "SELECT pyFunc1(a, b), pyFunc1(a, b) FROM MyTable WHERE pyFunc1(a, b) > 0");
     }
+
+    /**
+     * The same function with different arguments must not be shared. After the condition split both
+     * calls can be printed as {@code pyFunc1($0, $1)} even though they read different columns, so
+     * comparing them without accounting for the frame of reference would silently return the
+     * condition's result.
+     */
+    @Test
+    void testSameUdfWithDifferentArgsInConditionAndProjection() {
+        util.verifyExecPlan("SELECT pyFunc1(b, c) FROM MyTable WHERE pyFunc1(a, b) > 0");
+    }
+
+    @Test
+    void testSameUdfWithSwappedArgsInConditionAndProjection() {
+        util.verifyExecPlan("SELECT pyFunc1(b, a) FROM MyTable WHERE pyFunc1(a, b) > 0");
+    }
 }
