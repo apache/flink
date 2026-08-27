@@ -376,10 +376,6 @@ public class Execution
         return this.stateEndTimestamps[state.ordinal()];
     }
 
-    public boolean isFinished() {
-        return state.isTerminal();
-    }
-
     @Nullable
     public JobManagerTaskRestore getTaskRestore() {
         return taskRestore;
