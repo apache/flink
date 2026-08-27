@@ -19,16 +19,29 @@
 package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 /**
- * Collector to wrap a [[org.apache.flink.table.dataformat.RowData]] and to track whether a row has
- * been emitted by the inner collector.
+ * Collector to wrap a {@link RowData} and to track whether a row has been emitted by the inner
+ * collector.
+ *
+ * <p>The collector can be armed with a correction before a single matched row is collected. When
+ * armed, the next collected row is treated as the corrected result of a previously emitted
+ * speculative outer-join pad: the pending pad is emitted first stamped {@link
+ * RowKind#UPDATE_BEFORE}, then the matched row is stamped {@link RowKind#UPDATE_AFTER}. This turns
+ * the join function's single {@code INSERT} emit into the {@code -U}/{@code +U} pair without the
+ * join function knowing about changelogs. When not armed, the collected row is stamped {@link
+ * RowKind#INSERT}, because the join function reuses a single row instance whose kind may have been
+ * left at {@link RowKind#UPDATE_AFTER} by an earlier correction.
  */
 class EmitAwareCollector implements Collector<RowData> {
 
     private boolean emitted = false;
     private Collector<RowData> innerCollector;
+
+    // The pad to retract before the next matched row, or null when no correction is armed.
+    private RowData pendingRetraction;
 
     void reset() {
         emitted = false;
@@ -42,10 +55,35 @@ class EmitAwareCollector implements Collector<RowData> {
         this.innerCollector = innerCollector;
     }
 
+    /**
+     * Arms the collector so the next collected matched row is corrected into a {@code -U}/{@code
+     * +U} pair against the given padded row.
+     */
+    void armRetraction(RowData retractionPad) {
+        retractionPad.setRowKind(RowKind.UPDATE_BEFORE);
+        this.pendingRetraction = retractionPad;
+    }
+
+    /** Clears an armed correction that was never consumed (the join condition did not match). */
+    void disarm() {
+        this.pendingRetraction = null;
+    }
+
     @Override
     public void collect(RowData record) {
         emitted = true;
-        innerCollector.collect(record);
+        if (pendingRetraction != null) {
+            innerCollector.collect(pendingRetraction);
+            pendingRetraction = null;
+            record.setRowKind(RowKind.UPDATE_AFTER);
+            innerCollector.collect(record);
+        } else {
+            // The matched row reuses a single instance whose kind may have been left as
+            // UPDATE_AFTER by a previous correction; force INSERT so a later ordinary match is not
+            // mis-emitted as an update.
+            record.setRowKind(RowKind.INSERT);
+            innerCollector.collect(record);
+        }
     }
 
     @Override

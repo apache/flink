@@ -34,6 +34,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.OuterJoinPaddingUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
 import org.slf4j.Logger;
@@ -64,12 +65,28 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     private final IntervalJoinFunction joinFunction;
     private transient OuterJoinPaddingUtil paddingUtil;
 
+    // Delay after a row's time at which an unmatched outer row is speculatively padded and emitted.
+    // A negative value disables early firing, in which case the operator behaves as a plain
+    // interval join.
+    private final long earlyFireDelay;
+    // True only for an outer join with a non-negative window span and a non-negative delay.
+    private final boolean earlyFireEnabled;
+
     private transient EmitAwareCollector joinCollector;
 
     // cache to store rows form the left stream
     private transient MapState<Long, List<Tuple2<RowData, Boolean>>> leftCache;
     // cache to store rows from the right stream
     private transient MapState<Long, List<Tuple2<RowData, Boolean>>> rightCache;
+
+    // For each cached outer row, whether its speculative early-fire pad has already been emitted.
+    // The list is positionally aligned 1:1 with the row-time bucket in leftCache / rightCache, so
+    // firedState.get(t).get(i) corresponds to cache.get(t).get(i). It is kept as a parallel list
+    // rather than a third tuple field so the existing cache serializer stays unchanged. The bit
+    // gates both the unmatched window-close pad (it must not be emitted twice) and the retraction
+    // on a later match (only a row that was speculatively padded needs correcting).
+    private transient MapState<Long, List<Boolean>> leftFiredState;
+    private transient MapState<Long, List<Boolean>> rightFiredState;
 
     // state to record the timer on the left stream. 0 means no timer set
     private transient ValueState<Long> leftTimerState;
@@ -92,7 +109,8 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
             long minCleanUpInterval,
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
-            IntervalJoinFunction joinFunc) {
+            IntervalJoinFunction joinFunc,
+            long earlyFireDelay) {
         this.joinType = joinType;
         this.leftRelativeSize = -leftLowerBound;
         this.rightRelativeSize = leftUpperBound;
@@ -104,6 +122,14 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
         this.leftType = leftType;
         this.rightType = rightType;
         this.joinFunction = joinFunc;
+        this.earlyFireDelay = earlyFireDelay;
+        // leftRelativeSize + rightRelativeSize equals the window span (leftUpperBound minus
+        // leftLowerBound), matching the planner gate that enables update-producing early fire for
+        // outer joins.
+        this.earlyFireEnabled =
+                earlyFireDelay >= 0
+                        && joinType.isOuter()
+                        && (leftRelativeSize + rightRelativeSize) >= 0;
     }
 
     @Override
@@ -128,6 +154,27 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                         BasicTypeInfo.LONG_TYPE_INFO,
                         rightRowListTypeInfo);
         rightCache = getRuntimeContext().getMapState(rightMapStateDescriptor);
+
+        // Early-fire bookkeeping, aligned with the caches above. New descriptor names restore as
+        // empty state from savepoints taken before early firing existed.
+        if (earlyFireEnabled) {
+            ListTypeInfo<Boolean> firedListTypeInfo =
+                    new ListTypeInfo<>(BasicTypeInfo.BOOLEAN_TYPE_INFO);
+            leftFiredState =
+                    getRuntimeContext()
+                            .getMapState(
+                                    new MapStateDescriptor<>(
+                                            "IntervalJoinLeftFired",
+                                            BasicTypeInfo.LONG_TYPE_INFO,
+                                            firedListTypeInfo));
+            rightFiredState =
+                    getRuntimeContext()
+                            .getMapState(
+                                    new MapStateDescriptor<>(
+                                            "IntervalJoinRightFired",
+                                            BasicTypeInfo.LONG_TYPE_INFO,
+                                            firedListTypeInfo));
+        }
 
         // Initialize the timer states.
         ValueStateDescriptor<Long> leftValueStateDescriptor =
@@ -178,10 +225,28 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                 if (rightTime >= rightQualifiedLowerBound
                         && rightTime <= rightQualifiedUpperBound) {
                     List<Tuple2<RowData, Boolean>> rightRows = rightEntry.getValue();
+                    List<Boolean> rightFired =
+                            earlyFireEnabled && joinType.isRightOuter()
+                                    ? firedBits(rightFiredState, rightTime, rightRows)
+                                    : null;
                     boolean entryUpdated = false;
-                    for (Tuple2<RowData, Boolean> tuple : rightRows) {
+                    for (int i = 0; i < rightRows.size(); i++) {
+                        Tuple2<RowData, Boolean> tuple = rightRows.get(i);
                         joinCollector.reset();
+                        boolean retract =
+                                rightFired != null
+                                        && joinType.isRightOuter()
+                                        && !tuple.f1
+                                        && rightFired.get(i);
+                        if (retract) {
+                            // The speculative pad for this right row was already emitted as an
+                            // insert; arm the collector so the match becomes -U(pad)/+U(match).
+                            joinCollector.armRetraction(paddingUtil.padRight(tuple.f0));
+                        }
                         joinFunction.join(leftRow, tuple.f0, joinCollector);
+                        if (retract && !joinCollector.isEmitted()) {
+                            joinCollector.disarm();
+                        }
                         emitted = emitted || joinCollector.isEmitted();
                         if (joinType.isRightOuter()) {
                             if (!tuple.f1 && joinCollector.isEmitted()) {
@@ -200,17 +265,24 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                 if (rightTime <= rightExpirationTime) {
                     if (joinType.isRightOuter()) {
                         List<Tuple2<RowData, Boolean>> rightRows = rightEntry.getValue();
-                        rightRows.forEach(
-                                (Tuple2<RowData, Boolean> tuple) -> {
-                                    if (!tuple.f1) {
-                                        // Emit a null padding result if the right row has never
-                                        // been successfully joined.
-                                        joinCollector.collect(paddingUtil.padRight(tuple.f0));
-                                    }
-                                });
+                        List<Boolean> rightFired =
+                                earlyFireEnabled
+                                        ? firedBits(rightFiredState, rightTime, rightRows)
+                                        : null;
+                        for (int i = 0; i < rightRows.size(); i++) {
+                            Tuple2<RowData, Boolean> tuple = rightRows.get(i);
+                            // Skip a row whose speculative pad already fired: it is correct as
+                            // emitted and must not be padded a second time.
+                            if (!tuple.f1 && (rightFired == null || !rightFired.get(i))) {
+                                collectPad(paddingUtil.padRight(tuple.f0));
+                            }
+                        }
                     }
                     // eager remove
                     rightIterator.remove();
+                    if (earlyFireEnabled) {
+                        removeFired(rightFiredState, rightTime);
+                    }
                 } // We could do the short-cutting optimization here once we get a state with
                 // ordered keys.
             }
@@ -226,13 +298,21 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
             }
             leftRowList.add(Tuple2.of(leftRow, emitted));
             leftCache.put(timeForLeftRow, leftRowList);
+            if (earlyFireEnabled && joinType.isLeftOuter()) {
+                // The new tuple has not been speculatively padded yet, so its bit starts false.
+                appendFired(leftFiredState, timeForLeftRow);
+                if (!emitted) {
+                    // Schedule a speculative pad of this unmatched left row after the delay.
+                    registerTimer(ctx, timeForLeftRow + earlyFireDelay);
+                }
+            }
             if (rightTimerState.value() == null) {
                 // Register a timer on the RIGHT stream to remove rows.
                 registerCleanUpTimer(ctx, timeForLeftRow, true);
             }
         } else if (!emitted && joinType.isLeftOuter()) {
             // Emit a null padding result if the left row is not cached and successfully joined.
-            joinCollector.collect(paddingUtil.padLeft(leftRow));
+            collectPad(paddingUtil.padLeft(leftRow));
         }
     }
 
@@ -261,10 +341,28 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                 Long leftTime = leftEntry.getKey();
                 if (leftTime >= leftQualifiedLowerBound && leftTime <= leftQualifiedUpperBound) {
                     List<Tuple2<RowData, Boolean>> leftRows = leftEntry.getValue();
+                    List<Boolean> leftFired =
+                            earlyFireEnabled && joinType.isLeftOuter()
+                                    ? firedBits(leftFiredState, leftTime, leftRows)
+                                    : null;
                     boolean entryUpdated = false;
-                    for (Tuple2<RowData, Boolean> tuple : leftRows) {
+                    for (int i = 0; i < leftRows.size(); i++) {
+                        Tuple2<RowData, Boolean> tuple = leftRows.get(i);
                         joinCollector.reset();
+                        boolean retract =
+                                leftFired != null
+                                        && joinType.isLeftOuter()
+                                        && !tuple.f1
+                                        && leftFired.get(i);
+                        if (retract) {
+                            // The speculative pad for this left row was already emitted as an
+                            // insert; arm the collector so the match becomes -U(pad)/+U(match).
+                            joinCollector.armRetraction(paddingUtil.padLeft(tuple.f0));
+                        }
                         joinFunction.join(tuple.f0, rightRow, joinCollector);
+                        if (retract && !joinCollector.isEmitted()) {
+                            joinCollector.disarm();
+                        }
                         emitted = emitted || joinCollector.isEmitted();
                         if (joinType.isLeftOuter()) {
                             if (!tuple.f1 && joinCollector.isEmitted()) {
@@ -283,17 +381,24 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
                 if (leftTime <= leftExpirationTime) {
                     if (joinType.isLeftOuter()) {
                         List<Tuple2<RowData, Boolean>> leftRows = leftEntry.getValue();
-                        leftRows.forEach(
-                                (Tuple2<RowData, Boolean> tuple) -> {
-                                    if (!tuple.f1) {
-                                        // Emit a null padding result if the left row has never been
-                                        // successfully joined.
-                                        joinCollector.collect(paddingUtil.padLeft(tuple.f0));
-                                    }
-                                });
+                        List<Boolean> leftFired =
+                                earlyFireEnabled
+                                        ? firedBits(leftFiredState, leftTime, leftRows)
+                                        : null;
+                        for (int i = 0; i < leftRows.size(); i++) {
+                            Tuple2<RowData, Boolean> tuple = leftRows.get(i);
+                            // Skip a row whose speculative pad already fired: it is correct as
+                            // emitted and must not be padded a second time.
+                            if (!tuple.f1 && (leftFired == null || !leftFired.get(i))) {
+                                collectPad(paddingUtil.padLeft(tuple.f0));
+                            }
+                        }
                     }
                     // eager remove
                     leftIterator.remove();
+                    if (earlyFireEnabled) {
+                        removeFired(leftFiredState, leftTime);
+                    }
                 } // We could do the short-cutting optimization here once we get a state with
                 // ordered keys.
             }
@@ -309,13 +414,21 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
             }
             rightRowList.add(Tuple2.of(rightRow, emitted));
             rightCache.put(timeForRightRow, rightRowList);
+            if (earlyFireEnabled && joinType.isRightOuter()) {
+                // The new tuple has not been speculatively padded yet, so its bit starts false.
+                appendFired(rightFiredState, timeForRightRow);
+                if (!emitted) {
+                    // Schedule a speculative pad of this unmatched right row after the delay.
+                    registerTimer(ctx, timeForRightRow + earlyFireDelay);
+                }
+            }
             if (leftTimerState.value() == null) {
                 // Register a timer on the LEFT stream to remove rows.
                 registerCleanUpTimer(ctx, timeForRightRow, false);
             }
         } else if (!emitted && joinType.isRightOuter()) {
             // Emit a null padding result if the right row is not cached and successfully joined.
-            joinCollector.collect(paddingUtil.padRight(rightRow));
+            collectPad(paddingUtil.padRight(rightRow));
         }
     }
 
@@ -325,6 +438,22 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
         joinFunction.setJoinKey(ctx.getCurrentKey());
         joinCollector.setInnerCollector(out);
         updateOperatorTime(ctx);
+
+        // Early fire runs before cleanup at a shared timestamp so a row that is both due to fire
+        // and
+        // due to expire emits its speculative pad here; the cleanup branch's fired-bit gate then
+        // suppresses a second pad. A cleanup-only timestamp finds no live unfired-unmatched row at
+        // timestamp - earlyFireDelay and is a cheap no-op.
+        if (earlyFireEnabled) {
+            long rowTime = timestamp - earlyFireDelay;
+            if (joinType.isLeftOuter()) {
+                earlyFire(leftCache, leftFiredState, rowTime, true);
+            }
+            if (joinType.isRightOuter()) {
+                earlyFire(rightCache, rightFiredState, rowTime, false);
+            }
+        }
+
         // In the future, we should separate the left and right watermarks. Otherwise, the
         // registered timer of the faster stream will be delayed, even if the watermarks have
         // already been emitted by the source.
@@ -332,14 +461,57 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
         if (leftCleanUpTime != null && timestamp == leftCleanUpTime) {
             rightExpirationTime = calExpirationTime(leftOperatorTime, rightRelativeSize);
             removeExpiredRows(
-                    joinCollector, rightExpirationTime, rightCache, leftTimerState, ctx, false);
+                    joinCollector,
+                    rightExpirationTime,
+                    rightCache,
+                    rightFiredState,
+                    leftTimerState,
+                    ctx,
+                    false);
         }
 
         Long rightCleanUpTime = rightTimerState.value();
         if (rightCleanUpTime != null && timestamp == rightCleanUpTime) {
             leftExpirationTime = calExpirationTime(rightOperatorTime, leftRelativeSize);
             removeExpiredRows(
-                    joinCollector, leftExpirationTime, leftCache, rightTimerState, ctx, true);
+                    joinCollector,
+                    leftExpirationTime,
+                    leftCache,
+                    leftFiredState,
+                    rightTimerState,
+                    ctx,
+                    true);
+        }
+    }
+
+    /**
+     * Emit the speculative null-padding result for every cached outer row at the given row time
+     * that is still unmatched and has not yet had its pad emitted, flipping its fired bit so
+     * neither this path nor the later window-close pad emits it again.
+     */
+    private void earlyFire(
+            MapState<Long, List<Tuple2<RowData, Boolean>>> rowCache,
+            MapState<Long, List<Boolean>> firedState,
+            long rowTime,
+            boolean padLeft)
+            throws Exception {
+        List<Tuple2<RowData, Boolean>> rows = rowCache.get(rowTime);
+        if (rows == null) {
+            return;
+        }
+        List<Boolean> fired = firedBits(firedState, rowTime, rows);
+        boolean changed = false;
+        for (int i = 0; i < rows.size(); i++) {
+            Tuple2<RowData, Boolean> tuple = rows.get(i);
+            if (!tuple.f1 && !fired.get(i)) {
+                collectPad(
+                        padLeft ? paddingUtil.padLeft(tuple.f0) : paddingUtil.padRight(tuple.f0));
+                fired.set(i, true);
+                changed = true;
+            }
+        }
+        if (changed) {
+            firedState.put(rowTime, fired);
         }
     }
 
@@ -396,6 +568,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
             Collector<RowData> collector,
             long expirationTime,
             MapState<Long, List<Tuple2<RowData, Boolean>>> rowCache,
+            MapState<Long, List<Boolean>> firedState,
             ValueState<Long> timerState,
             OnTimerContext ctx,
             boolean removeLeft)
@@ -410,28 +583,29 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
             Map.Entry<Long, List<Tuple2<RowData, Boolean>>> entry = iterator.next();
             Long rowTime = entry.getKey();
             if (rowTime <= expirationTime) {
-                if (removeLeft && joinType.isLeftOuter()) {
+                boolean removeOuter =
+                        (removeLeft && joinType.isLeftOuter())
+                                || (!removeLeft && joinType.isRightOuter());
+                if (removeOuter) {
                     List<Tuple2<RowData, Boolean>> rows = entry.getValue();
-                    rows.forEach(
-                            (Tuple2<RowData, Boolean> tuple) -> {
-                                if (!tuple.f1) {
-                                    // Emit a null padding result if the row has never been
-                                    // successfully joined.
-                                    collector.collect(paddingUtil.padLeft(tuple.f0));
-                                }
-                            });
-                } else if (!removeLeft && joinType.isRightOuter()) {
-                    List<Tuple2<RowData, Boolean>> rows = entry.getValue();
-                    rows.forEach(
-                            (Tuple2<RowData, Boolean> tuple) -> {
-                                if (!tuple.f1) {
-                                    // Emit a null padding result if the row has never been
-                                    // successfully joined.
-                                    collector.collect(paddingUtil.padRight(tuple.f0));
-                                }
-                            });
+                    List<Boolean> fired =
+                            earlyFireEnabled ? firedBits(firedState, rowTime, rows) : null;
+                    for (int i = 0; i < rows.size(); i++) {
+                        Tuple2<RowData, Boolean> tuple = rows.get(i);
+                        // Emit a null padding result only if the row was never matched and its
+                        // speculative pad has not already been emitted.
+                        if (!tuple.f1 && (fired == null || !fired.get(i))) {
+                            collectPad(
+                                    removeLeft
+                                            ? paddingUtil.padLeft(tuple.f0)
+                                            : paddingUtil.padRight(tuple.f0));
+                        }
+                    }
                 }
                 iterator.remove();
+                if (earlyFireEnabled) {
+                    removeFired(firedState, rowTime);
+                }
             } else {
                 // We find the earliest timestamp that is still valid.
                 if (rowTime < earliestTimestamp || earliestTimestamp < 0) {
@@ -447,6 +621,58 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
             // No rows left in the cache. Clear the states and the timerState will be 0.
             timerState.clear();
             rowCache.clear();
+            if (earlyFireEnabled && firedState != null) {
+                firedState.clear();
+            }
+        }
+    }
+
+    /**
+     * Emit a padded outer-join row as an insert, overriding any leaked row kind on the reused row.
+     */
+    private void collectPad(RowData paddedRow) {
+        paddedRow.setRowKind(RowKind.INSERT);
+        joinCollector.collect(paddedRow);
+    }
+
+    /**
+     * Return the fired-bit list aligned with the given cache bucket. Only called when early firing
+     * is enabled. When the stored list is absent or its length no longer matches the bucket (e.g.
+     * after a restore), a fresh all-false list of the right length is rebuilt so no row is ever
+     * treated as already fired.
+     */
+    private List<Boolean> firedBits(
+            MapState<Long, List<Boolean>> firedState,
+            long rowTime,
+            List<Tuple2<RowData, Boolean>> rows)
+            throws Exception {
+        if (firedState != null) {
+            List<Boolean> fired = firedState.get(rowTime);
+            if (fired != null && fired.size() == rows.size()) {
+                return fired;
+            }
+        }
+        List<Boolean> fired = new ArrayList<>(rows.size());
+        for (int i = 0; i < rows.size(); i++) {
+            fired.add(Boolean.FALSE);
+        }
+        return fired;
+    }
+
+    private void appendFired(MapState<Long, List<Boolean>> firedState, long rowTime)
+            throws Exception {
+        List<Boolean> fired = firedState.get(rowTime);
+        if (fired == null) {
+            fired = new ArrayList<>(1);
+        }
+        fired.add(Boolean.FALSE);
+        firedState.put(rowTime, fired);
+    }
+
+    private void removeFired(MapState<Long, List<Boolean>> firedState, long rowTime)
+            throws Exception {
+        if (firedState != null) {
+            firedState.remove(rowTime);
         }
     }
 
