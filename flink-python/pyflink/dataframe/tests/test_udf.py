@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 
+import asyncio
 import functools
 import inspect
 import unittest
@@ -142,6 +143,13 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             async def eval(self, value: int) -> int:
                 return value * 2
 
+        class AddScalarOffset(ScalarFunction):
+            def __init__(self, offset):
+                self.offset = offset
+
+            def eval(self, value: int) -> int:
+                return value + self.offset
+
         named_callable = NamedCallable()
         double_instance = Double()
         async_double_instance = AsyncDouble()
@@ -154,6 +162,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             double_instance,
             AsyncDouble,
             async_double_instance,
+            AddScalarOffset(2),
         ]
         for source in callables:
             with self.subTest(source=source):
@@ -161,7 +170,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 self.assertEqual(decorated.return_dtype, pf.DataType.int64())
 
         self.assertEqual(plain_constructor_calls, [])
-        self.assertEqual(scalar_constructor_calls, ["Double", "AsyncDouble"])
+        self.assertEqual(scalar_constructor_calls, [])
         self.assertEqual(pf.udf(named_callable).__name__, "configured_add")
 
         decorated_class = pf.udf(Double)
@@ -191,6 +200,18 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
         async def async_pandas(values: pd.Series) -> pd.Series:
             return values + 1
+
+        class PandasCallable:
+            def __call__(self, values: pd.Series) -> pd.Series:
+                return values + 1
+
+        class PandasScalarFunction(ScalarFunction):
+            def eval(self, values: pd.Series) -> pd.Series:
+                return values + 1
+
+        class AsyncScalarClass(AsyncScalarFunction):
+            async def eval(self, value: int) -> int:
+                return value + 1
 
         declarations = [
             (
@@ -241,6 +262,30 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             (
                 "async general",
                 lambda: pf.udf(async_add_one),
+                "general",
+                True,
+            ),
+            (
+                "pandas callable class",
+                lambda: pf.udf(
+                    PandasCallable,
+                    return_dtype=pf.DataType.int64(),
+                ),
+                "pandas",
+                False,
+            ),
+            (
+                "pandas scalar-function class",
+                lambda: pf.udf(
+                    PandasScalarFunction,
+                    return_dtype=pf.DataType.int64(),
+                ),
+                "pandas",
+                False,
+            ),
+            (
+                "async scalar-function class",
+                lambda: pf.udf(AsyncScalarClass),
                 "general",
                 True,
             ),
@@ -310,8 +355,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "Inconsistent deterministic"):
             pf.udf(instance)
-        with self.assertRaisesRegex(ValueError, "Inconsistent deterministic"):
-            pf.udf(NonDeterministic)
+        self.assertTrue(pf.udf(NonDeterministic)._deterministic)
 
         named = pf.udf(instance, deterministic=False, name="identity")
         self.assertEqual(named.__name__, "identity")
@@ -433,6 +477,20 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             def __call__(self, other: int) -> int:
                 return other + self.value
 
+        class RequiresScalarArgument(ScalarFunction):
+            def __init__(self, value):
+                self.value = value
+
+            def eval(self, other: int) -> int:
+                return other + self.value
+
+        class RequiresAsyncScalarArgument(AsyncScalarFunction):
+            def __init__(self, value):
+                self.value = value
+
+            async def eval(self, other: int) -> int:
+                return other + self.value
+
         class NotCallable:
             pass
 
@@ -479,6 +537,18 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             (
                 "required constructor argument",
                 lambda: pf.udf(RequiresArgument),
+                TypeError,
+                "zero-argument constructor",
+            ),
+            (
+                "required scalar constructor argument",
+                lambda: pf.udf(RequiresScalarArgument),
+                TypeError,
+                "zero-argument constructor",
+            ),
+            (
+                "required async scalar constructor argument",
+                lambda: pf.udf(RequiresAsyncScalarArgument),
                 TypeError,
                 "zero-argument constructor",
             ),
@@ -538,12 +608,27 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 class DataFrameUDFAdapterTests(unittest.TestCase):
     def test_scalar_function_lifecycle_and_cleanup(self):
         from pyflink.dataframe.udf import (
+            _DataFrameAsyncScalarFunctionAdapter,
             _DataFrameScalarFunctionAdapter,
             _UDFUsage,
             _resolve_udf_source,
         )
 
         events = []
+
+        def create_adapter(source, deterministic=True, async_mode=False):
+            adapter_type = (
+                _DataFrameAsyncScalarFunctionAdapter
+                if async_mode
+                else _DataFrameScalarFunctionAdapter
+            )
+            return adapter_type(
+                _resolve_udf_source(source),
+                pf.DataType.int64(),
+                deterministic,
+                _UDFUsage.EXPRESSION,
+                "general",
+            )
 
         class LifecycleFunction(ScalarFunction):
             def __init__(self):
@@ -559,13 +644,8 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
                 events.append("close")
 
         context = object()
-        adapter = _DataFrameScalarFunctionAdapter(
-            _resolve_udf_source(LifecycleFunction()),
-            pf.DataType.int64(),
-            True,
-            _UDFUsage.EXPRESSION,
-            "general",
-        )
+        adapter = create_adapter(LifecycleFunction)
+        self.assertEqual(events, [])
 
         with self.assertRaisesRegex(RuntimeError, "before open"):
             adapter.eval(1)
@@ -586,9 +666,95 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
                 "init",
                 ("open", context),
                 "close",
+                "init",
                 ("open", context),
                 "close",
             ],
+        )
+
+        failed_lifecycle_events = []
+
+        class NonDeterministicFunction(ScalarFunction):
+            def __init__(self):
+                failed_lifecycle_events.append("init")
+
+            def eval(self, value):
+                return value
+
+            def is_deterministic(self):
+                return False
+
+            def close(self):
+                failed_lifecycle_events.append("close")
+
+        mismatched_adapter = create_adapter(NonDeterministicFunction)
+        with self.assertRaisesRegex(ValueError, "Inconsistent deterministic"):
+            mismatched_adapter.open(context)
+        mismatched_adapter.close()
+        self.assertEqual(failed_lifecycle_events, ["init"])
+
+        async_events = []
+
+        class AsyncLifecycleFunction(AsyncScalarFunction):
+            def __init__(self):
+                async_events.append("init")
+
+            def open(self, function_context):
+                async_events.append(("open", function_context))
+
+            async def eval(self, value):
+                return value + 1
+
+            def close(self):
+                async_events.append("close")
+
+        async_adapter = create_adapter(
+            AsyncLifecycleFunction,
+            async_mode=True,
+        )
+        self.assertEqual(async_events, [])
+        async_adapter.open(context)
+        self.assertEqual(asyncio.run(async_adapter.eval(1)), 2)
+        async_adapter.close()
+        self.assertEqual(async_events, ["init", ("open", context), "close"])
+
+        initialization_failure_events = []
+
+        class ConstructorFailureFunction(ScalarFunction):
+            def __init__(self):
+                initialization_failure_events.append("init")
+                raise RuntimeError("constructor failed")
+
+            def eval(self, value):
+                return value
+
+        constructor_failure_adapter = create_adapter(ConstructorFailureFunction)
+        with self.assertRaisesRegex(RuntimeError, "constructor failed"):
+            constructor_failure_adapter.open(context)
+        constructor_failure_adapter.close()
+        self.assertEqual(initialization_failure_events, ["init"])
+
+        class OpenFailureFunction(ScalarFunction):
+            def __init__(self):
+                initialization_failure_events.append("second init")
+
+            def open(self, function_context):
+                initialization_failure_events.append("open")
+                raise RuntimeError("open failed")
+
+            def eval(self, value):
+                return value
+
+            def close(self):
+                initialization_failure_events.append("close")
+
+        open_failure_adapter = create_adapter(OpenFailureFunction)
+        with self.assertRaisesRegex(RuntimeError, "open failed"):
+            open_failure_adapter.open(context)
+        open_failure_adapter.close()
+        self.assertEqual(
+            initialization_failure_events,
+            ["init", "second init", "open"],
         )
 
         deferred_constructor_calls = []
@@ -600,13 +766,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
             def __call__(self, value):
                 return value + 1
 
-        deferred_adapter = _DataFrameScalarFunctionAdapter(
-            _resolve_udf_source(DeferredCallable),
-            pf.DataType.int64(),
-            True,
-            _UDFUsage.EXPRESSION,
-            "general",
-        )
+        deferred_adapter = create_adapter(DeferredCallable)
         deferred_adapter.open(context)
         self.assertEqual(deferred_adapter.eval(1), 2)
         deferred_adapter.close()
@@ -622,18 +782,52 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
             def close(self):
                 raise RuntimeError("close failed")
 
-        failing_adapter = _DataFrameScalarFunctionAdapter(
-            _resolve_udf_source(FailingCloseFunction()),
-            pf.DataType.int64(),
-            True,
-            _UDFUsage.EXPRESSION,
-            "general",
-        )
+        failing_adapter = create_adapter(FailingCloseFunction())
         failing_adapter.open(context)
         with self.assertRaisesRegex(RuntimeError, "close failed"):
             failing_adapter.close()
         with self.assertRaisesRegex(RuntimeError, "before open"):
             failing_adapter.eval(1)
+
+    def test_binding_failure_closes_and_resets_deferred_scalar_class(self):
+        from pyflink.dataframe.udf import (
+            _DataFrameScalarFunctionAdapter,
+            _UDFUsage,
+            _resolve_udf_source,
+        )
+
+        events = []
+
+        class BindingFailureFunction(ScalarFunction):
+            def __init__(self):
+                events.append("init")
+
+            def open(self, function_context):
+                events.append("open")
+
+            def eval(self, value):
+                return value
+
+            def close(self):
+                events.append("close")
+                raise RuntimeError("close failed")
+
+        adapter = _DataFrameScalarFunctionAdapter(
+            _resolve_udf_source(BindingFailureFunction),
+            pf.DataType.int64(),
+            True,
+            _UDFUsage.MAP,
+            "general",
+        )
+        for _ in range(2):
+            with self.assertRaisesRegex(NotImplementedError, "'map'"):
+                adapter.open(object())
+            adapter.close()
+
+        self.assertEqual(
+            events,
+            ["init", "open", "close", "init", "open", "close"],
+        )
 
 
 class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
@@ -729,7 +923,7 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
                 return False
 
         deferred = pf.udf(DeferredCallable)
-        scalar_instance = pf.udf(OpenedScalarFunction())
+        opened_scalar_class = pf.udf(OpenedScalarFunction)
         scalar_class = pf.udf(ClassNonDeterministic, deterministic=False)
 
         result = (
@@ -740,7 +934,7 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
                 pandas_value=add_three(pf.col("id")),
                 details=details(pf.col("id")),
                 deferred_value=deferred(pf.col("id")),
-                scalar_value=scalar_instance(pf.col("id")),
+                scalar_value=opened_scalar_class(pf.col("id")),
                 scalar_class_value=scalar_class(pf.col("id")),
             )
         )
