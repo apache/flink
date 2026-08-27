@@ -21,13 +21,14 @@
 import functools
 import inspect
 from collections.abc import Mapping
+from dataclasses import dataclass
 from enum import Enum
 from typing import (
     Any,
     Callable,
     Dict,
+    FrozenSet,
     Optional,
-    Set,
     Tuple,
     Type,
     Union,
@@ -62,6 +63,107 @@ class _UDFUsage(Enum):
     MAP_BATCHES = "map_batches"
 
 
+class _UDFSourceKind(Enum):
+    """How a resolved UDF source is initialized and invoked on a worker."""
+
+    DIRECT_CALLABLE = "direct_callable"
+    CALLABLE_INSTANCE = "callable_instance"
+    CALLABLE_CLASS = "callable_class"
+    SCALAR_FUNCTION = "scalar_function"
+
+
+@dataclass(frozen=True)
+class _ResolvedUDFSource:
+    """Callable metadata resolved once on the client and reused on workers."""
+
+    declaration_source: _UDFInput
+    runtime_source: _UDFInput
+    kind: _UDFSourceKind
+    is_async: bool
+    ignored_hint_names: FrozenSet[str] = frozenset()
+
+    @property
+    def inspection_target(self) -> Callable[..., Any]:
+        if self.kind is _UDFSourceKind.DIRECT_CALLABLE:
+            return _get_callable_inspection_target(
+                cast(Callable[..., Any], self.runtime_source)
+            )
+        if self.kind is _UDFSourceKind.SCALAR_FUNCTION:
+            return cast(
+                Union[ScalarFunction, AsyncScalarFunction], self.runtime_source
+            ).eval
+        if self.kind is _UDFSourceKind.CALLABLE_CLASS:
+            hint_method, _ = _get_callable_class_hint_method(
+                cast(Type, self.runtime_source)
+            )
+            if hint_method is None:
+                raise RuntimeError("Resolved callable class has no inspection target.")
+            return hint_method
+        return cast(
+            Callable[..., Any], getattr(self.runtime_source, "__call__")
+        )
+
+    @property
+    def default_name(self) -> str:
+        return _default_udf_name(self.declaration_source)
+
+    @property
+    def constructs_on_worker(self) -> bool:
+        return self.kind is _UDFSourceKind.CALLABLE_CLASS
+
+    def create_worker_source(self) -> _UDFInput:
+        if not self.constructs_on_worker:
+            return self.runtime_source
+        source_class = cast(Type, self.runtime_source)
+        source = source_class()
+        if not callable(source):
+            raise TypeError(
+                f"Callable class '{source_class.__name__}' constructed a non-callable "
+                f"object of type '{type(source).__name__}'."
+            )
+        return cast(_UDFInput, source)
+
+    def validate_deterministic(
+        self, declared: bool, worker_source: Optional[_UDFInput] = None
+    ) -> None:
+        if self.kind is _UDFSourceKind.SCALAR_FUNCTION:
+            source = self.runtime_source if worker_source is None else worker_source
+            _validate_deterministic(
+                declared,
+                cast(
+                    Union[ScalarFunction, AsyncScalarFunction], source
+                ).is_deterministic(),
+            )
+
+    def open_worker_source(
+        self, worker_source: _UDFInput, function_context: Any
+    ) -> None:
+        if self.kind is _UDFSourceKind.SCALAR_FUNCTION:
+            cast(
+                Union[ScalarFunction, AsyncScalarFunction], worker_source
+            ).open(function_context)
+
+    def worker_invocation(
+        self, worker_source: _UDFInput
+    ) -> Callable[..., Any]:
+        if self.kind is _UDFSourceKind.DIRECT_CALLABLE:
+            return cast(Callable[..., Any], worker_source)
+        if self.kind is _UDFSourceKind.SCALAR_FUNCTION:
+            return cast(
+                Union[ScalarFunction, AsyncScalarFunction], worker_source
+            ).eval
+        return cast(Callable[..., Any], getattr(worker_source, "__call__"))
+
+    def close_worker_source(self, worker_source: Optional[_UDFInput]) -> None:
+        if (
+            self.kind is _UDFSourceKind.SCALAR_FUNCTION
+            and worker_source is not None
+        ):
+            cast(
+                Union[ScalarFunction, AsyncScalarFunction], worker_source
+            ).close()
+
+
 @PublicEvolving()
 class DataFrameUDFWrapper:
     """
@@ -81,37 +183,32 @@ class DataFrameUDFWrapper:
     .. versionadded:: 2.4.0
     """
 
-    _func: _UDFInput
+    _source: _ResolvedUDFSource
     _return_dtype: DataType
     _deterministic: bool
     _func_type: str
-    _is_async: bool
     _cached_table_udf_wrapper: Optional[UserDefinedFunctionWrapper]
     _frozen: bool
     __name__: str
 
     def __init__(
         self,
-        func: _UDFInput,
+        source: _ResolvedUDFSource,
         return_dtype: DataType,
         deterministic: bool,
         name: str,
         func_type: str,
-        is_async: bool,
-        metadata_source: Optional[_UDFInput] = None,
     ) -> None:
-        object.__setattr__(self, "_func", func)
+        object.__setattr__(self, "_source", source)
         object.__setattr__(self, "_return_dtype", return_dtype)
         object.__setattr__(self, "_deterministic", deterministic)
         object.__setattr__(self, "_func_type", func_type)
-        object.__setattr__(self, "_is_async", is_async)
         object.__setattr__(self, "_cached_table_udf_wrapper", None)
 
-        declaration = func if metadata_source is None else metadata_source
-        declaration_metadata = _unwrap_partial(declaration)
+        declaration_metadata = _unwrap_partial(source.declaration_source)
         functools.update_wrapper(self, declaration_metadata, updated=())
         object.__setattr__(self, "__name__", name)
-        object.__setattr__(self, "__wrapped__", declaration)
+        object.__setattr__(self, "__wrapped__", source.declaration_source)
         object.__setattr__(self, "_frozen", True)
 
     def __setattr__(self, name: str, value: Any) -> None:
@@ -149,13 +246,13 @@ class DataFrameUDFWrapper:
     ) -> UserDefinedFunctionWrapper:
         adapter_type = (
             _DataFrameAsyncScalarFunctionAdapter
-            if self._is_async
+            if self._source.is_async
             else _DataFrameScalarFunctionAdapter
         )
         actual_func = cast(
             Union[ScalarFunction, AsyncScalarFunction],
             adapter_type(
-                self._func,
+                self._source,
                 self._return_dtype,
                 self._deterministic,
                 usage,
@@ -350,58 +447,33 @@ def udf(
     """
 
     def decorator(f: _UDFInput) -> DataFrameUDFWrapper:
-        _validate_scalar_udf_source(f)
-        (
-            actual_func,
-            inspection_target,
-            skip_first_parameter,
-            is_async,
-        ) = _resolve_udf_source(f)
+        source = _resolve_udf_source(f)
         actual_func_type = (
             func_type
             if func_type is not None
-            else _detect_func_type(
-                inspection_target, skip_first=skip_first_parameter
-            )
+            else _detect_func_type(source)
         )
-        _validate_scalar_udf_options(actual_func_type, return_dtype, is_async)
-        actual_return_dtype = _infer_return_dtype(inspection_target, return_dtype)
-        actual_deterministic = _resolve_deterministic(actual_func, deterministic)
-        actual_name = _resolve_name(actual_func, name)
+        _validate_scalar_udf_options(
+            actual_func_type, return_dtype, source.is_async
+        )
+        actual_return_dtype = _infer_return_dtype(
+            source.inspection_target, return_dtype
+        )
+        actual_deterministic = _resolve_deterministic(source, deterministic)
+        actual_name = _resolve_name(source, name)
 
         return DataFrameUDFWrapper(
-            actual_func,
+            source,
             actual_return_dtype,
             actual_deterministic,
             actual_name,
             actual_func_type,
-            is_async,
-            metadata_source=f,
         )
 
     return decorator if func is None else decorator(func)
 
 
 # ======================== Declaration Validation ========================
-
-
-def _validate_scalar_udf_source(func: Any) -> None:
-    if inspect.isclass(func):
-        if issubclass(func, UserDefinedFunction) and not issubclass(
-            func, (ScalarFunction, AsyncScalarFunction)
-        ):
-            raise TypeError(f"func must be a scalar UDF, got {func.__name__}.")
-        if not issubclass(
-            func, (ScalarFunction, AsyncScalarFunction)
-        ) and not _has_custom_call(func):
-            raise TypeError(f"func must be callable, got {func.__name__}.")
-        return
-    if isinstance(func, UserDefinedFunction) and not isinstance(
-        func, (ScalarFunction, AsyncScalarFunction)
-    ):
-        raise TypeError(f"func must be a scalar UDF, got {type(func).__name__}.")
-    if not isinstance(func, (ScalarFunction, AsyncScalarFunction)) and not callable(func):
-        raise TypeError(f"func must be callable, got {type(func).__name__}.")
 
 
 def _validate_scalar_udf_options(
@@ -447,58 +519,108 @@ def _get_callable_class_hint_method(
     return None, False
 
 
-def _is_class_udf(func: Any) -> bool:
-    """Check whether ``func`` uses a class-based scalar UDF declaration form."""
-    if isinstance(func, functools.partial):
-        return False
-    if isinstance(func, (ScalarFunction, AsyncScalarFunction)):
-        return True
-    if inspect.isclass(func):
-        if issubclass(func, (ScalarFunction, AsyncScalarFunction)):
-            return True
-        return _has_custom_call(func)
-    if not inspect.isroutine(func) and hasattr(func, "__call__"):
-        return _has_custom_call(type(func))
-    return False
-
-
 def _resolve_udf_source(
     func: _UDFInput,
-) -> Tuple[_UDFInput, Callable[..., Any], bool, bool]:
-    """Resolve the runtime source and callable that describes its declaration."""
-    if not _is_class_udf(func):
-        callable_func = cast(Callable[..., Any], func)
-        return func, callable_func, False, _is_async_callable(callable_func)
+) -> _ResolvedUDFSource:
+    """Validate and classify one callable declaration."""
+    if isinstance(func, functools.partial) or inspect.isroutine(func):
+        inspection_target = _get_callable_inspection_target(
+            cast(Callable[..., Any], func)
+        )
+        return _ResolvedUDFSource(
+            func,
+            func,
+            _UDFSourceKind.DIRECT_CALLABLE,
+            inspect.iscoroutinefunction(inspection_target),
+            _ignored_hint_names(func, inspection_target),
+        )
 
-    skip_first_parameter = False
     if inspect.isclass(func):
-        _validate_zero_argument_class(func)
+        if issubclass(func, UserDefinedFunction) and not issubclass(
+            func, (ScalarFunction, AsyncScalarFunction)
+        ):
+            raise TypeError(f"func must be a scalar UDF, got {func.__name__}.")
         if issubclass(func, (ScalarFunction, AsyncScalarFunction)):
+            _validate_zero_argument_class(func)
             actual_func = func()
             hint_method = actual_func.eval
             is_async = isinstance(
                 actual_func, AsyncScalarFunction
             ) or inspect.iscoroutinefunction(hint_method)
-            return actual_func, hint_method, False, is_async
+            return _ResolvedUDFSource(
+                func,
+                actual_func,
+                _UDFSourceKind.SCALAR_FUNCTION,
+                is_async,
+            )
 
-        class_hint_method, skip_first_parameter = _get_callable_class_hint_method(
-            func
+        if not _has_custom_call(func):
+            raise TypeError(f"func must be callable, got {func.__name__}.")
+        _validate_zero_argument_class(func)
+        class_hint_method, skip_first_parameter = (
+            _get_callable_class_hint_method(func)
         )
         if class_hint_method is None:
             raise TypeError(
                 f"Callable class '{func.__name__}': __call__ must be defined as a method."
             )
-        hint_method = class_hint_method
-        is_async = inspect.iscoroutinefunction(hint_method)
-    elif isinstance(func, (ScalarFunction, AsyncScalarFunction)):
+        return _ResolvedUDFSource(
+            func,
+            func,
+            _UDFSourceKind.CALLABLE_CLASS,
+            inspect.iscoroutinefunction(class_hint_method),
+            _ignored_hint_names(
+                func, class_hint_method, skip_first=skip_first_parameter
+            ),
+        )
+
+    if isinstance(func, UserDefinedFunction) and not isinstance(
+        func, (ScalarFunction, AsyncScalarFunction)
+    ):
+        raise TypeError(f"func must be a scalar UDF, got {type(func).__name__}.")
+    if isinstance(func, (ScalarFunction, AsyncScalarFunction)):
         hint_method = func.eval
         is_async = isinstance(func, AsyncScalarFunction) or inspect.iscoroutinefunction(
             hint_method
         )
-    else:
-        hint_method = cast(Callable[..., Any], getattr(func, "__call__"))
-        is_async = inspect.iscoroutinefunction(hint_method)
-    return func, hint_method, skip_first_parameter, is_async
+        return _ResolvedUDFSource(
+            func,
+            func,
+            _UDFSourceKind.SCALAR_FUNCTION,
+            is_async,
+        )
+
+    if not callable(func):
+        raise TypeError(f"func must be callable, got {type(func).__name__}.")
+    hint_method = cast(Callable[..., Any], getattr(func, "__call__"))
+    return _ResolvedUDFSource(
+        func,
+        func,
+        _UDFSourceKind.CALLABLE_INSTANCE,
+        inspect.iscoroutinefunction(hint_method),
+    )
+
+
+def _ignored_hint_names(
+    func: _UDFInput,
+    inspection_target: Callable[..., Any],
+    skip_first: bool = False,
+) -> FrozenSet[str]:
+    try:
+        parameters = list(inspect.signature(inspection_target).parameters)
+    except (TypeError, ValueError):
+        parameters = []
+    ignored_names = set(parameters[:1]) if skip_first else set()
+    if isinstance(func, functools.partial):
+        try:
+            ignored_names.update(
+                inspect.signature(inspection_target)
+                .bind_partial(*func.args, **(func.keywords or {}))
+                .arguments
+            )
+        except (TypeError, ValueError):
+            pass
+    return frozenset(ignored_names)
 
 
 def _validate_zero_argument_class(func_class: Type) -> None:
@@ -527,8 +649,7 @@ def _infer_return_dtype(
     if return_dtype is not None:
         return _convert_to_dtype(return_dtype)
 
-    hint_func = _get_callable_inspection_target(func)
-    hints = _get_callable_type_hints(hint_func)
+    hints = _get_callable_type_hints(func)
     if "return" not in hints:
         func_name = _default_udf_name(func)
         raise TypeError(
@@ -578,9 +699,9 @@ def _data_type_from_type_hint(type_hint: Any) -> DataType:
     return DataType._from_type_hint(type_hint)
 
 
-def _detect_func_type(func: Callable[..., Any], skip_first: bool = False) -> str:
+def _detect_func_type(source: _ResolvedUDFSource) -> str:
     """Detect pandas mode from an unbound pandas container annotation."""
-    hint_func = _get_callable_inspection_target(func)
+    hint_func = source.inspection_target
     try:
         import pandas as pd
     except ImportError:
@@ -589,28 +710,11 @@ def _detect_func_type(func: Callable[..., Any], skip_first: bool = False) -> str
         hint_func, fallback_globals={"pandas": pd, "pd": pd}
     )
 
-    try:
-        parameters = list(inspect.signature(hint_func).parameters)
-    except (TypeError, ValueError):
-        parameters = []
-    ignored_hint_names: Set[str] = set()
-    if skip_first and parameters:
-        ignored_hint_names.add(parameters[0])
-    if isinstance(func, functools.partial):
-        try:
-            ignored_hint_names.update(
-                inspect.signature(hint_func)
-                .bind_partial(*func.args, **(func.keywords or {}))
-                .arguments
-            )
-        except (TypeError, ValueError):
-            pass
-
     pandas_types = (pd.Series, pd.DataFrame)
     return (
         "pandas"
         if any(
-            name not in ignored_hint_names and hint in pandas_types
+            name not in source.ignored_hint_names and hint in pandas_types
             for name, hint in hints.items()
         )
         else "general"
@@ -651,15 +755,12 @@ def _get_callable_type_hints(
         return {}
 
 
-def _is_async_callable(func: Callable[..., Any]) -> bool:
-    return inspect.iscoroutinefunction(_get_callable_inspection_target(func))
-
-
-def _resolve_deterministic(func: _UDFInput, deterministic: bool) -> bool:
+def _resolve_deterministic(
+    source: _ResolvedUDFSource, deterministic: bool
+) -> bool:
     if not isinstance(deterministic, bool):
         raise TypeError("deterministic must be a bool.")
-    if isinstance(func, (ScalarFunction, AsyncScalarFunction)):
-        _validate_deterministic(deterministic, func.is_deterministic())
+    source.validate_deterministic(deterministic)
     return deterministic
 
 
@@ -668,8 +769,8 @@ def _validate_deterministic(declared: bool, actual: bool) -> None:
         raise ValueError(f"Inconsistent deterministic: {declared} and {actual}.")
 
 
-def _resolve_name(func: _UDFInput, name: Optional[str]) -> str:
-    actual_name = _default_udf_name(func) if name is None else name
+def _resolve_name(source: _ResolvedUDFSource, name: Optional[str]) -> str:
+    actual_name = source.default_name if name is None else name
     if not isinstance(actual_name, str):
         raise TypeError("name must be a str or None.")
     if not actual_name:
@@ -687,11 +788,11 @@ def _default_udf_name(func: _UDFInput) -> str:
 
 
 def _wrap_scalar_general_result(
-    func: Callable[..., Any], return_dtype: DataType
+    func: Callable[..., Any], return_dtype: DataType, is_async: bool
 ) -> Callable[..., Any]:
     result_type = return_dtype._to_table_data_type()
 
-    if _is_async_callable(func):
+    if is_async:
 
         @functools.wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -716,44 +817,34 @@ class _DataFrameUDFAdapterBase:
 
     def __init__(
         self,
-        func: _UDFInput,
+        source: _ResolvedUDFSource,
         return_dtype: DataType,
         deterministic: bool,
         usage: _UDFUsage,
         func_type: str,
     ) -> None:
-        self._func_class: Optional[Type] = func if inspect.isclass(func) else None
-        self._func: Optional[_UDFInput] = None if self._func_class is not None else func
+        self._source = source
+        self._func: Optional[_UDFInput] = (
+            None if source.constructs_on_worker else source.runtime_source
+        )
         self._return_dtype = return_dtype if func_type == "general" else None
         self._deterministic = deterministic
         self._usage = usage
         self._func_type = func_type
         self._bound_func: Optional[Callable[..., Any]] = None
-        self.__name__ = _default_udf_name(func)
-        self.__doc__ = getattr(func, "__doc__", None)
+        self.__name__ = source.default_name
+        self.__doc__ = getattr(source.declaration_source, "__doc__", None)
 
     def open(self, function_context: Any) -> None:
-        if self._func_class is not None:
-            self._func = self._func_class()
+        if self._source.constructs_on_worker:
+            self._func = self._source.create_worker_source()
 
         func = self._func
         if func is None:
             raise RuntimeError("DataFrame UDF source was not initialized.")
-        if not isinstance(func, (ScalarFunction, AsyncScalarFunction)) and not callable(func):
-            class_name = self._func_class.__name__ if self._func_class else type(func).__name__
-            raise TypeError(
-                f"Callable class '{class_name}' constructed a non-callable "
-                f"object of type '{type(func).__name__}'."
-            )
-
-        if isinstance(func, (ScalarFunction, AsyncScalarFunction)):
-            _validate_deterministic(self._deterministic, func.is_deterministic())
-            func.open(function_context)
-            invoke_func = func.eval
-        elif inspect.isroutine(func) or isinstance(func, functools.partial):
-            invoke_func = cast(Callable[..., Any], func)
-        else:
-            invoke_func = cast(Callable[..., Any], getattr(func, "__call__"))
+        self._source.validate_deterministic(self._deterministic, func)
+        self._source.open_worker_source(func, function_context)
+        invoke_func = self._source.worker_invocation(func)
         self._bound_func = self._bind_func(invoke_func)
 
     def _bind_func(self, invoke_func: Callable[..., Any]) -> Callable[..., Any]:
@@ -763,18 +854,19 @@ class _DataFrameUDFAdapterBase:
             )
         if self._func_type == "general":
             return _wrap_scalar_general_result(
-                invoke_func, cast(DataType, self._return_dtype)
+                invoke_func,
+                cast(DataType, self._return_dtype),
+                self._source.is_async,
             )
         return invoke_func
 
     def close(self) -> None:
         func = self._func
         try:
-            if isinstance(func, (ScalarFunction, AsyncScalarFunction)):
-                func.close()
+            self._source.close_worker_source(func)
         finally:
             self._bound_func = None
-            if self._func_class is not None:
+            if self._source.constructs_on_worker:
                 self._func = None
 
     def is_deterministic(self) -> bool:
