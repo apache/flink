@@ -133,21 +133,24 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             def __init__(self):
                 scalar_constructor_calls.append("Double")
 
-            def eval(self, value: int) -> int:
+            def eval(self, *values: int) -> int:
+                value, = values
                 return value * 2
 
         class AsyncDouble(AsyncScalarFunction):
             def __init__(self):
                 scalar_constructor_calls.append("AsyncDouble")
 
-            async def eval(self, value: int) -> int:
+            async def eval(self, *values: int) -> int:
+                value, = values
                 return value * 2
 
         class AddScalarOffset(ScalarFunction):
             def __init__(self, offset):
                 self.offset = offset
 
-            def eval(self, value: int) -> int:
+            def eval(self, *values: int) -> int:
+                value, = values
                 return value + self.offset
 
         named_callable = NamedCallable()
@@ -206,11 +209,13 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 return values + 1
 
         class PandasScalarFunction(ScalarFunction):
-            def eval(self, values: pd.Series) -> pd.Series:
-                return values + 1
+            def eval(self, *values: pd.Series) -> pd.Series:
+                value, = values
+                return value + 1
 
         class AsyncScalarClass(AsyncScalarFunction):
-            async def eval(self, value: int) -> int:
+            async def eval(self, *values: int) -> int:
+                value, = values
                 return value + 1
 
         declarations = [
@@ -321,14 +326,16 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
     def test_determinism_and_name_metadata(self):
         class NonDeterministic(ScalarFunction):
-            def eval(self, value: int) -> int:
+            def eval(self, *values: int) -> int:
+                value, = values
                 return value
 
             def is_deterministic(self):
                 return False
 
         class DefaultDeterministic(ScalarFunction):
-            def eval(self, value: int) -> int:
+            def eval(self, *values: int) -> int:
+                value, = values
                 return value
 
         instance = NonDeterministic()
@@ -481,15 +488,17 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             def __init__(self, value):
                 self.value = value
 
-            def eval(self, other: int) -> int:
-                return other + self.value
+            def eval(self, *values: int) -> int:
+                value, = values
+                return value + self.value
 
         class RequiresAsyncScalarArgument(AsyncScalarFunction):
             def __init__(self, value):
                 self.value = value
 
-            async def eval(self, other: int) -> int:
-                return other + self.value
+            async def eval(self, *values: int) -> int:
+                value, = values
+                return value + self.value
 
         class NotCallable:
             pass
@@ -912,11 +921,13 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
             def open(self, function_context):
                 self._increment = 5
 
-            def eval(self, value: int) -> int:
+            def eval(self, *values: int) -> int:
+                value, = values
                 return value + self._increment
 
         class ClassNonDeterministic(ScalarFunction):
-            def eval(self, value: int) -> int:
+            def eval(self, *values: int) -> int:
+                value, = values
                 return value + 6
 
             def is_deterministic(self):
