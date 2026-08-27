@@ -28,7 +28,7 @@ import pyflink.dataframe as pf
 from pyflink.common import Row
 from pyflink.table import DataTypes as TableDataTypes
 from pyflink.table.types import RowType
-from pyflink.table.udf import AsyncScalarFunction, ScalarFunction
+from pyflink.table.udf import AsyncScalarFunction, ScalarFunction, TableFunction
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
     PyFlinkStreamDataFrameTestCase,
@@ -249,7 +249,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             with self.subTest(case=case_name):
                 wrapped = declare()
                 self.assertEqual(wrapped._func_type, expected_type)
-                self.assertEqual(wrapped._is_async, expected_async)
+                self.assertEqual(wrapped._source.is_async, expected_async)
 
         invalid_declarations = [
             (
@@ -436,6 +436,10 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         class NotCallable:
             pass
 
+        class NonScalarFunction(TableFunction):
+            def eval(self, value):
+                return value
+
         invalid_declarations = [
             (
                 "not callable",
@@ -448,6 +452,15 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 lambda: pf.udf(NotCallable, return_dtype=pf.DataType.int64()),
                 TypeError,
                 "func must be callable",
+            ),
+            (
+                "non-scalar UDF class",
+                lambda: pf.udf(
+                    NonScalarFunction,
+                    return_dtype=pf.DataType.int64(),
+                ),
+                TypeError,
+                "func must be a scalar UDF",
             ),
             (
                 "missing return",
@@ -527,6 +540,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
         from pyflink.dataframe.udf import (
             _DataFrameScalarFunctionAdapter,
             _UDFUsage,
+            _resolve_udf_source,
         )
 
         events = []
@@ -546,7 +560,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
 
         context = object()
         adapter = _DataFrameScalarFunctionAdapter(
-            LifecycleFunction(),
+            _resolve_udf_source(LifecycleFunction()),
             pf.DataType.int64(),
             True,
             _UDFUsage.EXPRESSION,
@@ -587,7 +601,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
                 return value + 1
 
         deferred_adapter = _DataFrameScalarFunctionAdapter(
-            DeferredCallable,
+            _resolve_udf_source(DeferredCallable),
             pf.DataType.int64(),
             True,
             _UDFUsage.EXPRESSION,
@@ -609,7 +623,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
                 raise RuntimeError("close failed")
 
         failing_adapter = _DataFrameScalarFunctionAdapter(
-            FailingCloseFunction(),
+            _resolve_udf_source(FailingCloseFunction()),
             pf.DataType.int64(),
             True,
             _UDFUsage.EXPRESSION,
