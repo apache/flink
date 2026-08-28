@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from pyflink.table.table_schema import TableSchema
 
 from pyflink.common import Row
-from pyflink.dataframe.datatype import DataType
+from pyflink.dataframe.datatype import _INT_MAX, DataType
 from pyflink.table.expression import Expression
 from pyflink.table.expressions import (
     and_,
@@ -49,6 +49,15 @@ from pyflink.util.api_stability_decorators import PublicEvolving
 __all__ = ["DataFrame", "GroupedDataFrame", "col", "lit"]
 
 T = TypeVar("T")
+
+
+def _validate_row_count(n: int) -> None:
+    if isinstance(n, bool) or not isinstance(n, int):
+        raise TypeError("n must be an integer")
+    if n < 0:
+        raise ValueError("n must be non-negative")
+    if n > _INT_MAX:
+        raise ValueError(f"n must be less than or equal to {_INT_MAX}")
 
 
 @PublicEvolving()
@@ -541,6 +550,87 @@ class DataFrame:
 
     distinct = drop_duplicates
     unique = drop_duplicates
+
+    # ======================== Slicing ========================
+
+    @PublicEvolving()
+    def limit(self, n: int) -> "DataFrame":
+        """
+        Keep at most the first ``n`` rows.
+
+        This method builds a new DataFrame plan without executing a Flink job. Execution is
+        triggered by an action such as :meth:`collect` or :meth:`to_pandas`. Without an explicit
+        ordering on the underlying table, the selected rows and their order are unspecified.
+        Changes to the underlying table content may also change the result.
+
+        :param n: Maximum number of rows to keep.
+        :return: A new DataFrame containing at most ``n`` rows.
+        :raises TypeError: If ``n`` is not an integer.
+        :raises ValueError: If ``n`` is negative.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"id": 1}, {"id": 2}, {"id": 3}])
+            >>> first_two = df.limit(2)
+
+        .. versionadded:: 2.4.0
+        """
+        _validate_row_count(n)
+        return DataFrame(self._table.fetch(n))
+
+    @PublicEvolving()
+    def offset(self, n: int) -> "DataFrame":
+        """
+        Skip the first ``n`` rows.
+
+        This method builds a new DataFrame plan without executing a Flink job. Execution is
+        triggered by an action such as :meth:`collect` or :meth:`to_pandas`. Without an explicit
+        ordering on the underlying table, the skipped rows and their order are unspecified.
+        Changes to the underlying table content may also change the result. Combine this method
+        with :meth:`limit` for pagination.
+
+        :param n: Number of rows to skip.
+        :return: A new DataFrame without the first ``n`` rows.
+        :raises TypeError: If ``n`` is not an integer.
+        :raises ValueError: If ``n`` is negative.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"id": 1}, {"id": 2}, {"id": 3}])
+            >>> page = df.offset(1).limit(2)
+
+        .. versionadded:: 2.4.0
+        """
+        _validate_row_count(n)
+        return DataFrame(self._table.offset(n))
+
+    @PublicEvolving()
+    def head(self, n: int) -> "DataFrame":
+        """
+        Keep at most the first ``n`` rows.
+
+        This method builds a new DataFrame plan without executing a Flink job and delegates to
+        :meth:`limit`. Execution is triggered by an action such as :meth:`collect` or
+        :meth:`to_pandas`. Without an explicit ordering on the underlying table, the selected rows
+        and their order are unspecified. Changes to the underlying table content may also change
+        the result.
+
+        :param n: Maximum number of rows to keep.
+        :return: A new DataFrame containing at most ``n`` rows.
+        :raises TypeError: If ``n`` is not an integer.
+        :raises ValueError: If ``n`` is negative.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"id": 1}, {"id": 2}, {"id": 3}])
+            >>> first_two = df.head(2)
+
+        .. versionadded:: 2.4.0
+        """
+        return self.limit(n)
 
     # ======================== Aggregation ========================
 

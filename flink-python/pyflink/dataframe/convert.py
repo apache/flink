@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 
 from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame
+from pyflink.dataframe.datatype import _BIGINT_MAX, _BIGINT_MIN
 from pyflink.table import Schema, Table
 from pyflink.table.types import (
     _create_converter,
@@ -63,8 +64,6 @@ __all__ = [
 ]
 
 _SCALAR_SEQUENCE_TYPES = (str, bytes, bytearray, memoryview)
-_BIGINT_MIN = -(1 << 63)
-_BIGINT_MAX = (1 << 63) - 1
 
 
 class _WatermarkSpec(NamedTuple):

@@ -21,7 +21,9 @@ DataFrame
 =========
 
 A DataFrame provides a Pythonic interface for composing data transformations.
-Transformation methods return new DataFrames and support fluent chaining.
+Transformation methods return new DataFrames and support fluent chaining. They build execution
+plans lazily without starting a Flink job; execution is triggered by an action such as
+``DataFrame.collect`` or ``DataFrame.to_pandas``.
 
 Example::
 
@@ -61,6 +63,9 @@ Transformations
     DataFrame.drop_duplicates
     DataFrame.distinct
     DataFrame.unique
+    DataFrame.limit
+    DataFrame.offset
+    DataFrame.head
     DataFrame.__getitem__
 
 Aggregations
