@@ -328,7 +328,8 @@ public class JsonParserToRowDataConverters implements Serializable {
     }
 
     private BinaryVariant convertToVariant(JsonParser jp) throws IOException {
-        return BinaryVariantInternalBuilder.parseJson(jp.readValueAsTree().toString(), false);
+        // Duplicate keys keep the last value, matching how a Jackson tree would collapse them.
+        return BinaryVariantInternalBuilder.parseJson(jp, true);
     }
 
     private JsonParserToRowDataConverter createDecimalConverter(DecimalType decimalType) {
