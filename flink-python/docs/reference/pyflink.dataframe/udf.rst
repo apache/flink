@@ -39,10 +39,3 @@ API Reference
     :toctree: api/
 
     udf
-
-.. currentmodule:: pyflink.dataframe.udf
-
-.. autosummary::
-    :toctree: api/
-
-    DataFrameUDFWrapper

@@ -52,7 +52,7 @@ from pyflink.table.udf import (
 )
 from pyflink.util.api_stability_decorators import PublicEvolving
 
-__all__ = ["DataFrameUDFWrapper", "udf"]
+__all__ = ["udf"]
 
 _UDFInput = Union[Callable[..., Any], ScalarFunction, AsyncScalarFunction, Type]
 _DataTypeLike = Union[DataType, Type, str]
@@ -216,24 +216,8 @@ class _ResolvedUDFSource:
             ).close()
 
 
-@PublicEvolving()
-class DataFrameUDFWrapper:
-    """
-    A callable DataFrame scalar UDF declaration.
-
-    Instances are created with :func:`udf` and can be called with DataFrame
-    expressions or Python literals to produce an expression.
-
-    Example::
-
-        >>> import pyflink.dataframe as pf
-        >>> @pf.udf
-        ... def add_one(value: int) -> int:
-        ...     return value + 1
-        >>> expression = add_one(pf.col("value"))
-
-    .. versionadded:: 2.4.0
-    """
+class _DataFrameUDFWrapper:
+    """Internal callable binding a DataFrame scalar UDF to Table expressions."""
 
     _source: _ResolvedUDFSource
     _return_dtype: DataType
@@ -268,22 +252,10 @@ class DataFrameUDFWrapper:
 
     def __setattr__(self, name: str, value: Any) -> None:
         if getattr(self, "_frozen", False):
-            raise AttributeError("DataFrameUDFWrapper declarations are immutable.")
+            raise AttributeError("DataFrame UDF declarations are immutable.")
         object.__setattr__(self, name, value)
 
-    @PublicEvolving()
     def __call__(self, *args: Any) -> Expression:
-        """
-        Create an expression that calls this UDF.
-
-        Example::
-
-            >>> import pyflink.dataframe as pf
-            >>> @pf.udf
-            ... def add_one(value: int) -> int:
-            ...     return value + 1
-            >>> expression = add_one(pf.col("value"))
-        """
         return table_call(self._table_udf_wrapper, *args)
 
     @property
@@ -326,20 +298,7 @@ class DataFrameUDFWrapper:
         )
 
     @property
-    @PublicEvolving()
     def return_dtype(self) -> DataType:
-        """
-        The logical result type of this UDF.
-
-        Example::
-
-            >>> import pyflink.dataframe as pf
-            >>> @pf.udf
-            ... def add_one(value: int) -> int:
-            ...     return value + 1
-            >>> add_one.return_dtype == pf.DataType.int64()
-            True
-        """
         return self._return_dtype
 
 
@@ -351,7 +310,7 @@ def udf(
     deterministic: bool = ...,
     name: Optional[str] = ...,
     func_type: Optional[str] = ...,
-) -> DataFrameUDFWrapper:
+) -> Callable[..., Expression]:
     ...
 
 
@@ -363,7 +322,7 @@ def udf(
     deterministic: bool = ...,
     name: Optional[str] = ...,
     func_type: Optional[str] = ...,
-) -> Callable[[_UDFInput], DataFrameUDFWrapper]:
+) -> Callable[[_UDFInput], Callable[..., Expression]]:
     ...
 
 
@@ -375,7 +334,10 @@ def udf(
     deterministic: bool = True,
     name: Optional[str] = None,
     func_type: Optional[str] = None,
-) -> Union[DataFrameUDFWrapper, Callable[[_UDFInput], DataFrameUDFWrapper]]:
+) -> Union[
+    Callable[..., Expression],
+    Callable[[_UDFInput], Callable[..., Expression]],
+]:
     """
     Create a scalar UDF for DataFrame expressions.
 
@@ -495,12 +457,14 @@ def udf(
     :param name: Non-empty function identity used by the Table planner.
     :param func_type: ``"general"`` or ``"pandas"``. If omitted, any unbound
                       pandas container annotation selects pandas mode.
-    :return: A :class:`DataFrameUDFWrapper`, or a decorator when ``func`` is omitted.
+    :return: A callable that accepts DataFrame expressions or Python literals and
+             returns an :class:`~pyflink.table.expression.Expression`, or a decorator
+             producing such a callable when ``func`` is omitted.
 
     .. versionadded:: 2.4.0
     """
 
-    def decorator(f: _UDFInput) -> DataFrameUDFWrapper:
+    def decorator(f: _UDFInput) -> Callable[..., Expression]:
         source = _resolve_udf_source(f)
         actual_func_type = (
             func_type
@@ -516,7 +480,7 @@ def udf(
         actual_deterministic = _resolve_deterministic(source, deterministic)
         actual_name = _resolve_name(source, name)
 
-        return DataFrameUDFWrapper(
+        return _DataFrameUDFWrapper(
             source,
             actual_return_dtype,
             actual_deterministic,
