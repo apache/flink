@@ -18,23 +18,29 @@
 
 import asyncio
 import functools
+import importlib
 import inspect
 import operator
 import unittest
 from dataclasses import dataclass
-from typing import TypedDict
+from typing import Any, Callable, TypedDict, cast
 
 import pandas as pd
 import pyarrow as pa
 import pyflink.dataframe as pf
 from pyflink.common import Row, RowKind
 from pyflink.table import DataTypes as TableDataTypes
+from pyflink.table.expression import Expression
 from pyflink.table.types import RowType
 from pyflink.table.udf import AsyncScalarFunction, ScalarFunction, TableFunction
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
     PyFlinkStreamDataFrameTestCase,
 )
+
+
+def _return_dtype(declaration: Callable[..., Expression]) -> pf.DataType:
+    return cast(Any, declaration).return_dtype
 
 
 class DataFrameUDFDeclarationTests(unittest.TestCase):
@@ -76,24 +82,25 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             "return": "int",
         }
 
-        decorated = pf.udf(add_one)
+        decorated: Callable[..., Expression] = pf.udf(add_one)
 
-        from pyflink.dataframe.udf import DataFrameUDFWrapper
-
-        self.assertIsInstance(decorated, DataFrameUDFWrapper)
         self.assertFalse(hasattr(pf, "DataFrameUDFWrapper"))
-        self.assertEqual(decorated.return_dtype, pf.DataType.int64())
+        udf_module = importlib.import_module("pyflink.dataframe.udf")
+        self.assertFalse(hasattr(udf_module, "DataFrameUDFWrapper"))
+        self.assertEqual(_return_dtype(decorated), pf.DataType.int64())
         self.assertEqual(decorated.__name__, "add_one")
         self.assertEqual(decorated.__doc__, "Add one to a value.")
         self.assertIs(decorated.__wrapped__, add_one)
 
-        configured = pf.udf(return_dtype=pf.DataType.string())(
+        configured: Callable[..., Expression] = pf.udf(
+            return_dtype=pf.DataType.string()
+        )(
             lambda value: str(value)
         )
         direct = pf.udf(functools.partial(add_one), name="partial_add_one")
 
-        self.assertEqual(configured.return_dtype, pf.DataType.string())
-        self.assertEqual(direct.return_dtype, pf.DataType.int64())
+        self.assertEqual(_return_dtype(configured), pf.DataType.string())
+        self.assertEqual(_return_dtype(direct), pf.DataType.int64())
         self.assertEqual(direct.__name__, "partial_add_one")
 
         declarations = [
@@ -130,7 +137,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         ]
         for case_name, declare, expected in declarations:
             with self.subTest(case=case_name):
-                self.assertEqual(declare().return_dtype, expected)
+                self.assertEqual(_return_dtype(declare()), expected)
 
     def test_callable_classes_and_instances_infer_from_invocation_method(self):
         plain_constructor_calls = []
@@ -197,7 +204,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         for source in callables:
             with self.subTest(source=source):
                 decorated = pf.udf(source)
-                self.assertEqual(decorated.return_dtype, pf.DataType.int64())
+                self.assertEqual(_return_dtype(decorated), pf.DataType.int64())
 
         self.assertEqual(plain_constructor_calls, [])
         self.assertEqual(scalar_constructor_calls, [])
@@ -267,9 +274,11 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         )
 
         uninspectable = pf.udf(operator.itemgetter(0), return_dtype=int)
-        self.assertEqual(uninspectable.return_dtype, pf.DataType.int64())
+        self.assertEqual(_return_dtype(uninspectable), pf.DataType.int64())
         exploding_signature = pf.udf(ExplodingSignature(), return_dtype=int)
-        self.assertEqual(exploding_signature.return_dtype, pf.DataType.int64())
+        self.assertEqual(
+            _return_dtype(exploding_signature), pf.DataType.int64()
+        )
 
     def test_func_type_resolution_and_async_detection(self):
         def pandas_add_one(values: pd.Series) -> pd.Series:
