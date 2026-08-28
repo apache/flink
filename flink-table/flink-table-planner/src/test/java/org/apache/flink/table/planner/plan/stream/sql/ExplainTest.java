@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -34,6 +36,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for EXPLAIN statements. */
 public class ExplainTest extends TableTestBase {
@@ -76,6 +79,149 @@ public class ExplainTest extends TableTestBase {
                         + "    `b`\n"
                         + "  FROM\n"
                         + "    MyTable");
+    }
+
+    @Test
+    void testExplainCreateMaterializedTableDefaultsToOnConflictErrorWhenEnabled() {
+        util.getTableEnv()
+                .getConfig()
+                .set(
+                        ExecutionConfigOptions
+                                .TABLE_EXEC_SINK_MATERIALIZED_TABLE_FORCES_ON_CONFLICT_ERROR,
+                        true);
+        util.getTableEnv()
+                .executeSql(
+                        "CREATE TABLE MyWatermarkedTable (\n"
+                                + "  a INT,\n"
+                                + "  c STRING,\n"
+                                + "  ts TIMESTAMP(3),\n"
+                                + "  WATERMARK FOR ts AS ts\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values'\n"
+                                + ")");
+        // Upsert key is (a, c) from GROUP BY; declared PK is (a) alone - a conflict.
+        verifyExplain(
+                "CREATE MATERIALIZED TABLE MyMTOnConflictTable (\n"
+                        + "  a INT,\n"
+                        + "  cnt BIGINT,\n"
+                        + "  PRIMARY KEY (cnt) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false'\n"
+                        + ") AS\n"
+                        + "  SELECT a, COUNT(*) AS cnt FROM MyWatermarkedTable GROUP BY a, c");
+    }
+
+    @Test
+    void testExplainCreateMaterializedTableNoDuplicatesOnConflictErrorWhenEnabled() {
+        util.getTableEnv()
+                .getConfig()
+                .set(
+                        ExecutionConfigOptions
+                                .TABLE_EXEC_SINK_MATERIALIZED_TABLE_FORCES_ON_CONFLICT_ERROR,
+                        true);
+        // Upsert key (a) matches the declared PK (a): no materializer should be inserted,
+        // flag or no flag. COALESCE keeps the grouping key NOT NULL for the PK column.
+        verifyExplain(
+                "CREATE MATERIALIZED TABLE MyMTNoConflictTable (\n"
+                        + "  a INT,\n"
+                        + "  cnt BIGINT,\n"
+                        + "  PRIMARY KEY (a) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false'\n"
+                        + ") AS\n"
+                        + "  SELECT COALESCE(a, 0) AS a, COUNT(*) AS cnt FROM MyTable"
+                        + " GROUP BY COALESCE(a, 0)");
+    }
+
+    @Test
+    void testExplainCreateMaterializedTableKeepsOldDefaultWhenSourceHasNoWatermark() {
+        util.getTableEnv()
+                .getConfig()
+                .set(
+                        ExecutionConfigOptions
+                                .TABLE_EXEC_SINK_MATERIALIZED_TABLE_FORCES_ON_CONFLICT_ERROR,
+                        true);
+        // Isolate from table.exec.sink.require-on-conflict as above.
+        util.getTableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, false);
+        util.getTableEnv()
+                .executeSql(
+                        "CREATE TABLE MyWatermarkedTable (\n"
+                                + "  a INT,\n"
+                                + "  c STRING,\n"
+                                + "  ts TIMESTAMP(3),\n"
+                                + "  WATERMARK FOR ts AS ts\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values'\n"
+                                + ")");
+        // A join across a watermarked and an unwatermarked source: not every source has a
+        // watermark, so the fallback must still apply even though one branch alone would pass.
+        verifyExplain(
+                "CREATE MATERIALIZED TABLE MyMTJoinedSourcesTable (\n"
+                        + "  a INT,\n"
+                        + "  cnt BIGINT,\n"
+                        + "  PRIMARY KEY (cnt) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false'\n"
+                        + ") AS\n"
+                        + "  SELECT w.a, COUNT(*) AS cnt FROM MyWatermarkedTable w"
+                        + " JOIN MyTable m ON w.a = m.a GROUP BY w.a, w.c");
+    }
+
+    @Test
+    void testExplainCreateMaterializedTableKeepsOldDefaultWhenDisabled() {
+        // Isolate from table.exec.sink.require-on-conflict as above.
+        util.getTableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, false);
+        verifyExplain(
+                "CREATE MATERIALIZED TABLE MyMTNoConflictDefaultTable (\n"
+                        + "  a INT,\n"
+                        + "  cnt BIGINT,\n"
+                        + "  PRIMARY KEY (cnt) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false'\n"
+                        + ") AS\n"
+                        + "  SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a, c");
+    }
+
+    @Test
+    void testExplainCreateMaterializedTableErrorMentionsWatermarkWhenBothOptionsEnabled() {
+        util.getTableEnv()
+                .getConfig()
+                .set(
+                        ExecutionConfigOptions
+                                .TABLE_EXEC_SINK_MATERIALIZED_TABLE_FORCES_ON_CONFLICT_ERROR,
+                        true);
+        util.getTableEnv()
+                .getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, true);
+        // With both options on and no watermark, the message also points at the missing
+        // watermark - the actionable fix for a materialized table, which has no ON CONFLICT
+        // syntax to satisfy the generic advice above it.
+        assertThatThrownBy(
+                        () ->
+                                util.getTableEnv()
+                                        .explainSql(
+                                                "CREATE MATERIALIZED TABLE MyMTBothOptionsTable (\n"
+                                                        + "  a INT,\n"
+                                                        + "  cnt BIGINT,\n"
+                                                        + "  PRIMARY KEY (cnt) NOT ENFORCED\n"
+                                                        + ") WITH (\n"
+                                                        + "  'connector' = 'values',\n"
+                                                        + "  'sink-insert-only' = 'false'\n"
+                                                        + ") AS\n"
+                                                        + "  SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a, c"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Please specify an ON CONFLICT clause")
+                .hasMessageContaining("table.exec.sink.materialized-table-forces-on-conflict-error")
+                .hasMessageContaining("watermark is missing on")
+                .hasMessageContaining("MyTable");
     }
 
     @Test

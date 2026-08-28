@@ -1,0 +1,19 @@
+== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.MyMTNoConflictTable], fields=[a, cnt])
++- LogicalAggregate(group=[{0}], cnt=[COUNT()])
+   +- LogicalProject(a=[COALESCE($0, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.MyMTNoConflictTable], fields=[a, cnt])
++- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[COALESCE(a, 0) AS a])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[]]], fields=[a])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.MyMTNoConflictTable], fields=[a, cnt])
++- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[COALESCE(a, 0) AS a])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[]]], fields=[a])

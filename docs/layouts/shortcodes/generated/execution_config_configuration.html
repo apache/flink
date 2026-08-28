@@ -261,6 +261,12 @@ By default no operator is disabled.</td>
             <td>In order to minimize the distributed disorder problem when writing data into table with primary keys that many users suffers. FLINK will auto add a keyed shuffle by default when the sink parallelism differs from upstream operator and sink parallelism is not 1. This works only when the upstream ensures the multi-records' order on the primary key, if not, the added shuffle can not solve the problem (In this situation, a more proper way is to consider the deduplicate operation for the source firstly or use an upsert source with primary key definition which truly reflect the records evolution).<br />By default, the keyed shuffle will be added when the sink's parallelism differs from upstream operator. You can set to no shuffle(NONE) or force shuffle(FORCE).<br /><br />Possible values:<ul><li>"NONE"</li><li>"AUTO"</li><li>"FORCE"</li></ul></td>
         </tr>
         <tr>
+            <td><h5>table.exec.sink.materialized-table-forces-on-conflict-error</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>When enabled, a materialized table whose declared primary key differs from its query's upsert key defaults to ON CONFLICT DO ERROR instead of the state-heavy deduplicating materializer.<br /><br />Independent of table.exec.sink.require-on-conflict, which controls whether an explicit ON CONFLICT clause is required elsewhere.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.sink.nested-constraint-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">IGNORE</td>
             <td><p>Enum</p></td>

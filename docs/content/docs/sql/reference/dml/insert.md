@@ -324,6 +324,12 @@ This check is controlled by the configuration option `table.exec.sink.require-on
 
 Alternatively, if you do not need consistency guarantees for conflicting keys, you can disable the sink upsert materializer entirely by setting `table.exec.sink.upsert-materialize` to `NONE`. This removes the materializer operator from the pipeline, so no buffering, compaction, or conflict resolution is performed. Records are passed directly to the sink as they arrive.
 
+### Materialized tables
+
+A materialized table has no syntax for an explicit `ON CONFLICT` clause, so it always falls back to the implicit `DO DEDUPLICATE` strategy when its primary key differs from its query's upsert key. Setting `table.exec.sink.materialized-table-forces-on-conflict-error` (default: `false`) makes it default to `DO ERROR` instead, avoiding `DO DEDUPLICATE`'s higher state cost. Since `DO ERROR` requires a watermark on every source, this only applies when all sources already have one - otherwise the table keeps the `DO DEDUPLICATE` default so its creation never fails because of this option. This option adds `ON CONFLICT DO ERROR` independently from `table.exec.sink.require-on-conflict`. Optimally, when working with Materialized Tables, disable `table.exec.sink.require-on-conflict` to avoid confusion. If you enable both options, all your source tables will have to define a watermark strategy.
+
+
+
 ### Syntax
 
 ```sql

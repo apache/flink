@@ -615,7 +615,8 @@ abstract class PlannerBase(
       resolvedTable,
       staticPartitions,
       false,
-      tableSink)
+      tableSink,
+      getTableConfig)
   }
 
   protected def createSerdeContext: SerdeContext = {

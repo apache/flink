@@ -83,6 +83,7 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.TableModify;
+import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalTableModify;
@@ -263,6 +264,10 @@ public final class DynamicSinkUtils {
      * AS) into a {@link RelNode} that writes into the table, adding helper projections if
      * necessary. The caller resolves the target table to its {@link ResolvedCatalogTable} form (the
      * new definition for an alter, the created definition for a create).
+     *
+     * <p>The table defaults to {@code ON CONFLICT DO ERROR} when {@link
+     * ExecutionConfigOptions#TABLE_EXEC_SINK_MATERIALIZED_TABLE_FORCES_ON_CONFLICT_ERROR} is set
+     * and every source has a watermark; otherwise it keeps the deduplicating default.
      */
     public static RelNode convertMaterializedTableAsToRel(
             FlinkRelBuilder relBuilder,
@@ -272,9 +277,18 @@ public final class DynamicSinkUtils {
             ResolvedCatalogTable resolvedTable,
             Map<String, String> staticPartitions,
             boolean isOverwrite,
-            DynamicTableSink sink) {
+            DynamicTableSink sink,
+            ReadableConfig configuration) {
         final ContextResolvedTable contextResolvedTable =
                 ContextResolvedTable.permanent(identifier, catalog, resolvedTable);
+
+        final InsertConflictStrategy conflictStrategy =
+                configuration.get(
+                                        ExecutionConfigOptions
+                                                .TABLE_EXEC_SINK_MATERIALIZED_TABLE_FORCES_ON_CONFLICT_ERROR)
+                                && allSourcesHaveWatermarks(input)
+                        ? InsertConflictStrategy.error()
+                        : null;
 
         return convertSinkToRel(
                 relBuilder,
@@ -285,7 +299,28 @@ public final class DynamicSinkUtils {
                 null,
                 isOverwrite,
                 sink,
-                null);
+                conflictStrategy);
+    }
+
+    /** Whether every table scanned by {@code rel} declares a watermark. */
+    private static boolean allSourcesHaveWatermarks(RelNode rel) {
+        if (rel instanceof TableScan) {
+            final TableSourceTable table =
+                    ((TableScan) rel).getTable().unwrap(TableSourceTable.class);
+            // An unresolvable scan can't be proven to lack a watermark, so it isn't treated as a
+            // reason to fall back - matching the same convention used for the physical-tree check.
+            return table == null
+                    || !table.contextResolvedTable()
+                            .getResolvedSchema()
+                            .getWatermarkSpecs()
+                            .isEmpty();
+        }
+        for (RelNode input : rel.getInputs()) {
+            if (!allSourcesHaveWatermarks(input)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static RelNode convertSinkToRel(

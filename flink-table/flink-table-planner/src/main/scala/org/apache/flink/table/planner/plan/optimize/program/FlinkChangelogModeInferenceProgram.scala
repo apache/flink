@@ -1249,9 +1249,25 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       if (requireOnConflict && upsertKeyDiffersFromPk && sink.conflictStrategy == null) {
         val pkNames = sink.getPrimaryKeyNames
         val upsertKeyNames = sink.getUpsertKeyNames
+        val identifier = sink.contextResolvedTable.getIdentifier.asSummaryString
+        val mtOnConflictDoError = tableConfig.get(
+          ExecutionConfigOptions.TABLE_EXEC_SINK_MATERIALIZED_TABLE_FORCES_ON_CONFLICT_ERROR)
+        val materializedTableHint =
+          if (mtOnConflictDoError) {
+            // When both requireOnConflict and mtOnConflictDoError are enabled, every source
+            // must declare a watermark for ON CONFLICT DO ERROR to apply.
+            val sourcesWithoutWatermarks = new java.util.ArrayList[String]()
+            collectSourcesWithoutWatermarks(sink.getInput, sourcesWithoutWatermarks)
+            " If this is a materialized table: table.exec.sink.materialized-table-forces-on-" +
+              "conflict-error is enabled, but a watermark is missing on: " +
+              s"${sourcesWithoutWatermarks.toArray.mkString(", ")}. Add one to every source to " +
+              "satisfy both options."
+          } else {
+            ""
+          }
         throw new ValidationException(
-          "The query has an upsert key that differs from the primary key of the sink table " +
-            s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}'. " +
+          s"The query has an upsert key that differs from the primary key of the sink table " +
+            s"'$identifier'. " +
             s"Primary key: $pkNames, upsert key: $upsertKeyNames. " +
             "This can lead to non-deterministic results when multiple records with different " +
             "upsert keys map to the same primary key. " +
@@ -1259,7 +1275,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             "ON CONFLICT DO DEDUPLICATE (update to the latest record, state intensive, since we" +
             " need to keep the entire history), or " +
             "ON CONFLICT DO ERROR (fail on conflict), or " +
-            "ON CONFLICT DO NOTHING (keep first record).")
+            "ON CONFLICT DO NOTHING (keep first record)." +
+            materializedTableHint)
       }
     }
 

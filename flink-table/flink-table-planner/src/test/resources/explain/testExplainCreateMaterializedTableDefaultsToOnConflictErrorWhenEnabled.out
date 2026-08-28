@@ -1,0 +1,25 @@
+== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.MyMTOnConflictTable], fields=[a, cnt])
++- LogicalProject(a=[$0], cnt=[$2])
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT()])
+      +- LogicalProject(a=[$0], c=[$1])
+         +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyWatermarkedTable]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.MyMTOnConflictTable], fields=[a, cnt], upsertMaterialize=[true], conflictStrategy=[ERROR])
++- Calc(select=[a, cnt])
+   +- GroupAggregate(groupBy=[a, c], select=[a, c, COUNT(*) AS cnt])
+      +- Exchange(distribution=[hash[a, c]])
+         +- Calc(select=[a, c])
+            +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyWatermarkedTable]], fields=[a, c, ts])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.MyMTOnConflictTable], fields=[a, cnt], upsertMaterialize=[true], conflictStrategy=[ERROR])
++- Calc(select=[a, cnt])
+   +- GroupAggregate(groupBy=[a, c], select=[a, c, COUNT(*) AS cnt])
+      +- Exchange(distribution=[hash[a, c]])
+         +- Calc(select=[a, c])
+            +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyWatermarkedTable]], fields=[a, c, ts])

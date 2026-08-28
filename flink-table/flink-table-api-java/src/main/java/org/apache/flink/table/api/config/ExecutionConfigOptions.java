@@ -277,6 +277,27 @@ public class ExecutionConfigOptions {
                                                     + "results in certain streaming scenarios.")
                                     .build());
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean>
+            TABLE_EXEC_SINK_MATERIALIZED_TABLE_FORCES_ON_CONFLICT_ERROR =
+                    key("table.exec.sink.materialized-table-forces-on-conflict-error")
+                            .booleanType()
+                            .defaultValue(false)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "When enabled, a materialized table whose declared primary key "
+                                                            + "differs from its query's upsert key defaults to ON CONFLICT "
+                                                            + "DO ERROR instead of the state-heavy deduplicating "
+                                                            + "materializer.")
+                                            .linebreak()
+                                            .linebreak()
+                                            .text(
+                                                    "Independent of table.exec.sink.require-on-conflict, which "
+                                                            + "controls whether an explicit ON CONFLICT clause is "
+                                                            + "required elsewhere.")
+                                            .build());
+
     // ------------------------------------------------------------------------
     //  Sort Options
     // ------------------------------------------------------------------------
