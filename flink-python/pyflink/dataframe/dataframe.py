@@ -542,6 +542,85 @@ class DataFrame:
     distinct = drop_duplicates
     unique = drop_duplicates
 
+    # ======================== Slicing ========================
+
+    @PublicEvolving()
+    def limit(self, n: int) -> "DataFrame":
+        """
+        Keep at most the first ``n`` rows.
+
+        This is a lazy transformation. Row order is deterministic only when the underlying table
+        has an explicit ordering.
+
+        :param n: Maximum number of rows to keep.
+        :return: A new DataFrame containing at most ``n`` rows.
+        :raises TypeError: If ``n`` is not an integer.
+        :raises ValueError: If ``n`` is negative.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"id": 1}, {"id": 2}, {"id": 3}])
+            >>> first_two = df.limit(2)
+
+        .. versionadded:: 2.4.0
+        """
+        if isinstance(n, bool) or not isinstance(n, int):
+            raise TypeError("n must be an integer")
+        if n < 0:
+            raise ValueError("n must be non-negative")
+        return DataFrame(self._table.fetch(n))
+
+    @PublicEvolving()
+    def offset(self, n: int) -> "DataFrame":
+        """
+        Skip the first ``n`` rows.
+
+        This is a lazy transformation. Row order is deterministic only when the underlying table
+        has an explicit ordering. Combine this method with :meth:`limit` for pagination.
+
+        :param n: Number of rows to skip.
+        :return: A new DataFrame without the first ``n`` rows.
+        :raises TypeError: If ``n`` is not an integer.
+        :raises ValueError: If ``n`` is negative.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"id": 1}, {"id": 2}, {"id": 3}])
+            >>> page = df.offset(1).limit(2)
+
+        .. versionadded:: 2.4.0
+        """
+        if isinstance(n, bool) or not isinstance(n, int):
+            raise TypeError("n must be an integer")
+        if n < 0:
+            raise ValueError("n must be non-negative")
+        return DataFrame(self._table.offset(n))
+
+    @PublicEvolving()
+    def head(self, n: int) -> "DataFrame":
+        """
+        Keep at most the first ``n`` rows.
+
+        This lazy transformation is an alias for :meth:`limit`. Row order is deterministic only
+        when the underlying table has an explicit ordering.
+
+        :param n: Maximum number of rows to keep.
+        :return: A new DataFrame containing at most ``n`` rows.
+        :raises TypeError: If ``n`` is not an integer.
+        :raises ValueError: If ``n`` is negative.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"id": 1}, {"id": 2}, {"id": 3}])
+            >>> first_two = df.head(2)
+
+        .. versionadded:: 2.4.0
+        """
+        return self.limit(n)
+
     # ======================== Aggregation ========================
 
     @PublicEvolving()

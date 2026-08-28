@@ -23,6 +23,7 @@ import unittest
 from py4j.protocol import Py4JJavaError
 from datetime import date, datetime, time, timedelta, timezone
 from typing import NamedTuple
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pyarrow as pa
@@ -149,6 +150,97 @@ class DataFrameCompositionTests(unittest.TestCase):
         self.assertIs(pf.DataFrame.where, pf.DataFrame.filter)
         self.assertIs(pf.DataFrame.drop, pf.DataFrame.drop_columns)
         self.assertIs(pf.DataFrame.rename, pf.DataFrame.rename_columns)
+
+
+class DataFrameSlicingTests(unittest.TestCase):
+    def setUp(self):
+        self.table = Mock()
+        self.dataframe = pf.DataFrame(self.table)
+
+    def test_limit_is_lazy_and_returns_new_dataframe(self):
+        limited_table = Mock()
+        self.table.fetch.return_value = limited_table
+
+        result = self.dataframe.limit(3)
+
+        self.assertIsInstance(result, pf.DataFrame)
+        self.assertIs(result.to_table(), limited_table)
+        self.assertIs(self.dataframe.to_table(), self.table)
+        self.table.fetch.assert_called_once_with(3)
+        self.table.execute.assert_not_called()
+
+    def test_offset_is_lazy_and_returns_new_dataframe(self):
+        offset_table = Mock()
+        self.table.offset.return_value = offset_table
+
+        result = self.dataframe.offset(2)
+
+        self.assertIsInstance(result, pf.DataFrame)
+        self.assertIs(result.to_table(), offset_table)
+        self.assertIs(self.dataframe.to_table(), self.table)
+        self.table.offset.assert_called_once_with(2)
+        self.table.execute.assert_not_called()
+
+    def test_offset_and_limit_compose(self):
+        offset_table = Mock()
+        limited_table = Mock()
+        self.table.offset.return_value = offset_table
+        offset_table.fetch.return_value = limited_table
+
+        result = self.dataframe.offset(2).limit(3)
+
+        self.assertIs(result.to_table(), limited_table)
+        self.table.offset.assert_called_once_with(2)
+        offset_table.fetch.assert_called_once_with(3)
+        self.table.execute.assert_not_called()
+
+    def test_head_delegates_to_limit(self):
+        expected = pf.DataFrame(Mock())
+
+        with patch.object(pf.DataFrame, "limit", autospec=True) as limit:
+            limit.return_value = expected
+
+            result = self.dataframe.head(3)
+
+        self.assertIs(result, expected)
+        limit.assert_called_once_with(self.dataframe, 3)
+        self.table.execute.assert_not_called()
+
+    def test_zero_is_supported(self):
+        limited_table = Mock()
+        offset_table = Mock()
+        self.table.fetch.return_value = limited_table
+        self.table.offset.return_value = offset_table
+
+        self.assertIs(self.dataframe.limit(0).to_table(), limited_table)
+        self.assertIs(self.dataframe.head(0).to_table(), limited_table)
+        self.assertIs(self.dataframe.offset(0).to_table(), offset_table)
+
+        self.assertEqual(self.table.fetch.call_count, 2)
+        self.table.fetch.assert_called_with(0)
+        self.table.offset.assert_called_once_with(0)
+        self.table.execute.assert_not_called()
+
+    def test_rejects_negative_values(self):
+        for method_name in ("limit", "offset", "head"):
+            with self.subTest(method=method_name):
+                with self.assertRaisesRegex(ValueError, "n must be non-negative"):
+                    getattr(self.dataframe, method_name)(-1)
+
+        self.table.fetch.assert_not_called()
+        self.table.offset.assert_not_called()
+        self.table.execute.assert_not_called()
+
+    def test_rejects_unsupported_types(self):
+        for method_name in ("limit", "offset", "head"):
+            for value in (True, 1.5, "1", None):
+                with self.subTest(method=method_name, value=value):
+                    with self.assertRaisesRegex(TypeError, "n must be an integer"):
+                        getattr(self.dataframe, method_name)(value)
+
+        self.table.fetch.assert_not_called()
+        self.table.offset.assert_not_called()
+        self.table.execute.assert_not_called()
 
 
 class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
@@ -1803,6 +1895,46 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
         previous_environment = pf.get_table_environment()
         self.addCleanup(pf.set_table_environment, previous_environment)
         self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+
+    def _ordered_dataframe(self):
+        table = self.t_env.sql_query(
+            "SELECT * FROM (VALUES (3, 'C'), (1, 'A'), (4, 'D'), (2, 'B')) "
+            "AS T(id, name)"
+        )
+        return pf.from_table(table.order_by(table.id))
+
+    def test_limit_returns_first_rows(self):
+        self.assertEqual(
+            self._ordered_dataframe().limit(2).collect(),
+            [Row(1, "A"), Row(2, "B")],
+        )
+
+    def test_offset_skips_first_rows(self):
+        self.assertEqual(
+            self._ordered_dataframe().offset(2).collect(),
+            [Row(3, "C"), Row(4, "D")],
+        )
+
+    def test_offset_and_limit_compose_for_pagination(self):
+        self.assertEqual(
+            self._ordered_dataframe().offset(1).limit(2).collect(),
+            [Row(2, "B"), Row(3, "C")],
+        )
+
+    def test_head_and_limit_are_equivalent(self):
+        dataframe = self._ordered_dataframe()
+
+        self.assertEqual(dataframe.head(3).collect(), dataframe.limit(3).collect())
+
+    def test_zero_slicing(self):
+        dataframe = self._ordered_dataframe()
+
+        self.assertEqual(dataframe.limit(0).collect(), [])
+        self.assertEqual(dataframe.head(0).collect(), [])
+        self.assertEqual(
+            dataframe.offset(0).collect(),
+            [Row(1, "A"), Row(2, "B"), Row(3, "C"), Row(4, "D")],
+        )
 
     def test_from_records_with_batch_table_environment(self):
         pf.set_table_environment(self.t_env)

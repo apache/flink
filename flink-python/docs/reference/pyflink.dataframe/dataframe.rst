@@ -61,6 +61,9 @@ Transformations
     DataFrame.drop_duplicates
     DataFrame.distinct
     DataFrame.unique
+    DataFrame.limit
+    DataFrame.offset
+    DataFrame.head
     DataFrame.__getitem__
 
 Aggregations
