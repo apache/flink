@@ -28,6 +28,7 @@ from typing import (
     Callable,
     Dict,
     FrozenSet,
+    List,
     Optional,
     Tuple,
     Type,
@@ -55,6 +56,7 @@ __all__ = ["DataFrameUDFWrapper", "udf"]
 
 _UDFInput = Union[Callable[..., Any], ScalarFunction, AsyncScalarFunction, Type]
 _DataTypeLike = Union[DataType, Type, str]
+_UNRESOLVED_TYPE_HINT = object()
 
 
 class _UDFUsage(Enum):
@@ -82,21 +84,28 @@ class _ResolvedUDFSource:
     is_async: bool
     ignored_hint_names: FrozenSet[str] = frozenset()
 
-    @property
-    def inspection_target(self) -> Callable[..., Any]:
+    def _inspection_target_and_skip_first(
+        self,
+    ) -> Tuple[Callable[..., Any], bool]:
         if self.kind is _UDFSourceKind.DIRECT_CALLABLE:
-            return _get_callable_inspection_target(
-                cast(Callable[..., Any], self.source)
+            return (
+                _get_callable_inspection_target(
+                    cast(Callable[..., Any], self.source)
+                ),
+                False,
             )
         if self.kind is _UDFSourceKind.SCALAR_FUNCTION_INSTANCE:
-            return cast(
-                Union[ScalarFunction, AsyncScalarFunction], self.source
-            ).eval
+            return (
+                cast(
+                    Union[ScalarFunction, AsyncScalarFunction], self.source
+                ).eval,
+                False,
+            )
         if self.kind in (
             _UDFSourceKind.CALLABLE_CLASS,
             _UDFSourceKind.SCALAR_FUNCTION_CLASS,
         ):
-            hint_method, _ = _get_callable_class_hint_method(
+            hint_method, skip_first_parameter = _get_callable_class_hint_method(
                 cast(Type, self.source),
                 "eval"
                 if self.kind is _UDFSourceKind.SCALAR_FUNCTION_CLASS
@@ -104,8 +113,28 @@ class _ResolvedUDFSource:
             )
             if hint_method is None:
                 raise RuntimeError("Resolved UDF class has no inspection target.")
-            return hint_method
-        return cast(Callable[..., Any], getattr(self.source, "__call__"))
+            return hint_method, skip_first_parameter
+        return cast(Callable[..., Any], getattr(self.source, "__call__")), False
+
+    @property
+    def inspection_target(self) -> Callable[..., Any]:
+        target, _ = self._inspection_target_and_skip_first()
+        return target
+
+    @property
+    def invocation_signature(self) -> Optional[inspect.Signature]:
+        target, skip_first_parameter = self._inspection_target_and_skip_first()
+        if not self.is_scalar_function and not self.constructs_on_worker:
+            target = cast(Callable[..., Any], self.source)
+
+        try:
+            signature = inspect.signature(target)
+            if skip_first_parameter:
+                parameters = tuple(signature.parameters.values())
+                signature = signature.replace(parameters=parameters[1:])
+        except Exception:
+            return None
+        return signature
 
     @property
     def default_name(self) -> str:
@@ -232,6 +261,9 @@ class DataFrameUDFWrapper:
         functools.update_wrapper(self, declaration_metadata, updated=())
         object.__setattr__(self, "__name__", name)
         object.__setattr__(self, "__wrapped__", source.source)
+        invocation_signature = source.invocation_signature
+        if invocation_signature is not None:
+            object.__setattr__(self, "__signature__", invocation_signature)
         object.__setattr__(self, "_frozen", True)
 
     def __setattr__(self, name: str, value: Any) -> None:
@@ -673,14 +705,14 @@ def _infer_return_dtype(
     if return_dtype is not None:
         return _convert_to_dtype(return_dtype)
 
-    hints = _get_callable_type_hints(func)
-    if "return" not in hints:
+    return_hint = _get_callable_return_type_hint(func)
+    if return_hint is _UNRESOLVED_TYPE_HINT:
         func_name = _default_udf_name(func)
         raise TypeError(
             f"Cannot infer return_dtype for '{func_name}': add a return annotation "
             "or specify return_dtype explicitly."
         )
-    return _data_type_from_type_hint(hints["return"])
+    return _data_type_from_type_hint(return_hint)
 
 
 def _convert_to_dtype(dtype_like: _DataTypeLike) -> DataType:
@@ -766,17 +798,41 @@ def _get_callable_type_hints(
     try:
         if fallback_globals is None:
             return get_type_hints(func)
-        func_globals = getattr(func, "__globals__", None)
-        if func_globals is None:
-            func_globals = getattr(
-                getattr(func, "__func__", None), "__globals__", {}
-            )
         return get_type_hints(
             func,
-            globalns={**fallback_globals, **func_globals},
+            globalns={**fallback_globals, **_get_callable_globals(func)},
         )
     except (NameError, TypeError):
         return {}
+
+
+def _get_callable_return_type_hint(func: Callable[..., Any]) -> Any:
+    annotations = getattr(func, "__annotations__", {})
+    if "return" not in annotations:
+        return _UNRESOLVED_TYPE_HINT
+
+    def return_annotation_holder() -> None:
+        pass
+
+    return_annotation_holder.__annotations__ = {
+        "return": annotations["return"]
+    }
+    try:
+        return get_type_hints(
+            return_annotation_holder,
+            globalns=_get_callable_globals(func),
+        ).get("return", _UNRESOLVED_TYPE_HINT)
+    except (NameError, TypeError):
+        return _UNRESOLVED_TYPE_HINT
+
+
+def _get_callable_globals(func: Callable[..., Any]) -> Dict[str, Any]:
+    func_globals = getattr(func, "__globals__", None)
+    if func_globals is None:
+        func_globals = getattr(
+            getattr(func, "__func__", None), "__globals__", {}
+        )
+    return cast(Dict[str, Any], func_globals)
 
 
 def _resolve_deterministic(
@@ -812,22 +868,22 @@ def _default_udf_name(func: _UDFInput) -> str:
 
 
 def _wrap_scalar_general_result(
-    func: Callable[..., Any], return_dtype: DataType, is_async: bool
+    func: Callable[..., Any],
+    result_normalizer: Callable[[Any], Any],
+    is_async: bool,
 ) -> Callable[..., Any]:
-    result_type = return_dtype._to_table_data_type()
-
     if is_async:
 
         @functools.wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-            return _normalize_user_value(await func(*args, **kwargs), result_type)
+            return result_normalizer(await func(*args, **kwargs))
 
         wrapper = async_wrapper
     else:
 
         @functools.wraps(func)
         def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-            return _normalize_user_value(func(*args, **kwargs), result_type)
+            return result_normalizer(func(*args, **kwargs))
 
         wrapper = sync_wrapper
 
@@ -893,9 +949,14 @@ class _DataFrameUDFAdapterBase:
                 f"DataFrame UDF usage {self._usage.value!r} is not supported yet."
             )
         if self._func_type == "general":
+            result_normalizer = _create_result_normalizer(
+                cast(DataType, self._return_dtype)._to_table_data_type()
+            )
+            if result_normalizer is None:
+                return invoke_func
             return _wrap_scalar_general_result(
                 invoke_func,
-                cast(DataType, self._return_dtype),
+                result_normalizer,
                 self._source.is_async,
             )
         return invoke_func
@@ -946,28 +1007,39 @@ class _DataFrameAsyncScalarFunctionAdapter(
 # ======================== Result Normalization ========================
 
 
-def _row_value_by_type(value: Any, row_type: RowType, index: int) -> Any:
-    field_name = row_type.field_names()[index]
+def _row_field_value(
+    value: Any,
+    field_name: str,
+    field_names: List[str],
+    field_count: int,
+    index: int,
+) -> Any:
     if isinstance(value, Mapping):
         return value.get(field_name)
     if isinstance(value, Row) and hasattr(value, "_fields"):
         return _named_row_field_value(value, field_name)
     if isinstance(value, (Row, tuple, list)):
-        if len(value) != len(row_type.fields):
+        if len(value) != field_count:
             raise ValueError(
-                f"Expected {len(row_type.fields)} value(s) for RowType "
-                f"{row_type.field_names()}, got {len(value)}."
+                f"Expected {field_count} value(s) for RowType "
+                f"{field_names}, got {len(value)}."
             )
         return value[index]
-    attributes = getattr(value, "__dict__", None)
-    if isinstance(attributes, Mapping):
-        return attributes.get(field_name)
     try:
         return getattr(value, field_name)
     except AttributeError:
+        try:
+            inspect.getattr_static(value, field_name)
+        except AttributeError:
+            attributes = getattr(value, "__dict__", None)
+            has_slots = any("__slots__" in cls.__dict__ for cls in type(value).__mro__)
+            if isinstance(attributes, Mapping) or has_slots:
+                return None
+        else:
+            raise
         raise TypeError(
             f"Expected a Mapping, Row, tuple, list, or object with fields for RowType "
-            f"{row_type.field_names()}, got {type(value).__name__}."
+            f"{field_names}, got {type(value).__name__}."
         ) from None
 
 
@@ -985,52 +1057,89 @@ def _named_row_field_value(row: Row, field_name: str) -> Any:
     return row[field_name]
 
 
-def _normalize_user_value(value: Any, data_type: Any) -> Any:
-    """Normalize nested user values to the Python shape expected by Table coders."""
-    if value is None:
-        return None
+def _create_result_normalizer(
+    data_type: Any,
+) -> Optional[Callable[[Any], Any]]:
     if isinstance(data_type, RowType):
-        row = Row(
-            *[
-                _normalize_user_value(
-                    _row_value_by_type(value, data_type, index), field.data_type
-                )
-                for index, field in enumerate(data_type)
-            ]
+        field_names = data_type.field_names()
+        field_count = len(data_type.fields)
+        field_normalizers = tuple(
+            _create_result_normalizer(field.data_type) for field in data_type
         )
-        row.set_field_names(data_type.field_names())
-        if isinstance(value, Row):
-            row.set_row_kind(value.get_row_kind())
-        return row
+
+        def normalize_row(value: Any) -> Any:
+            if value is None:
+                return None
+            normalized_fields = []
+            for index, (field_name, field_normalizer) in enumerate(
+                zip(field_names, field_normalizers)
+            ):
+                field_value = _row_field_value(
+                    value, field_name, field_names, field_count, index
+                )
+                normalized_fields.append(
+                    field_value
+                    if field_normalizer is None
+                    else field_normalizer(field_value)
+                )
+            row = Row(*normalized_fields)
+            row.set_field_names(field_names)
+            if isinstance(value, Row):
+                row.set_row_kind(value.get_row_kind())
+            return row
+
+        return normalize_row
     if isinstance(data_type, ArrayType):
-        return [
-            _normalize_user_value(item, data_type.element_type) for item in value
-        ]
+        element_normalizer = _create_result_normalizer(data_type.element_type)
+        if element_normalizer is None:
+
+            def normalize_leaf_array(value: Any) -> Any:
+                return None if value is None else list(value)
+
+            return normalize_leaf_array
+
+        def normalize_array(value: Any) -> Any:
+            if value is None:
+                return None
+            return [element_normalizer(item) for item in value]
+
+        return normalize_array
     if isinstance(data_type, MapType):
-        items_method = getattr(value, "items", None)
-        if callable(items_method):
-            items = list(items_method())
-        else:
-            try:
-                items = list(value)
-            except TypeError as exc:
+        key_normalizer = _create_result_normalizer(data_type.key_type)
+        value_normalizer = _create_result_normalizer(data_type.value_type)
+
+        def normalize_map(value: Any) -> Any:
+            if value is None:
+                return None
+            items_method = getattr(value, "items", None)
+            if callable(items_method):
+                items = list(items_method())
+            else:
+                try:
+                    items = list(value)
+                except TypeError as exc:
+                    raise TypeError(
+                        f"Expected a Mapping or iterable of key/value pairs for "
+                        f"{data_type}, got {type(value).__name__}."
+                    ) from exc
+            if any(
+                not isinstance(item, (tuple, list)) or len(item) != 2
+                for item in items
+            ):
                 raise TypeError(
                     f"Expected a Mapping or iterable of key/value pairs for {data_type}, "
                     f"got {type(value).__name__}."
-                ) from exc
-        if any(
-            not isinstance(item, (tuple, list)) or len(item) != 2 for item in items
-        ):
-            raise TypeError(
-                f"Expected a Mapping or iterable of key/value pairs for {data_type}, "
-                f"got {type(value).__name__}."
-            )
-        if any(item[0] is None for item in items):
-            raise TypeError(f"MapType keys must not be null for {data_type}.")
-        return {
-            _normalize_user_value(key, data_type.key_type): _normalize_user_value(
-                item_value, data_type.value_type
-            )
-            for key, item_value in items
-        }
-    return value
+                )
+            if any(item[0] is None for item in items):
+                raise TypeError(f"MapType keys must not be null for {data_type}.")
+            return {
+                key if key_normalizer is None else key_normalizer(key): (
+                    item_value
+                    if value_normalizer is None
+                    else value_normalizer(item_value)
+                )
+                for key, item_value in items
+            }
+
+        return normalize_map
+    return None
