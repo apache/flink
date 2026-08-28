@@ -143,6 +143,15 @@ public interface WatermarkStrategy<T>
      * <p>Idleness can be important if some partitions have little data and might not have events
      * during some periods. Without idleness, these streams can stall the overall event time
      * progress of the application.
+     *
+     * <p>Idleness is only checked when watermarks are emitted, which happens periodically (see
+     * {@code pipeline.auto-watermark-interval}). The timeout starts at the first emission that saw
+     * no records since the previous one, and the partition is marked idle at the first emission
+     * after more than {@code idleTimeout} has passed since then. A partition is therefore marked
+     * idle more than {@code idleTimeout} after its last record. When the emissions run on schedule,
+     * that is more than {@code idleTimeout} plus one watermark interval and at most {@code
+     * idleTimeout} plus three watermark intervals after it. Time in which the source is
+     * backpressured or paused for watermark alignment does not count towards the timeout.
      */
     default WatermarkStrategy<T> withIdleness(Duration idleTimeout) {
         checkNotNull(idleTimeout, "idleTimeout");

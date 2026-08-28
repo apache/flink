@@ -174,6 +174,8 @@ WatermarkStrategy \
 {{< /tab >}}
 {{< /tabs >}}
 
+请注意，只有在生成 watermark 时才会检查空闲状态，而 watermark 是周期性生成的（参见 `pipeline.auto-watermark-interval`）。空闲超时从第一次自上次生成以来未收到任何记录的生成开始计时，并在此后超过空闲超时的第一次生成时将输入标记为空闲。因此，输入在其最后一条记录之后超过空闲超时时才会被标记为空闲；在周期性生成按计划执行的情况下，即超过空闲超时加一个 watermark 间隔，且最晚为空闲超时加三个 watermark 间隔。数据源处于反压或因 watermark 对齐而暂停的时间不计入空闲超时。
+
 ## Watermark alignment
 
 In the previous paragraph we discussed a situation when splits/partitions/shards or sources are idle
