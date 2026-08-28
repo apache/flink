@@ -214,7 +214,14 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
     }
 
     @Override
-    protected void advanceToEndOfEventTime() {
+    protected void advanceToEndOfEventTime() throws Exception {
+        // Downstream outputs drop watermarks while the announced status is IDLE, so re-activate
+        // first to ensure the final MAX_WATERMARK is delivered. A redundant ACTIVE status is
+        // deduplicated downstream. Tasks deployed as finished never ran the source, so their
+        // output was never idle and rejects status events.
+        if (!operatorChain.isTaskDeployedAsFinished()) {
+            output.emitWatermarkStatus(WatermarkStatus.ACTIVE);
+        }
         output.emitWatermark(Watermark.MAX_WATERMARK);
     }
 

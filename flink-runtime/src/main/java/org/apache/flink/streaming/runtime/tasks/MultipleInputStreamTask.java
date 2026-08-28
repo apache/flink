@@ -45,6 +45,7 @@ import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
@@ -338,6 +339,12 @@ public class MultipleInputStreamTask<OUT>
     @Override
     protected void advanceToEndOfEventTime() throws Exception {
         for (Output<StreamRecord<?>> sourceOutput : operatorChain.getChainedSourceOutputs()) {
+            // Chained source outputs drop watermarks while the announced status is IDLE, so
+            // re-activate first to ensure the final MAX_WATERMARK is delivered. A redundant
+            // ACTIVE status is deduplicated by the output; this also holds for tasks deployed
+            // as finished, whose chained sources never ran and whose outputs therefore never
+            // left the initial ACTIVE status.
+            sourceOutput.emitWatermarkStatus(WatermarkStatus.ACTIVE);
             sourceOutput.emitWatermark(Watermark.MAX_WATERMARK);
         }
     }
