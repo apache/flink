@@ -287,6 +287,15 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                         "not.existing.clazz",
                                         DataTypes.FIELD("b", DataTypes.CHAR(3).notNull()),
                                         DataTypes.FIELD("a", DataTypes.INT().notNull())))
+                        // Test that the attribute order is preserved when every attribute is
+                        // updated in a single call.
+                        .testSqlResult(
+                                "OBJECT_UPDATE(OBJECT_OF('not.existing.clazz', 'b', 'Bob', 'a', 42), 'a', 16, 'b', 'Alice')",
+                                Row.of("Alice", 16),
+                                DataTypes.STRUCTURED(
+                                        "not.existing.clazz",
+                                        DataTypes.FIELD("b", DataTypes.CHAR(5).notNull()),
+                                        DataTypes.FIELD("a", DataTypes.INT().notNull())))
                         // Test update field to null
                         .testResult(
                                 objectOf(Type1.class, "a", 42, "b", "Bob")
@@ -314,7 +323,11 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                 "OBJECT_UPDATE(OBJECT_OF('"
                                         + Type1.class.getName()
                                         + "', 'a', f0, 'b', f1), 'someRandomName', 16)",
-                                "The field name 'someRandomName' at position 2 is not part of the structured type attributes. Available attributes: [a, b]."));
+                                "The field name 'someRandomName' at position 2 is not part of the structured type attributes. Available attributes: [a, b].")
+                        // Test that the reported attributes follow the declaration order.
+                        .testSqlValidationError(
+                                "OBJECT_UPDATE(OBJECT_OF('not.existing.clazz', 'b', 'Bob', 'a', 42), 'someRandomName', 16)",
+                                "The field name 'someRandomName' at position 2 is not part of the structured type attributes. Available attributes: [b, a]."));
     }
 
     // --------------------------------------------------------------------------------------------

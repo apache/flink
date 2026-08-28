@@ -30,11 +30,10 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -63,37 +62,27 @@ public class ObjectUpdateTypeStrategy implements TypeStrategy {
         final List<LogicalType> existingFieldTypes =
                 LogicalTypeChecks.getFieldTypes(structuredType);
 
-        // A LinkedHashMap is required here: the inferred attribute order must match the
-        // declaration order of the input type, because the runtime writes updated values at the
-        // declared positions.
-        final Map<String, LogicalType> fieldNameToTypeIndex =
-                IntStream.range(0, existingFieldNames.size())
-                        .boxed()
-                        .collect(
-                                Collectors.toMap(
-                                        existingFieldNames::get,
-                                        existingFieldTypes::get,
-                                        (left, right) -> left,
-                                        LinkedHashMap::new));
-
+        final Map<String, LogicalType> updatedTypes = new HashMap<>();
         for (int i = 1; i < argumentDataTypes.size(); i += 2) {
             final String fieldNameToBeUpdated =
                     callContext
                             .getArgumentValue(i, String.class)
                             .orElseThrow(IllegalStateException::new);
 
-            final LogicalType valueDataTypeToBeUpdated =
-                    argumentDataTypes.get(i + 1).getLogicalType();
-
-            final LogicalType valueLogicalType = fieldNameToTypeIndex.get(fieldNameToBeUpdated);
-
-            if (!valueDataTypeToBeUpdated.equals(valueLogicalType)) {
-                fieldNameToTypeIndex.put(fieldNameToBeUpdated, valueDataTypeToBeUpdated);
-            }
+            updatedTypes.put(fieldNameToBeUpdated, argumentDataTypes.get(i + 1).getLogicalType());
         }
 
-        return fieldNameToTypeIndex.entrySet().stream()
-                .map(e -> toFieldType(e.getKey(), e.getValue()))
+        // Iterate the declared attributes rather than the update map, so that the inferred type
+        // keeps the declaration order of the input type. The runtime writes the updated values at
+        // the declared positions.
+        return IntStream.range(0, existingFieldNames.size())
+                .mapToObj(
+                        i ->
+                                toFieldType(
+                                        existingFieldNames.get(i),
+                                        updatedTypes.getOrDefault(
+                                                existingFieldNames.get(i),
+                                                existingFieldTypes.get(i))))
                 .toArray(Field[]::new);
     }
 
