@@ -28,13 +28,13 @@ import org.apache.flink.table.runtime.util.StringUtf8Utils;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -195,48 +195,10 @@ class BinaryStringDataTest {
                 .flatMap(mode -> Arrays.stream(inputs).map(input -> arguments(mode, input)));
     }
 
-    private static Stream<Arguments> positiveInfinityCases() {
-        return withModes("Infinity", "infinity", "INF", "inf", "+inf");
-    }
-
-    private static Stream<Arguments> negativeInfinityCases() {
-        return withModes("-Infinity", "-infinity", "-INF", "  -inf  ", "  -infinity  ");
-    }
-
-    private static Stream<Arguments> nanCases() {
-        return withModes("NaN", "nan", "NAN");
-    }
-
-    private static Stream<Arguments> invalidApproximateCases() {
-        return withModes("-nan", "-   Infinity");
-    }
-
     /** Decodes UTF-8 bytes through one of the {@link StringUtf8Utils#decodeUTF8} entry points. */
     @FunctionalInterface
     private interface Utf8Decoder {
         String decode(byte[] bytes);
-    }
-
-    private static Stream<Arguments> utf8Decoders() {
-        return Stream.of(
-                arguments(
-                        "byte[]",
-                        (Utf8Decoder) bytes -> StringUtf8Utils.decodeUTF8(bytes, 0, bytes.length)),
-                arguments(
-                        "segment",
-                        (Utf8Decoder)
-                                bytes ->
-                                        StringUtf8Utils.decodeUTF8(
-                                                MemorySegmentFactory.wrap(bytes), 0, bytes.length)),
-                arguments(
-                        "segment at offset",
-                        (Utf8Decoder)
-                                bytes -> {
-                                    byte[] padded = new byte[bytes.length + 5];
-                                    System.arraycopy(bytes, 0, padded, 5, bytes.length);
-                                    return StringUtf8Utils.decodeUTF8(
-                                            MemorySegmentFactory.wrap(padded), 5, bytes.length);
-                                }));
     }
 
     private static void checkBasic(Mode mode, String str, int len) {
@@ -689,6 +651,7 @@ class BinaryStringDataTest {
 
     @Nested
     @DisplayName("Conversion")
+    @TestInstance(TestInstance.Lifecycle.PER_CLASS)
     class Conversion {
 
         @ParameterizedTest(name = "{0}")
@@ -726,28 +689,28 @@ class BinaryStringDataTest {
         }
 
         @ParameterizedTest(name = "{0}: {1}")
-        @MethodSource("org.apache.flink.table.data.BinaryStringDataTest#positiveInfinityCases")
+        @MethodSource("positiveInfinityCases")
         void castsPositiveInfinity(Mode mode, String input) {
             assertThat(toFloat(fromString(mode, input))).isEqualTo(Float.POSITIVE_INFINITY);
             assertThat(toDouble(fromString(mode, input))).isEqualTo(Double.POSITIVE_INFINITY);
         }
 
         @ParameterizedTest(name = "{0}: {1}")
-        @MethodSource("org.apache.flink.table.data.BinaryStringDataTest#negativeInfinityCases")
+        @MethodSource("negativeInfinityCases")
         void castsNegativeInfinity(Mode mode, String input) {
             assertThat(toFloat(fromString(mode, input))).isEqualTo(Float.NEGATIVE_INFINITY);
             assertThat(toDouble(fromString(mode, input))).isEqualTo(Double.NEGATIVE_INFINITY);
         }
 
         @ParameterizedTest(name = "{0}: {1}")
-        @MethodSource("org.apache.flink.table.data.BinaryStringDataTest#nanCases")
+        @MethodSource("nanCases")
         void castsNaN(Mode mode, String input) {
             assertThat(toFloat(fromString(mode, input))).isNaN();
             assertThat(toDouble(fromString(mode, input))).isNaN();
         }
 
         @ParameterizedTest(name = "{0}: {1}")
-        @MethodSource("org.apache.flink.table.data.BinaryStringDataTest#invalidApproximateCases")
+        @MethodSource("invalidApproximateCases")
         void rejectsInvalidApproximate(Mode mode, String input) {
             assertThatThrownBy(() -> toFloat(fromString(mode, input)))
                     .isInstanceOf(NumberFormatException.class);
@@ -846,18 +809,35 @@ class BinaryStringDataTest {
             assertThat(((BinaryStringData) row.getString(5)).toLowerCase())
                     .isEqualTo(fromString(mode, "!@#$%^*"));
         }
+
+        private Stream<Arguments> positiveInfinityCases() {
+            return withModes("Infinity", "infinity", "INF", "inf", "+inf");
+        }
+
+        private Stream<Arguments> negativeInfinityCases() {
+            return withModes("-Infinity", "-infinity", "-INF", "  -inf  ", "  -infinity  ");
+        }
+
+        private Stream<Arguments> nanCases() {
+            return withModes("NaN", "nan", "NAN");
+        }
+
+        private Stream<Arguments> invalidApproximateCases() {
+            return withModes("-nan", "-   Infinity");
+        }
     }
 
     @Nested
     @DisplayName("Encoding")
+    @TestInstance(TestInstance.Lifecycle.PER_CLASS)
     class Encoding {
 
         @Test
-        void testEncodeWithIllegalCharacter() throws UnsupportedEncodingException {
+        void testEncodeWithIllegalCharacter() {
 
-            // Tis char array has some illegal character, such as 55357
-            // the jdk ignores theses character and cast them to '?'
-            // which StringUtf8Utils'encodeUTF8 should follow
+            // This char array contains illegal characters, such as the lone surrogate 55357.
+            // The JDK replaces such characters with '?' when encoding to UTF-8, which
+            // StringUtf8Utils#encodeUTF8 should follow.
             char[] chars =
                     new char[] {
                         20122, 40635, 124, 38271, 34966, 124, 36830, 34915, 35033, 124, 55357, 124,
@@ -866,11 +846,11 @@ class BinaryStringDataTest {
 
             String str = new String(chars);
 
-            assertThat(StringUtf8Utils.encodeUTF8(str)).isEqualTo(str.getBytes("UTF-8"));
+            assertThat(StringUtf8Utils.encodeUTF8(str)).isEqualTo(str.getBytes(UTF_8));
         }
 
         @ParameterizedTest(name = "{0}")
-        @MethodSource("org.apache.flink.table.data.BinaryStringDataTest#utf8Decoders")
+        @MethodSource("utf8Decoders")
         void testDecodeWithIllegalUtf8Bytes(String name, Utf8Decoder decoder) {
 
             // illegal utf-8 bytes
@@ -918,6 +898,31 @@ class BinaryStringDataTest {
                 })
         void skipWrongFirstByte(int wrongFirstByte) {
             assertThat(fromBytes(new byte[] {(byte) wrongFirstByte}).numChars()).isEqualTo(1);
+        }
+
+        private Stream<Arguments> utf8Decoders() {
+            return Stream.of(
+                    arguments(
+                            "byte[]",
+                            (Utf8Decoder)
+                                    bytes -> StringUtf8Utils.decodeUTF8(bytes, 0, bytes.length)),
+                    arguments(
+                            "segment",
+                            (Utf8Decoder)
+                                    bytes ->
+                                            StringUtf8Utils.decodeUTF8(
+                                                    MemorySegmentFactory.wrap(bytes),
+                                                    0,
+                                                    bytes.length)),
+                    arguments(
+                            "segment at offset",
+                            (Utf8Decoder)
+                                    bytes -> {
+                                        byte[] padded = new byte[bytes.length + 5];
+                                        System.arraycopy(bytes, 0, padded, 5, bytes.length);
+                                        return StringUtf8Utils.decodeUTF8(
+                                                MemorySegmentFactory.wrap(padded), 5, bytes.length);
+                                    }));
         }
     }
 }
