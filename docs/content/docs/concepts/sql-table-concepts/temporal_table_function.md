@@ -112,7 +112,7 @@ SELECT
   SUM(amount * rate) AS amount
 FROM
   orders,
-  LATERAL TABLE (rates(order_time))
+  LATERAL rates(order_time)
 WHERE
   rates.currency = orders.currency
 ```

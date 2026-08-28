@@ -264,7 +264,7 @@ SELECT
   o_amount, r_rate
 FROM
   Orders,
-  LATERAL TABLE (Rates(o_proctime))
+  LATERAL Rates(o_proctime)
 WHERE
   r_currency = o_currency
 ```
@@ -290,7 +290,7 @@ SELECT
   o_amount, r_rate
 FROM
   Orders,
-  LATERAL TABLE (Rates(o_proctime))
+  LATERAL Rates(o_proctime)
 WHERE
   r_currency = o_currency
 ```
@@ -328,7 +328,7 @@ For example, the following query enriches an append-only stream of `orders` (the
 
 SELECT o.order_id, o.currency, o.amount, r.rate
 FROM orders AS o
-JOIN LATERAL TABLE(SNAPSHOT(input => TABLE currency_rates)) AS r
+JOIN LATERAL SNAPSHOT(input => TABLE currency_rates) AS r
 ON o.currency = r.currency;
 
 order_id  currency  amount  rate
@@ -369,19 +369,18 @@ By first loading the build side, a `LATERAL SNAPSHOT` join avoids this problem.
 
 **Syntax**
 
-The build side is wrapped in the `SNAPSHOT` table function inside a `LATERAL TABLE` clause. The outer (probe-side) table must be an append-only table. 
+The build side is wrapped in the `SNAPSHOT` table function, which is called with `LATERAL`. The outer (probe-side) table must be an append-only table. 
 Both `INNER JOIN` and `LEFT [OUTER] JOIN` are supported. The join requires at least one conjunctive equality predicate; additional non-equi predicates are allowed in the `ON` clause.
 
 ```sql
 SELECT [column_list]
 FROM probe_table
-[LEFT] JOIN LATERAL TABLE(
-    SNAPSHOT(
-        input                        => TABLE build_table,
-        [ load_completed_condition   => <'compile_time' | 'user_time'>, ]
-        [ load_completed_time        => <timestamp_ltz>, ]
-        [ load_completed_idle_timeout => <interval>, ]
-        [ state_ttl                  => <interval> ])) AS s
+[LEFT] JOIN LATERAL SNAPSHOT(
+    input                        => TABLE build_table,
+    [ load_completed_condition   => <'compile_time' | 'user_time'>, ]
+    [ load_completed_time        => <timestamp_ltz>, ]
+    [ load_completed_idle_timeout => <interval>, ]
+    [ state_ttl                  => <interval> ]) AS s
 ON probe_table.col = s.col
 ```
 
@@ -546,7 +545,7 @@ The row of the left (outer) table is dropped, if its table function call returns
 ```sql
 SELECT order_id, res
 FROM Orders,
-LATERAL TABLE(table_func(order_id)) t(res)
+LATERAL table_func(order_id) t(res)
 ```
 
 ### LEFT OUTER JOIN
@@ -556,7 +555,7 @@ If a table function call returns an empty result, the corresponding outer row is
 ```sql
 SELECT order_id, res
 FROM Orders
-LEFT OUTER JOIN LATERAL TABLE(table_func(order_id)) t(res)
+LEFT OUTER JOIN LATERAL table_func(order_id) t(res)
   ON TRUE
 ```
 
