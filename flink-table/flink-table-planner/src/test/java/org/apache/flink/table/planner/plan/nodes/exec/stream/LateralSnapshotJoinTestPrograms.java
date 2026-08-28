@@ -95,11 +95,11 @@ public class LateralSnapshotJoinTestPrograms {
     static final Row[] LOAD_PROBE_AFTER_DATA = {Row.of("a", 101, "2020-01-01 00:00:10")};
 
     private static final String SNAPSHOT_BUILD =
-            "LATERAL TABLE(SNAPSHOT("
+            "LATERAL SNAPSHOT("
                     + "input => TABLE b, "
                     + "load_completed_condition => 'user_time', "
                     + "load_completed_time => CAST(TIMESTAMP '2020-01-01 00:00:03' AS TIMESTAMP_LTZ(3))"
-                    + ")) AS s ON probe.pk = s.bk";
+                    + ") AS s ON probe.pk = s.bk";
 
     // Restore taken while the operator is in LOAD phase: the savepoint captures the partial build
     // multi-set and the buffered probe row, the LOAD phase is recorded in union operator state, and

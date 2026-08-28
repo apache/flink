@@ -18,7 +18,7 @@ limitations under the License.
 <Root>
   <TestCase name="testBuildSideWithProctime">
     <Resource name="sql">
-      <![CDATA[SELECT probe.pk, s.bk, s.bv, s.pt FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b_proctime)) AS s ON probe.pk = s.bk]]>
+      <![CDATA[SELECT probe.pk, s.bk, s.bv, s.pt FROM probe JOIN LATERAL SNAPSHOT(input => TABLE b_proctime) AS s ON probe.pk = s.bk]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -44,7 +44,7 @@ HashJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, bk, bv, pt], build
   </TestCase>
   <TestCase name="testBuildSideWithoutWatermark">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b_no_wm)) AS s ON probe.pk = s.bk]]>
+      <![CDATA[SELECT * FROM probe JOIN LATERAL SNAPSHOT(input => TABLE b_no_wm) AS s ON probe.pk = s.bk]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -68,7 +68,7 @@ HashJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, pv, pts, bk, bv, b
   </TestCase>
   <TestCase name="testInnerJoin">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)))) AS s ON probe.pk = s.bk]]>
+      <![CDATA[SELECT * FROM probe JOIN LATERAL SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))) AS s ON probe.pk = s.bk]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -92,7 +92,7 @@ HashJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, pv, pts, bk, bv, b
   </TestCase>
   <TestCase name="testInnerJoinWithCompositeKeys">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)))) AS s ON probe.pk = s.bk AND probe.pv = s.bv]]>
+      <![CDATA[SELECT * FROM probe JOIN LATERAL SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))) AS s ON probe.pk = s.bk AND probe.pv = s.bv]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -116,7 +116,7 @@ HashJoin(joinType=[InnerJoin], where=[AND(=(pk, bk), =(pv, bv))], select=[pk, pv
   </TestCase>
   <TestCase name="testInnerJoinWithNonEquiCondition">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)))) AS s ON probe.pk = s.bk AND probe.pv > s.bv]]>
+      <![CDATA[SELECT * FROM probe JOIN LATERAL SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))) AS s ON probe.pk = s.bk AND probe.pv > s.bv]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -140,7 +140,7 @@ HashJoin(joinType=[InnerJoin], where=[AND(=(pk, bk), >(pv, bv))], select=[pk, pv
   </TestCase>
   <TestCase name="testInnerJoinWithoutBuildTimeColumn">
     <Resource name="sql">
-      <![CDATA[SELECT probe.pk, probe.pv, s.bv FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)))) AS s ON probe.pk = s.bk]]>
+      <![CDATA[SELECT probe.pk, probe.pv, s.bv FROM probe JOIN LATERAL SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))) AS s ON probe.pk = s.bk]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -166,7 +166,7 @@ Calc(select=[pk, pv, bv])
   </TestCase>
   <TestCase name="testLeftJoin">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM probe LEFT JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)))) AS s ON probe.pk = s.bk]]>
+      <![CDATA[SELECT * FROM probe LEFT JOIN LATERAL SNAPSHOT(input => TABLE b, load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))) AS s ON probe.pk = s.bk]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[

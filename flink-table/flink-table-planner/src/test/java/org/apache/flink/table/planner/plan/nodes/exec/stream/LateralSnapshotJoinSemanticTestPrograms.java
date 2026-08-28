@@ -88,8 +88,14 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                                             "+I[b, 200, b, 20]")
                                     .build())
                     .runSql(
-                            innerJoin(
-                                    "probe.pk, probe.pv, s.bk, s.bv", MID_FLIP, "probe.pk = s.bk"))
+                            "INSERT INTO sink "
+                                    + "SELECT probe.pk, probe.pv, s.bk, s.bv "
+                                    + "FROM probe "
+                                    + "  JOIN LATERAL TABLE(SNAPSHOT("
+                                    + "    input => TABLE b, "
+                                    + "    load_completed_condition => 'user_time', "
+                                    + "    load_completed_time => CAST(TIMESTAMP '2020-01-01 00:00:10' AS TIMESTAMP_LTZ(3)))) AS s "
+                                    + "  ON probe.pk = s.bk")
                     .build();
 
     public static final TableTestProgram LEFT_JOIN =
@@ -128,10 +134,10 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                                             "+I[a, 100, 2020-01-01T00:01, a, 10, 2020-01-01T00:00:01]")
                                     .build())
                     .runSql(
-                            "INSERT INTO sink SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                            "INSERT INTO sink SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                                     + "input => TABLE b, "
                                     + MID_FLIP
-                                    + ")) AS s ON probe.pk = s.bk")
+                                    + ") AS s ON probe.pk = s.bk")
                     .build();
 
     public static final TableTestProgram COMPOSITE_KEYS =
@@ -255,9 +261,9 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                     // No options: 'load_completed_condition' defaults to 'compile_time'.
                     .runSql(
                             "INSERT INTO sink SELECT probe.pk, probe.pv, s.bk, s.bv "
-                                    + "FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                                    + "FROM probe JOIN LATERAL SNAPSHOT("
                                     + "input => TABLE b"
-                                    + ")) AS s ON probe.pk = s.bk")
+                                    + ") AS s ON probe.pk = s.bk")
                     .build();
 
     public static final TableTestProgram LIVE_JOIN =
@@ -347,10 +353,10 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                 + projection
                 + " FROM probe "
                 + joinType
-                + " LATERAL TABLE(SNAPSHOT("
+                + " LATERAL SNAPSHOT("
                 + "input => TABLE b, "
                 + flip
-                + ")) AS s ON "
+                + ") AS s ON "
                 + condition;
     }
 

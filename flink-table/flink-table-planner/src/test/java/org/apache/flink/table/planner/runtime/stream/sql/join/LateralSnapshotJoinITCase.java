@@ -109,10 +109,10 @@ public class LateralSnapshotJoinITCase extends StreamingWithStateTestBase {
 
         final List<Row> actual =
                 collect(
-                        "SELECT probe.pk, s.bv FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                        "SELECT probe.pk, s.bv FROM probe JOIN LATERAL SNAPSHOT("
                                 + "input => TABLE b, "
                                 + MID_FLIP
-                                + ")) AS s ON probe.pk = s.bk");
+                                + ") AS s ON probe.pk = s.bk");
 
         assertThatList(actual).containsExactlyInAnyOrder(Row.of("a", 11));
     }
@@ -131,10 +131,10 @@ public class LateralSnapshotJoinITCase extends StreamingWithStateTestBase {
 
         final List<Row> actual =
                 collect(
-                        "SELECT probe.pk, s.bv FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                        "SELECT probe.pk, s.bv FROM probe JOIN LATERAL SNAPSHOT("
                                 + "input => TABLE b, "
                                 + MID_FLIP
-                                + ")) AS s ON probe.pk = s.bk");
+                                + ") AS s ON probe.pk = s.bk");
 
         assertThatList(actual).containsExactlyInAnyOrder(Row.of("a", 11));
     }
@@ -167,10 +167,10 @@ public class LateralSnapshotJoinITCase extends StreamingWithStateTestBase {
         final List<Row> byProbeId =
                 sortedByProbeId(
                         collect(
-                                "SELECT probe.pv, s.bv FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                                "SELECT probe.pv, s.bv FROM probe JOIN LATERAL SNAPSHOT("
                                         + "input => TABLE b, "
                                         + MID_FLIP
-                                        + ")) AS s ON probe.pk = s.bk"));
+                                        + ") AS s ON probe.pk = s.bk"));
 
         assertThat(byProbeId).hasSize(probeCount);
         assertMonotonicVersions(byProbeId);
