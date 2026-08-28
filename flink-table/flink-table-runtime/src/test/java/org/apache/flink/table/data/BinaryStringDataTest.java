@@ -363,12 +363,10 @@ class BinaryStringDataTest {
         void testEmptyString(Mode mode) {
             BinaryStringData str2 = fromString(mode, "hahahahah");
             BinaryStringData str3;
-            {
-                MemorySegment[] segments = new MemorySegment[2];
-                segments[0] = MemorySegmentFactory.wrap(new byte[10]);
-                segments[1] = MemorySegmentFactory.wrap(new byte[10]);
-                str3 = BinaryStringData.fromAddress(segments, 15, 0);
-            }
+            MemorySegment[] segments = new MemorySegment[2];
+            segments[0] = MemorySegmentFactory.wrap(new byte[10]);
+            segments[1] = MemorySegmentFactory.wrap(new byte[10]);
+            str3 = BinaryStringData.fromAddress(segments, 15, 0);
 
             assertThat(BinaryStringData.EMPTY_UTF8.compareTo(str2)).isLessThan(0);
             assertThat(str2.compareTo(BinaryStringData.EMPTY_UTF8)).isGreaterThan(0);
