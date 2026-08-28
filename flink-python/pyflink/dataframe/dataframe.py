@@ -200,7 +200,7 @@ class DataFrame:
         Add a column, or replace an existing column with the same name.
 
         ``expr`` may be an expression or a callable that receives this DataFrame and returns an
-        expression. See :func:`~pyflink.dataframe.udf.udf` for supported UDF declaration forms.
+        expression.
 
         :param name: Name of the added or replaced column.
         :param expr: Expression or callable used to compute the column value.
