@@ -751,21 +751,15 @@ class BinaryStringDataTest {
                     .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(str), precision, scale));
         }
 
-        @Test
-        void toDecimalFromBinaryRow() {
-            BinaryRowData row = new BinaryRowData(DECIMAL_CASES.size());
+        @ParameterizedTest(name = "{0} -> DECIMAL({1},{2})")
+        @MethodSource("decimalRowCases")
+        void toDecimalFromBinaryRow(String str, int precision, int scale) {
+            BinaryRowData row = new BinaryRowData(1);
             BinaryRowWriter writer = new BinaryRowWriter(row);
-            for (int i = 0; i < DECIMAL_CASES.size(); i++) {
-                writer.writeString(i, BinaryStringData.fromString(DECIMAL_CASES.get(i).str));
-            }
+            writer.writeString(0, BinaryStringData.fromString(str));
             writer.complete();
-            for (int i = 0; i < DECIMAL_CASES.size(); i++) {
-                DecimalCase c = DECIMAL_CASES.get(i);
-                assertThat(toDecimal((BinaryStringData) row.getString(i), c.precision, c.scale))
-                        .isEqualTo(
-                                DecimalData.fromBigDecimal(
-                                        new BigDecimal(c.str), c.precision, c.scale));
-            }
+            assertThat(toDecimal((BinaryStringData) row.getString(0), precision, scale))
+                    .isEqualTo(DecimalData.fromBigDecimal(new BigDecimal(str), precision, scale));
         }
 
         @ParameterizedTest(name = "{0}")
@@ -808,6 +802,10 @@ class BinaryStringDataTest {
                     .isEqualTo(fromString(mode, "!@#$%^*"));
             assertThat(((BinaryStringData) row.getString(5)).toLowerCase())
                     .isEqualTo(fromString(mode, "!@#$%^*"));
+        }
+
+        private Stream<Arguments> decimalRowCases() {
+            return DECIMAL_CASES.stream().map(c -> arguments(c.str, c.precision, c.scale));
         }
 
         private Stream<Arguments> positiveInfinityCases() {
