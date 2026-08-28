@@ -28,6 +28,7 @@ from typing import (
     Callable,
     Dict,
     FrozenSet,
+    Iterable,
     List,
     Optional,
     Tuple,
@@ -773,6 +774,8 @@ def _get_callable_return_type_hint(func: Callable[..., Any]) -> Any:
     if "return" not in annotations:
         return _UNRESOLVED_TYPE_HINT
 
+    # Resolve the return annotation in isolation so an unresolvable parameter
+    # annotation does not prevent return-type inference.
     def return_annotation_holder() -> None:
         pass
 
@@ -1078,7 +1081,7 @@ def _create_result_normalizer(
                 return None
             items_method = getattr(value, "items", None)
             if callable(items_method):
-                items = list(items_method())
+                items = list(cast(Iterable[Any], items_method()))
             else:
                 try:
                     items = list(value)
