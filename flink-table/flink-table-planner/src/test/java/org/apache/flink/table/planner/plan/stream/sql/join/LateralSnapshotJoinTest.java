@@ -101,57 +101,57 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testLeftJoin() {
         util.verifyRelPlan(
-                "SELECT * FROM probe LEFT JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe LEFT JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe.pk = s.bk");
     }
 
     @Test
     void testInnerJoinWithIdleTimeoutAndStateTtl() {
         util.verifyRelPlan(
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)), "
                         + "load_completed_idle_timeout => INTERVAL '10' SECOND, "
                         + "state_ttl => INTERVAL '1' DAY"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe.pk = s.bk");
     }
 
     @Test
     void testInnerJoinWithNonEquiCondition() {
         util.verifyRelPlan(
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe.pk = s.bk AND probe.pv > s.bv");
     }
 
     @Test
     void testInnerJoinWithCompositeKeys() {
         util.verifyRelPlan(
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe.pk = s.bk AND probe.pv = s.bv");
     }
 
     @Test
     void testInnerJoinWithTimeAttributeInCondition() {
         util.verifyRelPlan(
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe.pk = s.bk AND probe.pts >= s.bts");
     }
 
@@ -159,33 +159,33 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     void testInnerJoinWithCteBuildSide() {
         util.verifyRelPlan(
                 "WITH cte AS (SELECT bk, bv + 1 AS bv, bts FROM b) "
-                        + "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                        + "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE cte, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe.pk = s.bk");
     }
 
     @Test
     void testInnerJoinWithoutBuildTimeColumn() {
         util.verifyRelPlan(
-                "SELECT probe.pk, probe.pv, s.bv FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT probe.pk, probe.pv, s.bv FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe.pk = s.bk");
     }
 
     @Test
     void testLeftJoinWithoutBuildTimeColumn() {
         util.verifyRelPlan(
-                "SELECT probe.pk, probe.pv, s.bv FROM probe LEFT JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT probe.pk, probe.pv, s.bv FROM probe LEFT JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe.pk = s.bk");
     }
 
@@ -201,11 +201,11 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                                 + "  WATERMARK FOR bts AS bts"
                                 + ") WITH ('connector' = 'values', 'bounded' = 'false')");
         util.verifyRelPlan(
-                "SELECT probe.pk, s.bk, s.bv, s.pt FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT probe.pk, s.bk, s.bv, s.pt FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b_proctime, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe.pk = s.bk");
     }
 
@@ -218,11 +218,11 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         // Derived table whose SELECT * exposes the probe time attribute as `pts` and the (now
         // materialized) build time attribute as `bts`.
         final String derived =
-                "(SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "(SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s ON probe.pk = s.bk)";
+                        + ") AS s ON probe.pk = s.bk)";
         // Windowing over the build-side time column is rejected: it is materialized, not a time
         // attribute.
         assertThatThrownBy(
@@ -258,11 +258,11 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         final String plan =
                 util.tableEnv()
                         .explainSql(
-                                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                                         + "input => TABLE b_upsert, "
                                         + "load_completed_condition => 'user_time', "
                                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                                        + ")) AS s ON probe.pk = s.bk");
+                                        + ") AS s ON probe.pk = s.bk");
         assertThat(plan).contains("ChangelogNormalize");
         assertThat(plan).doesNotContain("DropUpdateBefore");
     }
@@ -270,11 +270,11 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testNonEquiConditionCompilesEndToEnd() {
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s ON probe.pk = s.bk AND probe.pv > s.bv AND probe.pts >= s.bts";
+                        + ") AS s ON probe.pk = s.bk AND probe.pv > s.bv AND probe.pts >= s.bts";
         assertThat(util.tableEnv().explainSql(sql)).contains("LateralSnapshotJoin");
     }
 
@@ -283,18 +283,18 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         final String plan =
                 util.tableEnv()
                         .explainSql(
-                                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                                         + "input => TABLE b, "
                                         + "load_completed_condition => 'user_time', "
                                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                                        + ")) AS s ON probe.pk = s.bk");
+                                        + ") AS s ON probe.pk = s.bk");
         assertThat(plan).contains("LateralSnapshotJoin");
     }
 
     @Test
     void testInnerJoinWithDefaultCompileTimeCompilesEndToEnd() {
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b)) AS s "
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT(input => TABLE b) AS s "
                         + "ON probe.pk = s.bk";
         // Compile via the table environment without verifying the plan XML (since
         // load_completed_time embeds wall-clock millis at planning).
@@ -308,10 +308,10 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testInnerJoinWithExplicitCompileTimeCompilesEndToEnd() {
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'compile_time'"
-                        + ")) AS s ON probe.pk = s.bk";
+                        + ") AS s ON probe.pk = s.bk";
         assertThat(util.tableEnv().explainSql(sql))
                 .contains("LateralSnapshotJoin")
                 .contains("loadCompletedCondition=[compile_time]")
@@ -333,11 +333,11 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                                 + "  bts TIMESTAMP(3)"
                                 + ") WITH ('connector' = 'values', 'bounded' = 'false')");
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b_no_wm, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe.pk = s.bk";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
@@ -361,11 +361,11 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                                 + "  'changelog-mode' = 'I,UB,UA,D'"
                                 + ")");
         final String sql =
-                "SELECT * FROM probe_updates JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe_updates JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe_updates.pk = s.bk";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .hasMessageContaining(
@@ -376,11 +376,11 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testRejectMissingEqualityPredicate() {
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s "
+                        + ") AS s "
                         + "ON probe.pv > s.bv";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
@@ -391,10 +391,10 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testRejectNonConstantCondition() {
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => CAST(CURRENT_TIMESTAMP AS STRING)"
-                        + ")) AS s ON probe.pk = s.bk";
+                        + ") AS s ON probe.pk = s.bk";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Invalid function call")
@@ -404,11 +404,11 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testRejectNonConstantLoadCompletedTime() {
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CURRENT_TIMESTAMP"
-                        + ")) AS s ON probe.pk = s.bk";
+                        + ") AS s ON probe.pk = s.bk";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
@@ -418,13 +418,13 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testRejectNonConstantIdleTimeout() {
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)), "
                         + "load_completed_idle_timeout => "
                         + "CASE WHEN RAND() > 0.5 THEN INTERVAL '10' SECOND ELSE INTERVAL '20' SECOND END"
-                        + ")) AS s ON probe.pk = s.bk";
+                        + ") AS s ON probe.pk = s.bk";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
@@ -434,13 +434,13 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testRejectNonConstantStateTtl() {
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)), "
                         + "state_ttl => "
                         + "CASE WHEN RAND() > 0.5 THEN INTERVAL '1' DAY ELSE INTERVAL '2' DAY END"
-                        + ")) AS s ON probe.pk = s.bk";
+                        + ") AS s ON probe.pk = s.bk";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
@@ -450,12 +450,12 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testRejectYearMonthIntervalStateTtl() {
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)), "
                         + "state_ttl => INTERVAL '1' YEAR"
-                        + ")) AS s ON probe.pk = s.bk";
+                        + ") AS s ON probe.pk = s.bk";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("No match found for function signature SNAPSHOT");
@@ -464,12 +464,12 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testRejectNegativeIdleTimeout() {
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)), "
                         + "load_completed_idle_timeout => INTERVAL -'10' SECOND"
-                        + ")) AS s ON probe.pk = s.bk";
+                        + ") AS s ON probe.pk = s.bk";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
@@ -479,12 +479,12 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testRejectNegativeStateTtl() {
         final String sql =
-                "SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)), "
                         + "state_ttl => INTERVAL -'10' MINUTE"
-                        + ")) AS s ON probe.pk = s.bk";
+                        + ") AS s ON probe.pk = s.bk";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Argument 'state_ttl' of SNAPSHOT must not be negative");
@@ -498,53 +498,53 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     @Test
     void testInnerJoinJsonPlan() {
         util.verifyJsonPlan(
-                "INSERT INTO sink SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "INSERT INTO sink SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s ON probe.pk = s.bk");
+                        + ") AS s ON probe.pk = s.bk");
     }
 
     @Test
     void testLeftJoinJsonPlan() {
         util.verifyJsonPlan(
-                "INSERT INTO sink SELECT * FROM probe LEFT JOIN LATERAL TABLE(SNAPSHOT("
+                "INSERT INTO sink SELECT * FROM probe LEFT JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s ON probe.pk = s.bk");
+                        + ") AS s ON probe.pk = s.bk");
     }
 
     @Test
     void testInnerJoinWithIdleTimeoutAndStateTtlJsonPlan() {
         util.verifyJsonPlan(
-                "INSERT INTO sink SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "INSERT INTO sink SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)), "
                         + "load_completed_idle_timeout => INTERVAL '10' SECOND, "
                         + "state_ttl => INTERVAL '1' DAY"
-                        + ")) AS s ON probe.pk = s.bk");
+                        + ") AS s ON probe.pk = s.bk");
     }
 
     @Test
     void testInnerJoinWithCompositeKeysJsonPlan() {
         util.verifyJsonPlan(
-                "INSERT INTO sink SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "INSERT INTO sink SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s ON probe.pk = s.bk AND probe.pv = s.bv");
+                        + ") AS s ON probe.pk = s.bk AND probe.pv = s.bv");
     }
 
     @Test
     void testInnerJoinWithNonEquiConditionJsonPlan() {
         util.verifyJsonPlan(
-                "INSERT INTO sink SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT("
+                "INSERT INTO sink SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ")) AS s ON probe.pk = s.bk AND probe.pv > s.bv");
+                        + ") AS s ON probe.pk = s.bk AND probe.pv > s.bv");
     }
 
     // ------------------------------------------------------------------------------------------
@@ -587,9 +587,9 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                 util.tableEnv()
                         .compilePlanSql(
                                 "INSERT INTO sink SELECT * FROM probe "
-                                        + "JOIN LATERAL TABLE("
+                                        + "JOIN LATERAL "
                                         + snapshotCall
-                                        + ") AS s ON probe.pk = s.bk");
+                                        + " AS s ON probe.pk = s.bk");
         final List<Transformation<?>> transformations =
                 CompiledPlanUtils.toTransformations(util.tableEnv(), plan);
         return findJoinOperator(transformations).getMinStateTtlMs();

@@ -76,11 +76,11 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                 util.tableEnv()
                         .explainSql(
                                 "SELECT o.order_id, o.amount, r.rate "
-                                        + "FROM Orders AS o, LATERAL TABLE(SNAPSHOT("
+                                        + "FROM Orders AS o, LATERAL SNAPSHOT("
                                         + "input => TABLE Rates, "
                                         + "load_completed_condition => 'user_time', "
                                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                                        + ")) AS r "
+                                        + ") AS r "
                                         + "WHERE o.currency = r.currency");
         assertThat(plan).contains("LateralSnapshotJoin");
     }
@@ -93,11 +93,11 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                 .executeSql(
                         "CREATE VIEW OrdersWithRate AS "
                                 + "SELECT o.order_id, o.amount, r.rate "
-                                + "FROM Orders AS o, LATERAL TABLE(SNAPSHOT("
+                                + "FROM Orders AS o, LATERAL SNAPSHOT("
                                 + "input => TABLE Rates, "
                                 + "load_completed_condition => 'user_time', "
                                 + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                                + ")) AS r "
+                                + ") AS r "
                                 + "WHERE o.currency = r.currency");
         final String plan = util.tableEnv().explainSql("SELECT * FROM OrdersWithRate");
         assertThat(plan).contains("LateralSnapshotJoin");
@@ -110,11 +110,11 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                 util.tableEnv()
                         .explainSql(
                                 "SELECT o.order_id, o.amount, r.rate "
-                                        + "FROM Orders AS o, LATERAL TABLE(SNAPSHOT("
+                                        + "FROM Orders AS o, LATERAL SNAPSHOT("
                                         + "input => TABLE RatesView, "
                                         + "load_completed_condition => 'user_time', "
                                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                                        + ")) AS r "
+                                        + ") AS r "
                                         + "WHERE o.currency = r.currency");
         assertThat(plan).contains("LateralSnapshotJoin");
     }
@@ -128,9 +128,9 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                         () ->
                                 util.verifyRelPlan(
                                         "SELECT o.order_id "
-                                                + "FROM Orders AS o, LATERAL TABLE(SNAPSHOT("
+                                                + "FROM Orders AS o, LATERAL SNAPSHOT("
                                                 + "input => TABLE Rates, "
-                                                + "on_time => DESCRIPTOR(rate_time))) AS r "
+                                                + "on_time => DESCRIPTOR(rate_time)) AS r "
                                                 + "WHERE o.currency = r.currency"))
                 .satisfies(
                         anyCauseMatches(

@@ -62,7 +62,7 @@ public class LateralSnapshotJoinTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT pk, pv, bk, bv FROM probe JOIN LATERAL "
-                                    + "TABLE(SNAPSHOT(input => TABLE b)) AS s ON probe.pk = s.bk")
+                                    + "SNAPSHOT(input => TABLE b) AS s ON probe.pk = s.bk")
                     .build();
 
     public static final TableTestProgram LEFT_JOIN =
@@ -82,7 +82,7 @@ public class LateralSnapshotJoinTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT pk, pv, bk, bv FROM probe LEFT JOIN LATERAL "
-                                    + "TABLE(SNAPSHOT(input => TABLE b)) AS s ON probe.pk = s.bk")
+                                    + "SNAPSHOT(input => TABLE b) AS s ON probe.pk = s.bk")
                     .build();
 
     public static final TableTestProgram INNER_JOIN_WITH_NON_EQUI_CONDITION =
@@ -99,7 +99,7 @@ public class LateralSnapshotJoinTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT pk, pv, bk, bv FROM probe JOIN LATERAL "
-                                    + "TABLE(SNAPSHOT(input => TABLE b)) AS s "
+                                    + "SNAPSHOT(input => TABLE b) AS s "
                                     + "ON probe.pk = s.bk AND s.bv > 10")
                     .build();
 
@@ -119,11 +119,11 @@ public class LateralSnapshotJoinTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT pk, pv, bk, bv FROM probe JOIN LATERAL "
-                                    + "TABLE(SNAPSHOT("
+                                    + "SNAPSHOT("
                                     + "input => TABLE b, "
                                     + "load_completed_condition => 'compile_time', "
                                     + "load_completed_idle_timeout => INTERVAL '10' SECOND, "
                                     + "state_ttl => INTERVAL '1' DAY"
-                                    + ")) AS s ON probe.pk = s.bk")
+                                    + ") AS s ON probe.pk = s.bk")
                     .build();
 }
