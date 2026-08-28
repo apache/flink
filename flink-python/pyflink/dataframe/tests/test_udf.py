@@ -19,6 +19,7 @@
 import asyncio
 import functools
 import inspect
+import operator
 import unittest
 from dataclasses import dataclass
 from typing import TypedDict
@@ -26,7 +27,7 @@ from typing import TypedDict
 import pandas as pd
 import pyarrow as pa
 import pyflink.dataframe as pf
-from pyflink.common import Row
+from pyflink.common import Row, RowKind
 from pyflink.table import DataTypes as TableDataTypes
 from pyflink.table.types import RowType
 from pyflink.table.udf import AsyncScalarFunction, ScalarFunction, TableFunction
@@ -58,6 +59,22 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 "id": value,
                 "details": {"label": str(value), "scores": [value]},
             }
+
+        def concrete_return_with_unresolved_input(value):
+            return value
+
+        concrete_return_with_unresolved_input.__annotations__ = {
+            "value": "UnavailableInput",
+            "return": int,
+        }
+
+        def postponed_return_with_unresolved_input(value):
+            return value
+
+        postponed_return_with_unresolved_input.__annotations__ = {
+            "value": "UnavailableInput",
+            "return": "int",
+        }
 
         decorated = pf.udf(add_one)
 
@@ -99,6 +116,16 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                         ),
                     }
                 ),
+            ),
+            (
+                "concrete return with unresolved input",
+                lambda: pf.udf(concrete_return_with_unresolved_input),
+                pf.DataType.int64(),
+            ),
+            (
+                "postponed return with unresolved input",
+                lambda: pf.udf(postponed_return_with_unresolved_input),
+                pf.DataType.int64(),
             ),
         ]
         for case_name, declare, expected in declarations:
@@ -179,6 +206,70 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         decorated_class = pf.udf(Double)
         self.assertIs(decorated_class.__wrapped__, Double)
         self.assertEqual(decorated_class.__qualname__, Double.__qualname__)
+
+    def test_wrapped_signature_describes_udf_invocation(self):
+        def add(value: int, amount: int = 1) -> int:
+            return value + amount
+
+        class CallableClass:
+            def __call__(self, value: int, amount: int = 1) -> int:
+                return value + amount
+
+        class StaticCallableClass:
+            @staticmethod
+            def __call__(value: int, amount: int = 1) -> int:
+                return value + amount
+
+        class ClassMethodCallableClass:
+            @classmethod
+            def __call__(cls, value: int, amount: int = 1) -> int:
+                return value + amount
+
+        class AddFunction(ScalarFunction):
+            def eval(self, *values: int) -> int:
+                return sum(values)
+
+        class AsyncAddFunction(AsyncScalarFunction):
+            async def eval(self, *values: int) -> int:
+                return sum(values)
+
+        class ExplodingSignature:
+            @property
+            def __signature__(self):
+                raise RuntimeError("signature lookup failed")
+
+            def __call__(self, value):
+                return value
+
+        def variadic_add(*values: int) -> int:
+            return sum(values)
+
+        expected_signature = inspect.signature(add)
+        variadic_signature = inspect.signature(variadic_add)
+        declarations = [
+            (add, expected_signature),
+            (CallableClass, expected_signature),
+            (CallableClass(), expected_signature),
+            (StaticCallableClass, expected_signature),
+            (ClassMethodCallableClass, expected_signature),
+            (AddFunction, variadic_signature),
+            (AddFunction(), variadic_signature),
+            (AsyncAddFunction, variadic_signature),
+            (AsyncAddFunction(), variadic_signature),
+        ]
+        for source, expected in declarations:
+            with self.subTest(source=source):
+                self.assertEqual(inspect.signature(pf.udf(source)), expected)
+
+        partial_add = functools.partial(add, 1)
+        self.assertEqual(
+            inspect.signature(pf.udf(partial_add)), inspect.signature(partial_add)
+        )
+
+        uninspectable = pf.udf(operator.itemgetter(0), return_dtype=int)
+        self.assertEqual(uninspectable.return_dtype, pf.DataType.int64())
+        exploding_signature = pf.udf(ExplodingSignature(), return_dtype=int)
+        self.assertEqual(exploding_signature.return_dtype, pf.DataType.int64())
 
     def test_func_type_resolution_and_async_detection(self):
         def pandas_add_one(values: pd.Series) -> pd.Series:
@@ -369,7 +460,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         self.assertEqual(named._table_udf_wrapper._name, "identity")
 
     def test_general_structured_results_are_normalized_recursively(self):
-        from pyflink.dataframe.udf import _normalize_user_value
+        from pyflink.dataframe.udf import _create_result_normalizer
 
         class Details:
             __slots__ = ("label", "scores")
@@ -384,6 +475,26 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
             def items(self):
                 return self._items
+
+        class PropertyDetails:
+            def __init__(self, label, scores):
+                self._label = label
+                self.scores = scores
+
+            @property
+            def label(self):
+                return self._label.upper()
+
+        class MissingLabelDetails:
+            def __init__(self, scores):
+                self.scores = scores
+
+        class FailingPropertyDetails:
+            scores = [17]
+
+            @property
+            def label(self):
+                raise AttributeError("label lookup failed")
 
         @dataclass
         class Result:
@@ -407,6 +518,21 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         )
         table_type = return_dtype._to_table_data_type()
         self.assertIsInstance(table_type, RowType)
+        result_normalizer = _create_result_normalizer(table_type)
+        self.assertIsNotNone(result_normalizer)
+
+        named_row = Row(
+            id=4,
+            details=Row(label="named", scores=[5]),
+            attributes={"count": 6},
+        )
+        named_row.set_row_kind(RowKind.DELETE)
+        expected_named_row = Row(
+            id=4,
+            details=Row(label="named", scores=[5]),
+            attributes={"count": 6},
+        )
+        expected_named_row.set_row_kind(RowKind.DELETE)
 
         cases = [
             (
@@ -425,16 +551,8 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             ),
             (
                 "named row",
-                Row(
-                    id=4,
-                    details=Row(label="named", scores=[5]),
-                    attributes={"count": 6},
-                ),
-                Row(
-                    id=4,
-                    details=Row(label="named", scores=[5]),
-                    attributes={"count": 6},
-                ),
+                named_row,
+                expected_named_row,
             ),
             (
                 "positional list and tuple",
@@ -458,21 +576,62 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                     attributes={"count": 13},
                 ),
             ),
+            (
+                "property attribute",
+                Result(
+                    id=14,
+                    details=PropertyDetails(label="property", scores=[15]),
+                    attributes={"count": 16},
+                ),
+                Row(
+                    id=14,
+                    details=Row(label="PROPERTY", scores=[15]),
+                    attributes={"count": 16},
+                ),
+            ),
+            (
+                "missing object attribute",
+                Result(
+                    id=18,
+                    details=MissingLabelDetails(scores=[19]),
+                    attributes={"count": 20},
+                ),
+                Row(
+                    id=18,
+                    details=Row(label=None, scores=[19]),
+                    attributes={"count": 20},
+                ),
+            ),
         ]
         for case_name, value, expected in cases:
             with self.subTest(case=case_name):
                 self.assertEqual(
-                    _normalize_user_value(value, table_type), expected
+                    result_normalizer(value), expected
                 )
 
         with self.assertRaisesRegex(ValueError, "Expected 3 value"):
-            _normalize_user_value((1, 2), table_type)
+            result_normalizer((1, 2))
         with self.assertRaisesRegex(TypeError, "Expected a Mapping"):
-            _normalize_user_value(object(), table_type)
+            result_normalizer(object())
+        with self.assertRaisesRegex(AttributeError, "label lookup failed"):
+            result_normalizer(
+                {
+                    "id": 21,
+                    "details": FailingPropertyDetails(),
+                    "attributes": {},
+                },
+            )
 
     def test_invalid_declarations_fail_eagerly(self):
         def missing_return(value):
             return value
+
+        def unresolved_return(value):
+            return value
+
+        unresolved_return.__annotations__ = {
+            "return": "UnavailableReturn"
+        }
 
         def pandas_identity(values: pd.Series) -> pd.Series:
             return values
@@ -532,6 +691,12 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             (
                 "missing return",
                 lambda: pf.udf(missing_return),
+                TypeError,
+                "Cannot infer return_dtype",
+            ),
+            (
+                "unresolved return",
+                lambda: pf.udf(unresolved_return),
                 TypeError,
                 "Cannot infer return_dtype",
             ),
@@ -615,6 +780,60 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
 
 class DataFrameUDFAdapterTests(unittest.TestCase):
+    def test_general_result_normalizers_are_bound_by_return_type(self):
+        from pyflink.dataframe.udf import (
+            _DataFrameAsyncScalarFunctionAdapter,
+            _DataFrameScalarFunctionAdapter,
+            _UDFUsage,
+            _resolve_udf_source,
+        )
+
+        return_dtype = pf.DataType.struct(
+            {
+                "value": pf.DataType.int64(),
+                "labels": pf.DataType.list(pf.DataType.string()),
+            }
+        )
+
+        def describe(value):
+            return {"value": value, "labels": (str(value),)}
+
+        async def describe_async(value):
+            return {"value": value, "labels": (str(value),)}
+
+        sync_adapter = _DataFrameScalarFunctionAdapter(
+            _resolve_udf_source(describe),
+            return_dtype,
+            True,
+            _UDFUsage.EXPRESSION,
+            "general",
+        )
+        async_adapter = _DataFrameAsyncScalarFunctionAdapter(
+            _resolve_udf_source(describe_async),
+            return_dtype,
+            True,
+            _UDFUsage.EXPRESSION,
+            "general",
+        )
+        sync_adapter.open(object())
+        async_adapter.open(object())
+        expected = Row(value=3, labels=["3"])
+        self.assertEqual(sync_adapter.eval(3), expected)
+        self.assertEqual(asyncio.run(async_adapter.eval(3)), expected)
+
+        def identity(value):
+            return value
+
+        leaf_adapter = _DataFrameScalarFunctionAdapter(
+            _resolve_udf_source(identity),
+            pf.DataType.int64(),
+            True,
+            _UDFUsage.EXPRESSION,
+            "general",
+        )
+        leaf_adapter.open(object())
+        self.assertIs(leaf_adapter._invocation(), identity)
+
     def test_scalar_function_lifecycle_and_cleanup(self):
         from pyflink.dataframe.udf import (
             _DataFrameAsyncScalarFunctionAdapter,

@@ -200,7 +200,7 @@ class DataFrame:
         Add a column, or replace an existing column with the same name.
 
         ``expr`` may be an expression or a callable that receives this DataFrame and returns an
-        expression.
+        expression. See :func:`~pyflink.dataframe.udf.udf` for supported UDF declaration forms.
 
         :param name: Name of the added or replaced column.
         :param expr: Expression or callable used to compute the column value.
@@ -211,8 +211,17 @@ class DataFrame:
 
             >>> import pyflink.dataframe as pf
             >>> df = pf.from_records([{"left": 1, "right": 2}])
-            >>> result = df.with_column(
+
+            >>> with_expression = df.with_column(
             ...     "total", lambda current: current["left"] + current["right"]
+            ... )
+
+            >>> @pf.udf
+            ... def add(left: int, right: int) -> int:
+            ...     return left + right
+
+            >>> with_udf = df.with_column(
+            ...     "total", add(pf.col("left"), pf.col("right"))
             ... )
 
         .. versionadded:: 2.4.0
