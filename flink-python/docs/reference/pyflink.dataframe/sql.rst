@@ -16,18 +16,28 @@
     limitations under the License.
    ################################################################################
 
-==================
-PyFlink DataFrame
-==================
+===
+SQL
+===
 
-This page gives an overview of all public PyFlink DataFrame APIs.
+Execute SQL SELECT queries against DataFrames.
 
-.. toctree::
-    :maxdepth: 1
+Example::
 
-    dataframe
-    creation
-    io
+    >>> import pyflink.dataframe as pf
+    >>> df1 = pf.from_dict({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+    >>> df2 = pf.from_dict({"a": [1, 2, 3], "c": ["p", "q", "r"]})
+    >>> joined = pf.sql("SELECT df1.a, b, c FROM df1 JOIN df2 ON df1.a = df2.a")
+    >>> result = pf.sql(
+    ...     "SELECT * FROM src WHERE a > 1",
+    ...     auto_bind=False,
+    ...     src=df1,
+    ... )
+    >>> pf.sql("SELECT a, b FROM df1").filter(pf.col("a") > 1).to_pandas()
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
     sql
-    datatype
-    environment

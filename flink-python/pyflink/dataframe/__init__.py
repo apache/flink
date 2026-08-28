@@ -54,6 +54,7 @@ from pyflink.dataframe.context import (
 from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit
 from pyflink.dataframe.datatype import DataType
 from pyflink.dataframe.io import read_generic
+from pyflink.dataframe.sql import sql
 
 __all__ = [
     "DataFrame",
@@ -68,6 +69,7 @@ __all__ = [
     "from_table",
     "range",
     "read_generic",
+    "sql",
     "set_table_environment",
     "get_table_environment",
     "get_or_create_table_environment",
