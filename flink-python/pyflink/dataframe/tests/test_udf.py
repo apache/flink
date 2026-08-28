@@ -617,7 +617,6 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 self.assertEqual(
                     result_normalizer(value), expected
                 )
-
         with self.assertRaisesRegex(ValueError, "Expected 3 value"):
             result_normalizer((1, 2))
         with self.assertRaisesRegex(TypeError, "Expected a Mapping"):

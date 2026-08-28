@@ -341,11 +341,6 @@ def udf(
     """
     Create a scalar UDF for DataFrame expressions.
 
-    The function may be synchronous or asynchronous. Pandas UDFs operate on
-    ``pandas.Series`` or ``pandas.DataFrame`` batches and must declare
-    ``return_dtype``. Callable and scalar-function class objects must have a
-    zero-argument constructor and are initialized on the TaskManager.
-
     A UDF can be declared with a bare decorator, a configured decorator, or a
     direct call. General UDFs may infer ``return_dtype`` from the return
     annotation of the function, ``__call__``, or ``eval``. A ``TypedDict``
@@ -422,10 +417,13 @@ def udf(
         ... async def async_add_one(value: int) -> int:
         ...     return value + 1
 
-    Pandas UDFs receive and return ``pandas.Series`` or ``pandas.DataFrame``
-    batches and always require an explicit logical ``return_dtype``. Pandas
-    mode can be selected explicitly, or inferred from a pandas container
-    annotation on any unbound parameter or the return value::
+    Pandas UDFs always require an explicit logical ``return_dtype``. Each
+    ``ROW``-typed argument is received as a ``pandas.DataFrame`` with one column
+    per field; other arguments are received as ``pandas.Series``. A ``ROW``-typed
+    result should be returned as a ``pandas.DataFrame``, while other results
+    should be returned as ``pandas.Series``. Pandas mode can be selected
+    explicitly, or inferred from a pandas container annotation on any unbound
+    parameter or the return value::
 
         >>> import pandas as pd
 
@@ -971,24 +969,45 @@ class _DataFrameAsyncScalarFunctionAdapter(
 # ======================== Result Normalization ========================
 
 
-def _row_field_value(
-    value: Any,
-    field_name: str,
-    field_names: List[str],
-    field_count: int,
-    index: int,
-) -> Any:
+def _row_field_values(value: Any, field_names: List[str]) -> List[Any]:
     if isinstance(value, Mapping):
-        return value.get(field_name)
+        return [value.get(field_name) for field_name in field_names]
     if isinstance(value, Row) and hasattr(value, "_fields"):
-        return _named_row_field_value(value, field_name)
+        field_indices: Dict[str, int] = {}
+        for index, field_name in enumerate(value._fields):
+            field_indices.setdefault(field_name, index)
+        field_values: List[Any] = []
+        for field_name in field_names:
+            if field_name not in field_indices:
+                raise ValueError(
+                    f"Field name {field_name!r} does not exist in Row fields "
+                    f"{value._fields}."
+                )
+            field_index = field_indices[field_name]
+            if field_index >= len(value):
+                raise ValueError(
+                    f"Field name {field_name!r} is declared in Row fields "
+                    f"{value._fields} but has no value."
+                )
+            field_values.append(value[field_index])
+        return field_values
     if isinstance(value, (Row, tuple, list)):
+        field_count = len(field_names)
         if len(value) != field_count:
             raise ValueError(
                 f"Expected {field_count} value(s) for RowType "
                 f"{field_names}, got {len(value)}."
             )
-        return value[index]
+        return list(value)
+    return [
+        _object_row_field_value(value, field_name, field_names)
+        for field_name in field_names
+    ]
+
+
+def _object_row_field_value(
+    value: Any, field_name: str, field_names: List[str]
+) -> Any:
     try:
         return getattr(value, field_name)
     except AttributeError:
@@ -1007,26 +1026,11 @@ def _row_field_value(
         ) from None
 
 
-def _named_row_field_value(row: Row, field_name: str) -> Any:
-    if field_name not in row._fields:
-        raise ValueError(
-            f"Field name {field_name!r} does not exist in Row fields {row._fields}."
-        )
-    field_index = row._fields.index(field_name)
-    if field_index >= len(row):
-        raise ValueError(
-            f"Field name {field_name!r} is declared in Row fields {row._fields} "
-            "but has no value."
-        )
-    return row[field_name]
-
-
 def _create_result_normalizer(
     data_type: Any,
 ) -> Optional[Callable[[Any], Any]]:
     if isinstance(data_type, RowType):
         field_names = data_type.field_names()
-        field_count = len(data_type.fields)
         field_normalizers = tuple(
             _create_result_normalizer(field.data_type) for field in data_type
         )
@@ -1034,18 +1038,15 @@ def _create_result_normalizer(
         def normalize_row(value: Any) -> Any:
             if value is None:
                 return None
-            normalized_fields = []
-            for index, (field_name, field_normalizer) in enumerate(
-                zip(field_names, field_normalizers)
-            ):
-                field_value = _row_field_value(
-                    value, field_name, field_names, field_count, index
+            field_values = _row_field_values(value, field_names)
+            normalized_fields = [
+                field_value
+                if field_normalizer is None
+                else field_normalizer(field_value)
+                for field_value, field_normalizer in zip(
+                    field_values, field_normalizers
                 )
-                normalized_fields.append(
-                    field_value
-                    if field_normalizer is None
-                    else field_normalizer(field_value)
-                )
+            ]
             row = Row(*normalized_fields)
             row.set_field_names(field_names)
             if isinstance(value, Row):
