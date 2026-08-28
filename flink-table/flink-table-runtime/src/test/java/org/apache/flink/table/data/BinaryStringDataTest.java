@@ -32,6 +32,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -186,6 +187,56 @@ class BinaryStringDataTest {
                         mode ->
                                 DECIMAL_CASES.stream()
                                         .map(c -> arguments(mode, c.str, c.precision, c.scale)));
+    }
+
+    /** Pairs every {@link Mode} with each of the given input strings. */
+    private static Stream<Arguments> withModes(String... inputs) {
+        return Arrays.stream(Mode.values())
+                .flatMap(mode -> Arrays.stream(inputs).map(input -> arguments(mode, input)));
+    }
+
+    private static Stream<Arguments> positiveInfinityCases() {
+        return withModes("Infinity", "infinity", "INF", "inf", "+inf");
+    }
+
+    private static Stream<Arguments> negativeInfinityCases() {
+        return withModes("-Infinity", "-infinity", "-INF", "  -inf  ", "  -infinity  ");
+    }
+
+    private static Stream<Arguments> nanCases() {
+        return withModes("NaN", "nan", "NAN");
+    }
+
+    private static Stream<Arguments> invalidApproximateCases() {
+        return withModes("-nan", "-   Infinity");
+    }
+
+    /** Decodes UTF-8 bytes through one of the {@link StringUtf8Utils#decodeUTF8} entry points. */
+    @FunctionalInterface
+    private interface Utf8Decoder {
+        String decode(byte[] bytes);
+    }
+
+    private static Stream<Arguments> utf8Decoders() {
+        return Stream.of(
+                arguments(
+                        "byte[]",
+                        (Utf8Decoder) bytes -> StringUtf8Utils.decodeUTF8(bytes, 0, bytes.length)),
+                arguments(
+                        "segment",
+                        (Utf8Decoder)
+                                bytes ->
+                                        StringUtf8Utils.decodeUTF8(
+                                                MemorySegmentFactory.wrap(bytes), 0, bytes.length)),
+                arguments(
+                        "segment at offset",
+                        (Utf8Decoder)
+                                bytes -> {
+                                    byte[] padded = new byte[bytes.length + 5];
+                                    System.arraycopy(bytes, 0, padded, 5, bytes.length);
+                                    return StringUtf8Utils.decodeUTF8(
+                                            MemorySegmentFactory.wrap(padded), 5, bytes.length);
+                                }));
     }
 
     private static void checkBasic(Mode mode, String str, int len) {
@@ -674,34 +725,40 @@ class BinaryStringDataTest {
                     .isInstanceOf(NumberFormatException.class);
         }
 
+        @ParameterizedTest(name = "{0}: {1}")
+        @MethodSource("org.apache.flink.table.data.BinaryStringDataTest#positiveInfinityCases")
+        void castsPositiveInfinity(Mode mode, String input) {
+            assertThat(toFloat(fromString(mode, input))).isEqualTo(Float.POSITIVE_INFINITY);
+            assertThat(toDouble(fromString(mode, input))).isEqualTo(Double.POSITIVE_INFINITY);
+        }
+
+        @ParameterizedTest(name = "{0}: {1}")
+        @MethodSource("org.apache.flink.table.data.BinaryStringDataTest#negativeInfinityCases")
+        void castsNegativeInfinity(Mode mode, String input) {
+            assertThat(toFloat(fromString(mode, input))).isEqualTo(Float.NEGATIVE_INFINITY);
+            assertThat(toDouble(fromString(mode, input))).isEqualTo(Double.NEGATIVE_INFINITY);
+        }
+
+        @ParameterizedTest(name = "{0}: {1}")
+        @MethodSource("org.apache.flink.table.data.BinaryStringDataTest#nanCases")
+        void castsNaN(Mode mode, String input) {
+            assertThat(toFloat(fromString(mode, input))).isNaN();
+            assertThat(toDouble(fromString(mode, input))).isNaN();
+        }
+
+        @ParameterizedTest(name = "{0}: {1}")
+        @MethodSource("org.apache.flink.table.data.BinaryStringDataTest#invalidApproximateCases")
+        void rejectsInvalidApproximate(Mode mode, String input) {
+            assertThatThrownBy(() -> toFloat(fromString(mode, input)))
+                    .isInstanceOf(NumberFormatException.class);
+            assertThatThrownBy(() -> toDouble(fromString(mode, input)))
+                    .isInstanceOf(NumberFormatException.class);
+        }
+
         @ParameterizedTest(name = "{0}")
         @EnumSource(Mode.class)
-        @DisplayName("approximate numerics accept case-insensitive/abbreviated special values")
-        void toApproximateSpecialValues(Mode mode) {
-            for (String infinity : new String[] {"Infinity", "infinity", "INF", "inf", "+inf"}) {
-                assertThat(toFloat(fromString(mode, infinity))).isEqualTo(Float.POSITIVE_INFINITY);
-                assertThat(toDouble(fromString(mode, infinity)))
-                        .isEqualTo(Double.POSITIVE_INFINITY);
-            }
-            for (String negInfinity : new String[] {"-Infinity", "-infinity", "-INF", "  -inf  "}) {
-                assertThat(toFloat(fromString(mode, negInfinity)))
-                        .isEqualTo(Float.NEGATIVE_INFINITY);
-                assertThat(toDouble(fromString(mode, negInfinity)))
-                        .isEqualTo(Double.NEGATIVE_INFINITY);
-            }
-            for (String nan : new String[] {"NaN", "nan", "NAN"}) {
-                assertThat(toFloat(fromString(mode, nan))).isNaN();
-                assertThat(toDouble(fromString(mode, nan))).isNaN();
-            }
-            // Ordinary numbers are unaffected and signed NaN stays invalid.
+        void parsesOrdinaryDouble(Mode mode) {
             assertThat(toDouble(fromString(mode, "1.5"))).isEqualTo(1.5);
-            assertThatThrownBy(() -> toFloat(fromString(mode, "-nan")))
-                    .isInstanceOf(NumberFormatException.class);
-            // Only the trimmed token matches: surrounding whitespace is allowed, interior is not.
-            assertThat(toDouble(fromString(mode, "  -infinity  ")))
-                    .isEqualTo(Double.NEGATIVE_INFINITY);
-            assertThatThrownBy(() -> toFloat(fromString(mode, "-   Infinity")))
-                    .isInstanceOf(NumberFormatException.class);
         }
 
         @Test
@@ -812,8 +869,9 @@ class BinaryStringDataTest {
             assertThat(StringUtf8Utils.encodeUTF8(str)).isEqualTo(str.getBytes("UTF-8"));
         }
 
-        @Test
-        void testDecodeWithIllegalUtf8Bytes() throws UnsupportedEncodingException {
+        @ParameterizedTest(name = "{0}")
+        @MethodSource("org.apache.flink.table.data.BinaryStringDataTest#utf8Decoders")
+        void testDecodeWithIllegalUtf8Bytes(String name, Utf8Decoder decoder) {
 
             // illegal utf-8 bytes
             byte[] bytes =
@@ -834,47 +892,32 @@ class BinaryStringDataTest {
                     };
 
             String str = new String(bytes, StandardCharsets.UTF_8);
-            assertThat(StringUtf8Utils.decodeUTF8(bytes, 0, bytes.length)).isEqualTo(str);
-            assertThat(
-                            StringUtf8Utils.decodeUTF8(
-                                    MemorySegmentFactory.wrap(bytes), 0, bytes.length))
-                    .isEqualTo(str);
-
-            byte[] newBytes = new byte[bytes.length + 5];
-            System.arraycopy(bytes, 0, newBytes, 5, bytes.length);
-            assertThat(
-                            StringUtf8Utils.decodeUTF8(
-                                    MemorySegmentFactory.wrap(newBytes), 5, bytes.length))
-                    .isEqualTo(str);
+            assertThat(decoder.decode(bytes)).isEqualTo(str);
         }
 
-        @Test
-        void skipWrongFirstByte() {
-            int[] wrongFirstBytes = {
-                0x80,
-                0x9F,
-                0xBF, // Skip Continuation bytes
-                0xC0,
-                0xC2, // 0xC0..0xC1 - disallowed in UTF-8
-                // 0xF5..0xFF - disallowed in UTF-8
-                0xF5,
-                0xF6,
-                0xF7,
-                0xF8,
-                0xF9,
-                0xFA,
-                0xFB,
-                0xFC,
-                0xFD,
-                0xFE,
-                0xFF
-            };
-            byte[] c = new byte[1];
-
-            for (int wrongFirstByte : wrongFirstBytes) {
-                c[0] = (byte) wrongFirstByte;
-                assertThat(fromBytes(c).numChars()).isEqualTo(1);
-            }
+        @ParameterizedTest
+        @ValueSource(
+                ints = {
+                    0x80,
+                    0x9F,
+                    0xBF, // Skip continuation bytes
+                    0xC0,
+                    0xC2, // 0xC0..0xC1 - disallowed in UTF-8
+                    // 0xF5..0xFF - disallowed in UTF-8
+                    0xF5,
+                    0xF6,
+                    0xF7,
+                    0xF8,
+                    0xF9,
+                    0xFA,
+                    0xFB,
+                    0xFC,
+                    0xFD,
+                    0xFE,
+                    0xFF
+                })
+        void skipWrongFirstByte(int wrongFirstByte) {
+            assertThat(fromBytes(new byte[] {(byte) wrongFirstByte}).numChars()).isEqualTo(1);
         }
     }
 }
