@@ -23,7 +23,7 @@ set -e
 export JAVA_HOME=$JAVA_HOME_17_X64
 export PATH=$JAVA_HOME_17_X64/bin:$PATH
 
-mvn --version
+./mvnw --version
 java -version
 javadoc -J-version
 
@@ -62,11 +62,11 @@ ErrorDocument 404 /flink/flink-docs-${BRANCH}/404.html
 EOF
 
 # build Flink; required for Javadoc step
-mvn clean install -B -DskipTests -Dfast -Dskip.npm -Pskip-webui-build
+./mvnw clean install -B -DskipTests -Dfast -Dskip.npm -Pskip-webui-build
 
 # build java/scala docs
 mkdir -p docs/target/api
-mvn javadoc:aggregate -B \
+./mvnw javadoc:aggregate -B \
     -Pskip-webui-build \
     -Dmaven.javadoc.failOnError=true \
     -Dcheckstyle.skip=true \

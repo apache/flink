@@ -24,7 +24,7 @@ This file provides guidance for AI coding agents working with the Apache Flink c
 ## Prerequisites
 
 - Java 11, 17 (default), or 21. Java 11 syntax must be used in all modules. Java 17 syntax (records, sealed classes, pattern matching) is only permitted in the `flink-tests-java17` module.
-- Maven 3.8.6 (Maven wrapper `./mvnw` included; prefer it)
+- Maven 3.9.16 (Maven wrapper `./mvnw` included; prefer it)
 - Git
 - Unix-like environment (Linux, macOS, WSL, Cygwin)
 
