@@ -549,8 +549,10 @@ class DataFrame:
         """
         Keep at most the first ``n`` rows.
 
-        This is a lazy transformation. Row order is deterministic only when the underlying table
-        has an explicit ordering.
+        This method builds a new DataFrame plan without executing a Flink job. Execution is
+        triggered by an action such as :meth:`collect` or :meth:`to_pandas`. Without an explicit
+        ordering on the underlying table, the selected rows and their order are unspecified.
+        Changes to the underlying table content may also change the result.
 
         :param n: Maximum number of rows to keep.
         :return: A new DataFrame containing at most ``n`` rows.
@@ -576,8 +578,11 @@ class DataFrame:
         """
         Skip the first ``n`` rows.
 
-        This is a lazy transformation. Row order is deterministic only when the underlying table
-        has an explicit ordering. Combine this method with :meth:`limit` for pagination.
+        This method builds a new DataFrame plan without executing a Flink job. Execution is
+        triggered by an action such as :meth:`collect` or :meth:`to_pandas`. Without an explicit
+        ordering on the underlying table, the skipped rows and their order are unspecified.
+        Changes to the underlying table content may also change the result. Combine this method
+        with :meth:`limit` for pagination.
 
         :param n: Number of rows to skip.
         :return: A new DataFrame without the first ``n`` rows.
@@ -603,8 +608,11 @@ class DataFrame:
         """
         Keep at most the first ``n`` rows.
 
-        This lazy transformation is an alias for :meth:`limit`. Row order is deterministic only
-        when the underlying table has an explicit ordering.
+        This method builds a new DataFrame plan without executing a Flink job and delegates to
+        :meth:`limit`. Execution is triggered by an action such as :meth:`collect` or
+        :meth:`to_pandas`. Without an explicit ordering on the underlying table, the selected rows
+        and their order are unspecified. Changes to the underlying table content may also change
+        the result.
 
         :param n: Maximum number of rows to keep.
         :return: A new DataFrame containing at most ``n`` rows.
