@@ -684,7 +684,7 @@ def _convert_to_dtype(dtype_like: _DataTypeLike) -> DataType:
     if isinstance(dtype_like, str):
         return DataType._from_sql(dtype_like)
     try:
-        return DataType._from_type_hint(dtype_like)
+        return _data_type_from_type_hint(dtype_like)
     except TypeError as exc:
         raise TypeError(
             "return_dtype must be a DataFrame DataType, Python type, or SQL "
@@ -725,19 +725,19 @@ def _detect_func_type(source: _ResolvedUDFSource) -> str:
         import pandas as pd
     except ImportError:
         return "general"
-    hints = _get_callable_type_hints(
-        hint_func, fallback_globals={"pandas": pd, "pd": pd}
-    )
 
     pandas_types = (pd.Series, pd.DataFrame)
-    return (
-        "pandas"
-        if any(
-            name not in source.ignored_hint_names and hint in pandas_types
-            for name, hint in hints.items()
+    for name in getattr(hint_func, "__annotations__", {}):
+        if name in source.ignored_hint_names:
+            continue
+        hint = _resolve_callable_annotation(
+            hint_func,
+            name,
+            fallback_globals={"pandas": pd, "pd": pd},
         )
-        else "general"
-    )
+        if hint in pandas_types:
+            return "pandas"
+    return "general"
 
 
 def _unwrap_partial(func: Any) -> Any:
@@ -755,38 +755,35 @@ def _get_callable_inspection_target(
     return cast(Callable[..., Any], target)
 
 
-def _get_callable_type_hints(
-    func: Callable[..., Any], fallback_globals: Optional[Dict[str, Any]] = None
-) -> Dict[str, Any]:
-    try:
-        if fallback_globals is None:
-            return get_type_hints(func)
-        return get_type_hints(
-            func,
-            globalns={**fallback_globals, **_get_callable_globals(func)},
-        )
-    except (NameError, TypeError):
-        return {}
-
-
 def _get_callable_return_type_hint(func: Callable[..., Any]) -> Any:
-    annotations = getattr(func, "__annotations__", {})
-    if "return" not in annotations:
-        return _UNRESOLVED_TYPE_HINT
-
     # Resolve the return annotation in isolation so an unresolvable parameter
     # annotation does not prevent return-type inference.
-    def return_annotation_holder() -> None:
+    return _resolve_callable_annotation(func, "return")
+
+
+def _resolve_callable_annotation(
+    func: Callable[..., Any],
+    annotation_name: str,
+    fallback_globals: Optional[Dict[str, Any]] = None,
+) -> Any:
+    annotations = getattr(func, "__annotations__", {})
+    if annotation_name not in annotations:
+        return _UNRESOLVED_TYPE_HINT
+
+    def annotation_holder() -> None:
         pass
 
-    return_annotation_holder.__annotations__ = {
-        "return": annotations["return"]
+    annotation_holder.__annotations__ = {
+        annotation_name: annotations[annotation_name]
     }
     try:
         return get_type_hints(
-            return_annotation_holder,
-            globalns=_get_callable_globals(func),
-        ).get("return", _UNRESOLVED_TYPE_HINT)
+            annotation_holder,
+            globalns={
+                **(fallback_globals or {}),
+                **_get_callable_globals(func),
+            },
+        ).get(annotation_name, _UNRESOLVED_TYPE_HINT)
     except (NameError, TypeError):
         return _UNRESOLVED_TYPE_HINT
 
