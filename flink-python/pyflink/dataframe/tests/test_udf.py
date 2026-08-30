@@ -103,6 +103,17 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         self.assertEqual(_return_dtype(direct), pf.DataType.int64())
         self.assertEqual(direct.__name__, "partial_add_one")
 
+        expected_result_dtype = pf.DataType.struct(
+            {
+                "id": pf.DataType.int64(),
+                "details": pf.DataType.struct(
+                    {
+                        "label": pf.DataType.string(),
+                        "scores": pf.DataType.list(pf.DataType.int64()),
+                    }
+                ),
+            }
+        )
         declarations = [
             (
                 "Python type",
@@ -112,17 +123,12 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             (
                 "nested TypedDict annotation",
                 lambda: pf.udf(describe),
-                pf.DataType.struct(
-                    {
-                        "id": pf.DataType.int64(),
-                        "details": pf.DataType.struct(
-                            {
-                                "label": pf.DataType.string(),
-                                "scores": pf.DataType.list(pf.DataType.int64()),
-                            }
-                        ),
-                    }
-                ),
+                expected_result_dtype,
+            ),
+            (
+                "explicit nested TypedDict",
+                lambda: pf.udf(identity, return_dtype=Result),
+                expected_result_dtype,
             ),
             (
                 "concrete return with unresolved input",
@@ -292,6 +298,15 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
         pandas_forward_reference.__annotations__["values"] = "pandas.Series"
 
+        def pandas_with_unresolved_annotation(
+            values: pd.Series, context
+        ) -> pd.Series:
+            return values
+
+        pandas_with_unresolved_annotation.__annotations__[
+            "context"
+        ] = "UnavailableContext"
+
         def mixed(values: pd.Series, offset: int):
             return values + offset
 
@@ -337,6 +352,15 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 "pandas forward reference",
                 lambda: pf.udf(
                     pandas_forward_reference,
+                    return_dtype=pf.DataType.int64(),
+                ),
+                "pandas",
+                False,
+            ),
+            (
+                "unresolved annotation does not hide pandas annotation",
+                lambda: pf.udf(
+                    pandas_with_unresolved_annotation,
                     return_dtype=pf.DataType.int64(),
                 ),
                 "pandas",
