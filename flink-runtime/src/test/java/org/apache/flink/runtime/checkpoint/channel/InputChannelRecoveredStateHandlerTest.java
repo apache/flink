@@ -508,7 +508,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
             channels.put(new SubtaskConnectionDescriptor(1, channelInfo.getInputChannelIdx()), vc);
 
             ChannelStateFilteringHandler.GateFilterHandler<Long> gateHandler =
-                    new ChannelStateFilteringHandler.GateFilterHandler<>(channels, serializer);
+                    new ChannelStateFilteringHandler.GateFilterHandler<>(
+                            channels, serializer, RescaleMappings.SYMMETRIC_IDENTITY);
             return new ChannelStateFilteringHandler(
                     new ChannelStateFilteringHandler.GateFilterHandler<?>[] {gateHandler});
         }
