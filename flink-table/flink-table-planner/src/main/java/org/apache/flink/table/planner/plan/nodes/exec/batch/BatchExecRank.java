@@ -35,12 +35,16 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.SortUtil;
+import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.operators.sort.RankOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -66,6 +70,7 @@ public class BatchExecRank extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_RANK_START = "rankStart";
     public static final String FIELD_NAME_RANK_END = "rankEnd";
     public static final String FIELD_NAME_OUTPUT_RANK_NUMBER = "outputRowNumber";
+    public static final String FIELD_NAME_RANK_TYPE = "rankType";
 
     @JsonProperty(FIELD_NAME_PARTITION_FIELDS)
     private final int[] partitionFields;
@@ -82,6 +87,10 @@ public class BatchExecRank extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_OUTPUT_RANK_NUMBER)
     private final boolean outputRankNumber;
 
+    @JsonProperty(FIELD_NAME_RANK_TYPE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final RankType rankType;
+
     public BatchExecRank(
             ReadableConfig tableConfig,
             int[] partitionFields,
@@ -89,6 +98,7 @@ public class BatchExecRank extends ExecNodeBase<RowData>
             long rankStart,
             long rankEnd,
             boolean outputRankNumber,
+            RankType rankType,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -104,6 +114,7 @@ public class BatchExecRank extends ExecNodeBase<RowData>
         this.rankStart = rankStart;
         this.rankEnd = rankEnd;
         this.outputRankNumber = outputRankNumber;
+        this.rankType = rankType == null ? RankType.RANK : rankType;
     }
 
     @JsonCreator
@@ -116,6 +127,7 @@ public class BatchExecRank extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_RANK_START) long rankStart,
             @JsonProperty(FIELD_NAME_RANK_END) long rankEnd,
             @JsonProperty(FIELD_NAME_OUTPUT_RANK_NUMBER) boolean outputRankNumber,
+            @Nullable @JsonProperty(FIELD_NAME_RANK_TYPE) RankType rankType,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -125,6 +137,7 @@ public class BatchExecRank extends ExecNodeBase<RowData>
         this.rankStart = rankStart;
         this.rankEnd = rankEnd;
         this.outputRankNumber = outputRankNumber;
+        this.rankType = rankType == null ? RankType.RANK : rankType;
     }
 
     @SuppressWarnings("unchecked")
@@ -154,6 +167,7 @@ public class BatchExecRank extends ExecNodeBase<RowData>
                                 "OrderByComparator",
                                 inputType,
                                 SortUtil.getAscendingSortSpec(sortFields)),
+                        rankType,
                         rankStart,
                         rankEnd,
                         outputRankNumber);
