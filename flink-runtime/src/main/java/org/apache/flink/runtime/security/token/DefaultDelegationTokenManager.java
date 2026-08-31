@@ -97,9 +97,13 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     private final long renewalRetryMaxBackoff;
 
-    @VisibleForTesting long currentRetryBackoff;
+    @GuardedBy("renewalCycleLock")
+    @VisibleForTesting
+    long currentRetryBackoff;
 
-    @VisibleForTesting long lastKnownNextRenewal = Long.MAX_VALUE;
+    @GuardedBy("renewalCycleLock")
+    @VisibleForTesting
+    long lastKnownNextRenewal = Long.MAX_VALUE;
 
     private final long reobtainCooldownMillis;
 
