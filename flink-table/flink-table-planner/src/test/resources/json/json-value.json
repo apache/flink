@@ -8,5 +8,7 @@
   "roles": ["user", "viewer"],
   "balance": 13.37,
   "longBalance": 123456789.987654321,
+  "bigCount": 9999999999,
+  "nullField": null,
   "contains blank": "right"
 }

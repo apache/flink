@@ -21,7 +21,8 @@ import org.apache.flink.table.api.JsonValueOnEmptyOrError
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, CodeGenUtils, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{qualifyEnum, qualifyMethod, BINARY_STRING}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallWithStmtIfArgsNotNull
-import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
+import org.apache.flink.table.runtime.functions.SqlJsonUtils
+import org.apache.flink.table.types.logical.{DecimalType, LogicalType, LogicalTypeRoot}
 
 import org.apache.calcite.sql.SqlJsonEmptyOrError
 
@@ -82,26 +83,48 @@ class JsonValueCallGen extends CallGenerator {
           )
 
           val rawResultTerm = CodeGenUtils.newName(ctx, "rawResult")
-          val call = s"""
-                        |Object $rawResultTerm =
-                        |    ${qualifyMethod(BuiltInMethods.JSON_VALUE)}(${terms
-                         .mkString(", ")});
+          val baseCall = s"""
+                            |Object $rawResultTerm =
+                            |    ${qualifyMethod(BuiltInMethods.JSON_VALUE)}(${terms
+                             .mkString(", ")});
            """.stripMargin
 
-          val convertedResult = returnType.getTypeRoot match {
+          returnType.getTypeRoot match {
             case LogicalTypeRoot.VARCHAR =>
-              s"$BINARY_STRING.fromString(java.lang.String.valueOf($rawResultTerm))"
-            case LogicalTypeRoot.BOOLEAN => s"(java.lang.Boolean) $rawResultTerm"
-            case LogicalTypeRoot.INTEGER => s"(java.lang.Integer) $rawResultTerm"
-            case LogicalTypeRoot.DOUBLE => s"((java.math.BigDecimal) $rawResultTerm).doubleValue()"
-            case _ =>
+              val result =
+                s"($rawResultTerm == null) ? null : " +
+                  s"($BINARY_STRING.fromString(java.lang.String.valueOf($rawResultTerm)))"
+              (baseCall, result)
+            case typeRoot if !SqlJsonUtils.isSupportedJsonReturningType(typeRoot) =>
               throw new CodeGenException(
-                s"Unsupported type '$returnType' "
-                  + "for RETURNING in JSON_VALUE().")
-          }
+                s"Unsupported type '$returnType' for RETURNING in JSON_VALUE().")
+            case _ =>
+              val jsonUtils =
+                "org.apache.flink.table.runtime.functions.SqlJsonUtils"
+              val typeRootEnum =
+                s"org.apache.flink.table.types.logical.LogicalTypeRoot.${returnType.getTypeRoot.name()}"
+              val (precisionStr, scaleStr) = returnType.getTypeRoot match {
+                case LogicalTypeRoot.DECIMAL =>
+                  val dt = returnType.asInstanceOf[DecimalType]
+                  (dt.getPrecision.toString, dt.getScale.toString)
+                case _ => ("0", "0")
+              }
+              val errorBehaviorEnum =
+                qualifyEnum(errorBehavior._1.asInstanceOf[JsonValueOnEmptyOrError])
+              val defaultExpr =
+                if (errorBehavior._2 != null) errorBehavior._2 else "null"
 
-          val result = s"($rawResultTerm == null) ? null : ($convertedResult)"
-          (call, result)
+              val boxedType = CodeGenUtils.boxedTypeTermForType(returnType)
+              val convertedTerm = CodeGenUtils.newName(ctx, "converted")
+              val call = baseCall +
+                s"""
+                   |$boxedType $convertedTerm = ($boxedType) $jsonUtils.convertJsonScalar(
+                   |    $rawResultTerm, $typeRootEnum,
+                   |    $precisionStr, $scaleStr,
+                   |    $errorBehaviorEnum, $defaultExpr);
+                 """.stripMargin
+              (call, s"$convertedTerm")
+          }
         }
     }
   }
