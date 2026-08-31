@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -41,6 +42,7 @@ import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -61,6 +63,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link RowDataSerializer}. */
 abstract class RowDataSerializerTest extends SerializerTestInstance<RowData> {
+
+    private static final byte[] POINT_WKB =
+            new byte[] {
+                1, GeographyData.POINT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            };
 
     private final RowDataSerializer serializer;
     private final RowData[] testData;
@@ -228,6 +235,28 @@ abstract class RowDataSerializerTest extends SerializerTestInstance<RowData> {
         private static RowDataSerializer getRowSerializer() {
             InternalTypeInfo<RowData> typeInfo =
                     InternalTypeInfo.ofFields(new IntType(), VarCharType.STRING_TYPE);
+
+            return typeInfo.toRowSerializer();
+        }
+    }
+
+    static final class RowDataSerializerWithGeographyTest extends RowDataSerializerTest {
+        public RowDataSerializerWithGeographyTest() {
+            super(getRowSerializer(), getData());
+        }
+
+        private static RowData[] getData() {
+            GenericRowData row1 = new GenericRowData(1);
+            row1.setField(0, GeographyData.fromBytes(POINT_WKB));
+
+            GenericRowData row2 = new GenericRowData(1);
+            row2.setField(0, null);
+
+            return new RowData[] {row1, row2};
+        }
+
+        private static RowDataSerializer getRowSerializer() {
+            InternalTypeInfo<RowData> typeInfo = InternalTypeInfo.ofFields(new GeographyType());
 
             return typeInfo.toRowSerializer();
         }
