@@ -646,7 +646,9 @@ public class LocalInputChannel extends InputChannel
 
         Buffer.DataType expectedNextDataType = next.getNextDataType();
         if (!expectedNextDataType.hasPriority()) {
-            // Reset hasPendingPriorityEvent to false if no more priority event.
+            // Latent lost-wakeup: this lock-free clear can clobber a concurrent set-true in
+            // notifyPriorityEvent(). Safe today only because Flink runs no concurrent unaligned
+            // checkpoints, so at most one priority barrier is ever pending.
             hasPendingPriorityEvent = false;
             // Correct nextDataType: if recoveredBuffers is not empty, the actual next element to
             // consume is from recoveredBuffers, not from subpartitionView.
