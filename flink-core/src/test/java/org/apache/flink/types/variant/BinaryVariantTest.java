@@ -142,8 +142,7 @@ class BinaryVariantTest {
         // A sub-microsecond LocalTime silently loses precision below the microsecond.
         // TIME has no nanosecond-precision counterpart in the variant spec.
         LocalTime nanoTime = LocalTime.of(23, 59, 59, 999999999);
-        assertThat(builder.of(nanoTime).getTime())
-                .isEqualTo(LocalTime.of(23, 59, 59, 999999000));
+        assertThat(builder.of(nanoTime).getTime()).isEqualTo(LocalTime.of(23, 59, 59, 999999000));
     }
 
     @Test

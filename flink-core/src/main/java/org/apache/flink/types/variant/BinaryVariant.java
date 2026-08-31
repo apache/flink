@@ -41,9 +41,9 @@ import java.util.Objects;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.BINARY_SEARCH_THRESHOLD;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
-import static org.apache.flink.types.variant.BinaryVariantUtil.TIME_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ_FORMATTER;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIME_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION_MASK;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
