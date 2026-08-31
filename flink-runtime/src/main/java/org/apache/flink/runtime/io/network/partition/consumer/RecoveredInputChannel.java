@@ -161,10 +161,8 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     public void finishReadRecoveredState() throws IOException {
-        synchronized (receivedBuffers) {
-            onRecoveredStateBuffer(
-                    EventSerializer.toBuffer(EndOfInputChannelStateEvent.INSTANCE, false));
-        }
+        onRecoveredStateBuffer(
+                EventSerializer.toBuffer(EndOfInputChannelStateEvent.INSTANCE, false));
         bufferManager.releaseFloatingBuffers();
         LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);
     }
