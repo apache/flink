@@ -1966,6 +1966,24 @@ class Expression(Generic[T]):
         """
         return _unary_op("mapEntries")(self)
 
+    @property
+    def map_from_entries(self) -> 'Expression':
+        """
+        Returns a map created from the given array of entries. Each entry must be a row with
+        exactly two fields, where the first field becomes the key and the second one the value.
+
+        If there are duplicate keys, the value of the last entry with that key wins; None keys are
+        treated as equal and collapse into a single entry. If the array itself or any of its
+        entries is None, None is returned.
+
+        Examples:
+        ::
+
+            >>> array(row(1, "one"), row(2, "two")).map_from_entries # {1=one, 2=two}
+            >>> array(row(1, "one"), row(2, "two"), row(1, "uno")).map_from_entries # {1=uno, 2=two}
+        """
+        return _unary_op("mapFromEntries")(self)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property

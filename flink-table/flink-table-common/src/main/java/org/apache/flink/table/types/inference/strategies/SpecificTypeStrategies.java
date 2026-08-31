@@ -172,6 +172,27 @@ public final class SpecificTypeStrategies {
                                             .getElementDataType()));
 
     /**
+     * Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ENTRIES}.
+     *
+     * <p>Derives {@code MAP<key, value>} from the {@code ROW} element of the {@code ARRAY}
+     * argument. The result is nullable if the array itself is nullable or if its elements are,
+     * since a {@code NULL} entry makes the whole map {@code NULL}.
+     */
+    public static final TypeStrategy MAP_FROM_ENTRIES =
+            callContext -> {
+                final DataType arrayDataType = callContext.getArgumentDataTypes().get(0);
+                final DataType entryDataType =
+                        ((CollectionDataType) arrayDataType).getElementDataType();
+                final List<DataType> fieldDataTypes = DataType.getFieldDataTypes(entryDataType);
+                final DataType mapDataType =
+                        DataTypes.MAP(fieldDataTypes.get(0), fieldDataTypes.get(1));
+                final boolean nullable =
+                        arrayDataType.getLogicalType().isNullable()
+                                || entryDataType.getLogicalType().isNullable();
+                return Optional.of(nullable ? mapDataType.nullable() : mapDataType.notNull());
+            };
+
+    /**
      * Strategy for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#LAG} and
      * {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#LEAD}. Returns a nullable
      * type of arg0, unless the default value is not null. In that case the result will be not null.

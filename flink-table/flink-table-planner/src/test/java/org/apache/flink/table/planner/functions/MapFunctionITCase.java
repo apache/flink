@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
@@ -46,10 +47,13 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.array;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.map;
 import static org.apache.flink.table.api.Expressions.mapFromArrays;
+import static org.apache.flink.table.api.Expressions.nullOf;
+import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.util.CollectionUtil.entry;
 
 /** Test {@link BuiltInFunctionDefinitions#MAP} and its return type. */
@@ -73,6 +77,7 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                         mapValuesTestCases(),
                         mapEntriesTestCases(),
                         mapFromArraysTestCases(),
+                        mapFromEntriesTestCases(),
                         mapUnionTestCases())
                 .flatMap(s -> s);
     }
@@ -404,6 +409,186 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                         entry("two", new Integer[] {3, 4})),
                                 DataTypes.MAP(
                                         DataTypes.STRING(), DataTypes.ARRAY(DataTypes.INT()))));
+    }
+
+    private Stream<TestSetSpec> mapFromEntriesTestCases() {
+        final DataType entryType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("key", DataTypes.INT()),
+                        DataTypes.FIELD("value", DataTypes.STRING()));
+        final DataType nestedEntryType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("key", DataTypes.STRING()),
+                        DataTypes.FIELD("value", DataTypes.ARRAY(DataTypes.INT())));
+        final DataType rowKeyType =
+                DataTypes.ROW(
+                        DataTypes.FIELD("a", DataTypes.INT()),
+                        DataTypes.FIELD("b", DataTypes.STRING()));
+        return Stream.of(
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.MAP_FROM_ENTRIES, "Invalid input")
+                        .onFieldsWithData("item", new Integer[] {1, 2})
+                        .andDataTypes(DataTypes.STRING(), DataTypes.ARRAY(DataTypes.INT()))
+                        .testTableApiValidationError(
+                                $("f0").mapFromEntries(),
+                                "The 'input' argument must be ARRAY<ROW<key, value>>")
+                        .testSqlValidationError(
+                                "MAP_FROM_ENTRIES(ARRAY[ROW(1, 'a', true)])",
+                                "The element must be a ROW with exactly two fields."),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.MAP_FROM_ENTRIES)
+                        .onFieldsWithData(
+                                new Row[] {Row.of(1, "one"), Row.of(2, "two")},
+                                new Row[] {Row.of(1, "one"), Row.of(1, "uno")},
+                                null,
+                                new Row[] {
+                                    Row.of("one", new Integer[] {1, 2}),
+                                    Row.of("two", new Integer[] {3, 4})
+                                },
+                                new Row[] {Row.of(null, "a"), Row.of(null, "b")})
+                        .andDataTypes(
+                                DataTypes.ARRAY(entryType),
+                                DataTypes.ARRAY(entryType),
+                                DataTypes.ARRAY(entryType),
+                                DataTypes.ARRAY(nestedEntryType),
+                                DataTypes.ARRAY(entryType))
+                        // duplicate keys: the last value wins
+                        .testResult(
+                                $("f1").mapFromEntries(),
+                                "MAP_FROM_ENTRIES(f1)",
+                                CollectionUtil.map(entry(1, "uno")),
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))
+                        // an empty array yields an empty map
+                        .testResult(
+                                $("f0").arraySlice(20, 30).mapFromEntries(),
+                                "MAP_FROM_ENTRIES(ARRAY_SLICE(f0, 20, 30))",
+                                Collections.emptyMap(),
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))
+                        // NULL array yields NULL
+                        .testResult(
+                                $("f2").mapFromEntries(),
+                                "MAP_FROM_ENTRIES(f2)",
+                                null,
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))
+                        // nested value type
+                        .testTableApiResult(
+                                $("f3").mapFromEntries(),
+                                CollectionUtil.map(
+                                        entry("one", new Integer[] {1, 2}),
+                                        entry("two", new Integer[] {3, 4})),
+                                DataTypes.MAP(DataTypes.STRING(), DataTypes.ARRAY(DataTypes.INT())))
+                        // duplicate NULL keys are deduplicated as well
+                        .testResult(
+                                $("f4").mapFromEntries(),
+                                "MAP_FROM_ENTRIES(f4)",
+                                Collections.singletonMap(null, "b"),
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))
+                        // duplicate STRING keys use the generated equality; a NULL value is kept
+                        .testResult(
+                                array(
+                                                row("k", "a"),
+                                                row("k", "b"),
+                                                row("x", nullOf(DataTypes.STRING())))
+                                        .mapFromEntries(),
+                                "MAP_FROM_ENTRIES(ARRAY[ROW('k', 'a'), ROW('k', 'b'), ROW('x', CAST(NULL AS STRING))])",
+                                CollectionUtil.map(entry("k", "b"), entry("x", null)),
+                                DataTypes.MAP(DataTypes.CHAR(1).notNull(), DataTypes.STRING())
+                                        .notNull())
+                        // duplicate ROW keys use the generated equality; a NULL value is kept
+                        .testResult(
+                                array(
+                                                row(row(1, "a").cast(rowKeyType), "x"),
+                                                row(row(1, "a").cast(rowKeyType), "y"),
+                                                row(
+                                                        row(2, "b").cast(rowKeyType),
+                                                        nullOf(DataTypes.STRING())))
+                                        .mapFromEntries(),
+                                "MAP_FROM_ENTRIES(ARRAY["
+                                        + "ROW(CAST(ROW(1, 'a') AS ROW(a INT, b STRING)), 'x'), "
+                                        + "ROW(CAST(ROW(1, 'a') AS ROW(a INT, b STRING)), 'y'), "
+                                        + "ROW(CAST(ROW(2, 'b') AS ROW(a INT, b STRING)), CAST(NULL AS STRING))])",
+                                CollectionUtil.map(
+                                        entry(Row.of(1, "a"), "y"), entry(Row.of(2, "b"), null)),
+                                DataTypes.MAP(rowKeyType.notNull(), DataTypes.STRING()).notNull())
+                        // duplicate ARRAY keys collapse through the generated equality and the
+                        // last entry wins, keeping its NULL value; asserted via CARDINALITY and
+                        // MAP_VALUES because Map#equals cannot compare array-keyed maps
+                        .testResult(
+                                array(
+                                                row(array(1, 2), "x"),
+                                                row(array(1, 2), nullOf(DataTypes.STRING())))
+                                        .mapFromEntries()
+                                        .cardinality(),
+                                "CARDINALITY(MAP_FROM_ENTRIES("
+                                        + "ARRAY[ROW(ARRAY[1, 2], 'x'), ROW(ARRAY[1, 2], CAST(NULL AS STRING))]))",
+                                1,
+                                DataTypes.INT().notNull())
+                        .testResult(
+                                array(
+                                                row(array(1, 2), "x"),
+                                                row(array(1, 2), nullOf(DataTypes.STRING())))
+                                        .mapFromEntries()
+                                        .mapValues(),
+                                "MAP_VALUES(MAP_FROM_ENTRIES("
+                                        + "ARRAY[ROW(ARRAY[1, 2], 'x'), ROW(ARRAY[1, 2], CAST(NULL AS STRING))]))",
+                                new String[] {null},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        // round trip with the inverse function
+                        .testResult(
+                                $("f0").mapFromEntries().mapEntries(),
+                                "MAP_ENTRIES(MAP_FROM_ENTRIES(f0))",
+                                new Row[] {Row.of(1, "one"), Row.of(2, "two")},
+                                DataTypes.ARRAY(entryType)),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.MAP_FROM_ENTRIES, "Documented examples")
+                        .onFieldsWithData(1)
+                        .andDataTypes(DataTypes.INT().notNull())
+                        .testResult(
+                                array(row(1, "one"), row(2, "two")).mapFromEntries(),
+                                "MAP_FROM_ENTRIES(ARRAY[ROW(1, 'one'), ROW(2, 'two')])",
+                                CollectionUtil.map(entry(1, "one"), entry(2, "two")),
+                                DataTypes.MAP(
+                                                DataTypes.INT().notNull(),
+                                                DataTypes.CHAR(3).notNull())
+                                        .notNull())
+                        .testResult(
+                                array(row(1, "one"), row(2, "two"), row(1, "uno")).mapFromEntries(),
+                                "MAP_FROM_ENTRIES(ARRAY[ROW(1, 'one'), ROW(2, 'two'), ROW(1, 'uno')])",
+                                CollectionUtil.map(entry(1, "uno"), entry(2, "two")),
+                                DataTypes.MAP(
+                                                DataTypes.INT().notNull(),
+                                                DataTypes.CHAR(3).notNull())
+                                        .notNull())
+                        .testResult(
+                                array(
+                                                row(nullOf(DataTypes.INT()), "a"),
+                                                row(nullOf(DataTypes.INT()), "b"))
+                                        .mapFromEntries(),
+                                "MAP_FROM_ENTRIES(ARRAY[ROW(CAST(NULL AS INT), 'a'), ROW(CAST(NULL AS INT), 'b')])",
+                                Collections.singletonMap(null, "b"),
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.CHAR(1).notNull())
+                                        .notNull())
+                        .testResult(
+                                array(
+                                                row(1, "one"),
+                                                nullOf(
+                                                        DataTypes.ROW(
+                                                                DataTypes.FIELD(
+                                                                        "k", DataTypes.INT()),
+                                                                DataTypes.FIELD(
+                                                                        "v", DataTypes.STRING()))))
+                                        .mapFromEntries(),
+                                "MAP_FROM_ENTRIES(ARRAY[ROW(1, 'one'), CAST(NULL AS ROW(k INT, v STRING))])",
+                                null,
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))
+                        // a NOT NULL array of NOT NULL entries yields a NOT NULL map
+                        .testResult(
+                                array(row($("f0"), "a")).mapFromEntries(),
+                                "MAP_FROM_ENTRIES(ARRAY[ROW(f0, 'a')])",
+                                Collections.singletonMap(1, "a"),
+                                DataTypes.MAP(
+                                                DataTypes.INT().notNull(),
+                                                DataTypes.CHAR(1).notNull())
+                                        .notNull()));
     }
 
     private Stream<TestSetSpec> mapUnionTestCases() {

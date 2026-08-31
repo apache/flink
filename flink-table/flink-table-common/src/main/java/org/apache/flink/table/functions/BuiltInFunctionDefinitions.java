@@ -107,6 +107,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAr
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_ELEMENT_ARG;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_OF_ENTRIES_ARG;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.FROM_CHANGELOG_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
@@ -224,6 +225,19 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.MAP_FROM_ARRAYS))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.MapFromArraysFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition MAP_FROM_ENTRIES =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_FROM_ENTRIES")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    new String[] {"input"},
+                                    new ArgumentTypeStrategy[] {ARRAY_OF_ENTRIES_ARG}))
+                    .outputTypeStrategy(SpecificTypeStrategies.MAP_FROM_ENTRIES)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MapFromEntriesFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition SOURCE_WATERMARK =

@@ -162,6 +162,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LPAD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LTRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAKE_VALID_UTF8;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_ENTRIES;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_FROM_ENTRIES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_KEYS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_UNION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_VALUES;
@@ -1966,6 +1967,25 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns an array of all entries in the given map. */
     public OutType mapEntries() {
         return toApiSpecificExpression(unresolvedCall(MAP_ENTRIES, toExpr()));
+    }
+
+    /**
+     * Returns a map created from the given array of entries. Each entry must be a row with exactly
+     * two fields, where the first field becomes the key and the second one the value.
+     *
+     * <p>If there are duplicate keys, the value of the last entry with that key wins; null keys are
+     * treated as equal and collapse into a single entry. If the array itself or any of its entries
+     * is null, null is returned.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * array(row(1, "one"), row(2, "two")).mapFromEntries() // {1=one, 2=two}
+     * array(row(1, "one"), row(2, "two"), row(1, "uno")).mapFromEntries() // {1=uno, 2=two}
+     * }</pre>
+     */
+    public OutType mapFromEntries() {
+        return toApiSpecificExpression(unresolvedCall(MAP_FROM_ENTRIES, toExpr()));
     }
 
     /**
