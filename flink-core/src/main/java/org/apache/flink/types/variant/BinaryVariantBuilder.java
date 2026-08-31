@@ -110,7 +110,7 @@ public class BinaryVariantBuilder implements VariantBuilder {
         if (instant.getNano() % 1000 == 0) {
             builder.appendTimestampLtz(ChronoUnit.MICROS.between(Instant.EPOCH, instant));
         } else {
-            builder.appendTimestampLtzNanos(ChronoUnit.NANOS.between(Instant.EPOCH, instant));
+            builder.appendTimestampLtzNanos(nanosSinceEpoch(instant));
         }
         return builder.build();
     }
@@ -129,9 +129,22 @@ public class BinaryVariantBuilder implements VariantBuilder {
         if (localDateTime.getNano() % 1000 == 0) {
             builder.appendTimestamp(ChronoUnit.MICROS.between(Instant.EPOCH, instant));
         } else {
-            builder.appendTimestampNanos(ChronoUnit.NANOS.between(Instant.EPOCH, instant));
+            builder.appendTimestampNanos(nanosSinceEpoch(instant));
         }
         return builder.build();
+    }
+
+    private static long nanosSinceEpoch(Instant instant) {
+        try {
+            return ChronoUnit.NANOS.between(Instant.EPOCH, instant);
+        } catch (ArithmeticException e) {
+            throw new VariantTypeException(
+                    String.format(
+                            "%s is outside the +/-292 year range (1677-09-21 to 2262-04-11) "
+                                    + "supported by nanosecond precision variant timestamps. Use "
+                                    + "microsecond precision instead.",
+                            instant));
+        }
     }
 
     @Override

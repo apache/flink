@@ -31,6 +31,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 
@@ -135,6 +136,21 @@ class BinaryVariantTest {
         assertThat(dateTimeVariant.getDateTimeNanos()).isEqualTo(nanoLocalDateTime);
         assertThat(dateTimeVariant.get()).isEqualTo(nanoLocalDateTime);
         assertThatThrownBy(dateTimeVariant::getDateTime).isInstanceOf(VariantTypeException.class);
+    }
+
+    @Test
+    void testNanosecondPrecisionOutOfRange() {
+        // Nanosecond timestamps only span +/-292 years around 1970, beyond that must fail with
+        // proper exception
+        LocalDateTime outOfRangeLocalDateTime = LocalDateTime.of(2300, 1, 1, 0, 0, 0, 1);
+        assertThatThrownBy(() -> builder.of(outOfRangeLocalDateTime))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("nanosecond precision");
+
+        Instant outOfRangeInstant = outOfRangeLocalDateTime.toInstant(ZoneOffset.UTC);
+        assertThatThrownBy(() -> builder.of(outOfRangeInstant))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("nanosecond precision");
     }
 
     @Test
