@@ -516,6 +516,7 @@ components:
       - DESCRIPTOR
       - VARIANT
       - BITMAP
+      - UUID
     OpenSessionRequestBody:
       type: object
       properties:
