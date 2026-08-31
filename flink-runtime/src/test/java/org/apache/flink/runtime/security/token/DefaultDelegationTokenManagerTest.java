@@ -239,7 +239,7 @@ public class DefaultDelegationTokenManagerTest {
         ExceptionThrowingDelegationTokenProvider.throwInUsage.set(false);
         scheduledExecutor.triggerScheduledTasks();
         scheduler.triggerAll();
-        delegationTokenManager.stopTokensUpdate();
+        delegationTokenManager.stop();
 
         assertEquals(3, startTokensUpdateCallCount.get());
     }
