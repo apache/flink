@@ -831,10 +831,9 @@ public class CheckpointingOptions {
     /**
      * Determines whether unaligned checkpoint support during recovery is enabled.
      *
-     * <p>This feature requires {@link #UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM} to be enabled. Note
-     * that it does not require unaligned checkpoints to be currently enabled, because a job may
-     * restore from an unaligned checkpoint while having unaligned checkpoints disabled for the new
-     * execution.
+     * <p>Requires both {@link #UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM} and unaligned checkpoints to
+     * be enabled, because checkpointing during recovery is only supported on the unaligned
+     * barrier-handler path.
      *
      * @param config the configuration to check
      * @return {@code true} if unaligned checkpointing during recovery is enabled, {@code false}
@@ -845,6 +844,7 @@ public class CheckpointingOptions {
         if (!config.get(UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM)) {
             return false;
         }
-        return config.get(CHECKPOINTING_DURING_RECOVERY_ENABLED);
+        return config.get(CHECKPOINTING_DURING_RECOVERY_ENABLED)
+                && isUnalignedCheckpointEnabled(config);
     }
 }
