@@ -24,7 +24,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointBarrier;
-import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
@@ -349,7 +348,8 @@ public class LocalInputChannel extends InputChannel
             Iterator<Buffer> it = recoveredBuffers.iterator();
             while (it.hasNext()) {
                 Buffer b = it.next();
-                RecoveryCheckpointBarrier barrier = asRecoveryCheckpointBarrier(b);
+                RecoveryCheckpointBarrier barrier =
+                        RecoveryCheckpointBarrierUtils.asRecoveryCheckpointBarrier(b);
                 if (barrier != null) {
                     long barrierId = barrier.getCheckpointId();
                     if (barrierId == checkpointId) {
@@ -383,35 +383,15 @@ public class LocalInputChannel extends InputChannel
                 }
             }
         } catch (IOException e) {
-            releaseRetainedBuffers(retained);
+            RecoveryCheckpointBarrierUtils.releaseRetainedBuffers(retained);
             throw e;
         }
-        releaseRetainedBuffers(retained);
+        RecoveryCheckpointBarrierUtils.releaseRetainedBuffers(retained);
         throw new IOException(
                 "Missing RecoveryCheckpointBarrier for checkpoint "
                         + checkpointId
                         + " in recoveredBuffers for channel "
                         + getChannelInfo());
-    }
-
-    private static void releaseRetainedBuffers(List<Buffer> retained) {
-        for (Buffer buffer : retained) {
-            buffer.recycleBuffer();
-        }
-    }
-
-    @Nullable
-    private static RecoveryCheckpointBarrier asRecoveryCheckpointBarrier(Buffer b)
-            throws IOException {
-        if (b.isBuffer()) {
-            return null;
-        }
-        AbstractEvent event =
-                EventSerializer.fromBuffer(b, RecoveryCheckpointBarrier.class.getClassLoader());
-        b.setReaderIndex(0);
-        return event instanceof RecoveryCheckpointBarrier
-                ? (RecoveryCheckpointBarrier) event
-                : null;
     }
 
     // ------------------------------------------------------------------------

@@ -986,7 +986,8 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
             Iterators.advance(it, receivedBuffers.getNumPriorityElements());
             while (it.hasNext()) {
                 SequenceBuffer sb = it.next();
-                RecoveryCheckpointBarrier barrier = asRecoveryCheckpointBarrier(sb.buffer);
+                RecoveryCheckpointBarrier barrier =
+                        RecoveryCheckpointBarrierUtils.asRecoveryCheckpointBarrier(sb.buffer);
                 if (barrier != null) {
                     long barrierId = barrier.getCheckpointId();
                     if (barrierId == checkpointId) {
@@ -1020,11 +1021,11 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
                 }
             }
         } catch (IOException e) {
-            releaseRetainedBuffers(retained);
+            RecoveryCheckpointBarrierUtils.releaseRetainedBuffers(retained);
             throw e;
         }
         if (sentinel == null) {
-            releaseRetainedBuffers(retained);
+            RecoveryCheckpointBarrierUtils.releaseRetainedBuffers(retained);
             throw new IOException(
                     "Missing RecoveryCheckpointBarrier for checkpoint "
                             + checkpointId
@@ -1045,26 +1046,6 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
         receivedBuffers.getAndRemove(sb -> sb == sentinel);
         totalQueueSizeInBytes -= sentinel.buffer.getSize();
         sentinel.buffer.recycleBuffer();
-    }
-
-    private static void releaseRetainedBuffers(List<Buffer> retained) {
-        for (Buffer buffer : retained) {
-            buffer.recycleBuffer();
-        }
-    }
-
-    @Nullable
-    private static RecoveryCheckpointBarrier asRecoveryCheckpointBarrier(Buffer b)
-            throws IOException {
-        if (b.isBuffer()) {
-            return null;
-        }
-        AbstractEvent event =
-                EventSerializer.fromBuffer(b, RecoveryCheckpointBarrier.class.getClassLoader());
-        b.setReaderIndex(0);
-        return event instanceof RecoveryCheckpointBarrier
-                ? (RecoveryCheckpointBarrier) event
-                : null;
     }
 
     public void checkpointStopped(long checkpointId) {
