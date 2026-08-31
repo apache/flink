@@ -20,6 +20,7 @@ package org.apache.flink.types.variant;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
@@ -151,5 +152,15 @@ class BinaryVariantInternalBuilderTest {
         ArrayList<Float> floatList = new ArrayList<>(Collections.nCopies(25, 4.2f));
 
         assertThatCode(() -> floatList.forEach(builder::appendFloat)).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"1e+10, 1e10", "1E+10, 1e10", "1e-10, 1e-10", "1.5e+10, 1.5e10"})
+    void testParseJsonSignedExponent(final String literal, final double expected)
+            throws IOException {
+        // A JSON exponent may carry a sign. tryParseDecimal rejects the 'e', so the value is stored
+        // as a double.
+        assertThat(BinaryVariantInternalBuilder.parseJson(literal, false).getDouble())
+                .isEqualTo(expected);
     }
 }

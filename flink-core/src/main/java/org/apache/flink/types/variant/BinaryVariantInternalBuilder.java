@@ -322,10 +322,8 @@ public class BinaryVariantInternalBuilder {
      * modified. In either case, return the id of the key.
      */
     public int addKey(String key) {
-        int id;
-        if (dictionary.containsKey(key)) {
-            id = dictionary.get(key);
-        } else {
+        Integer id = dictionary.get(key);
+        if (id == null) {
             id = dictionaryKeys.size();
             dictionary.put(key, id);
             dictionaryKeys.add(key.getBytes(StandardCharsets.UTF_8));
@@ -636,6 +634,8 @@ public class BinaryVariantInternalBuilder {
      * Centralizing the choice here keeps every {@link JsonTokenSource} consistent.
      */
     private void appendNumber(JsonTokenSource source, String text) throws IOException {
+        // Only try Long.parseLong for integer literals so float literals do not pay the cost of a
+        // thrown NumberFormatException on the common path.
         if (isIntegerLiteral(text)) {
             try {
                 appendNumeric(Long.parseLong(text));
@@ -652,7 +652,8 @@ public class BinaryVariantInternalBuilder {
      * A JSON number is an integer literal when it has neither a fractional part nor an exponent.
      */
     private static boolean isIntegerLiteral(String text) {
-        for (int i = 0; i < text.length(); ++i) {
+        final int length = text.length();
+        for (int i = 0; i < length; ++i) {
             char ch = text.charAt(i);
             if (ch == '.' || ch == 'e' || ch == 'E') {
                 return false;
@@ -679,8 +680,9 @@ public class BinaryVariantInternalBuilder {
     private void appendFloatingPoint(JsonTokenSource source, String text) throws IOException {
         if (!tryParseDecimal(text)) {
             final double d = Double.parseDouble(text);
-            // Out-of-range numbers like 1e400 parse to +/-Infinity. Reject them instead of storing
-            // a non-finite double that toJson() could not render as valid JSON.
+            // A large magnitude overflows double to +Infinity (1e400) or -Infinity (-1e400), not a
+            // '+' sign in the input. Reject non-finite values instead of storing a double that
+            // toJson() could not render as valid JSON.
             if (!Double.isFinite(d)) {
                 throw parseError(
                         source,
@@ -698,7 +700,8 @@ public class BinaryVariantInternalBuilder {
      * scientific notation. It also must fit into the precision limitation of decimal types.
      */
     private boolean tryParseDecimal(String input) {
-        for (int i = 0; i < input.length(); ++i) {
+        final int length = input.length();
+        for (int i = 0; i < length; ++i) {
             char ch = input.charAt(i);
             if (ch != '-' && ch != '.' && !(ch >= '0' && ch <= '9')) {
                 return false;
