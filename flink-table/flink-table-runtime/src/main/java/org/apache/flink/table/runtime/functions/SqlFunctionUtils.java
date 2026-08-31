@@ -42,6 +42,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -311,7 +312,8 @@ public class SqlFunctionUtils {
         }
 
         final int baseEnd = endOfCodePoints(base, len);
-        final int padChars = padLength(pad, len - base.codePointCount(0, baseEnd));
+        final int padCount = len - base.codePointCount(0, baseEnd);
+        final int padChars = padLength(pad, padCount);
         final char[] data = new char[padChars + baseEnd];
 
         writePad(data, 0, pad, padChars);
@@ -332,7 +334,8 @@ public class SqlFunctionUtils {
         }
 
         final int baseEnd = endOfCodePoints(base, len);
-        final int padChars = padLength(pad, len - base.codePointCount(0, baseEnd));
+        final int padCount = len - base.codePointCount(0, baseEnd);
+        final int padChars = padLength(pad, padCount);
         final char[] data = new char[baseEnd + padChars];
 
         base.getChars(0, baseEnd, data, 0);
@@ -355,7 +358,7 @@ public class SqlFunctionUtils {
     private static int padLength(String pad, int count) {
         final int padLen = pad.length();
         final int cycle = pad.codePointCount(0, padLen);
-        return (count / cycle) * padLen + endOfCodePoints(pad, count % cycle);
+        return (count / cycle) * padLen + pad.offsetByCodePoints(0, count % cycle);
     }
 
     /** Writes chars characters into data at pos, repeating pad cyclically. */
@@ -365,6 +368,12 @@ public class SqlFunctionUtils {
         }
 
         final int padLen = pad.length();
+        if (padLen == 1) {
+            // A single char fills directly, which is faster than the doubling copy below.
+            Arrays.fill(data, pos, pos + chars, pad.charAt(0));
+            return;
+        }
+
         final int first = Math.min(padLen, chars);
         pad.getChars(0, first, data, pos);
 
