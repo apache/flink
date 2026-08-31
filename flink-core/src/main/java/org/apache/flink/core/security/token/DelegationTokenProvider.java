@@ -161,14 +161,14 @@ public interface DelegationTokenProvider {
     default void unregisterJob(JobID jobId) {}
 
     /**
-     * Stops the provider. Any resources should be closed.
+     * Closes the provider. Any resources should be released.
      *
      * <p>Called at most once, when the manager is closed at process shutdown. It is not called on
      * ResourceManager leadership changes, those only stop and restart the manager's obtain session
      * and the provider instance stays in use. An obtain cycle started just before shutdown may
-     * still be running, so {@code stop()} may overlap an in-flight {@link
+     * still be running, so {@code close()} may overlap an in-flight {@link
      * #obtainDelegationTokens()} and implementations must release resources in a way that is safe
      * with respect to that overlap.
      */
-    default void stop() {}
+    default void close() {}
 }

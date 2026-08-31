@@ -186,8 +186,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private final Set<JobID> registeredJobs = ConcurrentHashMap.newKeySet();
 
     /**
-     * Set once by {@link #close()}. Keeps provider stop() at most once and rejects any later {@link
-     * #start(Listener)}.
+     * Set once by {@link #close()}. Keeps provider close() at most once and rejects any later
+     * {@link #start(Listener)}.
      */
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -414,14 +414,14 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         checkNotNull(listener, "Listener must not be null");
         synchronized (tokensUpdateFutureLock) {
             // Checked under the lock so a start() arriving after close() fails instead of
-            // resurrecting a session against stopped providers. A start() racing close() can
+            // resurrecting a session against closed providers. A start() racing close() can
             // still slip past the check. close()'s stop() then ends its session under this
             // lock, so its inline first cycle either skips on running == false or runs at most
-            // one obtain that cannot deliver or reschedule and may overlap the provider stop()
+            // one obtain that cannot deliver or reschedule and may overlap the provider close()
             // (see close()).
             checkState(
                     !closed.get(),
-                    "The delegation token manager is already closed, its providers are stopped");
+                    "The delegation token manager is already closed, its providers are closed");
             if (running) {
                 LOG.warn("DelegationTokenManager is already started, ignoring redundant start()");
                 return;
@@ -450,7 +450,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         synchronized (tokensUpdateFutureLock) {
             // Clear the dedupe flag so later on-demand requests can schedule a fresh cycle.
             reobtainScheduled = false;
-            // Stopped or never started: skip the cycle. The providers may already be stopped
+            // Stopped or never started: skip the cycle. The providers may already be closed
             // and the listener may not be set yet.
             if (!running) {
                 return;
@@ -701,7 +701,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     }
 
     /**
-     * Terminal teardown: ends any active session via {@link #stop()} and then stops all providers,
+     * Terminal teardown: ends any active session via {@link #stop()} and then closes all providers,
      * exactly once. Called by the component that created the manager at process shutdown, not on
      * ResourceManager leadership changes.
      */
@@ -710,16 +710,17 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         // Flip the flag before stopping anything. start() checks it under
         // tokensUpdateFutureLock, so a racing start() either fails the check or has its
         // session ended by the stop() below (see start()). At most one obtain may still
-        // overlap the provider stop() below, which the provider threading contract covers.
+        // overlap the provider close() below, which the provider threading contract covers.
         if (!closed.compareAndSet(false, true)) {
             return;
         }
         stop();
         for (DelegationTokenProvider provider : delegationTokenProviders.values()) {
             try {
-                provider.stop();
+                provider.close();
             } catch (Throwable t) {
-                LOG.error("Failed to stop delegation token provider {}", provider.serviceName(), t);
+                LOG.error(
+                        "Failed to close delegation token provider {}", provider.serviceName(), t);
             }
         }
     }

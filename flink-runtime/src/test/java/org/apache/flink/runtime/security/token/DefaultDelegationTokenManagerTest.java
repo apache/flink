@@ -363,17 +363,17 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void closeShouldStopProvidersExactlyOnce() {
+    public void closeShouldCloseProvidersExactlyOnce() {
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(new Configuration(), null, null, null);
 
-        // close() is the terminal teardown: it stops the providers, and a repeated close() must
-        // not stop them again (the SPI promises stop() is called at most once).
+        // close() is the terminal teardown: it closes the providers, and a repeated close() must
+        // not close them again (the SPI promises close() is called at most once).
         delegationTokenManager.close();
         delegationTokenManager.close();
 
-        assertTrue(ExceptionThrowingDelegationTokenProvider.stopped.get());
-        assertEquals(1, (int) ExceptionThrowingDelegationTokenProvider.stopCallCount.get());
+        assertTrue(ExceptionThrowingDelegationTokenProvider.closed.get());
+        assertEquals(1, (int) ExceptionThrowingDelegationTokenProvider.closeCallCount.get());
     }
 
     @Test
@@ -385,11 +385,11 @@ public class DefaultDelegationTokenManagerTest {
         delegationTokenManager.registerJob(jobId, new Configuration());
 
         // close() ends the session first, so the jobs are unregistered while the providers are
-        // still usable, and only then are the providers stopped.
+        // still usable, and only then are the providers closed.
         delegationTokenManager.close();
 
         assertEquals(0, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
-        assertTrue(ExceptionThrowingDelegationTokenProvider.stopped.get());
+        assertTrue(ExceptionThrowingDelegationTokenProvider.closed.get());
     }
 
     @Test
@@ -407,7 +407,7 @@ public class DefaultDelegationTokenManagerTest {
                         scheduler);
         delegationTokenManager.close();
 
-        // A closed manager's providers are stopped for good: starting it would run obtain
+        // A closed manager's providers are closed for good: starting it would run obtain
         // cycles against dead providers, so it must fail fast.
         assertThrows(IllegalStateException.class, () -> delegationTokenManager.start(tokens -> {}));
     }
@@ -770,7 +770,7 @@ public class DefaultDelegationTokenManagerTest {
         delegationTokenManager.start(tokens -> {});
 
         assertFalse(
-                ExceptionThrowingDelegationTokenProvider.stopped.get(),
+                ExceptionThrowingDelegationTokenProvider.closed.get(),
                 "A leadership-session stop() must not close the providers, the next start()"
                         + " re-uses them");
     }
