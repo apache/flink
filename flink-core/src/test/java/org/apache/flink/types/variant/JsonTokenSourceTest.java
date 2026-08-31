@@ -21,6 +21,8 @@ package org.apache.flink.types.variant;
 import org.apache.flink.types.variant.JsonTokenSource.Token;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -100,6 +102,19 @@ class JsonTokenSourceTest {
                                 BinaryVariantInternalBuilder.parseJson(
                                         new ListJsonSource(tokens), false))
                 .isInstanceOf(IOException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1,5", "1.000,5", "1'000"})
+    void testLocaleSpecificNumberLiteralsAreRejected(final String numberText) {
+        // Only '.' is a decimal separator. A comma or grouping separator is not valid JSON, so it
+        // must be rejected, never reinterpreted based on the JVM locale.
+        final List<Tok> tokens = List.of(new Tok(Token.VALUE_NUMBER, null, numberText));
+        assertThatThrownBy(
+                        () ->
+                                BinaryVariantInternalBuilder.parseJson(
+                                        new ListJsonSource(tokens), false))
+                .isInstanceOf(NumberFormatException.class);
     }
 
     private static BinaryVariant parseSource(Object model) throws IOException {
