@@ -34,6 +34,13 @@ public class DeletesByKeySemanticTests extends SemanticTestBase {
                 DeletesByKeyPrograms.INSERT_SELECT_FULL_DELETE_FULL_DELETE,
                 DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_DELETE_BY_KEY_WITH_PROJECTION,
                 DeletesByKeyPrograms.JOIN_INTO_FULL_DELETES,
-                DeletesByKeyPrograms.JOIN_INTO_DELETES_BY_KEY);
+                DeletesByKeyPrograms.JOIN_INTO_DELETES_BY_KEY,
+                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_WITH_NESTED_NOT_NULL_ARRAY,
+                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_WITH_NESTED_NOT_NULL_MAP,
+                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_WITH_NESTED_NOT_NULL_ROW,
+                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_WITH_NESTED_NOT_NULL_ARRAY_OF_ROW,
+                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_WITH_NESTED_NOT_NULL_STRING,
+                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_WITH_NESTED_NOT_NULL_PRIMITIVE,
+                DeletesByKeyPrograms.JOIN_DELETE_BY_KEY_WITH_NESTED_NOT_NULL_ARRAY);
     }
 }
