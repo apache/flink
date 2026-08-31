@@ -2094,7 +2094,7 @@ under the License.
 			<plugin>
 				<groupId>org.commonjava.maven.plugins</groupId>
 				<artifactId>directory-maven-plugin</artifactId>
-				<version>0.1</version>
+				<version>1.0</version>
 				<executions>
 					<execution>
 						<id>directories</id>
