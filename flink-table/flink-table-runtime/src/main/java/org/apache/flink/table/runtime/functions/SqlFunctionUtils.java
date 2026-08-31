@@ -313,6 +313,11 @@ public class SqlFunctionUtils {
 
         final int baseEnd = endOfCodePoints(base, len);
         final int padCount = len - base.codePointCount(0, baseEnd);
+        if (padCount == 0) {
+            // The base already holds len code points, so it only needs truncating.
+            return base.substring(0, baseEnd);
+        }
+
         final int padChars = padLength(pad, padCount);
         final char[] data = new char[padChars + baseEnd];
 
@@ -335,6 +340,11 @@ public class SqlFunctionUtils {
 
         final int baseEnd = endOfCodePoints(base, len);
         final int padCount = len - base.codePointCount(0, baseEnd);
+        if (padCount == 0) {
+            // The base already holds len code points, so it only needs truncating.
+            return base.substring(0, baseEnd);
+        }
+
         final int padChars = padLength(pad, padCount);
         final char[] data = new char[baseEnd + padChars];
 
