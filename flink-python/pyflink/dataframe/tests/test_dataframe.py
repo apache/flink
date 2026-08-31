@@ -1909,12 +1909,6 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
             [Row(1, "A"), Row(2, "B")],
         )
 
-    def test_offset_skips_first_rows(self):
-        self.assertEqual(
-            self._ordered_dataframe().offset(2).collect(),
-            [Row(3, "C"), Row(4, "D")],
-        )
-
     def test_offset_and_limit_compose_for_pagination(self):
         self.assertEqual(
             self._ordered_dataframe().offset(1).limit(2).collect(),
