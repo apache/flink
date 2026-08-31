@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -91,7 +92,8 @@ final class TestSpillWriter implements Closeable {
                     InflightDataRescalingDescriptor.NO_RESCALE,
                     spillTmpDirectories,
                     maxFileSizeBytes,
-                    maxSegmentSizeBytes);
+                    maxSegmentSizeBytes,
+                    new CloseableRegistry());
         }
 
         @Override

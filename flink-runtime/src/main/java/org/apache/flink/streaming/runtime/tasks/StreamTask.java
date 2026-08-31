@@ -1061,7 +1061,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
         try {
             long readStartTs = SystemClock.getInstance().absoluteTimeMillis();
-            checkState(reader.readInputData(inputGates, createRecordFilterContext()).isEmpty());
+            checkState(
+                    reader.readInputData(inputGates, createRecordFilterContext(), cancelables)
+                            .isEmpty());
 
             for (IndexedInputGate gate : inputGates) {
                 gate.finishReadRecoveredState();
@@ -1078,8 +1080,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private Optional<FetchedChannelState> fetchChannelState(
             SequentialChannelStateReader reader, IndexedInputGate[] inputGates) {
         try {
+            // readInputData registers the spill files with cancelables, so an abort before drain()
+            // still deletes them.
             Optional<FetchedChannelState> state =
-                    reader.readInputData(inputGates, createRecordFilterContext());
+                    reader.readInputData(inputGates, createRecordFilterContext(), cancelables);
             if (state.isPresent()) {
                 LOG.info(
                         "Fetched and filtered the recovered channel state into {} spill file(s).",

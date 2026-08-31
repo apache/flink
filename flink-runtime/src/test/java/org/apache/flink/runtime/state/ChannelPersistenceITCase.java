@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -120,7 +121,10 @@ class ChannelPersistenceITCase {
         try {
             int numChannels = 1;
             InputGate gate = buildGate(networkBufferPool, numChannels);
-            reader.readInputData(new InputGate[] {gate}, RecordFilterContext.disabled());
+            try (CloseableRegistry cancelables = new CloseableRegistry()) {
+                reader.readInputData(
+                        new InputGate[] {gate}, RecordFilterContext.disabled(), cancelables);
+            }
             assertThat(collectBytes(gate::pollNext, BufferOrEvent::getBuffer))
                     .isEqualTo(inputChannelInfoData);
 

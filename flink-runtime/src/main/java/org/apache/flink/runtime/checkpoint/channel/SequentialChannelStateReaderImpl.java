@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
@@ -62,7 +63,9 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
 
     @Override
     public Optional<FetchedChannelState> readInputData(
-            InputGate[] inputGates, RecordFilterContext filterContext)
+            InputGate[] inputGates,
+            RecordFilterContext filterContext,
+            CloseableRegistry cancelables)
             throws IOException, InterruptedException {
 
         // Create filtering handler if filtering is needed
@@ -72,7 +75,8 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                         : null;
 
         // Manual close ordering so the produced spill file can be published after
-        // stateHandler.close() flushes the filter writer.
+        // stateHandler.close() flushes the filter writer. The handler registers its spill files on
+        // cancelables, so an abort on any path here still deletes them.
         AbstractInputChannelRecoveredStateHandler stateHandler =
                 AbstractInputChannelRecoveredStateHandler.create(
                         inputGates,
@@ -80,7 +84,8 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                         filterContext.isCheckpointingDuringRecoveryEnabled(),
                         filteringHandler,
                         filterContext.getMemorySegmentSize(),
-                        filterContext.getTmpDirectories());
+                        filterContext.getTmpDirectories(),
+                        cancelables);
         try (ChannelStateFilteringHandler ignored = filteringHandler) {
             try (stateHandler) {
                 read(
