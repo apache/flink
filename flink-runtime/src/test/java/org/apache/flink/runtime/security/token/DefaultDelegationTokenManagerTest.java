@@ -881,13 +881,14 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void obtainLockSerializesConcurrentObtainCycles() throws Exception {
+    public void renewalCycleLockSerializesConcurrentObtainCycles() throws Exception {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final ExecutorService ioExecutor = Executors.newFixedThreadPool(2);
         try {
             // The barrier trips only if two obtain cycles are inside the obtain/broadcast
-            // section at the same time. obtainLock must serialize them, so each should time out.
+            // section at the same time. renewalCycleLock must serialize them, so each should
+            // time out.
             final CyclicBarrier barrier = new CyclicBarrier(2);
             final AtomicBoolean concurrentObtainDetected = new AtomicBoolean(false);
             final CountDownLatch done = new CountDownLatch(2);
@@ -934,7 +935,7 @@ public class DefaultDelegationTokenManagerTest {
             assertTrue(done.await(10, TimeUnit.SECONDS));
             assertFalse(
                     concurrentObtainDetected.get(),
-                    "obtainLock must prevent two obtain cycles from running concurrently");
+                    "renewalCycleLock must prevent two obtain cycles from running concurrently");
         } finally {
             ioExecutor.shutdownNow();
         }
@@ -1289,7 +1290,7 @@ public class DefaultDelegationTokenManagerTest {
 
         // Leadership changes while A's cycle is parked in the obtain: stop() ends session A and
         // the next session starts before the cycle resumes. start(B) publishes B's listener
-        // under tokensUpdateFutureLock and then blocks on obtainLock behind A's cycle, so the
+        // under schedulingLock and then blocks on renewalCycleLock behind A's cycle, so the
         // resuming cycle observes running == true and B's listener.
         delegationTokenManager.stop();
         AtomicInteger sessionBNotifications = new AtomicInteger(0);
@@ -1304,7 +1305,7 @@ public class DefaultDelegationTokenManagerTest {
                             }
                         });
         starterB.start();
-        // Wait until start(B) is parked on obtainLock behind A's cycle. B publishes its
+        // Wait until start(B) is parked on renewalCycleLock behind A's cycle. B publishes its
         // listener under the manager's lock strictly before it can block there, so a durable
         // BLOCKED state implies the listener is in place without reading the lock-guarded
         // field unsynchronized. This gates when to resume A's parked cycle, so A's re-check

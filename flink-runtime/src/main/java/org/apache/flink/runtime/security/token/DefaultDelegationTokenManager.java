@@ -115,7 +115,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      * wait for an in-flight cycle and the IO executor is multi-threaded, two cycles can never run
      * concurrently and broadcast tokens out of order.
      */
-    private final Object obtainLock = new Object();
+    private final Object renewalCycleLock = new Object();
 
     @VisibleForTesting final Map<String, DelegationTokenProvider> delegationTokenProviders;
 
@@ -125,9 +125,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     @Nullable private final ExecutorService ioExecutor;
 
-    private final Object tokensUpdateFutureLock = new Object();
+    private final Object schedulingLock = new Object();
 
-    @GuardedBy("tokensUpdateFutureLock")
+    @GuardedBy("schedulingLock")
     @Nullable
     private ScheduledFuture<?> tokensUpdateFuture;
 
@@ -138,11 +138,11 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      * periodic) renewal later, which could otherwise let a short-lived token expire before it is
      * renewed.
      */
-    @GuardedBy("tokensUpdateFutureLock")
+    @GuardedBy("schedulingLock")
     private long nextScheduledAtMillis = Long.MAX_VALUE;
 
     /** Whether an on-demand re-obtain is scheduled but has not started executing yet (dedupe). */
-    @GuardedBy("tokensUpdateFutureLock")
+    @GuardedBy("schedulingLock")
     private boolean reobtainScheduled;
 
     /**
@@ -151,14 +151,14 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      * than the request time, so the cooldown spaces cycle executions. Updated only by on-demand
      * re-obtains.
      */
-    @GuardedBy("tokensUpdateFutureLock")
+    @GuardedBy("schedulingLock")
     private long lastReobtainAtMillis = NO_PREVIOUS_REOBTAIN;
 
     /**
      * Whether the manager is between {@link #start(Listener)} and {@link #stop()}. Defaults to
      * false, so work arriving before the first start() is rejected the same way as after stop().
      */
-    @GuardedBy("tokensUpdateFutureLock")
+    @GuardedBy("schedulingLock")
     private boolean running;
 
     /**
@@ -168,10 +168,10 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      * state is cleared by start()'s reset, and a timer it scheduled just runs a fresh,
      * fence-checked cycle later.
      */
-    @GuardedBy("tokensUpdateFutureLock")
+    @GuardedBy("schedulingLock")
     private long sessionEpoch;
 
-    @GuardedBy("tokensUpdateFutureLock")
+    @GuardedBy("schedulingLock")
     @VisibleForTesting
     @Nullable
     Listener listener;
@@ -412,7 +412,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         checkNotNull(scheduledExecutor, "Scheduled executor must not be null");
         checkNotNull(ioExecutor, "IO executor must not be null");
         checkNotNull(listener, "Listener must not be null");
-        synchronized (tokensUpdateFutureLock) {
+        synchronized (schedulingLock) {
             // Checked under the lock so a start() arriving after close() fails instead of
             // resurrecting a session against closed providers. A start() racing close() can
             // still slip past the check. close()'s stop() then ends its session under this
@@ -434,9 +434,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         }
 
         // A new session must not inherit the previous session's retry backoff or renewal
-        // deadline. obtainLock orders this reset after any still-running previous cycle. Not
-        // nested in the block above to keep the obtainLock -> tokensUpdateFutureLock order.
-        synchronized (obtainLock) {
+        // deadline. renewalCycleLock orders this reset after any still-running previous cycle. Not
+        // nested in the block above to keep the renewalCycleLock -> schedulingLock order.
+        synchronized (renewalCycleLock) {
             currentRetryBackoff = renewalRetryInitialBackoff;
             lastKnownNextRenewal = Long.MAX_VALUE;
         }
@@ -447,7 +447,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     @VisibleForTesting
     void startTokensUpdate() {
         final long cycleEpoch;
-        synchronized (tokensUpdateFutureLock) {
+        synchronized (schedulingLock) {
             // Clear the dedupe flag so later on-demand requests can schedule a fresh cycle.
             reobtainScheduled = false;
             // Stopped or never started: skip the cycle. The providers may already be closed
@@ -459,7 +459,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         }
         // Serialize the obtain-and-broadcast so a re-obtain racing the periodic renewal cannot run
         // two cycles concurrently on the (multi-threaded) IO executor and broadcast out of order.
-        synchronized (obtainLock) {
+        synchronized (renewalCycleLock) {
             try {
                 LOG.info("Starting tokens update task");
                 DelegationTokenContainer container = new DelegationTokenContainer();
@@ -472,7 +472,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                     // one (see sessionEpoch). A stop() right after this read still lets one
                     // delivery through, which is benign.
                     final Listener currentListener;
-                    synchronized (tokensUpdateFutureLock) {
+                    synchronized (schedulingLock) {
                         currentListener = running && cycleEpoch == sessionEpoch ? listener : null;
                     }
                     if (currentListener != null) {
@@ -539,9 +539,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      * Schedules a one-shot token-obtain-and-broadcast cycle after {@code delayMs}, replacing any
      * pending renewal. A delay of {@code 0} brings the next cycle forward to now. Must only be
      * called after {@link #start(Listener)} (the scheduled and IO executors are non-null then) and
-     * while holding {@link #tokensUpdateFutureLock}.
+     * while holding {@link #schedulingLock}.
      */
-    @GuardedBy("tokensUpdateFutureLock")
+    @GuardedBy("schedulingLock")
     private void scheduleRenewalLocked(long delayMs) {
         stopTokensUpdate();
         nextScheduledAtMillis = clock.relativeTimeMillis() + delayMs;
@@ -554,7 +554,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                                 } catch (RejectedExecutionException e) {
                                     // IO executor is shutting down: drop the cycle but release the
                                     // dedupe flag so it cannot get stuck if the manager is reused.
-                                    synchronized (tokensUpdateFutureLock) {
+                                    synchronized (schedulingLock) {
                                         reobtainScheduled = false;
                                     }
                                     LOG.debug("Tokens update task rejected by IO executor", e);
@@ -592,7 +592,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         // A negative delay (the token already passed its validUntil) means run now. Clamp it so
         // it cannot be mistaken for the -1 not-running sentinel.
         delayMs = Math.max(0L, delayMs);
-        synchronized (tokensUpdateFutureLock) {
+        synchronized (schedulingLock) {
             if (!running) {
                 return -1L;
             }
@@ -619,7 +619,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     @VisibleForTesting
     void stopTokensUpdate() {
-        synchronized (tokensUpdateFutureLock) {
+        synchronized (schedulingLock) {
             if (tokensUpdateFuture != null) {
                 tokensUpdateFuture.cancel(true);
                 tokensUpdateFuture = null;
@@ -672,7 +672,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     public void stop() {
         LOG.info("Stopping credential renewal");
 
-        synchronized (tokensUpdateFutureLock) {
+        synchronized (schedulingLock) {
             // Mark not running, cancel the pending cycle, and reset the re-obtain bookkeeping
             // atomically, so a re-obtain racing shutdown cannot schedule a cycle for a manager
             // that is shutting down.
@@ -708,7 +708,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     @Override
     public void close() {
         // Flip the flag before stopping anything. start() checks it under
-        // tokensUpdateFutureLock, so a racing start() either fails the check or has its
+        // schedulingLock, so a racing start() either fails the check or has its
         // session ended by the stop() below (see start()). At most one obtain may still
         // overlap the provider close() below, which the provider threading contract covers.
         if (!closed.compareAndSet(false, true)) {
@@ -727,7 +727,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     @Override
     public void reobtainDelegationTokens() {
-        synchronized (tokensUpdateFutureLock) {
+        synchronized (schedulingLock) {
             if (scheduledExecutor == null || ioExecutor == null) {
                 LOG.debug(
                         "A re-obtain of delegation tokens was requested but the manager was "
