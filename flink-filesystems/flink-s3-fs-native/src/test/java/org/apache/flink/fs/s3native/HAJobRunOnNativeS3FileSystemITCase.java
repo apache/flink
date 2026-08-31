@@ -18,21 +18,11 @@
 
 package org.apache.flink.fs.s3native;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.highavailability.AbstractHAJobRunITCase;
-import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
-import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
-
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-/** Runs {@link AbstractHAJobRunITCase} with HA data stored in SeaweedFS via the native S3 FS. */
-class HAJobRunOnNativeS3FileSystemITCase extends AbstractHAJobRunITCase {
-
-    private static final String CLUSTER_ID = SeaweedFsNativeS3HaTestSupport.CLUSTER_ID;
-    private static final String JOB_RESULT_STORE_FOLDER = "jrs";
+/** HA Job Test Implementation. * */
+class HAJobRunOnNativeS3FileSystemITCase extends AbstractNativeS3HAJobRunITCase {
 
     // AbstractHAJobRunITCase already registers its own extension at @Order(1), so this one must
     // run after it.
@@ -40,35 +30,10 @@ class HAJobRunOnNativeS3FileSystemITCase extends AbstractHAJobRunITCase {
     @Order(2)
     private static final SeaweedFsNativeS3HAClusterExtension CLUSTER_EXTENSION =
             new SeaweedFsNativeS3HAClusterExtension(
-                    HAJobRunOnNativeS3FileSystemITCase::createConfiguration);
-
-    private static SeaweedFsNativeS3TestContainer getSeaweedFsContainer() {
-        return CLUSTER_EXTENSION.getContainer();
-    }
-
-    private static Configuration createConfiguration(SeaweedFsNativeS3TestContainer container) {
-        final Configuration config =
-                SeaweedFsNativeS3HaTestSupport.baseResultStoreConfiguration(
-                        container,
-                        JobResultStoreOptions.DELETE_ON_COMMIT,
-                        JobResultStoreOptions.STORAGE_PATH,
-                        JOB_RESULT_STORE_FOLDER);
-        return addHaConfiguration(
-                config, SeaweedFsNativeS3HaTestSupport.s3UriWithSubPath(container, CLUSTER_ID));
-    }
-
-    @AfterAll
-    static void unsetFileSystem() {
-        SeaweedFsNativeS3HaTestSupport.unsetFileSystem();
-    }
+                    AbstractNativeS3HAJobRunITCase::createConfiguration);
 
     @Override
-    protected void runAfterJobTermination() throws Exception {
-        SeaweedFsNativeS3HaTestSupport.assertSingleCleanResultStoreEntry(
-                getSeaweedFsContainer(),
-                JOB_RESULT_STORE_FOLDER,
-                FileSystemJobResultStore::hasValidJobResultStoreEntryExtension,
-                FileSystemJobResultStore::hasValidDirtyJobResultStoreEntryExtension,
-                ApplicationStatus.SUCCEEDED.name());
+    SeaweedFsNativeS3TestContainer getSeaweedFsContainer() {
+        return CLUSTER_EXTENSION.getContainer();
     }
 }
