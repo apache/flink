@@ -539,31 +539,32 @@ public class LocalInputChannel extends InputChannel
     public Optional<BufferAndAvailability> getNextBuffer() throws IOException {
         checkError();
 
-        // Read inRecovery and poll the recovered buffer under a single lock acquisition to avoid
-        // grabbing the monitor twice on the hot path.
-        boolean inRecovery;
-        Buffer recoveredBuf = null;
-        synchronized (recoveredBuffers) {
-            inRecovery = this.inRecovery;
-            if (inRecovery && !hasPendingPriorityEvent && !recoveredBuffers.isEmpty()) {
-                recoveredBuf = recoveredBuffers.poll();
+        if (needsRecovery) {
+            // Read inRecovery and poll the recovered buffer under a single lock acquisition to
+            // avoid grabbing the monitor twice on the hot path.
+            boolean inRecovery;
+            Buffer recoveredBuf = null;
+            synchronized (recoveredBuffers) {
+                inRecovery = this.inRecovery;
+                if (inRecovery && !hasPendingPriorityEvent && !recoveredBuffers.isEmpty()) {
+                    recoveredBuf = recoveredBuffers.poll();
+                }
             }
-        }
 
-        if (inRecovery) {
-            // Always return an already-polled recovered buffer first: hasPendingPriorityEvent may
-            // be flipped to true by a concurrent notifyPriorityEvent() after the poll, and
-            // re-reading
-            // it here would otherwise drop this buffer. A pending priority event is served on the
-            // next getNextBuffer() call instead.
-            if (recoveredBuf != null) {
-                return wrapRecoveredBufferAsAvailability(recoveredBuf);
+            if (inRecovery) {
+                // Always return an already-polled recovered buffer first: hasPendingPriorityEvent
+                // may be flipped to true by a concurrent notifyPriorityEvent() after the poll, and
+                // re-reading it here would otherwise drop this buffer. A pending priority event is
+                // served on the next getNextBuffer() call instead.
+                if (recoveredBuf != null) {
+                    return wrapRecoveredBufferAsAvailability(recoveredBuf);
+                }
+                if (hasPendingPriorityEvent) {
+                    return pullPriorityFromSubpartitionView();
+                }
+                // Drain not finished yet; block normal upstream data until delivery completes.
+                return Optional.empty();
             }
-            if (hasPendingPriorityEvent) {
-                return pullPriorityFromSubpartitionView();
-            }
-            // Drain not finished yet; block normal upstream data until delivery completes.
-            return Optional.empty();
         }
 
         if (!toBeConsumedBuffers.isEmpty()) {
