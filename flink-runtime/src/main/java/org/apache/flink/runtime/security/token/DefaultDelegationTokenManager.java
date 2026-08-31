@@ -24,7 +24,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.plugin.PluginManager;
-import org.apache.flink.core.security.token.DelegationTokenManagerCallback;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -244,15 +243,12 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private Map<String, DelegationTokenProvider> loadProviders() {
         LOG.info("Loading delegation token providers");
 
-        // Handed to every provider so it can request an immediate re-obtain later, from any
-        // thread, decoupled from the registerJob call stack.
-        final DelegationTokenManagerCallback callback = this::reobtainDelegationTokens;
         Map<String, DelegationTokenProvider> providers = new HashMap<>();
         Consumer<DelegationTokenProvider> loadProvider =
                 (provider) -> {
                     try {
                         if (isProviderEnabled(configuration, provider.serviceName())) {
-                            provider.init(configuration, callback);
+                            provider.init(configuration, this::reobtainDelegationTokens);
                             LOG.info(
                                     "Delegation token provider {} loaded and initialized",
                                     provider.serviceName());
