@@ -33,7 +33,6 @@ import org.apache.flink.types.Either;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -223,7 +222,6 @@ class EitherSerializerTest {
      * that the type of the created instance is the same as the type class parameter. Since we
      * arbitrarily create always create a Left instance we override this test.
      */
-    @Nested
     private class EitherSerializerTestInstance<T> extends SerializerTestInstance<T> {
 
         public EitherSerializerTestInstance(
