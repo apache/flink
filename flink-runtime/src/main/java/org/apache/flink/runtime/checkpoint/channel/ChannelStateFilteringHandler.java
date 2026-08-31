@@ -30,12 +30,14 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.recovery.RecordFilter;
 import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 import org.apache.flink.streaming.runtime.io.recovery.VirtualChannel;
 import org.apache.flink.streaming.runtime.io.recovery.VirtualChannelRecordFilterFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import javax.annotation.Nullable;
 
@@ -47,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Filters recovered channel state buffers during the channel-state-unspilling phase, removing
@@ -221,7 +224,47 @@ public class ChannelStateFilteringHandler implements Closeable {
             return null;
         }
 
-        return new GateFilterHandler<>(gateVirtualChannels, elementSerializer);
+        return new GateFilterHandler<>(gateVirtualChannels, elementSerializer, channelMapping);
+    }
+
+    /**
+     * Maps each old-channel key to the virtual channels that fold into its new channel, so
+     * watermarks/statuses can be aggregated across old channels merged on a fan-in rescale. Without
+     * a rescale each group is a singleton and aggregation is verbatim pass-through.
+     */
+    private static <T>
+            Map<SubtaskConnectionDescriptor, List<VirtualChannel<T>>> buildWatermarkMergeGroups(
+                    Map<SubtaskConnectionDescriptor, VirtualChannel<T>> gateVirtualChannels,
+                    RescaleMappings channelMapping) {
+        RescaleMappings oldToNewMapping = channelMapping.invert();
+        Map<Integer, List<VirtualChannel<T>>> byNewChannel = new HashMap<>();
+        Map<SubtaskConnectionDescriptor, List<VirtualChannel<T>>> mergeGroups = new HashMap<>();
+        gateVirtualChannels.forEach(
+                (key, vc) -> {
+                    List<VirtualChannel<T>> group =
+                            byNewChannel.computeIfAbsent(
+                                    newChannelIndexOf(key, oldToNewMapping),
+                                    idx -> new ArrayList<>());
+                    group.add(vc);
+                    mergeGroups.put(key, group);
+                });
+        return mergeGroups;
+    }
+
+    /**
+     * Resolves the new channel index the given old-channel descriptor is routed to. Its {@code
+     * outputSubtaskIndex} field carries the old channel index.
+     */
+    private static int newChannelIndexOf(
+            SubtaskConnectionDescriptor oldChannelKey, RescaleMappings oldToNewMapping) {
+        int oldChannelIndex = oldChannelKey.getOutputSubtaskIndex();
+        int[] mapped = oldToNewMapping.getMappedIndexes(oldChannelIndex);
+        checkState(
+                mapped.length == 1,
+                "One old channel is expected to fold into exactly one new channel, but %s mapped to %s new channels.",
+                oldChannelKey,
+                mapped.length);
+        return mapped[0];
     }
 
     /**
@@ -252,14 +295,24 @@ public class ChannelStateFilteringHandler implements Closeable {
     static class GateFilterHandler<T> {
 
         private final Map<SubtaskConnectionDescriptor, VirtualChannel<T>> virtualChannels;
+
+        /**
+         * For each old-channel key, the virtual channels folding into the same new channel, used to
+         * aggregate watermarks/statuses across old channels merged on a fan-in rescale.
+         */
+        private final Map<SubtaskConnectionDescriptor, List<VirtualChannel<T>>>
+                watermarkMergeGroups;
+
         private final StreamElementSerializer<T> serializer;
         private final DeserializationDelegate<StreamElement> deserializationDelegate;
 
         GateFilterHandler(
                 Map<SubtaskConnectionDescriptor, VirtualChannel<T>> virtualChannels,
-                StreamElementSerializer<T> serializer) {
+                StreamElementSerializer<T> serializer,
+                RescaleMappings channelMapping) {
             this.virtualChannels = checkNotNull(virtualChannels);
             this.serializer = checkNotNull(serializer);
+            this.watermarkMergeGroups = buildWatermarkMergeGroups(virtualChannels, channelMapping);
             this.deserializationDelegate = new NonReusingDeserializationDelegate<>(serializer);
         }
 
@@ -288,13 +341,21 @@ public class ChannelStateFilteringHandler implements Closeable {
                                     + virtualChannels.keySet());
                 }
 
+                List<VirtualChannel<T>> mergeGroup = watermarkMergeGroups.get(key);
+                checkNotNull(mergeGroup, "No watermark merge group for key: %s", key);
+
                 vc.setNextBuffer(sourceBuffer);
                 sourceBufferOwnershipTransferred = true;
 
                 while (true) {
                     DeserializationResult result = vc.getNextRecord(deserializationDelegate);
                     if (result.isFullRecord()) {
-                        serializeElement(deserializationDelegate.getInstance(), outputSerializer);
+                        // vc.getNextRecord has already updated the source channel's lastWatermark /
+                        // watermarkStatus, so aggregation below reads the up-to-date group state.
+                        emitAggregated(
+                                deserializationDelegate.getInstance(),
+                                mergeGroup,
+                                outputSerializer);
                     }
                     if (result.isBufferConsumed()) {
                         break;
@@ -305,6 +366,47 @@ public class ChannelStateFilteringHandler implements Closeable {
                     sourceBuffer.recycleBuffer();
                 }
                 throw t;
+            }
+        }
+
+        /**
+         * Writes one element, aggregating non-records across the {@code mergeGroup}: emit the group
+         * min watermark (suppressed until every merged channel has one), and {@code ACTIVE} status
+         * while any merged channel is active. Records and latency markers pass through verbatim.
+         */
+        private void emitAggregated(
+                StreamElement element,
+                List<VirtualChannel<T>> mergeGroup,
+                DataOutputSerializer outputSerializer)
+                throws IOException {
+            if (element.isWatermark()) {
+                Watermark minWatermark = null;
+                for (VirtualChannel<T> channel : mergeGroup) {
+                    Watermark candidate = channel.getLastWatermark();
+                    if (minWatermark == null
+                            || candidate.getTimestamp() < minWatermark.getTimestamp()) {
+                        minWatermark = candidate;
+                    }
+                }
+                checkState(minWatermark != null, "Should always have a watermark");
+                // min == UNINITIALIZED only when some merged old channel has no watermark yet;
+                // hold the group's watermark back until every one of them has produced one.
+                if (!minWatermark.equals(Watermark.UNINITIALIZED)) {
+                    serializeElement(minWatermark, outputSerializer);
+                }
+            } else if (element.isWatermarkStatus()) {
+                boolean anyActive = false;
+                for (VirtualChannel<T> channel : mergeGroup) {
+                    if (channel.getWatermarkStatus().isActive()) {
+                        anyActive = true;
+                        break;
+                    }
+                }
+                serializeElement(
+                        anyActive ? WatermarkStatus.ACTIVE : element.asWatermarkStatus(),
+                        outputSerializer);
+            } else {
+                serializeElement(element, outputSerializer);
             }
         }
 

@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.checkpoint.RescaleMappings;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
@@ -142,7 +143,8 @@ class GateFilterHandlerBufferOwnershipTest {
 
         StreamElementSerializer<Long> serializer =
                 new StreamElementSerializer<>(LongSerializer.INSTANCE);
-        return new ChannelStateFilteringHandler.GateFilterHandler<>(channels, serializer);
+        return new ChannelStateFilteringHandler.GateFilterHandler<>(
+                channels, serializer, RescaleMappings.SYMMETRIC_IDENTITY);
     }
 
     private Buffer createBufferWithRecords(Long... values) {
