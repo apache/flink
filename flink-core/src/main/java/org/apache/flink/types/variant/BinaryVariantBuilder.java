@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -106,7 +107,11 @@ public class BinaryVariantBuilder implements VariantBuilder {
     @Override
     public Variant of(Instant instant) {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
-        builder.appendTimestampLtz(ChronoUnit.MICROS.between(Instant.EPOCH, instant));
+        if (instant.getNano() % 1000 == 0) {
+            builder.appendTimestampLtz(ChronoUnit.MICROS.between(Instant.EPOCH, instant));
+        } else {
+            builder.appendTimestampLtzNanos(ChronoUnit.NANOS.between(Instant.EPOCH, instant));
+        }
         return builder.build();
     }
 
@@ -120,8 +125,19 @@ public class BinaryVariantBuilder implements VariantBuilder {
     @Override
     public Variant of(LocalDateTime localDateTime) {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
-        builder.appendTimestamp(
-                ChronoUnit.MICROS.between(Instant.EPOCH, localDateTime.toInstant(ZoneOffset.UTC)));
+        Instant instant = localDateTime.toInstant(ZoneOffset.UTC);
+        if (localDateTime.getNano() % 1000 == 0) {
+            builder.appendTimestamp(ChronoUnit.MICROS.between(Instant.EPOCH, instant));
+        } else {
+            builder.appendTimestampNanos(ChronoUnit.NANOS.between(Instant.EPOCH, instant));
+        }
+        return builder.build();
+    }
+
+    @Override
+    public Variant of(LocalTime localTime) {
+        BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        builder.appendTime(localTime.toNanoOfDay() / 1000);
         return builder.build();
     }
 

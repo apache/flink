@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
@@ -40,6 +41,7 @@ import java.util.Objects;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.BINARY_SEARCH_THRESHOLD;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIME_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
@@ -194,6 +196,26 @@ public final class BinaryVariant implements Variant {
     }
 
     @Override
+    public LocalTime getTime() throws VariantTypeException {
+        checkType(Type.TIME, getType());
+        return LocalTime.ofNanoOfDay(BinaryVariantUtil.getLong(value, pos) * 1000);
+    }
+
+    @Override
+    public LocalDateTime getDateTimeNanos() throws VariantTypeException {
+        checkType(Type.TIMESTAMP_NS, getType());
+        return nanosToInstant(BinaryVariantUtil.getLong(value, pos))
+                .atZone(ZoneOffset.UTC)
+                .toLocalDateTime();
+    }
+
+    @Override
+    public Instant getInstantNanos() throws VariantTypeException {
+        checkType(Type.TIMESTAMP_LTZ_NS, getType());
+        return nanosToInstant(BinaryVariantUtil.getLong(value, pos));
+    }
+
+    @Override
     public byte[] getBytes() throws VariantTypeException {
         checkType(Type.BYTES, getType());
         return BinaryVariantUtil.getBinary(value, pos);
@@ -224,10 +246,16 @@ public final class BinaryVariant implements Variant {
                 return getString();
             case DATE:
                 return getDate();
+            case TIME:
+                return getTime();
             case TIMESTAMP:
                 return getDateTime();
             case TIMESTAMP_LTZ:
                 return getInstant();
+            case TIMESTAMP_NS:
+                return getDateTimeNanos();
+            case TIMESTAMP_LTZ_NS:
+                return getInstantNanos();
             case BYTES:
                 return getBytes();
             default:
@@ -391,6 +419,27 @@ public final class BinaryVariant implements Variant {
                                 microsToInstant(BinaryVariantUtil.getLong(value, pos))
                                         .atZone(ZoneOffset.UTC)));
                 break;
+            case TIME:
+                appendQuoted(
+                        sb,
+                        TIME_FORMATTER.format(
+                                LocalTime.ofNanoOfDay(
+                                        BinaryVariantUtil.getLong(value, pos) * 1000)));
+                break;
+            case TIMESTAMP_LTZ_NS:
+                appendQuoted(
+                        sb,
+                        TIMESTAMP_LTZ_FORMATTER.format(
+                                nanosToInstant(BinaryVariantUtil.getLong(value, pos))
+                                        .atZone(zoneId)));
+                break;
+            case TIMESTAMP_NS:
+                appendQuoted(
+                        sb,
+                        TIMESTAMP_FORMATTER.format(
+                                nanosToInstant(BinaryVariantUtil.getLong(value, pos))
+                                        .atZone(ZoneOffset.UTC)));
+                break;
             case FLOAT:
                 {
                     final float f = BinaryVariantUtil.getFloat(value, pos);
@@ -416,6 +465,10 @@ public final class BinaryVariant implements Variant {
 
     private static Instant microsToInstant(long timestamp) {
         return Instant.EPOCH.plus(timestamp, ChronoUnit.MICROS);
+    }
+
+    private static Instant nanosToInstant(long timestamp) {
+        return Instant.EPOCH.plus(timestamp, ChronoUnit.NANOS);
     }
 
     private void checkType(Type expected, Type actual) {

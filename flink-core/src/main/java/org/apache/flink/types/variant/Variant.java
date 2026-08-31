@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 /**
@@ -152,6 +153,33 @@ public interface Variant extends Serializable {
     Instant getInstant() throws VariantTypeException;
 
     /**
+     * Get the scalar value of variant as {@link LocalTime}, if the variant type is {@link
+     * Type#TIME}. The returned value has microsecond precision.
+     *
+     * @throws VariantTypeException If this variant is not a scalar value or is not {@link
+     *     Type#TIME}.
+     */
+    LocalTime getTime() throws VariantTypeException;
+
+    /**
+     * Get the scalar value of variant as {@link LocalDateTime}, if the variant type is {@link
+     * Type#TIMESTAMP_NS}. The returned value has nanosecond precision.
+     *
+     * @throws VariantTypeException If this variant is not a scalar value or is not {@link
+     *     Type#TIMESTAMP_NS}.
+     */
+    LocalDateTime getDateTimeNanos() throws VariantTypeException;
+
+    /**
+     * Get the scalar value of variant as {@link Instant}, if the variant type is {@link
+     * Type#TIMESTAMP_LTZ_NS}. The returned value has nanosecond precision.
+     *
+     * @throws VariantTypeException If this variant is not a scalar value or is not {@link
+     *     Type#TIMESTAMP_LTZ_NS}.
+     */
+    Instant getInstantNanos() throws VariantTypeException;
+
+    /**
      * Get the scalar value of variant as byte array, if the variant type is {@link Type#BYTES}.
      *
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
@@ -232,8 +260,11 @@ public interface Variant extends Serializable {
         DECIMAL,
         STRING,
         DATE,
+        TIME,
         TIMESTAMP,
         TIMESTAMP_LTZ,
+        TIMESTAMP_NS,
+        TIMESTAMP_LTZ_NS,
         BYTES
     }
 

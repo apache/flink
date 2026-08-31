@@ -127,6 +127,16 @@ public class BinaryVariantUtil {
     // Long string value. The content is (4-byte little-endian unsigned integer representing the
     // string size) + (size bytes of string content).
     public static final int LONG_STR = 16;
+    // Time value, no time zone. Content is 8-byte little-endian signed integer that represents
+    // the number of microseconds since midnight.
+    public static final int TIME = 17;
+    // TimestampLTZ value with nanosecond precision. Content is 8-byte little-endian signed
+    // integer that represents the number of nanoseconds elapsed since the Unix epoch,
+    // 1970-01-01 00:00:00 UTC.
+    public static final int TIMESTAMP_LTZ_NS = 18;
+    // Timestamp value with nanosecond precision. It has the same content as `TIMESTAMP_LTZ_NS`
+    // but should always be interpreted as if the local time zone is UTC.
+    public static final int TIMESTAMP_NS = 19;
 
     public static final byte VERSION = 1;
     // The lower 4 bits of the first metadata byte contain the version.
@@ -158,6 +168,11 @@ public class BinaryVariantUtil {
             new DateTimeFormatterBuilder()
                     .append(TIMESTAMP_FORMATTER)
                     .appendOffset("+HH:MM", "+00:00")
+                    .toFormatter(Locale.US);
+
+    public static final DateTimeFormatter TIME_FORMATTER =
+            new DateTimeFormatterBuilder()
+                    .append(DateTimeFormatter.ISO_LOCAL_TIME)
                     .toFormatter(Locale.US);
 
     // Write the least significant `numBytes` bytes in `value` into `bytes[pos, pos + numBytes)` in
@@ -304,6 +319,12 @@ public class BinaryVariantUtil {
                         return Type.BYTES;
                     case LONG_STR:
                         return Type.STRING;
+                    case TIME:
+                        return Type.TIME;
+                    case TIMESTAMP_LTZ_NS:
+                        return Type.TIMESTAMP_LTZ_NS;
+                    case TIMESTAMP_NS:
+                        return Type.TIMESTAMP_NS;
                     default:
                         throw unknownPrimitiveTypeInVariant(typeInfo);
                 }
@@ -360,6 +381,9 @@ public class BinaryVariantUtil {
                     case DOUBLE:
                     case TIMESTAMP_LTZ:
                     case TIMESTAMP:
+                    case TIME:
+                    case TIMESTAMP_LTZ_NS:
+                    case TIMESTAMP_NS:
                         return 9;
                     case DECIMAL4:
                         return 6;
@@ -393,16 +417,22 @@ public class BinaryVariantUtil {
     }
 
     // Get a long value from variant value `value[pos...]`.
-    // It is only legal to call it if `getType` returns one of `Type.LONG/DATE/TIMESTAMP/
-    // TIMESTAMP_LTZ`. If the type is `DATE`, the return value is guaranteed to fit into an int and
-    // represents the number of days from the Unix epoch.
+    // It is only legal to call it if `getType` returns one of `Type.LONG/DATE/TIME/TIMESTAMP/
+    // TIMESTAMP_LTZ/TIMESTAMP_NS/TIMESTAMP_LTZ_NS`.
+    // If the type is `DATE`, the return value is
+    // guaranteed to fit into an int and represents the number of days from the Unix epoch.
+    // If the type is `TIME`, the return value represents the number of microseconds since
+    // midnight.
     // If the type is `TIMESTAMP/TIMESTAMP_LTZ`, the return value represents the number of
     // microseconds from the Unix epoch.
+    // If the type is `TIMESTAMP_NS/TIMESTAMP_LTZ_NS`, the return value represents the number of
+    // nanoseconds from the Unix epoch.
     public static long getLong(byte[] value, int pos) {
         checkIndex(pos, value.length);
         int basicType = value[pos] & BASIC_TYPE_MASK;
         int typeInfo = (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;
-        String exceptionMessage = "Expect type to be LONG/DATE/TIMESTAMP/TIMESTAMP_LTZ";
+        String exceptionMessage =
+                "Expect type to be LONG/DATE/TIME/TIMESTAMP/TIMESTAMP_LTZ/TIMESTAMP_NS/TIMESTAMP_LTZ_NS";
         if (basicType != PRIMITIVE) {
             throw new IllegalStateException(exceptionMessage);
         }
@@ -415,8 +445,11 @@ public class BinaryVariantUtil {
             case DATE:
                 return readLong(value, pos + 1, 4);
             case INT8:
+            case TIME:
             case TIMESTAMP_LTZ:
             case TIMESTAMP:
+            case TIMESTAMP_LTZ_NS:
+            case TIMESTAMP_NS:
                 return readLong(value, pos + 1, 8);
             default:
                 throw new IllegalStateException(exceptionMessage);
