@@ -21,6 +21,7 @@ import functools
 import importlib
 import inspect
 import operator
+import types
 import unittest
 from dataclasses import dataclass
 from typing import Any, Callable, TypedDict, cast
@@ -41,6 +42,21 @@ from pyflink.testing.test_case_utils import (
 
 def _return_dtype(declaration: Callable[..., Expression]) -> pf.DataType:
     return cast(Any, declaration).return_dtype
+
+
+_UDF_TEST_ALIAS = int
+
+
+def _module_alias_method(self, value: int) -> "_UDF_TEST_ALIAS":
+    return value
+
+
+def _module_alias_function(value: int) -> "_UDF_TEST_ALIAS":
+    return value
+
+
+def _call_module_alias_function(value):
+    return _module_alias_function(value)
 
 
 class DataFrameUDFDeclarationTests(unittest.TestCase):
@@ -220,6 +236,84 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         self.assertIs(decorated_class.__wrapped__, Double)
         self.assertEqual(decorated_class.__qualname__, Double.__qualname__)
 
+    def test_callable_class_resolves_class_local_return_annotation(self):
+        class Describe:
+            class Output(TypedDict):
+                value: int
+
+            def __call__(self, value: int) -> "Output":
+                return {"value": value}
+
+        expected = pf.DataType.struct({"value": pf.DataType.int64()})
+        for source in (Describe, Describe()):
+            with self.subTest(source=source):
+                self.assertEqual(_return_dtype(pf.udf(source)), expected)
+
+    def test_callable_annotations_use_lexical_defining_class(self):
+        class BoundMethodOwner:
+            class Output(TypedDict):
+                value: int
+
+            def describe(self, value: int) -> "Output":
+                return {"value": value}
+
+        class InheritedMethodOwner:
+            class Output(TypedDict):
+                value: int
+
+            def __call__(self, value: int) -> "Output":
+                return {"value": value}
+
+        class InheritedCallable(InheritedMethodOwner):
+            pass
+
+        class SelfQualified:
+            class Output(TypedDict):
+                value: int
+
+            def __call__(self, value: int) -> "SelfQualified.Output":
+                return {"value": value}
+
+        expected = pf.DataType.struct({"value": pf.DataType.int64()})
+        bound_method = BoundMethodOwner().describe
+        for source in (
+            bound_method,
+            functools.partial(bound_method),
+            InheritedCallable,
+            SelfQualified,
+        ):
+            with self.subTest(source=source):
+                self.assertEqual(_return_dtype(pf.udf(source)), expected)
+
+        class PandasCallable:
+            Batch = pd.Series
+
+            def __call__(self, values: "Batch") -> int:
+                return len(values)
+
+        pandas_declaration = pf.udf(PandasCallable, return_dtype=int)
+        self.assertEqual(pandas_declaration._func_type, "pandas")
+
+        class ReceivingCallable:
+            _UDF_TEST_ALIAS = str
+            __call__ = _module_alias_method
+
+        self.assertEqual(
+            _return_dtype(pf.udf(ReceivingCallable)), pf.DataType.int64()
+        )
+
+        class OverriddenScalarFunction(ScalarFunction):
+            _UDF_TEST_ALIAS = str
+
+            def eval(self, value: int) -> str:
+                return str(value)
+
+        overridden = OverriddenScalarFunction()
+        overridden.eval = types.MethodType(_module_alias_method, overridden)
+        self.assertEqual(
+            _return_dtype(pf.udf(overridden)), pf.DataType.int64()
+        )
+
     def test_wrapped_signature_describes_udf_invocation(self):
         def add(value: int, amount: int = 1) -> int:
             return value + amount
@@ -237,6 +331,20 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             @classmethod
             def __call__(cls, value: int, amount: int = 1) -> int:
                 return value + amount
+
+        def pandas_identity(values: pd.Series) -> pd.Series:
+            return values
+
+        class WrappedCallableClass:
+            @functools.wraps(pandas_identity)
+            def __call__(self, *args, **kwargs):
+                return pandas_identity(*args, **kwargs)
+
+        class WrappedClassMethodCallableClass:
+            @classmethod
+            @functools.wraps(pandas_identity)
+            def __call__(cls, *args, **kwargs):
+                return pandas_identity(*args, **kwargs)
 
         class AddFunction(ScalarFunction):
             def eval(self, *values: int) -> int:
@@ -285,6 +393,37 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         self.assertEqual(
             _return_dtype(exploding_signature), pf.DataType.int64()
         )
+        exploding_partial_signature = pf.udf(
+            functools.partial(ExplodingSignature()), return_dtype=int
+        )
+        self.assertEqual(
+            _return_dtype(exploding_partial_signature), pf.DataType.int64()
+        )
+        self.assertNotIn("__signature__", vars(exploding_partial_signature))
+
+        for source in (WrappedCallableClass, WrappedClassMethodCallableClass):
+            with self.subTest(wrapped_source=source):
+                declaration = pf.udf(
+                    source, return_dtype=pf.DataType.int64()
+                )
+                self.assertEqual(
+                    inspect.signature(declaration),
+                    inspect.signature(pandas_identity),
+                )
+                self.assertEqual(declaration._func_type, "pandas")
+
+        cross_namespace_wrapper = types.FunctionType(
+            _call_module_alias_function.__code__,
+            {
+                "_module_alias_function": _module_alias_function,
+                "_UDF_TEST_ALIAS": str,
+            },
+        )
+        functools.update_wrapper(cross_namespace_wrapper, _module_alias_function)
+        self.assertEqual(
+            _return_dtype(pf.udf(cross_namespace_wrapper)),
+            pf.DataType.int64(),
+        )
 
     def test_func_type_resolution_and_async_detection(self):
         def pandas_add_one(values: pd.Series) -> pd.Series:
@@ -306,6 +445,20 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         pandas_with_unresolved_annotation.__annotations__[
             "context"
         ] = "UnavailableContext"
+
+        def pandas_after_missing_attribute(
+            context: Any, values: pd.Series
+        ) -> int:
+            return len(values)
+
+        pandas_after_missing_attribute.__annotations__[
+            "context"
+        ] = "pd.Missing"
+
+        def only_missing_attribute(context: Any) -> int:
+            return 1
+
+        only_missing_attribute.__annotations__["context"] = "pd.Missing"
 
         def mixed(values: pd.Series, offset: int):
             return values + offset
@@ -367,6 +520,24 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 False,
             ),
             (
+                "missing annotation attribute does not hide pandas annotation",
+                lambda: pf.udf(
+                    pandas_after_missing_attribute,
+                    return_dtype=pf.DataType.int64(),
+                ),
+                "pandas",
+                False,
+            ),
+            (
+                "missing annotation attribute falls back to general",
+                lambda: pf.udf(
+                    only_missing_attribute,
+                    return_dtype=pf.DataType.int64(),
+                ),
+                "general",
+                False,
+            ),
+            (
                 "any pandas annotation selects pandas",
                 lambda: pf.udf(mixed, return_dtype=pf.DataType.int64()),
                 "pandas",
@@ -423,7 +594,9 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             with self.subTest(case=case_name):
                 wrapped = declare()
                 self.assertEqual(wrapped._func_type, expected_type)
-                self.assertEqual(wrapped._source.is_async, expected_async)
+                self.assertEqual(
+                    wrapped._runtime_source.is_async, expected_async
+                )
 
         invalid_declarations = [
             (
@@ -447,6 +620,104 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             with self.subTest(case=case_name):
                 with self.assertRaisesRegex(error_type, message):
                     declare()
+
+    def test_sync_wrapper_around_async_target_is_rejected(self):
+        async def async_add_one(value: int) -> int:
+            return value + 1
+
+        @functools.wraps(async_add_one)
+        def sync_wrapper(*args, **kwargs):
+            return async_add_one(*args, **kwargs)
+
+        with self.assertRaisesRegex(TypeError, "async def"):
+            pf.udf(sync_wrapper)
+
+    def test_invalid_class_invocation_descriptors_fail_eagerly(self):
+        class CallableBase:
+            def __call__(self, value: int) -> int:
+                return value
+
+        class HiddenCallable(CallableBase):
+            __call__ = None
+
+        class ScalarBase(ScalarFunction):
+            def eval(self, value: int) -> int:
+                return value
+
+        class HiddenScalarFunction(ScalarBase):
+            eval = None
+
+        class InvalidStaticCallable:
+            __call__ = staticmethod(None)
+
+        class InvalidClassMethodCallable:
+            __call__ = classmethod(None)
+
+        invalid_classes = (
+            HiddenCallable,
+            HiddenScalarFunction,
+            InvalidStaticCallable,
+            InvalidClassMethodCallable,
+        )
+        for source in invalid_classes:
+            with self.subTest(source=source):
+                with self.assertRaisesRegex(TypeError, "must be defined as a method"):
+                    pf.udf(source, return_dtype=int)
+
+    def test_descriptor_based_callable_classes_require_instances(self):
+        class PartialMethodCallable:
+            def invoke(self, offset: int, value: int) -> int:
+                return offset + value
+
+            __call__ = functools.partialmethod(invoke, 1)
+
+        class PartialDescriptorCallable:
+            __call__ = functools.partial(lambda: 1)
+
+        for source in (PartialMethodCallable, PartialDescriptorCallable):
+            with self.subTest(class_source=source):
+                with self.assertRaisesRegex(
+                    TypeError, "must be defined as a method"
+                ):
+                    pf.udf(source, return_dtype=int)
+
+            with self.subTest(instance_source=source):
+                declaration = pf.udf(source(), return_dtype=int)
+                self.assertEqual(
+                    _return_dtype(declaration), pf.DataType.int64()
+                )
+
+    def test_unresolved_typed_dict_fields_have_actionable_errors(self):
+        class Describe:
+            OuterAlias = int
+
+            class Output(TypedDict):
+                value: Any
+
+            Output.__annotations__["value"] = "OuterAlias"
+
+            def __call__(self, value: int) -> "Output":
+                return {"value": value}
+
+        with self.assertRaisesRegex(TypeError, "Cannot infer return_dtype"):
+            pf.udf(Describe)
+
+        with self.assertRaisesRegex(TypeError, "DataType or SQL"):
+            pf.udf(lambda value: value, return_dtype=Describe.Output)
+
+        class InvalidOutput(TypedDict):
+            value: Any
+
+        InvalidOutput.__annotations__["value"] = "list["
+
+        def invalid_output(value: int) -> InvalidOutput:
+            return {"value": value}
+
+        with self.assertRaisesRegex(TypeError, "Cannot infer return_dtype"):
+            pf.udf(invalid_output)
+
+        with self.assertRaisesRegex(TypeError, "DataType or SQL"):
+            pf.udf(lambda value: value, return_dtype=InvalidOutput)
 
     def test_determinism_and_name_metadata(self):
         class NonDeterministic(ScalarFunction):
@@ -817,7 +1088,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
             _DataFrameAsyncScalarFunctionAdapter,
             _DataFrameScalarFunctionAdapter,
             _UDFUsage,
-            _resolve_udf_source,
+            _resolve_udf,
         )
 
         return_dtype = pf.DataType.struct(
@@ -834,14 +1105,14 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
             return {"value": value, "labels": (str(value),)}
 
         sync_adapter = _DataFrameScalarFunctionAdapter(
-            _resolve_udf_source(describe),
+            _resolve_udf(describe).runtime_source,
             return_dtype,
             True,
             _UDFUsage.EXPRESSION,
             "general",
         )
         async_adapter = _DataFrameAsyncScalarFunctionAdapter(
-            _resolve_udf_source(describe_async),
+            _resolve_udf(describe_async).runtime_source,
             return_dtype,
             True,
             _UDFUsage.EXPRESSION,
@@ -857,7 +1128,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
             return value
 
         leaf_adapter = _DataFrameScalarFunctionAdapter(
-            _resolve_udf_source(identity),
+            _resolve_udf(identity).runtime_source,
             pf.DataType.int64(),
             True,
             _UDFUsage.EXPRESSION,
@@ -871,7 +1142,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
             _DataFrameAsyncScalarFunctionAdapter,
             _DataFrameScalarFunctionAdapter,
             _UDFUsage,
-            _resolve_udf_source,
+            _resolve_udf,
         )
 
         events = []
@@ -883,7 +1154,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
                 else _DataFrameScalarFunctionAdapter
             )
             return adapter_type(
-                _resolve_udf_source(source),
+                _resolve_udf(source).runtime_source,
                 pf.DataType.int64(),
                 deterministic,
                 _UDFUsage.EXPRESSION,
@@ -1053,7 +1324,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
         from pyflink.dataframe.udf import (
             _DataFrameScalarFunctionAdapter,
             _UDFUsage,
-            _resolve_udf_source,
+            _resolve_udf,
         )
 
         events = []
@@ -1073,7 +1344,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
                 raise RuntimeError("close failed")
 
         adapter = _DataFrameScalarFunctionAdapter(
-            _resolve_udf_source(BindingFailureFunction),
+            _resolve_udf(BindingFailureFunction).runtime_source,
             pf.DataType.int64(),
             True,
             _UDFUsage.MAP,
