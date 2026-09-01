@@ -38,6 +38,7 @@ Example::
     <Row(1, 'Alice', 31)>
 """
 
+from pyflink.dataframe.config import DataFrameConfig, config
 from pyflink.dataframe.convert import (
     from_arrow,
     from_dict,
@@ -60,6 +61,7 @@ from pyflink.dataframe.udf import udf
 __all__ = [
     "DataFrame",
     "GroupedDataFrame",
+    "DataFrameConfig",
     "DataType",
     "col",
     "lit",
@@ -72,6 +74,7 @@ __all__ = [
     "range",
     "read_generic",
     "sql",
+    "config",
     "set_table_environment",
     "get_table_environment",
     "get_or_create_table_environment",

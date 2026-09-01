@@ -35,6 +35,8 @@ def set_table_environment(t_env: Optional[TableEnvironment]) -> None:
     """
     Set the environment used by DataFrame operations.
 
+    Any values buffered in :data:`config` are applied to the injected environment.
+
     :param t_env: Environment to use, or ``None`` to clear it.
     :raises TypeError: If ``t_env`` is neither a :class:`TableEnvironment` nor ``None``.
 
@@ -51,6 +53,10 @@ def set_table_environment(t_env: Optional[TableEnvironment]) -> None:
     if t_env is not None and not isinstance(t_env, TableEnvironment):
         raise TypeError("t_env must be a TableEnvironment or None")
     _global_table_environment = t_env
+    if t_env is not None:
+        from pyflink.dataframe.config import config
+
+        config._apply_to(t_env)
 
 
 @PublicEvolving()
@@ -78,7 +84,8 @@ def get_or_create_table_environment() -> TableEnvironment:
     Return the configured environment, creating one when necessary.
 
     The created environment is retained for subsequent DataFrame operations and calls to
-    :func:`get_table_environment`.
+    :func:`get_table_environment`, and any values buffered in :data:`config` are applied
+    to it.
 
     :return: The configured or newly created environment.
 
@@ -99,5 +106,9 @@ def get_or_create_table_environment() -> TableEnvironment:
 
         stream_environment = StreamExecutionEnvironment.get_execution_environment()
         _global_table_environment = StreamTableEnvironment.create(stream_environment)
+
+        from pyflink.dataframe.config import config
+
+        config._apply_to(_global_table_environment)
 
     return _global_table_environment
