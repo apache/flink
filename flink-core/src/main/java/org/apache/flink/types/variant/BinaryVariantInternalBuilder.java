@@ -124,10 +124,9 @@ public class BinaryVariantInternalBuilder {
     /**
      * Parse the tokens produced by a {@link JsonTokenSource} as a Variant value.
      *
-     * @throws IOException if the token stream is not well-formed JSON, or a number is out of the
-     *     range a Variant can store.
-     * @throws NumberFormatException if a {@code VALUE_NUMBER} token carries a literal that is not a
-     *     valid JSON number.
+     * @throws IOException if the token stream is not well-formed JSON, a {@code VALUE_NUMBER} token
+     *     carries a literal that is not a valid JSON number, or a number is out of the range a
+     *     Variant can store.
      */
     public static BinaryVariant parseJson(JsonTokenSource source, boolean allowDuplicateKeys)
             throws IOException {
@@ -650,7 +649,15 @@ public class BinaryVariantInternalBuilder {
                 // decimal or double instead.
             }
         }
-        appendFloatingPoint(source, text);
+        try {
+            appendFloatingPoint(source, text);
+        } catch (NumberFormatException malformed) {
+            // A well-formed JSON number always parses, so Jackson never reaches here. A
+            // JsonTokenSource that reports a literal which is not a valid JSON number does. Surface
+            // it as a located IOException carrying the literal, so it reads like every other JSON
+            // error instead of an opaque NumberFormatException.
+            throw parseError(source, String.format("Invalid numeric value '%s'.", text));
+        }
     }
 
     /**

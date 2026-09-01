@@ -108,13 +108,16 @@ class JsonTokenSourceTest {
     @ValueSource(strings = {"1,5", "1.000,5", "1'000"})
     void testLocaleSpecificNumberLiteralsAreRejected(final String numberText) {
         // Only '.' is a decimal separator. A comma or grouping separator is not valid JSON, so it
-        // must be rejected, never reinterpreted based on the JVM locale.
+        // must be rejected, never reinterpreted based on the JVM locale. The rejection surfaces as
+        // an IOException carrying the offending literal, like every other JSON parse error, not as
+        // an opaque NumberFormatException.
         final List<Tok> tokens = List.of(new Tok(Token.VALUE_NUMBER, null, numberText));
         assertThatThrownBy(
                         () ->
                                 BinaryVariantInternalBuilder.parseJson(
                                         new ListJsonSource(tokens), false))
-                .isInstanceOf(NumberFormatException.class);
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining(numberText);
     }
 
     private static BinaryVariant parseSource(Object model) throws IOException {
