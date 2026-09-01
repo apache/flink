@@ -44,7 +44,6 @@ import org.apache.flink.test.util.NumberSequenceSourceWithWaitForCheckpoint;
 import org.apache.flink.util.CloseableIterator;
 
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -140,7 +139,6 @@ class CheckpointIntervalDuringBacklogITCase {
     }
 
     @Test
-    @Disabled("FLINK-39018") // FLINK-39108
     void testNoCheckpointDuringBacklog() throws Exception {
         final int recordsBeforeSwitch = NUM_RECORDS / 2;
         Duration expectedSwitchTime = Duration.ofMillis(recordsBeforeSwitch * SLEEP_MS_PER_RECORD);
