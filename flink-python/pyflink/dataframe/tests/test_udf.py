@@ -305,7 +305,8 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         class OverriddenScalarFunction(ScalarFunction):
             _UDF_TEST_ALIAS = str
 
-            def eval(self, value: int) -> str:
+            def eval(self, *values: int) -> str:
+                value, = values
                 return str(value)
 
         overridden = OverriddenScalarFunction()
@@ -492,6 +493,48 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         self.assertEqual(
             _return_dtype(pf.udf(cross_namespace_wrapper)),
             pf.DataType.int64(),
+        )
+
+    def test_wrapped_methods_preserve_bound_signatures(self):
+        def method_decorator(method):
+            @functools.wraps(method)
+            def wrapper(*args, **kwargs):
+                return method(*args, **kwargs)
+
+            return wrapper
+
+        def add(value: int, amount: int = 1) -> int:
+            return value + amount
+
+        class WrappedCallable:
+            @method_decorator
+            def __call__(self, value: int, amount: int = 1) -> int:
+                return value + amount
+
+        class WrappedClassMethodCallable:
+            @classmethod
+            @method_decorator
+            def __call__(cls, value: int, amount: int = 1) -> int:
+                return value + amount
+
+        expected_signature = inspect.signature(add)
+        instance = WrappedCallable()
+        for source in (
+            WrappedCallable,
+            instance,
+            instance.__call__,
+            WrappedClassMethodCallable,
+            WrappedClassMethodCallable(),
+        ):
+            with self.subTest(source=source):
+                self.assertEqual(
+                    inspect.signature(pf.udf(source)), expected_signature
+                )
+
+        partial_source = functools.partial(instance.__call__, 1)
+        self.assertEqual(
+            inspect.signature(pf.udf(partial_source)),
+            inspect.signature(functools.partial(add, 1)),
         )
 
     def test_func_type_resolution_and_async_detection(self):
@@ -701,6 +744,20 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "async def"):
             pf.udf(sync_wrapper)
 
+    def test_sync_async_scalar_eval_is_rejected(self):
+        class SyncAsyncScalarFunction(AsyncScalarFunction):
+            def eval(self, *values: int) -> int:
+                value, = values
+                return value + 1
+
+        for source in (SyncAsyncScalarFunction, SyncAsyncScalarFunction()):
+            with self.subTest(source=source):
+                with self.assertRaisesRegex(
+                    TypeError,
+                    "AsyncScalarFunction 'SyncAsyncScalarFunction'.*async def",
+                ):
+                    pf.udf(source, return_dtype=pf.DataType.int64())
+
     def test_unrelated_methodtype_owner_requires_explicit_metadata(self):
         class MethodOwner:
             Batch = pd.Series
@@ -712,7 +769,8 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 return {"value": len(values)}
 
         class ReplacedScalarFunction(ScalarFunction):
-            def eval(self, value: int) -> int:
+            def eval(self, *values: int) -> int:
+                value, = values
                 return value
 
         replaced = ReplacedScalarFunction()
@@ -742,7 +800,8 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             __call__ = None
 
         class ScalarBase(ScalarFunction):
-            def eval(self, value: int) -> int:
+            def eval(self, *values: int) -> int:
+                value, = values
                 return value
 
         class HiddenScalarFunction(ScalarBase):

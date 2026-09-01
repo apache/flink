@@ -120,10 +120,7 @@ class _UDFRuntimeSource:
             actual = cast(
                 Union[ScalarFunction, AsyncScalarFunction], self.callable_source
             ).is_deterministic()
-            if declared != actual:
-                raise ValueError(
-                    f"Inconsistent deterministic: {declared} and {actual}."
-                )
+            _validate_determinism_agreement(declared, actual)
 
     def create_worker_udf(self) -> "_WorkerUDF":
         source = self.callable_source
@@ -165,10 +162,7 @@ class _WorkerUDF:
             actual = cast(
                 Union[ScalarFunction, AsyncScalarFunction], self.active_source
             ).is_deterministic()
-            if declared != actual:
-                raise ValueError(
-                    f"Inconsistent deterministic: {declared} and {actual}."
-                )
+            _validate_determinism_agreement(declared, actual)
 
     def open(self, function_context: Any) -> None:
         if self.kind.is_scalar_function:
@@ -482,6 +476,13 @@ def udf(
 # ======================== Declaration Validation ========================
 
 
+def _validate_determinism_agreement(declared: bool, actual: bool) -> None:
+    if declared != actual:
+        raise ValueError(
+            f"Inconsistent deterministic: {declared} and {actual}."
+        )
+
+
 def _validate_scalar_udf_options(
     func_type: str,
     return_dtype: Optional[_DataTypeLike],
@@ -674,11 +675,28 @@ def _apply_partial_to_signature(
     )
 
 
+def _preserves_method_binding(
+    target: Callable[..., Any], defining_class: Optional[Type]
+) -> bool:
+    target = _unwrap_partial(target)
+    target = getattr(target, "__func__", target)
+    if defining_class is None or not hasattr(target, "__wrapped__"):
+        return False
+    try:
+        unwrapped_target = inspect.unwrap(target)
+    except ValueError:
+        return False
+    return _lexical_defining_class(
+        cast(Callable[..., Any], unwrapped_target), defining_class
+    ) is defining_class
+
+
 def _resolve_invocation_signature(
     annotation_target: Callable[..., Any],
     signature_target: Callable[..., Any],
     implicit_parameter_name: Optional[str],
     partial_source: Any,
+    preserves_method_binding: bool,
 ) -> Tuple[Optional[inspect.Signature], FrozenSet[str]]:
     ignored_hint_names = set()
     if implicit_parameter_name is not None:
@@ -689,7 +707,10 @@ def _resolve_invocation_signature(
     is_wrapped_bound_method = bound_function is not None and hasattr(
         bound_function, "__wrapped__"
     )
-    if is_wrapped_bound_method:
+    uses_unbound_wrapped_signature = (
+        is_wrapped_bound_method and not preserves_method_binding
+    )
+    if uses_unbound_wrapped_signature:
         signature_inspection_target = cast(Callable[..., Any], bound_function)
 
     try:
@@ -697,7 +718,13 @@ def _resolve_invocation_signature(
         parameters = tuple(invocation_signature.parameters.values())
         if (
             implicit_parameter_name is not None
-            and not hasattr(signature_inspection_target, "__wrapped__")
+            and (
+                not hasattr(
+                    getattr(annotation_target, "__func__", annotation_target),
+                    "__wrapped__",
+                )
+                or preserves_method_binding
+            )
             and parameters
             and parameters[0].name == implicit_parameter_name
         ):
@@ -711,7 +738,7 @@ def _resolve_invocation_signature(
         try:
             partial_target_signature = (
                 invocation_signature
-                if is_wrapped_bound_method
+                if uses_unbound_wrapped_signature
                 else inspect.signature(partial_source.func)
             )
         except Exception:
@@ -728,7 +755,7 @@ def _resolve_invocation_signature(
                 f"'{_default_udf_name(partial_source)}': {exc}."
             ) from exc
         ignored_hint_names.update(bound_arguments.arguments)
-        if is_wrapped_bound_method:
+        if uses_unbound_wrapped_signature:
             if invocation_signature is None:
                 return None, frozenset(ignored_hint_names)
             try:
@@ -751,15 +778,22 @@ def _create_declaration_context(
     annotation_target = cast(
         Callable[..., Any], _get_callable_inspection_target(annotation_target)
     )
+    defining_class = _lexical_defining_class(
+        annotation_target, descriptor_owner
+    )
+    preserves_method_binding = _preserves_method_binding(
+        annotation_target, defining_class
+    )
+    if preserves_method_binding:
+        implicit_parameter_name = _first_parameter_name(
+            cast(Callable[..., Any], inspect.unwrap(annotation_target))
+        )
     if implicit_parameter_name is None:
         bound_target = _unwrap_partial(annotation_target)
         bound_function = getattr(bound_target, "__func__", None)
         if bound_function is not None:
             implicit_parameter_name = _first_parameter_name(bound_function)
 
-    defining_class = _lexical_defining_class(
-        annotation_target, descriptor_owner
-    )
     localns = None
     if defining_class is not None:
         localns = dict(vars(defining_class))
@@ -770,6 +804,7 @@ def _create_declaration_context(
         signature_target,
         implicit_parameter_name,
         partial_source,
+        preserves_method_binding,
     )
     return _UDFDeclarationContext(
         annotation_target=annotation_target,
@@ -801,7 +836,12 @@ def _create_resolved_udf(
             "A synchronous UDF wrapper cannot wrap an async target; define the "
             "wrapper with async def."
         )
-    is_async = async_marker or target_is_async
+    if async_marker and not target_is_async:
+        raise TypeError(
+            f"AsyncScalarFunction '{_default_udf_name(func)}': eval must be "
+            "defined with async def."
+        )
+    is_async = target_is_async
     return _ResolvedUDF(
         _UDFRuntimeSource(func, kind, is_async), declaration_context
     )
