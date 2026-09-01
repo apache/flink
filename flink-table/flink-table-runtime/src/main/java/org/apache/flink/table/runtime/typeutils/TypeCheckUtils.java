@@ -39,6 +39,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TY
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.UUID;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARIANT;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 
@@ -146,6 +147,10 @@ public class TypeCheckUtils {
         return type.getTypeRoot() == BITMAP;
     }
 
+    private static boolean isUuidType(LogicalType type) {
+        return type.getTypeRoot() == UUID;
+    }
+
     public static boolean isComparable(LogicalType type) {
         return !isRaw(type)
                 && !isMap(type)
@@ -154,7 +159,8 @@ public class TypeCheckUtils {
                 && !isArray(type)
                 && !isStructuredType(type)
                 && !isVariantType(type)
-                && !isBitmapType(type);
+                && !isBitmapType(type)
+                && !isUuidType(type);
     }
 
     public static boolean isMutable(LogicalType type) {

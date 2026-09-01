@@ -57,6 +57,7 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.VariantType;
@@ -468,6 +469,11 @@ public final class LogicalRelDataTypeConverter {
         }
 
         @Override
+        public RelDataType visit(UuidType uuidType) {
+            return relDataTypeFactory.createSqlType(SqlTypeName.UUID);
+        }
+
+        @Override
         public RelDataType visit(BitmapType bitmapType) {
             return new BitmapRelDataType(bitmapType);
         }
@@ -596,6 +602,8 @@ public final class LogicalRelDataTypeConverter {
                 return new DescriptorType(false);
             case VARIANT:
                 return new VariantType(false);
+            case UUID:
+                return new UuidType(false);
             case STRUCTURED:
             case OTHER:
                 if (relDataType instanceof StructuredRelDataType) {
