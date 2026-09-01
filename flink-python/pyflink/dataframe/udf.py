@@ -549,6 +549,8 @@ def _lexical_defining_class(
     if not separator:
         return None
     if candidate is not None:
+        # Same-qualified-name method transplantation is indistinguishable because
+        # Python functions do not retain an exact defining-class identity.
         return candidate if candidate.__qualname__ == owner_qualname else None
 
     bound_target = _unwrap_partial(target)
@@ -566,18 +568,72 @@ def _lexical_defining_class(
     )
 
 
-def _partial_bound_hint_names(func: Any) -> FrozenSet[str]:
-    if not isinstance(func, functools.partial):
-        return frozenset()
-    target = func.func
-    try:
-        return frozenset(
-            inspect.signature(target)
-            .bind_partial(*func.args, **(func.keywords or {}))
-            .arguments
+def _apply_partial_to_signature(
+    signature: inspect.Signature, partial_source: functools.partial
+) -> inspect.Signature:
+    def signature_proxy(*args: Any, **kwargs: Any) -> None:
+        pass
+
+    # Delegate partial's signature transformation to inspect after supplying the
+    # normalized invocation signature.
+    setattr(signature_proxy, "__signature__", signature)
+    return inspect.signature(
+        functools.partial(
+            signature_proxy,
+            *partial_source.args,
+            **(partial_source.keywords or {}),
         )
+    )
+
+
+def _resolve_invocation_signature(
+    annotation_target: Callable[..., Any],
+    signature_target: Callable[..., Any],
+    implicit_parameter_name: Optional[str],
+    partial_source: Any,
+) -> Tuple[Optional[inspect.Signature], FrozenSet[str]]:
+    ignored_hint_names = set()
+    if implicit_parameter_name is not None:
+        ignored_hint_names.add(implicit_parameter_name)
+
+    try:
+        signature_inspection_target = signature_target
+        bound_function = getattr(annotation_target, "__func__", None)
+        is_wrapped_bound_method = bound_function is not None and hasattr(
+            bound_function, "__wrapped__"
+        )
+        if is_wrapped_bound_method:
+            signature_inspection_target = bound_function
+
+        invocation_signature = inspect.signature(signature_inspection_target)
+        parameters = tuple(invocation_signature.parameters.values())
+        if (
+            implicit_parameter_name is not None
+            and not hasattr(signature_inspection_target, "__wrapped__")
+            and parameters
+            and parameters[0].name == implicit_parameter_name
+        ):
+            invocation_signature = invocation_signature.replace(
+                parameters=parameters[1:]
+            )
+
+        if isinstance(partial_source, functools.partial):
+            partial_target_signature = (
+                invocation_signature
+                if is_wrapped_bound_method
+                else inspect.signature(partial_source.func)
+            )
+            bound_arguments = partial_target_signature.bind_partial(
+                *partial_source.args, **(partial_source.keywords or {})
+            )
+            ignored_hint_names.update(bound_arguments.arguments)
+            if is_wrapped_bound_method:
+                invocation_signature = _apply_partial_to_signature(
+                    invocation_signature, partial_source
+                )
+        return invocation_signature, frozenset(ignored_hint_names)
     except Exception:
-        return frozenset()
+        return None, frozenset(ignored_hint_names)
 
 
 def _create_declaration_context(
@@ -605,30 +661,19 @@ def _create_declaration_context(
         localns = dict(vars(defining_class))
         localns[defining_class.__name__] = defining_class
 
-    try:
-        invocation_signature = inspect.signature(signature_target)
-        parameters = tuple(invocation_signature.parameters.values())
-        if (
-            implicit_parameter_name is not None
-            and parameters
-            and parameters[0].name == implicit_parameter_name
-        ):
-            invocation_signature = invocation_signature.replace(
-                parameters=parameters[1:]
-            )
-    except Exception:
-        invocation_signature = None
-
-    ignored_hint_names = set(_partial_bound_hint_names(partial_source))
-    if implicit_parameter_name is not None:
-        ignored_hint_names.add(implicit_parameter_name)
+    invocation_signature, ignored_hint_names = _resolve_invocation_signature(
+        annotation_target,
+        signature_target,
+        implicit_parameter_name,
+        partial_source,
+    )
     return _UDFDeclarationContext(
         annotation_target=annotation_target,
         defining_class=defining_class,
         globalns=_get_annotation_globals(annotation_target),
         localns=localns,
         invocation_signature=invocation_signature,
-        ignored_hint_names=frozenset(ignored_hint_names),
+        ignored_hint_names=ignored_hint_names,
     )
 
 
@@ -935,7 +980,7 @@ def _resolve_callable_annotation(
             ),
             localns=declaration_context.localns,
         ).get(annotation_name, _UNRESOLVED_TYPE_HINT)
-    except (NameError, AttributeError, TypeError):
+    except (NameError, AttributeError, SyntaxError, TypeError):
         return _UNRESOLVED_TYPE_HINT
 
 

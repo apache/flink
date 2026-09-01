@@ -335,15 +335,30 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         def pandas_identity(values: pd.Series) -> pd.Series:
             return values
 
+        def self_named_pandas_identity(
+            self: pd.Series, amount: int = 1
+        ) -> pd.Series:
+            return self + amount
+
         class WrappedCallableClass:
             @functools.wraps(pandas_identity)
             def __call__(self, *args, **kwargs):
                 return pandas_identity(*args, **kwargs)
 
+        class SelfNamedWrappedCallableClass:
+            @functools.wraps(self_named_pandas_identity)
+            def __call__(self, *args, **kwargs):
+                return self_named_pandas_identity(*args, **kwargs)
+
         class WrappedClassMethodCallableClass:
             @classmethod
             @functools.wraps(pandas_identity)
             def __call__(cls, *args, **kwargs):
+                return pandas_identity(*args, **kwargs)
+
+        class WrappedScalarFunction(ScalarFunction):
+            @functools.wraps(pandas_identity)
+            def eval(self, *args, **kwargs):
                 return pandas_identity(*args, **kwargs)
 
         class AddFunction(ScalarFunction):
@@ -401,7 +416,16 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         )
         self.assertNotIn("__signature__", vars(exploding_partial_signature))
 
-        for source in (WrappedCallableClass, WrappedClassMethodCallableClass):
+        wrapped_callable_instance = WrappedCallableClass()
+        for source in (
+            WrappedCallableClass,
+            wrapped_callable_instance,
+            wrapped_callable_instance.__call__,
+            WrappedClassMethodCallableClass,
+            WrappedClassMethodCallableClass(),
+            WrappedScalarFunction,
+            WrappedScalarFunction(),
+        ):
             with self.subTest(wrapped_source=source):
                 declaration = pf.udf(
                     source, return_dtype=pf.DataType.int64()
@@ -411,6 +435,47 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                     inspect.signature(pandas_identity),
                 )
                 self.assertEqual(declaration._func_type, "pandas")
+
+        partial_bound_wrapper = functools.partial(
+            wrapped_callable_instance.__call__, pd.Series([1])
+        )
+        partial_declaration = pf.udf(
+            partial_bound_wrapper,
+            return_dtype=pf.DataType.int64(),
+            func_type="general",
+        )
+        self.assertEqual(
+            inspect.signature(partial_declaration),
+            inspect.signature(functools.partial(pandas_identity, pd.Series([1]))),
+        )
+
+        self_named_instance = SelfNamedWrappedCallableClass()
+        for source in (
+            SelfNamedWrappedCallableClass,
+            self_named_instance,
+            self_named_instance.__call__,
+        ):
+            with self.subTest(self_named_source=source):
+                self.assertEqual(
+                    inspect.signature(
+                        pf.udf(source, return_dtype=pf.DataType.int64())
+                    ),
+                    inspect.signature(self_named_pandas_identity),
+                )
+        self.assertEqual(
+            inspect.signature(
+                pf.udf(
+                    functools.partial(
+                        self_named_instance.__call__, pd.Series([1])
+                    ),
+                    return_dtype=pf.DataType.int64(),
+                    func_type="general",
+                )
+            ),
+            inspect.signature(
+                functools.partial(self_named_pandas_identity, pd.Series([1]))
+            ),
+        )
 
         cross_namespace_wrapper = types.FunctionType(
             _call_module_alias_function.__code__,
@@ -632,6 +697,38 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "async def"):
             pf.udf(sync_wrapper)
 
+    def test_unrelated_methodtype_owner_requires_explicit_metadata(self):
+        class MethodOwner:
+            Batch = pd.Series
+
+            class Output(TypedDict):
+                value: int
+
+            def eval(self, values: "Batch") -> "Output":
+                return {"value": len(values)}
+
+        class ReplacedScalarFunction(ScalarFunction):
+            def eval(self, value: int) -> int:
+                return value
+
+        replaced = ReplacedScalarFunction()
+        replaced.eval = types.MethodType(MethodOwner.eval, replaced)
+
+        with self.assertRaisesRegex(
+            TypeError, "Cannot infer return_dtype.*return_dtype"
+        ):
+            pf.udf(replaced)
+
+        return_dtype = pf.DataType.struct({"value": pf.DataType.int64()})
+        inferred_mode = pf.udf(replaced, return_dtype=return_dtype)
+        self.assertEqual(inferred_mode._func_type, "general")
+        explicit_mode = pf.udf(
+            replaced,
+            return_dtype=return_dtype,
+            func_type="pandas",
+        )
+        self.assertEqual(explicit_mode._func_type, "pandas")
+
     def test_invalid_class_invocation_descriptors_fail_eagerly(self):
         class CallableBase:
             def __call__(self, value: int) -> int:
@@ -718,6 +815,41 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
         with self.assertRaisesRegex(TypeError, "DataType or SQL"):
             pf.udf(lambda value: value, return_dtype=InvalidOutput)
+
+    def test_malformed_forward_references_have_clean_inference_behavior(self):
+        def pandas_after_malformed(
+            context: Any, values: pd.Series
+        ) -> int:
+            return len(values)
+
+        pandas_after_malformed.__annotations__["context"] = "list["
+        self.assertEqual(
+            pf.udf(
+                pandas_after_malformed,
+                return_dtype=pf.DataType.int64(),
+            )._func_type,
+            "pandas",
+        )
+
+        def only_malformed(context: Any) -> int:
+            return 1
+
+        only_malformed.__annotations__["context"] = "list["
+        self.assertEqual(
+            pf.udf(
+                only_malformed, return_dtype=pf.DataType.int64()
+            )._func_type,
+            "general",
+        )
+
+        def malformed_return(value: int) -> int:
+            return value
+
+        malformed_return.__annotations__["return"] = "list["
+        with self.assertRaisesRegex(
+            TypeError, "Cannot infer return_dtype.*return_dtype"
+        ):
+            pf.udf(malformed_return)
 
     def test_determinism_and_name_metadata(self):
         class NonDeterministic(ScalarFunction):
