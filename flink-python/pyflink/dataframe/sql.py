@@ -34,11 +34,13 @@ __all__ = ["sql"]
 @PublicEvolving()
 def sql(query: str, *, auto_bind: bool = True, **bindings: DataFrame) -> DataFrame:
     """
-    Execute a SQL SELECT query and return the result as a :class:`DataFrame`.
+    Execute a SQL query and return the result as a :class:`DataFrame`.
 
-    Only SELECT queries are supported (no INSERT / DDL). The referenced DataFrames are
-    registered as temporary views for the duration of the call and dropped afterwards.
-    The result can be further transformed with the DataFrame API.
+    The query must be a single statement that returns a result, such as SELECT or
+    VALUES (no INSERT / DDL; use :meth:`TableEnvironment.execute_sql` for those).
+    The referenced DataFrames are registered as temporary views for the duration of
+    the call and dropped afterwards. The result can be further transformed with the
+    DataFrame API.
 
     When ``auto_bind`` is ``True`` (the default), the caller's local and global variables
     are scanned for :class:`DataFrame` objects and each is registered under its Python
@@ -47,16 +49,27 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: DataFrame) -> DataFra
     shadows permanent catalog objects.
 
     Explicit keyword ``bindings`` define the SQL names directly. They are strict
-    (conflicts with existing temporary views raise :class:`ValueError`), take
-    precedence over auto-bind on name collisions, and are required to intentionally
-    shadow a permanent catalog table or view.
+    (invalid names and conflicts with existing temporary views raise
+    :class:`ValueError`), take precedence over auto-bind on name collisions, and are
+    required to intentionally shadow a permanent catalog table or view.
 
-    :param query: The SELECT query to execute.
+    The query runs in the :class:`TableEnvironment` of the bound DataFrames: the
+    environment shared by the explicit ``bindings`` when given, otherwise the
+    environment shared by all auto-bound candidates, falling back to the global
+    environment (see :func:`get_or_create_table_environment`). The resolved
+    environment is used only for this call and never replaces the global one.
+    Explicit bindings from different environments raise :class:`ValueError`;
+    auto-bound candidates that do not match the resolved environment are skipped
+    with a warning.
+
+    :param query: The query to execute.
     :param auto_bind: Whether to scan the caller's variables for DataFrames.
     :param bindings: Explicit name to :class:`DataFrame` bindings.
     :return: The query result.
-    :raises ValueError: If the query is not a SELECT query, or an explicit binding
-                        conflicts with an existing temporary view.
+    :raises ValueError: If the query is not a query statement, if an explicit binding
+                        is not a valid SQL identifier or conflicts with an existing
+                        temporary view, or if explicit bindings belong to different
+                        TableEnvironments.
     :raises TypeError: If an explicit binding is not a :class:`DataFrame`.
 
     Example::
@@ -94,7 +107,7 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: DataFrame) -> DataFra
                 }
         finally:
             del frame, caller
-    t_env = get_or_create_table_environment()
+    t_env = _resolve_table_environment(bindings, auto_bindings)
     registered: List[str] = []
     try:
         _register_bindings(t_env, bindings, auto_bindings, registered)
@@ -113,10 +126,41 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: DataFrame) -> DataFra
                 )
 
 
+def _resolve_table_environment(
+    explicit: Dict[str, Any], auto: Dict[str, DataFrame]
+) -> TableEnvironment:
+    """
+    Pick the environment to run the query in: the environment shared by the explicit
+    bindings when given, otherwise the environment shared by all auto-bound
+    candidates, falling back to the global environment. Explicit bindings from
+    different environments are an error the caller must resolve; auto-bind is
+    best-effort, so mixed auto-bound candidates fall back to the global environment
+    (the non-matching ones are skipped with a warning during registration).
+    """
+    for name, value in explicit.items():
+        if not isinstance(value, DataFrame):
+            raise TypeError(
+                f"sql() binding '{name}' must be a DataFrame, got {type(value).__name__}"
+            )
+    # Deduplicate by identity: environments are not comparable by value.
+    explicit_envs = {id(v._table._t_env): v._table._t_env for v in explicit.values()}
+    if len(explicit_envs) > 1:
+        raise ValueError(
+            "sql() explicit bindings belong to different TableEnvironments; "
+            "bind DataFrames from a single environment"
+        )
+    if explicit_envs:
+        return next(iter(explicit_envs.values()))
+    auto_envs = {id(v._table._t_env): v._table._t_env for v in auto.values()}
+    if len(auto_envs) == 1:
+        return next(iter(auto_envs.values()))
+    return get_or_create_table_environment()
+
+
 def _execute_query(t_env: TableEnvironment, query: str) -> Table:
     """
     Run ``query`` through :meth:`TableEnvironment.sql_query`, which parses the statement
-    and rejects anything that is not a single SELECT-style query. Translate that
+    and rejects anything that is not a single query returning a result. Translate that
     rejection into a plain :class:`ValueError`.
     """
     try:
@@ -124,8 +168,9 @@ def _execute_query(t_env: TableEnvironment, query: str) -> Table:
     except Py4JJavaError as e:
         if "Unsupported SQL query!" in str(e.java_exception):
             raise ValueError(
-                "sql() only supports SELECT queries (no INSERT / DDL); use "
-                "TableEnvironment.execute_sql() for other statements."
+                "sql() only supports queries that return a result, such as SELECT "
+                "or VALUES (no INSERT / DDL); use TableEnvironment.execute_sql() "
+                "for other statements."
             ) from e
         raise
 
@@ -155,29 +200,22 @@ def _is_simple_sql_identifier(t_env: TableEnvironment, name: str) -> bool:
 
 def _register_bindings(
     t_env: TableEnvironment,
-    explicit: Dict[str, Any],
+    explicit: Dict[str, DataFrame],
     auto: Dict[str, DataFrame],
     registered: List[str],
 ) -> None:
     """
     Register explicit and auto-collected bindings as temporary views, appending each
-    successful registration to ``registered``.
+    successful registration to ``registered``. The explicit bindings have already been
+    type-checked and share ``t_env`` (see :func:`_resolve_table_environment`).
     """
     temporary_tables = set(t_env.list_temporary_tables())
     # list_tables() covers both permanent and temporary tables and views.
     all_tables = set(t_env.list_tables())
 
     for name, value in explicit.items():
-        if not isinstance(value, DataFrame):
-            raise TypeError(
-                f"sql() binding '{name}' must be a DataFrame, got {type(value).__name__}"
-            )
-        if value._table._t_env is not t_env:
-            raise ValueError(
-                f"DataFrame bound as '{name}' belongs to a different TableEnvironment "
-                "than the one used by pyflink.dataframe; use set_table_environment() "
-                "to align them"
-            )
+        if not _is_simple_sql_identifier(t_env, name):
+            raise ValueError(f"cannot bind '{name}': it is not a valid SQL identifier")
         if name in temporary_tables:
             raise ValueError(
                 f"cannot bind '{name}': a temporary table or view with this name "

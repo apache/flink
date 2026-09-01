@@ -41,7 +41,7 @@ class SqlValidationTests(unittest.TestCase):
 
 
 class SqlTests(PyFlinkDataFrameUTTestCase):
-    def test_non_select_statements_are_rejected(self):
+    def test_non_query_statements_are_rejected(self):
         self.t_env.execute_sql(
             "CREATE TABLE sink (a BIGINT) WITH ('connector' = 'blackhole')"
         )
@@ -55,7 +55,7 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
         ]:
             with self.subTest(statement=statement):
                 with self.assertRaisesRegex(
-                    ValueError, "only supports SELECT queries"
+                    ValueError, "only supports queries that return a result"
                 ):
                     pf.sql(statement)
 
@@ -297,14 +297,63 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
         with self.assertRaisesRegex(Py4JJavaError, "No match found for function"):
             pf.sql("SELECT add_one(a) FROM df")
 
-    def test_explicit_binding_from_other_environment_raises(self):
+    def test_explicit_bindings_resolve_the_environment(self):
+        other_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        source = pf.DataFrame(other_env.from_elements([(1,), (2,)], ["a"]))
+
+        result = pf.sql("SELECT a FROM src", auto_bind=False, src=source)
+
+        self.assertEqual(
+            sorted(result.collect(), key=lambda row: row[0]), [Row(1), Row(2)]
+        )
+        # The environment is resolved per call; the global one is untouched.
+        self.assertIs(pf.get_table_environment(), self.t_env)
+        self.assertNotIn("src", other_env.list_temporary_views())
+
+    def test_explicit_bindings_from_different_environments_raise(self):
         other_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
         foreign = pf.DataFrame(other_env.from_elements([(1,)], ["a"]))
+        local = pf.from_dict({"b": [2]})
+
+        with self.assertRaisesRegex(ValueError, "different TableEnvironments"):
+            pf.sql(
+                "SELECT * FROM one JOIN two ON TRUE",
+                auto_bind=False,
+                one=foreign,
+                two=local,
+            )
+
+        self.assertNotIn("one", other_env.list_temporary_views())
+        self.assertNotIn("two", self.t_env.list_temporary_views())
+
+    def test_auto_bound_dataframes_sharing_an_environment_resolve_it(self):
+        other_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        remote_df = pf.DataFrame(other_env.from_elements([(1,)], ["a"]))  # noqa: F841
+
+        self.assertEqual(pf.sql("SELECT a FROM remote_df").collect(), [Row(1)])
+        self.assertIs(pf.get_table_environment(), self.t_env)
+
+    def test_environment_resolved_from_bindings_does_not_become_global(self):
+        pf.set_table_environment(None)
+        self.addCleanup(pf.set_table_environment, self.t_env)
+        other_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        source = pf.DataFrame(other_env.from_elements([(1,)], ["a"]))
+
+        self.assertEqual(
+            pf.sql("SELECT a FROM src", auto_bind=False, src=source).collect(),
+            [Row(1)],
+        )
+        self.assertIsNone(pf.get_table_environment())
+
+    def test_explicit_binding_with_invalid_sql_identifier_raises(self):
+        df = pf.from_dict({"a": [1]})
 
         with self.assertRaisesRegex(
-            ValueError, "different TableEnvironment"
+            ValueError, "'my df'.*not a valid SQL identifier"
         ):
-            pf.sql("SELECT a FROM src", auto_bind=False, src=foreign)
+            pf.sql("SELECT a FROM `my df`", auto_bind=False, **{"my df": df})
+
+        self.assertNotIn("my df", self.t_env.list_temporary_views())
 
     def test_auto_bound_dataframe_from_other_environment_is_skipped(self):
         other_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
