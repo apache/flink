@@ -684,13 +684,13 @@ def _resolve_invocation_signature(
     if implicit_parameter_name is not None:
         ignored_hint_names.add(implicit_parameter_name)
 
-    signature_inspection_target = signature_target
+    signature_inspection_target: Callable[..., Any] = signature_target
     bound_function = getattr(annotation_target, "__func__", None)
     is_wrapped_bound_method = bound_function is not None and hasattr(
         bound_function, "__wrapped__"
     )
     if is_wrapped_bound_method:
-        signature_inspection_target = bound_function
+        signature_inspection_target = cast(Callable[..., Any], bound_function)
 
     try:
         invocation_signature = inspect.signature(signature_inspection_target)
@@ -729,6 +729,8 @@ def _resolve_invocation_signature(
             ) from exc
         ignored_hint_names.update(bound_arguments.arguments)
         if is_wrapped_bound_method:
+            if invocation_signature is None:
+                return None, frozenset(ignored_hint_names)
             try:
                 invocation_signature = _apply_partial_to_signature(
                     invocation_signature, partial_source
