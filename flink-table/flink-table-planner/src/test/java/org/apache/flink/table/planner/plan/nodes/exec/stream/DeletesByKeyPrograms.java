@@ -113,7 +113,7 @@ public final class DeletesByKeyPrograms {
                                     .consumedValues(
                                             "+I[1, Alice, 12]",
                                             "+I[2, Bob, 22]",
-                                            "-D[1, , -1]",
+                                            "-D[1, null, null]",
                                             "+U[2, Bob, 32]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT id, name, `value` + 2 FROM source_t")
@@ -594,6 +594,232 @@ public final class DeletesByKeyPrograms {
                     .runSql(
                             "INSERT INTO sink_t SELECT l.id, ROW(l.id, l.arr), r.name"
                                     + " FROM left_t l JOIN right_t r ON l.id = r.id")
+                    .build();
+
+    /**
+     * A delete-by-key tombstone carries null for a NOT NULL {@code INT} column that is used as an
+     * element of an {@code ARRAY[...]} literal (element type {@code INT NOT NULL}) wrapped in a
+     * {@code ROW(...)} projection. Validates that array construction sets the element to null
+     * instead of writing the primitive default.
+     */
+    public static final TableTestProgram INSERT_SELECT_DELETE_BY_KEY_WITH_NOT_NULL_ARRAY_LITERAL =
+            TableTestProgram.of(
+                            "select-delete-on-key-to-delete-on-key-with-not-null-array-literal",
+                            "No ChangelogNormalize: a delete-by-key tombstone carries null for a NOT"
+                                    + " NULL INT column used as an element of an ARRAY[...] literal")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "v INT NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10),
+                                            Row.ofKind(RowKind.INSERT, 2, 20),
+                                            // Delete by key: NOT NULL int column is null
+                                            Row.ofKind(RowKind.DELETE, 1, null),
+                                            // Update after only
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "id INT PRIMARY KEY NOT ENFORCED",
+                                            "r ROW<a INT, b ARRAY<INT>>")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedValues(
+                                            "+I[1, +I[1, [10, 99]]]",
+                                            "+I[2, +I[2, [20, 99]]]",
+                                            "-D[1, +I[1, [null, 99]]]",
+                                            "+U[2, +I[2, [30, 99]]]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT id, ROW(id, ARRAY[v, 99]) FROM source_t")
+                    .build();
+
+    /**
+     * Same as the ARRAY literal variant but for a {@code MAP[...]} literal whose value comes from a
+     * NOT NULL {@code INT} column (value type {@code INT NOT NULL}).
+     */
+    public static final TableTestProgram INSERT_SELECT_DELETE_BY_KEY_WITH_NOT_NULL_MAP_LITERAL =
+            TableTestProgram.of(
+                            "select-delete-on-key-to-delete-on-key-with-not-null-map-literal",
+                            "No ChangelogNormalize: a delete-by-key tombstone carries null for a NOT"
+                                    + " NULL INT column used as a value of a MAP[...] literal")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "v INT NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10),
+                                            Row.ofKind(RowKind.INSERT, 2, 20),
+                                            // Delete by key: NOT NULL int column is null
+                                            Row.ofKind(RowKind.DELETE, 1, null),
+                                            // Update after only
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "id INT PRIMARY KEY NOT ENFORCED",
+                                            "r ROW<a INT, b MAP<INT, INT>>")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedValues(
+                                            "+I[1, +I[1, {99=10}]]",
+                                            "+I[2, +I[2, {99=20}]]",
+                                            "-D[1, +I[1, {99=null}]]",
+                                            "+U[2, +I[2, {99=30}]]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT id, ROW(id, MAP[99, v]) FROM source_t")
+                    .build();
+
+    /**
+     * A delete-by-key tombstone carries null for a NOT NULL {@code INT} column that is nested in a
+     * {@code ROW(...)} serialized by {@code JSON_OBJECT}. The nested field is NOT NULL, so the JSON
+     * row converter must still guard on the runtime null and emit {@code null} instead of reading
+     * the primitive default.
+     */
+    public static final TableTestProgram INSERT_SELECT_DELETE_BY_KEY_WITH_JSON_OBJECT_NESTED_ROW =
+            TableTestProgram.of(
+                            "select-delete-on-key-to-delete-on-key-with-json-object-nested-row",
+                            "No ChangelogNormalize: a delete-by-key tombstone carries null for a NOT"
+                                    + " NULL INT column nested in a ROW serialized by JSON_OBJECT")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "v INT NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10),
+                                            Row.ofKind(RowKind.INSERT, 2, 20),
+                                            // Delete by key: NOT NULL int column is null
+                                            Row.ofKind(RowKind.DELETE, 1, null),
+                                            // Update after only
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "j STRING")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedValues(
+                                            "+I[1, {\"r\":{\"EXPR$0\":10}}]",
+                                            "+I[2, {\"r\":{\"EXPR$0\":20}}]",
+                                            "-D[1, {\"r\":{\"EXPR$0\":null}}]",
+                                            "+U[2, {\"r\":{\"EXPR$0\":30}}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT id, JSON_OBJECT('r' VALUE ROW(v)) FROM source_t")
+                    .build();
+
+    /**
+     * Same as the JSON_OBJECT nested ROW variant but for a NOT NULL {@code INT} element nested in
+     * an {@code ARRAY[...]} serialized by {@code JSON_OBJECT}.
+     */
+    public static final TableTestProgram INSERT_SELECT_DELETE_BY_KEY_WITH_JSON_OBJECT_NESTED_ARRAY =
+            TableTestProgram.of(
+                            "select-delete-on-key-to-delete-on-key-with-json-object-nested-array",
+                            "No ChangelogNormalize: a delete-by-key tombstone carries null for a NOT"
+                                    + " NULL INT element nested in an ARRAY serialized by JSON_OBJECT")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "v INT NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10),
+                                            Row.ofKind(RowKind.INSERT, 2, 20),
+                                            // Delete by key: NOT NULL int column is null
+                                            Row.ofKind(RowKind.DELETE, 1, null),
+                                            // Update after only
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "j STRING")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedValues(
+                                            "+I[1, {\"a\":[10,99]}]",
+                                            "+I[2, {\"a\":[20,99]}]",
+                                            "-D[1, {\"a\":[null,99]}]",
+                                            "+U[2, {\"a\":[30,99]}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT id, JSON_OBJECT('a' VALUE ARRAY[v, 99]) FROM source_t")
+                    .build();
+
+    /**
+     * Same as the JSON_OBJECT nested ROW variant but for a NOT NULL {@code INT} value nested in a
+     * {@code MAP[...]} serialized by {@code JSON_OBJECT}.
+     */
+    public static final TableTestProgram INSERT_SELECT_DELETE_BY_KEY_WITH_JSON_OBJECT_NESTED_MAP =
+            TableTestProgram.of(
+                            "select-delete-on-key-to-delete-on-key-with-json-object-nested-map",
+                            "No ChangelogNormalize: a delete-by-key tombstone carries null for a NOT"
+                                    + " NULL INT value nested in a MAP serialized by JSON_OBJECT")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "v INT NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10),
+                                            Row.ofKind(RowKind.INSERT, 2, 20),
+                                            // Delete by key: NOT NULL int column is null
+                                            Row.ofKind(RowKind.DELETE, 1, null),
+                                            // Update after only
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "j STRING")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedValues(
+                                            "+I[1, {\"m\":{\"k\":10}}]",
+                                            "+I[2, {\"m\":{\"k\":20}}]",
+                                            "-D[1, {\"m\":{\"k\":null}}]",
+                                            "+U[2, {\"m\":{\"k\":30}}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT id, JSON_OBJECT('m' VALUE MAP['k', v]) FROM source_t")
+                    .build();
+
+    /**
+     * A delete-by-key tombstone carries null for a NOT NULL {@code INT} column that is CAST to
+     * another primitive type. The cast framework skips the runtime null guard when the input type
+     * is NOT NULL and the target is a primitive Java type, so it reads the primitive default (0)
+     * instead of producing null.
+     */
+    public static final TableTestProgram INSERT_SELECT_DELETE_BY_KEY_WITH_NOT_NULL_CAST =
+            TableTestProgram.of(
+                            "select-delete-on-key-to-delete-on-key-with-not-null-cast",
+                            "No ChangelogNormalize: a delete-by-key tombstone carries null for a NOT"
+                                    + " NULL INT column that is CAST to BIGINT")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "v INT NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10),
+                                            Row.ofKind(RowKind.INSERT, 2, 20),
+                                            // Delete by key: NOT NULL int column is null
+                                            Row.ofKind(RowKind.DELETE, 1, null),
+                                            // Update after only
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "v BIGINT")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedValues(
+                                            "+I[1, 10]", "+I[2, 20]", "-D[1, null]", "+U[2, 30]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT id, CAST(v AS BIGINT) FROM source_t")
                     .build();
 
     private DeletesByKeyPrograms() {}
