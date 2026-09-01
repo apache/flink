@@ -302,6 +302,25 @@ public class JsonRowDataSerDeSchemaTest {
     }
 
     @TestTemplate
+    void testVariantParseErrorDoesNotDropSiblingFields() throws Exception {
+        // A non-finite number makes the VARIANT invalid. With ignoreParseErrors that field becomes
+        // null, but a sibling field in the same row must still be read.
+        byte[] json = "{\"v\":{\"x\":1e400,\"y\":2},\"other\":5}".getBytes();
+        RowType rowType =
+                (RowType) ROW(FIELD("v", VARIANT()), FIELD("other", INT())).getLogicalType();
+
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, true, TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+
+        RowData rowData = deserializationSchema.deserialize(json);
+        assertThat(rowData.isNullAt(0)).as("invalid variant is null").isTrue();
+        assertThat(rowData.isNullAt(1)).as("sibling field survives").isFalse();
+        assertThat(rowData.getInt(1)).isEqualTo(5);
+    }
+
+    @TestTemplate
     void testVariantJsonNullIsDeserializedAsSqlNull() throws Exception {
         byte[] json = "{\"variant\":null}".getBytes();
         RowType rowType = (RowType) ROW(FIELD("variant", VARIANT())).getLogicalType();

@@ -108,9 +108,8 @@ public class BinaryVariantInternalBuilder {
     }
 
     /**
-     * Parse the JSON value at a Jackson parser as a Variant value. The parser may sit before the
-     * value, such as after {@code JsonNode.traverse()}, or on the value's first token when read
-     * mid-stream.
+     * Parse the JSON value read from a Jackson parser as a Variant value. The parser must be
+     * positioned before the value, as after {@code createParser} or a tree's {@code traverse()}.
      *
      * @throws IOException if any JSON parsing error happens.
      */
@@ -728,7 +727,6 @@ public class BinaryVariantInternalBuilder {
     private static final class JacksonJsonTokenSource implements JsonTokenSource {
 
         private final JsonParser parser;
-        private boolean started;
 
         private JacksonJsonTokenSource(JsonParser parser) {
             this.parser = parser;
@@ -736,15 +734,7 @@ public class BinaryVariantInternalBuilder {
 
         @Override
         public Token next() throws IOException {
-            // The parser may already sit on the value's first token when the caller hands it to us
-            // mid-stream. Consume that token before advancing.
-            final JsonToken token;
-            if (!started && parser.currentToken() != null) {
-                token = parser.currentToken();
-            } else {
-                token = parser.nextToken();
-            }
-            started = true;
+            JsonToken token = parser.nextToken();
             return token == null ? null : toToken(token);
         }
 
