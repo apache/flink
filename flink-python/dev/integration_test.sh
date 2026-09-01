@@ -42,6 +42,9 @@ function test_all_modules() {
 
     # test table module
     test_module "table"
+
+    # test util module
+    test_module "util"
 }
 
 # CURRENT_DIR is "flink/flink-python/dev/"

@@ -16,8 +16,9 @@
 # limitations under the License.
 ################################################################################
 
+import functools
 from inspect import getmembers, isfunction, isclass
-from typing import TypeVar, Callable, Any, Union, Type, Optional
+from typing import TypeVar, Callable, Any, Union, Type, Optional, cast
 from abc import ABCMeta, abstractmethod
 import warnings
 from typing_extensions import override
@@ -76,7 +77,10 @@ class BaseAPIStabilityDecorator(metaclass=ABCMeta):
 
         # Avoid duplicating directives if already present in the docstring.
         if directive not in docstring:
-            func_or_cls.__doc__ = f"{docstring}\n{directive}"
+            try:
+                func_or_cls.__doc__ = f"{docstring}\n{directive}"
+            except (AttributeError, TypeError):
+                pass
 
         # Add the decorator to an internal __stability_decorators set on the class/function
         # being decorated, for later introspection.
@@ -84,7 +88,13 @@ class BaseAPIStabilityDecorator(metaclass=ABCMeta):
             stability_decorators = getattr(func_or_cls, '__stability_decorators')
             stability_decorators.add(self.__class__)
         else:
-            setattr(func_or_cls, '__stability_decorators', {self.__class__})
+            # Not every decorated object accepts attribute assignment (a property, for
+            # example). Those simply cannot be introspected; that is not a reason to fail
+            # at import time.
+            try:
+                setattr(func_or_cls, '__stability_decorators', {self.__class__})
+            except (AttributeError, TypeError):
+                pass
 
         if isclass(func_or_cls):
             for name, method in getmembers(
@@ -126,20 +136,95 @@ class Deprecated(BaseAPIStabilityDecorator):
         self.detail = detail
 
     def get_directive(self, func_or_cls: T) -> str:
-        return f".. deprecated:: {self.since}\n{indent(dedent(self.detail), '   ')}"
+        directive = f".. deprecated:: {self.since}"
+        if self.detail is not None:
+            directive = f"{directive}\n{indent(dedent(self.detail), '   ')}"
+        return directive
+
+    def _get_message(self, func_or_cls: T) -> str:
+        """
+        Returns the warning message emitted when the deprecated API element is used.
+        """
+        name = getattr(func_or_cls, "__qualname__", None) or getattr(
+            func_or_cls, "__name__", "This API"
+        )
+        msg = f"{name} has been deprecated since version {self.since}."
+        if self.detail is not None:
+            msg = f"{msg} {self.detail}"
+        return msg
 
     @override
     def __call__(self, func_or_cls: T) -> T:
         """
-        Emit a warning on the deprecation of the given function/class. Then call the base class
-        for docstring modification.
-        """
-        msg = f"{func_or_cls.__qualname__} has been deprecated since version {self.since}."
-        if self.detail is not None:
-            msg = f"{msg} {self.detail}"
+        Arranges for a :class:`DeprecationWarning` to be emitted when the decorated API element
+        is *used*, and calls the base class for docstring modification.
 
-        warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
-        return super().__call__(func_or_cls)
+        The warning must not be emitted here: this method runs while the module defining the
+        API is being imported, so warning here would warn every user that imports PyFlink,
+        whether or not they use the deprecated API, and would never warn the ones who do.
+        """
+        # staticmethod/classmethod objects are not functions and do not proxy __qualname__ on
+        # all supported Python versions. Decorate the function they wrap instead, and
+        # re-package it so that the descriptor still behaves as one.
+        if isinstance(func_or_cls, (staticmethod, classmethod)):
+            return cast(T, type(func_or_cls)(self(func_or_cls.__func__)))
+
+        func_or_cls = super().__call__(func_or_cls)
+
+        if isclass(func_or_cls):
+            self._deprecate_class(func_or_cls)
+        elif isfunction(func_or_cls):
+            return cast(T, self._deprecate_function(func_or_cls))
+        # Anything else (a property, for instance) cannot be wrapped without changing what the
+        # decorated name refers to, so the docstring directive is all we apply.
+        return func_or_cls
+
+    def _deprecate_function(self, func: Callable[..., Any]) -> Callable[..., Any]:
+        """
+        Returns a wrapper around the given function that warns before delegating to it.
+        """
+        msg = self._get_message(func)
+
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # stacklevel=2 attributes the warning to the caller of the deprecated function
+            # rather than to this wrapper.
+            warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    def _deprecate_class(self, cls: Type[Any]) -> None:
+        """
+        Wraps the __init__ of the given class so that instantiating it warns.
+
+        The class itself is returned unchanged by :func:`__call__`; replacing it with a wrapper
+        would break isinstance checks and subclassing.
+        """
+        msg = self._get_message(cls)
+        original_init = cls.__init__
+
+        @functools.wraps(original_init)
+        def __init__(self: Any, *args: Any, **kwargs: Any) -> None:
+            # As in PEP 702, only instantiating the deprecated class itself warns. A subclass
+            # is not necessarily deprecated, and this also avoids warning twice when a
+            # deprecated class inherits the __init__ of a deprecated base class.
+            if type(self) is cls:
+                warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
+            if original_init is object.__init__ and (args or kwargs) \
+                    and type(self).__new__ is object.__new__:
+                # object.__new__ rejects excess arguments only for classes that define
+                # neither __new__ nor __init__; installing this __init__ would otherwise
+                # silence that error.
+                raise TypeError(f"{type(self).__name__}() takes no arguments")
+            original_init(self, *args, **kwargs)
+
+        try:
+            cls.__init__ = __init__  # type: ignore[misc]
+        except (AttributeError, TypeError):
+            # Extension types and the like do not allow their __init__ to be replaced; fall
+            # back to documenting the deprecation only.
+            pass
 
 
 class Experimental(BaseAPIStabilityDecorator):
