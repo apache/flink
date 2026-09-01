@@ -52,6 +52,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
@@ -97,6 +98,36 @@ class SqlNodeToOperationSqlCreateOrAlterMaterializedTableConverterTest
                                         + "FROM `builtin`.`default`.`t1` AS `t1`"),
                         TableChange.reset("connector"),
                         TableChange.reset("format"));
+    }
+
+    /**
+     * A new column inserted ahead of several trailing columns shifts every one of them, reordering
+     * existing columns relative to each other. {@code validateChanges} rejects that: a materialized
+     * table may only append columns, never reposition existing ones.
+     */
+    @Test
+    void testAlterMaterializedTableAsQueryRejectsInsertBeforeExistingColumns() {
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE mt AS SELECT a, 42 AS mid, b, c, d FROM t1";
+        final FullAlterMaterializedTableOperation op =
+                (FullAlterMaterializedTableOperation) parse(sql);
+
+        assertThatThrownBy(op::validateChanges)
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Column mismatch at position 3");
+    }
+
+    /** A bare column list naming the columns in their existing order changes nothing. */
+    @Test
+    void testAlterMaterializedTableColumnListMatchingOrderIsNoOp() {
+        final String sql = "CREATE OR ALTER MATERIALIZED TABLE mt (a, b, c, d) AS SELECT * FROM t1";
+        final FullAlterMaterializedTableOperation op =
+                (FullAlterMaterializedTableOperation) parse(sql);
+
+        assertThatNoException().isThrownBy(op::validateChanges);
+        assertThat(op.getNewTable().getUnresolvedSchema().getColumns())
+                .map(Schema.UnresolvedColumn::getName)
+                .containsExactly("a", "b", "c", "d");
     }
 
     @Test
