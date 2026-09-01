@@ -328,10 +328,43 @@ public class JsonParserToRowDataConverters implements Serializable {
     }
 
     private BinaryVariant convertToVariant(JsonParser jp) throws IOException {
-        // Read the whole value first so a parse error inside the variant cannot desync the shared
-        // parser and drop sibling fields. traverse() streams it without re-serializing to a String.
+        // Stream the variant straight from the shared parser, with no intermediate tree. If a parse
+        // error stops us mid-value, advance the parser to the end of the value so the enclosing row
+        // parser stays in sync and sibling fields survive.
         // Duplicate keys keep the last value, matching how a Jackson tree would collapse them.
-        return BinaryVariantInternalBuilder.parseJson(jp.readValueAsTree().traverse(), true);
+        final JsonToken start = jp.currentToken();
+        final int baseDepth = jp.getParsingContext().getNestingDepth();
+        try {
+            return BinaryVariantInternalBuilder.parseJson(jp, true);
+        } catch (Throwable t) {
+            skipToEndOfValue(jp, start, baseDepth);
+            throw t;
+        }
+    }
+
+    /**
+     * Advance {@code jp} to the last token of the value that started at {@code start}, given the
+     * parser nesting depth recorded before the value was read. A scalar value is a single token and
+     * needs no skipping; a container may have been left partway through by a parse error.
+     */
+    private static void skipToEndOfValue(JsonParser jp, JsonToken start, int baseDepth)
+            throws IOException {
+        if (start != JsonToken.START_OBJECT && start != JsonToken.START_ARRAY) {
+            return;
+        }
+
+        int open = jp.getParsingContext().getNestingDepth() - baseDepth + 1;
+        while (open > 0) {
+            final JsonToken token = jp.nextToken();
+            if (token == null) {
+                break;
+            }
+            if (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY) {
+                open++;
+            } else if (token == JsonToken.END_OBJECT || token == JsonToken.END_ARRAY) {
+                open--;
+            }
+        }
     }
 
     private JsonParserToRowDataConverter createDecimalConverter(DecimalType decimalType) {

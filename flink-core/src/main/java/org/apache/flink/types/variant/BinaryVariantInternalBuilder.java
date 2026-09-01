@@ -98,7 +98,8 @@ public class BinaryVariantInternalBuilder {
     /**
      * Parse a JSON string as a Variant value.
      *
-     * @throws IOException if any JSON parsing error happens.
+     * @throws IOException if the JSON is malformed, or a number is out of the range a Variant can
+     *     store.
      */
     public static BinaryVariant parseJson(String json, boolean allowDuplicateKeys)
             throws IOException {
@@ -108,10 +109,12 @@ public class BinaryVariantInternalBuilder {
     }
 
     /**
-     * Parse the JSON value read from a Jackson parser as a Variant value. The parser must be
-     * positioned before the value, as after {@code createParser} or a tree's {@code traverse()}.
+     * Parse the JSON value at a Jackson parser as a Variant value. The parser may be positioned
+     * before the value, as after {@code createParser} or a tree's {@code traverse()}, or on the
+     * value's first token when read mid-stream.
      *
-     * @throws IOException if any JSON parsing error happens.
+     * @throws IOException if the JSON is malformed, or a number is out of the range a Variant can
+     *     store.
      */
     public static BinaryVariant parseJson(JsonParser jsonParser, boolean allowDuplicateKeys)
             throws IOException {
@@ -121,7 +124,10 @@ public class BinaryVariantInternalBuilder {
     /**
      * Parse the tokens produced by a {@link JsonTokenSource} as a Variant value.
      *
-     * @throws IOException if any JSON parsing error happens.
+     * @throws IOException if the token stream is not well-formed JSON, or a number is out of the
+     *     range a Variant can store.
+     * @throws NumberFormatException if a {@code VALUE_NUMBER} token carries a literal that is not a
+     *     valid JSON number.
      */
     public static BinaryVariant parseJson(JsonTokenSource source, boolean allowDuplicateKeys)
             throws IOException {
@@ -727,6 +733,7 @@ public class BinaryVariantInternalBuilder {
     private static final class JacksonJsonTokenSource implements JsonTokenSource {
 
         private final JsonParser parser;
+        private boolean started;
 
         private JacksonJsonTokenSource(JsonParser parser) {
             this.parser = parser;
@@ -734,7 +741,15 @@ public class BinaryVariantInternalBuilder {
 
         @Override
         public Token next() throws IOException {
-            JsonToken token = parser.nextToken();
+            // The parser may already sit on the value's first token when a caller hands it to us
+            // mid-stream. Consume that token before advancing.
+            final JsonToken token;
+            if (!started && parser.currentToken() != null) {
+                token = parser.currentToken();
+            } else {
+                token = parser.nextToken();
+            }
+            started = true;
             return token == null ? null : toToken(token);
         }
 
