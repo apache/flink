@@ -117,12 +117,13 @@ class _UDFRuntimeSource:
 
     def validate_declared_determinism(self, declared: bool) -> None:
         if self.kind is _UDFSourceKind.SCALAR_FUNCTION_INSTANCE:
-            _validate_deterministic(
-                declared,
-                cast(
-                    Union[ScalarFunction, AsyncScalarFunction], self.callable_source
-                ).is_deterministic(),
-            )
+            actual = cast(
+                Union[ScalarFunction, AsyncScalarFunction], self.callable_source
+            ).is_deterministic()
+            if declared != actual:
+                raise ValueError(
+                    f"Inconsistent deterministic: {declared} and {actual}."
+                )
 
     def create_worker_udf(self) -> "_WorkerUDF":
         source = self.callable_source
@@ -161,12 +162,13 @@ class _WorkerUDF:
 
     def validate_deterministic(self, declared: bool) -> None:
         if self.kind is _UDFSourceKind.SCALAR_FUNCTION_CLASS:
-            _validate_deterministic(
-                declared,
-                cast(
-                    Union[ScalarFunction, AsyncScalarFunction], self.active_source
-                ).is_deterministic(),
-            )
+            actual = cast(
+                Union[ScalarFunction, AsyncScalarFunction], self.active_source
+            ).is_deterministic()
+            if declared != actual:
+                raise ValueError(
+                    f"Inconsistent deterministic: {declared} and {actual}."
+                )
 
     def open(self, function_context: Any) -> None:
         if self.kind.is_scalar_function:
@@ -456,15 +458,19 @@ def udf(
         actual_return_dtype = _infer_return_dtype(
             declaration_context, return_dtype, runtime_source.default_name
         )
-        actual_deterministic = _resolve_deterministic(
-            runtime_source, deterministic
-        )
-        actual_name = _resolve_name(runtime_source, name)
+        if not isinstance(deterministic, bool):
+            raise TypeError("deterministic must be a bool.")
+        runtime_source.validate_declared_determinism(deterministic)
+        actual_name = runtime_source.default_name if name is None else name
+        if not isinstance(actual_name, str):
+            raise TypeError("name must be a str or None.")
+        if not actual_name:
+            raise ValueError("name must not be empty.")
 
         return _DataFrameUDFWrapper(
             runtime_source,
             actual_return_dtype,
-            actual_deterministic,
+            deterministic,
             actual_name,
             actual_func_type,
             declaration_context.invocation_signature,
@@ -506,6 +512,12 @@ def _unwrap_partial(func: Any) -> Any:
     while isinstance(func, functools.partial):
         func = func.func
     return func
+
+
+def _default_udf_name(func: _UDFInput) -> str:
+    target = _unwrap_partial(func)
+    name = getattr(target, "__name__", None)
+    return name if isinstance(name, str) else type(target).__name__
 
 
 def _get_callable_inspection_target(
@@ -1025,40 +1037,6 @@ def _detect_func_type(declaration_context: _UDFDeclarationContext) -> str:
         if hint in pandas_types:
             return "pandas"
     return "general"
-
-
-# ---- Declaration options ----
-
-
-def _resolve_deterministic(
-    runtime_source: _UDFRuntimeSource, deterministic: bool
-) -> bool:
-    if not isinstance(deterministic, bool):
-        raise TypeError("deterministic must be a bool.")
-    runtime_source.validate_declared_determinism(deterministic)
-    return deterministic
-
-
-def _validate_deterministic(declared: bool, actual: bool) -> None:
-    if declared != actual:
-        raise ValueError(f"Inconsistent deterministic: {declared} and {actual}.")
-
-
-def _resolve_name(
-    runtime_source: _UDFRuntimeSource, name: Optional[str]
-) -> str:
-    actual_name = runtime_source.default_name if name is None else name
-    if not isinstance(actual_name, str):
-        raise TypeError("name must be a str or None.")
-    if not actual_name:
-        raise ValueError("name must not be empty.")
-    return actual_name
-
-
-def _default_udf_name(func: _UDFInput) -> str:
-    target = _unwrap_partial(func)
-    name = getattr(target, "__name__", None)
-    return name if isinstance(name, str) else type(target).__name__
 
 
 # ======================== Worker Adapters ========================
