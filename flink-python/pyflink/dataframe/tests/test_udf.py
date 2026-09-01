@@ -401,6 +401,10 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         self.assertEqual(
             inspect.signature(pf.udf(partial_add)), inspect.signature(partial_add)
         )
+        with self.assertRaisesRegex(
+            TypeError, "Invalid functools.partial UDF 'add'.*unexpected keyword"
+        ):
+            pf.udf(functools.partial(add, missing=1))
 
         uninspectable = pf.udf(operator.itemgetter(0), return_dtype=int)
         self.assertEqual(_return_dtype(uninspectable), pf.DataType.int64())
@@ -1101,6 +1105,14 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             def eval(self, value):
                 return value
 
+        class MissingCallableReturn:
+            def __call__(self, value):
+                return value
+
+        class MissingScalarReturn(ScalarFunction):
+            def eval(self, value):
+                return value
+
         invalid_declarations = [
             (
                 "not callable",
@@ -1134,6 +1146,18 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 lambda: pf.udf(unresolved_return),
                 TypeError,
                 "Cannot infer return_dtype",
+            ),
+            (
+                "callable class missing return",
+                lambda: pf.udf(MissingCallableReturn),
+                TypeError,
+                "Cannot infer return_dtype for 'MissingCallableReturn'",
+            ),
+            (
+                "scalar function class missing return",
+                lambda: pf.udf(MissingScalarReturn),
+                TypeError,
+                "Cannot infer return_dtype for 'MissingScalarReturn'",
             ),
             (
                 "Table return type",

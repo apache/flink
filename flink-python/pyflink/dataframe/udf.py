@@ -454,7 +454,7 @@ def udf(
             actual_func_type, return_dtype, runtime_source.is_async
         )
         actual_return_dtype = _infer_return_dtype(
-            declaration_context, return_dtype
+            declaration_context, return_dtype, runtime_source.default_name
         )
         actual_deterministic = _resolve_deterministic(
             runtime_source, deterministic
@@ -672,15 +672,15 @@ def _resolve_invocation_signature(
     if implicit_parameter_name is not None:
         ignored_hint_names.add(implicit_parameter_name)
 
-    try:
-        signature_inspection_target = signature_target
-        bound_function = getattr(annotation_target, "__func__", None)
-        is_wrapped_bound_method = bound_function is not None and hasattr(
-            bound_function, "__wrapped__"
-        )
-        if is_wrapped_bound_method:
-            signature_inspection_target = bound_function
+    signature_inspection_target = signature_target
+    bound_function = getattr(annotation_target, "__func__", None)
+    is_wrapped_bound_method = bound_function is not None and hasattr(
+        bound_function, "__wrapped__"
+    )
+    if is_wrapped_bound_method:
+        signature_inspection_target = bound_function
 
+    try:
         invocation_signature = inspect.signature(signature_inspection_target)
         parameters = tuple(invocation_signature.parameters.values())
         if (
@@ -692,24 +692,38 @@ def _resolve_invocation_signature(
             invocation_signature = invocation_signature.replace(
                 parameters=parameters[1:]
             )
+    except Exception:
+        invocation_signature = None
 
-        if isinstance(partial_source, functools.partial):
+    if isinstance(partial_source, functools.partial):
+        try:
             partial_target_signature = (
                 invocation_signature
                 if is_wrapped_bound_method
                 else inspect.signature(partial_source.func)
             )
+        except Exception:
+            return None, frozenset(ignored_hint_names)
+        if partial_target_signature is None:
+            return None, frozenset(ignored_hint_names)
+        try:
             bound_arguments = partial_target_signature.bind_partial(
                 *partial_source.args, **(partial_source.keywords or {})
             )
-            ignored_hint_names.update(bound_arguments.arguments)
-            if is_wrapped_bound_method:
+        except TypeError as exc:
+            raise TypeError(
+                f"Invalid functools.partial UDF "
+                f"'{_default_udf_name(partial_source)}': {exc}."
+            ) from exc
+        ignored_hint_names.update(bound_arguments.arguments)
+        if is_wrapped_bound_method:
+            try:
                 invocation_signature = _apply_partial_to_signature(
                     invocation_signature, partial_source
                 )
-        return invocation_signature, frozenset(ignored_hint_names)
-    except Exception:
-        return None, frozenset(ignored_hint_names)
+            except Exception:
+                return None, frozenset(ignored_hint_names)
+    return invocation_signature, frozenset(ignored_hint_names)
 
 
 def _create_declaration_context(
@@ -920,25 +934,23 @@ def _get_callable_return_type_hint(
 def _infer_return_dtype(
     declaration_context: _UDFDeclarationContext,
     return_dtype: Optional[_DataTypeLike],
+    udf_name: str,
 ) -> DataType:
     """Infer the DataFrame return type or validate its explicit declaration."""
     if return_dtype is not None:
         return _convert_to_dtype(return_dtype)
 
     return_hint = _get_callable_return_type_hint(declaration_context)
-    func_name = _default_udf_name(
-        declaration_context.annotation_target
-    )
     if return_hint is _UNRESOLVED_TYPE_HINT:
         raise TypeError(
-            f"Cannot infer return_dtype for '{func_name}': add a return annotation "
+            f"Cannot infer return_dtype for '{udf_name}': add a return annotation "
             "or specify return_dtype explicitly."
         )
     try:
         return _data_type_from_type_hint(return_hint)
     except (NameError, AttributeError, SyntaxError, TypeError) as exc:
         raise TypeError(
-            f"Cannot infer return_dtype for '{func_name}': add a return annotation "
+            f"Cannot infer return_dtype for '{udf_name}': add a return annotation "
             "or specify return_dtype explicitly."
         ) from exc
 
