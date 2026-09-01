@@ -16,20 +16,36 @@
     limitations under the License.
    ################################################################################
 
-==================
-PyFlink DataFrame
-==================
+=============
+Configuration
+=============
 
-This page gives an overview of all public PyFlink DataFrame APIs.
+A unified entry point for Flink configuration. The module-level singleton ``pf.config``
+accepts any Flink configuration key and buffers the value until
+``pf.get_or_create_table_environment()`` creates the underlying TableEnvironment. Because
+the values are supplied at creation time, options that can only be chosen then, such as
+``execution.runtime-mode``, take effect.
 
-.. toctree::
-    :maxdepth: 1
+Configuration must be set before the environment exists; ``pf.config.set()`` raises once an
+environment is active. An environment injected via ``pf.set_table_environment()`` is treated
+as fully configured and does not receive buffered values.
 
-    dataframe
-    udf
-    creation
-    io
-    sql
-    datatype
-    environment
+Example::
+
+    >>> import pyflink.dataframe as pf
+    >>> _ = pf.config.set("parallelism.default", "4") \
+    ...              .set("execution.runtime-mode", "batch")
+    >>> pf.config.get("parallelism.default")
+    '4'
+
+config
+------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
     config
+    config.set
+    config.get
