@@ -871,8 +871,8 @@ def _resolve_udf(func: _UDFInput) -> _ResolvedUDF:
             )
             if target is None:
                 raise TypeError(
-                    f"Scalar UDF class '{func.__name__}': eval must be defined as a "
-                    "method."
+                    f"Scalar UDF class '{func.__name__}' has an unsupported eval "
+                    "definition.\nDefine eval as an instance, class, or static method."
                 )
             declaration_context = _create_declaration_context(
                 target,
@@ -894,7 +894,8 @@ def _resolve_udf(func: _UDFInput) -> _ResolvedUDF:
             if descriptor_owner is None:
                 raise TypeError(f"func must be callable, got {func.__name__}.")
             raise TypeError(
-                f"Callable class '{func.__name__}': __call__ must be defined as a method."
+                f"Callable class '{func.__name__}' has an unsupported __call__ "
+                "definition.\nDefine __call__ as an instance, class, or static method."
             )
         _validate_zero_argument_class(func)
         declaration_context = _create_declaration_context(
@@ -994,18 +995,27 @@ def _infer_return_dtype(
     if return_dtype is not None:
         return _convert_to_dtype(return_dtype)
 
-    return_hint = _get_callable_return_type_hint(declaration_context)
-    if return_hint is _UNRESOLVED_TYPE_HINT:
+    annotations = getattr(
+        declaration_context.annotation_target, "__annotations__", {}
+    ) or {}
+    if "return" not in annotations:
         raise TypeError(
             f"Cannot infer return_dtype for '{udf_name}': add a return annotation "
             "or specify return_dtype explicitly."
+        )
+
+    return_hint = _get_callable_return_type_hint(declaration_context)
+    if return_hint is _UNRESOLVED_TYPE_HINT:
+        raise TypeError(
+            f"Cannot infer return_dtype for '{udf_name}' from its return annotation.\n"
+            "Specify return_dtype explicitly."
         )
     try:
         return _data_type_from_type_hint(return_hint)
     except (NameError, AttributeError, SyntaxError, TypeError) as exc:
         raise TypeError(
-            f"Cannot infer return_dtype for '{udf_name}': add a return annotation "
-            "or specify return_dtype explicitly."
+            f"Cannot infer return_dtype for '{udf_name}' from its return annotation.\n"
+            "Specify return_dtype explicitly."
         ) from exc
 
 

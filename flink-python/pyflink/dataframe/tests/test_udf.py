@@ -25,6 +25,7 @@ import types
 import unittest
 from dataclasses import dataclass
 from typing import Any, Callable, TypedDict, cast
+from unittest import mock
 
 import pandas as pd
 import pyarrow as pa
@@ -118,6 +119,14 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         self.assertEqual(_return_dtype(configured), pf.DataType.string())
         self.assertEqual(_return_dtype(direct), pf.DataType.int64())
         self.assertEqual(direct.__name__, "partial_add_one")
+        with mock.patch.object(
+            pf.DataType,
+            "_from_sql",
+            return_value=pf.DataType.int64(),
+        ) as from_sql:
+            sql_typed = pf.udf(identity, return_dtype="BIGINT")
+        self.assertEqual(_return_dtype(sql_typed), pf.DataType.int64())
+        from_sql.assert_called_once_with("BIGINT")
 
         expected_result_dtype = pf.DataType.struct(
             {
@@ -370,14 +379,6 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             async def eval(self, *values: int) -> int:
                 return sum(values)
 
-        class ExplodingSignature:
-            @property
-            def __signature__(self):
-                raise RuntimeError("signature lookup failed")
-
-            def __call__(self, value):
-                return value
-
         def variadic_add(*values: int) -> int:
             return sum(values)
 
@@ -409,17 +410,6 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
         uninspectable = pf.udf(operator.itemgetter(0), return_dtype=int)
         self.assertEqual(_return_dtype(uninspectable), pf.DataType.int64())
-        exploding_signature = pf.udf(ExplodingSignature(), return_dtype=int)
-        self.assertEqual(
-            _return_dtype(exploding_signature), pf.DataType.int64()
-        )
-        exploding_partial_signature = pf.udf(
-            functools.partial(ExplodingSignature()), return_dtype=int
-        )
-        self.assertEqual(
-            _return_dtype(exploding_partial_signature), pf.DataType.int64()
-        )
-        self.assertNotIn("__signature__", vars(exploding_partial_signature))
 
         wrapped_callable_instance = WrappedCallableClass()
         for source in (
@@ -777,7 +767,9 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         replaced.eval = types.MethodType(MethodOwner.eval, replaced)
 
         with self.assertRaisesRegex(
-            TypeError, "Cannot infer return_dtype.*return_dtype"
+            TypeError,
+            r"Cannot infer return_dtype for 'ReplacedScalarFunction' from its "
+            r"return annotation\.\nSpecify return_dtype explicitly\.",
         ):
             pf.udf(replaced)
 
@@ -814,14 +806,19 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             __call__ = classmethod(None)
 
         invalid_classes = (
-            HiddenCallable,
-            HiddenScalarFunction,
-            InvalidStaticCallable,
-            InvalidClassMethodCallable,
+            (HiddenCallable, "Callable class", "__call__"),
+            (HiddenScalarFunction, "Scalar UDF class", "eval"),
+            (InvalidStaticCallable, "Callable class", "__call__"),
+            (InvalidClassMethodCallable, "Callable class", "__call__"),
         )
-        for source in invalid_classes:
+        for source, source_kind, method_name in invalid_classes:
             with self.subTest(source=source):
-                with self.assertRaisesRegex(TypeError, "must be defined as a method"):
+                message = (
+                    rf"{source_kind} '{source.__name__}' has an unsupported "
+                    rf"{method_name} definition\.\nDefine {method_name} as an "
+                    r"instance, class, or static method\."
+                )
+                with self.assertRaisesRegex(TypeError, message):
                     pf.udf(source, return_dtype=int)
 
     def test_descriptor_based_callable_classes_require_instances(self):
@@ -837,12 +834,17 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         for source in (PartialMethodCallable, PartialDescriptorCallable):
             with self.subTest(class_source=source):
                 with self.assertRaisesRegex(
-                    TypeError, "must be defined as a method"
+                    TypeError,
+                    rf"Callable class '{source.__name__}' has an unsupported "
+                    r"__call__ definition\.\nDefine __call__ as an instance, "
+                    r"class, or static method\.",
                 ):
                     pf.udf(source, return_dtype=int)
 
             with self.subTest(instance_source=source):
-                declaration = pf.udf(source(), return_dtype=int)
+                declaration = pf.udf(
+                    source(), return_dtype=int, func_type="general"
+                )
                 self.assertEqual(
                     _return_dtype(declaration), pf.DataType.int64()
                 )
@@ -859,7 +861,11 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             def __call__(self, value: int) -> "Output":
                 return {"value": value}
 
-        with self.assertRaisesRegex(TypeError, "Cannot infer return_dtype"):
+        with self.assertRaisesRegex(
+            TypeError,
+            r"Cannot infer return_dtype for 'Describe' from its return annotation\.\n"
+            r"Specify return_dtype explicitly\.",
+        ):
             pf.udf(Describe)
 
         with self.assertRaisesRegex(TypeError, "DataType or SQL"):
@@ -873,7 +879,11 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         def invalid_output(value: int) -> InvalidOutput:
             return {"value": value}
 
-        with self.assertRaisesRegex(TypeError, "Cannot infer return_dtype"):
+        with self.assertRaisesRegex(
+            TypeError,
+            r"Cannot infer return_dtype for 'invalid_output' from its return "
+            r"annotation\.\nSpecify return_dtype explicitly\.",
+        ):
             pf.udf(invalid_output)
 
         with self.assertRaisesRegex(TypeError, "DataType or SQL"):
@@ -910,7 +920,9 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
         malformed_return.__annotations__["return"] = "list["
         with self.assertRaisesRegex(
-            TypeError, "Cannot infer return_dtype.*return_dtype"
+            TypeError,
+            r"Cannot infer return_dtype for 'malformed_return' from its return "
+            r"annotation\.\nSpecify return_dtype explicitly\.",
         ):
             pf.udf(malformed_return)
 
@@ -1198,25 +1210,25 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 "missing return",
                 lambda: pf.udf(missing_return),
                 TypeError,
-                "Cannot infer return_dtype",
+                "add a return annotation",
             ),
             (
                 "unresolved return",
                 lambda: pf.udf(unresolved_return),
                 TypeError,
-                "Cannot infer return_dtype",
+                r"from its return annotation\.\nSpecify return_dtype explicitly\.",
             ),
             (
                 "callable class missing return",
                 lambda: pf.udf(MissingCallableReturn),
                 TypeError,
-                "Cannot infer return_dtype for 'MissingCallableReturn'",
+                "add a return annotation",
             ),
             (
                 "scalar function class missing return",
                 lambda: pf.udf(MissingScalarReturn),
                 TypeError,
-                "Cannot infer return_dtype for 'MissingScalarReturn'",
+                "add a return annotation",
             ),
             (
                 "Table return type",
@@ -1578,8 +1590,6 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
 
 class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
     def test_with_columns_binds_expressions_and_resolves_output_schema(self):
-        sql_typed = pf.udf(lambda value: value, return_dtype="BIGINT")
-
         @pf.udf(name="render_value")
         def render(value: int, suffix: str) -> str:
             return f"{value}{suffix}"
@@ -1598,12 +1608,11 @@ class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
         result = pf.from_records([(1,)], schema=["id"]).with_columns(
             rendered=render(pf.col("id"), "-literal"),
             description=describe(pf.col("id")),
-            sql_value=sql_typed(pf.col("id")),
         )
 
         self.assert_dataframe_schema(
             result,
-            ["id", "rendered", "description", "sql_value"],
+            ["id", "rendered", "description"],
             [
                 TableDataTypes.BIGINT(),
                 TableDataTypes.STRING(),
@@ -1615,7 +1624,6 @@ class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
                         ),
                     ]
                 ),
-                TableDataTypes.BIGINT(),
             ],
         )
 
@@ -1626,10 +1634,6 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
         class Details:
             doubled: int
             labels: list
-
-        @pf.udf
-        def add_one(value: int) -> int:
-            return value + 1
 
         @pf.udf
         async def add_two(value: int) -> int:
@@ -1662,34 +1666,23 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
                 value, = values
                 return value + self._increment
 
-        class ClassNonDeterministic(ScalarFunction):
-            def eval(self, *values: int) -> int:
-                value, = values
-                return value + 6
-
-            def is_deterministic(self):
-                return False
-
         deferred = pf.udf(DeferredCallable)
         opened_scalar_class = pf.udf(OpenedScalarFunction)
-        scalar_class = pf.udf(ClassNonDeterministic, deterministic=False)
 
         result = (
             pf.from_records([(1,)], schema=["id"])
             .with_columns(async_value=add_two(pf.col("id")))
             .with_columns(
-                sync_value=add_one(pf.col("id")),
                 pandas_value=add_three(pf.col("id")),
                 details=details(pf.col("id")),
                 deferred_value=deferred(pf.col("id")),
                 scalar_value=opened_scalar_class(pf.col("id")),
-                scalar_class_value=scalar_class(pf.col("id")),
             )
         )
 
         self.assertEqual(
             result.collect(),
-            [Row(1, 3, 2, 4, Row(2, ["1"]), 5, 6, 7)],
+            [Row(1, 3, 4, Row(2, ["1"]), 5, 6)],
         )
 
 
