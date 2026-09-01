@@ -342,6 +342,54 @@ class HistoryServerArchiveFetcherTest {
     }
 
     @TestTemplate
+    void testUpdateJobOverviewSkipsMalformedEntryInsteadOfFailingEverything() throws Exception {
+        JobID goodJob = JobID.generate();
+        createJobArchive(remoteArchiveRootPath, goodJob, true);
+
+        HistoryServerArchiveFetcher<?> fetcher =
+                createArchiveFetcher(remoteArchiveRootPath, true, archiveStorage);
+        fetcher.fetchArchives(EAGER);
+
+        // inject a malformed per-job overview entry alongside the good one
+        archiveStorage.putArchiveContent("overviews/malformed-job.json", "{not valid json");
+
+        fetcher.updateJobOverview();
+
+        Object overviewObject = archiveStorage.getEntry("jobs/overview.json");
+        String overviewContent = archiveStorage.readArchiveContent(overviewObject);
+        MultipleJobsDetails overview =
+                OBJECT_MAPPER.readValue(overviewContent, MultipleJobsDetails.class);
+
+        assertThat(overview.getJobs()).hasSize(1);
+        assertThat(overview.getJobs().iterator().next().getJobId()).isEqualTo(goodJob);
+    }
+
+    @TestTemplate
+    void testUpdateJobOverviewDoesNotWipeGoodOverviewWhenAllEntriesAreMalformed() throws Exception {
+        JobID job = JobID.generate();
+        createJobArchive(remoteArchiveRootPath, job, true);
+
+        HistoryServerArchiveFetcher<?> fetcher =
+                createArchiveFetcher(remoteArchiveRootPath, true, archiveStorage);
+        fetcher.fetchArchives(EAGER);
+
+        Object overviewObjectBefore = archiveStorage.getEntry("jobs/overview.json");
+        String overviewContentBefore = archiveStorage.readArchiveContent(overviewObjectBefore);
+
+        // corrupt the only per-job overview entry, simulating e.g. an incompatible archive
+        // written by a different Flink version
+        archiveStorage.putArchiveContent("overviews/" + job + ".json", "{not valid json anymore");
+
+        fetcher.updateJobOverview();
+
+        // the previously written combined overview must be preserved, not replaced by an empty
+        // one
+        Object overviewObjectAfter = archiveStorage.getEntry("jobs/overview.json");
+        String overviewContentAfter = archiveStorage.readArchiveContent(overviewObjectAfter);
+        assertThat(overviewContentAfter).isEqualTo(overviewContentBefore);
+    }
+
+    @TestTemplate
     void testLegacyJobOverviewMigration() throws Exception {
         JobID jobId = createLegacyArchive(remoteArchiveRootPath.toPath(), false);
 
