@@ -263,7 +263,7 @@ class BinaryVariantTest {
         Instant instant = Instant.EPOCH;
         LocalDateTime localDateTime = LocalDateTime.of(2000, 1, 1, 0, 0);
         LocalDate localDate = LocalDate.of(2000, 1, 1);
-        LocalTime localTime = LocalTime.of(13, 45, 30, 123456000);
+        LocalTime localTime = LocalTime.of(13, 45, 30, 123456789);
         Instant nanoInstant = Instant.EPOCH.plusNanos(123456789);
         LocalDateTime nanoLocalDateTime = LocalDateTime.of(2000, 1, 1, 0, 0, 0, 123456789);
 
