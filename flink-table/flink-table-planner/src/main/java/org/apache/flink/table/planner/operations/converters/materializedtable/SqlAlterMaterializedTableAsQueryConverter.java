@@ -74,7 +74,8 @@ public class SqlAlterMaterializedTableAsQueryConverter
             ResolvedSchema newSchema = queryOperation.getResolvedSchema();
             List<TableChange> tableChanges =
                     new ArrayList<>(
-                            MaterializedTableUtils.buildSchemaTableChanges(oldSchema, newSchema));
+                            MaterializedTableUtils.validateAndExtractColumnChanges(
+                                    oldSchema, newSchema, false));
 
             if (!tableChanges.isEmpty()) {
                 final boolean hasNonPersistedColumn =
