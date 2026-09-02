@@ -22,8 +22,9 @@ Configuration
 
 A unified entry point for Flink configuration. The module-level singleton ``pf.config``
 accepts any Flink configuration key and buffers the value, so configuration can be set at
-any time -- even before an environment exists. Buffered values are applied automatically
-once the underlying TableEnvironment is created or injected.
+any time -- even before an environment exists. Buffered values are used when the underlying
+TableEnvironment is created, and are applied to an injected environment for every key it
+does not already set explicitly.
 
 Example::
 
@@ -41,6 +42,7 @@ DataFrameConfig
 .. autosummary::
     :toctree: api/
 
+    config
     DataFrameConfig
     DataFrameConfig.set
     DataFrameConfig.get

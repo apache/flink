@@ -38,7 +38,7 @@ Example::
     <Row(1, 'Alice', 31)>
 """
 
-from pyflink.dataframe.config import DataFrameConfig, config
+from pyflink.dataframe._config import DataFrameConfig, config
 from pyflink.dataframe.convert import (
     from_arrow,
     from_dict,

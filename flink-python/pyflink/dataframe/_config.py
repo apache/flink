@@ -18,6 +18,7 @@
 
 from typing import Dict, Optional
 
+from pyflink.common import Configuration
 from pyflink.table import TableEnvironment
 from pyflink.util.api_stability_decorators import PublicEvolving
 
@@ -33,11 +34,13 @@ class DataFrameConfig:
     A unified entry point for Flink configuration in the DataFrame API.
 
     Accepts any Flink configuration key and buffers the value, so configuration can be set
-    at any time -- even before an environment exists. Buffered values are applied
-    automatically once the underlying :class:`~pyflink.table.TableEnvironment` is created
-    by :func:`get_or_create_table_environment` or injected via
-    :func:`set_table_environment`. While an environment is active, values are also written
-    through to its configuration immediately.
+    at any time -- even before an environment exists. Buffered values are used when
+    :func:`get_or_create_table_environment` creates the underlying
+    :class:`~pyflink.table.TableEnvironment`, so options that can only be chosen at creation
+    time, such as ``execution.runtime-mode``, take effect. An environment injected via
+    :func:`set_table_environment` receives the buffered values for every key it does not
+    already set explicitly. While an environment is active, values are also written through
+    to its configuration immediately.
 
     Use the module-level singleton :data:`config` instead of instantiating this class.
 
@@ -60,7 +63,8 @@ class DataFrameConfig:
 
         The value is buffered and applied to the underlying environment once it is created
         or injected; when an environment is already active, the value is applied to its
-        configuration immediately as well.
+        configuration immediately as well. A value the active environment rejects is not
+        buffered.
 
         :param key: The configuration key.
         :param value: The configuration value. It will be parsed by the framework on access.
@@ -80,13 +84,12 @@ class DataFrameConfig:
         if not isinstance(value, str):
             raise TypeError("value must be a string")
 
-        self._buffered[key] = value
-
         from pyflink.dataframe.context import get_table_environment
 
         t_env = get_table_environment()
         if t_env is not None:
             t_env.get_config().set(key, value)
+        self._buffered[key] = value
         return self
 
     def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
@@ -126,10 +129,22 @@ class DataFrameConfig:
             return t_env.get_config().get(key, default)
         return self._buffered.get(key, default)
 
-    def _apply_to(self, t_env: TableEnvironment) -> None:
-        table_config = t_env.get_config()
+    def _to_configuration(self) -> Configuration:
+        configuration = Configuration()
         for key, value in self._buffered.items():
-            table_config.set(key, value)
+            configuration.set_string(key, value)
+        return configuration
+
+    def _apply_to(self, t_env: TableEnvironment, overwrite: bool) -> None:
+        """
+        Applies the buffered values to ``t_env``. With ``overwrite`` set to ``False``, keys
+        the environment already sets explicitly in its own configuration are left untouched.
+        """
+        table_config = t_env.get_config()
+        explicit_configuration = table_config.get_configuration()
+        for key, value in self._buffered.items():
+            if overwrite or not explicit_configuration.contains_key(key):
+                table_config.set(key, value)
 
 
 config = DataFrameConfig()
