@@ -521,9 +521,7 @@ public final class DeletesByKeyPrograms {
                                             .producedValues(
                                                     Row.ofKind(RowKind.INSERT, 1, 10),
                                                     Row.ofKind(RowKind.INSERT, 2, 20),
-                                                    // Delete by key: NOT NULL int column is null
                                                     Row.ofKind(RowKind.DELETE, 1, null),
-                                                    // Update after only
                                                     Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
                                             .build())
                             .setupTableSink(
@@ -615,9 +613,7 @@ public final class DeletesByKeyPrograms {
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, 1, 10),
                                             Row.ofKind(RowKind.INSERT, 2, 20),
-                                            // Delete by key: NOT NULL int column is null
                                             Row.ofKind(RowKind.DELETE, 1, null),
-                                            // Update after only
                                             Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
                                     .build())
                     .setupTableSink(
@@ -653,9 +649,7 @@ public final class DeletesByKeyPrograms {
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, 1, 10),
                                             Row.ofKind(RowKind.INSERT, 2, 20),
-                                            // Delete by key: NOT NULL int column is null
                                             Row.ofKind(RowKind.DELETE, 1, null),
-                                            // Update after only
                                             Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
                                     .build())
                     .setupTableSink(
@@ -693,9 +687,7 @@ public final class DeletesByKeyPrograms {
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, 1, 10),
                                             Row.ofKind(RowKind.INSERT, 2, 20),
-                                            // Delete by key: NOT NULL int column is null
                                             Row.ofKind(RowKind.DELETE, 1, null),
-                                            // Update after only
                                             Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
                                     .build())
                     .setupTableSink(
@@ -730,9 +722,7 @@ public final class DeletesByKeyPrograms {
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, 1, 10),
                                             Row.ofKind(RowKind.INSERT, 2, 20),
-                                            // Delete by key: NOT NULL int column is null
                                             Row.ofKind(RowKind.DELETE, 1, null),
-                                            // Update after only
                                             Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
                                     .build())
                     .setupTableSink(
@@ -767,9 +757,7 @@ public final class DeletesByKeyPrograms {
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, 1, 10),
                                             Row.ofKind(RowKind.INSERT, 2, 20),
-                                            // Delete by key: NOT NULL int column is null
                                             Row.ofKind(RowKind.DELETE, 1, null),
-                                            // Update after only
                                             Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
                                     .build())
                     .setupTableSink(
@@ -787,12 +775,6 @@ public final class DeletesByKeyPrograms {
                             "INSERT INTO sink_t SELECT id, JSON_OBJECT('m' VALUE MAP['k', v]) FROM source_t")
                     .build();
 
-    /**
-     * A delete-by-key tombstone carries null for a NOT NULL {@code INT} column that is CAST to
-     * another primitive type. The cast framework skips the runtime null guard when the input type
-     * is NOT NULL and the target is a primitive Java type, so it reads the primitive default (0)
-     * instead of producing null.
-     */
     public static final TableTestProgram INSERT_SELECT_DELETE_BY_KEY_WITH_NOT_NULL_CAST =
             TableTestProgram.of(
                             "select-delete-on-key-to-delete-on-key-with-not-null-cast",
@@ -806,9 +788,7 @@ public final class DeletesByKeyPrograms {
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, 1, 10),
                                             Row.ofKind(RowKind.INSERT, 2, 20),
-                                            // Delete by key: NOT NULL int column is null
                                             Row.ofKind(RowKind.DELETE, 1, null),
-                                            // Update after only
                                             Row.ofKind(RowKind.UPDATE_AFTER, 2, 30))
                                     .build())
                     .setupTableSink(
