@@ -139,7 +139,7 @@ class BinaryVariantTest {
     }
 
     @Test
-    void testNanosecondPrecisionOutOfRange() {
+    void testNanosecondTimestampPrecisionRange() {
         // Nanosecond timestamps only span +/-292 years around 1970, beyond that must fail with
         // proper exception
         LocalDateTime outOfRangeLocalDateTime = LocalDateTime.of(2300, 1, 1, 0, 0, 0, 1);
@@ -151,6 +151,31 @@ class BinaryVariantTest {
         assertThatThrownBy(() -> builder.of(outOfRangeInstant))
                 .isInstanceOf(VariantTypeException.class)
                 .hasMessageContaining("nanosecond precision");
+    }
+
+    @Test
+    void testMicrosecondTimestampPrecisionRange() {
+        // Microsecond precision spans = +/-292.000 years around 1970
+        LocalDateTime inRangeLocalDateTime = LocalDateTime.of(150_000, 1, 1, 0, 0, 0, 0);
+        Variant inRangeLocalDateTimeVariant = builder.of(inRangeLocalDateTime);
+        assertThat(inRangeLocalDateTimeVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP);
+        assertThat(inRangeLocalDateTimeVariant.getDateTime()).isEqualTo(inRangeLocalDateTime);
+
+        Instant inRangeInstant = inRangeLocalDateTime.toInstant(ZoneOffset.UTC);
+        Variant inRangeInstantVariant = builder.of(inRangeInstant);
+        assertThat(inRangeInstantVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP_LTZ);
+        assertThat(inRangeInstantVariant.getInstant()).isEqualTo(inRangeInstant);
+
+        // beyond that must fail with proper exception
+        LocalDateTime outOfRangeLocalDateTime = LocalDateTime.of(350_000, 1, 1, 0, 0, 0, 0);
+        assertThatThrownBy(() -> builder.of(outOfRangeLocalDateTime))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("microsecond precision");
+
+        Instant outOfRangeInstant = outOfRangeLocalDateTime.toInstant(ZoneOffset.UTC);
+        assertThatThrownBy(() -> builder.of(outOfRangeInstant))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("microsecond precision");
     }
 
     @Test

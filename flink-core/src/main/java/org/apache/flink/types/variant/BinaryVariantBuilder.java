@@ -108,7 +108,7 @@ public class BinaryVariantBuilder implements VariantBuilder {
     public Variant of(Instant instant) {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
         if (instant.getNano() % 1000 == 0) {
-            builder.appendTimestampLtz(ChronoUnit.MICROS.between(Instant.EPOCH, instant));
+            builder.appendTimestampLtz(microsSinceEpoch(instant));
         } else {
             builder.appendTimestampLtzNanos(nanosSinceEpoch(instant));
         }
@@ -127,11 +127,25 @@ public class BinaryVariantBuilder implements VariantBuilder {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
         Instant instant = localDateTime.toInstant(ZoneOffset.UTC);
         if (localDateTime.getNano() % 1000 == 0) {
-            builder.appendTimestamp(ChronoUnit.MICROS.between(Instant.EPOCH, instant));
+            builder.appendTimestamp(microsSinceEpoch(instant));
         } else {
             builder.appendTimestampNanos(nanosSinceEpoch(instant));
         }
         return builder.build();
+    }
+
+    private static long microsSinceEpoch(Instant instant) {
+        try {
+            return Math.addExact(
+                    Math.multiplyExact(instant.getEpochSecond(), 1_000_000L),
+                    instant.getNano() / 1000);
+        } catch (ArithmeticException e) {
+            throw new VariantTypeException(
+                    String.format(
+                            "%s is outside the range supported by microsecond precision variant "
+                                    + "timestamps.",
+                            instant));
+        }
     }
 
     private static long nanosSinceEpoch(Instant instant) {
