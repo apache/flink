@@ -36,7 +36,7 @@ Session Cluster](#flink-session-cluster), to a dedicated [Flink Application
 Cluster](#flink-application-cluster), or to a [Flink Job
 Cluster](#flink-job-cluster).
 
-See [Flink Session Cluster](#flink-session-cluster) for comparison.
+See also [Flink Session Cluster](#flink-session-cluster).
 
 #### Flink Application Cluster
 
@@ -91,14 +91,15 @@ to [Sub-Tasks](#sub-task), and Sink transaction metadata. Async I/O in-flight da
 of some asynchronous Sink connectors are also part of the [Operator](#operator) [State](#managed-state)
 and are saved in the Checkpoint.
 When [Unaligned Checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#unaligned-checkpointing)
-are enabled, it may also contain data in flight between Sub-Tasks.
+are enabled, it may also contain data in-flight between Sub-Tasks.
 
 Checkpoints are triggered automatically and periodically while the Job is running, and are used to
 recover from failures such as a TaskManager crash or a network problem: the Job restarts from the
 latest completed Checkpoint. They are designed for low overhead and run mostly asynchronously,
 without blocking record processing, apart from a synchronous phase in each Sub-Task.
 Transactional [Sources and Sinks](#operator) tie their transactions to the Checkpoint; the
-Kafka Sink, for instance, commits its Kafka transactions when a Checkpoint completes.
+Kafka Sink, for instance, only commits its Kafka transactions when the Checkpoint containing the 
+transaction records completes.
 
 Checkpoints are only used in the `STREAMING` [Execution Mode](#runtime-execution-mode). In `BATCH`
 mode, Flink recovers instead by backtracking to previous processing stages whose intermediate results
@@ -116,8 +117,10 @@ Checkpoints and [Savepoints](#savepoint) are also referred to, collectively, as 
 
 The durable location where [Checkpoints](#checkpoint) and [Savepoints](#savepoint) are saved. It can
 be either the Java Heap of the [Flink JobManager](#flink-jobmanager) or a filesystem. Production
-deployments use a filesystem, typically remote object storage, since Checkpoint Storage is what makes
-State survive the loss of a [TaskManager](#flink-taskmanager) or of the whole [Flink Cluster](#flink-cluster).
+deployments use a filesystem, typically remote object storage, which makes State survive the loss of 
+a [TaskManager](#flink-taskmanager) or of the whole [Flink Cluster](#flink-cluster).
+Conversely, when Checkpoint Storage is on the [Flink JobManager](#flink-jobmanager), the State can
+survive the loss of a [TaskManager](#flink-taskmanager) but not of the entire [Flink Cluster](#flink-cluster).
 
 The relationship between the State Backend and Checkpoint Storage changes with [Disaggregated
 State]({{< ref "docs/ops/state/disaggregated_state" >}}), where remote storage becomes the primary
@@ -172,7 +175,8 @@ the same [Operator](#operator) or [Function](#function) type are running in para
 #### Flink Job
 
 A Flink Job is the unit of data processing execution in Flink: a Job as a whole is submitted,
-started, stopped and resumed, although under some conditions Flink may restart a Job only partially
+started, stopped and resumed. 
+Note: under some conditions Flink may restart a Job only partially
 (See [Restart Pipelined Region Failover Strategy]({{< ref "docs/ops/state/task_failure_recovery" >}}#restart-pipelined-region-failover-strategy)).
 
 A Job is submitted either by a [Flink Application](#flink-application), by calling `execute()` on an
@@ -215,6 +219,11 @@ Graph](#physical-graph), schedules the resulting [Sub-Tasks](#sub-task) on the
 [TaskManagers](#flink-taskmanager), and coordinates [Checkpoints](#checkpoint) and
 [Savepoints](#savepoint). It contains three distinct components: Flink Resource Manager, Flink
 Dispatcher and one [Flink JobMaster](#flink-jobmaster) per running [Flink Job](#flink-job).
+
+By default, a [Flink Cluster](#flink-cluster) has a single JobManager, making it a *single point of 
+failure* (SPOF). See 
+[JobManager High Availability]({{< ref "docs/deployment/ha/overview" >}}#jobmanager-high-availability)
+for different methods to make the JobManager Highly Available.
 
 See also [Flink Architecture: JobManager]({{< ref "docs/concepts/flink-architecture" >}}#jobmanager).
 
@@ -291,7 +300,7 @@ See also [Flink Architecture: Tasks and Operator Chains]({{< ref "docs/concepts/
 
 #### Parallelism
 
-The number of parallel flows Flink uses to process the data, and therefore the way a [Flink
+The number of parallel executions Flink uses to process the data, and therefore the way a [Flink
 Job](#flink-job) scales horizontally. The Parallelism of an [Operator](#operator) determines the
 number of [Sub-Tasks](#sub-task) and of [Physical Partitions](#partition) it is executed with.
 
@@ -357,6 +366,10 @@ local disk when memory is insufficient.
 
 Note that a bounded data set can also be processed in `STREAMING` mode, for example by setting
 `scan.bounded.mode` on the Kafka Source (SQL and Table API) or `.setBounded()` in the DataStream API.
+This only applies to data sources which are normally unbounded, like Kafka.
+When an intrinsically unbounded source is consumed in bounded mode, consumption stops at a predefined
+point, for example the latest Kafka partition offset at the moment the [Job](#flink-job) started, 
+even though more records are available in the source.
 
 #### Savepoint
 
