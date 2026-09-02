@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 
+import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -609,7 +610,7 @@ class DataFrame:
         if partition_by is None or (isinstance(partition_by, (list, tuple)) and not partition_by):
             partition_keys = []
         else:
-            partition_keys = _normalize_subset(partition_by)
+            partition_keys = _normalize_subset(partition_by, "partition_by")
 
         descending_flags = _normalize_descending(descending, len(order_keys))
         nulls = _normalize_nulls_first(nulls_first, len(order_keys))
@@ -694,6 +695,160 @@ class DataFrame:
             expression = table_col(key) if isinstance(key, str) else key
             order_expressions.append(expression.desc if is_descending else expression.asc)
         return DataFrame(self._table.order_by(*order_expressions))
+
+    # ======================== Windowing ========================
+
+    @PublicEvolving()
+    def tumble(
+        self,
+        *,
+        on: Union[str, Expression],
+        size: Union["datetime.timedelta", Expression],
+    ) -> "DataFrame":
+        """
+        Assign rows to fixed-size, non-overlapping (tumbling) windows.
+
+        Appends ``window_start``, ``window_end`` and ``window_time`` and returns an ordinary
+        DataFrame.
+
+        :param on: An existing event-time or processing-time column.
+        :param size: Window length.
+        :return: A new DataFrame with the window columns appended.
+        :raises TypeError: If ``on`` or ``size`` has an unsupported type.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> from datetime import timedelta
+            >>> windowed = df.tumble(on="event_time", size=timedelta(minutes=10))
+
+        .. versionadded:: 2.4.0
+        """
+        time_col = _resolve_window_time_column(on)
+        return _window_dataframe(
+            self._table, "TUMBLE", time_col, _to_interval_expression(size)
+        )
+
+    @PublicEvolving()
+    def hop(
+        self,
+        *,
+        on: Union[str, Expression],
+        slide: Union["datetime.timedelta", Expression],
+        size: Union["datetime.timedelta", Expression],
+    ) -> "DataFrame":
+        """
+        Assign rows to overlapping fixed-size (hopping/sliding) windows of length ``size`` starting
+        every ``slide``. Appends ``window_start``/``window_end``/``window_time``.
+
+        :param on: An existing event-time or processing-time column.
+        :param slide: Interval between successive window starts.
+        :param size: Window length.
+        :return: A new DataFrame with the window columns appended.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> from datetime import timedelta
+            >>> windowed = df.hop(
+            ...     on="event_time",
+            ...     slide=timedelta(minutes=5),
+            ...     size=timedelta(minutes=10),
+            ... )
+
+        .. versionadded:: 2.4.0
+        """
+        time_col = _resolve_window_time_column(on)
+        return _window_dataframe(
+            self._table,
+            "HOP",
+            time_col,
+            _to_interval_expression(slide),
+            _to_interval_expression(size),
+        )
+
+    @PublicEvolving()
+    def cumulate(
+        self,
+        *,
+        on: Union[str, Expression],
+        step: Union["datetime.timedelta", Expression],
+        size: Union["datetime.timedelta", Expression],
+    ) -> "DataFrame":
+        """
+        Assign rows to cumulating windows that share a start and grow by ``step`` up to ``size``.
+        Appends ``window_start``/``window_end``/``window_time``.
+
+        :param on: An existing event-time or processing-time column.
+        :param step: Interval by which each window grows.
+        :param size: Maximum window length (a whole multiple of ``step``).
+        :return: A new DataFrame with the window columns appended.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> from datetime import timedelta
+            >>> windowed = df.cumulate(
+            ...     on="event_time",
+            ...     step=timedelta(minutes=5),
+            ...     size=timedelta(minutes=10),
+            ... )
+
+        .. versionadded:: 2.4.0
+        """
+        time_col = _resolve_window_time_column(on)
+        return _window_dataframe(
+            self._table,
+            "CUMULATE",
+            time_col,
+            _to_interval_expression(step),
+            _to_interval_expression(size),
+        )
+
+    @PublicEvolving()
+    def session(
+        self,
+        *,
+        on: Union[str, Expression],
+        gap: Union["datetime.timedelta", Expression],
+        partition_by: Optional[
+            Union[str, Expression, List[Union[str, Expression]]]
+        ] = None,
+    ) -> "DataFrame":
+        """
+        Assign rows to activity-based (session) windows that close after ``gap`` of inactivity.
+        Appends ``window_start``/``window_end``/``window_time``.
+        When ``partition_by`` is given, sessions are computed independently per key, so a gap in
+        one key's activity does not close another key's session.
+
+        :param on: An existing event-time or processing-time column.
+        :param gap: Inactivity gap that closes a session.
+        :param partition_by: Optional column name or expression or list of column names or
+            expressions to compute per-key sessions. ``None`` means a global session.
+        :return: A new DataFrame with the window columns appended.
+        :raises TypeError: If ``partition_by`` contains an unsupported element type.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> from datetime import timedelta
+            >>> windowed = df.session(
+            ...     on="event_time",
+            ...     gap=timedelta(minutes=10),
+            ...     partition_by="id",
+            ... )
+
+        .. versionadded:: 2.4.0
+        """
+        time_col = _resolve_window_time_column(on)
+        partition_cols = _resolve_partition_columns(partition_by)
+        return _window_dataframe(
+            self._table,
+            "SESSION",
+            time_col,
+            _to_interval_expression(gap),
+            partition_cols=partition_cols,
+        )
 
     # ======================== Slicing ========================
 
@@ -1148,19 +1303,23 @@ class GroupedDataFrame:
 # ======================== Internal Helpers ========================
 
 
-def _normalize_subset(subset: Union[str, List[str], None]) -> Optional[List[str]]:
+def _normalize_subset(
+    subset: Union[str, List[str], None], parameter_name: str = "subset"
+) -> Optional[List[str]]:
     if subset is None:
         return None
     if isinstance(subset, str):
         return [subset]
     if isinstance(subset, (list, tuple)):
         if not subset:
-            raise ValueError("subset must not be empty")
+            raise ValueError("%s must not be empty" % parameter_name)
         for name in subset:
             if not isinstance(name, str):
-                raise TypeError("subset must be a string or a list of strings")
+                raise TypeError(
+                    "%s must be a string or a list of strings" % parameter_name
+                )
         return list(subset)
-    raise TypeError("subset must be a string or a list of strings")
+    raise TypeError("%s must be a string or a list of strings" % parameter_name)
 
 
 def _normalize_order_by(
@@ -1322,6 +1481,80 @@ def _unique_name(base: str, taken: Set[str]) -> str:
 
 def _quote_identifier(name: str) -> str:
     return "`" + name.replace("`", "``") + "`"
+
+
+def _resolve_window_time_column(on: Union[str, Expression]) -> Expression:
+    if isinstance(on, str):
+        return table_col(on)
+    if isinstance(on, Expression):
+        return on
+    raise TypeError("on must be a column name or expression")
+
+
+def _resolve_partition_columns(
+    partition_by: Optional[Union[str, Expression, List[Union[str, Expression]]]]
+) -> List[Expression]:
+    if partition_by is None:
+        return []
+    if isinstance(partition_by, (str, Expression)):
+        candidates: List[Union[str, Expression]] = [partition_by]
+    else:
+        candidates = partition_by
+    columns: List[Expression] = []
+    for candidate in candidates:
+        if isinstance(candidate, str):
+            columns.append(table_col(candidate))
+        elif isinstance(candidate, Expression):
+            columns.append(candidate)
+        else:
+            raise TypeError(
+                "partition_by must be a column name, expression, or a list of them"
+            )
+    return columns
+
+
+def _window_dataframe(
+    table: Table,
+    window_kind: str,
+    time_col: Expression,
+    *interval_exprs: Any,
+    partition_cols: List[Expression] = [],
+) -> "DataFrame":
+    jvm = get_gateway().jvm
+    kind = getattr(
+        jvm.org.apache.flink.table.operations.WindowTableFunctionQueryOperation.WindowKind,
+        window_kind,
+    )
+    intervals = jvm.java.util.ArrayList()
+    for interval in interval_exprs:
+        intervals.add(interval)
+    partition_list = jvm.java.util.ArrayList()
+    for partition_col in partition_cols:
+        partition_list.add(partition_col._j_expr)
+    operation_tree_builder = table._t_env._j_tenv.getOperationTreeBuilder()
+    window_op = operation_tree_builder.windowTableFunction(
+        kind,
+        time_col._j_expr,
+        intervals,
+        partition_list,
+        table._j_table.getQueryOperation(),
+    )
+    j_table = table._t_env._j_tenv.createTable(window_op)
+    return DataFrame(Table(j_table, table._t_env))
+
+
+def _to_interval_expression(value: Union["datetime.timedelta", Expression]) -> Any:
+    if isinstance(value, datetime.timedelta):
+        millis = value // datetime.timedelta(milliseconds=1)
+        return (
+            get_gateway()
+            .jvm.org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis(
+                millis
+            )
+        )
+    if isinstance(value, Expression):
+        return value._j_expr
+    raise TypeError("interval must be a datetime.timedelta or Expression")
 
 
 def _normalize_aggregations(

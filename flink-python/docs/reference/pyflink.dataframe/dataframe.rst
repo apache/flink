@@ -116,6 +116,19 @@ Results
     DataFrame.to_table
     DataFrame.to_pandas
 
+Windowing
+---------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.tumble
+    DataFrame.hop
+    DataFrame.cumulate
+    DataFrame.session
+
 Expressions
 -----------
 
