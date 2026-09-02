@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RawType;
@@ -330,6 +331,31 @@ class LogicalTypeCastsTest {
                                                 new YearMonthIntervalType(
                                                         YearMonthIntervalType.YearMonthResolution
                                                                 .MONTH)))),
+                        false,
+                        false),
+                // A variant object casts to MAP<STRING, V> when the key is a character string and
+                // the value is castable; a non-string key is rejected
+                Arguments.of(
+                        new VariantType(),
+                        new MapType(VarCharType.STRING_TYPE, new IntType()),
+                        false,
+                        true),
+                Arguments.of(
+                        new VariantType(),
+                        new MapType(VarCharType.STRING_TYPE, new VariantType()),
+                        false,
+                        true),
+                Arguments.of(
+                        new VariantType(),
+                        new MapType(new IntType(), new CharType()),
+                        false,
+                        false),
+                Arguments.of(
+                        new VariantType(),
+                        new MapType(
+                                VarCharType.STRING_TYPE,
+                                new YearMonthIntervalType(
+                                        YearMonthIntervalType.YearMonthResolution.MONTH)),
                         false,
                         false),
                 // MULTISET has no variant counterpart and stays unsupported
