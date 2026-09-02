@@ -106,8 +106,19 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         self.assertFalse(hasattr(udf_module, "DataFrameUDFWrapper"))
         self.assertEqual(_return_dtype(decorated), pf.DataType.int64())
         self.assertEqual(decorated.__name__, "add_one")
+        self.assertEqual(decorated.__qualname__, add_one.__qualname__)
+        self.assertEqual(decorated.__module__, add_one.__module__)
         self.assertEqual(decorated.__doc__, "Add one to a value.")
-        self.assertIs(decorated.__wrapped__, add_one)
+        self.assertNotIn("__wrapped__", vars(decorated))
+        self.assertNotIn("__signature__", vars(decorated))
+        self.assertNotIn("__annotations__", vars(decorated))
+        wrapper_signature = inspect.signature(decorated)
+        parameters = tuple(wrapper_signature.parameters.values())
+        self.assertEqual(len(parameters), 1)
+        self.assertEqual(parameters[0].name, "args")
+        self.assertIs(parameters[0].kind, inspect.Parameter.VAR_POSITIONAL)
+        self.assertIs(parameters[0].annotation, Any)
+        self.assertIs(wrapper_signature.return_annotation, Expression)
 
         configured: Callable[..., Expression] = pf.udf(
             return_dtype=pf.DataType.string()
@@ -242,7 +253,6 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         self.assertEqual(pf.udf(named_callable).__name__, "configured_add")
 
         decorated_class = pf.udf(Double)
-        self.assertIs(decorated_class.__wrapped__, Double)
         self.assertEqual(decorated_class.__qualname__, Double.__qualname__)
 
     def test_callable_class_resolves_class_local_return_annotation(self):
@@ -324,41 +334,17 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             _return_dtype(pf.udf(overridden)), pf.DataType.int64()
         )
 
-    def test_wrapped_signature_describes_udf_invocation(self):
+    def test_wrapped_callable_annotations_and_partial_validation(self):
         def add(value: int, amount: int = 1) -> int:
             return value + amount
 
-        class CallableClass:
-            def __call__(self, value: int, amount: int = 1) -> int:
-                return value + amount
-
-        class StaticCallableClass:
-            @staticmethod
-            def __call__(value: int, amount: int = 1) -> int:
-                return value + amount
-
-        class ClassMethodCallableClass:
-            @classmethod
-            def __call__(cls, value: int, amount: int = 1) -> int:
-                return value + amount
-
         def pandas_identity(values: pd.Series) -> pd.Series:
             return values
-
-        def self_named_pandas_identity(
-            self: pd.Series, amount: int = 1
-        ) -> pd.Series:
-            return self + amount
 
         class WrappedCallableClass:
             @functools.wraps(pandas_identity)
             def __call__(self, *args, **kwargs):
                 return pandas_identity(*args, **kwargs)
-
-        class SelfNamedWrappedCallableClass:
-            @functools.wraps(self_named_pandas_identity)
-            def __call__(self, *args, **kwargs):
-                return self_named_pandas_identity(*args, **kwargs)
 
         class WrappedClassMethodCallableClass:
             @classmethod
@@ -371,38 +357,6 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             def eval(self, *args, **kwargs):
                 return pandas_identity(*args, **kwargs)
 
-        class AddFunction(ScalarFunction):
-            def eval(self, *values: int) -> int:
-                return sum(values)
-
-        class AsyncAddFunction(AsyncScalarFunction):
-            async def eval(self, *values: int) -> int:
-                return sum(values)
-
-        def variadic_add(*values: int) -> int:
-            return sum(values)
-
-        expected_signature = inspect.signature(add)
-        variadic_signature = inspect.signature(variadic_add)
-        declarations = [
-            (add, expected_signature),
-            (CallableClass, expected_signature),
-            (CallableClass(), expected_signature),
-            (StaticCallableClass, expected_signature),
-            (ClassMethodCallableClass, expected_signature),
-            (AddFunction, variadic_signature),
-            (AddFunction(), variadic_signature),
-            (AsyncAddFunction, variadic_signature),
-            (AsyncAddFunction(), variadic_signature),
-        ]
-        for source, expected in declarations:
-            with self.subTest(source=source):
-                self.assertEqual(inspect.signature(pf.udf(source)), expected)
-
-        partial_add = functools.partial(add, 1)
-        self.assertEqual(
-            inspect.signature(pf.udf(partial_add)), inspect.signature(partial_add)
-        )
         with self.assertRaisesRegex(
             TypeError, "Invalid functools.partial UDF 'add'.*unexpected keyword"
         ):
@@ -425,52 +379,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 declaration = pf.udf(
                     source, return_dtype=pf.DataType.int64()
                 )
-                self.assertEqual(
-                    inspect.signature(declaration),
-                    inspect.signature(pandas_identity),
-                )
                 self.assertEqual(declaration._func_type, "pandas")
-
-        partial_bound_wrapper = functools.partial(
-            wrapped_callable_instance.__call__, pd.Series([1])
-        )
-        partial_declaration = pf.udf(
-            partial_bound_wrapper,
-            return_dtype=pf.DataType.int64(),
-            func_type="general",
-        )
-        self.assertEqual(
-            inspect.signature(partial_declaration),
-            inspect.signature(functools.partial(pandas_identity, pd.Series([1]))),
-        )
-
-        self_named_instance = SelfNamedWrappedCallableClass()
-        for source in (
-            SelfNamedWrappedCallableClass,
-            self_named_instance,
-            self_named_instance.__call__,
-        ):
-            with self.subTest(self_named_source=source):
-                self.assertEqual(
-                    inspect.signature(
-                        pf.udf(source, return_dtype=pf.DataType.int64())
-                    ),
-                    inspect.signature(self_named_pandas_identity),
-                )
-        self.assertEqual(
-            inspect.signature(
-                pf.udf(
-                    functools.partial(
-                        self_named_instance.__call__, pd.Series([1])
-                    ),
-                    return_dtype=pf.DataType.int64(),
-                    func_type="general",
-                )
-            ),
-            inspect.signature(
-                functools.partial(self_named_pandas_identity, pd.Series([1]))
-            ),
-        )
 
         cross_namespace_wrapper = types.FunctionType(
             _call_module_alias_function.__code__,
@@ -485,7 +394,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             pf.DataType.int64(),
         )
 
-    def test_wrapped_methods_preserve_bound_signatures(self):
+    def test_func_type_resolution_and_async_detection(self):
         def method_decorator(method):
             @functools.wraps(method)
             def wrapper(*args, **kwargs):
@@ -493,41 +402,6 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
             return wrapper
 
-        def add(value: int, amount: int = 1) -> int:
-            return value + amount
-
-        class WrappedCallable:
-            @method_decorator
-            def __call__(self, value: int, amount: int = 1) -> int:
-                return value + amount
-
-        class WrappedClassMethodCallable:
-            @classmethod
-            @method_decorator
-            def __call__(cls, value: int, amount: int = 1) -> int:
-                return value + amount
-
-        expected_signature = inspect.signature(add)
-        instance = WrappedCallable()
-        for source in (
-            WrappedCallable,
-            instance,
-            instance.__call__,
-            WrappedClassMethodCallable,
-            WrappedClassMethodCallable(),
-        ):
-            with self.subTest(source=source):
-                self.assertEqual(
-                    inspect.signature(pf.udf(source)), expected_signature
-                )
-
-        partial_source = functools.partial(instance.__call__, 1)
-        self.assertEqual(
-            inspect.signature(pf.udf(partial_source)),
-            inspect.signature(functools.partial(add, 1)),
-        )
-
-    def test_func_type_resolution_and_async_detection(self):
         def pandas_add_one(values: pd.Series) -> pd.Series:
             return values + 1
 
@@ -588,6 +462,13 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 value, = values
                 return value + 1
 
+        class WrappedPandasContext:
+            @method_decorator
+            def __call__(self, context: pd.Series, value: int) -> int:
+                return value
+
+        wrapped_pandas_context = WrappedPandasContext()
+
         declarations = [
             (
                 "inferred pandas",
@@ -599,6 +480,16 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 "bound pandas annotation is ignored",
                 lambda: pf.udf(
                     functools.partial(with_pandas_context, pd.Series([1])),
+                ),
+                "general",
+                False,
+            ),
+            (
+                "bound wrapped pandas annotation is ignored",
+                lambda: pf.udf(
+                    functools.partial(
+                        wrapped_pandas_context.__call__, pd.Series([1])
+                    ),
                 ),
                 "general",
                 False,

@@ -92,7 +92,6 @@ class _UDFDeclarationContext:
     defining_class: Optional[Type]
     globalns: Dict[str, Any]
     localns: Optional[Dict[str, Any]]
-    invocation_signature: Optional[inspect.Signature]
     ignored_hint_names: FrozenSet[str]
 
 
@@ -209,7 +208,6 @@ class _DataFrameUDFWrapper:
         deterministic: bool,
         name: str,
         func_type: str,
-        invocation_signature: Optional[inspect.Signature],
     ) -> None:
         object.__setattr__(self, "_runtime_source", runtime_source)
         object.__setattr__(self, "_return_dtype", return_dtype)
@@ -218,11 +216,13 @@ class _DataFrameUDFWrapper:
         object.__setattr__(self, "_cached_table_udf_wrapper", None)
 
         declaration_metadata = _unwrap_partial(runtime_source.callable_source)
-        functools.update_wrapper(self, declaration_metadata, updated=())
+        for attribute_name in ("__module__", "__qualname__", "__doc__"):
+            try:
+                attribute_value = getattr(declaration_metadata, attribute_name)
+            except AttributeError:
+                continue
+            object.__setattr__(self, attribute_name, attribute_value)
         object.__setattr__(self, "__name__", name)
-        object.__setattr__(self, "__wrapped__", runtime_source.callable_source)
-        if invocation_signature is not None:
-            object.__setattr__(self, "__signature__", invocation_signature)
         object.__setattr__(self, "_frozen", True)
 
     def __setattr__(self, name: str, value: Any) -> None:
@@ -467,7 +467,6 @@ def udf(
             deterministic,
             actual_name,
             actual_func_type,
-            declaration_context.invocation_signature,
         )
 
     return decorator if func is None else decorator(func)
@@ -657,24 +656,6 @@ def _get_annotation_globals(func: Callable[..., Any]) -> Dict[str, Any]:
 # ---- Signature and declaration context assembly ----
 
 
-def _apply_partial_to_signature(
-    signature: inspect.Signature, partial_source: functools.partial
-) -> inspect.Signature:
-    def signature_proxy(*args: Any, **kwargs: Any) -> None:
-        pass
-
-    # Delegate partial's signature transformation to inspect after supplying the
-    # normalized invocation signature.
-    setattr(signature_proxy, "__signature__", signature)
-    return inspect.signature(
-        functools.partial(
-            signature_proxy,
-            *partial_source.args,
-            **(partial_source.keywords or {}),
-        )
-    )
-
-
 def _preserves_method_binding(
     target: Callable[..., Any], defining_class: Optional[Type]
 ) -> bool:
@@ -691,18 +672,19 @@ def _preserves_method_binding(
     ) is defining_class
 
 
-def _resolve_invocation_signature(
+def _resolve_ignored_hint_names(
     annotation_target: Callable[..., Any],
-    signature_target: Callable[..., Any],
     implicit_parameter_name: Optional[str],
     partial_source: Any,
     preserves_method_binding: bool,
-) -> Tuple[Optional[inspect.Signature], FrozenSet[str]]:
+) -> FrozenSet[str]:
     ignored_hint_names = set()
     if implicit_parameter_name is not None:
         ignored_hint_names.add(implicit_parameter_name)
 
-    signature_inspection_target: Callable[..., Any] = signature_target
+    if not isinstance(partial_source, functools.partial):
+        return frozenset(ignored_hint_names)
+
     bound_function = getattr(annotation_target, "__func__", None)
     is_wrapped_bound_method = bound_function is not None and hasattr(
         bound_function, "__wrapped__"
@@ -710,66 +692,29 @@ def _resolve_invocation_signature(
     uses_unbound_wrapped_signature = (
         is_wrapped_bound_method and not preserves_method_binding
     )
-    if uses_unbound_wrapped_signature:
-        signature_inspection_target = cast(Callable[..., Any], bound_function)
-
     try:
-        invocation_signature = inspect.signature(signature_inspection_target)
-        parameters = tuple(invocation_signature.parameters.values())
-        if (
-            implicit_parameter_name is not None
-            and (
-                not hasattr(
-                    getattr(annotation_target, "__func__", annotation_target),
-                    "__wrapped__",
-                )
-                or preserves_method_binding
-            )
-            and parameters
-            and parameters[0].name == implicit_parameter_name
-        ):
-            invocation_signature = invocation_signature.replace(
-                parameters=parameters[1:]
-            )
+        partial_target_signature = inspect.signature(
+            cast(Callable[..., Any], bound_function)
+            if uses_unbound_wrapped_signature
+            else partial_source.func
+        )
     except Exception:
-        invocation_signature = None
-
-    if isinstance(partial_source, functools.partial):
-        try:
-            partial_target_signature = (
-                invocation_signature
-                if uses_unbound_wrapped_signature
-                else inspect.signature(partial_source.func)
-            )
-        except Exception:
-            return None, frozenset(ignored_hint_names)
-        if partial_target_signature is None:
-            return None, frozenset(ignored_hint_names)
-        try:
-            bound_arguments = partial_target_signature.bind_partial(
-                *partial_source.args, **(partial_source.keywords or {})
-            )
-        except TypeError as exc:
-            raise TypeError(
-                f"Invalid functools.partial UDF "
-                f"'{_default_udf_name(partial_source)}': {exc}."
-            ) from exc
-        ignored_hint_names.update(bound_arguments.arguments)
-        if uses_unbound_wrapped_signature:
-            if invocation_signature is None:
-                return None, frozenset(ignored_hint_names)
-            try:
-                invocation_signature = _apply_partial_to_signature(
-                    invocation_signature, partial_source
-                )
-            except Exception:
-                return None, frozenset(ignored_hint_names)
-    return invocation_signature, frozenset(ignored_hint_names)
+        return frozenset(ignored_hint_names)
+    try:
+        bound_arguments = partial_target_signature.bind_partial(
+            *partial_source.args, **(partial_source.keywords or {})
+        )
+    except TypeError as exc:
+        raise TypeError(
+            f"Invalid functools.partial UDF "
+            f"'{_default_udf_name(partial_source)}': {exc}."
+        ) from exc
+    ignored_hint_names.update(bound_arguments.arguments)
+    return frozenset(ignored_hint_names)
 
 
 def _create_declaration_context(
     annotation_target: Callable[..., Any],
-    signature_target: Callable[..., Any],
     *,
     descriptor_owner: Optional[Type] = None,
     implicit_parameter_name: Optional[str] = None,
@@ -799,9 +744,8 @@ def _create_declaration_context(
         localns = dict(vars(defining_class))
         localns[defining_class.__name__] = defining_class
 
-    invocation_signature, ignored_hint_names = _resolve_invocation_signature(
+    ignored_hint_names = _resolve_ignored_hint_names(
         annotation_target,
-        signature_target,
         implicit_parameter_name,
         partial_source,
         preserves_method_binding,
@@ -811,7 +755,6 @@ def _create_declaration_context(
         defining_class=defining_class,
         globalns=_get_annotation_globals(annotation_target),
         localns=localns,
-        invocation_signature=invocation_signature,
         ignored_hint_names=ignored_hint_names,
     )
 
@@ -852,7 +795,6 @@ def _resolve_udf(func: _UDFInput) -> _ResolvedUDF:
     if isinstance(func, functools.partial) or inspect.isroutine(func):
         declaration_context = _create_declaration_context(
             cast(Callable[..., Any], func),
-            cast(Callable[..., Any], func),
             partial_source=func,
         )
         return _create_resolved_udf(
@@ -875,7 +817,6 @@ def _resolve_udf(func: _UDFInput) -> _ResolvedUDF:
                     "definition.\nDefine eval as an instance, class, or static method."
                 )
             declaration_context = _create_declaration_context(
-                target,
                 target,
                 descriptor_owner=descriptor_owner,
                 implicit_parameter_name=implicit_parameter_name,
@@ -900,7 +841,6 @@ def _resolve_udf(func: _UDFInput) -> _ResolvedUDF:
         _validate_zero_argument_class(func)
         declaration_context = _create_declaration_context(
             target,
-            target,
             descriptor_owner=descriptor_owner,
             implicit_parameter_name=implicit_parameter_name,
         )
@@ -920,7 +860,6 @@ def _resolve_udf(func: _UDFInput) -> _ResolvedUDF:
             )
         declaration_context = _create_declaration_context(
             cast(Callable[..., Any], target),
-            cast(Callable[..., Any], target),
             partial_source=target,
         )
         return _create_resolved_udf(
@@ -939,7 +878,6 @@ def _resolve_udf(func: _UDFInput) -> _ResolvedUDF:
         )
     declaration_context = _create_declaration_context(
         cast(Callable[..., Any], target),
-        cast(Callable[..., Any], func),
         partial_source=target,
     )
     return _create_resolved_udf(
