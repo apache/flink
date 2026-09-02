@@ -140,6 +140,9 @@ under the License.
 			 and thus is changing back to java 1.6 on each maven re-import -->
 		<maven.compiler.source>${source.java.version}</maven.compiler.source>
 		<maven.compiler.target>${target.java.version}</maven.compiler.target>
+		<!-- Apache parent pom 39 puts 8 here, IDEA uses it for project setting,
+		 so override with actual value -->
+		<maven.compiler.release>${source.java.version}</maven.compiler.release>
 		<scala.macros.version>2.1.1</scala.macros.version>
 		<scala.version>2.12.21</scala.version>
 		<scala.binary.version>2.12</scala.binary.version>
