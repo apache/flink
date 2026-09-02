@@ -74,6 +74,16 @@ public final class VariantCastUtils {
         throw wrongShape(variant, targetType, "an array");
     }
 
+    /**
+     * Fails when the variant is not an object, so a cast to {@code ROW}, {@code STRUCTURED}, or
+     * {@code MAP} reports a shape mismatch clearly. Only an object carries named fields.
+     */
+    public static void requireObject(Variant variant, String targetType) {
+        if (!variant.isObject()) {
+            throw wrongShape(variant, targetType, "an object");
+        }
+    }
+
     private static TableRuntimeException wrongShape(
             Variant variant, String targetType, String required) {
         return new TableRuntimeException(
