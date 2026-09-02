@@ -21,6 +21,7 @@ package org.apache.flink.table.gateway.service;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.data.RowData;
@@ -46,14 +47,17 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_PLAN_CACHE_ENABLED;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
+import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchAllResults;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchResults;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -284,6 +288,32 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
 
         validateResultSetField(
                 sessionHandle, "SET;", resultKindGetter, ResultKind.SUCCESS_WITH_CONTENT);
+    }
+
+    @Test
+    void testSetHidesSensitiveValues() throws Exception {
+        SessionHandle sessionHandle = createInitializedSession(service);
+
+        runAndAwait(sessionHandle, "SET 's3.secret-key' = 'super-secret-value';");
+
+        OperationHandle setAllHandle = runAndAwait(sessionHandle, "SET;");
+        List<RowData> rows = fetchAllResults(service, sessionHandle, setAllHandle);
+
+        Map<String, String> properties = new HashMap<>();
+        for (RowData row : rows) {
+            properties.put(row.getString(0).toString(), row.getString(1).toString());
+        }
+
+        assertThat(properties).containsKey("s3.secret-key");
+        assertThat(properties.get("s3.secret-key")).isEqualTo(GlobalConfiguration.HIDDEN_CONTENT);
+    }
+
+    private OperationHandle runAndAwait(SessionHandle sessionHandle, String statement)
+            throws Exception {
+        OperationHandle operationHandle =
+                service.executeStatement(sessionHandle, statement, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, operationHandle);
+        return operationHandle;
     }
 
     private <T> void validateResultSetField(
