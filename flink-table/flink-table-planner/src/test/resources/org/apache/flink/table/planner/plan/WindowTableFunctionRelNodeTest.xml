@@ -1,0 +1,84 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCumulateRelPlan">
+    <Resource name="ast">
+      <![CDATA[
+LogicalTableFunctionScan(invocation=[CUMULATE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 300000:INTERVAL MILLISECOND, 600000:INTERVAL MILLISECOND)], rowType=[RecordType(INTEGER id, INTEGER amount, TIMESTAMP(3) *ROWTIME* ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
++- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($2, 1000:INTERVAL SECOND)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+WindowTableFunction(window=[CUMULATE(time_col=[ts], max_size=[10 min], step=[5 min])])
++- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)])
+   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, amount, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHopRelPlan">
+    <Resource name="ast">
+      <![CDATA[
+LogicalTableFunctionScan(invocation=[HOP(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 300000:INTERVAL MILLISECOND, 600000:INTERVAL MILLISECOND)], rowType=[RecordType(INTEGER id, INTEGER amount, TIMESTAMP(3) *ROWTIME* ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
++- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($2, 1000:INTERVAL SECOND)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+WindowTableFunction(window=[HOP(time_col=[ts], size=[10 min], slide=[5 min])])
++- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)])
+   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, amount, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSessionRelPlan">
+    <Resource name="ast">
+      <![CDATA[
+LogicalTableFunctionScan(invocation=[SESSION(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 600000:INTERVAL MILLISECOND)], rowType=[RecordType(INTEGER id, INTEGER amount, TIMESTAMP(3) *ROWTIME* ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
++- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($2, 1000:INTERVAL SECOND)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+WindowTableFunction(window=[SESSION(time_col=[ts], gap=[10 min])])
++- Exchange(distribution=[single])
+   +- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)])
+      +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, amount, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTumbleRelPlan">
+    <Resource name="ast">
+      <![CDATA[
+LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 600000:INTERVAL MILLISECOND)], rowType=[RecordType(INTEGER id, INTEGER amount, TIMESTAMP(3) *ROWTIME* ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
++- LogicalWatermarkAssigner(rowtime=[ts], watermark=[-($2, 1000:INTERVAL SECOND)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[10 min])])
++- WatermarkAssigner(rowtime=[ts], watermark=[-(ts, 1000:INTERVAL SECOND)])
+   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, amount, ts])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

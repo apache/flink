@@ -65,6 +65,7 @@ import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
+import org.apache.flink.table.operations.WindowTableFunctionQueryOperation;
 import org.apache.flink.table.operations.utils.QueryOperationDefaultVisitor;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
@@ -76,6 +77,8 @@ import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.SqlAggFunctionVisitor;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.functions.sql.SqlWindowTableFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 import org.apache.flink.table.planner.operations.InternalDataStreamQueryOperation;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
@@ -104,6 +107,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
@@ -113,13 +117,19 @@ import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlIntervalQualifier;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilder.AggCall;
 import org.apache.calcite.tools.RelBuilder.GroupKey;
 
+import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -225,6 +235,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             return relBuilder
                     .windowAggregate(logicalWindow, groupKey, windowProperties, aggregations)
                     .build();
+        }
+
+        @Override
+        public RelNode visit(WindowTableFunctionQueryOperation windowTableFunction) {
+            return convertWindowTableFunction(windowTableFunction);
         }
 
         private NamedWindowProperty convertToWindowProperty(
@@ -591,6 +606,59 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                         dataStreamQueryOperation.getIdentifier());
             }
             throw new TableException("Unknown table operation: " + other);
+        }
+
+        private RelNode convertWindowTableFunction(WindowTableFunctionQueryOperation windowOp) {
+            final RexBuilder rexBuilder = relBuilder.getRexBuilder();
+
+            final RelNode input = relBuilder.build();
+            final RelDataType inputRowType = input.getRowType();
+
+            final String timeColumn = windowOp.getTimeColumn();
+            final RelDataType timeAttributeType =
+                    inputRowType.getField(timeColumn, false, false).getType();
+            final RelDataType outputRowType =
+                    SqlWindowTableFunction.inferRowType(
+                            relBuilder.getTypeFactory(), inputRowType, timeAttributeType);
+
+            final SqlFunction operator = windowOperator(windowOp.getWindowKind());
+            final List<RexNode> operands = new ArrayList<>();
+            operands.add(
+                    new RexTableArgCall(inputRowType, 0, new int[0], new int[0], new SortOrder[0]));
+            operands.add(
+                    rexBuilder.makeCall(
+                            FlinkSqlOperatorTable.DESCRIPTOR, rexBuilder.makeLiteral(timeColumn)));
+            for (Duration interval : windowOp.getIntervals()) {
+                operands.add(
+                        rexBuilder.makeIntervalLiteral(
+                                BigDecimal.valueOf(interval.toMillis()),
+                                new SqlIntervalQualifier(
+                                        TimeUnit.MILLISECOND, null, SqlParserPos.ZERO)));
+            }
+
+            final RexNode call = rexBuilder.makeCall(outputRowType, operator, operands);
+            return LogicalTableFunctionScan.create(
+                    relBuilder.getCluster(),
+                    new ArrayList<>(Collections.singletonList(input)),
+                    call,
+                    null,
+                    outputRowType,
+                    Set.of());
+        }
+
+        private SqlFunction windowOperator(WindowTableFunctionQueryOperation.WindowKind kind) {
+            switch (kind) {
+                case TUMBLE:
+                    return FlinkSqlOperatorTable.TUMBLE;
+                case HOP:
+                    return FlinkSqlOperatorTable.HOP;
+                case CUMULATE:
+                    return FlinkSqlOperatorTable.CUMULATE;
+                case SESSION:
+                    return FlinkSqlOperatorTable.SESSION;
+                default:
+                    throw new TableException("Unsupported window kind: " + kind);
+            }
         }
 
         @Override

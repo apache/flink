@@ -16,19 +16,25 @@
 # limitations under the License.
 ################################################################################
 
-import inspect
 import array
 import decimal
+import inspect
+import os
+import pandas as pd
+import pyarrow as pa
 import unittest
-from py4j.protocol import Py4JJavaError
 from datetime import date, datetime, time, timedelta, timezone
+from py4j.protocol import Py4JJavaError
 from typing import NamedTuple
 from unittest.mock import Mock, patch
 
-import pandas as pd
-import pyarrow as pa
 import pyflink.dataframe as pf
-from pyflink.common import Row, RowKind
+from pyflink.common import Row
+from pyflink.dataframe.dataframe import (
+    _resolve_window_time_column,
+    _to_interval_expression,
+)
+from pyflink.dataframe.datatype import DataType
 from pyflink.table import (
     DataTypes as TableDataTypes,
     EnvironmentSettings,
@@ -1469,30 +1475,133 @@ class DataFrameUniqueTests(PyFlinkDataFrameUTTestCase):
         )
 
 
+class DataFrameWindowUnitTests(PyFlinkDataFrameUTTestCase):
+    _WINDOW_SCHEMA_COLUMN_NAMES = [
+        "id",
+        "amount",
+        "ts",
+        "window_start",
+        "window_end",
+        "window_time",
+    ]
+
+    def _window_schema_column_data_types(self):
+        source_types = list(
+            self.dataframe._table.get_resolved_schema().get_column_data_types()
+        )
+        time_column_type = source_types[2]
+        return source_types + [
+            TableDataTypes.TIMESTAMP(3).not_null(),
+            TableDataTypes.TIMESTAMP(3).not_null(),
+            time_column_type.not_null(),
+        ]
+
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [{"id": 1, "amount": 10, "ts": datetime(2020, 1, 1)}],
+            watermark=("ts", "ts - INTERVAL '1' SECOND"),
+        )
+
+    def test_timedelta_becomes_java_value_literal(self):
+        serialized = _to_interval_expression(
+            timedelta(minutes=10)
+        ).asSerializableString()
+
+        self.assertIn("INTERVAL", serialized)
+        self.assertIn("00:10:00", serialized)
+
+    def test_sub_millisecond_precision_is_truncated_not_rounded(self):
+        truncated = _to_interval_expression(
+            timedelta(milliseconds=1, microseconds=500)
+        ).asSerializableString()
+        whole = _to_interval_expression(
+            timedelta(milliseconds=1)
+        ).asSerializableString()
+
+        self.assertEqual(truncated, whole)
+
+    def test_sub_millisecond_timedelta_truncates_to_zero(self):
+        serialized = _to_interval_expression(
+            timedelta(microseconds=500)
+        ).asSerializableString()
+
+        zero = _to_interval_expression(timedelta(0)).asSerializableString()
+
+        self.assertEqual(serialized, zero)
+
+    def test_expression_is_unwrapped_to_j_expr(self):
+        expr = pf.lit(10).minutes
+
+        self.assertIs(_to_interval_expression(expr), expr._j_expr)
+
+    def test_rejects_unsupported_type(self):
+        with self.assertRaisesRegex(TypeError, "must be a datetime.timedelta or Expression"):
+            _to_interval_expression("INTERVAL '10' MINUTE")
+
+    def test_accepts_string_column(self):
+        resolved = _resolve_window_time_column("ts")
+
+        self.assertIsInstance(resolved, Expression)
+        self.assertEqual(str(resolved), "ts")
+
+    def test_accepts_column_expression(self):
+        column = pf.col("ts")
+
+        self.assertIs(_resolve_window_time_column(column), column)
+
+    def test_rejects_wrong_type(self):
+        with self.assertRaisesRegex(TypeError, "on must be a column name or expression"):
+            _resolve_window_time_column(10)
+
+    def test_tumble_appends_window_columns_timedelta(self):
+        self.assert_dataframe_schema(
+            self.dataframe.tumble(on="ts", size=timedelta(minutes=10)),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+    def test_tumble_appends_window_columns_expression(self):
+        self.assert_dataframe_schema(
+            self.dataframe.tumble(on="ts", size=pf.lit(10).minutes),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+        )
+
+    def test_hop_appends_window_columns(self):
+        self.assert_dataframe_schema(
+            self.dataframe.hop(
+                on="ts",
+                slide=timedelta(minutes=5),
+                size=timedelta(minutes=10),
+            ),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+    def test_cumulate_appends_window_columns(self):
+        self.assert_dataframe_schema(
+            self.dataframe.cumulate(
+                on="ts",
+                step=timedelta(minutes=2),
+                size=timedelta(minutes=10),
+            ),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+    def test_session_appends_window_columns(self):
+        self.assert_dataframe_schema(
+            self.dataframe.session(on="ts", gap=timedelta(minutes=10)),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+
 class DataFrameDropDuplicatesITTests(PyFlinkStreamDataFrameTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.t_env.get_config().set("table.exec.resource.default-parallelism", "1")
-
-    @staticmethod
-    def _materialize(dataframe, key=None):
-        # Fold the collected changelog into the final table so assertions read as the
-        # resulting rows rather than the raw +I/-U/+U events.
-        columns = dataframe._table.get_resolved_schema().get_column_names()
-        if key is None:
-            indices = list(range(len(columns)))
-        else:
-            indices = [columns.index(name) for name in key]
-
-        state = {}
-        for row in dataframe.collect():
-            key_value = tuple(row[index] for index in indices)
-            if row.get_row_kind() in (RowKind.INSERT, RowKind.UPDATE_AFTER):
-                state[key_value] = tuple(row)
-            else:
-                state.pop(key_value, None)
-        return sorted(state.values())
 
     def test_whole_row_removes_identical_rows(self):
         dataframe = pf.from_records(
@@ -1959,6 +2068,112 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
             result.collect(),
             [Row("engineering", 30, 2), Row("sales", 5, 1)],
         )
+
+
+class DataFrameWindowITTests(PyFlinkStreamDataFrameTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.t_env.get_config().set("table.exec.resource.default-parallelism", "1")
+
+    def _rowtime_source(self):
+        input_path = os.path.join(self.tempdir, "events.csv")
+        with open(input_path, "w", encoding="utf-8") as events:
+            events.write("1,10,0\n")
+            events.write("1,20,60000\n")
+            events.write("1,40,600000\n")
+        return pf.read_generic(
+            "filesystem",
+            schema={
+                "id": DataType.int64(),
+                "amount": DataType.int64(),
+                "ts_millis": DataType.int64(),
+            },
+            options={"path": input_path, "format": "csv"},
+            computed_columns={"event_time": "TO_TIMESTAMP_LTZ(ts_millis, 3)"},
+            watermark=("event_time", "event_time - INTERVAL '1' SECOND"),
+        )
+
+    def _proctime_source(self):
+        input_path = os.path.join(self.tempdir, "proctime_events.csv")
+        with open(input_path, "w", encoding="utf-8") as events:
+            events.write("1,10\n")
+            events.write("1,20\n")
+            events.write("1,40\n")
+        return pf.read_generic(
+            "filesystem",
+            schema={
+                "id": DataType.int64(),
+                "amount": DataType.int64(),
+            },
+            options={"path": input_path, "format": "csv"},
+            computed_columns={"proc_time": "PROCTIME()"},
+        )
+
+    def test_tumble_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .tumble(on="event_time", size=timedelta(minutes=10))
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+
+        self.assertEqual(sorted(row[-1] for row in windowed.collect()), [30, 40])
+
+    def test_hop_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .hop(
+                on="event_time",
+                slide=timedelta(minutes=5),
+                size=timedelta(minutes=10),
+            )
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+
+        self.assertEqual(sorted(row[-1] for row in windowed.collect()), [30, 30, 40, 40])
+
+    def test_cumulate_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .cumulate(
+                on="event_time",
+                step=timedelta(minutes=5),
+                size=timedelta(minutes=10),
+            )
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+
+        self.assertEqual(sorted(row[-1] for row in windowed.collect()), [30, 30, 40, 40])
+
+    def test_session_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .session(on="event_time", gap=timedelta(minutes=5))
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+        rows = self._materialize(windowed, key=["window_start", "window_end", "id"])
+
+        self.assertEqual(sorted(row[-1] for row in rows), [30, 40])
+
+    def test_tumble_processing_time(self):
+        windowed = self._proctime_source().tumble(
+            on="proc_time", size=timedelta(minutes=10)
+        )
+
+        self.assertEqual(
+            windowed.columns,
+            ["id", "amount", "proc_time", "window_start", "window_end", "window_time"],
+        )
+
+        projected = windowed.select("id", "amount", "window_start", "window_end")
+        rows = projected.collect()
+
+        self.assertEqual(sorted(row[1] for row in rows), [10, 20, 40])
+        self.assertEqual(len({(row[2], row[3]) for row in rows}), 1)
 
 
 if __name__ == "__main__":

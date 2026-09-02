@@ -23,6 +23,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncOutputMode;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.WindowTableFunctionQueryOperation;
 import org.apache.flink.table.planner.factories.TestValuesModelFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
@@ -44,6 +45,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -393,8 +395,265 @@ public class QueryOperationTestPrograms {
                                     + ") $$T_PROJECT")
                     .build();
 
+    static final TableTestProgram WINDOW_TVF_TUMBLE_QUERY_OPERATION =
+            TableTestProgram.of(
+                            "window-tvf-tumble-query-operation",
+                            "verifies sql serialization of a programmatic window TVF operation")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema(
+                                            "a bigint",
+                                            "b string",
+                                            "ts TIMESTAMP(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '1' SECOND")
+                                    .producedValues(
+                                            Row.of(2L, "apple", localOfSeconds(0)),
+                                            Row.of(3L, "apple", localOfSeconds(4)),
+                                            Row.of(1L, "apple", localOfSeconds(7)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "w_start TIMESTAMP(3)",
+                                            "w_end TIMESTAMP(3)",
+                                            "a_sum bigint")
+                                    .consumedValues(
+                                            Row.of(localOfSeconds(0), localOfSeconds(5), 5L),
+                                            Row.of(localOfSeconds(5), localOfSeconds(10), 1L))
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.createTable(
+                                                    env.getOperationTreeBuilder()
+                                                            .windowTableFunction(
+                                                                    WindowTableFunctionQueryOperation
+                                                                            .WindowKind.TUMBLE,
+                                                                    $("ts"),
+                                                                    List.of(lit(5).seconds()),
+                                                                    env.from("s")
+                                                                            .getQueryOperation()))
+                                            .groupBy($("window_start"), $("window_end"))
+                                            .select(
+                                                    $("window_start"),
+                                                    $("window_end"),
+                                                    $("a").sum()),
+                            "sink")
+                    .runSql(
+                            "SELECT `$$T_PROJECT`.`window_start`, `$$T_PROJECT`.`window_end`, "
+                                    + "`$$T_PROJECT`.`EXPR$0` FROM (\n"
+                                    + "    SELECT `$$T_AGG`.`window_start`, `$$T_AGG`.`window_end`, "
+                                    + "(SUM(`$$T_AGG`.`a`)) AS `EXPR$0` FROM (\n"
+                                    + "        SELECT `$$T_WIN`.`a`, `$$T_WIN`.`b`, `$$T_WIN`.`ts`, "
+                                    + "`$$T_WIN`.`window_start`, `$$T_WIN`.`window_end`, "
+                                    + "`$$T_WIN`.`window_time` FROM TABLE(\n"
+                                    + "            TUMBLE((\n"
+                                    + "                SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b`, "
+                                    + "`$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + "            ), DESCRIPTOR(`ts`), INTERVAL '0 00:00:05.000' DAY(2) TO SECOND(3))\n"
+                                    + "        ) $$T_WIN\n"
+                                    + "    ) $$T_AGG\n"
+                                    + "    GROUP BY `$$T_AGG`.`window_start`, `$$T_AGG`.`window_end`\n"
+                                    + ") $$T_PROJECT")
+                    .build();
+
+    static final TableTestProgram WINDOW_TVF_HOP_QUERY_OPERATION =
+            TableTestProgram.of(
+                            "window-tvf-hop-query-operation",
+                            "verifies sql serialization of a programmatic HOP window TVF operation")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema(
+                                            "a bigint",
+                                            "b string",
+                                            "ts TIMESTAMP(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '1' SECOND")
+                                    .producedValues(
+                                            Row.of(2L, "apple", localOfSeconds(0)),
+                                            Row.of(3L, "apple", localOfSeconds(4)),
+                                            Row.of(1L, "apple", localOfSeconds(7)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "w_start TIMESTAMP(3)",
+                                            "w_end TIMESTAMP(3)",
+                                            "a_sum bigint")
+                                    .consumedValues(
+                                            Row.of(
+                                                    LocalDateTime.of(2023, 12, 31, 23, 59, 55),
+                                                    localOfSeconds(5),
+                                                    5L),
+                                            Row.of(localOfSeconds(0), localOfSeconds(10), 6L),
+                                            Row.of(localOfSeconds(5), localOfSeconds(15), 1L))
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.createTable(
+                                                    env.getOperationTreeBuilder()
+                                                            .windowTableFunction(
+                                                                    WindowTableFunctionQueryOperation
+                                                                            .WindowKind.HOP,
+                                                                    $("ts"),
+                                                                    List.of(
+                                                                            lit(5).seconds(),
+                                                                            lit(10).seconds()),
+                                                                    env.from("s")
+                                                                            .getQueryOperation()))
+                                            .groupBy($("window_start"), $("window_end"))
+                                            .select(
+                                                    $("window_start"),
+                                                    $("window_end"),
+                                                    $("a").sum()),
+                            "sink")
+                    .runSql(
+                            "SELECT `$$T_PROJECT`.`window_start`, `$$T_PROJECT`.`window_end`, "
+                                    + "`$$T_PROJECT`.`EXPR$0` FROM (\n"
+                                    + "    SELECT `$$T_AGG`.`window_start`, `$$T_AGG`.`window_end`, "
+                                    + "(SUM(`$$T_AGG`.`a`)) AS `EXPR$0` FROM (\n"
+                                    + "        SELECT `$$T_WIN`.`a`, `$$T_WIN`.`b`, `$$T_WIN`.`ts`, "
+                                    + "`$$T_WIN`.`window_start`, `$$T_WIN`.`window_end`, "
+                                    + "`$$T_WIN`.`window_time` FROM TABLE(\n"
+                                    + "            HOP((\n"
+                                    + "                SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b`, "
+                                    + "`$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + "            ), DESCRIPTOR(`ts`), INTERVAL '0 00:00:05.000' DAY(2) TO SECOND(3), "
+                                    + "INTERVAL '0 00:00:10.000' DAY(2) TO SECOND(3))\n"
+                                    + "        ) $$T_WIN\n"
+                                    + "    ) $$T_AGG\n"
+                                    + "    GROUP BY `$$T_AGG`.`window_start`, `$$T_AGG`.`window_end`\n"
+                                    + ") $$T_PROJECT")
+                    .build();
+
+    static final TableTestProgram WINDOW_TVF_CUMULATE_QUERY_OPERATION =
+            TableTestProgram.of(
+                            "window-tvf-cumulate-query-operation",
+                            "verifies sql serialization of a programmatic CUMULATE window TVF operation")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema(
+                                            "a bigint",
+                                            "b string",
+                                            "ts TIMESTAMP(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '1' SECOND")
+                                    .producedValues(
+                                            Row.of(2L, "apple", localOfSeconds(0)),
+                                            Row.of(3L, "apple", localOfSeconds(4)),
+                                            Row.of(1L, "apple", localOfSeconds(7)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "w_start TIMESTAMP(3)",
+                                            "w_end TIMESTAMP(3)",
+                                            "a_sum bigint")
+                                    .consumedValues(
+                                            Row.of(localOfSeconds(0), localOfSeconds(5), 5L),
+                                            Row.of(localOfSeconds(0), localOfSeconds(10), 6L))
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.createTable(
+                                                    env.getOperationTreeBuilder()
+                                                            .windowTableFunction(
+                                                                    WindowTableFunctionQueryOperation
+                                                                            .WindowKind.CUMULATE,
+                                                                    $("ts"),
+                                                                    List.of(
+                                                                            lit(5).seconds(),
+                                                                            lit(10).seconds()),
+                                                                    env.from("s")
+                                                                            .getQueryOperation()))
+                                            .groupBy($("window_start"), $("window_end"))
+                                            .select(
+                                                    $("window_start"),
+                                                    $("window_end"),
+                                                    $("a").sum()),
+                            "sink")
+                    .runSql(
+                            "SELECT `$$T_PROJECT`.`window_start`, `$$T_PROJECT`.`window_end`, "
+                                    + "`$$T_PROJECT`.`EXPR$0` FROM (\n"
+                                    + "    SELECT `$$T_AGG`.`window_start`, `$$T_AGG`.`window_end`, "
+                                    + "(SUM(`$$T_AGG`.`a`)) AS `EXPR$0` FROM (\n"
+                                    + "        SELECT `$$T_WIN`.`a`, `$$T_WIN`.`b`, `$$T_WIN`.`ts`, "
+                                    + "`$$T_WIN`.`window_start`, `$$T_WIN`.`window_end`, "
+                                    + "`$$T_WIN`.`window_time` FROM TABLE(\n"
+                                    + "            CUMULATE((\n"
+                                    + "                SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b`, "
+                                    + "`$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + "            ), DESCRIPTOR(`ts`), INTERVAL '0 00:00:05.000' DAY(2) TO SECOND(3), "
+                                    + "INTERVAL '0 00:00:10.000' DAY(2) TO SECOND(3))\n"
+                                    + "        ) $$T_WIN\n"
+                                    + "    ) $$T_AGG\n"
+                                    + "    GROUP BY `$$T_AGG`.`window_start`, `$$T_AGG`.`window_end`\n"
+                                    + ") $$T_PROJECT")
+                    .build();
+
+    static final TableTestProgram WINDOW_TVF_SESSION_QUERY_OPERATION =
+            TableTestProgram.of(
+                            "window-tvf-session-query-operation",
+                            "verifies sql serialization of a programmatic SESSION window TVF operation")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema(
+                                            "a bigint",
+                                            "b string",
+                                            "ts TIMESTAMP(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '1' SECOND")
+                                    .producedValues(
+                                            Row.of(2L, "apple", localOfSeconds(0)),
+                                            Row.of(3L, "apple", localOfSeconds(4)),
+                                            Row.of(1L, "apple", localOfSeconds(7)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "w_start TIMESTAMP(3)",
+                                            "w_end TIMESTAMP(3)",
+                                            "a_sum bigint")
+                                    .consumedValues(
+                                            Row.of(localOfSeconds(0), localOfSeconds(12), 6L))
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.createTable(
+                                                    env.getOperationTreeBuilder()
+                                                            .windowTableFunction(
+                                                                    WindowTableFunctionQueryOperation
+                                                                            .WindowKind.SESSION,
+                                                                    $("ts"),
+                                                                    List.of(lit(5).seconds()),
+                                                                    env.from("s")
+                                                                            .getQueryOperation()))
+                                            .groupBy($("window_start"), $("window_end"))
+                                            .select(
+                                                    $("window_start"),
+                                                    $("window_end"),
+                                                    $("a").sum()),
+                            "sink")
+                    .runSql(
+                            "SELECT `$$T_PROJECT`.`window_start`, `$$T_PROJECT`.`window_end`, "
+                                    + "`$$T_PROJECT`.`EXPR$0` FROM (\n"
+                                    + "    SELECT `$$T_AGG`.`window_start`, `$$T_AGG`.`window_end`, "
+                                    + "(SUM(`$$T_AGG`.`a`)) AS `EXPR$0` FROM (\n"
+                                    + "        SELECT `$$T_WIN`.`a`, `$$T_WIN`.`b`, `$$T_WIN`.`ts`, "
+                                    + "`$$T_WIN`.`window_start`, `$$T_WIN`.`window_end`, "
+                                    + "`$$T_WIN`.`window_time` FROM TABLE(\n"
+                                    + "            SESSION((\n"
+                                    + "                SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b`, "
+                                    + "`$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + "            ), DESCRIPTOR(`ts`), INTERVAL '0 00:00:05.000' DAY(2) TO SECOND(3))\n"
+                                    + "        ) $$T_WIN\n"
+                                    + "    ) $$T_AGG\n"
+                                    + "    GROUP BY `$$T_AGG`.`window_start`, `$$T_AGG`.`window_end`\n"
+                                    + ") $$T_PROJECT")
+                    .build();
+
     private static Instant dayOfSeconds(int second) {
         return LocalDateTime.of(2024, 1, 1, 0, 0, second).atZone(ZoneId.of("UTC")).toInstant();
+    }
+
+    private static LocalDateTime localOfSeconds(int second) {
+        return LocalDateTime.of(2024, 1, 1, 0, 0, second);
     }
 
     static final TableTestProgram JOIN_QUERY_OPERATION =
