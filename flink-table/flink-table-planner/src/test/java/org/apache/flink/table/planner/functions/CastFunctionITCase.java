@@ -158,6 +158,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         final List<TestSetSpec> specs = new ArrayList<>();
         specs.addAll(variantPrimitiveCasts());
         specs.addAll(variantArrayCasts());
+        specs.addAll(variantRowCasts());
         return specs;
     }
 
@@ -564,6 +565,114 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(" + literal + " AS BYTES)",
                                 DEFAULT_UUID_BYTES,
                                 BYTES().notNull()));
+    }
+
+    private static List<TestSetSpec> variantRowCasts() {
+        final String obj = "{\"id\": 7, \"name\": \"ada\", \"active\": true}";
+        final String objNull = "{\"id\": 7, \"name\": null}";
+        final String nested =
+                "{\"user\": {\"id\": 1, \"since\": \"2020-01-01\"}, \"tags\": [\"x\", \"y\"]}";
+        return List.of(
+                TestSetSpec.forExpression("Cast a VARIANT produced by parseJson() to a ROW")
+                        .onFieldsWithData("unused")
+                        .andDataTypes(STRING())
+                        // ROW: fields match by name, order is free
+                        .testResult(
+                                lit(obj).parseJson()
+                                        .cast(ROW(FIELD("id", INT()), FIELD("name", STRING()))),
+                                "CAST(PARSE_JSON('" + obj + "') AS ROW<`id` INT, `name` STRING>)",
+                                Row.of(7, "ada"),
+                                ROW(FIELD("id", INT()), FIELD("name", STRING())).notNull())
+                        .testResult(
+                                lit(obj).parseJson()
+                                        .cast(ROW(FIELD("name", STRING()), FIELD("id", INT()))),
+                                "CAST(PARSE_JSON('" + obj + "') AS ROW<`name` STRING, `id` INT>)",
+                                Row.of("ada", 7),
+                                ROW(FIELD("name", STRING()), FIELD("id", INT())).notNull())
+                        // a field absent from the object fails the cast
+                        .testSqlRuntimeError(
+                                "CAST(PARSE_JSON('"
+                                        + obj
+                                        + "') AS ROW<`id` INT, `non-existing` STRING>)",
+                                TableRuntimeException.class,
+                                "is not present in the VARIANT")
+                        // a field present but set to a variant null maps to SQL NULL when nullable
+                        .testResult(
+                                lit(objNull)
+                                        .parseJson()
+                                        .cast(ROW(FIELD("id", INT()), FIELD("name", STRING()))),
+                                "CAST(PARSE_JSON('"
+                                        + objNull
+                                        + "') AS ROW<`id` INT, `name` STRING>)",
+                                Row.of(7, null),
+                                ROW(FIELD("id", INT()), FIELD("name", STRING())).notNull())
+                        // and fails when that field is NOT NULL
+                        .testSqlRuntimeError(
+                                "CAST(PARSE_JSON('"
+                                        + objNull
+                                        + "') AS ROW<`id` INT, `name` STRING NOT NULL>)",
+                                TableRuntimeException.class,
+                                "does not accept NULL")
+                        // extra object fields are dropped, so the row is a projection
+                        .testResult(
+                                lit(obj).parseJson().cast(ROW(FIELD("id", INT()))),
+                                "CAST(PARSE_JSON('" + obj + "') AS ROW<`id` INT>)",
+                                Row.of(7),
+                                ROW(FIELD("id", INT())).notNull())
+                        // an array is not an object
+                        .testTableApiRuntimeError(
+                                lit("[1, 2, 3]").parseJson().cast(ROW(FIELD("id", INT()))),
+                                "requires an object")
+                        // ROW<VARIANT> shreds one level, keeping each field a variant that then
+                        // casts back unchanged
+                        .testResult(
+                                lit(obj).parseJson()
+                                        .cast(ROW(FIELD("id", VARIANT()), FIELD("name", VARIANT())))
+                                        .cast(ROW(FIELD("id", INT()), FIELD("name", STRING()))),
+                                "CAST(CAST(PARSE_JSON('"
+                                        + obj
+                                        + "') AS ROW<`id` VARIANT, `name` VARIANT>)"
+                                        + " AS ROW<`id` INT, `name` STRING>)",
+                                Row.of(7, "ada"),
+                                ROW(FIELD("id", INT()), FIELD("name", STRING())).notNull())
+                        // a variant null field is kept as a variant null, so casting it back to a
+                        // concrete nullable type yields SQL NULL
+                        .testResult(
+                                lit(objNull)
+                                        .parseJson()
+                                        .cast(ROW(FIELD("id", VARIANT()), FIELD("name", VARIANT())))
+                                        .cast(ROW(FIELD("id", INT()), FIELD("name", STRING()))),
+                                "CAST(CAST(PARSE_JSON('"
+                                        + objNull
+                                        + "') AS ROW<`id` VARIANT, `name` VARIANT>)"
+                                        + " AS ROW<`id` INT, `name` STRING>)",
+                                Row.of(7, null),
+                                ROW(FIELD("id", INT()), FIELD("name", STRING())).notNull())
+                        // the recursion composes for nested rows and arrays
+                        .testResult(
+                                lit(nested)
+                                        .parseJson()
+                                        .cast(
+                                                ROW(
+                                                        FIELD(
+                                                                "user",
+                                                                ROW(
+                                                                        FIELD("id", INT()),
+                                                                        FIELD("since", STRING()))),
+                                                        FIELD("tags", ARRAY(STRING())))),
+                                "CAST(PARSE_JSON('"
+                                        + nested
+                                        + "') AS ROW<`user` ROW<`id` INT, `since` STRING>,"
+                                        + " `tags` ARRAY<STRING>>)",
+                                Row.of(Row.of(1, "2020-01-01"), new String[] {"x", "y"}),
+                                ROW(
+                                                FIELD(
+                                                        "user",
+                                                        ROW(
+                                                                FIELD("id", INT()),
+                                                                FIELD("since", STRING()))),
+                                                FIELD("tags", ARRAY(STRING())))
+                                        .notNull()));
     }
 
     private static List<TestSetSpec> allTypesBasic() {
