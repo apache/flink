@@ -76,6 +76,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
@@ -138,9 +139,13 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     private static List<TestSetSpec> variantCasts() {
-        // A variant is produced with PARSE_JSON since there is no VARIANT literal. Numeric casts
-        // succeed only when the value is preserved exactly, otherwise CAST fails and TRY_CAST
-        // returns NULL.
+        final List<TestSetSpec> specs = new ArrayList<>();
+        specs.addAll(variantPrimitiveCasts());
+        specs.addAll(variantArrayCasts());
+        return specs;
+    }
+
+    private static List<TestSetSpec> variantPrimitiveCasts() {
         return List.of(
                 TestSetSpec.forExpression("Cast a VARIANT produced by PARSE_JSON to a primitive")
                         .onFieldsWithData("unused")
@@ -377,6 +382,113 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(TRY_PARSE_JSON('42') AS TINYINT)",
                                 (byte) 42,
                                 TINYINT()));
+    }
+
+    private static List<TestSetSpec> variantArrayCasts() {
+        final String obj = "{\"id\": 7, \"name\": \"ada\", \"active\": true}";
+        return List.of(
+                TestSetSpec.forExpression("Cast a VARIANT produced by PARSE_JSON to an ARRAY")
+                        .onFieldsWithData("unused")
+                        .andDataTypes(STRING())
+                        // ARRAY: each element casts by the same VARIANT-to-element rule.
+                        .testResult(
+                                call("PARSE_JSON", "[1, 2, 3]").cast(ARRAY(INT())),
+                                "CAST(PARSE_JSON('[1, 2, 3]') AS ARRAY<INT>)",
+                                new Integer[] {1, 2, 3},
+                                ARRAY(INT()).notNull())
+                        // an approximate leaf takes any numeric kind
+                        .testResult(
+                                call("PARSE_JSON", "[1, 2, 3]").cast(ARRAY(DOUBLE())),
+                                "CAST(PARSE_JSON('[1, 2, 3]') AS ARRAY<DOUBLE>)",
+                                new Double[] {1.0, 2.0, 3.0},
+                                ARRAY(DOUBLE()).notNull())
+                        // each element renders to string like the scalar cast
+                        .testResult(
+                                call("PARSE_JSON", "[1, 2, 3]").cast(ARRAY(STRING())),
+                                "CAST(PARSE_JSON('[1, 2, 3]') AS ARRAY<STRING>)",
+                                new String[] {"1", "2", "3"},
+                                ARRAY(STRING()).notNull())
+                        // a heterogeneous array renders every element to string
+                        .testResult(
+                                call("PARSE_JSON", "[1, \"a\", 2, \"b\"]").cast(ARRAY(STRING())),
+                                "CAST(PARSE_JSON('[1, \"a\", 2, \"b\"]') AS ARRAY<STRING>)",
+                                new String[] {"1", "a", "2", "b"},
+                                ARRAY(STRING()).notNull())
+                        .testResult(
+                                call("PARSE_JSON", "[]").cast(ARRAY(INT())),
+                                "CAST(PARSE_JSON('[]') AS ARRAY<INT>)",
+                                new Integer[] {},
+                                ARRAY(INT()).notNull())
+                        // a JSON null element maps to SQL NULL for a nullable element type
+                        .testResult(
+                                call("PARSE_JSON", "[1, null, 3]").cast(ARRAY(INT())),
+                                "CAST(PARSE_JSON('[1, null, 3]') AS ARRAY<INT>)",
+                                new Integer[] {1, null, 3},
+                                ARRAY(INT()).notNull())
+                        // a JSON null element fails a NOT NULL element type
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "[1, null, 3]").cast(ARRAY(INT().notNull())),
+                                "NOT NULL element type")
+                        .testSqlRuntimeError(
+                                "CAST(PARSE_JSON('[1, null, 3]') AS ARRAY<INT NOT NULL>)",
+                                "NOT NULL element type")
+                        // a stored string is never parsed into an integer
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "[\"1\", \"2\"]").cast(ARRAY(INT())),
+                                "does not change the type")
+                        .testSqlRuntimeError(
+                                "CAST(PARSE_JSON('[\"1\", \"2\"]') AS ARRAY<INT>)",
+                                "does not change the type")
+                        .testResult(
+                                call("PARSE_JSON", "[\"1\", \"2\"]").tryCast(ARRAY(INT())),
+                                "TRY_CAST(PARSE_JSON('[\"1\", \"2\"]') AS ARRAY<INT>)",
+                                null,
+                                ARRAY(INT()))
+                        // a heterogeneous array fails on the first element that is not an integer
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "[1, \"a\", 2, \"b\"]").cast(ARRAY(INT())),
+                                "does not change the type")
+                        // a fractional element cannot narrow to INT without dropping digits
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", "[1.23, 2.45, 3.67]").cast(ARRAY(INT())),
+                                "lose precision")
+                        .testSqlRuntimeError(
+                                "CAST(PARSE_JSON('[1.23, 2.45, 3.67]') AS ARRAY<INT>)",
+                                "lose precision")
+                        // TRY_CAST swallows the failure and returns NULL for the whole array
+                        .testResult(
+                                call("PARSE_JSON", "[1.23, 2.45, 3.67]").tryCast(ARRAY(INT())),
+                                "TRY_CAST(PARSE_JSON('[1.23, 2.45, 3.67]') AS ARRAY<INT>)",
+                                null,
+                                ARRAY(INT()))
+                        // an object is not an array
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", obj).cast(ARRAY(INT())), "requires an array")
+                        // ARRAY<VARIANT> shreds one level and keeps the elements as variants, which
+                        // then cast back to INT unchanged
+                        .testResult(
+                                call("PARSE_JSON", "[1, 2, 3]")
+                                        .cast(ARRAY(VARIANT()))
+                                        .cast(ARRAY(INT())),
+                                "CAST(CAST(PARSE_JSON('[1, 2, 3]') AS ARRAY<VARIANT>) AS ARRAY<INT>)",
+                                new Integer[] {1, 2, 3},
+                                ARRAY(INT()).notNull())
+                        // the recursion composes for a nested array of arrays
+                        .testResult(
+                                call("PARSE_JSON", "[[1, 2], [3]]").cast(ARRAY(ARRAY(INT()))),
+                                "CAST(PARSE_JSON('[[1, 2], [3]]') AS ARRAY<ARRAY<INT>>)",
+                                new Integer[][] {{1, 2}, {3}},
+                                ARRAY(ARRAY(INT())).notNull())
+                        // a top-level JSON null casts to SQL NULL for a nullable target
+                        .testResult(
+                                call("TRY_PARSE_JSON", "null").cast(ARRAY(INT())),
+                                "CAST(TRY_PARSE_JSON('null') AS ARRAY<INT>)",
+                                null,
+                                ARRAY(INT()))
+                        // an element with no variant counterpart is rejected at validation
+                        .testTableApiValidationError(
+                                call("PARSE_JSON", "[1]").cast(ARRAY(INTERVAL(MONTH()))),
+                                "Unsupported cast"));
     }
 
     private static List<TestSetSpec> allTypesBasic() {

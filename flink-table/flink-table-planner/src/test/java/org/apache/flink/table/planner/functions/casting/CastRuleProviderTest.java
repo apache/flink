@@ -27,6 +27,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.jupiter.api.Test;
 
+import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
@@ -34,6 +35,9 @@ import static org.apache.flink.table.api.DataTypes.DATE;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.INTERVAL;
+import static org.apache.flink.table.api.DataTypes.MONTH;
+import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.STRUCTURED;
@@ -135,5 +139,22 @@ class CastRuleProviderTest {
         // character strings keep going through the display-oriented rule
         assertThat(CastRuleProvider.resolve(VARIANT, STRING_TYPE))
                 .isSameAs(VariantToStringCastRule.INSTANCE);
+    }
+
+    @Test
+    void testResolveVariantToArray() {
+        assertThat(CastRuleProvider.resolve(VARIANT, ARRAY(INT()).getLogicalType()))
+                .isSameAs(VariantToArrayCastRule.INSTANCE);
+
+        // the element recurses through the VARIANT rules, including the identity leaf and nesting
+        assertThat(CastRuleProvider.exists(VARIANT, ARRAY(VARIANT()).getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, ARRAY(ARRAY(INT())).getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.canFail(VARIANT, ARRAY(INT()).getLogicalType())).isTrue();
+
+        // an element with no variant counterpart makes the whole cast unresolvable
+        assertThat(CastRuleProvider.exists(VARIANT, ARRAY(INTERVAL(MONTH())).getLogicalType()))
+                .isFalse();
+        // MULTISET has no variant counterpart
+        assertThat(CastRuleProvider.exists(VARIANT, MULTISET(STRING()).getLogicalType())).isFalse();
     }
 }

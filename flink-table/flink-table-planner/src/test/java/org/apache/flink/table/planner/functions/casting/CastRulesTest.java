@@ -188,6 +188,61 @@ class CastRulesTest {
                                     .build())
                     .build();
 
+    /** {@code [1, 2, 3]}, the design's running array value. */
+    private static final Variant VARIANT_INT_ARRAY =
+            Variant.newBuilder()
+                    .array()
+                    .add(Variant.newBuilder().of(1))
+                    .add(Variant.newBuilder().of(2))
+                    .add(Variant.newBuilder().of(3))
+                    .build();
+
+    /** {@code [1, null, 3]}, an array carrying a JSON null element. */
+    private static final Variant VARIANT_INT_ARRAY_WITH_NULL =
+            Variant.newBuilder()
+                    .array()
+                    .add(Variant.newBuilder().of(1))
+                    .add(Variant.newBuilder().ofNull())
+                    .add(Variant.newBuilder().of(3))
+                    .build();
+
+    /**
+     * {@code ["1", "22", "333"]}, stored strings of different lengths a numeric leaf must not
+     * parse.
+     */
+    private static final Variant VARIANT_STRING_ARRAY =
+            Variant.newBuilder()
+                    .array()
+                    .add(Variant.newBuilder().of("1"))
+                    .add(Variant.newBuilder().of("22"))
+                    .add(Variant.newBuilder().of("333"))
+                    .build();
+
+    /** {@code [1, "a", 2, "b"]}, a heterogeneous array of integers and strings. */
+    private static final Variant VARIANT_MIXED_ARRAY =
+            Variant.newBuilder()
+                    .array()
+                    .add(Variant.newBuilder().of(1))
+                    .add(Variant.newBuilder().of("a"))
+                    .add(Variant.newBuilder().of(2))
+                    .add(Variant.newBuilder().of("b"))
+                    .build();
+
+    /** {@code [[1, 2], [3]]}, a nested array of arrays. */
+    private static final Variant VARIANT_NESTED_ARRAY =
+            Variant.newBuilder()
+                    .array()
+                    .add(
+                            Variant.newBuilder()
+                                    .array()
+                                    .add(Variant.newBuilder().of(1))
+                                    .add(Variant.newBuilder().of(2))
+                                    .build())
+                    .add(Variant.newBuilder().array().add(Variant.newBuilder().of(3)).build())
+                    .build();
+
+    private static final Variant VARIANT_EMPTY_ARRAY = Variant.newBuilder().array().build();
+
     private static final DataType MY_STRUCTURED_TYPE =
             STRUCTURED(
                     MyStructuredType.class,
@@ -1865,7 +1920,93 @@ class CastRulesTest {
                         .fromCase(
                                 VARIANT(),
                                 Variant.newBuilder().of(new byte[] {1, 2, 3, 4, 5, 6}),
-                                new byte[] {1, 2, 3, 4}));
+                                new byte[] {1, 2, 3, 4}),
+                // From VARIANT to a constructed target. A constructed cast is the scalar cast
+                // applied to every leaf plus a shape check at each level.
+                CastTestSpecBuilder.testCastTo(ARRAY(INT()))
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                new GenericArrayData(new Integer[] {1, 2, 3}))
+                        // a JSON null element maps to SQL NULL for a nullable element type
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY_WITH_NULL,
+                                new GenericArrayData(new Integer[] {1, null, 3}))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_EMPTY_ARRAY,
+                                new GenericArrayData(new Integer[] {}))
+                        // a stored string is never parsed into an integer
+                        .fail(VARIANT(), VARIANT_STRING_ARRAY, TableRuntimeException.class)
+                        // a heterogeneous array fails on an element that is not an integer
+                        .fail(VARIANT(), VARIANT_MIXED_ARRAY, TableRuntimeException.class)
+                        // an object or a scalar is not an array
+                        .fail(VARIANT(), VARIANT_OBJECT, TableRuntimeException.class)
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(ARRAY(INT().notNull()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                new GenericArrayData(new int[] {1, 2, 3}))
+                        // a JSON null element fails a NOT NULL element type
+                        .fail(VARIANT(), VARIANT_INT_ARRAY_WITH_NULL, TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(ARRAY(STRING()))
+                        // each element renders to string like the scalar cast
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                new GenericArrayData(
+                                        new Object[] {
+                                            fromString("1"), fromString("2"), fromString("3")
+                                        }))
+                        // a heterogeneous array renders every element to string
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_MIXED_ARRAY,
+                                new GenericArrayData(
+                                        new Object[] {
+                                            fromString("1"),
+                                            fromString("a"),
+                                            fromString("2"),
+                                            fromString("b")
+                                        }))
+                        // stored strings of different lengths render unchanged
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_STRING_ARRAY,
+                                new GenericArrayData(
+                                        new Object[] {
+                                            fromString("1"), fromString("22"), fromString("333")
+                                        })),
+                CastTestSpecBuilder.testCastTo(ARRAY(DOUBLE()))
+                        // an approximate leaf takes any numeric kind
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                new GenericArrayData(new Double[] {1.0, 2.0, 3.0})),
+                // the recursion composes: an array of arrays with no special case
+                CastTestSpecBuilder.testCastTo(ARRAY(ARRAY(INT())))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_NESTED_ARRAY,
+                                new GenericArrayData(
+                                        new GenericArrayData[] {
+                                            new GenericArrayData(new Integer[] {1, 2}),
+                                            new GenericArrayData(new Integer[] {3})
+                                        })),
+                // an ARRAY<VARIANT> leaf is the identity cast, keeping each element as a variant
+                CastTestSpecBuilder.testCastTo(ARRAY(VARIANT()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                new GenericArrayData(
+                                        new Variant[] {
+                                            VARIANT_INT_ARRAY.getElement(0),
+                                            VARIANT_INT_ARRAY.getElement(1),
+                                            VARIANT_INT_ARRAY.getElement(2)
+                                        })));
     }
 
     @TestFactory

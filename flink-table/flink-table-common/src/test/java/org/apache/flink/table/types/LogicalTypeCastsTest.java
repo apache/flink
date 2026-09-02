@@ -34,7 +34,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
@@ -59,7 +59,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -289,13 +288,29 @@ class LogicalTypeCastsTest {
                 Arguments.of(new VariantType(), VarCharType.STRING_TYPE, false, true),
                 // variant identity cast is implicit
                 Arguments.of(new VariantType(), new VariantType(), true, true),
-                // TIME and constructed targets are not castable from variant
+                // TIME has no variant counterpart, so it is not castable from variant
                 Arguments.of(new VariantType(), new TimeType(), false, false),
-                Arguments.of(new VariantType(), new ArrayType(new IntType()), false, false),
-                Arguments.of(new VariantType(), new RowType(List.of()), false, false),
+                // A variant imposes a schema on a constructed target, explicit only, recursing on
+                // every leaf, which is itself a VARIANT cast
+                Arguments.of(new VariantType(), new ArrayType(new IntType()), false, true),
+                Arguments.of(new VariantType(), new ArrayType(new VariantType()), false, true),
                 Arguments.of(
                         new VariantType(),
-                        new MapType(new IntType(), new CharType()),
+                        new ArrayType(new ArrayType(new IntType())),
+                        false,
+                        true),
+                // A leaf with no variant counterpart makes the whole constructed cast unsupported
+                Arguments.of(
+                        new VariantType(),
+                        new ArrayType(
+                                new YearMonthIntervalType(
+                                        YearMonthIntervalType.YearMonthResolution.MONTH)),
+                        false,
+                        false),
+                // MULTISET has no variant counterpart and stays unsupported
+                Arguments.of(
+                        new VariantType(),
+                        new MultisetType(VarCharType.STRING_TYPE),
                         false,
                         false));
     }
