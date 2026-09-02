@@ -18,7 +18,7 @@
 
 package org.apache.flink.state.table;
 
-import org.apache.flink.state.table.filter.SavepointKeyFilterPlan;
+import org.apache.flink.state.api.filter.SavepointKeyFilter;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -44,7 +44,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
- * Converts {@link ResolvedExpression} key filter predicates into {@link SavepointKeyFilterPlan}
+ * Converts {@link ResolvedExpression} key filter predicates into {@link SavepointKeyFilter}
  * instances that can be used to prune key groups and key iterations during savepoint reads.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
@@ -54,7 +54,7 @@ class SavepointFilterTranslator {
 
     private static final Map<
                     FunctionDefinition,
-                    BiFunction<SavepointFilterTranslator, CallExpression, SavepointKeyFilterPlan>>
+                    BiFunction<SavepointFilterTranslator, CallExpression, KeyFilterPlan>>
             FILTERS =
                     Map.of(
                             BuiltInFunctionDefinitions.EQUALS,
@@ -86,9 +86,9 @@ class SavepointFilterTranslator {
         final List<ResolvedExpression> accepted = new ArrayList<>();
         final List<ResolvedExpression> remaining = new ArrayList<>();
 
-        SavepointKeyFilterPlan keyFilter = null;
+        KeyFilterPlan keyFilter = null;
         for (ResolvedExpression filter : filters) {
-            SavepointKeyFilterPlan extracted = extractFilter(filter);
+            KeyFilterPlan extracted = extractFilter(filter);
             if (extracted == null) {
                 remaining.add(filter);
                 continue;
@@ -98,7 +98,8 @@ class SavepointFilterTranslator {
             accepted.add(filter);
         }
 
-        return new Result(accepted, remaining, keyFilter);
+        return new Result(
+                accepted, remaining, keyFilter == null ? null : keyFilter.toSavepointKeyFilter());
     }
 
     /**
@@ -111,7 +112,7 @@ class SavepointFilterTranslator {
             int keyColumnIndex,
             RowType rowType,
             List<ResolvedExpression> filters,
-            Consumer<SavepointKeyFilterPlan> keyFilterSetter) {
+            Consumer<SavepointKeyFilter> keyFilterSetter) {
         Result result =
                 new SavepointFilterTranslator(
                                 keyColumnIndex,
@@ -123,12 +124,11 @@ class SavepointFilterTranslator {
     }
 
     @Nullable
-    private SavepointKeyFilterPlan extractFilter(ResolvedExpression expr) {
-        final BiFunction<SavepointFilterTranslator, CallExpression, SavepointKeyFilterPlan>
-                extractor =
-                        expr instanceof CallExpression
-                                ? FILTERS.get(((CallExpression) expr).getFunctionDefinition())
-                                : null;
+    private KeyFilterPlan extractFilter(ResolvedExpression expr) {
+        final BiFunction<SavepointFilterTranslator, CallExpression, KeyFilterPlan> extractor =
+                expr instanceof CallExpression
+                        ? FILTERS.get(((CallExpression) expr).getFunctionDefinition())
+                        : null;
         if (extractor == null) {
             LOG.debug(
                     "Unsupported predicate [{}] cannot be pushed into savepoint key filter.", expr);
@@ -142,7 +142,7 @@ class SavepointFilterTranslator {
     // -------------------------------------------------------------------------
 
     @Nullable
-    private SavepointKeyFilterPlan fromEquals(CallExpression call) {
+    private KeyFilterPlan fromEquals(CallExpression call) {
         if (!isBinaryValid(call)) {
             return null;
         }
@@ -159,25 +159,25 @@ class SavepointFilterTranslator {
         if (value == null) {
             return null;
         }
-        return SavepointKeyFilterPlan.exact(value);
+        return KeyFilterPlan.exact(value);
     }
 
     @Nullable
-    private SavepointKeyFilterPlan fromOr(CallExpression call) {
+    private KeyFilterPlan fromOr(CallExpression call) {
         Set<Object> keys = new HashSet<>();
         for (ResolvedExpression arg : call.getResolvedChildren()) {
-            SavepointKeyFilterPlan sub = extractFilter(arg);
+            KeyFilterPlan sub = extractFilter(arg);
             if (sub == null) {
                 return null;
             }
-            Set<Object> subKeys = sub.getExactKeys();
+            Set<Object> subKeys = sub.exactKeys;
             // OR can only absorb finite key sets; a range branch cannot be merged via union.
             if (subKeys == null) {
                 return null;
             }
             keys.addAll(subKeys);
         }
-        return SavepointKeyFilterPlan.exact(keys);
+        return KeyFilterPlan.exact(keys);
     }
 
     // -------------------------------------------------------------------------
@@ -185,12 +185,12 @@ class SavepointFilterTranslator {
     // -------------------------------------------------------------------------
 
     @Nullable
-    private SavepointKeyFilterPlan fromAnd(CallExpression call) {
-        SavepointKeyFilterPlan merged = null;
+    private KeyFilterPlan fromAnd(CallExpression call) {
+        KeyFilterPlan merged = null;
         for (ResolvedExpression arg : call.getResolvedChildren()) {
-            SavepointKeyFilterPlan sub = extractFilter(arg);
+            KeyFilterPlan sub = extractFilter(arg);
             // AND only absorbs range filters; exact (or null) children break pushdown.
-            if (sub == null || sub.getExactKeys() != null) {
+            if (sub == null || sub.exactKeys != null) {
                 return null;
             }
             merged = (merged == null) ? sub : merged.intersect(sub);
@@ -202,7 +202,7 @@ class SavepointFilterTranslator {
     }
 
     @Nullable
-    private SavepointKeyFilterPlan fromBetween(CallExpression call) {
+    private KeyFilterPlan fromBetween(CallExpression call) {
         List<ResolvedExpression> args = call.getResolvedChildren();
         if (args.size() != 3) {
             return null;
@@ -226,13 +226,11 @@ class SavepointFilterTranslator {
                     lower.getClass().getName());
             return null;
         }
-        return SavepointKeyFilterPlan.range(
-                (Comparable) lower, true,
-                (Comparable) upper, true);
+        return KeyFilterPlan.range((Comparable) lower, true, (Comparable) upper, true);
     }
 
     @Nullable
-    private SavepointKeyFilterPlan fromComparison(CallExpression call, Comparison cmp) {
+    private KeyFilterPlan fromComparison(CallExpression call, Comparison cmp) {
         if (!isBinaryValid(call)) {
             return null;
         }
@@ -258,13 +256,13 @@ class SavepointFilterTranslator {
         Comparison keyLeftCmp = keyOnLeft ? cmp : cmp.flip();
         switch (keyLeftCmp) {
             case GT:
-                return SavepointKeyFilterPlan.range(b, false, null, true);
+                return KeyFilterPlan.range(b, false, null, true);
             case GTE:
-                return SavepointKeyFilterPlan.range(b, true, null, true);
+                return KeyFilterPlan.range(b, true, null, true);
             case LT:
-                return SavepointKeyFilterPlan.range(null, true, b, false);
+                return KeyFilterPlan.range(null, true, b, false);
             case LTE:
-                return SavepointKeyFilterPlan.range(null, true, b, true);
+                return KeyFilterPlan.range(null, true, b, true);
             default:
                 throw new IllegalStateException("Unknown Comparison: " + keyLeftCmp);
         }
@@ -329,12 +327,12 @@ class SavepointFilterTranslator {
     static final class Result {
         private final List<ResolvedExpression> accepted;
         private final List<ResolvedExpression> remaining;
-        @Nullable private final SavepointKeyFilterPlan keyFilter;
+        @Nullable private final SavepointKeyFilter keyFilter;
 
         private Result(
                 List<ResolvedExpression> accepted,
                 List<ResolvedExpression> remaining,
-                @Nullable SavepointKeyFilterPlan keyFilter) {
+                @Nullable SavepointKeyFilter keyFilter) {
             this.accepted = accepted;
             this.remaining = remaining;
             this.keyFilter = keyFilter;
@@ -349,8 +347,110 @@ class SavepointFilterTranslator {
         }
 
         @Nullable
-        SavepointKeyFilterPlan keyFilter() {
+        SavepointKeyFilter keyFilter() {
             return keyFilter;
+        }
+    }
+
+    private static final class KeyFilterPlan {
+        @Nullable private final Set<Object> exactKeys;
+        @Nullable private final Comparable lower;
+        private final boolean lowerInclusive;
+        @Nullable private final Comparable upper;
+        private final boolean upperInclusive;
+
+        private KeyFilterPlan(
+                @Nullable Set<Object> exactKeys,
+                @Nullable Comparable lower,
+                boolean lowerInclusive,
+                @Nullable Comparable upper,
+                boolean upperInclusive) {
+            this.exactKeys = exactKeys;
+            this.lower = lower;
+            this.lowerInclusive = lowerInclusive;
+            this.upper = upper;
+            this.upperInclusive = upperInclusive;
+        }
+
+        private static KeyFilterPlan exact(Object key) {
+            return exact(Set.of(key));
+        }
+
+        private static KeyFilterPlan exact(Set<Object> keys) {
+            return new KeyFilterPlan(Set.copyOf(keys), null, true, null, true);
+        }
+
+        private static KeyFilterPlan range(
+                @Nullable Comparable lower,
+                boolean lowerInclusive,
+                @Nullable Comparable upper,
+                boolean upperInclusive) {
+            return new KeyFilterPlan(null, lower, lowerInclusive, upper, upperInclusive);
+        }
+
+        private KeyFilterPlan intersect(KeyFilterPlan other) {
+            Set<Object> newExactKeys = exactKeys;
+            if (newExactKeys == null) {
+                newExactKeys = other.exactKeys;
+            } else if (other.exactKeys != null) {
+                newExactKeys = new HashSet<>(newExactKeys);
+                newExactKeys.retainAll(other.exactKeys);
+            }
+
+            Comparable newLower = lower;
+            boolean newLowerInclusive = lowerInclusive;
+            if (other.lower != null) {
+                final int comparison = newLower == null ? -1 : newLower.compareTo(other.lower);
+                if (newLower == null || comparison < 0) {
+                    newLower = other.lower;
+                    newLowerInclusive = other.lowerInclusive;
+                } else if (comparison == 0) {
+                    newLowerInclusive &= other.lowerInclusive;
+                }
+            }
+
+            Comparable newUpper = upper;
+            boolean newUpperInclusive = upperInclusive;
+            if (other.upper != null) {
+                final int comparison = newUpper == null ? 1 : newUpper.compareTo(other.upper);
+                if (newUpper == null || comparison > 0) {
+                    newUpper = other.upper;
+                    newUpperInclusive = other.upperInclusive;
+                } else if (comparison == 0) {
+                    newUpperInclusive &= other.upperInclusive;
+                }
+            }
+
+            return new KeyFilterPlan(
+                    newExactKeys, newLower, newLowerInclusive, newUpper, newUpperInclusive);
+        }
+
+        private boolean isEmpty() {
+            if (exactKeys != null && exactKeys.isEmpty()) {
+                return true;
+            }
+            if (lower == null || upper == null) {
+                return false;
+            }
+            final int comparison = lower.compareTo(upper);
+            return comparison > 0 || (comparison == 0 && (!lowerInclusive || !upperInclusive));
+        }
+
+        private SavepointKeyFilter<Object> toSavepointKeyFilter() {
+            if (isEmpty()) {
+                return SavepointKeyFilter.exact(Set.of());
+            }
+            if (exactKeys != null && lower == null && upper == null) {
+                return SavepointKeyFilter.exact(exactKeys);
+            }
+            final SavepointKeyFilter<Object> rangeFilter =
+                    SavepointKeyFilter.range(lower, lowerInclusive, upper, upperInclusive);
+            if (exactKeys == null) {
+                return rangeFilter;
+            }
+            final Set<Object> retainedKeys = new HashSet<>(exactKeys);
+            retainedKeys.removeIf(key -> !rangeFilter.test(key));
+            return SavepointKeyFilter.exact(retainedKeys);
         }
     }
 

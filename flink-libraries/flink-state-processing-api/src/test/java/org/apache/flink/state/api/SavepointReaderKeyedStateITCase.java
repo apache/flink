@@ -31,7 +31,6 @@ import org.apache.flink.state.api.filter.SavepointKeyFilter;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.utils.JobResultRetriever;
 import org.apache.flink.state.api.utils.SavepointTestBase;
-import org.apache.flink.state.table.filter.SavepointKeyFilterPlan;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -220,7 +219,8 @@ abstract class SavepointReaderKeyedStateITCase<B extends StateBackend> extends S
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
         CountingReadResult result =
-                readKeyedStateWithCountingReader(savepoint, SavepointKeyFilterPlan.empty());
+                readKeyedStateWithCountingReader(
+                        savepoint, SavepointKeyFilter.exact(Collections.emptySet()));
         // No key reaches the reader, so no state is read.
         assertThat(result.values).isEmpty();
         assertThat(result.counter).isZero();
