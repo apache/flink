@@ -58,8 +58,17 @@ public final class VariantCastUtils {
      */
     private static final double LONG_MAGNITUDE_LIMIT = -(double) Long.MIN_VALUE;
 
-    /** A variant stores a timestamp with microsecond precision. */
+    /** A microsecond timestamp variant renders with six fractional-second digits. */
     private static final int TIMESTAMP_PRECISION = 6;
+
+    /** A nanosecond timestamp variant renders with nine fractional-second digits. */
+    private static final int TIMESTAMP_NANOS_PRECISION = 9;
+
+    /**
+     * A time variant keeps microseconds, but the runtime TIME representation is millisecond-of-day,
+     * so it renders with three fractional-second digits, the same as a regular TIME to string cast.
+     */
+    private static final int TIME_PRECISION = 3;
 
     private VariantCastUtils() {}
 
@@ -201,12 +210,14 @@ public final class VariantCastUtils {
     }
 
     /**
-     * Reads a timestamp variant as the target {@code TIMESTAMP}. A variant keeps microseconds, so
-     * fractional seconds beyond the target precision are truncated, the same as a regular {@code
-     * TIMESTAMP} to {@code TIMESTAMP(p)} cast.
+     * Reads a timestamp variant as the target {@code TIMESTAMP}. {@link Variant#getDateTime()}
+     * already accepts both the microsecond ({@link Variant.Type#TIMESTAMP}) and nanosecond ({@link
+     * Variant.Type#TIMESTAMP_NS}) encodings. Fractional seconds beyond the target precision are
+     * truncated, the same as a regular {@code TIMESTAMP} to {@code TIMESTAMP(p)} cast.
      */
     public static TimestampData toTimestamp(Variant variant, int precision) {
-        if (variant.getType() != Variant.Type.TIMESTAMP) {
+        final Variant.Type type = variant.getType();
+        if (type != Variant.Type.TIMESTAMP && type != Variant.Type.TIMESTAMP_NS) {
             throw unsupportedKind(variant, String.format("TIMESTAMP(%d)", precision));
         }
         return DateTimeUtils.truncate(
@@ -215,10 +226,25 @@ public final class VariantCastUtils {
 
     /** Reads a timestamp with local time zone variant. See {@link #toTimestamp(Variant, int)}. */
     public static TimestampData toTimestampLtz(Variant variant, int precision) {
-        if (variant.getType() != Variant.Type.TIMESTAMP_LTZ) {
+        final Variant.Type type = variant.getType();
+        if (type != Variant.Type.TIMESTAMP_LTZ && type != Variant.Type.TIMESTAMP_LTZ_NS) {
             throw unsupportedKind(variant, String.format("TIMESTAMP_LTZ(%d)", precision));
         }
         return DateTimeUtils.truncate(TimestampData.fromInstant(variant.getInstant()), precision);
+    }
+
+    /**
+     * Reads a time variant as the target {@code TIME}. The runtime TIME representation is
+     * millisecond-of-day, so a variant's microseconds are dropped and any fractional seconds beyond
+     * the target precision are then truncated, the same as a regular {@code TIME} to {@code
+     * TIME(p)} cast.
+     */
+    public static int toTime(Variant variant, int precision) {
+        if (variant.getType() != Variant.Type.TIME) {
+            throw unsupportedKind(variant, String.format("TIME(%d)", precision));
+        }
+        return DateTimeUtils.applyTimePrecisionTruncation(
+                DateTimeUtils.toInternal(variant.getTime()), precision);
     }
 
     /**
@@ -312,14 +338,25 @@ public final class VariantCastUtils {
             case DATE:
                 value = DateTimeUtils.formatDate((int) variant.getDate().toEpochDay());
                 break;
+            case TIME:
+                value =
+                        DateTimeUtils.formatTimestampMillis(
+                                DateTimeUtils.toInternal(variant.getTime()), TIME_PRECISION);
+                break;
             case TIMESTAMP:
-                // A wall-clock value needs no zone shift, which is what UTC_ZONE achieves here. A
-                // variant keeps microseconds, so the precision is always 6.
+                // A wall-clock value needs no zone shift, which is what UTC_ZONE achieves here.
                 value =
                         DateTimeUtils.formatTimestamp(
                                 TimestampData.fromLocalDateTime(variant.getDateTime()),
                                 DateTimeUtils.UTC_ZONE,
                                 TIMESTAMP_PRECISION);
+                break;
+            case TIMESTAMP_NS:
+                value =
+                        DateTimeUtils.formatTimestamp(
+                                TimestampData.fromLocalDateTime(variant.getDateTime()),
+                                DateTimeUtils.UTC_ZONE,
+                                TIMESTAMP_NANOS_PRECISION);
                 break;
             case TIMESTAMP_LTZ:
                 value =
@@ -327,6 +364,13 @@ public final class VariantCastUtils {
                                 TimestampData.fromInstant(variant.getInstant()),
                                 sessionZone,
                                 TIMESTAMP_PRECISION);
+                break;
+            case TIMESTAMP_LTZ_NS:
+                value =
+                        DateTimeUtils.formatTimestamp(
+                                TimestampData.fromInstant(variant.getInstant()),
+                                sessionZone,
+                                TIMESTAMP_NANOS_PRECISION);
                 break;
             case NULL:
                 // Only reachable for a NOT NULL target. A nullable target maps a null-valued

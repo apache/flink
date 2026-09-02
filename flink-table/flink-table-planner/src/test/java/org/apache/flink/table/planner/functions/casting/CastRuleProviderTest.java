@@ -131,11 +131,10 @@ class CastRuleProviderTest {
         assertThat(CastRuleProvider.exists(VARIANT, DATE().getLogicalType())).isTrue();
         assertThat(CastRuleProvider.exists(VARIANT, TIMESTAMP().getLogicalType())).isTrue();
         assertThat(CastRuleProvider.exists(VARIANT, TIMESTAMP_LTZ().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, TIME().getLogicalType())).isTrue();
         assertThat(CastRuleProvider.exists(VARIANT, BYTES().getLogicalType())).isTrue();
         assertThat(CastRuleProvider.canFail(VARIANT, INT)).isTrue();
 
-        // TIME has no variant counterpart and is not castable
-        assertThat(CastRuleProvider.exists(VARIANT, TIME().getLogicalType())).isFalse();
         // character strings keep going through the display-oriented rule
         assertThat(CastRuleProvider.resolve(VARIANT, STRING_TYPE))
                 .isSameAs(VariantToStringCastRule.INSTANCE);
