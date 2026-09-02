@@ -1588,6 +1588,32 @@ rendering. Use `JSON_STRING` for the JSON representation instead, where a string
 `"foo"` and an object or array is serialized. A variant that stores a JSON `null` casts to SQL
 `NULL`.
 
+A `VARIANT` can also be cast to a constructed target, which imposes a schema on it. A variant array
+casts to `ARRAY<T>`. The variant must be an array, otherwise the cast fails. Each element is itself a
+`VARIANT`, so it casts to the element type `T` by the same rules, recursively, bottoming out at the
+scalar cast above. A leaf is never parsed either, so a stored string does not reach an integer
+target. Cast the leaf to `STRING` first and convert with a regular cast.
+
+- Each element casts to `T`. A JSON null element maps to SQL `NULL` when `T` is nullable and fails
+  the cast when `T` is `NOT NULL`. An empty array casts to an empty `ARRAY<T>`.
+- `ARRAY<VARIANT>` is the identity leaf: it shreds one level and keeps each element as a variant.
+
+If any element cast fails, the whole cast fails, and `TRY_CAST` returns `NULL` for the entire value
+rather than a partial result. An element type with no variant counterpart, such as
+`ARRAY<INTERVAL YEAR TO MONTH>`, is rejected at validation. A top-level JSON `null` casts to SQL `NULL` for a nullable target before any
+shape check runs.
+
+The following examples use `a` for `PARSE_JSON('[1, 2, 3]')` and `m` for the mixed array
+`PARSE_JSON('[1, "a"]')`:
+
+```sql
+CAST(a AS ARRAY<INT>)      -- [1, 2, 3]
+CAST(a AS ARRAY<STRING>)   -- ['1', '2', '3'], each element rendered like the scalar cast
+CAST(m AS ARRAY<INT>)      -- fails on "a", a stored string is not parsed into an integer
+CAST(m AS ARRAY<STRING>)   -- ['1', 'a'], a heterogeneous array still renders each element
+CAST(m AS ARRAY<VARIANT>)  -- [1, "a"] as variants, one level shredded
+```
+
 **Declaration**
 
 {{< tabs "25c30432-8460-441d-a036-9416d8202882" >}}
@@ -1802,7 +1828,7 @@ COALESCE(TRY_CAST('non-number' AS INT), 0) --- 结果返回数字 0 的 INT 格�
 | `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     N     |    N     |
 | `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     N     |    N     |
 | `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |     N     |    N     |
-| `VARIANT`                              |                   N                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   N    |      !      |        !        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `VARIANT`                              |                   N                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   N    |      !      |        !        |     N      |   !³    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
 | `BITMAP`                               |                   Y                   |                   Y⁷                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
 
 备注：
