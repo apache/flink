@@ -59,6 +59,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -305,6 +306,23 @@ class LogicalTypeCastsTest {
                         new ArrayType(
                                 new YearMonthIntervalType(
                                         YearMonthIntervalType.YearMonthResolution.MONTH)),
+                        false,
+                        false),
+                // A variant object casts to ROW or STRUCTURED when every field is castable; an
+                // empty
+                // row is vacuously castable and matching is by name
+                Arguments.of(new VariantType(), new RowType(List.of()), false, true),
+                Arguments.of(
+                        new VariantType(),
+                        new RowType(
+                                List.of(
+                                        new RowField("f0", new IntType()),
+                                        new RowField("f1", VarCharType.STRING_TYPE))),
+                        false,
+                        true),
+                Arguments.of(
+                        new VariantType(),
+                        new RowType(List.of(new RowField("f0", new TimeType()))),
                         false,
                         false),
                 // MULTISET has no variant counterpart and stays unsupported

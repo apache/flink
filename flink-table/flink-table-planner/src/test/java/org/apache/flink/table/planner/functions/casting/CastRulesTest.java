@@ -41,6 +41,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantBuilder;
 
@@ -245,6 +246,71 @@ class CastRulesTest {
 
     private static final Variant VARIANT_EMPTY_ARRAY = VARIANT_BUILDER.array().build();
 
+    /** {@code {"id": 7, "name": "ada", "active": true}}, the design's running object value. */
+    private static final Variant VARIANT_RECORD =
+            Variant.newBuilder()
+                    .object()
+                    .add("id", Variant.newBuilder().of(7))
+                    .add("name", Variant.newBuilder().of("ada"))
+                    .add("active", Variant.newBuilder().of(true))
+                    .build();
+
+    /**
+     * {@code {"id": 7, "email": null}}, an object with a field explicitly set to a VARIANT null.
+     */
+    private static final Variant VARIANT_RECORD_WITH_NULL =
+            Variant.newBuilder()
+                    .object()
+                    .add("id", Variant.newBuilder().of(7))
+                    .add("email", Variant.newBuilder().ofNull())
+                    .build();
+
+    /** {@code {"user": {"id": 1, "since": "2020-01-01"}, "tags": ["x", "y"]}}, a nested value. */
+    private static final Variant VARIANT_NESTED =
+            Variant.newBuilder()
+                    .object()
+                    .add(
+                            "user",
+                            Variant.newBuilder()
+                                    .object()
+                                    .add("id", Variant.newBuilder().of(1))
+                                    .add("since", Variant.newBuilder().of("2020-01-01"))
+                                    .build())
+                    .add(
+                            "tags",
+                            Variant.newBuilder()
+                                    .array()
+                                    .add(Variant.newBuilder().of("x"))
+                                    .add(Variant.newBuilder().of("y"))
+                                    .build())
+                    .build();
+
+    /** {@code {"f0": 7, "f1": "ada"}}, an object keyed by the default {@code ROW} field names. */
+    private static final Variant VARIANT_POSITIONAL_RECORD =
+            VARIANT_BUILDER
+                    .object()
+                    .add("f0", VARIANT_BUILDER.of(7))
+                    .add("f1", VARIANT_BUILDER.of("ada"))
+                    .build();
+
+    /**
+     * {@code {"a": 1, "b": 2, "c": "x", "d": ["p", "q"]}}, shaped for {@link #MY_STRUCTURED_TYPE}.
+     */
+    private static final Variant VARIANT_STRUCT_RECORD =
+            VARIANT_BUILDER
+                    .object()
+                    .add("a", VARIANT_BUILDER.of(1L))
+                    .add("b", VARIANT_BUILDER.of(2L))
+                    .add("c", VARIANT_BUILDER.of("x"))
+                    .add(
+                            "d",
+                            VARIANT_BUILDER
+                                    .array()
+                                    .add(VARIANT_BUILDER.of("p"))
+                                    .add(VARIANT_BUILDER.of("q"))
+                                    .build())
+                    .build();
+
     private static final DataType MY_STRUCTURED_TYPE =
             STRUCTURED(
                     MyStructuredType.class,
@@ -266,6 +332,16 @@ class CastRulesTest {
                                             new StructuredType.StructuredAttribute(
                                                     "d", ARRAY(STRING()).getLogicalType())))
                             .build());
+
+    // The variant a VARIANT row field round-trips to. A ROW cast serializes each VARIANT field via
+    // BinaryRowWriter.writeVariant, which stores the field's sliced value and the object metadata
+    // but
+    // drops the position, so the read-back variant equals neither the original field view (non-zero
+    // pos) nor a freshly built scalar (empty metadata). This rebuilds that exact form at pos 0.
+    private static Variant rowFieldVariant(Variant fieldView) {
+        final BinaryVariant view = (BinaryVariant) fieldView;
+        return new BinaryVariant(view.getValue(), view.getMetadata());
+    }
 
     Stream<CastTestSpecBuilder> testCases() {
         return Stream.of(
@@ -1991,7 +2067,99 @@ class CastRulesTest {
                                             VARIANT_INT_ARRAY_WITH_NULL.getElement(0),
                                             VARIANT_INT_ARRAY_WITH_NULL.getElement(1),
                                             VARIANT_INT_ARRAY_WITH_NULL.getElement(2)
-                                        })));
+                                        })),
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("id", INT()), FIELD("name", STRING())))
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(), VARIANT_RECORD, GenericRowData.of(7, fromString("ada")))
+                        // an array or a scalar is not an object
+                        .fail(VARIANT(), VARIANT_INT_ARRAY, TableRuntimeException.class),
+                // field order of the target is free, since matching is by name
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("name", STRING()), FIELD("id", INT())))
+                        .fromCase(
+                                VARIANT(), VARIANT_RECORD, GenericRowData.of(fromString("ada"), 7)),
+                // a field absent from the object fails the cast, nullable or not
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("id", INT()), FIELD("email", STRING())))
+                        .fail(VARIANT(), VARIANT_RECORD, TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(
+                                ROW(FIELD("id", INT()), FIELD("email", STRING().notNull())))
+                        .fail(VARIANT(), VARIANT_RECORD, TableRuntimeException.class),
+                // a field present but set to a VARIANT null maps to NULL when nullable
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("id", INT()), FIELD("email", STRING())))
+                        .fromCase(VARIANT(), VARIANT_RECORD_WITH_NULL, GenericRowData.of(7, null)),
+                // and fails when the field is NOT NULL
+                CastTestSpecBuilder.testCastTo(
+                                ROW(FIELD("id", INT()), FIELD("email", STRING().notNull())))
+                        .fail(VARIANT(), VARIANT_RECORD_WITH_NULL, TableRuntimeException.class),
+                // extra object fields are dropped, so the row is a projection
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("id", INT())))
+                        .fromCase(VARIANT(), VARIANT_RECORD, GenericRowData.of(7)),
+                // a ROW<VARIANT> field is the identity: each field is kept as a variant, one level
+                // shredded
+                CastTestSpecBuilder.testCastTo(
+                                ROW(FIELD("id", VARIANT()), FIELD("name", VARIANT())))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD,
+                                GenericRowData.of(
+                                        rowFieldVariant(VARIANT_RECORD.getField("id")),
+                                        rowFieldVariant(VARIANT_RECORD.getField("name")))),
+                // a VARIANT target field keeps a variant null as a variant null, not SQL NULL
+                CastTestSpecBuilder.testCastTo(
+                                ROW(FIELD("id", VARIANT()), FIELD("email", VARIANT())))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD_WITH_NULL,
+                                GenericRowData.of(
+                                        rowFieldVariant(VARIANT_RECORD_WITH_NULL.getField("id")),
+                                        rowFieldVariant(
+                                                VARIANT_RECORD_WITH_NULL.getField("email")))),
+                // a typed field beside a VARIANT field keeps the variant null only on the VARIANT
+                // side
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("id", INT()), FIELD("email", VARIANT())))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD_WITH_NULL,
+                                GenericRowData.of(
+                                        7,
+                                        rowFieldVariant(
+                                                VARIANT_RECORD_WITH_NULL.getField("email")))),
+                // a ROW without declared field names uses the default names f0, f1, ...; matching
+                // is
+                // still by name, not by position
+                CastTestSpecBuilder.testCastTo(ROW(INT(), STRING()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_POSITIONAL_RECORD,
+                                GenericRowData.of(7, fromString("ada")))
+                        // an object without the default names fails, position is never used
+                        .fail(VARIANT(), VARIANT_RECORD, TableRuntimeException.class),
+                // a STRUCTURED target is served by the same rule, matching attributes to object
+                // fields by name
+                CastTestSpecBuilder.testCastTo(MY_STRUCTURED_TYPE)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_STRUCT_RECORD,
+                                GenericRowData.of(
+                                        1L,
+                                        2L,
+                                        fromString("x"),
+                                        new GenericArrayData(
+                                                new Object[] {fromString("p"), fromString("q")}))),
+                // the recursion composes: a row of a row and an array with no special case
+                CastTestSpecBuilder.testCastTo(
+                                ROW(
+                                        FIELD(
+                                                "user",
+                                                ROW(FIELD("id", INT()), FIELD("since", STRING()))),
+                                        FIELD("tags", ARRAY(STRING()))))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_NESTED,
+                                GenericRowData.of(
+                                        GenericRowData.of(1, fromString("2020-01-01")),
+                                        new GenericArrayData(
+                                                new Object[] {fromString("x"), fromString("y")}))));
     }
 
     @TestFactory
