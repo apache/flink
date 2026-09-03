@@ -243,6 +243,103 @@ class DataFrameSlicingTests(unittest.TestCase):
         self.table.execute.assert_not_called()
 
 
+class DataFrameSortingTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(2, "b"), (1, "a")],
+            schema=["id", "name"],
+        )
+
+    def test_sort_is_lazy_and_returns_new_dataframe(self):
+        result = self.dataframe.sort("id")
+
+        self.assertIsInstance(result, pf.DataFrame)
+        self.assertIsNot(result, self.dataframe)
+        self.assertIsNot(result.to_table(), self.dataframe.to_table())
+        self.assertEqual(
+            result.to_table()._j_table.getQueryOperation().getOrder().toString(),
+            "[asc(id)]",
+        )
+
+    def test_sort_supports_descending_and_multiple_keys(self):
+        result = self.dataframe.sort(["id", "name"], descending=[True, False])
+        all_descending = self.dataframe.sort(["id", "name"], descending=True)
+
+        self.assertEqual(
+            result.to_table()._j_table.getQueryOperation().getOrder().toString(),
+            "[desc(id), asc(name)]",
+        )
+        self.assertEqual(
+            all_descending.to_table()._j_table.getQueryOperation().getOrder().toString(),
+            "[desc(id), desc(name)]",
+        )
+
+    def test_sort_supports_expression_keys(self):
+        result = self.dataframe.sort(pf.col("id") + 1, descending=True)
+
+        self.assertEqual(
+            result.to_table()._j_table.getQueryOperation().getOrder().toString(),
+            "[desc(plus(id, 1))]",
+        )
+
+    def test_sort_supports_explicit_null_ordering(self):
+        nulls_first = self.dataframe.sort("id", nulls_first=True)
+        nulls_last = self.dataframe.sort("id", nulls_first=False)
+        per_key = self.dataframe.sort(
+            ["id", "name"], nulls_first=[True, False]
+        )
+
+        self.assertEqual(
+            nulls_first.to_table()._j_table.getQueryOperation().getOrder().toString(),
+            "[desc(isNull(id)), asc(id)]",
+        )
+        self.assertEqual(
+            nulls_last.to_table()._j_table.getQueryOperation().getOrder().toString(),
+            "[asc(isNull(id)), asc(id)]",
+        )
+        self.assertEqual(
+            per_key.to_table()._j_table.getQueryOperation().getOrder().toString(),
+            "[desc(isNull(id)), asc(id), asc(isNull(name)), asc(name)]",
+        )
+
+    def test_sort_rejects_ordered_expressions(self):
+        for expression in (
+            pf.col("id").asc,
+            pf.col("id").desc,
+            pf.col("id").asc + 1,
+        ):
+            with self.subTest(expression=str(expression)):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "expressions must not specify asc or desc",
+                ):
+                    self.dataframe.sort(expression)
+
+    def test_sort_rejects_invalid_keys_and_options(self):
+        with self.assertRaisesRegex(ValueError, "by must not be empty"):
+            self.dataframe.sort([])
+        with self.assertRaisesRegex(ValueError, "by column 'missing' does not exist"):
+            self.dataframe.sort("missing")
+        with self.assertRaisesRegex(TypeError, "by must be a string, an expression"):
+            self.dataframe.sort(1)
+        with self.assertRaisesRegex(TypeError, "by must be a string, an expression"):
+            self.dataframe.sort(None)
+
+        with self.assertRaisesRegex(TypeError, "descending must be a boolean"):
+            self.dataframe.sort("id", descending=1)
+        with self.assertRaisesRegex(TypeError, "descending must be a boolean"):
+            self.dataframe.sort(["id", "name"], descending=[True, 1])
+        with self.assertRaisesRegex(ValueError, "descending must have the same length as by"):
+            self.dataframe.sort(["id", "name"], descending=[True])
+        with self.assertRaisesRegex(TypeError, "nulls_first must be a boolean"):
+            self.dataframe.sort("id", nulls_first=1)
+        with self.assertRaisesRegex(TypeError, "nulls_first must be a boolean"):
+            self.dataframe.sort(["id", "name"], nulls_first=[True, 1])
+        with self.assertRaisesRegex(ValueError, "nulls_first must have the same length as by"):
+            self.dataframe.sort(["id", "name"], nulls_first=[True])
+
+
 class DataFrameCreationTests(PyFlinkDataFrameUTTestCase):
     def test_from_dict_uses_insertion_order_without_schema(self):
         dataframe = pf.from_dict({"name": ["Alice"], "id": [1]})
@@ -1902,6 +1999,62 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
             "AS T(id, name)"
         )
         return pf.from_table(table.order_by(table.id))
+
+    def _unsorted_dataframe(self):
+        table = self.t_env.sql_query(
+            "SELECT * FROM (VALUES (3, 'C'), (1, 'A'), (2, 'B')) AS T(id, name)"
+        )
+        return pf.from_table(table)
+
+    def _nullable_dataframe(self):
+        table = self.t_env.sql_query(
+            "SELECT * FROM (VALUES (CAST(NULL AS INT), 'NULL'), (2, 'B'), (1, 'A')) "
+            "AS T(id, name)"
+        )
+        return pf.from_table(table)
+
+    def test_sort_returns_rows_in_ascending_order(self):
+        self.assertEqual(
+            self._unsorted_dataframe().sort("id").collect(),
+            [Row(1, "A"), Row(2, "B"), Row(3, "C")],
+        )
+
+    def test_sort_supports_per_key_descending_order(self):
+        dataframe = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 10, 'A'), (1, 20, 'B'), (2, 5, 'C')) "
+                "AS T(group_id, score, name)"
+            )
+        )
+
+        self.assertEqual(
+            dataframe.sort(["group_id", "score"], descending=[False, True]).collect(),
+            [Row(1, 20, "B"), Row(1, 10, "A"), Row(2, 5, "C")],
+        )
+
+    def test_sort_supports_explicit_null_ordering(self):
+        dataframe = self._nullable_dataframe()
+
+        self.assertEqual(
+            dataframe.sort("id").collect(),
+            [Row(1, "A"), Row(2, "B"), Row(None, "NULL")],
+        )
+        self.assertEqual(
+            dataframe.sort("id", descending=True).collect(),
+            [Row(None, "NULL"), Row(2, "B"), Row(1, "A")],
+        )
+        self.assertEqual(
+            dataframe.sort("id", nulls_first=True).collect(),
+            [Row(None, "NULL"), Row(1, "A"), Row(2, "B")],
+        )
+        self.assertEqual(
+            dataframe.sort("id", descending=True, nulls_first=False).collect(),
+            [Row(2, "B"), Row(1, "A"), Row(None, "NULL")],
+        )
+        self.assertEqual(
+            dataframe.sort(pf.col("id") + 1, nulls_first=True).collect(),
+            [Row(None, "NULL"), Row(1, "A"), Row(2, "B")],
+        )
 
     def test_limit_returns_first_rows(self):
         self.assertEqual(
