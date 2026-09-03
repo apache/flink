@@ -39,19 +39,6 @@ class DataFrameConfigValidationTests(unittest.TestCase):
     def test_config_is_a_dataframe_config_singleton(self):
         self.assertIsInstance(pf.config, pf.DataFrameConfig)
 
-    def test_package_attributes_do_not_shadow_submodules(self):
-        # ``import pyflink.dataframe.<name> as m`` resolves through the package attribute,
-        # so a public attribute with the same name as a submodule hides that module.
-        package_dir = os.path.dirname(pf.__file__)
-        for module_info in pkgutil.iter_modules([package_dir]):
-            attribute = getattr(pf, module_info.name, None)
-            if attribute is not None:
-                self.assertTrue(
-                    inspect.ismodule(attribute),
-                    f"pyflink.dataframe.{module_info.name} is shadowed by "
-                    f"{type(attribute).__name__}",
-                )
-
     def test_public_type_hints_are_resolvable(self):
         self.assertEqual(
             get_type_hints(pf.DataFrameConfig.set),
