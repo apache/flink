@@ -40,7 +40,9 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.str
  * <p>The variant must be an array, otherwise the cast fails. Each element is itself a variant and
  * casts to the target element type by the full {@code VARIANT}-to-element rule, recursively. An
  * element that stores a JSON {@code null} maps to SQL {@code NULL} when the element type is
- * nullable and fails the cast when it is {@code NOT NULL}.
+ * nullable and fails the cast when it is {@code NOT NULL}. The exception is a {@code VARIANT}
+ * element type: there the element cast is the identity, so a JSON {@code null} element is kept as a
+ * variant null rather than downgraded to SQL {@code NULL}.
  */
 class VariantToArrayCastRule extends AbstractVariantToConstructedCastRule<ArrayData> {
 
@@ -94,9 +96,10 @@ class VariantToArrayCastRule extends AbstractVariantToConstructedCastRule<ArrayD
         final String arrayTerm = newName(context.getCodeGeneratorContext(), "objArray");
         final String elementTerm = newName(context.getCodeGeneratorContext(), "element");
 
-        // The element is guaranteed non-null here, since the JSON null is handled below, so the
-        // inner cast is the plain VARIANT-to-element rule. A JSON null element maps to SQL NULL for
-        // a nullable element type, or fails the cast for a NOT NULL one.
+        // For a typed element the JSON null is handled in the loop below, so the inner cast is the
+        // plain VARIANT-to-element rule on a non-null variant: a nullable element maps a JSON null
+        // to SQL NULL, a NOT NULL element fails. For a VARIANT element the inner cast is the
+        // identity, which keeps a variant null as-is.
         final CastCodeBlock elementCast =
                 CastRuleProvider.generateAlwaysNonNullCodeBlock(
                         context, elementTerm, inputLogicalType, elementType);
@@ -118,6 +121,16 @@ class VariantToArrayCastRule extends AbstractVariantToConstructedCastRule<ArrayD
                                     Variant.class,
                                     elementTerm,
                                     methodCall(inputTerm, "getElement", index));
+                            if (elementType.is(LogicalTypeRoot.VARIANT)) {
+                                // The element cast is the identity, so a JSON null element is a
+                                // valid variant null and is kept as-is rather than downgraded to
+                                // SQL NULL, matching the top-level VARIANT cast.
+                                loopWriter
+                                        .append(elementCast)
+                                        .assignArrayStmt(
+                                                arrayTerm, index, elementCast.getReturnTerm());
+                                return;
+                            }
                             final String isPresent = "!" + methodCall(elementTerm, "isNull");
                             if (elementType.isNullable()) {
                                 loopWriter.ifStmt(

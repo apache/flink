@@ -385,7 +385,6 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     private static List<TestSetSpec> variantArrayCasts() {
-        final String obj = "{\"id\": 7, \"name\": \"ada\", \"active\": true}";
         return List.of(
                 TestSetSpec.forExpression("Cast a VARIANT produced by PARSE_JSON to an ARRAY")
                         .onFieldsWithData("unused")
@@ -463,7 +462,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 ARRAY(INT()))
                         // an object is not an array
                         .testTableApiRuntimeError(
-                                call("PARSE_JSON", obj).cast(ARRAY(INT())), "requires an array")
+                                call(
+                                                "PARSE_JSON",
+                                                "{\"id\": 7, \"name\": \"ada\", \"active\": true}")
+                                        .cast(ARRAY(INT())),
+                                "requires an array")
                         // ARRAY<VARIANT> shreds one level and keeps the elements as variants, which
                         // then cast back to INT unchanged
                         .testResult(

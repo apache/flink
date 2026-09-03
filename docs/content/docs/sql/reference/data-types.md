@@ -1604,7 +1604,8 @@ target. Cast the leaf to `STRING` first and convert with a regular cast.
 
 - Each element casts to `T`. A JSON null element maps to SQL `NULL` when `T` is nullable and fails
   the cast when `T` is `NOT NULL`. An empty array casts to an empty `ARRAY<T>`.
-- `ARRAY<VARIANT>` is the identity leaf: it shreds one level and keeps each element as a variant.
+- `ARRAY<VARIANT>` is the identity leaf: it shreds one level and keeps each element as a variant. A
+  JSON null element stays a variant null rather than becoming SQL `NULL`.
 
 If any element cast fails, the whole cast fails, and `TRY_CAST` returns `NULL` for the entire value
 rather than a partial result. An element type with no variant counterpart, such as
