@@ -1837,8 +1837,10 @@ class CastRulesTest {
                 CastTestSpecBuilder.testCastTo(TIME(3))
                         .fromCase(
                                 VARIANT(),
-                                Variant.newBuilder().of(LocalTime.of(12, 0, 0, 123_000_000)),
-                                DateTimeUtils.toInternal(LocalTime.of(12, 0, 0, 123_000_000)))
+                                Variant.newBuilder()
+                                        .of(LocalTime.of(12, 0, 0).plus(Duration.ofMillis(123))),
+                                DateTimeUtils.toInternal(
+                                        LocalTime.of(12, 0, 0).plus(Duration.ofMillis(123))))
                         .fromCase(
                                 VARIANT(),
                                 Variant.newBuilder().of(LocalTime.of(12, 0, 0, 123_456_000)),
@@ -1858,7 +1860,14 @@ class CastRulesTest {
                                 VARIANT_BUILDER.of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.of(2020, 1, 1, 12, 0, 0)))
-                        .fail(VARIANT(), VARIANT_BUILDER.of(1), TableRuntimeException.class)
+                        // the default precision keeps microseconds, truncating the nanoseconds
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)))
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class)
                         // a TIMESTAMP_LTZ is a different kind and is not read as a TIMESTAMP
                         .fail(
                                 VARIANT(),

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.CharType;
@@ -135,6 +136,9 @@ class CastRuleProviderTest {
         assertThat(CastRuleProvider.exists(VARIANT, BYTES().getLogicalType())).isTrue();
         assertThat(CastRuleProvider.canFail(VARIANT, INT)).isTrue();
 
+        // INTERVAL has no VARIANT counterpart, so it is not a castable target
+        assertThat(CastRuleProvider.exists(VARIANT, INTERVAL(DataTypes.DAY()).getLogicalType()))
+                .isFalse();
         // character strings keep going through the display-oriented rule
         assertThat(CastRuleProvider.resolve(VARIANT, STRING_TYPE))
                 .isSameAs(VariantToStringCastRule.INSTANCE);

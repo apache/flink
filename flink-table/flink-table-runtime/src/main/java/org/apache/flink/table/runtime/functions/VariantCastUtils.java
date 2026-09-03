@@ -58,16 +58,11 @@ public final class VariantCastUtils {
      */
     private static final double LONG_MAGNITUDE_LIMIT = -(double) Long.MIN_VALUE;
 
-    /** A microsecond timestamp variant renders with six fractional-second digits. */
     private static final int TIMESTAMP_PRECISION = 6;
 
-    /** A nanosecond timestamp variant renders with nine fractional-second digits. */
     private static final int TIMESTAMP_NANOS_PRECISION = 9;
 
-    /**
-     * A time variant keeps microseconds, but the runtime TIME representation is millisecond-of-day,
-     * so it renders with three fractional-second digits, the same as a regular TIME to string cast.
-     */
+    // TIME is millisecond-of-day at runtime, so it renders with three fractional-second digits.
     private static final int TIME_PRECISION = 3;
 
     private VariantCastUtils() {}
@@ -217,20 +212,21 @@ public final class VariantCastUtils {
      */
     public static TimestampData toTimestamp(Variant variant, int precision) {
         final Variant.Type type = variant.getType();
-        if (type != Variant.Type.TIMESTAMP && type != Variant.Type.TIMESTAMP_NS) {
-            throw unsupportedKind(variant, String.format("TIMESTAMP(%d)", precision));
+        if (type == Variant.Type.TIMESTAMP || type == Variant.Type.TIMESTAMP_NS) {
+            return DateTimeUtils.truncate(
+                    TimestampData.fromLocalDateTime(variant.getDateTime()), precision);
         }
-        return DateTimeUtils.truncate(
-                TimestampData.fromLocalDateTime(variant.getDateTime()), precision);
+        throw unsupportedKind(variant, String.format("TIMESTAMP(%d)", precision));
     }
 
     /** Reads a timestamp with local time zone variant. See {@link #toTimestamp(Variant, int)}. */
     public static TimestampData toTimestampLtz(Variant variant, int precision) {
         final Variant.Type type = variant.getType();
-        if (type != Variant.Type.TIMESTAMP_LTZ && type != Variant.Type.TIMESTAMP_LTZ_NS) {
-            throw unsupportedKind(variant, String.format("TIMESTAMP_LTZ(%d)", precision));
+        if (type == Variant.Type.TIMESTAMP_LTZ || type == Variant.Type.TIMESTAMP_LTZ_NS) {
+            return DateTimeUtils.truncate(
+                    TimestampData.fromInstant(variant.getInstant()), precision);
         }
-        return DateTimeUtils.truncate(TimestampData.fromInstant(variant.getInstant()), precision);
+        throw unsupportedKind(variant, String.format("TIMESTAMP_LTZ(%d)", precision));
     }
 
     /**
@@ -240,11 +236,11 @@ public final class VariantCastUtils {
      * TIME(p)} cast.
      */
     public static int toTime(Variant variant, int precision) {
-        if (variant.getType() != Variant.Type.TIME) {
-            throw unsupportedKind(variant, String.format("TIME(%d)", precision));
+        if (variant.getType() == Variant.Type.TIME) {
+            return DateTimeUtils.applyTimePrecisionTruncation(
+                    DateTimeUtils.toInternal(variant.getTime()), precision);
         }
-        return DateTimeUtils.applyTimePrecisionTruncation(
-                DateTimeUtils.toInternal(variant.getTime()), precision);
+        throw unsupportedKind(variant, String.format("TIME(%d)", precision));
     }
 
     /**
