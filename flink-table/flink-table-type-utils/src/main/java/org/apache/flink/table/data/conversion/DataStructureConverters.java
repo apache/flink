@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -197,6 +198,7 @@ public final class DataStructureConverters {
         putConverter(LogicalTypeRoot.STRUCTURED_TYPE, RowData.class, identity());
         putConverter(LogicalTypeRoot.RAW, byte[].class, RawByteArrayConverter::create);
         putConverter(LogicalTypeRoot.RAW, RawValueData.class, identity());
+        putConverter(LogicalTypeRoot.UUID, UUID.class, constructor(UuidUuidConverter::new));
         putConverter(LogicalTypeRoot.VARIANT, Variant.class, identity());
         putConverter(LogicalTypeRoot.BITMAP, Bitmap.class, constructor(BitmapBitmapConverter::new));
         putConverter(LogicalTypeRoot.BITMAP, RoaringBitmapData.class, identity());

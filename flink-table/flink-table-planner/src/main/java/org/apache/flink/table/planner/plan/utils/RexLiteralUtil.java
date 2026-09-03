@@ -39,6 +39,7 @@ import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.ZoneOffset;
 
 import static org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime;
@@ -100,6 +101,15 @@ public class RexLiteralUtil {
             case VARBINARY:
                 if (value instanceof ByteString) {
                     return ((ByteString) value).getBytes();
+                }
+                break;
+            case UUID:
+                if (value instanceof java.util.UUID) {
+                    final java.util.UUID uuidValue = (java.util.UUID) value;
+                    return ByteBuffer.allocate(16)
+                            .putLong(uuidValue.getMostSignificantBits())
+                            .putLong(uuidValue.getLeastSignificantBits())
+                            .array();
                 }
                 break;
             case DECIMAL:

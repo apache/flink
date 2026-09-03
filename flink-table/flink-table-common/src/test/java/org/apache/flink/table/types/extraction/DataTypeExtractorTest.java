@@ -81,6 +81,10 @@ class DataTypeExtractorTest {
                 // simple extraction of BYTES
                 TestSpec.forType(byte[].class).expectDataType(DataTypes.BYTES()),
 
+                // automatic extraction of UUID for Table/SQL (DataStream stays opt-in via
+                // Types.UUID)
+                TestSpec.forType(java.util.UUID.class).expectDataType(DataTypes.UUID()),
+
                 // extraction from hint conversion class
                 TestSpec.forType(
                                 new DataTypeHintMock() {

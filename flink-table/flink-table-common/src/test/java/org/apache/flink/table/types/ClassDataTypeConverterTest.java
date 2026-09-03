@@ -94,6 +94,7 @@ class ClassDataTypeConverterTest {
                         TimeIntervalUnit.class,
                         new AtomicDataType(new SymbolType<>()).bridgedTo(TimeIntervalUnit.class)),
                 of(Row.class, null),
+                of(java.util.UUID.class, DataTypes.UUID()),
                 of(Variant.class, DataTypes.VARIANT()),
                 of(Bitmap.class, DataTypes.BITMAP().bridgedTo(Bitmap.class)),
                 of(RoaringBitmapData.class, DataTypes.BITMAP().bridgedTo(RoaringBitmapData.class)));

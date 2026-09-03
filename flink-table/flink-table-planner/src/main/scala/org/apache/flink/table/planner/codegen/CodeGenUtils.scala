@@ -263,7 +263,7 @@ object CodeGenUtils {
     // ordered by type root definition
     case CHAR | VARCHAR => BINARY_STRING
     case BOOLEAN => className[JBoolean]
-    case BINARY | VARBINARY => "byte[]"
+    case BINARY | VARBINARY | UUID => "byte[]"
     case DECIMAL => className[DecimalData]
     case TINYINT => className[JByte]
     case SMALLINT => className[JShort]
@@ -329,7 +329,7 @@ object CodeGenUtils {
         s"$term.hashCode()"
       case BOOLEAN =>
         s"${className[JBoolean]}.hashCode($term)"
-      case BINARY | VARBINARY =>
+      case BINARY | VARBINARY | UUID =>
         // Instead of computing the BYTE_ARRAY_BASE_OFFSET value in JM, generate the code
         // and evaluate it in TM. This is required so that byte array offset will be consistent.
         // See FLINK-37833 for more details.
@@ -510,7 +510,7 @@ object CodeGenUtils {
         s"(($BINARY_STRING) $rowTerm.getString($indexTerm))"
       case BOOLEAN =>
         s"$rowTerm.getBoolean($indexTerm)"
-      case BINARY | VARBINARY =>
+      case BINARY | VARBINARY | UUID =>
         s"$rowTerm.getBinary($indexTerm)"
       case DECIMAL =>
         s"$rowTerm.getDecimal($indexTerm, ${getPrecision(t)}, ${getScale(t)})"
@@ -798,7 +798,7 @@ object CodeGenUtils {
       s"$writerTerm.writeString($indexTerm, $fieldValTerm)"
     case BOOLEAN =>
       s"$writerTerm.writeBoolean($indexTerm, $fieldValTerm)"
-    case BINARY | VARBINARY =>
+    case BINARY | VARBINARY | UUID =>
       s"$writerTerm.writeBinary($indexTerm, $fieldValTerm)"
     case DECIMAL =>
       s"$writerTerm.writeDecimal($indexTerm, $fieldValTerm, ${getPrecision(t)})"

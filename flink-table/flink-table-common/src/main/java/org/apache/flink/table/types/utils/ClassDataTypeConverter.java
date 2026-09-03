@@ -79,6 +79,7 @@ public final class ClassDataTypeConverter {
         addDefaultDataType(
                 java.time.Period.class, DataTypes.INTERVAL(DataTypes.YEAR(4), DataTypes.MONTH()));
         addDefaultDataType(ColumnList.class, DataTypes.DESCRIPTOR());
+        addDefaultDataType(java.util.UUID.class, DataTypes.UUID());
         addDefaultDataType(Variant.class, DataTypes.VARIANT());
         addDefaultDataType(Bitmap.class, DataTypes.BITMAP());
         addDefaultDataType(RoaringBitmapData.class, DataTypes.BITMAP());

@@ -238,6 +238,7 @@ public interface RowData {
                 break;
             case BINARY:
             case VARBINARY:
+            case UUID:
                 fieldGetter = row -> row.getBinary(fieldPos);
                 break;
             case DECIMAL:
