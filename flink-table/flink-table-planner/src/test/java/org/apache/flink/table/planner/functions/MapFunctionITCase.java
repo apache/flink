@@ -600,12 +600,12 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                         .andDataTypes(DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()))
                         .testTableApiValidationError(
                                 $("f0").mapContainsKey(true),
-                                "Invalid input arguments. Expected signatures are:\n"
-                                        + "MAP_CONTAINS_KEY(map <MAP>, key <MAP KEY>)")
+                                "Unsupported argument type. Expected type 'STRING' "
+                                        + "but actual type was 'BOOLEAN NOT NULL'.")
                         .testSqlValidationError(
                                 "MAP_CONTAINS_KEY(f0, TRUE)",
-                                "Invalid input arguments. Expected signatures are:\n"
-                                        + "MAP_CONTAINS_KEY(map <MAP>, key <MAP KEY>)"),
+                                "Unsupported argument type. Expected type 'STRING' "
+                                        + "but actual type was 'BOOLEAN NOT NULL'."),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.MAP_CONTAINS_KEY)
                         .onFieldsWithData(
                                 CollectionUtil.map(entry("a", 1), entry("b", 2)),
