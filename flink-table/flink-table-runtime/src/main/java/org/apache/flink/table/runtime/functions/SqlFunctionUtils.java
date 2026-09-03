@@ -386,8 +386,8 @@ public class SqlFunctionUtils {
             return;
         }
 
-        // The pad is written once and then each pass doubles the region already written,
-        // so the fill takes log2(chars) copies rather than one copy per pad cycle.
+        // Arrays.fill can only repeat a single char, so a longer pad is replicated by copying:
+        // each pass doubles the region written, taking log2(chars) copies not one per cycle.
         final int first = Math.min(padLen, chars);
         pad.getChars(0, first, data, pos);
 
