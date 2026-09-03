@@ -102,7 +102,7 @@ public final class UuidSerializer extends TypeSerializerSingleton<UUID> {
     // ------------------------------------------------------------------------
 
     /** Serializer configuration snapshot for compatibility and format evolution. */
-    @SuppressWarnings("WeakerAccess")
+    @Internal
     public static final class UuidSerializerSnapshot extends SimpleTypeSerializerSnapshot<UUID> {
 
         public UuidSerializerSnapshot() {

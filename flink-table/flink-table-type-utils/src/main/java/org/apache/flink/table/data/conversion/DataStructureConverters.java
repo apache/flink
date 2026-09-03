@@ -199,6 +199,7 @@ public final class DataStructureConverters {
         putConverter(LogicalTypeRoot.RAW, byte[].class, RawByteArrayConverter::create);
         putConverter(LogicalTypeRoot.RAW, RawValueData.class, identity());
         putConverter(LogicalTypeRoot.UUID, UUID.class, constructor(UuidUuidConverter::new));
+        putConverter(LogicalTypeRoot.UUID, byte[].class, identity());
         putConverter(LogicalTypeRoot.VARIANT, Variant.class, identity());
         putConverter(LogicalTypeRoot.BITMAP, Bitmap.class, constructor(BitmapBitmapConverter::new));
         putConverter(LogicalTypeRoot.BITMAP, RoaringBitmapData.class, identity());

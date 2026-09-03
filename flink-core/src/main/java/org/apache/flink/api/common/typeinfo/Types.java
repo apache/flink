@@ -159,7 +159,7 @@ public class Types {
     /** Returns type information for {@link java.time.Instant}. Supports a null value. */
     public static final TypeInformation<Instant> INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO;
 
-    /** Returns type information for {@link java.util.UUID}. Supports a null value. */
+    /** Returns type information for {@link java.util.UUID}. */
     public static final TypeInformation<UUID> UUID = BasicTypeInfo.UUID_TYPE_INFO;
 
     public static final TypeInformation<Variant> VARIANT = VariantTypeInfo.INSTANCE;

@@ -31,6 +31,7 @@ import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.NullValueSerializer;
 import org.apache.flink.api.common.typeutils.base.SetSerializer;
+import org.apache.flink.api.common.typeutils.base.UuidSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
@@ -269,7 +270,8 @@ class TypeSerializerTestCoverageTest {
                         RowSqnInfoSerializer.class.getName(),
                         MetaSqnInfoSerializer.class.getName(),
                         SetSerializer.class.getName(),
-                        SortedLongSerializer.class.getName());
+                        SortedLongSerializer.class.getName(),
+                        UuidSerializer.class.getName());
 
         // check if a test exists for each type serializer
         for (Class<? extends TypeSerializer> typeSerializer : typeSerializers) {

@@ -111,6 +111,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getSc
  * +--------------------------------+-----------------------------------------+
  * | BITMAP                         | {@link Bitmap}                          |
  * +--------------------------------+-----------------------------------------+
+ * | UUID                           | byte[] (16 big-endian bytes)            |
+ * +--------------------------------+-----------------------------------------+
  * </pre>
  *
  * <p>Nullability is always handled by the container data structure.
