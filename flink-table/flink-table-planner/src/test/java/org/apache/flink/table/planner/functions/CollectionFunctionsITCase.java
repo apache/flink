@@ -1912,7 +1912,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 new Integer[][] {new Integer[] {1, 2}, null, new Integer[] {3}},
                                 new Integer[][] {new Integer[] {1, null, 2}, new Integer[] {3}},
                                 new Integer[][] {new Integer[] {1}},
-                                new Integer[][] {})
+                                new Integer[] {1, 2, 3})
                         .andDataTypes(
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING())),
@@ -1920,7 +1920,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
-                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())))
+                                DataTypes.ARRAY(DataTypes.INT()))
                         // Basic flattening
                         .testResult(
                                 call("ARRAY_FLATTEN", $("f0")),
@@ -1957,11 +1957,14 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 "ARRAY_FLATTEN(f5)",
                                 new Integer[] {1},
                                 DataTypes.ARRAY(DataTypes.INT()))
-                        // Empty array
-                        .testResult(
-                                call("ARRAY_FLATTEN", $("f6")),
+                        // Error case: one-dimensional array (should reject non-nested array)
+                        .testSqlValidationError(
                                 "ARRAY_FLATTEN(f6)",
-                                new Integer[] {},
-                                DataTypes.ARRAY(DataTypes.INT())));
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_FLATTEN('<ARRAY<ARRAY<T>>>')")
+                        .testTableApiValidationError(
+                                call("ARRAY_FLATTEN", $("f6")),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_FLATTEN('<ARRAY<ARRAY<T>>>')"));
     }
 }
