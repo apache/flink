@@ -141,10 +141,7 @@ class Deprecated(BaseAPIStabilityDecorator):
         """
         Returns the warning message emitted when the deprecated API element is used.
         """
-        name = getattr(func_or_cls, "__qualname__", None) or getattr(
-            func_or_cls, "__name__", "This API"
-        )
-        msg = f"{name} has been deprecated since version {self.since}."
+        msg = f"{func_or_cls.__qualname__} has been deprecated since version {self.since}."
         if self.detail is not None:
             msg = f"{msg} {self.detail}"
         return msg

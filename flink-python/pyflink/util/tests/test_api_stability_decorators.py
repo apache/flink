@@ -74,11 +74,11 @@ class DeprecatedTests(unittest.TestCase):
             """
         )
         result = subprocess.run(
-            [sys.executable, "-c", script], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            [sys.executable, "-c", script], capture_output=True, text=True
         )
 
-        self.assertEqual(0, result.returncode, result.stderr.decode("utf-8"))
-        self.assertEqual("[]", result.stdout.decode("utf-8").strip())
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("[]", result.stdout.strip())
 
     def test_function_warns_when_called(self):
         @Deprecated(since="1.0.0", detail="Use :func:`new_func` instead.")
@@ -329,14 +329,12 @@ class DeprecatedTests(unittest.TestCase):
             self.assertEqual(3, Cls().static_method(3))
             self.assertEqual(4, Cls().class_method(4))
 
-        self.assertEqual(
-            [
-                f"{Cls.__qualname__}.static_method has been deprecated since version 1.0.0.",
-                f"{Cls.__qualname__}.class_method has been deprecated since version 1.0.0.",
-            ]
-            * 2,
-            [str(warning.message) for warning in caught],
-        )
+        expected = [
+            f"{Cls.__qualname__}.static_method has been deprecated since version 1.0.0.",
+            f"{Cls.__qualname__}.class_method has been deprecated since version 1.0.0.",
+        ]
+        # Once through the class, once through an instance.
+        self.assertEqual(expected * 2, [str(warning.message) for warning in caught])
 
     def test_property(self):
         # A property only gets the docstring directive, but must not raise.
