@@ -418,13 +418,13 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('[]') AS ARRAY<INT>)",
                                 new Integer[] {},
                                 ARRAY(INT()).notNull())
-                        // a JSON null element maps to SQL NULL for a nullable element type
+                        // a VARIANT null element maps to SQL NULL for a nullable element type
                         .testResult(
                                 call("PARSE_JSON", "[1, null, 3]").cast(ARRAY(INT())),
                                 "CAST(PARSE_JSON('[1, null, 3]') AS ARRAY<INT>)",
                                 new Integer[] {1, null, 3},
                                 ARRAY(INT()).notNull())
-                        // a JSON null element fails a NOT NULL element type
+                        // a VARIANT null element fails a NOT NULL element type
                         .testTableApiRuntimeError(
                                 call("PARSE_JSON", "[1, null, 3]").cast(ARRAY(INT().notNull())),
                                 "NOT NULL element type")
@@ -482,7 +482,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('[[1, 2], [3]]') AS ARRAY<ARRAY<INT>>)",
                                 new Integer[][] {{1, 2}, {3}},
                                 ARRAY(ARRAY(INT())).notNull())
-                        // a top-level JSON null casts to SQL NULL for a nullable target
+                        // a top-level VARIANT null casts to SQL NULL for a nullable target
                         .testResult(
                                 call("TRY_PARSE_JSON", "null").cast(ARRAY(INT())),
                                 "CAST(TRY_PARSE_JSON('null') AS ARRAY<INT>)",

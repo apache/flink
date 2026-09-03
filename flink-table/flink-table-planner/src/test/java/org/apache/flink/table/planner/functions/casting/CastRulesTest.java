@@ -199,7 +199,7 @@ class CastRulesTest {
                     .add(VARIANT_BUILDER.of(3))
                     .build();
 
-    /** {@code [1, null, 3]}, an array carrying a JSON null element. */
+    /** {@code [1, null, 3]}, an array carrying a VARIANT null element. */
     private static final Variant VARIANT_INT_ARRAY_WITH_NULL =
             VARIANT_BUILDER
                     .array()
@@ -1903,7 +1903,7 @@ class CastRulesTest {
                                 VARIANT(),
                                 VARIANT_INT_ARRAY,
                                 new GenericArrayData(new Integer[] {1, 2, 3}))
-                        // a JSON null element maps to SQL NULL for a nullable element type
+                        // a VARIANT null element maps to SQL NULL for a nullable element type
                         .fromCase(
                                 VARIANT(),
                                 VARIANT_INT_ARRAY_WITH_NULL,
@@ -1924,7 +1924,7 @@ class CastRulesTest {
                                 VARIANT(),
                                 VARIANT_INT_ARRAY,
                                 new GenericArrayData(new int[] {1, 2, 3}))
-                        // a JSON null element fails a NOT NULL element type
+                        // a VARIANT null element fails a NOT NULL element type
                         .fail(VARIANT(), VARIANT_INT_ARRAY_WITH_NULL, TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(ARRAY(STRING()))
                         // each element renders to string like the scalar cast
@@ -1981,7 +1981,7 @@ class CastRulesTest {
                                             VARIANT_INT_ARRAY.getElement(1),
                                             VARIANT_INT_ARRAY.getElement(2)
                                         }))
-                        // the identity cast keeps a JSON null element as a variant null, not a
+                        // the identity cast keeps a VARIANT null element as a variant null, not a
                         // SQL NULL
                         .fromCase(
                                 VARIANT(),
