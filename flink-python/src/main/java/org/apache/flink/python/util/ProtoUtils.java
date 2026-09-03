@@ -25,9 +25,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
+import org.apache.flink.table.functions.python.ConstantInput;
+import org.apache.flink.table.functions.python.InputRef;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.table.functions.python.ResultRef;
 import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.dataview.ListViewSpec;
 import org.apache.flink.table.runtime.dataview.MapViewSpec;
@@ -37,13 +41,13 @@ import org.apache.flink.util.Preconditions;
 import com.google.protobuf.ByteString;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.python.Constants.FLINK_CODER_URN;
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
@@ -140,30 +144,31 @@ public enum ProtoUtils {
             PythonFunctionInfo[] userDefinedFunctions,
             boolean isMetricEnabled,
             boolean isProfileEnabled) {
+        return createUserDefinedFunctionsProto(
+                runtimeContext, userDefinedFunctions, null, isMetricEnabled, isProfileEnabled);
+    }
+
+    /**
+     * Same as above, but additionally carries the positions of the projected results within {@code
+     * userDefinedFunctions}.
+     *
+     * <p>Flattening nested calls for CSE appends intermediate sub-expressions, which are consumed
+     * by reference and must not be emitted, and it preserves post-order, which can leave the
+     * projected results in a different order than the projection. Pass {@code null} when the
+     * functions are exactly the output in order, which keeps the worker on its original behaviour.
+     */
+    public static FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto(
+            RuntimeContext runtimeContext,
+            PythonFunctionInfo[] userDefinedFunctions,
+            @Nullable int[] outputIndices,
+            boolean isMetricEnabled,
+            boolean isProfileEnabled) {
         FlinkFnApi.UserDefinedFunctions.Builder builder =
                 FlinkFnApi.UserDefinedFunctions.newBuilder();
         for (PythonFunctionInfo userDefinedFunction : userDefinedFunctions) {
             builder.addUdfs(createUserDefinedFunctionProto(userDefinedFunction));
         }
-        // Flattening nested calls for CSE appends intermediate sub-expressions, which are consumed
-        // by reference and must not be emitted, and it preserves post-order, which can leave the
-        // projected results in a different order than the projection. Forward the mapping whenever
-        // the evaluated list is not already exactly the output in order, so the worker keeps its
-        // original behaviour when nothing was flattened.
-        int[] outputIndices =
-                IntStream.range(0, userDefinedFunctions.length)
-                        .filter(i -> userDefinedFunctions[i].getOutputPosition() >= 0)
-                        .boxed()
-                        .sorted(
-                                Comparator.comparingInt(
-                                        i -> userDefinedFunctions[i].getOutputPosition()))
-                        .mapToInt(Integer::intValue)
-                        .toArray();
-        boolean isIdentity = outputIndices.length == userDefinedFunctions.length;
-        for (int i = 0; isIdentity && i < outputIndices.length; i++) {
-            isIdentity = outputIndices[i] == i;
-        }
-        if (!isIdentity) {
+        if (outputIndices != null && !isIdentity(outputIndices, userDefinedFunctions.length)) {
             for (int index : outputIndices) {
                 builder.addOutputIndices(index);
             }
@@ -201,16 +206,22 @@ public enum ProtoUtils {
         builder.setPayload(
                 ByteString.copyFrom(
                         pythonFunctionInfo.getPythonFunction().getSerializedPythonFunction()));
-        for (Object input : pythonFunctionInfo.getInputs()) {
+        for (PythonFunctionInput input : pythonFunctionInfo.getInputs()) {
             FlinkFnApi.Input.Builder inputProto = FlinkFnApi.Input.newBuilder();
             if (input instanceof PythonFunctionInfo) {
                 inputProto.setUdf(createUserDefinedFunctionProto((PythonFunctionInfo) input));
-            } else if (input instanceof PythonFunctionInfo.ResultRef) {
-                inputProto.setRefIndex(((PythonFunctionInfo.ResultRef) input).index);
-            } else if (input instanceof Integer) {
-                inputProto.setInputOffset((Integer) input);
+            } else if (input instanceof ResultRef) {
+                inputProto.setRefIndex(((ResultRef) input).getIndex());
+            } else if (input instanceof InputRef) {
+                inputProto.setInputOffset(((InputRef) input).getOffset());
+            } else if (input instanceof ConstantInput) {
+                inputProto.setInputConstant(
+                        ByteString.copyFrom(((ConstantInput) input).getValue()));
+            } else if (input == null) {
+                throw new IllegalStateException("Python function input must not be null.");
             } else {
-                inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
+                throw new IllegalStateException(
+                        "Unsupported Python function input: " + input.getClass().getName());
             }
             builder.addInputs(inputProto);
         }
@@ -231,12 +242,23 @@ public enum ProtoUtils {
         builder.setDistinct(pythonFunctionInfo.isDistinct());
         builder.setFilterArg(pythonFunctionInfo.getFilterArg());
         builder.setTakesRowAsInput(pythonFunctionInfo.getPythonFunction().takesRowAsInput());
-        for (Object input : pythonFunctionInfo.getInputs()) {
+        for (PythonFunctionInput input : pythonFunctionInfo.getInputs()) {
             FlinkFnApi.Input.Builder inputProto = FlinkFnApi.Input.newBuilder();
-            if (input instanceof Integer) {
-                inputProto.setInputOffset((Integer) input);
+            if (input instanceof InputRef) {
+                inputProto.setInputOffset(((InputRef) input).getOffset());
+            } else if (input instanceof ConstantInput) {
+                inputProto.setInputConstant(
+                        ByteString.copyFrom(((ConstantInput) input).getValue()));
+            } else if (input == null) {
+                throw new IllegalStateException(
+                        "Python aggregate function input must not be null.");
             } else {
-                inputProto.setInputConstant(ByteString.copyFrom((byte[]) input));
+                throw new IllegalStateException(
+                        "Python aggregate function arguments must be an input reference or a "
+                                + "constant, but was: "
+                                + input.getClass().getName()
+                                + ". Nested calls and result references are only produced for "
+                                + "scalar functions.");
             }
             builder.addInputs(inputProto);
         }
@@ -361,7 +383,7 @@ public enum ProtoUtils {
                     int mapStateWriteCacheSize) {
         List<FlinkFnApi.UserDefinedDataStreamFunction> results = new ArrayList<>();
 
-        Object[] inputs = dataStreamPythonFunctionInfo.getInputs();
+        PythonFunctionInput[] inputs = dataStreamPythonFunctionInfo.getInputs();
         if (inputs != null && inputs.length > 0) {
             Preconditions.checkArgument(inputs.length == 1);
             results.addAll(
@@ -562,5 +584,18 @@ public enum ProtoUtils {
             return StateTtlConfig.TtlTimeCharacteristic.ProcessingTime;
         }
         throw new RuntimeException("Unknown TtlTimeCharacteristic " + ttlTimeCharacteristic);
+    }
+
+    /** Whether the given indices select every function exactly once and in order. */
+    private static boolean isIdentity(int[] outputIndices, int functionCount) {
+        if (outputIndices.length != functionCount) {
+            return false;
+        }
+        for (int i = 0; i < outputIndices.length; i++) {
+            if (outputIndices[i] != i) {
+                return false;
+            }
+        }
+        return true;
     }
 }

@@ -21,81 +21,25 @@ package org.apache.flink.table.functions.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Serializable;
-
 /**
  * PythonFunctionInfo contains the execution information of a Python function, such as: the actual
  * Python function, the input arguments, etc.
+ *
+ * <p>It is itself a {@link PythonFunctionInput}, so that a nested call can be used as an argument
+ * of another function.
  */
 @Internal
-public class PythonFunctionInfo implements Serializable {
+public class PythonFunctionInfo implements PythonFunctionInput {
 
     private static final long serialVersionUID = 1L;
 
     /** The python function to be executed. */
     private final PythonFunction pythonFunction;
 
-    /**
-     * The input arguments. It could be one of the following:
-     *
-     * <ul>
-     *   <li>{@link Integer} – an input offset of the input row
-     *   <li>{@link PythonFunctionInfo} – the execution result of another python function (nested
-     *       call)
-     *   <li>{@code byte[]} – a constant value
-     *   <li>{@link ResultRef} – a reference to the result of a previously computed function in the
-     *       flattened UDF list (used for cross-subtree CSE)
-     * </ul>
-     */
-    private Object[] inputs;
+    /** The input arguments of this function. */
+    private PythonFunctionInput[] inputs;
 
-    /**
-     * This function's position in the operator output, or {@code -1} when its result is only
-     * referenced by another function and must not be emitted.
-     */
-    private int outputPosition = -1;
-
-    /**
-     * Represents a reference to the result of a previously computed function in a flattened UDF
-     * list. This enables cross-subtree Common Subexpression Elimination (CSE) where a nested UDF
-     * call that appears in multiple positions can be computed once and its result referenced by
-     * index.
-     */
-    @Internal
-    public static class ResultRef implements Serializable {
-        private static final long serialVersionUID = 1L;
-
-        /** The index of the referenced function in the flattened UDF list. */
-        public final int index;
-
-        public ResultRef(int index) {
-            this.index = index;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            ResultRef resultRef = (ResultRef) o;
-            return index == resultRef.index;
-        }
-
-        @Override
-        public int hashCode() {
-            return Integer.hashCode(index);
-        }
-
-        @Override
-        public String toString() {
-            return "ResultRef(" + index + ")";
-        }
-    }
-
-    public PythonFunctionInfo(PythonFunction pythonFunction, Object[] inputs) {
+    public PythonFunctionInfo(PythonFunction pythonFunction, PythonFunctionInput[] inputs) {
         this.pythonFunction = Preconditions.checkNotNull(pythonFunction);
         this.inputs = Preconditions.checkNotNull(inputs);
     }
@@ -104,30 +48,12 @@ public class PythonFunctionInfo implements Serializable {
         return this.pythonFunction;
     }
 
-    public Object[] getInputs() {
+    public PythonFunctionInput[] getInputs() {
         return this.inputs;
     }
 
-    public void setInputs(Object[] inputs) {
+    public void setInputs(PythonFunctionInput[] inputs) {
         Preconditions.checkNotNull(inputs);
         this.inputs = inputs;
-    }
-
-    /**
-     * Returns this function's position in the operator output, or {@code -1} when its result is
-     * only consumed by another function through a {@link ResultRef}.
-     *
-     * <p>Flattening nested calls for CSE adds functions that are pure intermediate results, so they
-     * must not occupy an output column. The default of {@code -1} is never used when no flattening
-     * happened, because in that case every function is an output and the position is assigned from
-     * the function's own index.
-     */
-    public int getOutputPosition() {
-        return this.outputPosition;
-    }
-
-    /** Sets the position of this function's result in the operator output. */
-    public void setOutputPosition(int outputPosition) {
-        this.outputPosition = outputPosition;
     }
 }

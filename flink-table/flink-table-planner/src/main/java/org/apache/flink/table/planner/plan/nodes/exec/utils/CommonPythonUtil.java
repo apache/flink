@@ -29,9 +29,13 @@ import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.python.BuiltInPythonAggregateFunction;
+import org.apache.flink.table.functions.python.ConstantInput;
+import org.apache.flink.table.functions.python.InputRef;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
+import org.apache.flink.table.functions.python.ResultRef;
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.CountAggFunction;
@@ -130,8 +134,8 @@ public class CommonPythonUtil {
 
     /**
      * Creates a {@link PythonFunctionInfo} with optional refMap for cross-subtree CSE. When a
-     * nested operand is found in the refMap, a {@link PythonFunctionInfo.ResultRef} is emitted
-     * instead of a nested {@link PythonFunctionInfo}.
+     * nested operand is found in the refMap, a {@link ResultRef} is emitted instead of a nested
+     * {@link PythonFunctionInfo}.
      */
     public static PythonFunctionInfo createPythonFunctionInfo(
             RexCall pythonRexCall,
@@ -208,7 +212,9 @@ public class CommonPythonUtil {
                 pythonAggregateFunctionInfoList.add(
                         new PythonAggregateFunctionInfo(
                                 (PythonFunction) function,
-                                Arrays.stream(aggInfo.argIndexes()).boxed().toArray(),
+                                Arrays.stream(aggInfo.argIndexes())
+                                        .mapToObj(InputRef::new)
+                                        .toArray(PythonFunctionInput[]::new),
                                 aggCalls[i].filterArg,
                                 aggCalls[i].isDistinct()));
                 TypeInference typeInference = function.getTypeInference(null);
@@ -230,7 +236,9 @@ public class CommonPythonUtil {
                 pythonAggregateFunctionInfoList.add(
                         new PythonAggregateFunctionInfo(
                                 getBuiltInPythonAggregateFunction(function),
-                                Arrays.stream(aggInfo.argIndexes()).boxed().toArray(),
+                                Arrays.stream(aggInfo.argIndexes())
+                                        .mapToObj(InputRef::new)
+                                        .toArray(PythonFunctionInput[]::new),
                                 filterArg,
                                 distinct));
                 // The data views of the built in Python Aggregate Function are different from Java
@@ -248,14 +256,14 @@ public class CommonPythonUtil {
         Map<Integer, Integer> inputNodes = new LinkedHashMap<>();
         List<PythonFunctionInfo> pythonFunctionInfos = new ArrayList<>();
         for (AggregateCall aggregateCall : aggCalls) {
-            List<Integer> inputs = new ArrayList<>();
+            List<PythonFunctionInput> inputs = new ArrayList<>();
             List<Integer> argList = aggregateCall.getArgList();
             for (Integer arg : argList) {
                 if (inputNodes.containsKey(arg)) {
-                    inputs.add(inputNodes.get(arg));
+                    inputs.add(new InputRef(inputNodes.get(arg)));
                 } else {
                     Integer inputOffset = inputNodes.size();
-                    inputs.add(inputOffset);
+                    inputs.add(new InputRef(inputOffset));
                     inputNodes.put(arg, inputOffset);
                 }
             }
@@ -272,7 +280,7 @@ public class CommonPythonUtil {
             PythonFunctionInfo pythonFunctionInfo =
                     new PythonAggregateFunctionInfo(
                             pythonFunction,
-                            inputs.toArray(),
+                            inputs.toArray(new PythonFunctionInput[0]),
                             aggregateCall.filterArg,
                             aggregateCall.isDistinct());
             pythonFunctionInfos.add(pythonFunctionInfo);
@@ -450,7 +458,7 @@ public class CommonPythonUtil {
             ClassLoader classLoader,
             Map<RexCall, Integer> refMap)
             throws InvocationTargetException, IllegalAccessException {
-        ArrayList<Object> inputs = new ArrayList<>();
+        ArrayList<PythonFunctionInput> inputs = new ArrayList<>();
         for (RexNode operand : pythonRexCall.getOperands()) {
             if (operand instanceof RexCall) {
                 RexCall childPythonRexCall = (RexCall) operand;
@@ -458,7 +466,7 @@ public class CommonPythonUtil {
                 if (!refMap.isEmpty() && PythonUtil.isPythonCall(childPythonRexCall)) {
                     Integer refIndex = refMap.get(childPythonRexCall);
                     if (refIndex != null) {
-                        inputs.add(new PythonFunctionInfo.ResultRef(refIndex));
+                        inputs.add(new ResultRef(refIndex));
                         continue;
                     }
                 }
@@ -477,21 +485,23 @@ public class CommonPythonUtil {
             } else if (operand instanceof RexLiteral) {
                 RexLiteral literal = (RexLiteral) operand;
                 inputs.add(
-                        convertLiteralToPython(
-                                literal, literal.getType().getSqlTypeName(), classLoader));
+                        new ConstantInput(
+                                convertLiteralToPython(
+                                        literal, literal.getType().getSqlTypeName(), classLoader)));
                 continue;
             }
 
             assert operand instanceof RexInputRef;
             if (inputNodes.containsKey(operand)) {
-                inputs.add(inputNodes.get(operand));
+                inputs.add(new InputRef(inputNodes.get(operand)));
             } else {
                 Integer inputOffset = inputNodes.size();
-                inputs.add(inputOffset);
+                inputs.add(new InputRef(inputOffset));
                 inputNodes.put(operand, inputOffset);
             }
         }
-        return new PythonFunctionInfo((PythonFunction) functionDefinition, inputs.toArray());
+        return new PythonFunctionInfo(
+                (PythonFunction) functionDefinition, inputs.toArray(new PythonFunctionInput[0]));
     }
 
     private static BuiltInPythonAggregateFunction getBuiltInPythonAggregateFunction(

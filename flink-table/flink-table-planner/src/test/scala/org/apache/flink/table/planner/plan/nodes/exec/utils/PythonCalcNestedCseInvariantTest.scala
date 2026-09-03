@@ -15,10 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.nodes.exec.common
+package org.apache.flink.table.planner.plan.nodes.exec.utils
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCalc
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
@@ -83,7 +84,7 @@ class PythonCalcNestedCseInvariantTest extends TableTestBase {
    * referenced sub-expression must always be evaluated before the call referencing it.
    */
   private def assertReferencesResolveBackwards(res: PythonCallCseResult): Unit = {
-    val flattened = res.getUniqueCalls.asScala.toList
+    val flattened = res.getDeduplicatedCalls.asScala.toList
     val refMap = res.getRefMap.asScala
     flattened.zipWithIndex.foreach {
       case (call, idx) =>
@@ -107,7 +108,7 @@ class PythonCalcNestedCseInvariantTest extends TableTestBase {
       outWidth: Int,
       res: PythonCallCseResult,
       topCalls: List[RexCall]): Unit = {
-    val flattened = res.getUniqueCalls.asScala.toList
+    val flattened = res.getDeduplicatedCalls.asScala.toList
     val outputIndices = res.getOutputIndices
 
     assertThat(outputIndices.length)
@@ -126,7 +127,7 @@ class PythonCalcNestedCseInvariantTest extends TableTestBase {
 
   private def check(sql: String, expectedFlattened: Int): Unit = {
     val (forwarded, outWidth, res, topCalls) = analyze(sql)
-    assertThat(res.getUniqueCalls.size())
+    assertThat(res.getDeduplicatedCalls.size())
       .as(s"number of evaluated calls for: $sql")
       .isEqualTo(expectedFlattened)
     assertReferencesResolveBackwards(res)

@@ -50,6 +50,12 @@ public class EmbeddedPythonScalarFunctionOperator
     /** The Python {@link ScalarFunction}s to be executed. */
     private final PythonFunctionInfo[] scalarFunctions;
 
+    /**
+     * The positions of the projected results within {@link #scalarFunctions}, or {@code null} when
+     * the functions are exactly the operator output in order.
+     */
+    @Nullable private final int[] udfOutputIndices;
+
     @Nullable private GeneratedProjection forwardedFieldGeneratedProjection;
 
     /** Whether there is only one input argument. */
@@ -69,8 +75,29 @@ public class EmbeddedPythonScalarFunctionOperator
             RowType udfOutputType,
             int[] udfInputOffsets,
             @Nullable GeneratedProjection forwardedFieldGeneratedProjection) {
+        this(
+                config,
+                scalarFunctions,
+                null,
+                inputType,
+                udfInputType,
+                udfOutputType,
+                udfInputOffsets,
+                forwardedFieldGeneratedProjection);
+    }
+
+    public EmbeddedPythonScalarFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            @Nullable int[] udfOutputIndices,
+            RowType inputType,
+            RowType udfInputType,
+            RowType udfOutputType,
+            int[] udfInputOffsets,
+            @Nullable GeneratedProjection forwardedFieldGeneratedProjection) {
         super(config, inputType, udfInputType, udfOutputType, udfInputOffsets);
         this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
+        this.udfOutputIndices = udfOutputIndices;
         this.forwardedFieldGeneratedProjection = forwardedFieldGeneratedProjection;
     }
 
@@ -121,6 +148,7 @@ public class EmbeddedPythonScalarFunctionOperator
                 ProtoUtils.createUserDefinedFunctionsProto(
                                 getRuntimeContext(),
                                 scalarFunctions,
+                                udfOutputIndices,
                                 config.get(PYTHON_METRIC_ENABLED),
                                 config.get(PYTHON_PROFILE_ENABLED))
                         .toByteArray());

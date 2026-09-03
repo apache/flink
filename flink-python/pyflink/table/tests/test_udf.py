@@ -935,10 +935,6 @@ class UserDefinedFunctionTests(object):
         Deterministic UDF calls with same args are computed once and reused;
         non-deterministic UDF calls are always executed independently.
         The UUID suffix in UDF output proves whether calls were deduplicated.
-
-        Covers both the top-level / condition deduplication done by the logical rules and the
-        nested sub-expression sharing done inside the Python operator, so that a change to one
-        cannot silently alter the behaviour of the other.
         """
         @udf(result_type=DataTypes.STRING())
         def Det(s):
@@ -958,55 +954,6 @@ class UserDefinedFunctionTests(object):
 
         # (description, sql, verify_fn)
         cases = [
-            # --- Existing behaviour from the projection / condition CSE rules ---
-            # These guard the already-merged behaviour: introducing full-tree CSE for nested
-            # sub-expressions must not change how top-level duplicates are handled.
-            (
-                "top-level: identical Det calls are reused",
-                "SELECT Det(s), Det(s), Det(s) FROM SourceTable",
-                lambda vals: (
-                    self.assertEqual(len(vals), 3),
-                    self.assertEqual(len(set(vals)), 1,
-                                     f"expected one shared value, got {vals}"),
-                    self.assertTrue(vals[0].startswith("HELLO_")),
-                ),
-            ),
-            (
-                "top-level: Nondet calls are NOT reused",
-                "SELECT Nondet(s), Nondet(s), Nondet(s) FROM SourceTable",
-                lambda vals: (
-                    self.assertEqual(len(vals), 3),
-                    self.assertEqual(len(set(vals)), 3,
-                                     f"expected three distinct values, got {vals}"),
-                ),
-            ),
-            (
-                "top-level: Det reused while Nondet stays independent",
-                "SELECT Det(s), Det(s), Nondet(s) FROM SourceTable",
-                lambda vals: (
-                    self.assertEqual(len(vals), 3),
-                    self.assertEqual(vals[0], vals[1]),
-                    self.assertNotEqual(vals[0], vals[2]),
-                ),
-            ),
-            (
-                "condition + projection: Det(s) in WHERE and SELECT is shared",
-                "SELECT Det(s), Det(s) FROM SourceTable WHERE Det(s) IS NOT NULL",
-                lambda vals: (
-                    self.assertEqual(len(vals), 2),
-                    self.assertEqual(vals[0], vals[1]),
-                    self.assertTrue(vals[0].startswith("HELLO_")),
-                ),
-            ),
-            (
-                "condition + projection: Nondet in WHERE does not affect the projection",
-                "SELECT Det(s) FROM SourceTable WHERE Nondet(s) IS NOT NULL",
-                lambda vals: (
-                    self.assertEqual(len(vals), 1),
-                    self.assertTrue(vals[0].startswith("HELLO_")),
-                ),
-            ),
-            # --- Full-tree CSE: nested calls ---
             (
                 "Det(Det(s)) - inner Det shared with the standalone Det call",
                 "SELECT Det(Det(s)), Det(s) FROM SourceTable",

@@ -20,32 +20,40 @@ package org.apache.flink.table.functions.python;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * PythonAggregateFunctionInfo contains the execution information of a Python aggregate function,
- * such as: the actual Python aggregation function, the input arguments, the filter arg, the
- * distinct flag, etc.
- */
+/** A reference to a column of the input row, identified by its offset. */
 @Internal
-public class PythonAggregateFunctionInfo extends PythonFunctionInfo {
+public class InputRef implements PythonFunctionInput {
 
-    private final int filterArg;
-    private final boolean distinct;
+    private static final long serialVersionUID = 1L;
 
-    public PythonAggregateFunctionInfo(
-            PythonFunction pythonFunction,
-            PythonFunctionInput[] inputs,
-            int filterArg,
-            boolean isDistinct) {
-        super(pythonFunction, inputs);
-        this.filterArg = filterArg;
-        this.distinct = isDistinct;
+    private final int offset;
+
+    public InputRef(int offset) {
+        this.offset = offset;
     }
 
-    public boolean isDistinct() {
-        return distinct;
+    public int getOffset() {
+        return offset;
     }
 
-    public int getFilterArg() {
-        return filterArg;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        return offset == ((InputRef) o).offset;
+    }
+
+    @Override
+    public int hashCode() {
+        return Integer.hashCode(offset);
+    }
+
+    @Override
+    public String toString() {
+        return "InputRef(" + offset + ")";
     }
 }

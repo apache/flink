@@ -20,32 +20,42 @@ package org.apache.flink.table.functions.python;
 
 import org.apache.flink.annotation.Internal;
 
-/**
- * PythonAggregateFunctionInfo contains the execution information of a Python aggregate function,
- * such as: the actual Python aggregation function, the input arguments, the filter arg, the
- * distinct flag, etc.
- */
+import java.util.Arrays;
+
+/** A constant argument, already serialized into its Python representation. */
 @Internal
-public class PythonAggregateFunctionInfo extends PythonFunctionInfo {
+public class ConstantInput implements PythonFunctionInput {
 
-    private final int filterArg;
-    private final boolean distinct;
+    private static final long serialVersionUID = 1L;
 
-    public PythonAggregateFunctionInfo(
-            PythonFunction pythonFunction,
-            PythonFunctionInput[] inputs,
-            int filterArg,
-            boolean isDistinct) {
-        super(pythonFunction, inputs);
-        this.filterArg = filterArg;
-        this.distinct = isDistinct;
+    private final byte[] value;
+
+    public ConstantInput(byte[] value) {
+        this.value = value;
     }
 
-    public boolean isDistinct() {
-        return distinct;
+    public byte[] getValue() {
+        return value;
     }
 
-    public int getFilterArg() {
-        return filterArg;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        return Arrays.equals(value, ((ConstantInput) o).value);
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(value);
+    }
+
+    @Override
+    public String toString() {
+        return "ConstantInput(" + Arrays.toString(value) + ")";
     }
 }

@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.common;
+package org.apache.flink.table.planner.plan.nodes.exec.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
@@ -27,6 +26,7 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -40,29 +40,6 @@ import java.util.List;
  */
 @Internal
 public class PythonCallDeduplicator {
-
-    /**
-     * Recursively collects all deterministic Python UDF calls from a call tree in DFS post-order.
-     *
-     * <p>Post-order ensures child results are computed before parents that reference them via
-     * refIndex. Non-deterministic children are NOT flattened to prevent incorrect sharing.
-     */
-    @VisibleForTesting
-    static List<RexCall> collectAllPythonUdfCalls(RexCall root) {
-        List<RexCall> result = new ArrayList<>();
-        for (RexNode operand : root.getOperands()) {
-            if (operand instanceof RexCall && PythonUtil.isPythonCall((RexCall) operand)) {
-                RexCall childCall = (RexCall) operand;
-                // Only flatten deterministic child calls for CSE.
-                // Non-deterministic calls must remain nested to avoid incorrect sharing.
-                if (ShortcutUtils.isDeterministicThroughProgram(childCall, null)) {
-                    result.addAll(collectAllPythonUdfCalls(childCall));
-                }
-            }
-        }
-        result.add(root);
-        return result;
-    }
 
     /**
      * Flattens the given Python UDF call trees and deduplicates the resulting calls.
@@ -85,22 +62,22 @@ public class PythonCallDeduplicator {
 
         // Deduplicate the flattened list by structural equivalence, preserving post-order.
         LinkedHashMap<RexCall, Integer> callToIndex = new LinkedHashMap<>();
-        List<RexCall> uniqueCalls = new ArrayList<>();
-        int[] allToUnique = new int[allCalls.size()];
+        List<RexCall> deduplicatedCalls = new ArrayList<>();
+        int[] allToDeduplicated = new int[allCalls.size()];
         for (int i = 0; i < allCalls.size(); i++) {
             RexCall call = allCalls.get(i);
             boolean canReuse = ShortcutUtils.isDeterministicThroughProgram(call, null);
             Integer existing = canReuse ? callToIndex.get(call) : null;
             if (existing != null) {
-                allToUnique[i] = existing;
+                allToDeduplicated[i] = existing;
                 continue;
             }
-            int newPos = uniqueCalls.size();
+            int newPos = deduplicatedCalls.size();
             if (canReuse) {
                 callToIndex.put(call, newPos);
             }
-            uniqueCalls.add(call);
-            allToUnique[i] = newPos;
+            deduplicatedCalls.add(call);
+            allToDeduplicated[i] = newPos;
         }
 
         // Flattening adds entries for nested sub-expressions, and post-order means a top-level
@@ -108,18 +85,33 @@ public class PythonCallDeduplicator {
         // those positions form the operator output.
         int[] outputIndices = new int[pythonRexCalls.size()];
         for (int i = 0; i < pythonRexCalls.size(); i++) {
-            outputIndices[i] = allToUnique[rootPositions[i]];
+            outputIndices[i] = allToDeduplicated[rootPositions[i]];
         }
 
-        // Build refMap for sub-expression cross-referencing. putIfAbsent preserves the first
-        // occurrence index, ensuring a parent references its own child rather than a later
-        // structurally-equal duplicate.
-        LinkedHashMap<RexCall, Integer> refMap = new LinkedHashMap<>();
-        for (int i = 0; i < uniqueCalls.size(); i++) {
-            refMap.putIfAbsent(uniqueCalls.get(i), i);
-        }
+        return new PythonCallCseResult(
+                Collections.unmodifiableList(deduplicatedCalls), outputIndices);
+    }
 
-        return new PythonCallCseResult(uniqueCalls, refMap, outputIndices);
+    /**
+     * Recursively collects all deterministic Python UDF calls from a call tree in DFS post-order.
+     *
+     * <p>Post-order ensures child results are computed before parents that reference them via
+     * refIndex. Non-deterministic children are NOT flattened to prevent incorrect sharing.
+     */
+    private static List<RexCall> collectAllPythonUdfCalls(RexCall root) {
+        List<RexCall> result = new ArrayList<>();
+        for (RexNode operand : root.getOperands()) {
+            if (operand instanceof RexCall && PythonUtil.isPythonCall((RexCall) operand)) {
+                RexCall childCall = (RexCall) operand;
+                // Only flatten deterministic child calls for CSE.
+                // Non-deterministic calls must remain nested to avoid incorrect sharing.
+                if (ShortcutUtils.isDeterministicThroughProgram(childCall, null)) {
+                    result.addAll(collectAllPythonUdfCalls(childCall));
+                }
+            }
+        }
+        result.add(root);
+        return result;
     }
 
     private PythonCallDeduplicator() {
