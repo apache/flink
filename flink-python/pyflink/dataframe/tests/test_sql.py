@@ -23,8 +23,18 @@ from py4j.protocol import Py4JJavaError
 import pyflink.dataframe as pf
 from pyflink.common import Row
 from pyflink.table import DataTypes, EnvironmentSettings, TableEnvironment
-from pyflink.table.udf import udf
+from pyflink.table.udf import udf as table_udf
 from pyflink.testing.test_case_utils import PyFlinkDataFrameUTTestCase
+
+
+@pf.udf
+def module_level_add_one(value: int) -> int:
+    return value + 1
+
+
+def _collect_sorted(df: pf.DataFrame) -> list:
+    """Collect rows in a deterministic order: query results are unordered."""
+    return sorted(df.collect(), key=lambda row: row[0])
 
 
 class SqlValidationTests(unittest.TestCase):
@@ -78,7 +88,7 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
         )
 
         self.assertEqual(
-            sorted(joined.collect(), key=lambda row: row[0]),
+            _collect_sorted(joined),
             [Row(1, "x", "p"), Row(2, "y", "q"), Row(3, "z", "r")],
         )
 
@@ -94,7 +104,7 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
         ]:
             with self.subTest(query=query):
                 self.assertEqual(
-                    sorted(pf.sql(query).collect(), key=lambda row: row[0]),
+                    _collect_sorted(pf.sql(query)),
                     [Row(1), Row(2)],
                 )
 
@@ -109,7 +119,7 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
         )
 
         self.assertEqual(
-            sorted(result.collect(), key=lambda row: row[0]),
+            _collect_sorted(result),
             [Row(10), Row(20)],
         )
 
@@ -282,20 +292,279 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
         with self.assertRaisesRegex(TypeError, "'x' must be a DataFrame"):
             pf.sql("SELECT * FROM x", auto_bind=False, x=table)
 
-    def test_udfs_are_not_bindable(self):
-        # UDF support will come in a separate change once the DataFrame API grows
-        # UDF support in general: sql() must reject them rather than half-support them.
-        add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
+    def test_table_udfs_are_not_bindable(self):
+        # Only DataFrame UDFs (pf.udf) are supported, mirroring the rejection of raw
+        # Tables in favour of DataFrames.
+        add_one = table_udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
 
-        with self.assertRaisesRegex(TypeError, "'add_one' must be a DataFrame"):
+        with self.assertRaisesRegex(
+            TypeError, "'add_one' must be a DataFrame or a UDF created with"
+        ):
             pf.sql("SELECT add_one(a) FROM df", auto_bind=False, add_one=add_one)
 
-    def test_auto_bind_ignores_udfs(self):
+    def test_auto_bind_ignores_table_udfs(self):
         df = pf.from_dict({"a": [1]})  # noqa: F841
-        add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())  # noqa: F841
+        add_one = table_udf(  # noqa: F841
+            lambda i: i + 1, result_type=DataTypes.BIGINT()
+        )
 
         with self.assertRaisesRegex(Py4JJavaError, "No match found for function"):
             pf.sql("SELECT add_one(a) FROM df")
+
+    def test_auto_bind_registers_udfs_by_variable_name(self):
+        df = pf.from_dict({"a": [1, 2]})  # noqa: F841
+
+        @pf.udf
+        def add_one(value: int) -> int:
+            return value + 1
+
+        result = pf.sql("SELECT add_one(a) AS b FROM df")
+
+        self.assertEqual(
+            _collect_sorted(result), [Row(2), Row(3)]
+        )
+        self.assertNotIn("add_one", self.t_env.list_user_defined_functions())
+
+    def test_auto_bind_finds_module_level_udfs(self):
+        df = pf.from_dict({"a": [1, 2]})  # noqa: F841
+
+        result = pf.sql("SELECT module_level_add_one(a) AS b FROM df")
+
+        self.assertEqual(
+            _collect_sorted(result), [Row(2), Row(3)]
+        )
+
+    def test_explicit_udf_binding_picks_the_sql_name(self):
+        src = pf.from_dict({"a": [1, 2]})
+
+        @pf.udf
+        def add_one(value: int) -> int:
+            return value + 1
+
+        result = pf.sql(
+            "SELECT inc(a) AS b FROM src", auto_bind=False, src=src, inc=add_one
+        )
+
+        self.assertEqual(
+            _collect_sorted(result), [Row(2), Row(3)]
+        )
+        self.assertNotIn("inc", self.t_env.list_user_defined_functions())
+
+    def test_auto_bind_disabled_ignores_caller_udfs(self):
+        df = pf.from_dict({"a": [1]})  # noqa: F841
+        add_one = pf.udf(lambda value: value + 1, return_dtype=int)  # noqa: F841
+
+        with self.assertRaisesRegex(Py4JJavaError, "No match found for function"):
+            pf.sql("SELECT add_one(a) FROM df", auto_bind=False, df=df)
+
+    def test_explicit_udf_binding_takes_precedence_over_auto_bind(self):
+        df = pf.from_dict({"a": [1]})  # noqa: F841
+        add_one = pf.udf(lambda value: value + 1, return_dtype=int)  # noqa: F841
+        add_ten = pf.udf(lambda value: value + 10, return_dtype=int)
+
+        result = pf.sql("SELECT add_one(a) FROM df", add_one=add_ten)
+
+        self.assertEqual(result.collect(), [Row(11)])
+
+    def test_udf_names_are_case_insensitive(self):
+        df = pf.from_dict({"a": [1]})  # noqa: F841
+        addOne = pf.udf(lambda value: value + 1, return_dtype=int)  # noqa: F841
+
+        for query in ["SELECT addOne(a) FROM df", "SELECT ADDONE(a) FROM df"]:
+            with self.subTest(query=query):
+                self.assertEqual(pf.sql(query).collect(), [Row(2)])
+        self.assertNotIn("addone", self.t_env.list_user_defined_functions())
+
+    def test_pandas_udfs_are_bindable(self):
+        df = pf.from_dict({"a": [1, 2]})  # noqa: F841
+        add_one = pf.udf(  # noqa: F841
+            lambda values: values + 1, return_dtype=int, func_type="pandas"
+        )
+
+        result = pf.sql("SELECT add_one(a) AS b FROM df")
+
+        self.assertEqual(
+            _collect_sorted(result), [Row(2), Row(3)]
+        )
+
+    def test_udf_bindings_compose_with_the_dataframe_api(self):
+        df = pf.from_dict({"a": [1, 2, 3]})  # noqa: F841
+        add_one = pf.udf(lambda value: value + 1, return_dtype=int)  # noqa: F841
+
+        result = (
+            pf.sql("SELECT add_one(a) AS b FROM df")
+            .filter(pf.col("b") > 2)
+            .with_columns(c=add_one(pf.col("b")))
+        )
+
+        self.assertEqual(
+            _collect_sorted(result),
+            [Row(3, 4), Row(4, 5)],
+        )
+
+    def test_udf_bindings_are_dropped_after_failure(self):
+        df = pf.from_dict({"a": [1]})  # noqa: F841
+        add_one = pf.udf(lambda value: value + 1, return_dtype=int)  # noqa: F841
+
+        with self.assertRaises(Py4JJavaError):
+            pf.sql("SELECT add_one(nonexistent_column) FROM df")
+
+        self.assertNotIn("add_one", self.t_env.list_user_defined_functions())
+
+    def test_auto_bind_warns_and_skips_udf_colliding_with_existing_function(self):
+        self.t_env.create_temporary_system_function(
+            "add_one", table_udf(lambda i: i + 100, result_type=DataTypes.BIGINT())
+        )
+        self.addCleanup(self.t_env.drop_temporary_system_function, "add_one")
+        df = pf.from_dict({"a": [1]})  # noqa: F841
+        add_one = pf.udf(lambda value: value + 1, return_dtype=int)  # noqa: F841
+
+        with self.assertWarnsRegex(UserWarning, "skipped 'add_one'.*already exists"):
+            result = pf.sql("SELECT add_one(a) FROM df")
+
+        # The pre-existing function wins and survives the call.
+        self.assertEqual(result.collect(), [Row(101)])
+        self.assertIn("add_one", self.t_env.list_user_defined_functions())
+
+    def test_auto_bind_warns_and_skips_udf_colliding_with_builtin_function(self):
+        df = pf.from_dict({"a": [-1]})  # noqa: F841
+        abs = pf.udf(lambda value: value + 100, return_dtype=int)  # noqa: F841
+
+        with self.assertWarnsRegex(UserWarning, "skipped 'abs'.*already exists"):
+            result = pf.sql("SELECT abs(a) FROM df")
+
+        # The built-in function is never shadowed.
+        self.assertEqual(result.collect(), [Row(1)])
+
+    def test_explicit_udf_binding_shadows_builtin_function(self):
+        df = pf.from_dict({"a": [-1]})
+        my_abs = pf.udf(lambda value: value + 100, return_dtype=int)
+
+        result = pf.sql("SELECT abs(a) FROM df", auto_bind=False, df=df, abs=my_abs)
+
+        self.assertEqual(result.collect(), [Row(99)])
+        # The built-in function is restored after the call.
+        self.assertEqual(pf.sql("SELECT abs(a) FROM df", auto_bind=False, df=df)
+                         .collect(), [Row(1)])
+
+    def test_explicit_udf_binding_shadows_permanent_function(self):
+        # RichFunc0 adds one to its argument.
+        self.t_env.create_java_function(
+            "perm", "org.apache.flink.table.utils.TestingFunctions$RichFunc0"
+        )
+        self.addCleanup(self.t_env.drop_function, "perm")
+        df = pf.from_dict({"a": [1]})
+        my_perm = pf.udf(lambda value: value + 100, return_dtype=int)
+
+        result = pf.sql("SELECT perm(CAST(a AS INT)) FROM df", auto_bind=False, df=df, perm=my_perm)
+
+        self.assertEqual(result.collect(), [Row(101)])
+        # The permanent function is restored after the call.
+        self.assertEqual(
+            pf.sql("SELECT perm(CAST(a AS INT)) FROM df", auto_bind=False, df=df).collect(),
+            [Row(2)],
+        )
+        self.assertIn("perm", self.t_env.list_user_defined_functions())
+
+    def test_auto_bind_warns_and_skips_udf_colliding_with_permanent_function(self):
+        self.t_env.create_java_function(
+            "perm", "org.apache.flink.table.utils.TestingFunctions$RichFunc0"
+        )
+        self.addCleanup(self.t_env.drop_function, "perm")
+        df = pf.from_dict({"a": [1]})  # noqa: F841
+        perm = pf.udf(lambda value: value + 100, return_dtype=int)  # noqa: F841
+
+        with self.assertWarnsRegex(UserWarning, "skipped 'perm'.*already exists"):
+            result = pf.sql("SELECT perm(CAST(a AS INT)) FROM df")
+
+        # The permanent function wins.
+        self.assertEqual(result.collect(), [Row(2)])
+
+    def test_explicit_udf_binding_collision_with_temporary_function_raises(self):
+        self.t_env.create_temporary_system_function(
+            "taken", table_udf(lambda i: i + 100, result_type=DataTypes.BIGINT())
+        )
+        self.addCleanup(self.t_env.drop_temporary_system_function, "taken")
+        df = pf.from_dict({"a": [1]})
+
+        with self.assertRaisesRegex(
+            ValueError, "'taken'.*temporary function.*already exists"
+        ):
+            pf.sql(
+                "SELECT taken(a) FROM df",
+                auto_bind=False,
+                df=df,
+                taken=pf.udf(lambda value: value + 1, return_dtype=int),
+            )
+
+        # The view registered before the failure is cleaned up.
+        self.assertNotIn("df", self.t_env.list_temporary_views())
+
+    def test_explicit_udf_binding_collision_with_temporary_catalog_function_raises(self):
+        self.t_env.create_temporary_function(
+            "taken", table_udf(lambda i: i + 100, result_type=DataTypes.BIGINT())
+        )
+        self.addCleanup(self.t_env.drop_temporary_function, "taken")
+
+        with self.assertRaisesRegex(
+            ValueError, "'taken'.*temporary function.*already exists"
+        ):
+            pf.sql(
+                "SELECT 1",
+                auto_bind=False,
+                taken=pf.udf(lambda value: value + 1, return_dtype=int),
+            )
+
+    def test_explicit_udf_bindings_are_rolled_back_when_a_later_one_fails(self):
+        self.t_env.create_temporary_system_function(
+            "taken", table_udf(lambda i: i + 100, result_type=DataTypes.BIGINT())
+        )
+        self.addCleanup(self.t_env.drop_temporary_system_function, "taken")
+
+        with self.assertRaisesRegex(ValueError, "'taken'.*already exists"):
+            pf.sql(
+                "SELECT 1",
+                auto_bind=False,
+                first=pf.udf(lambda value: value + 1, return_dtype=int),
+                taken=pf.udf(lambda value: value + 1, return_dtype=int),
+            )
+
+        self.assertNotIn("first", self.t_env.list_user_defined_functions())
+
+    def test_explicit_udf_binding_collision_is_case_insensitive(self):
+        self.t_env.create_temporary_system_function(
+            "taken", table_udf(lambda i: i + 100, result_type=DataTypes.BIGINT())
+        )
+        self.addCleanup(self.t_env.drop_temporary_system_function, "taken")
+
+        with self.assertRaisesRegex(ValueError, "'TAKEN'.*already exists"):
+            pf.sql(
+                "SELECT 1",
+                auto_bind=False,
+                TAKEN=pf.udf(lambda value: value + 1, return_dtype=int),
+            )
+
+    def test_explicit_udf_binding_with_invalid_sql_identifier_raises(self):
+        with self.assertRaisesRegex(
+            ValueError, "'my udf'.*not a valid SQL identifier"
+        ):
+            pf.sql(
+                "SELECT 1",
+                auto_bind=False,
+                **{"my udf": pf.udf(lambda value: value + 1, return_dtype=int)},
+            )
+
+    def test_udf_bindings_do_not_take_part_in_environment_resolution(self):
+        other_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        source = pf.DataFrame(other_env.from_elements([(1,)], ["a"]))
+        add_one = pf.udf(lambda value: value + 1, return_dtype=int)  # noqa: F841
+
+        # The explicit binding selects other_env; the auto-bound UDF follows it.
+        result = pf.sql("SELECT add_one(a) FROM src", src=source)
+
+        self.assertEqual(result.collect(), [Row(2)])
+        self.assertNotIn("add_one", other_env.list_user_defined_functions())
+        self.assertNotIn("add_one", self.t_env.list_user_defined_functions())
 
     def test_explicit_bindings_resolve_the_environment(self):
         other_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
@@ -304,7 +573,7 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
         result = pf.sql("SELECT a FROM src", auto_bind=False, src=source)
 
         self.assertEqual(
-            sorted(result.collect(), key=lambda row: row[0]), [Row(1), Row(2)]
+            _collect_sorted(result), [Row(1), Row(2)]
         )
         # The environment is resolved per call; the global one is untouched.
         self.assertIs(pf.get_table_environment(), self.t_env)

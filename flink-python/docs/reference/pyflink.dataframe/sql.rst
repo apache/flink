@@ -20,7 +20,7 @@
 SQL
 ===
 
-Execute SQL SELECT queries against DataFrames.
+Execute SQL SELECT queries against DataFrames and DataFrame UDFs.
 
 Example::
 
@@ -33,6 +33,11 @@ Example::
     ...     auto_bind=False,
     ...     src=df1,
     ... )
+    >>> @pf.udf
+    ... def add_one(value: int) -> int:
+    ...     return value + 1
+    >>> pf.sql("SELECT add_one(a) AS a1 FROM df1")
+    >>> pf.sql("SELECT inc(a) FROM src", auto_bind=False, src=df1, inc=add_one)
     >>> pf.sql("SELECT a, b FROM df1").filter(pf.col("a") > 1).to_pandas()
 
 .. currentmodule:: pyflink.dataframe

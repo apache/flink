@@ -19,12 +19,13 @@
 import inspect
 import logging
 import warnings
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List, Set, Union
 
 from py4j.protocol import Py4JJavaError
 
 from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame
+from pyflink.dataframe.udf import _DataFrameUDFWrapper
 from pyflink.table import Table, TableEnvironment
 from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import is_instance_of
@@ -33,28 +34,35 @@ __all__ = ["sql"]
 
 _LOG = logging.getLogger(__name__)
 
+_Binding = Union[DataFrame, _DataFrameUDFWrapper]
+# TODO: This is only needed for python<=3.9. Once we drop support for it
+#       we can check with isinstance(<obj>, _Binding) instead of having to do this.
+_BINDABLE_TYPES = (DataFrame, _DataFrameUDFWrapper)
+
 
 @PublicEvolving()
-def sql(query: str, *, auto_bind: bool = True, **bindings: DataFrame) -> DataFrame:
+def sql(query: str, *, auto_bind: bool = True, **bindings: _Binding) -> DataFrame:
     """
     Execute a SQL query and return the result as a :class:`DataFrame`.
 
     The query must be a single statement that returns a result, such as SELECT or
     VALUES (no INSERT / DDL; use :meth:`TableEnvironment.execute_sql` for those).
-    The referenced DataFrames are registered as temporary views for the duration of
-    the call and dropped afterwards. The result can be further transformed with the
-    DataFrame API.
+    The referenced DataFrames are registered as temporary views and the referenced
+    UDFs (created with :func:`~pyflink.dataframe.udf`) as temporary system functions
+    for the duration of the call, and both are dropped afterwards. The result can be
+    further transformed with the DataFrame API.
 
     When ``auto_bind`` is ``True`` (the default), the caller's local and global variables
-    are scanned for :class:`DataFrame` objects and each is registered under its Python
-    variable name. Auto-binding is best-effort: it warns and skips names that are not
-    valid SQL identifiers or that collide with an existing table or view, and it never
-    shadows permanent catalog objects.
+    are scanned for :class:`DataFrame` and UDF objects and each is registered under its
+    Python variable name. Auto-binding is best-effort: it warns and skips names that
+    are not valid SQL identifiers or that collide with an existing table, view or
+    function, and it never shadows permanent catalog objects or built-in functions.
 
     Explicit keyword ``bindings`` define the SQL names directly. They are strict
-    (invalid names and conflicts with existing temporary views raise
-    :class:`ValueError`), take precedence over auto-bind on name collisions, and are
-    required to intentionally shadow a permanent catalog table or view.
+    (invalid names and conflicts with existing temporary views or temporary functions
+    raise :class:`ValueError`), take precedence over auto-bind on name collisions, and
+    are required to intentionally shadow a permanent catalog table, view or function
+    or a built-in function.
 
     The query runs in the :class:`TableEnvironment` of the bound DataFrames: the
     environment shared by the explicit ``bindings`` when given, otherwise the
@@ -62,20 +70,25 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: DataFrame) -> DataFra
     different environments raise :class:`ValueError`. Without explicit bindings,
     valid auto-bound candidates from different environments also raise
     :class:`ValueError`; when explicit bindings determine the environment, auto-bound
-    candidates from other environments are skipped with a warning. The resolved
+    candidates from other environments are skipped with a warning. UDF bindings are
+    not tied to an environment and do not take part in this resolution. The resolved
     environment is used only for this call and never replaces the global one.
 
+    Function names are case-insensitive in SQL, so a UDF bound as ``addOne`` is
+    referenced as ``addOne(...)`` or ``addone(...)`` alike.
+
     :param query: The query to execute.
-    :param auto_bind: Whether to scan the caller's variables for DataFrames.
-    :param bindings: Explicit name to :class:`DataFrame` bindings.
+    :param auto_bind: Whether to scan the caller's variables for DataFrames and UDFs.
+    :param bindings: Explicit name to :class:`DataFrame` or UDF bindings.
     :return: The query result.
     :raises ValueError: If the query is not a query statement, if an explicit binding
                         is not a valid SQL identifier or conflicts with an existing
-                        temporary view, or if explicit bindings belong to different
-                        TableEnvironments, or if auto-bound candidates belong to
-                        different TableEnvironments when there are no explicit
-                        bindings.
-    :raises TypeError: If an explicit binding is not a :class:`DataFrame`.
+                        temporary view or temporary function, or if explicit
+                        bindings belong to different TableEnvironments, or if
+                        auto-bound candidates belong to different TableEnvironments
+                        when there are no explicit bindings.
+    :raises TypeError: If an explicit binding is neither a :class:`DataFrame` nor a
+                       UDF created with :func:`~pyflink.dataframe.udf`.
 
     Example::
 
@@ -90,6 +103,12 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: DataFrame) -> DataFra
         ...     auto_bind=False,
         ...     src=df1,
         ... )
+        >>> # UDFs are bound the same way, under their variable or keyword name
+        >>> @pf.udf
+        ... def add_one(value: int) -> int:
+        ...     return value + 1
+        >>> pf.sql("SELECT add_one(a) AS a1 FROM df1")
+        >>> pf.sql("SELECT inc(a) FROM src", auto_bind=False, src=df1, inc=add_one)
         >>> # Mix SQL and the DataFrame API
         >>> pf.sql("SELECT a, b FROM df1").filter(pf.col("a") > 1).to_pandas()
 
@@ -97,41 +116,71 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: DataFrame) -> DataFra
     """
     if not isinstance(query, str):
         raise TypeError("query must be a string")
-    auto_bindings: Dict[str, DataFrame] = {}
+
+    # Collect auto bindings first.
+    variables = {}
+    # Gather the variables in the namespace
     if auto_bind:
-        frame = inspect.currentframe()
-        caller = frame.f_back if frame is not None else None
-        try:
-            if caller is not None:
-                # Locals take precedence over globals.
-                namespace = {**caller.f_globals, **caller.f_locals}
-                auto_bindings = {
-                    name: value
-                    for name, value in namespace.items()
-                    if isinstance(value, DataFrame)
-                }
-        finally:
-            del frame, caller
-    t_env = _resolve_table_environment(bindings, auto_bindings)
-    registered: List[str] = []
+        if frame := inspect.currentframe():
+            if outer_frame := frame.f_back:
+                variables = {**outer_frame.f_globals, **outer_frame.f_locals}
+            # Suggested by python docs
+            del outer_frame
+            del frame
+    auto_frames = _get_dataframes(variables)
+    auto_udfs = _get_udfs(variables)
+
+    # Check that explicit bindings are the correct type first
+    for name, value in bindings.items():
+        if not isinstance(value, _BINDABLE_TYPES):
+            raise TypeError(
+                f"sql() binding '{name}' must be a DataFrame or a UDF created with "
+                f"pyflink.dataframe.udf, got {type(value).__name__}"
+            )
+    explicit_frames = _get_dataframes(bindings)
+    explicit_udfs = _get_udfs(bindings)
+
+    t_env = _resolve_table_environment(explicit_frames, auto_frames)
+    # Each registration step is all-or-nothing: it rolls back its own partial work on
+    # failure and only returns names on success, so a step that raises leaves nothing
+    # of its own behind and the finally block only drops what earlier steps returned.
+    views: List[str] = []
+    functions: List[str] = []
     try:
-        _register_bindings(t_env, bindings, auto_bindings, registered)
+        views = _register_views(t_env, explicit_frames, auto_frames)
+        functions = _register_functions(t_env, explicit_udfs, auto_udfs)
         return DataFrame(_execute_query(t_env, query))
     finally:
-        for name in registered:
-            # Best-effort cleanup: dropping must not mask an exception raised by the
-            # query itself, but only names registered by this call are dropped, so a
-            # failure is an anomaly the user should hear about.
-            try:
-                t_env.drop_temporary_view(name)
-            except Exception:
-                _LOG.warning(
-                    "sql() failed to drop temporary view '%s'", name, exc_info=True
-                )
+        _drop_functions(t_env, functions)
+        _drop_views(t_env, views)
+
+
+def _get_dataframes(namespace: Dict[str, Any]) -> Dict[str, DataFrame]:
+    return {k: v for k, v in namespace.items() if isinstance(v, DataFrame)}
+
+
+def _get_udfs(namespace: Dict[str, Any]) -> Dict[str, _DataFrameUDFWrapper]:
+    return {k: v for k, v in namespace.items() if isinstance(v, _DataFrameUDFWrapper)}
+
+
+def _drop_views(t_env: TableEnvironment, names: List[str]) -> None:
+    for name in names:
+        try:
+            t_env.drop_temporary_view(name)
+        except Exception:
+            _LOG.warning("sql() failed to drop view '%s'", name, exc_info=True)
+
+
+def _drop_functions(t_env: TableEnvironment, names: List[str]) -> None:
+    for name in names:
+        try:
+            t_env.drop_temporary_system_function(name)
+        except Exception:
+            _LOG.warning("sql() failed to drop function '%s'", name, exc_info=True)
 
 
 def _resolve_table_environment(
-    explicit: Dict[str, Any], auto: Dict[str, DataFrame]
+    explicit: Dict[str, DataFrame], auto: Dict[str, DataFrame]
 ) -> TableEnvironment:
     """
     Pick the environment to run the query in: the environment shared by the explicit
@@ -141,34 +190,34 @@ def _resolve_table_environment(
     environment resolution. Mixed valid auto-bound candidates are also ambiguous and
     require explicit bindings, regardless of the configured global environment.
     """
-    for name, value in explicit.items():
-        if not isinstance(value, DataFrame):
-            raise TypeError(
-                f"sql() binding '{name}' must be a DataFrame, got {type(value).__name__}"
-            )
-    # Deduplicate by identity: environments are not comparable by value.
-    explicit_envs = {id(v._table._t_env): v._table._t_env for v in explicit.values()}
+    explicit_envs = _distinct_environments(explicit.values())
     if len(explicit_envs) > 1:
         raise ValueError(
             "sql() explicit bindings belong to different TableEnvironments; "
             "bind DataFrames from a single environment"
         )
     if explicit_envs:
-        return next(iter(explicit_envs.values()))
-    auto_envs = {
-        id(value._table._t_env): value._table._t_env
+        return explicit_envs[0]
+
+    auto_envs = _distinct_environments(
+        value
         for name, value in auto.items()
         if _is_simple_sql_identifier(value._table._t_env, name)
-    }
-    if len(auto_envs) == 1:
-        return next(iter(auto_envs.values()))
+    )
     if len(auto_envs) > 1:
         raise ValueError(
             "sql() auto-bound DataFrames belong to different TableEnvironments; "
             "set auto_bind=False and pass explicit bindings from a single "
             "TableEnvironment"
         )
+    if auto_envs:
+        return auto_envs[0]
     return get_or_create_table_environment()
+
+
+def _distinct_environments(frames: Iterable[DataFrame]) -> List[TableEnvironment]:
+    # Deduplicate by identity: environments are not comparable by value.
+    return list({id(f._table._t_env): f._table._t_env for f in frames}.values())
 
 
 def _execute_query(t_env: TableEnvironment, query: str) -> Table:
@@ -192,8 +241,8 @@ def _execute_query(t_env: TableEnvironment, query: str) -> Table:
 def _is_simple_sql_identifier(t_env: TableEnvironment, name: str) -> bool:
     """
     Whether ``name`` is accepted verbatim as a single-part identifier by the SQL parser,
-    i.e. whether registering a temporary view under it can succeed. This is the same
-    validation :meth:`TableEnvironment.create_temporary_view` applies to its path, so
+    i.e. whether registering a temporary view or function under it can succeed. This is
+    the same validation :meth:`TableEnvironment.create_temporary_view` applies, so
     keywords like ``order`` pass (queries reference them with backticks) while names
     that would need quoting or resolve to a different or multi-part path do not.
     """
@@ -212,32 +261,41 @@ def _is_simple_sql_identifier(t_env: TableEnvironment, name: str) -> bool:
     )
 
 
-def _register_bindings(
+def _register_views(
     t_env: TableEnvironment,
     explicit: Dict[str, DataFrame],
     auto: Dict[str, DataFrame],
-    registered: List[str],
-) -> None:
+) -> List[str]:
     """
-    Register explicit and auto-collected bindings as temporary views, appending each
-    successful registration to ``registered``. The explicit bindings have already been
-    type-checked and share ``t_env`` (see :func:`_resolve_table_environment`).
+    Register explicit and auto-collected DataFrames as temporary views and return the
+    registered names. Registration is all-or-nothing: if an explicit binding is
+    rejected, the views registered before it are dropped again before raising. The
+    explicit bindings have already been type-checked and share ``t_env`` (see
+    :func:`_resolve_table_environment`).
     """
     temporary_tables = set(t_env.list_temporary_tables())
     # list_tables() covers both permanent and temporary tables and views.
     all_tables = set(t_env.list_tables())
+    registered: List[str] = []
 
-    for name, value in explicit.items():
-        if not _is_simple_sql_identifier(t_env, name):
-            raise ValueError(f"cannot bind '{name}': it is not a valid SQL identifier")
-        if name in temporary_tables:
-            raise ValueError(
-                f"cannot bind '{name}': a temporary table or view with this name "
-                "already exists"
-            )
-        t_env.create_temporary_view(name, value.to_table())
-        registered.append(name)
+    try:
+        for name, value in explicit.items():
+            if not _is_simple_sql_identifier(t_env, name):
+                raise ValueError(
+                    f"cannot bind '{name}': it is not a valid SQL identifier"
+                )
+            if name in temporary_tables:
+                raise ValueError(
+                    f"cannot bind '{name}': a temporary table or view with this name "
+                    "already exists"
+                )
+            t_env.create_temporary_view(name, value.to_table())
+            registered.append(name)
+    except Exception:
+        _drop_views(t_env, registered)
+        raise
 
+    # Auto-bound candidates never raise: problems are reported as warnings.
     for name, value in auto.items():
         if name in explicit:
             # Explicit bindings take precedence on name collisions.
@@ -257,6 +315,97 @@ def _register_bindings(
             _warn_skipped(name, f"registration failed: {e}")
             continue
         registered.append(name)
+    return registered
+
+
+def _register_functions(
+    t_env: TableEnvironment,
+    explicit: Dict[str, _DataFrameUDFWrapper],
+    auto: Dict[str, _DataFrameUDFWrapper],
+) -> List[str]:
+    """
+    Register explicit and auto-collected UDFs as temporary system functions and return
+    the registered names. Registration is all-or-nothing: if an explicit binding is
+    rejected, the functions registered before it are dropped again before raising.
+
+    System functions are looked up by bare name independently of the current catalog
+    and database, which matches how a Python name is referenced in the query. Function
+    names are case-insensitive: the catalog normalizes them to lower case, so
+    collisions are checked case-insensitively. Mirroring views, explicit bindings may
+    shadow built-in and permanent catalog functions but never an existing temporary
+    function; auto-bind shadows nothing.
+    """
+    if not explicit and not auto:
+        return []
+    # list_user_defined_functions() covers temporary and permanent functions alike;
+    # the permanent ones are those the current catalog lists for the current database.
+    user_defined = {f.lower() for f in t_env.list_user_defined_functions()}
+    temporary_functions = user_defined - _permanent_functions(t_env)
+    # Explicit bindings take precedence on name collisions, so only the remaining
+    # auto-bound candidates need the built-in function names. list_functions() covers
+    # those as well, but is comparatively expensive, so skip it when nothing needs it.
+    auto_candidates = {name: value for name, value in auto.items() if name not in explicit}
+    all_functions: Set[str] = set()
+    if auto_candidates:
+        all_functions = {f.lower() for f in t_env.list_functions()}
+    registered: List[str] = []
+
+    try:
+        for name, value in explicit.items():
+            if not _is_simple_sql_identifier(t_env, name):
+                raise ValueError(
+                    f"cannot bind '{name}': it is not a valid SQL identifier"
+                )
+            if name.lower() in temporary_functions:
+                raise ValueError(
+                    f"cannot bind '{name}': a temporary function with this name "
+                    "already exists"
+                )
+            t_env.create_temporary_system_function(name, value._table_udf_wrapper)
+            registered.append(name)
+            temporary_functions.add(name.lower())
+    except Exception:
+        _drop_functions(t_env, registered)
+        raise
+
+    # Auto-bound candidates never raise: problems are reported as warnings.
+    for name, value in auto_candidates.items():
+        if not _is_simple_sql_identifier(t_env, name):
+            _warn_skipped(name, "it is not a valid SQL identifier")
+            continue
+        if name.lower() in all_functions or name.lower() in temporary_functions:
+            _warn_skipped(name, "a function with this name already exists")
+            continue
+        try:
+            t_env.create_temporary_system_function(name, value._table_udf_wrapper)
+        except Exception as e:
+            _warn_skipped(name, f"registration failed: {e}")
+            continue
+        registered.append(name)
+        temporary_functions.add(name.lower())
+    return registered
+
+
+def _permanent_functions(t_env: TableEnvironment) -> Set[str]:
+    """
+    Lower-cased names of the permanent functions in the current catalog and database,
+    i.e. the user-defined functions that a temporary system function may shadow.
+    """
+    catalog = t_env.get_catalog(t_env.get_current_catalog())
+    if catalog is None:
+        return set()
+    try:
+        names = catalog.list_functions(t_env.get_current_database())
+    except Py4JJavaError as e:
+        # A dropped current database lists no functions; this mirrors the environment,
+        # whose own function listing ignores a missing database as well.
+        if not is_instance_of(
+            e.java_exception,
+            "org.apache.flink.table.catalog.exceptions.DatabaseNotExistException",
+        ):
+            raise
+        return set()
+    return {name.lower() for name in names}
 
 
 def _warn_skipped(name: str, reason: str) -> None:
