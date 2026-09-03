@@ -1912,12 +1912,14 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 new Integer[][] {new Integer[] {1, 2}, null, new Integer[] {3}},
                                 new Integer[][] {new Integer[] {1, null, 2}, new Integer[] {3}},
                                 new Integer[][] {new Integer[] {1}},
+                                new Integer[][] {},
                                 new Integer[] {1, 2, 3})
                         .andDataTypes(
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING())),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
-                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()).nullable()),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT().nullable())),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.INT()))
@@ -1950,21 +1952,25 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 call("ARRAY_FLATTEN", $("f4")),
                                 "ARRAY_FLATTEN(f4)",
                                 new Integer[] {1, null, 2, 3},
-                                DataTypes.ARRAY(DataTypes.INT()))
+                                DataTypes.ARRAY(DataTypes.INT().nullable()))
                         // Single element
                         .testResult(
                                 call("ARRAY_FLATTEN", $("f5")),
                                 "ARRAY_FLATTEN(f5)",
                                 new Integer[] {1},
                                 DataTypes.ARRAY(DataTypes.INT()))
+                        // Empty array flattens to empty array
+                        .testResult(
+                                call("ARRAY_FLATTEN", $("f6")),
+                                "ARRAY_FLATTEN(f6)",
+                                new Integer[] {},
+                                DataTypes.ARRAY(DataTypes.INT()))
                         // Error case: one-dimensional array (should reject non-nested array)
                         .testSqlValidationError(
-                                "ARRAY_FLATTEN(f6)",
-                                "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_FLATTEN('<ARRAY<ARRAY<T>>>')")
+                                "ARRAY_FLATTEN(f7)",
+                                "ARRAY_FLATTEN expects an argument of type ARRAY<ARRAY<T>>.")
                         .testTableApiValidationError(
-                                call("ARRAY_FLATTEN", $("f6")),
-                                "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_FLATTEN('<ARRAY<ARRAY<T>>>')"));
+                                call("ARRAY_FLATTEN", $("f7")),
+                                "ARRAY_FLATTEN expects an argument of type ARRAY<ARRAY<T>>."));
     }
 }
