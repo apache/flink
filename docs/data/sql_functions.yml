@@ -929,16 +929,17 @@ collection:
     table: MAP.mapContainsKey(key)
     description: |
       Returns TRUE if the given key exists in the map, FALSE otherwise. Returns NULL if the map is
-      NULL. If the search key is NULL, the function returns TRUE when the map contains a NULL key.
+      NULL. 
+      
+      If the search key is NULL, the function returns TRUE when the map contains a NULL key.
       The given key is cast implicitly to the map's key type where Flink's implicit casting rules
       allow it; otherwise the call fails validation.
-      e.g.
+      
+      Examples
         -- TRUE
         MAP_CONTAINS_KEY(MAP['a', 1, 'b', 2], 'a')
-
         -- FALSE
         MAP_CONTAINS_KEY(MAP['a', 1, 'b', 2], 'z')
-
         -- TRUE
         MAP_CONTAINS_KEY(MAP[CAST(NULL AS STRING), 1], CAST(NULL AS STRING))
   - sql: MAP_FROM_ARRAYS(array_of_keys, array_of_values)

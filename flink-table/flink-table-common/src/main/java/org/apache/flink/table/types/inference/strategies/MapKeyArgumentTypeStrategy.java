@@ -55,7 +55,11 @@ class MapKeyArgumentTypeStrategy implements ArgumentTypeStrategy {
         if (supportsImplicitCast(actualKeyType, expectedKeyType)) {
             return Optional.of(DataTypes.of(expectedKeyType));
         }
-        return Optional.empty();
+        return callContext.fail(
+                throwOnFailure,
+                "Unsupported argument type. Expected type '%s' but actual type was '%s'.",
+                expectedKeyType,
+                actualKeyType);
     }
 
     @Override
