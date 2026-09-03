@@ -87,6 +87,36 @@ class AvroFormatTests(PyFlinkTestCase):
                 self.assertEqual(length.to_bytes(4, "big").hex(), encoded[:4].hex())
                 self.assertEqual(payload, encoded[4:4 + length].hex())
 
+    def test_decimal_written_by_the_old_framing_is_still_readable(self):
+        schema = avro.schema.parse(DECIMAL_THEN_INT)
+        record = {"amount": Decimal("12.34"), "tail": 7}
+
+        # What an earlier version wrote: the payload length as a fixed 8-byte long. Kept readable
+        # because Python state may still hold it.
+        legacy = bytes.fromhex("000000000000000204d200000007")
+        decoded = FlinkAvroDatumReader(schema, schema).read(
+            FlinkAvroDecoder(io.BytesIO(legacy)))
+        self.assertEqual(record, decoded)
+
+        # The current framing is read from the same method, so neither shape needs a flag.
+        current = self._encode(schema, record)
+        self.assertEqual("0000000204d200000007", current.hex())
+        self.assertEqual(
+            record,
+            FlinkAvroDatumReader(schema, schema).read(FlinkAvroDecoder(io.BytesIO(current))))
+
+    def test_old_framing_is_readable_for_every_payload_length(self):
+        schema = avro.schema.parse(DECIMAL_THEN_INT)
+        for value in ("0.00", "12.34", "-12.34", "1.28", "-1.28", "999999.99", "-999999.99"):
+            with self.subTest(value=value):
+                current = self._encode(schema, {"amount": Decimal(value), "tail": 7})
+                size, payload = current[:4], current[4:-4]
+                # re-frame the same payload the way the old encoder did
+                legacy = int.from_bytes(size, "big").to_bytes(8, "big") + payload + current[-4:]
+                decoded = FlinkAvroDatumReader(schema, schema).read(
+                    FlinkAvroDecoder(io.BytesIO(legacy)))
+                self.assertEqual({"amount": Decimal(value), "tail": 7}, decoded)
+
     def test_decimal_round_trip(self):
         schema = avro.schema.parse(DECIMAL_THEN_INT)
         for value in ("0.00", "12.34", "-12.34", "1.27", "-1.28", "999999.99", "-999999.99"):

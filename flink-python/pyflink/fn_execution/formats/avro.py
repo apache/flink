@@ -92,6 +92,16 @@ class FlinkAvroDecoder(BinaryDecoder):
         # upstream but a fixed 8-byte long here. On the JVM a bytes-backed decimal is framed like
         # any other bytes field, so the size is a 4-byte int.
         size = self.read_int()
+        if size == 0:
+            # Data written before this fix sized the payload with the fixed 8-byte write_long, so
+            # what was just read is the always-zero high half of that prefix and the size is in the
+            # next int. Such data can still be sitting in Python state written by an earlier
+            # version, so it stays readable.
+            #
+            # The two framings are unambiguous: avro writes at least one byte of unscaled value for
+            # every decimal, zero included, so a payload length of zero never occurs in the current
+            # framing and can only be the historical one.
+            size = self.read_int()
         return self.read_decimal_from_fixed(precision, scale, size)
 
     def skip_int(self):
