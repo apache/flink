@@ -74,6 +74,7 @@ import org.apache.flink.table.dataview.ListViewSerializer;
 import org.apache.flink.table.dataview.MapViewSerializer;
 import org.apache.flink.table.dataview.NullAwareMapSerializer;
 import org.apache.flink.table.dataview.NullSerializer;
+import org.apache.flink.table.runtime.operators.join.temporal.TemporalRowTimeJoinOperatorV2;
 import org.apache.flink.table.runtime.operators.sink.SortedLongSerializer;
 import org.apache.flink.table.runtime.operators.window.CountWindow;
 import org.apache.flink.table.runtime.sequencedmultisetstate.linked.MetaSqnInfoSerializer;
@@ -198,7 +199,10 @@ class TypeSerializerTestCoverageTest {
                         SharedBufferEdge.SharedBufferEdgeSerializer.class.getName(),
                         RowDataSerializer.class.getName(),
                         DecimalDataSerializer.class.getName(),
-                        AvroSerializer.class.getName());
+                        AvroSerializer.class.getName(),
+                        // covered by LeftTimeIndexKeySerializerTest; the nested class name cannot
+                        // match the expected <serializer name>Test pattern
+                        TemporalRowTimeJoinOperatorV2.LeftTimeIndexKeySerializer.class.getName());
 
         //  type serializer whitelist for TypeSerializerUpgradeTestBase test coverage
         final List<String> typeSerializerUpgradeTestBaseWhitelist =
@@ -269,7 +273,8 @@ class TypeSerializerTestCoverageTest {
                         RowSqnInfoSerializer.class.getName(),
                         MetaSqnInfoSerializer.class.getName(),
                         SetSerializer.class.getName(),
-                        SortedLongSerializer.class.getName());
+                        SortedLongSerializer.class.getName(),
+                        TemporalRowTimeJoinOperatorV2.LeftTimeIndexKeySerializer.class.getName());
 
         // check if a test exists for each type serializer
         for (Class<? extends TypeSerializer> typeSerializer : typeSerializers) {

@@ -50,6 +50,7 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.temporal.TemporalProcessTimeJoinOperator;
 import org.apache.flink.table.runtime.operators.join.temporal.TemporalRowTimeJoinOperator;
+import org.apache.flink.table.runtime.operators.join.temporal.TemporalRowTimeJoinOperatorV2;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -74,6 +75,12 @@ import java.util.Optional;
         producedTransformations = StreamExecTemporalJoin.TEMPORAL_JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
+@ExecNodeMetadata(
+        name = "stream-exec-temporal-join",
+        version = 2,
+        producedTransformations = StreamExecTemporalJoin.TEMPORAL_JOIN_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v2_4,
+        minStateVersion = FlinkVersion.v2_4)
 public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
@@ -265,7 +272,18 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         long minRetentionTime = config.getStateRetentionTime();
         long maxRetentionTime = TableConfigUtils.getMaxIdleStateRetentionTime(config);
         if (rightTimeAttributeIndex >= 0) {
-            return new TemporalRowTimeJoinOperator(
+            if (getVersion() == 1) {
+                return new TemporalRowTimeJoinOperator(
+                        InternalTypeInfo.of(leftInputType),
+                        InternalTypeInfo.of(rightInputType),
+                        generatedJoinCondition,
+                        leftTimeAttributeIndex,
+                        rightTimeAttributeIndex,
+                        minRetentionTime,
+                        maxRetentionTime,
+                        isLeftOuterJoin);
+            }
+            return new TemporalRowTimeJoinOperatorV2(
                     InternalTypeInfo.of(leftInputType),
                     InternalTypeInfo.of(rightInputType),
                     generatedJoinCondition,
