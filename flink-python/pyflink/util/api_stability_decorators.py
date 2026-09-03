@@ -21,7 +21,7 @@ from inspect import getmembers, isfunction, isclass
 from typing import TypeVar, Callable, Any, Union, Type, Optional, cast
 from abc import ABCMeta, abstractmethod
 import warnings
-from typing_extensions import override
+from typing_extensions import deprecated, override
 from textwrap import dedent, indent
 
 __all__ = ["Deprecated", "Experimental", "Internal", "PublicEvolving", "Public"]
@@ -77,10 +77,7 @@ class BaseAPIStabilityDecorator(metaclass=ABCMeta):
 
         # Avoid duplicating directives if already present in the docstring.
         if directive not in docstring:
-            try:
-                func_or_cls.__doc__ = f"{docstring}\n{directive}"
-            except (AttributeError, TypeError):
-                pass
+            func_or_cls.__doc__ = f"{docstring}\n{directive}"
 
         # Add the decorator to an internal __stability_decorators set on the class/function
         # being decorated, for later introspection.
@@ -88,9 +85,8 @@ class BaseAPIStabilityDecorator(metaclass=ABCMeta):
             stability_decorators = getattr(func_or_cls, '__stability_decorators')
             stability_decorators.add(self.__class__)
         else:
-            # Not every decorated object accepts attribute assignment (a property, for
-            # example). Those simply cannot be introspected; that is not a reason to fail
-            # at import time.
+            # A property rejects attribute assignment, so it cannot record which
+            # decorators were applied to it. That is not a reason to fail at import time.
             try:
                 setattr(func_or_cls, '__stability_decorators', {self.__class__})
             except (AttributeError, TypeError):
@@ -156,16 +152,16 @@ class Deprecated(BaseAPIStabilityDecorator):
     @override
     def __call__(self, func_or_cls: T) -> T:
         """
-        Arranges for a :class:`DeprecationWarning` to be emitted when the decorated API element
-        is *used*, and calls the base class for docstring modification.
+        Arranges for a :class:`DeprecationWarning` to be emitted when the decorated API
+        element is *used*, and calls the base class for docstring modification.
 
         The warning must not be emitted here: this method runs while the module defining the
         API is being imported, so warning here would warn every user that imports PyFlink,
         whether or not they use the deprecated API, and would never warn the ones who do.
         """
-        # staticmethod/classmethod objects are not functions and do not proxy __qualname__ on
-        # all supported Python versions. Decorate the function they wrap instead, and
-        # re-package it so that the descriptor still behaves as one.
+        # typing_extensions.deprecated rejects a classmethod outright, and silently turns a
+        # staticmethod into a plain function, which then breaks when called on an instance.
+        # Decorate the function the descriptor holds and re-package it instead.
         if isinstance(func_or_cls, (staticmethod, classmethod)):
             return cast(T, type(func_or_cls)(self(func_or_cls.__func__)))
 
@@ -174,57 +170,50 @@ class Deprecated(BaseAPIStabilityDecorator):
         if isclass(func_or_cls):
             self._deprecate_class(func_or_cls)
         elif isfunction(func_or_cls):
-            return cast(T, self._deprecate_function(func_or_cls))
-        # Anything else (a property, for instance) cannot be wrapped without changing what the
-        # decorated name refers to, so the docstring directive is all we apply.
+            # PEP 702's implementation, by way of its typing_extensions backport: a
+            # functools.wraps wrapper that warns with the caller's stacklevel, plus the
+            # __deprecated__ attribute that type checkers read.
+            return cast(T, deprecated(self._get_message(func_or_cls))(func_or_cls))
+
+        # A property is neither, and typing_extensions.deprecated rejects it. Replacing the
+        # descriptor to warn on attribute access is not worth it for a deprecated API, so
+        # the docstring directive is all we apply.
         return func_or_cls
-
-    def _deprecate_function(self, func: Callable[..., Any]) -> Callable[..., Any]:
-        """
-        Returns a wrapper around the given function that warns before delegating to it.
-        """
-        msg = self._get_message(func)
-
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # stacklevel=2 attributes the warning to the caller of the deprecated function
-            # rather than to this wrapper.
-            warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
-            return func(*args, **kwargs)
-
-        return wrapper
 
     def _deprecate_class(self, cls: Type[Any]) -> None:
         """
         Wraps the __init__ of the given class so that instantiating it warns.
 
-        The class itself is returned unchanged by :func:`__call__`; replacing it with a wrapper
-        would break isinstance checks and subclassing.
+        typing_extensions.deprecated is deliberately not used for classes. Following PEP 702
+        it warns when a deprecated class is *subclassed* as well as when it is instantiated,
+        and PyFlink subclasses its own deprecated classes -- Rowtime and Schema in
+        pyflink.table.descriptors both extend the deprecated Descriptor -- so that warning
+        would fire while the module is being imported, which is what this decorator exists
+        to avoid.
+
+        The class itself is returned unchanged by :func:`__call__`; replacing it with a
+        wrapper would break isinstance checks and subclassing.
         """
         msg = self._get_message(cls)
         original_init = cls.__init__
 
         @functools.wraps(original_init)
         def __init__(self: Any, *args: Any, **kwargs: Any) -> None:
-            # As in PEP 702, only instantiating the deprecated class itself warns. A subclass
-            # is not necessarily deprecated, and this also avoids warning twice when a
-            # deprecated class inherits the __init__ of a deprecated base class.
+            # As in PEP 702, only instantiating the deprecated class itself warns. A
+            # subclass is not necessarily deprecated, and this also avoids warning twice
+            # when a deprecated class inherits the __init__ of a deprecated base class.
             if type(self) is cls:
                 warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
             if original_init is object.__init__ and (args or kwargs) \
                     and type(self).__new__ is object.__new__:
-                # object.__new__ rejects excess arguments only for classes that define
-                # neither __new__ nor __init__; installing this __init__ would otherwise
-                # silence that error.
+                # Mirrors a check PEP 702's implementation makes for the same reason:
+                # object.__new__ rejects excess arguments only for a class that defines
+                # neither __new__ nor __init__, and the __init__ installed here would
+                # otherwise silence that error.
                 raise TypeError(f"{type(self).__name__}() takes no arguments")
             original_init(self, *args, **kwargs)
 
-        try:
-            cls.__init__ = __init__  # type: ignore[misc]
-        except (AttributeError, TypeError):
-            # Extension types and the like do not allow their __init__ to be replaced; fall
-            # back to documenting the deprecation only.
-            pass
+        cls.__init__ = __init__  # type: ignore[misc]
 
 
 class Experimental(BaseAPIStabilityDecorator):

@@ -16,11 +16,13 @@
 # limitations under the License.
 ################################################################################
 import abc
+import contextlib
 import enum
 import inspect
 import os
 import subprocess
 import sys
+import textwrap
 import unittest
 import warnings
 
@@ -33,13 +35,17 @@ from pyflink.util.api_stability_decorators import (
 )
 
 
+@contextlib.contextmanager
 def _catch_warnings():
     """
-    Returns a context manager recording every warning raised within it.
+    Records every warning raised within the block.
+
+    Used where :func:`unittest.TestCase.assertWarns` cannot express the assertion: that
+    nothing warned, or that something warned exactly once.
     """
-    context = warnings.catch_warnings(record=True)
-    warnings.simplefilter("always")
-    return context
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        yield caught
 
 
 class DeprecatedTests(unittest.TestCase):
@@ -63,21 +69,27 @@ class DeprecatedTests(unittest.TestCase):
         self.assertEqual([], [str(warning.message) for warning in caught])
 
     def test_importing_pyflink_table_does_not_warn(self):
-        # A regression test for the decorators warning at import time: every deprecated API of
-        # pyflink.table used to warn as soon as the package was imported. This needs a fresh
-        # interpreter, as pyflink.table is already imported in the one running the tests.
-        script = (
-            "import warnings\n"
-            "with warnings.catch_warnings(record=True) as caught:\n"
-            "    warnings.simplefilter('always')\n"
-            "    import pyflink.table\n"
-            "print([str(warning.message) for warning in caught\n"
-            "       if 'has been deprecated since version' in str(warning.message)])\n"
+        # A regression test for the decorators warning at import time: every deprecated API
+        # of pyflink.table used to warn as soon as the package was imported. A fresh
+        # interpreter is the only way to observe an import: pyflink.table is already in
+        # sys.modules here, so importing it again is a no-op. Only warnings this decorator
+        # raises are inspected, so that an unrelated warning from a third-party package
+        # cannot fail the test.
+        script = textwrap.dedent(
+            """
+            import warnings
+
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                import pyflink.table
+                import pyflink.table.descriptors
+
+            print([str(warning.message) for warning in caught
+                   if "has been deprecated since version" in str(warning.message)])
+            """
         )
         result = subprocess.run(
-            [sys.executable, "-c", script],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            [sys.executable, "-c", script], stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
 
         self.assertEqual(0, result.returncode, result.stderr.decode("utf-8"))
@@ -88,18 +100,29 @@ class DeprecatedTests(unittest.TestCase):
         def func(a, b=2):
             return a + b
 
-        with _catch_warnings() as caught:
+        with self.assertWarns(DeprecationWarning) as caught:
             self.assertEqual(3, func(1))
 
-        self.assertEqual(1, len(caught))
-        self.assertIs(DeprecationWarning, caught[0].category)
         self.assertEqual(
             f"{func.__qualname__} has been deprecated since version 1.0.0. "
             f"Use :func:`new_func` instead.",
-            str(caught[0].message),
+            str(caught.warning),
         )
 
     def test_function_without_detail_warns_when_called(self):
+        @Deprecated(since="1.0.0")
+        def func():
+            pass
+
+        with self.assertWarns(DeprecationWarning) as caught:
+            func()
+
+        self.assertEqual(
+            f"{func.__qualname__} has been deprecated since version 1.0.0.",
+            str(caught.warning),
+        )
+
+    def test_function_warns_once_per_call(self):
         @Deprecated(since="1.0.0")
         def func():
             pass
@@ -108,10 +131,6 @@ class DeprecatedTests(unittest.TestCase):
             func()
 
         self.assertEqual(1, len(caught))
-        self.assertEqual(
-            f"{func.__qualname__} has been deprecated since version 1.0.0.",
-            str(caught[0].message),
-        )
 
     def test_function_wrapper_preserves_metadata(self):
         @Deprecated(since="1.0.0")
@@ -131,33 +150,41 @@ class DeprecatedTests(unittest.TestCase):
             def __init__(self, x):
                 self.x = x
 
-        with _catch_warnings() as caught:
+        with self.assertWarns(DeprecationWarning) as caught:
             instance = Cls(1)
 
         self.assertEqual(1, instance.x)
-        self.assertEqual(1, len(caught))
-        self.assertIs(DeprecationWarning, caught[0].category)
         self.assertEqual(
             f"{Cls.__qualname__} has been deprecated since version 1.0.0. "
             f"Use :class:`NewClass` instead.",
-            str(caught[0].message),
+            str(caught.warning),
         )
+
+    def test_class_warns_once_per_instantiation(self):
+        @Deprecated(since="1.0.0")
+        class Cls(object):
+            def __init__(self):
+                pass
+
+        with _catch_warnings() as caught:
+            Cls()
+
+        self.assertEqual(1, len(caught))
 
     def test_class_without_own_init_warns_when_instantiated(self):
         @Deprecated(since="1.0.0")
         class Cls(object):
             pass
 
-        with _catch_warnings() as caught:
+        with self.assertWarns(DeprecationWarning) as caught:
             Cls()
 
-        self.assertEqual(1, len(caught))
         self.assertEqual(
             f"{Cls.__qualname__} has been deprecated since version 1.0.0.",
-            str(caught[0].message),
+            str(caught.warning),
         )
 
-        # The wrapper must not turn an unexpected argument into a silent no-op.
+        # Warning about the class must not swallow the error an argument would have raised.
         with _catch_warnings():
             with self.assertRaises(TypeError):
                 Cls(1)
@@ -179,8 +206,8 @@ class DeprecatedTests(unittest.TestCase):
         self.assertEqual("Cls", Cls.__name__)
 
     def test_subclass_of_deprecated_class_does_not_warn(self):
-        # Deprecating a class says nothing about its subclasses, which are the ones users are
-        # typically pointed at. This mirrors PEP 702.
+        # Deprecating a class says nothing about its subclasses, which are the ones users
+        # are typically pointed at. This mirrors PEP 702.
         @Deprecated(since="1.0.0")
         class Cls(object):
             def __init__(self):
@@ -191,6 +218,23 @@ class DeprecatedTests(unittest.TestCase):
 
         with _catch_warnings() as caught:
             Subclass()
+
+        self.assertEqual([], [str(warning.message) for warning in caught])
+
+    def test_defining_a_subclass_does_not_warn(self):
+        # PEP 702 warns when a deprecated class is subclassed as well as when it is
+        # instantiated. PyFlink subclasses its own deprecated classes at module level
+        # (Rowtime and Schema extend the deprecated Descriptor), so that warning would fire
+        # on import -- exactly what this decorator must not do.
+        @Deprecated(since="1.0.0")
+        class Cls(object):
+            def __init__(self):
+                pass
+
+        with _catch_warnings() as caught:
+
+            class Subclass(Cls):
+                pass
 
         self.assertEqual([], [str(warning.message) for warning in caught])
 
@@ -217,13 +261,12 @@ class DeprecatedTests(unittest.TestCase):
         def func():
             pass
 
-        with _catch_warnings() as caught:
+        with self.assertWarns(DeprecationWarning) as caught:
             lineno = inspect.currentframe().f_lineno + 1
             func()
 
-        self.assertEqual(1, len(caught))
-        self.assertEqual(os.path.abspath(__file__), os.path.abspath(caught[0].filename))
-        self.assertEqual(lineno, caught[0].lineno)
+        self.assertEqual(os.path.abspath(__file__), os.path.abspath(caught.filename))
+        self.assertEqual(lineno, caught.lineno)
 
     def test_class_warning_points_at_the_caller(self):
         @Deprecated(since="1.0.0")
@@ -231,13 +274,12 @@ class DeprecatedTests(unittest.TestCase):
             def __init__(self):
                 pass
 
-        with _catch_warnings() as caught:
+        with self.assertWarns(DeprecationWarning) as caught:
             lineno = inspect.currentframe().f_lineno + 1
             Cls()
 
-        self.assertEqual(1, len(caught))
-        self.assertEqual(os.path.abspath(__file__), os.path.abspath(caught[0].filename))
-        self.assertEqual(lineno, caught[0].lineno)
+        self.assertEqual(os.path.abspath(__file__), os.path.abspath(caught.filename))
+        self.assertEqual(lineno, caught.lineno)
 
     def test_docstring_directives_are_still_applied(self):
         @Deprecated(since="1.0.0", detail="Use :func:`new_func` instead.")
@@ -288,6 +330,8 @@ class DeprecatedTests(unittest.TestCase):
                     return x
 
         self.assertEqual([], [str(warning.message) for warning in caught_at_decoration])
+        # The descriptors must survive: decorating a staticmethod with a plain function
+        # wrapper leaves a method that breaks when called on an instance.
         self.assertIsInstance(Cls.__dict__["static_method"], staticmethod)
         self.assertIsInstance(Cls.__dict__["class_method"], classmethod)
         self.assertIn(".. deprecated:: 1.0.0", Cls.static_method.__doc__)
@@ -295,18 +339,21 @@ class DeprecatedTests(unittest.TestCase):
         with _catch_warnings() as caught:
             self.assertEqual(1, Cls.static_method(1))
             self.assertEqual(2, Cls.class_method(2))
+            self.assertEqual(3, Cls().static_method(3))
+            self.assertEqual(4, Cls().class_method(4))
 
         self.assertEqual(
             [
                 f"{Cls.__qualname__}.static_method has been deprecated since version 1.0.0.",
                 f"{Cls.__qualname__}.class_method has been deprecated since version 1.0.0.",
-            ],
+            ]
+            * 2,
             [str(warning.message) for warning in caught],
         )
 
     def test_property(self):
-        # A property cannot be wrapped without replacing the descriptor, so it only gets the
-        # docstring directive. It must not raise.
+        # A property is not a class or a function, so it only gets the docstring directive.
+        # Decorating one must not raise.
         with _catch_warnings() as caught:
 
             class Cls(object):
@@ -335,11 +382,15 @@ class DeprecatedTests(unittest.TestCase):
         self.assertEqual([], [str(warning.message) for warning in caught_at_decoration])
         self.assertIn(".. deprecated:: 1.0.0", Abstract.__doc__)
 
-        with self.assertRaises(TypeError):
-            Abstract()
+        with _catch_warnings():
+            with self.assertRaises(TypeError):
+                Abstract()
 
     def test_enum_class(self):
-        with _catch_warnings() as caught:
+        # Members are created while the class body executes, before the decorator runs, so
+        # the members themselves are unaffected. Decorating an Enum must not raise and must
+        # leave lookup working.
+        with _catch_warnings() as caught_at_decoration:
 
             @Deprecated(since="1.0.0")
             class Colour(enum.Enum):
@@ -347,11 +398,15 @@ class DeprecatedTests(unittest.TestCase):
 
                 RED = 1
 
+        self.assertEqual([], [str(warning.message) for warning in caught_at_decoration])
+        self.assertIn(".. deprecated:: 1.0.0", Colour.__doc__)
+
+        with _catch_warnings() as caught:
             self.assertIs(Colour.RED, Colour(1))
             self.assertEqual(1, Colour.RED.value)
+            self.assertEqual([Colour.RED], list(Colour))
 
         self.assertEqual([], [str(warning.message) for warning in caught])
-        self.assertIn(".. deprecated:: 1.0.0", Colour.__doc__)
 
 
 class OtherStabilityDecoratorTests(unittest.TestCase):
