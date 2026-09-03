@@ -95,7 +95,8 @@ _string_doc_seealso = """
              :func:`~Expression.regexp_extract`, :func:`~Expression.substring`,
              :py:attr:`~Expression.from_base64`, :py:attr:`~Expression.to_base64`,
              :func:`~Expression.ltrim`, :func:`~Expression.rtrim`, :func:`~Expression.repeat`,
-             :func:`~Expression.json_quote`, :func:`~Expression.json_unquote`
+             :func:`~Expression.json_quote`, :func:`~Expression.json_unquote`,
+             :func:`~Expression.parse_json`, :func:`~Expression.try_parse_json`
 """
 
 _temporal_doc_seealso = """
@@ -194,7 +195,8 @@ def _make_string_doc():
         Expression.lpad, Expression.rpad, Expression.overlay, Expression.regexp_replace,
         Expression.regexp_extract, Expression.from_base64, Expression.to_base64,
         Expression.ltrim, Expression.rtrim, Expression.repeat,
-        Expression.json_quote, Expression.json_unquote
+        Expression.json_quote, Expression.json_unquote,
+        Expression.parse_json, Expression.try_parse_json
     ]
 
     for func in string_funcs:
@@ -2279,6 +2281,35 @@ class Expression(Generic[T]):
         double quotes but is not a valid JSON string literal, an error occurs.
         """
         return _unary_op("jsonUnquote")(self)
+
+    def parse_json(self, allow_duplicate_keys=None) -> 'Expression':
+        """
+        Parses a JSON string into a value of VARIANT type. If the JSON string is invalid,
+        an error is thrown. To return None instead of an error, use
+        :func:`~Expression.try_parse_json`.
+
+        If there are duplicate keys in the input, allow_duplicate_keys controls whether the
+        parser keeps the last occurrence of each duplicated key (True) or throws an error
+        (False). The default value of allow_duplicate_keys is False.
+        """
+        if allow_duplicate_keys is None:
+            return _unary_op("parseJson")(self)
+        else:
+            return _binary_op("parseJson")(self, allow_duplicate_keys)
+
+    def try_parse_json(self, allow_duplicate_keys=None) -> 'Expression':
+        """
+        Parses a JSON string into a value of VARIANT type. If the JSON string is invalid,
+        None is returned. To throw an error instead, use :func:`~Expression.parse_json`.
+
+        If there are duplicate keys in the input, allow_duplicate_keys controls whether the
+        parser keeps the last occurrence of each duplicated key (True) or throws an error
+        (False). The default value of allow_duplicate_keys is False.
+        """
+        if allow_duplicate_keys is None:
+            return _unary_op("tryParseJson")(self)
+        else:
+            return _binary_op("tryParseJson")(self, allow_duplicate_keys)
 
     def json_length(self, path=None) -> 'Expression':
         """

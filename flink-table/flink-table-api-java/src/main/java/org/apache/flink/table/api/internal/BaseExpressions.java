@@ -180,6 +180,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_DESC;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVERLAY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_JSON;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_URL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PERCENTILE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
@@ -232,6 +233,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRANSL
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_PARSE_JSON;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UNHEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE;
@@ -1365,6 +1367,56 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns a string by unquoting JSON value. */
     public OutType jsonUnquote() {
         return toApiSpecificExpression(unresolvedCall(JSON_UNQUOTE, objectToExpression(toExpr())));
+    }
+
+    /**
+     * Parses a JSON string into a value of type {@link DataTypes#VARIANT()}. If the JSON string is
+     * invalid, an error is thrown. To return {@code NULL} instead of an error, use {@link
+     * #tryParseJson()}.
+     *
+     * <p>This is a shortcut for {@code parseJson(false)}. See {@link #parseJson(boolean)}.
+     */
+    public OutType parseJson() {
+        return toApiSpecificExpression(unresolvedCall(PARSE_JSON, objectToExpression(toExpr())));
+    }
+
+    /**
+     * Parses a JSON string into a value of type {@link DataTypes#VARIANT()}. If the JSON string is
+     * invalid, an error is thrown. To return {@code NULL} instead of an error, use {@link
+     * #tryParseJson(boolean)}.
+     *
+     * <p>If there are duplicate keys in the input, {@code allowDuplicateKeys} controls whether the
+     * parser keeps the last occurrence of each duplicated key ({@code true}) or throws an error
+     * ({@code false}).
+     */
+    public OutType parseJson(boolean allowDuplicateKeys) {
+        return toApiSpecificExpression(
+                unresolvedCall(PARSE_JSON, toExpr(), valueLiteral(allowDuplicateKeys)));
+    }
+
+    /**
+     * Parses a JSON string into a value of type {@link DataTypes#VARIANT()}. If the JSON string is
+     * invalid, {@code NULL} is returned. To throw an error instead, use {@link #parseJson()}.
+     *
+     * <p>This is a shortcut for {@code tryParseJson(false)}. See {@link #tryParseJson(boolean)}.
+     */
+    public OutType tryParseJson() {
+        return toApiSpecificExpression(
+                unresolvedCall(TRY_PARSE_JSON, objectToExpression(toExpr())));
+    }
+
+    /**
+     * Parses a JSON string into a value of type {@link DataTypes#VARIANT()}. If the JSON string is
+     * invalid, {@code NULL} is returned. To throw an error instead, use {@link
+     * #parseJson(boolean)}.
+     *
+     * <p>If there are duplicate keys in the input, {@code allowDuplicateKeys} controls whether the
+     * parser keeps the last occurrence of each duplicated key ({@code true}) or throws an error
+     * ({@code false}).
+     */
+    public OutType tryParseJson(boolean allowDuplicateKeys) {
+        return toApiSpecificExpression(
+                unresolvedCall(TRY_PARSE_JSON, toExpr(), valueLiteral(allowDuplicateKeys)));
     }
 
     /** Returns the base string decoded with base64. */
