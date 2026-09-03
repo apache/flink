@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.rex.RexCall;
 
@@ -52,8 +53,9 @@ public class PythonCallCseResult {
     /**
      * Maps a call to the position in {@link #deduplicatedCalls} where its result is computed.
      *
-     * <p>Derived from {@link #deduplicatedCalls}: since the list is already deduplicated, the first
-     * occurrence of a structurally equal call is the one that computes it.
+     * <p>Only deterministic calls are indexed. A non-deterministic call must be evaluated once per
+     * occurrence, so it must never become the target of a reference, even though it does occupy an
+     * entry of {@link #deduplicatedCalls} when it is a projection on its own.
      */
     private final Map<RexCall, Integer> refMap;
 
@@ -76,13 +78,16 @@ public class PythonCallCseResult {
     }
 
     /**
-     * Indexes the deduplicated calls by structural equality, keeping the first occurrence so that a
-     * parent references its own child rather than a later structurally equal duplicate.
+     * Indexes the referenceable calls by structural equality, keeping the first occurrence so that
+     * a parent references its own child rather than a later structurally equal duplicate.
      */
     private static Map<RexCall, Integer> buildRefMap(List<RexCall> deduplicatedCalls) {
         Map<RexCall, Integer> result = new LinkedHashMap<>();
         for (int i = 0; i < deduplicatedCalls.size(); i++) {
-            result.putIfAbsent(deduplicatedCalls.get(i), i);
+            RexCall call = deduplicatedCalls.get(i);
+            if (ShortcutUtils.isDeterministicThroughProgram(call, null)) {
+                result.putIfAbsent(call, i);
+            }
         }
         return Collections.unmodifiableMap(result);
     }

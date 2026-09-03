@@ -47,6 +47,11 @@ public class PythonCallDeduplicator {
      * <p>Flattening all trees into a single list enables cross-subtree reuse: e.g. in {@code SELECT
      * udf1(x), udf2(udf1(x))}, the inner {@code udf1(x)} is evaluated only once and {@code udf2}
      * receives its result by reference.
+     *
+     * <p>Flattening is only worth it when a sub-expression is actually shared. Otherwise the calls
+     * are returned unchanged, so a plan such as {@code SELECT f(g(a))} keeps the original nested
+     * evaluation instead of paying for sequential execution and a per-record result list without
+     * any benefit.
      */
     public static PythonCallCseResult deduplicate(List<RexCall> pythonRexCalls) {
         // Flatten: collect all Python UDF calls from all projection trees in post-order, so a
@@ -80,6 +85,13 @@ public class PythonCallDeduplicator {
             allToDeduplicated[i] = newPos;
         }
 
+        // Nothing was shared when deduplication did not merge any entry. Flattening would then
+        // only move the nested calls into a sequentially evaluated list without saving any
+        // evaluation, so keep the original trees and let the worker nest them as before.
+        if (deduplicatedCalls.size() == allCalls.size()) {
+            return new PythonCallCseResult(pythonRexCalls, identity(pythonRexCalls.size()));
+        }
+
         // Flattening adds entries for nested sub-expressions, and post-order means a top-level
         // result is not necessarily last, so record where each projection entry ended up. Only
         // those positions form the operator output.
@@ -90,6 +102,14 @@ public class PythonCallDeduplicator {
 
         return new PythonCallCseResult(
                 Collections.unmodifiableList(deduplicatedCalls), outputIndices);
+    }
+
+    private static int[] identity(int size) {
+        int[] result = new int[size];
+        for (int i = 0; i < size; i++) {
+            result[i] = i;
+        }
+        return result;
     }
 
     /**

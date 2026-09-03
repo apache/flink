@@ -984,6 +984,19 @@ class UserDefinedFunctionTests(object):
                     self.assertNotEqual(vals[0], vals[1]),
                 ),
             ),
+            (
+                "Nondet(s) as a projection is not referenced by a nested occurrence",
+                "SELECT Nondet(s), Det(Nondet(s)) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    # Det upper-cases its input, so if the nested Nondet(s) had consumed the
+                    # result of the standalone one, vals[1] would start with vals[0].upper().
+                    # A non-deterministic call must be evaluated once per occurrence.
+                    self.assertFalse(
+                        vals[1].startswith(vals[0].upper() + "_"),
+                        f"nested Nondet reused the projected result: {vals}"),
+                ),
+            ),
         ]
 
         for desc, sql, verify_fn in cases:
