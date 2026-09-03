@@ -939,8 +939,8 @@ public class ConstraintEnforcerTestPrograms {
                     .build();
 
     // ------------------------------------------------------------------------------------------
-    // Delete-by-key: a by-key delete legitimately carries null in its non-key columns ("regardless
-    // of nullability constraints"). The constraint enforcer only checks not-null key columns for
+    // Delete-by-key: a by-key delete might carry null in its non-key columns, regardless
+    // of nullability constraints. The constraint enforcer should only check key columns for
     // by-key delete messages and ignores all value columns.
     // ------------------------------------------------------------------------------------------
 

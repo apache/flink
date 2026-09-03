@@ -44,7 +44,6 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -122,11 +121,13 @@ public class ConstraintEnforcerExecutor implements Serializable {
                             .mapToObj(idx -> fieldNames[idx])
                             .toArray(String[]::new);
 
-            final Set<Integer> primaryKeySet =
-                    Arrays.stream(primaryKeys).boxed().collect(Collectors.toSet());
+            final BitSet primaryKeySet = new BitSet();
+            for (int pk : primaryKeys) {
+                primaryKeySet.set(pk);
+            }
             final boolean[] keyField = new boolean[notNullFieldIndices.length];
             for (int i = 0; i < notNullFieldIndices.length; i++) {
-                keyField[i] = primaryKeySet.contains(notNullFieldIndices[i]);
+                keyField[i] = primaryKeySet.get(notNullFieldIndices[i]);
             }
 
             constraints.add(
