@@ -93,7 +93,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <pre>{@code
  * ProcessTableFunctionTestHarness<Row> harness =
  *     ProcessTableFunctionTestHarness.ofClass(MyPTF.class)
- *         .withTableArgument("input", DataTypes.of("ROW<id INT, name STRING>"))
+ *         .withTableArgument(
+ *             TableArgument.forName("input")
+ *                 .type(DataTypes.of("ROW<id INT, name STRING>"))
+ *                 .build())
  *         .withScalarArgument("threshold", 100)
  *         .build();
  *
@@ -1036,6 +1039,72 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     }
 
     /**
+     * Configuration for a single named table argument.
+     *
+     * @see ProcessTableFunctionTestHarness.Builder#withTableArgument(TableArgument)
+     */
+    @PublicEvolving
+    public static final class TableArgument {
+        private final String name;
+        @Nullable private final AbstractDataType<?> type;
+        @Nullable private final String[] partitionColumns;
+
+        private TableArgument(Builder builder) {
+            this.name = builder.name;
+            this.type = builder.type;
+            this.partitionColumns = builder.partitionColumns;
+        }
+
+        public static Builder forName(String argumentName) {
+            return new Builder(argumentName);
+        }
+
+        /** Builder for {@link TableArgument}. */
+        public static final class Builder {
+            private final String name;
+            @Nullable private AbstractDataType<?> type;
+            @Nullable private String[] partitionColumns;
+
+            private Builder(String argumentName) {
+                this.name = checkNotNull(argumentName, "argumentName must not be null");
+            }
+
+            /**
+             * Configures the schema of this table argument.
+             *
+             * <p>Use this for dynamic tables that receive elements during the test. Elements are
+             * provided via {@link ProcessTableFunctionTestHarness#processElement(Row)} or {@link
+             * ProcessTableFunctionTestHarness#processElementForTable(String, Row)}.
+             *
+             * <p>Omit for structured type arguments whose type can be inferred from the PTF's
+             * eval() signature.
+             *
+             * @param dataType The schema/structure of the table
+             */
+            public Builder type(AbstractDataType<?> dataType) {
+                this.type = checkNotNull(dataType, "dataType must not be null");
+                return this;
+            }
+
+            /**
+             * Specifies partition columns for a set semantic table.
+             *
+             * @param columnNames The partition column names
+             */
+            public Builder partitionBy(String... columnNames) {
+                checkNotNull(columnNames, "columnNames must not be null");
+                checkArgument(columnNames.length > 0, "Must specify at least one column");
+                this.partitionColumns = columnNames;
+                return this;
+            }
+
+            public TableArgument build() {
+                return new TableArgument(this);
+            }
+        }
+    }
+
+    /**
      * Builder for {@link ProcessTableFunctionTestHarness}.
      *
      * @param <OUT> The output type of the ProcessTableFunction
@@ -1065,40 +1134,22 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         // ---------------------------------------------------------------------
 
         /**
-         * Configures a table argument with its schema (named argument).
+         * Configures a table argument.
          *
-         * <p>Use this for dynamic tables that receive elements during the test. Elements are
-         * provided via {@link #processElement(Row)} or {@link #processElementForTable(String,
-         * Row)}.
-         *
-         * @param argumentName The table argument name
-         * @param dataType The schema/structure of the table
+         * @param tableArgument The table argument configuration, built via {@link
+         *     TableArgument#forName(String)}
          */
-        public Builder<OUT> withTableArgument(String argumentName, AbstractDataType<?> dataType) {
-            checkNotNull(argumentName, "argumentName must not be null");
-            checkNotNull(dataType, "dataType must not be null");
+        public Builder<OUT> withTableArgument(TableArgument tableArgument) {
+            checkNotNull(tableArgument, "tableArgument must not be null");
 
-            validateArgumentNotYetConfigured(argumentName);
+            validateArgumentNotYetConfigured(tableArgument.name);
 
-            tableArgs.put(argumentName, new TableArgumentConfiguration(dataType));
-            return this;
-        }
-
-        /**
-         * Configures a table argument without an explicit schema.
-         *
-         * <p>Use this for structured type arguments where the type can be inferred from the PTF's
-         * eval() signature. For Row arguments, use {@link #withTableArgument(String,
-         * AbstractDataType)} with an explicit schema.
-         *
-         * @param argumentName The table argument name
-         */
-        public Builder<OUT> withTableArgument(String argumentName) {
-            checkNotNull(argumentName, "argumentName must not be null");
-
-            validateArgumentNotYetConfigured(argumentName);
-
-            tableArgs.put(argumentName, new TableArgumentConfiguration(null));
+            tableArgs.put(tableArgument.name, new TableArgumentConfiguration(tableArgument.type));
+            if (tableArgument.partitionColumns != null) {
+                partitionConfigs.put(
+                        tableArgument.name,
+                        new PartitionConfiguration(tableArgument.partitionColumns));
+            }
             return this;
         }
 
@@ -1132,32 +1183,6 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     .computeIfAbsent(stateName, k -> new StateArgumentConfiguration())
                     .initialValues
                     .put(partitionKey, state);
-            return this;
-        }
-
-        // ---------------------------------------------------------------------
-        // Partitioning
-        // ---------------------------------------------------------------------
-
-        /**
-         * Specifies partition columns for a set semantic table.
-         *
-         * @param argumentName The table argument name
-         * @param columnNames The partition column names
-         * @return This builder
-         */
-        public Builder<OUT> withPartitionBy(String argumentName, String... columnNames) {
-            checkNotNull(argumentName, "argumentName must not be null");
-            checkNotNull(columnNames, "columnNames must not be null");
-            checkArgument(columnNames.length > 0, "Must specify at least one column");
-
-            if (partitionConfigs.containsKey(argumentName)) {
-                throw new IllegalArgumentException(
-                        "Partition config already exists for: " + argumentName);
-            }
-
-            PartitionConfiguration config = new PartitionConfiguration(columnNames);
-            partitionConfigs.put(argumentName, config);
             return this;
         }
 
@@ -1855,7 +1880,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         throw new IllegalStateException(
                                 String.format(
                                         "Table argument '%s' requires explicit type configuration. "
-                                                + "Use .withTableArgument(\"%s\", DataTypes.of(\"ROW<...>\")) "
+                                                + "Use .withTableArgument(TableArgument.forName(\"%s\")"
+                                                + ".type(DataTypes.of(\"ROW<...>\")).build()) "
                                                 + "to explicitly declare it.",
                                         name, name));
                     }
@@ -1906,7 +1932,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 throw new IllegalStateException(
                         String.format(
                                 "No partition configuration found for SET_SEMANTIC_TABLE argument '%s'. "
-                                        + "Use withPartitionBy(\"%s\", ...) to configure partitioning.",
+                                        + "Use TableArgument.forName(\"%s\").partitionBy(...) to "
+                                        + "configure partitioning.",
                                 name, name));
             }
 
