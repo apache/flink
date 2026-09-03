@@ -374,6 +374,55 @@ public class MetricGroupTest {
                 .isTrue();
     }
 
+    /**
+     * Verifies that a group is no longer referenced by its parent once it is closed. Otherwise
+     * groups with unique names that are closed before their parent, e.g. per-split groups of a
+     * source, would leak until the parent is closed.
+     */
+    @Test
+    void closedGroupIsRemovedFromParent() {
+        GenericMetricGroup parent =
+                new GenericMetricGroup(
+                        exceptionOnRegister,
+                        new DummyAbstractMetricGroup(exceptionOnRegister),
+                        "parent") {
+                    @Override
+                    protected GenericMetricGroup createChildGroup(
+                            String name, ChildType childType) {
+                        return new CloseCountingMetricGroup(exceptionOnRegister, this, name);
+                    }
+                };
+        CloseCountingMetricGroup closedBeforeParent =
+                (CloseCountingMetricGroup) parent.addGroup("closedBeforeParent");
+        CloseCountingMetricGroup closedWithParent =
+                (CloseCountingMetricGroup) parent.addGroup("closedWithParent");
+
+        closedBeforeParent.close();
+        assertThat(closedBeforeParent.closeCalls).isOne();
+
+        // the parent closes every group it still references
+        parent.close();
+        assertThat(closedWithParent.closeCalls).isOne();
+        assertThat(closedBeforeParent.closeCalls)
+                .withFailMessage("The parent must not reference a group that was closed before")
+                .isOne();
+    }
+
+    private static class CloseCountingMetricGroup extends GenericMetricGroup {
+        int closeCalls = 0;
+
+        CloseCountingMetricGroup(
+                MetricRegistry registry, AbstractMetricGroup<?> parent, String name) {
+            super(registry, parent, name);
+        }
+
+        @Override
+        public void close() {
+            closeCalls++;
+            super.close();
+        }
+    }
+
     @Test
     void tolerateMetricNameCollisions() {
         final String name = "abctestname";

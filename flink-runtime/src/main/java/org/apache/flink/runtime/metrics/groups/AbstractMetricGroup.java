@@ -337,6 +337,17 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
                 metrics.clear();
             }
         }
+        if (parent != null) {
+            parent.removeChildGroup(this);
+        }
+    }
+
+    void removeChildGroup(AbstractMetricGroup<?> childGroup) {
+        synchronized (this) {
+            if (!closed) {
+                groups.values().remove(childGroup);
+            }
+        }
     }
 
     public final boolean isClosed() {
