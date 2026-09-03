@@ -110,7 +110,7 @@ public class LateralSnapshotJoinITCase extends StreamingWithStateTestBase {
         final List<Row> actual =
                 collect(
                         "SELECT probe.pk, s.bv FROM probe JOIN LATERAL SNAPSHOT("
-                                + "input => TABLE b, "
+                                + "input => TABLE b, on_time => DESCRIPTOR(bts), "
                                 + MID_FLIP
                                 + ") AS s ON probe.pk = s.bk");
 
@@ -132,7 +132,7 @@ public class LateralSnapshotJoinITCase extends StreamingWithStateTestBase {
         final List<Row> actual =
                 collect(
                         "SELECT probe.pk, s.bv FROM probe JOIN LATERAL SNAPSHOT("
-                                + "input => TABLE b, "
+                                + "input => TABLE b, on_time => DESCRIPTOR(bts), "
                                 + MID_FLIP
                                 + ") AS s ON probe.pk = s.bk");
 
@@ -168,7 +168,7 @@ public class LateralSnapshotJoinITCase extends StreamingWithStateTestBase {
                 sortedByProbeId(
                         collect(
                                 "SELECT probe.pv, s.bv FROM probe JOIN LATERAL SNAPSHOT("
-                                        + "input => TABLE b, "
+                                        + "input => TABLE b, on_time => DESCRIPTOR(bts), "
                                         + MID_FLIP
                                         + ") AS s ON probe.pk = s.bk"));
 

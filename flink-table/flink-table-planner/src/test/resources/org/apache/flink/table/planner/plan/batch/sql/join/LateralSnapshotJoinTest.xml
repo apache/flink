@@ -25,7 +25,7 @@ limitations under the License.
 LogicalProject(pk=[$0], bk=[$3], bv=[$4], pt=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) pt)])
+   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) pt)])
       +- LogicalProject(bk=[$0], bv=[$1], pt=[$2])
          +- LogicalProject(bk=[$0], bv=[$1], pt=[PROCTIME()])
             +- LogicalTableScan(table=[[default_catalog, default_database, b_proctime]])
@@ -51,7 +51,7 @@ HashJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, bk, bv, pt], build
 LogicalProject(pk=[$0], pv=[$1], pts=[$2], bk=[$3], bv=[$4], bts=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
+   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
       +- LogicalProject(bk=[$0], bv=[$1], bts=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, b_no_wm]])
 ]]>
@@ -75,7 +75,7 @@ HashJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, pv, pts, bk, bv, b
 LogicalProject(pk=[$0], pv=[$1], pts=[$2], bk=[$3], bv=[$4], bts=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
+   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
       +- LogicalProject(bk=[$0], bv=[$1], bts=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, b]])
 ]]>
@@ -99,7 +99,7 @@ HashJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, pv, pts, bk, bv, b
 LogicalProject(pk=[$0], pv=[$1], pts=[$2], bk=[$3], bv=[$4], bts=[$5])
 +- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
+   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
       +- LogicalProject(bk=[$0], bv=[$1], bts=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, b]])
 ]]>
@@ -123,7 +123,7 @@ HashJoin(joinType=[InnerJoin], where=[AND(=(pk, bk), =(pv, bv))], select=[pk, pv
 LogicalProject(pk=[$0], pv=[$1], pts=[$2], bk=[$3], bv=[$4], bts=[$5])
 +- LogicalJoin(condition=[AND(=($0, $3), >($1, $4))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
+   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
       +- LogicalProject(bk=[$0], bv=[$1], bts=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, b]])
 ]]>
@@ -147,7 +147,7 @@ HashJoin(joinType=[InnerJoin], where=[AND(=(pk, bk), >(pv, bv))], select=[pk, pv
 LogicalProject(pk=[$0], pv=[$1], bv=[$4])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
+   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
       +- LogicalProject(bk=[$0], bv=[$1], bts=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, b]])
 ]]>
@@ -173,7 +173,7 @@ Calc(select=[pk, pv, bv])
 LogicalProject(pk=[$0], pv=[$1], pts=[$2], bk=[$3], bv=[$4], bts=[$5])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
+   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DEFAULT(), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
       +- LogicalProject(bk=[$0], bv=[$1], bts=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, b]])
 ]]>

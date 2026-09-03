@@ -946,6 +946,7 @@ public final class BuiltInFunctionDefinitions {
                                             StaticArgumentTrait.SUPPORT_UPDATES,
                                             StaticArgumentTrait.REQUIRE_UPDATE_BEFORE,
                                             StaticArgumentTrait.REQUIRE_FULL_DELETE)),
+                            StaticArgument.scalar("on_time", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
                                     "load_completed_condition", DataTypes.STRING(), true),
                             StaticArgument.scalar(

@@ -34,13 +34,11 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
-import java.util.List;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
@@ -53,6 +51,7 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConf
 public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
         implements StreamPhysicalRel {
 
+    private final int rightTimeAttributeIndex;
     private final String loadCompletedCondition;
     private final Long loadCompletedTime;
     private final @Nullable Long loadCompletedIdleTimeoutMs;
@@ -65,11 +64,13 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
             RelNode rightRel,
             RexNode condition,
             JoinRelType joinType,
+            int rightTimeAttributeIndex,
             String loadCompletedCondition,
             Long loadCompletedTime,
             @Nullable Long loadCompletedIdleTimeoutMs,
             @Nullable Long stateTtlMs) {
         super(cluster, traitSet, leftRel, rightRel, condition, joinType, Collections.emptyList());
+        this.rightTimeAttributeIndex = rightTimeAttributeIndex;
         Preconditions.checkNotNull(loadCompletedTime, "loadCompletedTime must not be null.");
         this.loadCompletedCondition = loadCompletedCondition;
         this.loadCompletedTime = loadCompletedTime;
@@ -107,6 +108,7 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
                 right,
                 conditionExpr,
                 joinType,
+                rightTimeAttributeIndex,
                 loadCompletedCondition,
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
@@ -129,17 +131,14 @@ public class StreamPhysicalLateralSnapshotJoin extends CommonPhysicalJoin
 
     @Override
     public ExecNode<?> translateToExecNode() {
-        // The build (right) side carries a watermark, so it must expose a row-time attribute whose
-        // field index drives the event-time-ordered application of buffered build-side changes.
-        final List<RelDataTypeField> rightFields = getRight().getRowType().getFieldList();
-        int rightTimeAttributeIndex = -1;
-        for (int i = 0; i < rightFields.size(); i++) {
-            if (FlinkTypeFactory.isRowtimeIndicatorType(rightFields.get(i).getType())) {
-                rightTimeAttributeIndex = i;
-                break;
-            }
-        }
-        if (rightTimeAttributeIndex < 0) {
+        // The build-side row-time column index (from the on_time argument) drives the
+        // event-time-ordered application of buffered build-side changes. Verify it points at an
+        // in-bounds row-time attribute.
+        final RelDataType rightRowType = getRight().getRowType();
+        if (rightTimeAttributeIndex < 0
+                || rightTimeAttributeIndex >= rightRowType.getFieldCount()
+                || !FlinkTypeFactory.isRowtimeIndicatorType(
+                        rightRowType.getFieldList().get(rightTimeAttributeIndex).getType())) {
             throw new TableException(
                     "The build (right) side of a LATERAL SNAPSHOT join must have a row-time "
                             + "attribute. This is a bug, please file an issue.");
