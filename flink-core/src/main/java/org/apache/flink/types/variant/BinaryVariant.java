@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
@@ -42,6 +43,7 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.BINARY_SEARCH_THR
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ_FORMATTER;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIME_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION_MASK;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
@@ -181,16 +183,39 @@ public final class BinaryVariant implements Variant {
 
     @Override
     public LocalDateTime getDateTime() throws VariantTypeException {
-        checkType(Type.TIMESTAMP, getType());
-        return microsToInstant(BinaryVariantUtil.getLong(value, pos))
-                .atZone(ZoneOffset.UTC)
-                .toLocalDateTime();
+        Type type = getType();
+        Instant instant;
+        if (type == Type.TIMESTAMP) {
+            instant = microsToInstant(BinaryVariantUtil.getLong(value, pos));
+        } else if (type == Type.TIMESTAMP_NS) {
+            instant = nanosToInstant(BinaryVariantUtil.getLong(value, pos));
+        } else {
+            throw new VariantTypeException(
+                    String.format(
+                            "Expected type %s or %s but got %s",
+                            Type.TIMESTAMP, Type.TIMESTAMP_NS, type));
+        }
+        return instant.atZone(ZoneOffset.UTC).toLocalDateTime();
     }
 
     @Override
     public Instant getInstant() throws VariantTypeException {
-        checkType(Type.TIMESTAMP_LTZ, getType());
-        return microsToInstant(BinaryVariantUtil.getLong(value, pos));
+        Type type = getType();
+        if (type == Type.TIMESTAMP_LTZ) {
+            return microsToInstant(BinaryVariantUtil.getLong(value, pos));
+        } else if (type == Type.TIMESTAMP_LTZ_NS) {
+            return nanosToInstant(BinaryVariantUtil.getLong(value, pos));
+        }
+        throw new VariantTypeException(
+                String.format(
+                        "Expected type %s or %s but got %s",
+                        Type.TIMESTAMP_LTZ, Type.TIMESTAMP_LTZ_NS, type));
+    }
+
+    @Override
+    public LocalTime getTime() throws VariantTypeException {
+        checkType(Type.TIME, getType());
+        return LocalTime.ofNanoOfDay(BinaryVariantUtil.getLong(value, pos) * 1000);
     }
 
     @Override
@@ -224,9 +249,13 @@ public final class BinaryVariant implements Variant {
                 return getString();
             case DATE:
                 return getDate();
+            case TIME:
+                return getTime();
             case TIMESTAMP:
+            case TIMESTAMP_NS:
                 return getDateTime();
             case TIMESTAMP_LTZ:
+            case TIMESTAMP_LTZ_NS:
                 return getInstant();
             case BYTES:
                 return getBytes();
@@ -391,6 +420,27 @@ public final class BinaryVariant implements Variant {
                                 microsToInstant(BinaryVariantUtil.getLong(value, pos))
                                         .atZone(ZoneOffset.UTC)));
                 break;
+            case TIME:
+                appendQuoted(
+                        sb,
+                        TIME_FORMATTER.format(
+                                LocalTime.ofNanoOfDay(
+                                        BinaryVariantUtil.getLong(value, pos) * 1000)));
+                break;
+            case TIMESTAMP_LTZ_NS:
+                appendQuoted(
+                        sb,
+                        TIMESTAMP_LTZ_FORMATTER.format(
+                                nanosToInstant(BinaryVariantUtil.getLong(value, pos))
+                                        .atZone(zoneId)));
+                break;
+            case TIMESTAMP_NS:
+                appendQuoted(
+                        sb,
+                        TIMESTAMP_FORMATTER.format(
+                                nanosToInstant(BinaryVariantUtil.getLong(value, pos))
+                                        .atZone(ZoneOffset.UTC)));
+                break;
             case FLOAT:
                 {
                     final float f = BinaryVariantUtil.getFloat(value, pos);
@@ -416,6 +466,10 @@ public final class BinaryVariant implements Variant {
 
     private static Instant microsToInstant(long timestamp) {
         return Instant.EPOCH.plus(timestamp, ChronoUnit.MICROS);
+    }
+
+    private static Instant nanosToInstant(long timestamp) {
+        return Instant.EPOCH.plus(timestamp, ChronoUnit.NANOS);
     }
 
     private void checkType(Type expected, Type actual) {

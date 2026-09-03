@@ -30,6 +30,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 
@@ -99,8 +101,87 @@ class BinaryVariantTest {
         assertThat(builder.of(localDate).getDate()).isEqualTo(localDate);
         assertThat(builder.of(localDate).get()).isEqualTo(localDate);
 
+        LocalTime localTime = LocalTime.now().truncatedTo(ChronoUnit.MICROS);
+        assertThat(builder.of(localTime).getTime()).isEqualTo(localTime);
+        assertThat(builder.of(localTime).get()).isEqualTo(localTime);
+
         assertThat(builder.ofNull().get()).isEqualTo(null);
         assertThat(builder.ofNull().isNull()).isTrue();
+    }
+
+    @Test
+    void testNanosecondPrecisionVariant() {
+        // Microsecond-precision values keep using the compact TIMESTAMP/TIMESTAMP_LTZ encoding,
+        // matching the pre-existing on-wire format.
+        Instant microInstant = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        assertThat(builder.of(microInstant).getType()).isEqualTo(Variant.Type.TIMESTAMP_LTZ);
+        assertThat(builder.of(microInstant).getInstant()).isEqualTo(microInstant);
+
+        LocalDateTime microLocalDateTime = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        assertThat(builder.of(microLocalDateTime).getType()).isEqualTo(Variant.Type.TIMESTAMP);
+        assertThat(builder.of(microLocalDateTime).getDateTime()).isEqualTo(microLocalDateTime);
+
+        // Sub-microsecond precision switches to the nanosecond encoding instead of truncating,
+        // but getInstant()/getDateTime() still work regardless of which encoding was picked.
+        Instant nanoInstant = Instant.now().truncatedTo(ChronoUnit.NANOS).plusNanos(123);
+        Variant instantVariant = builder.of(nanoInstant);
+        assertThat(instantVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP_LTZ_NS);
+        assertThat(instantVariant.getInstant()).isEqualTo(nanoInstant);
+        assertThat(instantVariant.get()).isEqualTo(nanoInstant);
+
+        LocalDateTime nanoLocalDateTime = LocalDateTime.now().withNano(123456789);
+        Variant dateTimeVariant = builder.of(nanoLocalDateTime);
+        assertThat(dateTimeVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP_NS);
+        assertThat(dateTimeVariant.getDateTime()).isEqualTo(nanoLocalDateTime);
+        assertThat(dateTimeVariant.get()).isEqualTo(nanoLocalDateTime);
+    }
+
+    @Test
+    void testNanosecondTimestampPrecisionRange() {
+        // Nanosecond timestamps only span +/-292 years around 1970, beyond that must fail with
+        // proper exception
+        LocalDateTime outOfRangeLocalDateTime = LocalDateTime.of(2300, 1, 1, 0, 0, 0, 1);
+        assertThatThrownBy(() -> builder.of(outOfRangeLocalDateTime))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("nanosecond precision");
+
+        Instant outOfRangeInstant = outOfRangeLocalDateTime.toInstant(ZoneOffset.UTC);
+        assertThatThrownBy(() -> builder.of(outOfRangeInstant))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("nanosecond precision");
+    }
+
+    @Test
+    void testMicrosecondTimestampPrecisionRange() {
+        // Microsecond precision spans = +/-292.000 years around 1970
+        LocalDateTime inRangeLocalDateTime = LocalDateTime.of(150_000, 1, 1, 0, 0, 0, 0);
+        Variant inRangeLocalDateTimeVariant = builder.of(inRangeLocalDateTime);
+        assertThat(inRangeLocalDateTimeVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP);
+        assertThat(inRangeLocalDateTimeVariant.getDateTime()).isEqualTo(inRangeLocalDateTime);
+
+        Instant inRangeInstant = inRangeLocalDateTime.toInstant(ZoneOffset.UTC);
+        Variant inRangeInstantVariant = builder.of(inRangeInstant);
+        assertThat(inRangeInstantVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP_LTZ);
+        assertThat(inRangeInstantVariant.getInstant()).isEqualTo(inRangeInstant);
+
+        // beyond that must fail with proper exception
+        LocalDateTime outOfRangeLocalDateTime = LocalDateTime.of(350_000, 1, 1, 0, 0, 0, 0);
+        assertThatThrownBy(() -> builder.of(outOfRangeLocalDateTime))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("microsecond precision");
+
+        Instant outOfRangeInstant = outOfRangeLocalDateTime.toInstant(ZoneOffset.UTC);
+        assertThatThrownBy(() -> builder.of(outOfRangeInstant))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("microsecond precision");
+    }
+
+    @Test
+    void testTimeSubMicrosecondTruncation() {
+        // A sub-microsecond LocalTime silently loses precision below the microsecond.
+        // TIME has no nanosecond-precision counterpart in the variant spec.
+        LocalTime nanoTime = LocalTime.of(23, 59, 59, 999999999);
+        assertThat(builder.of(nanoTime).getTime()).isEqualTo(LocalTime.of(23, 59, 59, 999999000));
     }
 
     @Test
@@ -205,6 +286,9 @@ class BinaryVariantTest {
         Instant instant = Instant.EPOCH;
         LocalDateTime localDateTime = LocalDateTime.of(2000, 1, 1, 0, 0);
         LocalDate localDate = LocalDate.of(2000, 1, 1);
+        LocalTime localTime = LocalTime.of(13, 45, 30, 123456789);
+        Instant nanoInstant = Instant.EPOCH.plusNanos(123456789);
+        LocalDateTime nanoLocalDateTime = LocalDateTime.of(2000, 1, 1, 0, 0, 0, 123456789);
 
         assertThat(builder.of((byte) 1).toJson()).isEqualTo("1");
         assertThat(builder.of((short) 1).toJson()).isEqualTo("1");
@@ -218,6 +302,11 @@ class BinaryVariantTest {
         assertThat(builder.of(instant).toJson()).isEqualTo("\"1970-01-01T00:00:00+00:00\"");
         assertThat(builder.of(localDateTime).toJson()).isEqualTo("\"2000-01-01T00:00:00\"");
         assertThat(builder.of(localDate).toJson()).isEqualTo("\"2000-01-01\"");
+        assertThat(builder.of(localTime).toJson()).isEqualTo("\"13:45:30.123456\"");
+        assertThat(builder.of(nanoInstant).toJson())
+                .isEqualTo("\"1970-01-01T00:00:00.123456789+00:00\"");
+        assertThat(builder.of(nanoLocalDateTime).toJson())
+                .isEqualTo("\"2000-01-01T00:00:00.123456789\"");
         assertThat(builder.of("hello".getBytes()).toJson()).isEqualTo("\"aGVsbG8=\"");
         assertThat(builder.ofNull().toJson()).isEqualTo("null");
     }

@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /** Builder for variants. */
 @PublicEvolving
@@ -67,6 +68,9 @@ public interface VariantBuilder {
 
     /** Create a variant from a LocalDateTime. */
     Variant of(LocalDateTime localDateTime);
+
+    /** Create a variant from a LocalTime. Sub-microsecond precision is truncated. */
+    Variant of(LocalTime localTime);
 
     /** Create a variant of null. */
     Variant ofNull();

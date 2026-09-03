@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 /**
@@ -135,21 +136,32 @@ public interface Variant extends Serializable {
 
     /**
      * Get the scalar value of variant as {@link LocalDateTime}, if the variant type is {@link
-     * Type#TIMESTAMP}. The returned value has microsecond precision.
+     * Type#TIMESTAMP} or {@link Type#TIMESTAMP_NS}. The returned value has microsecond or
+     * nanosecond precision, matching the variant's actual type.
      *
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
-     *     Type#TIMESTAMP}.
+     *     Type#TIMESTAMP} or {@link Type#TIMESTAMP_NS}.
      */
     LocalDateTime getDateTime() throws VariantTypeException;
 
     /**
      * Get the scalar value of variant as {@link Instant}, if the variant type is {@link
-     * Type#TIMESTAMP_LTZ}. The returned value has microsecond precision.
+     * Type#TIMESTAMP_LTZ} or {@link Type#TIMESTAMP_LTZ_NS}. The returned value has microsecond or
+     * nanosecond precision, matching the variant's actual type.
      *
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
-     *     Type#TIMESTAMP_LTZ}.
+     *     Type#TIMESTAMP_LTZ} or {@link Type#TIMESTAMP_LTZ_NS}.
      */
     Instant getInstant() throws VariantTypeException;
+
+    /**
+     * Get the scalar value of variant as {@link LocalTime}, if the variant type is {@link
+     * Type#TIME}. The returned value has microsecond precision.
+     *
+     * @throws VariantTypeException If this variant is not a scalar value or is not {@link
+     *     Type#TIME}.
+     */
+    LocalTime getTime() throws VariantTypeException;
 
     /**
      * Get the scalar value of variant as byte array, if the variant type is {@link Type#BYTES}.
@@ -232,8 +244,11 @@ public interface Variant extends Serializable {
         DECIMAL,
         STRING,
         DATE,
+        TIME,
         TIMESTAMP,
         TIMESTAMP_LTZ,
+        TIMESTAMP_NS,
+        TIMESTAMP_LTZ_NS,
         BYTES
     }
 

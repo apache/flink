@@ -58,8 +58,11 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.MAX_SHORT_STR_SIZ
 import static org.apache.flink.types.variant.BinaryVariantUtil.NULL;
 import static org.apache.flink.types.variant.BinaryVariantUtil.OBJECT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIME;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ_NS;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_NS;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TRUE;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U16_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U24_MAX;
@@ -285,6 +288,27 @@ public class BinaryVariantInternalBuilder {
         checkCapacity(1 + 8);
         writeBuffer[writePos++] = primitiveHeader(TIMESTAMP);
         writeLong(writeBuffer, writePos, microsSinceEpoch, 8);
+        writePos += 8;
+    }
+
+    public void appendTime(long microsSinceMidnight) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIME);
+        writeLong(writeBuffer, writePos, microsSinceMidnight, 8);
+        writePos += 8;
+    }
+
+    public void appendTimestampLtzNanos(long nanosSinceEpoch) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP_LTZ_NS);
+        writeLong(writeBuffer, writePos, nanosSinceEpoch, 8);
+        writePos += 8;
+    }
+
+    public void appendTimestampNanos(long nanosSinceEpoch) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP_NS);
+        writeLong(writeBuffer, writePos, nanosSinceEpoch, 8);
         writePos += 8;
     }
 
