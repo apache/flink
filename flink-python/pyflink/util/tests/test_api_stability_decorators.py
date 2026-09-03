@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 import abc
-import contextlib
 import enum
 import inspect
 import os
@@ -35,27 +34,18 @@ from pyflink.util.api_stability_decorators import (
 )
 
 
-@contextlib.contextmanager
-def _catch_warnings():
-    """
-    Records every warning raised within the block.
-
-    Used where assertWarns cannot express the assertion: that nothing warned, or that
-    something warned exactly once.
-    """
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        yield caught
-
-
 class DeprecatedTests(unittest.TestCase):
     """
     Tests for the :class:`Deprecated` decorator, which must warn when a deprecated API is
     used, and not when it is defined.
+
+    Blocks that must not warn turn warnings into errors, so that one fails where it is
+    raised rather than in a comparison afterwards.
     """
 
     def test_decoration_does_not_warn(self):
-        with _catch_warnings() as caught:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
 
             @Deprecated(since="1.0.0", detail="Use :func:`new_func` instead.")
             def func():
@@ -65,8 +55,6 @@ class DeprecatedTests(unittest.TestCase):
             class Cls:
                 def __init__(self):
                     pass
-
-        self.assertEqual([], [str(warning.message) for warning in caught])
 
     def test_importing_pyflink_table_does_not_warn(self):
         # A fresh interpreter is the only way to observe an import: pyflink.table is
@@ -124,7 +112,8 @@ class DeprecatedTests(unittest.TestCase):
         def func():
             pass
 
-        with _catch_warnings() as caught:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
             func()
 
         self.assertEqual(1, len(caught))
@@ -163,7 +152,8 @@ class DeprecatedTests(unittest.TestCase):
             def __init__(self):
                 pass
 
-        with _catch_warnings() as caught:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
             Cls()
 
         self.assertEqual(1, len(caught))
@@ -182,7 +172,8 @@ class DeprecatedTests(unittest.TestCase):
         )
 
         # Warning about the class must not swallow the error an argument would have raised.
-        with _catch_warnings():
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
             with self.assertRaises(TypeError):
                 Cls(1)
 
@@ -195,7 +186,8 @@ class DeprecatedTests(unittest.TestCase):
         class Subclass(Cls):
             pass
 
-        with _catch_warnings():
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
             instance = Subclass()
 
         self.assertIsInstance(instance, Cls)
@@ -213,10 +205,9 @@ class DeprecatedTests(unittest.TestCase):
         class Subclass(Cls):
             pass
 
-        with _catch_warnings() as caught:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
             Subclass()
-
-        self.assertEqual([], [str(warning.message) for warning in caught])
 
     def test_defining_a_subclass_does_not_warn(self):
         # PEP 702 also warns when a deprecated class is subclassed. PyFlink subclasses
@@ -226,12 +217,11 @@ class DeprecatedTests(unittest.TestCase):
             def __init__(self):
                 pass
 
-        with _catch_warnings() as caught:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
 
             class Subclass(Cls):
                 pass
-
-        self.assertEqual([], [str(warning.message) for warning in caught])
 
     def test_deprecated_subclass_inheriting_init_warns_once(self):
         @Deprecated(since="1.0.0")
@@ -243,7 +233,8 @@ class DeprecatedTests(unittest.TestCase):
         class Subclass(Cls):
             pass
 
-        with _catch_warnings() as caught:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
             Subclass()
 
         self.assertEqual(
@@ -310,7 +301,8 @@ class DeprecatedTests(unittest.TestCase):
         self.assertEqual({Deprecated, PublicEvolving}, getattr(Cls, "__stability_decorators"))
 
     def test_static_and_class_methods(self):
-        with _catch_warnings() as caught_at_decoration:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
 
             class Cls:
                 @Deprecated(since="1.0.0")
@@ -324,14 +316,14 @@ class DeprecatedTests(unittest.TestCase):
                 def class_method(cls, x):
                     return x
 
-        self.assertEqual([], [str(warning.message) for warning in caught_at_decoration])
         # The descriptors must survive: a plain function wrapper around a staticmethod
         # breaks when called on an instance.
         self.assertIsInstance(Cls.__dict__["static_method"], staticmethod)
         self.assertIsInstance(Cls.__dict__["class_method"], classmethod)
         self.assertIn(".. deprecated:: 1.0.0", Cls.static_method.__doc__)
 
-        with _catch_warnings() as caught:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
             self.assertEqual(1, Cls.static_method(1))
             self.assertEqual(2, Cls.class_method(2))
             self.assertEqual(3, Cls().static_method(3))
@@ -348,7 +340,8 @@ class DeprecatedTests(unittest.TestCase):
 
     def test_property(self):
         # A property only gets the docstring directive, but must not raise.
-        with _catch_warnings() as caught:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
 
             class Cls:
                 @Deprecated(since="1.0.0")
@@ -359,11 +352,11 @@ class DeprecatedTests(unittest.TestCase):
 
             self.assertEqual(1, Cls().value)
 
-        self.assertEqual([], [str(warning.message) for warning in caught])
         self.assertIn(".. deprecated:: 1.0.0", Cls.__dict__["value"].__doc__)
 
     def test_abstract_class(self):
-        with _catch_warnings() as caught_at_decoration:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
 
             @Deprecated(since="1.0.0")
             class Abstract(abc.ABC):
@@ -373,17 +366,16 @@ class DeprecatedTests(unittest.TestCase):
                 def method(self):
                     pass
 
-        self.assertEqual([], [str(warning.message) for warning in caught_at_decoration])
-        self.assertIn(".. deprecated:: 1.0.0", Abstract.__doc__)
-
-        with _catch_warnings():
             with self.assertRaises(TypeError):
                 Abstract()
+
+        self.assertIn(".. deprecated:: 1.0.0", Abstract.__doc__)
 
     def test_enum_class(self):
         # Members are created before the decorator runs, so they are unaffected;
         # decorating an Enum must not raise and must leave lookup working.
-        with _catch_warnings() as caught_at_decoration:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
 
             @Deprecated(since="1.0.0")
             class Colour(enum.Enum):
@@ -391,15 +383,11 @@ class DeprecatedTests(unittest.TestCase):
 
                 RED = 1
 
-        self.assertEqual([], [str(warning.message) for warning in caught_at_decoration])
-        self.assertIn(".. deprecated:: 1.0.0", Colour.__doc__)
-
-        with _catch_warnings() as caught:
             self.assertIs(Colour.RED, Colour(1))
             self.assertEqual(1, Colour.RED.value)
             self.assertEqual([Colour.RED], list(Colour))
 
-        self.assertEqual([], [str(warning.message) for warning in caught])
+        self.assertIn(".. deprecated:: 1.0.0", Colour.__doc__)
 
 
 class OtherStabilityDecoratorTests(unittest.TestCase):
@@ -410,7 +398,8 @@ class OtherStabilityDecoratorTests(unittest.TestCase):
     def test_decorators_never_warn(self):
         for decorator in (Experimental, Internal, Public, PublicEvolving):
             with self.subTest(decorator=decorator.__name__):
-                with _catch_warnings() as caught:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error")
 
                     @decorator()
                     def func():
@@ -425,8 +414,6 @@ class OtherStabilityDecoratorTests(unittest.TestCase):
 
                     func()
                     Cls().method()
-
-                self.assertEqual([], [str(warning.message) for warning in caught])
 
     def test_decorated_elements_are_returned_unchanged(self):
         for decorator in (Experimental, Internal, Public, PublicEvolving):
