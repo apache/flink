@@ -136,19 +136,21 @@ public interface Variant extends Serializable {
 
     /**
      * Get the scalar value of variant as {@link LocalDateTime}, if the variant type is {@link
-     * Type#TIMESTAMP}. The returned value has microsecond precision.
+     * Type#TIMESTAMP} or {@link Type#TIMESTAMP_NS}. The returned value has microsecond or
+     * nanosecond precision, matching the variant's actual type.
      *
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
-     *     Type#TIMESTAMP}.
+     *     Type#TIMESTAMP} or {@link Type#TIMESTAMP_NS}.
      */
     LocalDateTime getDateTime() throws VariantTypeException;
 
     /**
      * Get the scalar value of variant as {@link Instant}, if the variant type is {@link
-     * Type#TIMESTAMP_LTZ}. The returned value has microsecond precision.
+     * Type#TIMESTAMP_LTZ} or {@link Type#TIMESTAMP_LTZ_NS}. The returned value has microsecond or
+     * nanosecond precision, matching the variant's actual type.
      *
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
-     *     Type#TIMESTAMP_LTZ}.
+     *     Type#TIMESTAMP_LTZ} or {@link Type#TIMESTAMP_LTZ_NS}.
      */
     Instant getInstant() throws VariantTypeException;
 
@@ -160,24 +162,6 @@ public interface Variant extends Serializable {
      *     Type#TIME}.
      */
     LocalTime getTime() throws VariantTypeException;
-
-    /**
-     * Get the scalar value of variant as {@link LocalDateTime}, if the variant type is {@link
-     * Type#TIMESTAMP_NS}. The returned value has nanosecond precision.
-     *
-     * @throws VariantTypeException If this variant is not a scalar value or is not {@link
-     *     Type#TIMESTAMP_NS}.
-     */
-    LocalDateTime getDateTimeNanos() throws VariantTypeException;
-
-    /**
-     * Get the scalar value of variant as {@link Instant}, if the variant type is {@link
-     * Type#TIMESTAMP_LTZ_NS}. The returned value has nanosecond precision.
-     *
-     * @throws VariantTypeException If this variant is not a scalar value or is not {@link
-     *     Type#TIMESTAMP_LTZ_NS}.
-     */
-    Instant getInstantNanos() throws VariantTypeException;
 
     /**
      * Get the scalar value of variant as byte array, if the variant type is {@link Type#BYTES}.

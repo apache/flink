@@ -183,36 +183,39 @@ public final class BinaryVariant implements Variant {
 
     @Override
     public LocalDateTime getDateTime() throws VariantTypeException {
-        checkType(Type.TIMESTAMP, getType());
-        return microsToInstant(BinaryVariantUtil.getLong(value, pos))
-                .atZone(ZoneOffset.UTC)
-                .toLocalDateTime();
+        Type type = getType();
+        Instant instant;
+        if (type == Type.TIMESTAMP) {
+            instant = microsToInstant(BinaryVariantUtil.getLong(value, pos));
+        } else if (type == Type.TIMESTAMP_NS) {
+            instant = nanosToInstant(BinaryVariantUtil.getLong(value, pos));
+        } else {
+            throw new VariantTypeException(
+                    String.format(
+                            "Expected type %s or %s but got %s",
+                            Type.TIMESTAMP, Type.TIMESTAMP_NS, type));
+        }
+        return instant.atZone(ZoneOffset.UTC).toLocalDateTime();
     }
 
     @Override
     public Instant getInstant() throws VariantTypeException {
-        checkType(Type.TIMESTAMP_LTZ, getType());
-        return microsToInstant(BinaryVariantUtil.getLong(value, pos));
+        Type type = getType();
+        if (type == Type.TIMESTAMP_LTZ) {
+            return microsToInstant(BinaryVariantUtil.getLong(value, pos));
+        } else if (type == Type.TIMESTAMP_LTZ_NS) {
+            return nanosToInstant(BinaryVariantUtil.getLong(value, pos));
+        }
+        throw new VariantTypeException(
+                String.format(
+                        "Expected type %s or %s but got %s",
+                        Type.TIMESTAMP_LTZ, Type.TIMESTAMP_LTZ_NS, type));
     }
 
     @Override
     public LocalTime getTime() throws VariantTypeException {
         checkType(Type.TIME, getType());
         return LocalTime.ofNanoOfDay(BinaryVariantUtil.getLong(value, pos) * 1000);
-    }
-
-    @Override
-    public LocalDateTime getDateTimeNanos() throws VariantTypeException {
-        checkType(Type.TIMESTAMP_NS, getType());
-        return nanosToInstant(BinaryVariantUtil.getLong(value, pos))
-                .atZone(ZoneOffset.UTC)
-                .toLocalDateTime();
-    }
-
-    @Override
-    public Instant getInstantNanos() throws VariantTypeException {
-        checkType(Type.TIMESTAMP_LTZ_NS, getType());
-        return nanosToInstant(BinaryVariantUtil.getLong(value, pos));
     }
 
     @Override
@@ -249,13 +252,11 @@ public final class BinaryVariant implements Variant {
             case TIME:
                 return getTime();
             case TIMESTAMP:
+            case TIMESTAMP_NS:
                 return getDateTime();
             case TIMESTAMP_LTZ:
-                return getInstant();
-            case TIMESTAMP_NS:
-                return getDateTimeNanos();
             case TIMESTAMP_LTZ_NS:
-                return getInstantNanos();
+                return getInstant();
             case BYTES:
                 return getBytes();
             default:

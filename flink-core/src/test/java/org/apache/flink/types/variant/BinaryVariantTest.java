@@ -121,21 +121,19 @@ class BinaryVariantTest {
         assertThat(builder.of(microLocalDateTime).getType()).isEqualTo(Variant.Type.TIMESTAMP);
         assertThat(builder.of(microLocalDateTime).getDateTime()).isEqualTo(microLocalDateTime);
 
-        // Sub-microsecond precision must switch to the nanosecond-precision encoding rather than
-        // silently truncating.
+        // Sub-microsecond precision switches to the nanosecond encoding instead of truncating,
+        // but getInstant()/getDateTime() still work regardless of which encoding was picked.
         Instant nanoInstant = Instant.now().truncatedTo(ChronoUnit.NANOS).plusNanos(123);
         Variant instantVariant = builder.of(nanoInstant);
         assertThat(instantVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP_LTZ_NS);
-        assertThat(instantVariant.getInstantNanos()).isEqualTo(nanoInstant);
+        assertThat(instantVariant.getInstant()).isEqualTo(nanoInstant);
         assertThat(instantVariant.get()).isEqualTo(nanoInstant);
-        assertThatThrownBy(instantVariant::getInstant).isInstanceOf(VariantTypeException.class);
 
         LocalDateTime nanoLocalDateTime = LocalDateTime.now().withNano(123456789);
         Variant dateTimeVariant = builder.of(nanoLocalDateTime);
         assertThat(dateTimeVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP_NS);
-        assertThat(dateTimeVariant.getDateTimeNanos()).isEqualTo(nanoLocalDateTime);
+        assertThat(dateTimeVariant.getDateTime()).isEqualTo(nanoLocalDateTime);
         assertThat(dateTimeVariant.get()).isEqualTo(nanoLocalDateTime);
-        assertThatThrownBy(dateTimeVariant::getDateTime).isInstanceOf(VariantTypeException.class);
     }
 
     @Test
