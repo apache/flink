@@ -70,10 +70,16 @@ public class ConstraintEnforcerExecutor implements Serializable {
             final RowType physicalType,
             final NotNullEnforcer notNullEnforcer,
             final TypeLengthEnforcer typeLengthEnforcer,
-            final NestedEnforcer nestedConstraints) {
+            final NestedEnforcer nestedConstraints,
+            final boolean keyOnlyDeletes,
+            final int[] primaryKeyIndices) {
         final Constraint[] topLevelConstraints =
                 createConstraints(
-                        physicalType, notNullEnforcer, typeLengthEnforcer, nestedConstraints);
+                        physicalType,
+                        notNullEnforcer,
+                        typeLengthEnforcer,
+                        nestedConstraints,
+                        keyOnlyDeletes ? primaryKeyIndices : null);
 
         return create(topLevelConstraints);
     }
@@ -83,6 +89,16 @@ public class ConstraintEnforcerExecutor implements Serializable {
             final NotNullEnforcer notNullEnforcer,
             final TypeLengthEnforcer typeLengthEnforcer,
             final NestedEnforcer nestedEnforcer) {
+        return createConstraints(
+                physicalType, notNullEnforcer, typeLengthEnforcer, nestedEnforcer, null);
+    }
+
+    private static Constraint[] createConstraints(
+            final RowType physicalType,
+            final NotNullEnforcer notNullEnforcer,
+            final TypeLengthEnforcer typeLengthEnforcer,
+            final NestedEnforcer nestedEnforcer,
+            final @Nullable int[] keyOnlyDeleteFieldIndices) {
         final String[] fieldNames = physicalType.getFieldNames().toArray(new String[0]);
         final List<Constraint> constraints = new ArrayList<>();
 
@@ -98,7 +114,8 @@ public class ConstraintEnforcerExecutor implements Serializable {
                     new NotNullConstraint(
                             NotNullEnforcementStrategy.of(notNullEnforcer),
                             notNullFieldIndices,
-                            notNullFieldNames));
+                            notNullFieldNames,
+                            keyOnlyDeleteFieldIndices));
         }
 
         if (typeLengthEnforcer != TypeLengthEnforcer.IGNORE) {

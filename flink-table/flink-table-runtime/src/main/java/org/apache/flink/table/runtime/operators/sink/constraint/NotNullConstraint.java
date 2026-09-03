@@ -21,6 +21,9 @@ package org.apache.flink.table.runtime.operators.sink.constraint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.types.RowKind;
+
+import org.apache.commons.lang3.ArrayUtils;
 
 import javax.annotation.Nullable;
 
@@ -32,14 +35,17 @@ final class NotNullConstraint implements Constraint {
     private final NotNullEnforcementStrategy enforcementStrategy;
     private final int[] notNullFieldIndices;
     private final String[] notNullFieldNames;
+    private final @Nullable int[] keyOnlyDeleteFieldIndices;
 
     NotNullConstraint(
             NotNullEnforcementStrategy enforcementStrategy,
             int[] notNullFieldIndices,
-            String[] notNullFieldNames) {
+            String[] notNullFieldNames,
+            @Nullable int[] keyOnlyDeleteFieldIndices) {
         this.enforcementStrategy = enforcementStrategy;
         this.notNullFieldIndices = notNullFieldIndices;
         this.notNullFieldNames = notNullFieldNames;
+        this.keyOnlyDeleteFieldIndices = keyOnlyDeleteFieldIndices;
     }
 
     @Nullable
@@ -47,6 +53,12 @@ final class NotNullConstraint implements Constraint {
     public RowData enforce(RowData input) {
         for (int i = 0; i < notNullFieldIndices.length; i++) {
             final int index = notNullFieldIndices[i];
+            // Non-key fields have no value semantics in a key-only DELETE.
+            if (input.getRowKind() == RowKind.DELETE
+                    && keyOnlyDeleteFieldIndices != null
+                    && !ArrayUtils.contains(keyOnlyDeleteFieldIndices, index)) {
+                continue;
+            }
             if (input.isNullAt(index)) {
                 switch (enforcementStrategy) {
                     case ERROR:
