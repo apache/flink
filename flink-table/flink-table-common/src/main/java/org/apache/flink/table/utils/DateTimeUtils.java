@@ -1725,7 +1725,8 @@ public class DateTimeUtils {
     }
 
     public static TimestampData truncate(TimestampData ts, int precision) {
-        String fraction = Integer.toString(ts.toLocalDateTime().getNano());
+        // Zero-pad to nine digits so leading zeros are not dropped and the precision understated.
+        String fraction = String.format("%09d", ts.toLocalDateTime().getNano());
         if (fraction.length() <= precision) {
             return ts;
         } else {

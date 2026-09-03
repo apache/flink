@@ -1891,6 +1891,14 @@ class CastRulesTest {
                                         LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.of(2020, 1, 1, 12, 0, 0))),
+                // A fraction with leading zeros (.000123456) is still truncated to the precision.
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(6))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123_456)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123_000))),
                 // The cast accepts either storage kind: TIMESTAMP_NS for a value that needs
                 // nanosecond precision, plain TIMESTAMP when microseconds already hold it exactly.
                 CastTestSpecBuilder.testCastTo(TIMESTAMP(9))
