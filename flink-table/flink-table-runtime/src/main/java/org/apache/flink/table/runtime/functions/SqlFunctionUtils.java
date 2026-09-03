@@ -311,15 +311,22 @@ public class SqlFunctionUtils {
             return "";
         }
 
-        final int baseEnd = endOfCodePoints(base, len);
-        final int padCount = len - base.codePointCount(0, baseEnd);
+        final int length = base.length();
+        int baseEnd = 0;
+        int baseCodePoints = 0;
+        while (baseCodePoints < len && baseEnd < length) {
+            baseEnd += Character.charCount(base.codePointAt(baseEnd));
+            baseCodePoints++;
+        }
+
+        final int padCount = len - baseCodePoints;
         if (padCount == 0) {
             // The base already holds len code points, so it only needs truncating.
             return base.substring(0, baseEnd);
         }
 
         final int padChars = padLength(pad, padCount);
-        final char[] data = new char[padChars + baseEnd];
+        final char[] data = new char[Math.addExact(padChars, baseEnd)];
 
         writePad(data, 0, pad, padChars);
         base.getChars(0, baseEnd, data, padChars);
@@ -338,15 +345,22 @@ public class SqlFunctionUtils {
             return "";
         }
 
-        final int baseEnd = endOfCodePoints(base, len);
-        final int padCount = len - base.codePointCount(0, baseEnd);
+        final int length = base.length();
+        int baseEnd = 0;
+        int baseCodePoints = 0;
+        while (baseCodePoints < len && baseEnd < length) {
+            baseEnd += Character.charCount(base.codePointAt(baseEnd));
+            baseCodePoints++;
+        }
+
+        final int padCount = len - baseCodePoints;
         if (padCount == 0) {
             // The base already holds len code points, so it only needs truncating.
             return base.substring(0, baseEnd);
         }
 
         final int padChars = padLength(pad, padCount);
-        final char[] data = new char[baseEnd + padChars];
+        final char[] data = new char[Math.addExact(baseEnd, padChars)];
 
         base.getChars(0, baseEnd, data, 0);
         writePad(data, baseEnd, pad, padChars);
@@ -354,29 +368,17 @@ public class SqlFunctionUtils {
         return new String(data);
     }
 
-    /** Index just past the first count code points of str, or its end if str holds fewer. */
-    private static int endOfCodePoints(String str, int count) {
-        final int length = str.length();
-        int index = 0;
-        for (int i = 0; i < count && index < length; i++) {
-            index += Character.charCount(str.codePointAt(index));
-        }
-        return index;
-    }
-
     /** Number of chars taken by count code points of pad repeated cyclically. */
     private static int padLength(String pad, int count) {
         final int padLen = pad.length();
         final int cycle = pad.codePointCount(0, padLen);
-        return (count / cycle) * padLen + pad.offsetByCodePoints(0, count % cycle);
+        return Math.addExact(
+                Math.multiplyExact(count / cycle, padLen),
+                pad.offsetByCodePoints(0, count % cycle));
     }
 
     /** Writes chars characters into data at pos, repeating pad cyclically. */
     private static void writePad(char[] data, int pos, String pad, int chars) {
-        if (chars == 0) {
-            return;
-        }
-
         final int padLen = pad.length();
         if (padLen == 1) {
             // A single char fills directly, which is faster than the doubling copy below.
@@ -384,6 +386,8 @@ public class SqlFunctionUtils {
             return;
         }
 
+        // The pad is written once and then each pass doubles the region already written,
+        // so the fill takes log2(chars) copies rather than one copy per pad cycle.
         final int first = Math.min(padLen, chars);
         pad.getChars(0, first, data, pos);
 
