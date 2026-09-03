@@ -956,10 +956,20 @@ object ScalarOperatorGens {
       case codeGeneratorCastRule: CodeGeneratorCastRule[_, _] =>
         val inputType = operand.resultType.copy(true)
 
+        // Ensure primitive-backed inputs are unboxed before entering cast rules.
+        // Some code generators (e.g. JsonValueCallGen) produce boxed result terms
+        // for primitive-backed types, which breaks cast rules that emit primitive
+        // casts like ((long)(java.lang.Double)).
+        val inputTerm = if (isPrimitive(operand.resultType)) {
+          s"((${primitiveTypeTermForType(operand.resultType)})(${operand.resultTerm}))"
+        } else {
+          operand.resultTerm
+        }
+
         // Generate the code block
         val castCodeBlock = codeGeneratorCastRule.generateCodeBlock(
           toCodegenCastContext(ctx),
-          operand.resultTerm,
+          inputTerm,
           operand.nullTerm,
           inputType,
           targetType

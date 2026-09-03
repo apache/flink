@@ -705,6 +705,22 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         null,
                         BOOLEAN())
 
+                // Outer CAST on JSON_VALUE result (boxed-to-primitive codegen)
+                .testSqlResult(
+                        "CAST(JSON_VALUE(f0, '$.balance' RETURNING DOUBLE) AS BIGINT)",
+                        13L,
+                        BIGINT())
+                .testSqlResult(
+                        "CAST(JSON_VALUE(f0, '$.age' RETURNING INTEGER) AS DOUBLE)", 42.0, DOUBLE())
+                .testSqlResult(
+                        "CAST(JSON_VALUE(f0, '$.age' RETURNING INTEGER) AS BIGINT)", 42L, BIGINT())
+                .testSqlResult(
+                        "CAST(JSON_VALUE(f0, '$.balance' RETURNING DOUBLE) AS INTEGER)", 13, INT())
+                .testSqlResult(
+                        "CAST(JSON_VALUE(f0, '$.longBalance' RETURNING DOUBLE) AS BIGINT)",
+                        123456789L,
+                        BIGINT())
+
                 // path contains blank characters.
                 .testResult(
                         $("f0").jsonValue(
