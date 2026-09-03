@@ -25,6 +25,7 @@ import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -238,6 +239,85 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                         "SELECT COUNT(*) FROM "
                                 + derived
                                 + " GROUP BY TUMBLE(pts, INTERVAL '1' MINUTE)");
+    }
+
+    @Test
+    void testBuildSideWatermarkOnHiddenMetadataColumn() {
+        // Reproduces FLINK-40541: the build-side watermark is declared on a virtual metadata column
+        // that is hidden from `SELECT *` by the EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS expansion
+        // strategy. `TABLE b_hidden_wm` thus expands to a projection that drops the row-time
+        // attribute, yet the table still declares a watermark. LATERAL SNAPSHOT must recognize the
+        // watermark and not reject the query.
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE b_hidden_wm ("
+                                + "  bk STRING,"
+                                + "  bv INT,"
+                                + "  rt TIMESTAMP_LTZ(3) METADATA VIRTUAL,"
+                                + "  WATERMARK FOR rt AS rt"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'bounded' = 'false',"
+                                + "  'readable-metadata' = 'rt:TIMESTAMP_LTZ(3)'"
+                                + ")");
+        util.tableEnv()
+                .getConfig()
+                .set(
+                        TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY,
+                        List.of(
+                                TableConfigOptions.ColumnExpansionStrategy
+                                        .EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        final String sql =
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b_hidden_wm, "
+                        + "load_completed_condition => 'user_time', "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s ON probe.pk = s.bk";
+        assertThat(util.tableEnv().explainSql(sql)).contains("LateralSnapshotJoin");
+    }
+
+    @Test
+    void testBuildSideWatermarkPushedDownOnHiddenMetadataColumn() {
+        // FLINK-40541 with watermark push-down: the build-side watermark is on a virtual metadata
+        // column hidden from `SELECT *`, and `enable-watermark-push-down` folds it into the source.
+        // 'disable-lookup' is required so the values source is a pure scan source, which lets the
+        // planner push the watermark into the scan in this test harness.
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE b_pushed_wm ("
+                                + "  bk STRING,"
+                                + "  bv INT,"
+                                + "  rt TIMESTAMP_LTZ(3) METADATA VIRTUAL,"
+                                + "  WATERMARK FOR rt AS rt"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'bounded' = 'false',"
+                                + "  'disable-lookup' = 'true',"
+                                + "  'enable-watermark-push-down' = 'true',"
+                                + "  'scan.watermark.emit.strategy' = 'on-event',"
+                                + "  'readable-metadata' = 'rt:TIMESTAMP_LTZ(3)'"
+                                + ")");
+        util.tableEnv()
+                .getConfig()
+                .set(
+                        TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY,
+                        List.of(
+                                TableConfigOptions.ColumnExpansionStrategy
+                                        .EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        final String sql =
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b_pushed_wm, "
+                        + "load_completed_condition => 'user_time', "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s ON probe.pk = s.bk";
+        final String plan = util.tableEnv().explainSql(sql);
+        assertThat(plan).contains("LateralSnapshotJoin");
+        // The watermark is pushed into the scan ('watermarkEmitStrategy' only appears on the
+        // TableSourceScan when the watermark is folded into the source): the build-side row-time
+        // attribute reaches the operator only via the re-stamp of the pushed-down watermark column.
+        assertThat(plan).contains("watermarkEmitStrategy=[on-event]");
     }
 
     @Test

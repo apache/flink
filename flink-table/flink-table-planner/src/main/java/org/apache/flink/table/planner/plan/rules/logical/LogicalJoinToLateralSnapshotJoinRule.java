@@ -20,12 +20,17 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
+import org.apache.flink.table.planner.plan.abilities.source.WatermarkPushDownSpec;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLateralSnapshotJoin;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
+import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.plan.utils.LateralSnapshotJoinUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
@@ -48,6 +53,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.immutables.value.Value;
 
@@ -89,7 +95,7 @@ public class LogicalJoinToLateralSnapshotJoinRule
     @Override
     public void onMatch(RelOptRuleCall call) {
         final FlinkLogicalJoin join = call.rel(0);
-        final RelNode leftNode = join.getLeft();
+        final RelNode probeInputNode = join.getLeft();
         final FlinkLogicalTableFunctionScan scan = findSnapshotScan(join.getRight());
         if (scan == null) {
             // matches() guarantees a SNAPSHOT scan on the right, so this cannot happen.
@@ -116,14 +122,19 @@ public class LogicalJoinToLateralSnapshotJoinRule
 
         final RexCall snapshotCall = (RexCall) scan.getCall();
 
-        // Resolve the raw build-side TABLE input the operator reads. A null result means the
-        // SNAPSHOT call is malformed, which cannot happen for a plan that reached this rule.
-        final RelNode rawTableInput = getSnapshotInputTable(scan);
-        if (rawTableInput == null) {
+        // Replace the SNAPSHOT TableFunctionScan with its input, preserving any FlinkLogicalCalc
+        // nodes that the optimizer placed above the scan. If the TABLE argument's projection
+        // dropped the build-side row-time attribute (e.g. SELECT * over a table whose watermark is
+        // declared on a metadata column hidden by the column-expansion strategy), it is re-appended
+        // so the operator can observe it.
+        final RelNode buildInputNode = replaceSnapshotScan(join.getRight());
+        if (buildInputNode == null) {
             throw new TableException(
-                    "Could not resolve the TABLE input of the SNAPSHOT scan on the build side of "
-                            + "a LATERAL SNAPSHOT join. This is a bug, please file an issue.");
+                    "Could not rewrite the build side of a LATERAL SNAPSHOT join by replacing the "
+                            + "SNAPSHOT scan with its TABLE input. This is a bug, please file an "
+                            + "issue.");
         }
+
         // The build-side row-time attribute drives the streaming operator's LOAD phase. In batch
         // all input is bounded and the join degrades to a regular join (see
         // BatchPhysicalLateralSnapshotJoinRule), so no watermark is required.
@@ -131,7 +142,7 @@ public class LogicalJoinToLateralSnapshotJoinRule
             // The build-side input must declare exactly one watermark, otherwise the operator
             // cannot determine when the LOAD phase is complete.
             final long rowtimeCount =
-                    rawTableInput.getRowType().getFieldList().stream()
+                    buildInputNode.getRowType().getFieldList().stream()
                             .filter(f -> FlinkTypeFactory.isRowtimeIndicatorType(f.getType()))
                             .count();
             if (rowtimeCount == 0) {
@@ -145,16 +156,6 @@ public class LogicalJoinToLateralSnapshotJoinRule
                                         + "row-time attribute, but found %d.",
                                 rowtimeCount));
             }
-        }
-
-        // Replace the SNAPSHOT TableFunctionScan with its input, preserving any FlinkLogicalCalc
-        // nodes that the optimizer placed above the scan.
-        final RelNode rightNode = replaceSnapshotScan(join.getRight());
-        if (rightNode == null) {
-            throw new TableException(
-                    "Could not rewrite the build side of a LATERAL SNAPSHOT join by replacing the "
-                            + "SNAPSHOT scan with its TABLE input. This is a bug, please file an "
-                            + "issue.");
         }
 
         final List<RexNode> operands = snapshotCall.getOperands();
@@ -232,12 +233,12 @@ public class LogicalJoinToLateralSnapshotJoinRule
                 intervalMillis(stateTtlLiteral, LateralSnapshotTypeStrategy.STATE_TTL_ARG_NAME);
 
         // The original join condition's field types were resolved against the SNAPSHOT scan's
-        // materialized output, but rightNode (its raw TABLE input) still exposes the build-side
-        // row-time attribute as an indicator (see replaceSnapshotScan). Retype the condition to
-        // the actual left+right input types.
+        // materialized output, but buildInputNode (its raw TABLE input) still exposes the
+        // build-side row-time attribute as an indicator (see replaceSnapshotScan). Retype the
+        // condition to the actual left+right input types.
         final List<RelDataTypeField> leftRightFields = new ArrayList<>();
-        leftRightFields.addAll(leftNode.getRowType().getFieldList());
-        leftRightFields.addAll(rightNode.getRowType().getFieldList());
+        leftRightFields.addAll(probeInputNode.getRowType().getFieldList());
+        leftRightFields.addAll(buildInputNode.getRowType().getFieldList());
         final RexNode rebasedCondition =
                 join.getCondition()
                         .accept(
@@ -253,8 +254,8 @@ public class LogicalJoinToLateralSnapshotJoinRule
         // build-side input.
         final RelNode node =
                 FlinkLogicalLateralSnapshotJoin.create(
-                        leftNode,
-                        rightNode,
+                        probeInputNode,
+                        buildInputNode,
                         rebasedCondition,
                         joinType,
                         loadCompletedCondition,
@@ -263,7 +264,7 @@ public class LogicalJoinToLateralSnapshotJoinRule
                         stateTtlMs);
 
         final int origRightCount = unwrap(join.getRight()).getRowType().getFieldCount();
-        final int newRightCount = rightNode.getRowType().getFieldCount();
+        final int newRightCount = buildInputNode.getRowType().getFieldCount();
         final boolean isRowtimeFieldAdded = newRightCount > origRightCount;
         if (isRowtimeFieldAdded) {
             // If the build-side projection stripped the row-time attribute, replaceSnapshotScan
@@ -324,6 +325,46 @@ public class LogicalJoinToLateralSnapshotJoinRule
     }
 
     /**
+     * Walks the right subtree replacing the {@link FlinkLogicalTableFunctionScan} (the SNAPSHOT
+     * scan) with the scan's TABLE input, while preserving any {@link FlinkLogicalCalc} nodes
+     * stacked above the scan. The SNAPSHOT type strategy materializes the build-side time
+     * attributes, so the scan's output type differs from its input's (the build-side row-time
+     * attribute is a plain timestamp on the scan output but a row-time indicator on the raw input).
+     * Each preserved Calc was built against the materialized scan output, so its {@link RexProgram}
+     * is rebased onto the raw (row-time-bearing) input type, which lets the row-time attribute flow
+     * through to the operator.
+     */
+    @Nullable
+    private static RelNode replaceSnapshotScan(RelNode node) {
+        final RelNode current = unwrap(node);
+        if (current instanceof FlinkLogicalTableFunctionScan) {
+            // Resolve the raw build-side TABLE input the operator reads. A null result means the
+            // SNAPSHOT call is malformed, which cannot happen for a plan that reached this rule.
+            final RelNode tableInput =
+                    getSnapshotInputTable((FlinkLogicalTableFunctionScan) current);
+            if (tableInput == null) {
+                throw new TableException(
+                        "Could not resolve the TABLE input of the SNAPSHOT scan on the build side of "
+                                + "a LATERAL SNAPSHOT join. This is a bug, please file an issue.");
+            }
+            // The TABLE argument may itself be a projection that dropped the build-side row-time
+            // attribute while its input still carries the watermark (e.g. SELECT * over a table
+            // whose row-time is a hidden metadata column). Re-append it so the operator can use it.
+            return reappendBuildRowtime(tableInput);
+        }
+        if (current instanceof FlinkLogicalCalc) {
+            // the top node is a calc that needs to be rebased
+            final FlinkLogicalCalc calc = (FlinkLogicalCalc) current;
+            final RelNode rewrittenInput = replaceSnapshotScan(calc.getInput(0));
+            if (rewrittenInput == null) {
+                return null;
+            }
+            return rebaseCalc(calc, rewrittenInput);
+        }
+        return null;
+    }
+
+    /**
      * Returns the raw (unwrapped) TABLE input of a {@code SNAPSHOT} scan, i.e. the build-side input
      * the operator reads. Returns {@code null} if the scan does not carry a SNAPSHOT call or its
      * TABLE argument cannot be resolved.
@@ -348,32 +389,116 @@ public class LogicalJoinToLateralSnapshotJoinRule
     }
 
     /**
-     * Walks the right subtree replacing the {@link FlinkLogicalTableFunctionScan} (the SNAPSHOT
-     * scan) with the scan's TABLE input, while preserving any {@link FlinkLogicalCalc} nodes
-     * stacked above the scan. The SNAPSHOT type strategy materializes the build-side time
-     * attributes, so the scan's output type differs from its input's (the build-side row-time
-     * attribute is a plain timestamp on the scan output but a row-time indicator on the raw input).
-     * Each preserved Calc was built against the materialized scan output, so its {@link RexProgram}
-     * is rebased onto the raw (row-time-bearing) input type, which lets the row-time attribute flow
-     * through to the operator.
+     * Ensures the SNAPSHOT TABLE argument exposes the build-side row-time attribute. The
+     * column-expansion strategy can hide a table's watermark column (e.g. a virtual metadata column
+     * excluded by {@code EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS}) from {@code SELECT *}, so
+     * {@code TABLE t} expands to a projection that drops the row-time attribute even though the
+     * table declares a watermark. When that happens the attribute is re-appended as a trailing
+     * column from the projection's input, which still carries it either on a {@link
+     * org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner} or, when the watermark
+     * was pushed into the source, on the {@link FlinkLogicalTableSourceScan} (see {@link
+     * #restampPushedDownRowtime}), so the row-time attribute reaches the snapshot join operator.
+     *
+     * <p>Returns {@code tableInput} unchanged when it already exposes a row-time attribute (visible
+     * watermark column) or when no input in the subtree carries one (no watermark at all — the
+     * caller then rejects the query).
      */
-    @Nullable
-    private static RelNode replaceSnapshotScan(RelNode node) {
-        final RelNode current = unwrap(node);
-        if (current instanceof FlinkLogicalTableFunctionScan) {
-            // the top node is the TableFunctionScan, return its table input argument
-            return getSnapshotInputTable((FlinkLogicalTableFunctionScan) current);
+    private static RelNode reappendBuildRowtime(RelNode tableInput) {
+        final RelNode current = unwrap(tableInput);
+        if (exposesRowtime(current)) {
+            return current;
         }
-        if (current instanceof FlinkLogicalCalc) {
-            // the top node is a calc that needs to be rebased
-            final FlinkLogicalCalc calc = (FlinkLogicalCalc) current;
-            final RelNode rewrittenInput = replaceSnapshotScan(calc.getInput(0));
-            if (rewrittenInput == null) {
-                return null;
+        // A table source scan can carry a watermark that was pushed into it: the row-time column
+        // then stays a plain timestamp in the scan output while a WatermarkPushDownSpec records the
+        // watermark, so exposesRowtime is false above. Re-stamp that column as a row-time
+        // indicator.
+        if (current instanceof FlinkLogicalTableSourceScan) {
+            final RelNode restamped =
+                    restampPushedDownRowtime((FlinkLogicalTableSourceScan) current);
+            return restamped != null ? restamped : current;
+        }
+        // Only a Calc can hide a row-time attribute that its input still carries.
+        if (!(current instanceof FlinkLogicalCalc)) {
+            return current;
+        }
+        final FlinkLogicalCalc calc = (FlinkLogicalCalc) current;
+        final RelNode newInput = reappendBuildRowtime(calc.getInput(0));
+        // The input carries no row-time attribute either: there is no watermark to forward.
+        if (!exposesRowtime(newInput)) {
+            return current;
+        }
+        return rebaseCalc(calc, newInput);
+    }
+
+    private static boolean exposesRowtime(RelNode node) {
+        return node.getRowType().getFieldList().stream()
+                .anyMatch(f -> FlinkTypeFactory.isRowtimeIndicatorType(f.getType()));
+    }
+
+    /**
+     * Re-stamps the row-time column of a scan that carries a pushed-down watermark. When {@code
+     * enable-watermark-push-down} folds the watermark into the source, the scan's row-time column
+     * stays a plain {@code TIMESTAMP}/{@code TIMESTAMP_LTZ} while a {@link WatermarkPushDownSpec}
+     * records the watermark; the row-time indicator only reappears in a projection above the scan
+     * when the column is selected (see {@code PushWatermarkIntoTableSourceScanAcrossCalcRule}). If
+     * the column-expansion strategy hid the column, no such projection exists and the row-time
+     * attribute is absent from the plan. This wraps the scan in a projection that re-interprets the
+     * (name-resolved) row-time column as a row-time indicator so it reaches the snapshot join
+     * operator.
+     *
+     * <p>Returns {@code null} when the scan has no pushed-down watermark or the row-time column is
+     * not part of the scan output (then no row-time attribute can be recovered here).
+     */
+    private static @Nullable RelNode restampPushedDownRowtime(FlinkLogicalTableSourceScan scan) {
+        final TableSourceTable table = scan.getTable().unwrap(TableSourceTable.class);
+        if (table == null || !hasWatermarkPushDown(table)) {
+            return null;
+        }
+        final List<WatermarkSpec> watermarkSpecs =
+                table.contextResolvedTable().getResolvedSchema().getWatermarkSpecs();
+        if (watermarkSpecs.isEmpty()) {
+            return null;
+        }
+        final String rowtimeColumn = watermarkSpecs.get(0).getRowtimeAttribute();
+        final int rowtimeIndex = scan.getRowType().getFieldNames().indexOf(rowtimeColumn);
+        if (rowtimeIndex < 0) {
+            return null;
+        }
+        final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(scan);
+        final RexBuilder rexBuilder = scan.getCluster().getRexBuilder();
+        final List<RexNode> projects = new ArrayList<>();
+        for (RelDataTypeField field : scan.getRowType().getFieldList()) {
+            final RexInputRef ref = new RexInputRef(field.getIndex(), field.getType());
+            if (field.getIndex() != rowtimeIndex) {
+                projects.add(ref);
+                continue;
             }
-            return rebaseCalc(calc, rewrittenInput);
+            final RelDataType rowtimeType =
+                    typeFactory.createRowtimeIndicatorType(
+                            field.getType().isNullable(),
+                            field.getType().getSqlTypeName()
+                                    == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE);
+            projects.add(
+                    rexBuilder.makeReinterpretCast(
+                            rowtimeType, ref, rexBuilder.makeLiteral(false)));
         }
-        return null;
+        final RexProgram program =
+                RexProgram.create(
+                        scan.getRowType(),
+                        projects,
+                        null,
+                        scan.getRowType().getFieldNames(),
+                        rexBuilder);
+        return FlinkLogicalCalc.create(scan, program);
+    }
+
+    private static boolean hasWatermarkPushDown(TableSourceTable table) {
+        for (SourceAbilitySpec spec : table.abilitySpecs()) {
+            if (spec instanceof WatermarkPushDownSpec) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
