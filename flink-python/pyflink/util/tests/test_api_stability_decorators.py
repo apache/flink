@@ -40,8 +40,8 @@ def _catch_warnings():
     """
     Records every warning raised within the block.
 
-    Used where :func:`unittest.TestCase.assertWarns` cannot express the assertion: that
-    nothing warned, or that something warned exactly once.
+    Used where assertWarns cannot express the assertion: that nothing warned, or that
+    something warned exactly once.
     """
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
@@ -62,19 +62,16 @@ class DeprecatedTests(unittest.TestCase):
                 pass
 
             @Deprecated(since="1.0.0")
-            class Cls(object):
+            class Cls:
                 def __init__(self):
                     pass
 
         self.assertEqual([], [str(warning.message) for warning in caught])
 
     def test_importing_pyflink_table_does_not_warn(self):
-        # A regression test for the decorators warning at import time: every deprecated API
-        # of pyflink.table used to warn as soon as the package was imported. A fresh
-        # interpreter is the only way to observe an import: pyflink.table is already in
-        # sys.modules here, so importing it again is a no-op. Only warnings this decorator
-        # raises are inspected, so that an unrelated warning from a third-party package
-        # cannot fail the test.
+        # A fresh interpreter is the only way to observe an import: pyflink.table is
+        # already in sys.modules here, so importing it again is a no-op. Only this
+        # decorator's own warnings are inspected, so third-party noise cannot fail it.
         script = textwrap.dedent(
             """
             import warnings
@@ -146,7 +143,7 @@ class DeprecatedTests(unittest.TestCase):
 
     def test_class_warns_when_instantiated(self):
         @Deprecated(since="1.0.0", detail="Use :class:`NewClass` instead.")
-        class Cls(object):
+        class Cls:
             def __init__(self, x):
                 self.x = x
 
@@ -162,7 +159,7 @@ class DeprecatedTests(unittest.TestCase):
 
     def test_class_warns_once_per_instantiation(self):
         @Deprecated(since="1.0.0")
-        class Cls(object):
+        class Cls:
             def __init__(self):
                 pass
 
@@ -173,7 +170,7 @@ class DeprecatedTests(unittest.TestCase):
 
     def test_class_without_own_init_warns_when_instantiated(self):
         @Deprecated(since="1.0.0")
-        class Cls(object):
+        class Cls:
             pass
 
         with self.assertWarns(DeprecationWarning) as caught:
@@ -191,7 +188,7 @@ class DeprecatedTests(unittest.TestCase):
 
     def test_class_is_returned_unchanged(self):
         @Deprecated(since="1.0.0")
-        class Cls(object):
+        class Cls:
             def __init__(self):
                 self.x = 1
 
@@ -206,10 +203,10 @@ class DeprecatedTests(unittest.TestCase):
         self.assertEqual("Cls", Cls.__name__)
 
     def test_subclass_of_deprecated_class_does_not_warn(self):
-        # Deprecating a class says nothing about its subclasses, which are the ones users
-        # are typically pointed at. This mirrors PEP 702.
+        # As in PEP 702: deprecating a class says nothing about its subclasses, which
+        # are the ones users are typically pointed at.
         @Deprecated(since="1.0.0")
-        class Cls(object):
+        class Cls:
             def __init__(self):
                 pass
 
@@ -222,12 +219,10 @@ class DeprecatedTests(unittest.TestCase):
         self.assertEqual([], [str(warning.message) for warning in caught])
 
     def test_defining_a_subclass_does_not_warn(self):
-        # PEP 702 warns when a deprecated class is subclassed as well as when it is
-        # instantiated. PyFlink subclasses its own deprecated classes at module level
-        # (Rowtime and Schema extend the deprecated Descriptor), so that warning would fire
-        # on import -- exactly what this decorator must not do.
+        # PEP 702 also warns when a deprecated class is subclassed. PyFlink subclasses
+        # its own deprecated classes at module level, so that would warn on import.
         @Deprecated(since="1.0.0")
-        class Cls(object):
+        class Cls:
             def __init__(self):
                 pass
 
@@ -240,7 +235,7 @@ class DeprecatedTests(unittest.TestCase):
 
     def test_deprecated_subclass_inheriting_init_warns_once(self):
         @Deprecated(since="1.0.0")
-        class Cls(object):
+        class Cls:
             def __init__(self):
                 pass
 
@@ -270,7 +265,7 @@ class DeprecatedTests(unittest.TestCase):
 
     def test_class_warning_points_at_the_caller(self):
         @Deprecated(since="1.0.0")
-        class Cls(object):
+        class Cls:
             def __init__(self):
                 pass
 
@@ -287,7 +282,7 @@ class DeprecatedTests(unittest.TestCase):
             """Function documentation."""
 
         @Deprecated(since="1.0.0")
-        class Cls(object):
+        class Cls:
             """Class documentation."""
 
             def method(self):
@@ -307,7 +302,7 @@ class DeprecatedTests(unittest.TestCase):
 
         @Deprecated(since="1.0.0")
         @PublicEvolving()
-        class Cls(object):
+        class Cls:
             def __init__(self):
                 pass
 
@@ -317,7 +312,7 @@ class DeprecatedTests(unittest.TestCase):
     def test_static_and_class_methods(self):
         with _catch_warnings() as caught_at_decoration:
 
-            class Cls(object):
+            class Cls:
                 @Deprecated(since="1.0.0")
                 @staticmethod
                 def static_method(x):
@@ -330,8 +325,8 @@ class DeprecatedTests(unittest.TestCase):
                     return x
 
         self.assertEqual([], [str(warning.message) for warning in caught_at_decoration])
-        # The descriptors must survive: decorating a staticmethod with a plain function
-        # wrapper leaves a method that breaks when called on an instance.
+        # The descriptors must survive: a plain function wrapper around a staticmethod
+        # breaks when called on an instance.
         self.assertIsInstance(Cls.__dict__["static_method"], staticmethod)
         self.assertIsInstance(Cls.__dict__["class_method"], classmethod)
         self.assertIn(".. deprecated:: 1.0.0", Cls.static_method.__doc__)
@@ -352,11 +347,10 @@ class DeprecatedTests(unittest.TestCase):
         )
 
     def test_property(self):
-        # A property is not a class or a function, so it only gets the docstring directive.
-        # Decorating one must not raise.
+        # A property only gets the docstring directive, but must not raise.
         with _catch_warnings() as caught:
 
-            class Cls(object):
+            class Cls:
                 @Deprecated(since="1.0.0")
                 @property
                 def value(self):
@@ -387,9 +381,8 @@ class DeprecatedTests(unittest.TestCase):
                 Abstract()
 
     def test_enum_class(self):
-        # Members are created while the class body executes, before the decorator runs, so
-        # the members themselves are unaffected. Decorating an Enum must not raise and must
-        # leave lookup working.
+        # Members are created before the decorator runs, so they are unaffected;
+        # decorating an Enum must not raise and must leave lookup working.
         with _catch_warnings() as caught_at_decoration:
 
             @Deprecated(since="1.0.0")
@@ -424,7 +417,7 @@ class OtherStabilityDecoratorTests(unittest.TestCase):
                         """Function documentation."""
 
                     @decorator()
-                    class Cls(object):
+                    class Cls:
                         """Class documentation."""
 
                         def method(self):
@@ -442,7 +435,7 @@ class OtherStabilityDecoratorTests(unittest.TestCase):
                 def func():
                     pass
 
-                class Cls(object):
+                class Cls:
                     pass
 
                 self.assertIs(func, decorator()(func))
@@ -450,7 +443,7 @@ class OtherStabilityDecoratorTests(unittest.TestCase):
 
     def test_docstring_directives_and_attribute(self):
         @Public()
-        class Cls(object):
+        class Cls:
             """Class documentation."""
 
             def method(self):
