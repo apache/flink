@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
@@ -341,6 +342,43 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
     public final boolean isClosed() {
         return closed;
+    }
+
+    /**
+     * Closes the sub-group registered under {@code name} and removes it from this group.
+     *
+     * <p>{@link #close()} only clears a group's own children and metrics; it never detaches the
+     * group from its parent. That is harmless for groups that live as long as the job, but it leaks
+     * for groups created per transient entity - e.g. one per source split - because the emptied
+     * group, its {@code QueryScopeInfo} and its scope strings stay in the parent's map for the
+     * lifetime of the job.
+     *
+     * <p>The child is closed <i>outside</i> this group's monitor. {@link #close()} cascades from
+     * parent to child while holding the parent's monitor, so taking the child's monitor while still
+     * holding ours would invert that order. Removing first and closing afterwards also guarantees
+     * the cascading teardown never sees a child mutate the map it is iterating.
+     *
+     * @param name the name the sub-group was registered under
+     */
+    @VisibleForTesting
+    int numberOfSubgroups() {
+        synchronized (this) {
+            return groups.size();
+        }
+    }
+
+    public void closeAndRemoveGroup(String name) {
+        final AbstractMetricGroup<?> child;
+        synchronized (this) {
+            if (closed) {
+                // This group is already being torn down; close() clears the whole map anyway.
+                return;
+            }
+            child = groups.remove(name);
+        }
+        if (child != null) {
+            child.close();
+        }
     }
 
     // -----------------------------------------------------------------------------------------------------------------

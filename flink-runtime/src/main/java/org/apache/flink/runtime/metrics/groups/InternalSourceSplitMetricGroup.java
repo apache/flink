@@ -49,6 +49,7 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
     private long splitStartTime = SPLIT_NOT_STARTED;
     private final MetricGroup splitWatermarkMetricGroup;
     private final String splitId;
+    private final AbstractMetricGroup<?> splitMetricGroup;
 
     private InternalSourceSplitMetricGroup(
             MetricGroup parentMetricGroup,
@@ -58,7 +59,12 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
         super(parentMetricGroup);
         this.clock = clock;
         this.splitId = splitId;
-        splitWatermarkMetricGroup = parentMetricGroup.addGroup(SPLIT, splitId).addGroup(WATERMARK);
+        // Keep the per-split group itself, not just its watermark child, so that
+        // onSplitFinished() can detach it. addGroup(SPLIT, splitId) must stay as-is: it creates a
+        // KEY group plus a VALUE group, whereas assembling the same pair via addGroup(SPLIT) would
+        // create a GENERIC child instead and change the emitted metric names.
+        splitMetricGroup = (AbstractMetricGroup<?>) parentMetricGroup.addGroup(SPLIT, splitId);
+        splitWatermarkMetricGroup = splitMetricGroup.addGroup(WATERMARK);
         pausedTimePerSecond =
                 splitWatermarkMetricGroup.gauge(
                         MetricNames.SPLIT_PAUSED_TIME, new TimerGauge(clock));
@@ -187,14 +193,21 @@ public class InternalSourceSplitMetricGroup extends ProxyMetricGroup<MetricGroup
     }
 
     public void onSplitFinished() {
-        if (splitWatermarkMetricGroup instanceof AbstractMetricGroup) {
-            ((AbstractMetricGroup) splitWatermarkMetricGroup).close();
+        // Detach the whole per-split subtree from the "split" key group. Closing the split group
+        // cascades into its watermark child, which unregisters that child's gauges from the
+        // registry and therefore from every reporter; removing it from the parent lets the group,
+        // its QueryScopeInfo and its scope strings become collectable. Closing only the watermark
+        // child (the previous behaviour) left both groups registered for the life of the job.
+        //
+        // splitMetricGroup.parent is the "split" KEY group; this class is in the same package as
+        // AbstractMetricGroup, so the protected field needs no new accessor.
+        final AbstractMetricGroup<?> splitKeyGroup = splitMetricGroup.parent;
+        if (splitKeyGroup != null) {
+            splitKeyGroup.closeAndRemoveGroup(splitId);
         } else {
-            if (splitWatermarkMetricGroup != null) {
-                LOG.warn(
-                        "Split watermark metric group can not be closed, expecting an instance of AbstractMetricGroup but got: ",
-                        splitWatermarkMetricGroup.getClass().getName());
-            }
+            LOG.warn(
+                    "Per-split metric group for split {} has no parent group; not detaching.",
+                    splitId);
         }
     }
 

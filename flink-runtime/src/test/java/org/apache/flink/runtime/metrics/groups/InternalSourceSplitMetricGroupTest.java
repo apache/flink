@@ -25,6 +25,8 @@ import org.apache.flink.util.clock.ManualClock;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -94,5 +96,33 @@ class InternalSourceSplitMetricGroupTest {
                         totalDuration
                                 - metricGroup.getAccumulatedActiveTime()
                                 - metricGroup.getAccumulatedIdleTime());
+    }
+
+    @Test
+    void testSplitMetricGroupsAreDetachedWhenSplitsFinish() {
+        final InternalOperatorMetricGroup operatorMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
+
+        final int numSplits = 5;
+        final List<InternalSourceSplitMetricGroup> splitMetricGroups = new ArrayList<>();
+        for (int i = 0; i < numSplits; i++) {
+            splitMetricGroups.add(
+                    InternalSourceSplitMetricGroup.mock(operatorMetricGroup, "split-" + i, null));
+        }
+
+        // addGroup(SPLIT, splitId) registers a single "split" KEY group that holds one VALUE group
+        // per split id. addGroup(String) returns the already-registered group when one exists and
+        // is not closed, so this retrieves that KEY group rather than creating a second one.
+        final AbstractMetricGroup<?> splitKeyGroup =
+                (AbstractMetricGroup<?>) operatorMetricGroup.addGroup("split");
+        assertThat(splitKeyGroup.numberOfSubgroups()).isEqualTo(numSplits);
+
+        splitMetricGroups.forEach(InternalSourceSplitMetricGroup::onSplitFinished);
+
+        // Previously onSplitFinished() closed only the "watermark" child, leaving the per-split
+        // group attached to its parent for the lifetime of the job. On a source that mints a new
+        // split id per split - a Paimon streaming read, for example - that retains two empty metric
+        // groups plus their scope strings per finished split, without bound.
+        assertThat(splitKeyGroup.numberOfSubgroups()).isZero();
     }
 }
