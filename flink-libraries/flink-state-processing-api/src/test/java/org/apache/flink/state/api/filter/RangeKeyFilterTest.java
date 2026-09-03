@@ -153,7 +153,11 @@ class RangeKeyFilterTest {
         // Orders strings by length — clearly not the natural String order.
         SavepointKeyFilter<String> filter =
                 SavepointKeyFilter.range(
-                        "aa", true, "cccc", true, (a, b) -> Integer.compare(a.length(), b.length()));
+                        "aa",
+                        true,
+                        "cccc",
+                        true,
+                        (a, b) -> Integer.compare(a.length(), b.length()));
 
         // Length in [2, 4]: "abc" (3) passes; "a" (1) and "ccccc" (5) fail.
         assertThat(filter.test("abc")).isTrue();

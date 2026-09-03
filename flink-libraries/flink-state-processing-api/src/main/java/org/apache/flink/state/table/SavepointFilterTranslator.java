@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -309,18 +311,68 @@ class SavepointFilterTranslator {
             return value;
         }
         if (value instanceof Number) {
-            if (keyClass == Long.class) {
-                return ((Number) value).longValue();
-            }
-            if (keyClass == Double.class) {
-                return ((Number) value).doubleValue();
+            final Object widened = widenNumberToKeyType((Number) value, keyClass);
+            if (widened != null) {
+                return widened;
             }
         }
         LOG.debug(
-                "Refusing pushdown: literal value {} of type {} cannot be widened to key type {}.",
+                "Refusing pushdown: literal value {} of type {} cannot be widened to key type {}"
+                        + " without loss.",
                 value,
                 value.getClass().getName(),
                 keyColumnType);
+        return null;
+    }
+
+    /**
+     * Widens a numeric literal to the key type, or returns {@code null} when the conversion would
+     * lose information. A lossy conversion must not be pushed down: the pushed filter is the only
+     * thing evaluating the predicate, so a truncated bound silently returns the wrong rows.
+     */
+    @Nullable
+    private static Object widenNumberToKeyType(Number value, Class<?> keyClass) {
+        final BigDecimal exact = toExactDecimal(value);
+        if (exact == null) {
+            return null;
+        }
+        if (keyClass == Long.class) {
+            // longValue() discards any fractional part and keeps only the low-order 64 bits, so
+            // the round-trip rejects both fractional and out-of-range literals.
+            final long widened = exact.longValue();
+            if (BigDecimal.valueOf(widened).compareTo(exact) == 0) {
+                return widened;
+            }
+            return null;
+        }
+        if (keyClass == Double.class) {
+            final double widened = exact.doubleValue();
+            if (Double.isFinite(widened) && BigDecimal.valueOf(widened).compareTo(exact) == 0) {
+                return widened;
+            }
+        }
+        return null;
+    }
+
+    /** Returns the exact decimal value of a numeric literal, or {@code null} if it has none. */
+    @Nullable
+    private static BigDecimal toExactDecimal(Number value) {
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        }
+        if (value instanceof BigInteger) {
+            return new BigDecimal((BigInteger) value);
+        }
+        if (value instanceof Byte
+                || value instanceof Short
+                || value instanceof Integer
+                || value instanceof Long) {
+            return BigDecimal.valueOf(value.longValue());
+        }
+        if (value instanceof Float || value instanceof Double) {
+            final double doubleValue = value.doubleValue();
+            return Double.isFinite(doubleValue) ? BigDecimal.valueOf(doubleValue) : null;
+        }
         return null;
     }
 

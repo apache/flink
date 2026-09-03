@@ -637,6 +637,87 @@ class SavepointFilterTranslatorTest {
     }
 
     @Test
+    void lessThanFractionalLiteralAgainstBigintKeyIsNotPushed() {
+        // key < 1.5 (DECIMAL literal, BIGINT key) -> truncating to 1 would drop key 1, not pushed
+        SavepointFilterTranslator.Result applied =
+                apply(List.of(lt(longKeyRef(), decLit("1.5"))), LONG_KEY_TYPE);
+
+        assertThat(applied.keyFilter()).isNull();
+        // The predicate must be handed back, or nothing would evaluate it.
+        assertThat(applied.accepted()).isEmpty();
+        assertThat(applied.remaining()).hasSize(1);
+    }
+
+    @Test
+    void greaterThanOrEqualFractionalLiteralAgainstBigintKeyIsNotPushed() {
+        // key >= 1.5 -> truncating to 1 would wrongly admit key 1, not pushed
+        SavepointFilterTranslator.Result applied =
+                apply(List.of(gte(longKeyRef(), decLit("1.5"))), LONG_KEY_TYPE);
+
+        assertThat(applied.keyFilter()).isNull();
+        assertThat(applied.accepted()).isEmpty();
+        assertThat(applied.remaining()).hasSize(1);
+    }
+
+    @Test
+    void betweenFractionalLiteralBoundsAgainstBigintKeyIsNotPushed() {
+        // key BETWEEN 1.5 AND 4.5 -> both bounds are lossy, not pushed
+        assertThat(keyFilterOf(between(longKeyRef(), decLit("1.5"), decLit("4.5")))).isNull();
+    }
+
+    @Test
+    void equalsFractionalLiteralAgainstBigintKeyIsNotPushed() {
+        // key = 1.5 -> no BIGINT key can equal 1.5, and truncating to 1 would match key 1
+        assertThat(keyFilterOf(eq(longKeyRef(), decLit("1.5")))).isNull();
+    }
+
+    @Test
+    void integralDecimalLiteralAgainstBigintKeyIsWidenedAndPushed() {
+        // key = 5.0 -> the widening is exact, so the pushdown is still safe
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(longKeyRef(), decLit("5.0")));
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).containsExactly(5L);
+        assertThat(filter.test(5L)).isTrue();
+    }
+
+    @Test
+    void outOfRangeLiteralAgainstBigintKeyIsNotPushed() {
+        // key < 10^30 -> the value does not fit in a long, so the bound would wrap around
+        ValueLiteralExpression hugeLit =
+                new ValueLiteralExpression(
+                        new BigDecimal("1000000000000000000000000000000"),
+                        DataTypes.DECIMAL(31, 0).notNull());
+
+        assertThat(keyFilterOf(lt(longKeyRef(), hugeLit))).isNull();
+    }
+
+    @Test
+    void literalLosingPrecisionAgainstDoubleKeyIsNotPushed() {
+        // key = 9007199254740993 (BIGINT literal, DOUBLE key) -> not representable as a double
+        FieldReferenceExpression doubleKey =
+                new FieldReferenceExpression("key", DataTypes.DOUBLE().notNull(), 0, KEY_COL);
+
+        assertThat(keyFilterOf(eq(doubleKey, longLit(9007199254740993L)))).isNull();
+    }
+
+    @Test
+    void fractionalLiteralAgainstDoubleKeyIsWidenedAndPushed() {
+        // key BETWEEN 1.5 AND 3.5 (DECIMAL literals, DOUBLE key) -> exact, so pushed
+        FieldReferenceExpression doubleKey =
+                new FieldReferenceExpression("key", DataTypes.DOUBLE().notNull(), 0, KEY_COL);
+
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(between(doubleKey, decLit("1.5"), decLit("3.5")));
+
+        assertNotNull(filter);
+        assertThat(filter.test(1.4d)).isFalse();
+        assertThat(filter.test(1.5d)).isTrue();
+        assertThat(filter.test(3.5d)).isTrue();
+        assertThat(filter.test(3.6d)).isFalse();
+    }
+
+    @Test
     void nonNumericLiteralAgainstNumericKeyIsNotWidenedAndNotPushed() {
         // key = '5' (STRING literal, BIGINT key) -> no widening, not pushed
         assertThat(keyFilterOf(eq(longKeyRef(), stringLit("5")))).isNull();
@@ -820,6 +901,12 @@ class SavepointFilterTranslatorTest {
 
     private static ValueLiteralExpression longLit(long value) {
         return new ValueLiteralExpression(value, DataTypes.BIGINT().notNull());
+    }
+
+    private static ValueLiteralExpression decLit(String value) {
+        BigDecimal decimal = new BigDecimal(value);
+        return new ValueLiteralExpression(
+                decimal, DataTypes.DECIMAL(decimal.precision(), decimal.scale()).notNull());
     }
 
     private static ValueLiteralExpression stringLit(String value) {
