@@ -624,7 +624,14 @@ object ScalarOperatorGens {
         isNumeric(left.resultType) && isNumeric(right.resultType)
         || isTime(left.resultType) &&
         isTime(right.resultType)
-      ) { (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm" }
+      ) {
+        (leftTerm, rightTerm) =>
+          {
+            val l = s"((${primitiveTypeTermForType(left.resultType)}) $leftTerm)"
+            val r = s"((${primitiveTypeTermForType(right.resultType)}) $rightTerm)"
+            s"$l $operator $r"
+          }
+      }
 
       // both sides are timestamp
       else if (isTimestamp(left.resultType) && isTimestamp(right.resultType)) {
@@ -648,7 +655,8 @@ object ScalarOperatorGens {
         isInteroperable(left.resultType, right.resultType)
       ) {
         operator match {
-          case "==" | "!=" => (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
+          case "==" | "!=" =>
+            (leftTerm, rightTerm) => s"((boolean) $leftTerm) $operator ((boolean) $rightTerm)"
           case ">" | "<" | "<=" | ">=" =>
             (leftTerm, rightTerm) => s"java.lang.Boolean.compare($leftTerm, $rightTerm) $operator 0"
           case _ => throw new CodeGenException(s"Unsupported boolean comparison '$operator'.")

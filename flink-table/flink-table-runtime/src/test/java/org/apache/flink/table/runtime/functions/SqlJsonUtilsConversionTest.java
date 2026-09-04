@@ -72,12 +72,12 @@ class SqlJsonUtilsConversionTest {
     }
 
     private static GenericArrayData arrayDecimal(
-            Object[] raw,
-            int precision,
-            int scale,
+            Object[] raw, int precision, int scale,
             org.apache.flink.table.api.JsonQueryOnEmptyOrError onError) {
         return SqlJsonUtils.convertJsonArray(raw, DECIMAL, precision, scale, onError);
     }
+
+    private static final BigInteger HUGE = new BigInteger("18446744073709551616");
 
     static Stream<Arguments> validConversions() {
         return Stream.of(
@@ -90,6 +90,10 @@ class SqlJsonUtilsConversionTest {
                 Arguments.of((long) Integer.MAX_VALUE, INTEGER, Integer.MAX_VALUE),
                 Arguments.of(42, BIGINT, 42L),
                 Arguments.of(9_999_999_999L, BIGINT, 9_999_999_999L),
+                Arguments.of(
+                        new BigDecimal("9223372036854775807.5"),
+                        BIGINT,
+                        Long.MAX_VALUE),
                 Arguments.of(13.37, FLOAT, 13.37f),
                 Arguments.of(13.37, DOUBLE, 13.37));
     }
@@ -100,12 +104,24 @@ class SqlJsonUtilsConversionTest {
                 Arguments.of(-129, TINYINT),
                 Arguments.of(200L, TINYINT),
                 Arguments.of(-200L, TINYINT),
+                Arguments.of(HUGE, TINYINT),
+                Arguments.of(HUGE.negate(), TINYINT),
+                Arguments.of(new BigDecimal("18446744073709551616"), TINYINT),
                 Arguments.of((long) Short.MAX_VALUE + 1, SMALLINT),
                 Arguments.of((long) Short.MIN_VALUE - 1, SMALLINT),
                 Arguments.of(40_000L, SMALLINT),
                 Arguments.of(-40_000L, SMALLINT),
+                Arguments.of(HUGE, SMALLINT),
+                Arguments.of(HUGE.negate(), SMALLINT),
+                Arguments.of(new BigDecimal("18446744073709551616"), SMALLINT),
                 Arguments.of(9_999_999_999L, INTEGER),
-                Arguments.of(-9_999_999_999L, INTEGER));
+                Arguments.of(-9_999_999_999L, INTEGER),
+                Arguments.of(HUGE, INTEGER),
+                Arguments.of(HUGE.negate(), INTEGER),
+                Arguments.of(new BigDecimal("18446744073709551616"), INTEGER),
+                Arguments.of(HUGE, BIGINT),
+                Arguments.of(HUGE.negate(), BIGINT),
+                Arguments.of(new BigDecimal("18446744073709551616"), BIGINT));
     }
 
     @Nested

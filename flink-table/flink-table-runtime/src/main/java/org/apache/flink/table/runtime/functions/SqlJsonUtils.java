@@ -51,6 +51,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -938,7 +940,7 @@ public class SqlJsonUtils {
                 case DOUBLE:
                     return toCheckedDouble((Number) raw);
                 case DECIMAL:
-                    return toCheckedDecimal(((Number) raw).toString(), precision, scale);
+                    return toCheckedDecimal(raw.toString(), precision, scale);
                 default:
                     throw new JsonConversionException(
                             "Unsupported type for JSON conversion: " + typeRoot);
@@ -962,7 +964,25 @@ public class SqlJsonUtils {
         }
     }
 
+    private static @Nullable BigInteger toBigIntegerTruncated(Number n) {
+        if (n instanceof BigDecimal) {
+            return ((BigDecimal) n).toBigInteger();
+        }
+        if (n instanceof BigInteger) {
+            return (BigInteger) n;
+        }
+        return null;
+    }
+
     static byte toCheckedByte(Number n) {
+        BigInteger bi = toBigIntegerTruncated(n);
+        if (bi != null) {
+            if (bi.compareTo(BigInteger.valueOf(Byte.MAX_VALUE)) > 0
+                    || bi.compareTo(BigInteger.valueOf(Byte.MIN_VALUE)) < 0) {
+                throw new JsonConversionException("Value " + n + " is out of range for TINYINT");
+            }
+            return bi.byteValue();
+        }
         long v = n.longValue();
         if (v < Byte.MIN_VALUE || v > Byte.MAX_VALUE) {
             throw new JsonConversionException("Value " + n + " is out of range for TINYINT");
@@ -971,6 +991,14 @@ public class SqlJsonUtils {
     }
 
     static short toCheckedShort(Number n) {
+        BigInteger bi = toBigIntegerTruncated(n);
+        if (bi != null) {
+            if (bi.compareTo(BigInteger.valueOf(Short.MAX_VALUE)) > 0
+                    || bi.compareTo(BigInteger.valueOf(Short.MIN_VALUE)) < 0) {
+                throw new JsonConversionException("Value " + n + " is out of range for SMALLINT");
+            }
+            return bi.shortValue();
+        }
         long v = n.longValue();
         if (v < Short.MIN_VALUE || v > Short.MAX_VALUE) {
             throw new JsonConversionException("Value " + n + " is out of range for SMALLINT");
@@ -979,6 +1007,14 @@ public class SqlJsonUtils {
     }
 
     static int toCheckedInt(Number n) {
+        BigInteger bi = toBigIntegerTruncated(n);
+        if (bi != null) {
+            if (bi.compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0
+                    || bi.compareTo(BigInteger.valueOf(Integer.MIN_VALUE)) < 0) {
+                throw new JsonConversionException("Value " + n + " is out of range for INTEGER");
+            }
+            return bi.intValue();
+        }
         long v = n.longValue();
         if (v < Integer.MIN_VALUE || v > Integer.MAX_VALUE) {
             throw new JsonConversionException("Value " + n + " is out of range for INTEGER");
@@ -1020,22 +1056,14 @@ public class SqlJsonUtils {
         return d;
     }
 
-    // Only guards BigDecimal/BigInteger overflow. A plain Double exceeding Long range
-    // would silently saturate via JLS narrowing, but Jayway's USE_BIG_DECIMAL_FOR_FLOATS
-    // ensures JSON floats arrive as BigDecimal so this path is not reachable from JSON input.
     static long toCheckedLong(Number n) {
-        if (n instanceof BigDecimal) {
-            BigDecimal bd = (BigDecimal) n;
-            if (bd.compareTo(BigDecimal.valueOf(Long.MAX_VALUE)) > 0
-                    || bd.compareTo(BigDecimal.valueOf(Long.MIN_VALUE)) < 0) {
-                throw new JsonConversionException("Value " + n + " is out of range for BIGINT");
-            }
-        } else if (n instanceof BigInteger) {
-            BigInteger bi = (BigInteger) n;
+        BigInteger bi = toBigIntegerTruncated(n);
+        if (bi != null) {
             if (bi.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0
                     || bi.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0) {
                 throw new JsonConversionException("Value " + n + " is out of range for BIGINT");
             }
+            return bi.longValue();
         }
         return n.longValue();
     }
