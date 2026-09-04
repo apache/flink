@@ -903,6 +903,7 @@ public class SqlJsonUtils {
             LogicalTypeRoot elementTypeRoot,
             int precision,
             int scale,
+            boolean elementNullable,
             JsonQueryOnEmptyOrError errorBehavior) {
         if (rawResult == null) {
             return null;
@@ -913,6 +914,9 @@ public class SqlJsonUtils {
             for (int i = 0; i < rawArr.length; i++) {
                 if (rawArr[i] != null) {
                     converted[i] = convertToType(rawArr[i], elementTypeRoot, precision, scale);
+                } else if (!elementNullable) {
+                    throw new JsonConversionException(
+                            "Null element at index " + i + " in NOT NULL array");
                 }
             }
             return new GenericArrayData(converted);
@@ -940,7 +944,8 @@ public class SqlJsonUtils {
                 return parseStringAsBoolean((String) raw);
             }
             try {
-                return convertToType(new BigDecimal((String) raw), typeRoot, precision, scale);
+                String trimmed = ((String) raw).trim();
+                return convertToType(new BigDecimal(trimmed), typeRoot, precision, scale);
             } catch (NumberFormatException e) {
                 throw new JsonConversionException(
                         "Cannot parse string '" + raw + "' as " + typeRoot, e);
