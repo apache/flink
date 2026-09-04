@@ -28,6 +28,7 @@ import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -623,7 +624,9 @@ public class OperationExecutor {
             return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         } else if (setOp.getKey().isEmpty() && setOp.getValue().isEmpty()) {
             // show all properties
-            Map<String, String> configMap = tableEnv.getConfig().getConfiguration().toMap();
+            Map<String, String> configMap =
+                    ConfigurationUtils.hideSensitiveValues(
+                            tableEnv.getConfig().getConfiguration().toMap());
             return ResultFetcher.fromResults(
                     handle,
                     ResolvedSchema.of(
