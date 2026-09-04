@@ -1423,7 +1423,7 @@ json:
 
 variant:
   - sql: PARSE_JSON(json_string[, allow_duplicate_keys])
-    table: STRING.parseJson([BOOLEAN allowDuplicateKeys])
+    table: STRING.parseJson([allowDuplicateKeys])
     description: |
       将 JSON 字符串解析为 Variant。如果 JSON 字符串无效，将抛出错误。如果希望返回 NULL 而不是抛出错误，
       请使用 `TRY_PARSE_JSON` 函数。  
