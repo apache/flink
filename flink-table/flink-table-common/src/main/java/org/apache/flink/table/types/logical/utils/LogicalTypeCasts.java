@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DistinctType;
@@ -53,6 +54,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.NUMERIC;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.PREDEFINED;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIMESTAMP;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ARRAY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BITMAP;
@@ -666,6 +668,12 @@ public final class LogicalTypeCasts {
             return supportsStructuredCasting(
                     sourceType, targetType, (s, t) -> supportsCasting(s, t, allowExplicit));
 
+        } else if (sourceRoot == VARIANT && targetRoot == ARRAY) {
+            // A variant array casts to ARRAY<T> when VARIANT casts to the single element type T.
+            // Explicit only, so no accidental coercion. Each runtime element is cast to T by the
+            // array cast rule; a per-element mismatch fails there, not here.
+            return allowExplicit
+                    && supportsCasting(sourceType, ((ArrayType) targetType).getElementType(), true);
         } else if (sourceRoot == RAW
                         && !targetType.is(BINARY_STRING)
                         && !targetType.is(CHARACTER_STRING)

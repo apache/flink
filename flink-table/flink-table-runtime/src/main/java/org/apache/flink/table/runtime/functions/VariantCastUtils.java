@@ -64,6 +64,27 @@ public final class VariantCastUtils {
     private VariantCastUtils() {}
 
     /**
+     * Reads the size of an array variant, failing when the variant is not an array. A constructed
+     * cast checks the shape at every level: only an array casts to {@code ARRAY}.
+     */
+    public static int arraySize(Variant variant, String targetType) {
+        if (variant.isArray()) {
+            return variant.getArraySize();
+        }
+        throw wrongShape(variant, targetType, "an array");
+    }
+
+    private static TableRuntimeException wrongShape(
+            Variant variant, String targetType, String required) {
+        return new TableRuntimeException(
+                String.format(
+                        "Cannot cast a VARIANT %s value to %s because the target requires %s. Only "
+                                + "a variant array casts to ARRAY and only a variant object casts "
+                                + "to ROW, STRUCTURED, or MAP.",
+                        variant.getType(), targetType, required));
+    }
+
+    /**
      * Reads a numeric variant as a {@code long} and checks it against the target range. An
      * approximate or decimal value is accepted only when it is already integral, so nothing is
      * rounded away.
