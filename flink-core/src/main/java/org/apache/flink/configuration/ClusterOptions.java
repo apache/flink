@@ -118,6 +118,21 @@ public class ClusterOptions {
                                     .build());
 
     @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
+    public static final ConfigOption<Boolean> JOB_ERROR_ISOLATION_ENABLED =
+            key("cluster.job-error-isolation.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether errors that can be scoped to a single job are handled by failing "
+                                                    + "only the affected job instead of the whole cluster. For example, if a "
+                                                    + "job's persisted execution plan cannot be recovered because its state "
+                                                    + "handle is broken, enabling this option marks only that job as failed "
+                                                    + "instead of aborting recovery for every job in the cluster.")
+                                    .build());
+
+    @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
     public static final ConfigOption<UserSystemExitMode> INTERCEPT_USER_SYSTEM_EXIT =
             key("cluster.intercept-user-system-exit")
                     .enumType(UserSystemExitMode.class)

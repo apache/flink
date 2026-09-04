@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ApplicationStoreEntry;
+import org.apache.flink.runtime.jobmanager.BrokenExecutionPlanStateHandleException;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmanager.TestingApplicationStoreEntry;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -59,6 +60,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -103,6 +105,8 @@ class SessionDispatcherLeaderProcessTest {
 
     private BlobServer blobServer;
 
+    private boolean jobErrorIsolationEnabled;
+
     private AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory
             dispatcherServiceFactory;
 
@@ -125,6 +129,7 @@ class SessionDispatcherLeaderProcessTest {
         jobResultStore = TestingJobResultStore.builder().build();
         applicationStore = TestingApplicationStore.newBuilder().build();
         applicationResultStore = TestingApplicationResultStore.builder().build();
+        jobErrorIsolationEnabled = true;
         dispatcherServiceFactory =
                 createFactoryBasedOnGenericSupplier(
                         () -> TestingDispatcherGatewayService.newBuilder().build());
@@ -897,6 +902,84 @@ class SessionDispatcherLeaderProcessTest {
     }
 
     @Test
+    void recoverJobs_withBrokenExecutionPlan_skipsJobAndRecoversRemainingJobs() throws Exception {
+        final ExecutionPlan healthyJobGraph = JobGraphTestUtils.emptyJobGraph();
+        healthyJobGraph.setApplicationId(JOB_GRAPH.getApplicationId().get());
+        final BrokenExecutionPlanStateHandleException brokenStateException =
+                new BrokenExecutionPlanStateHandleException(
+                        "Broken state handle.", new IOException("Test IO exception."));
+
+        executionPlanStore =
+                TestingExecutionPlanStore.newBuilder()
+                        .setJobIdsFunction(
+                                ignored ->
+                                        Arrays.asList(
+                                                JOB_GRAPH.getJobID(), healthyJobGraph.getJobID()))
+                        .setRecoverExecutionPlanFunction(
+                                (jobId, jobs) -> {
+                                    if (jobId.equals(JOB_GRAPH.getJobID())) {
+                                        throw brokenStateException;
+                                    }
+                                    return healthyJobGraph;
+                                })
+                        .build();
+
+        final CompletableFuture<Collection<ExecutionPlan>> recoveredExecutionPlansFuture =
+                new CompletableFuture<>();
+        final CompletableFuture<Collection<JobResult>> recoveredDirtyJobResultsFuture =
+                new CompletableFuture<>();
+        dispatcherServiceFactory =
+                (ignoredDispatcherId,
+                        recoveredJobs,
+                        recoveredDirtyJobResults,
+                        ignoredRecoveredApplications,
+                        ignoredRecoveredDirtyApplicationResults,
+                        ignoredExecutionPlanWriter,
+                        ignoredJobResultStore,
+                        ignoredApplicationStore,
+                        ignoredApplicationResultStore) -> {
+                    recoveredExecutionPlansFuture.complete(recoveredJobs);
+                    recoveredDirtyJobResultsFuture.complete(recoveredDirtyJobResults);
+                    return TestingDispatcherGatewayService.newBuilder().build();
+                };
+
+        try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess =
+                createDispatcherLeaderProcess()) {
+            dispatcherLeaderProcess.start();
+
+            assertThat(recoveredExecutionPlansFuture.get())
+                    .singleElement()
+                    .isEqualTo(healthyJobGraph);
+
+            // the broken job is silently skipped: no JobResult is recorded for it, since this
+            // codebase requires every dirty JobResult's application to be independently
+            // recoverable (either a real, persisted multi-job application, or a still-recoverable
+            // ExecutionPlan re-wrapped into a fresh SingleJobApplication), neither of which holds
+            // for a job whose plan is permanently unreadable
+            assertThat(recoveredDirtyJobResultsFuture.get()).isEmpty();
+        }
+    }
+
+    @Test
+    void recoverJobs_withBrokenExecutionPlanAndIsolationDisabled_failsFatally() throws Exception {
+        final BrokenExecutionPlanStateHandleException brokenStateException =
+                new BrokenExecutionPlanStateHandleException(
+                        "Broken state handle.", new IOException("Test IO exception."));
+
+        jobErrorIsolationEnabled = false;
+        executionPlanStore =
+                TestingExecutionPlanStore.newBuilder()
+                        .setRecoverExecutionPlanFunction(
+                                (jobId, jobs) -> {
+                                    throw brokenStateException;
+                                })
+                        .setInitialExecutionPlans(Collections.singleton(JOB_GRAPH))
+                        .build();
+
+        runRecoveryFailureTest(brokenStateException);
+    }
+
+    @Test
     void recoverApplications_withRecoveryFailure_failsFatally() throws Exception {
         final FlinkException testException = new FlinkException("Test exception");
         applicationStore =
@@ -1072,6 +1155,7 @@ class SessionDispatcherLeaderProcessTest {
                 applicationResultStore,
                 blobServer,
                 ioExecutor,
+                jobErrorIsolationEnabled,
                 fatalErrorHandler);
     }
 }

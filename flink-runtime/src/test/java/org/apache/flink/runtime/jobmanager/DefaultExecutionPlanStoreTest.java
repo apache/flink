@@ -39,6 +39,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -141,6 +142,39 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
                 .hasCause(testException);
         String actual = releaseFuture.get(timeout, TimeUnit.MILLISECONDS);
         assertThat(testingExecutionPlan.getJobID()).hasToString(actual);
+    }
+
+    @Test
+    public void testRecoverExecutionPlanWithBrokenStateHandleThrowsDedicatedException()
+            throws Exception {
+        final RetrievableStateHandle<ExecutionPlan> brokenStateHandle =
+                new RetrievableStateHandle<ExecutionPlan>() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public ExecutionPlan retrieveState() throws IOException {
+                        throw new IOException("Test IO exception simulating a broken handle.");
+                    }
+
+                    @Override
+                    public void discardState() {}
+
+                    @Override
+                    public long getStateSize() {
+                        return 0;
+                    }
+                };
+        final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
+                builder.setGetFunction(ignore -> brokenStateHandle).build();
+
+        final ExecutionPlanStore executionPlanStore =
+                createAndStartExecutionPlanStore(stateHandleStore);
+
+        assertThatThrownBy(
+                        () ->
+                                executionPlanStore.recoverExecutionPlan(
+                                        testingExecutionPlan.getJobID()))
+                .isInstanceOf(BrokenExecutionPlanStateHandleException.class);
     }
 
     @Test

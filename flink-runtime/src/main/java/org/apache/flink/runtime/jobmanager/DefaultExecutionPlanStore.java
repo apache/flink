@@ -168,14 +168,14 @@ public class DefaultExecutionPlanStore<R extends ResourceVersion<R>>
                 try {
                     executionPlan = executionPlanRetrievableStateHandle.retrieveState();
                 } catch (ClassNotFoundException cnfe) {
-                    throw new FlinkException(
+                    throw new BrokenExecutionPlanStateHandleException(
                             "Could not retrieve submitted ExecutionPlan from state handle under "
                                     + name
                                     + ". This indicates that you are trying to recover from state written by an "
                                     + "older Flink version which is not compatible. Try cleaning the state handle store.",
                             cnfe);
                 } catch (IOException ioe) {
-                    throw new FlinkException(
+                    throw new BrokenExecutionPlanStateHandleException(
                             "Could not retrieve submitted ExecutionPlan from state handle under "
                                     + name
                                     + ". This indicates that the retrieved state handle is broken. Try cleaning the state handle "
