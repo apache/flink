@@ -748,7 +748,62 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE('{\"a\": 13.37, \"b\": 13.37}', '$.a' RETURNING DOUBLE) = JSON_VALUE('{\"a\": 13.37, \"b\": 13.37}', '$.b' RETURNING DOUBLE)",
                         true,
                         BOOLEAN())
+                // 200 is outside Short cache (-128..127), so boxed == would fail
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 200, \"b\": 200}', '$.a' RETURNING SMALLINT) = JSON_VALUE('{\"a\": 200, \"b\": 200}', '$.b' RETURNING SMALLINT)",
+                        true,
+                        BOOLEAN())
+                // 9999999999 is outside Long cache (-128..127)
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 9999999999, \"b\": 9999999999}', '$.a' RETURNING BIGINT) = JSON_VALUE('{\"a\": 9999999999, \"b\": 9999999999}', '$.b' RETURNING BIGINT)",
+                        true,
+                        BOOLEAN())
+                // Float has no JVM cache; exercises boxed Float equality codegen
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 13.37, \"b\": 13.37}', '$.a' RETURNING FLOAT) = JSON_VALUE('{\"a\": 13.37, \"b\": 13.37}', '$.b' RETURNING FLOAT)",
+                        true,
+                        BOOLEAN())
+                // DECIMAL boundary: max precision (38 digits) succeeds
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 99999999999999999999999999999999999999}', '$.x' RETURNING DECIMAL(38,0))",
+                        new BigDecimal("99999999999999999999999999999999999999"),
+                        DECIMAL(38, 0))
+                // DECIMAL boundary: 39-digit value overflows DECIMAL(38,0)
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 999999999999999999999999999999999999999}', '$.x' RETURNING DECIMAL(38,0) NULL ON ERROR)",
+                        null,
+                        DECIMAL(38, 0))
+                // DECIMAL rounding: 123.456 rounds to 123.46 via HALF_UP
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 123.456}', '$.x' RETURNING DECIMAL(5,2))",
+                        new BigDecimal("123.46"),
+                        DECIMAL(5, 2))
+                // DECIMAL rounding overflow: 999.999 rounds to 1000.00, exceeds DECIMAL(5,2)
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 999.999}', '$.x' RETURNING DECIMAL(5,2) NULL ON ERROR)",
+                        null,
+                        DECIMAL(5, 2))
+                // Float precision: 2^24+1 silently loses precision to 2^24
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 16777217}', '$.x' RETURNING FLOAT)",
+                        16777216.0f,
+                        FLOAT())
+                // Double precision: 2^53+1 silently loses precision to 2^53
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 9007199254740993}', '$.x' RETURNING DOUBLE)",
+                        9.007199254740992E15,
+                        DOUBLE())
 
+                // String with whitespace: trimmed before parsing (matches PostgreSQL CAST)
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": \" 42 \"}', '$.x' RETURNING INT)",
+                        42,
+                        INT())
+                // Boolean with whitespace: parseStringAsBoolean trims
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": \" true \"}', '$.x' RETURNING BOOLEAN)",
+                        true,
+                        BOOLEAN())
                 // path contains blank characters.
                 .testResult(
                         $("f0").jsonValue(
@@ -1350,7 +1405,46 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").jsonQuery("$.a", ARRAY(INT()), WITHOUT_ARRAY, NULL, NULL),
                                 "JSON_QUERY(f0, '$.a' RETURNING ARRAY<INT> NULL ON ERROR)",
                                 null,
-                                ARRAY(INT())));
+                                ARRAY(INT())),
+
+                // ARRAY<DECIMAL(5,2)> with rounding
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData(
+                                "{\"vals\": [1.5, 123.456]}",
+                                "{\"vals\": [1.5, 999.999]}")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.vals", ARRAY(DECIMAL(5, 2))),
+                                "JSON_QUERY(f0, '$.vals' RETURNING ARRAY<DECIMAL(5,2)>)",
+                                new BigDecimal[] {
+                                    new BigDecimal("1.50"),
+                                    new BigDecimal("123.46")
+                                },
+                                ARRAY(DECIMAL(5, 2)))
+                        // 999.999 rounds to 1000.00 which overflows DECIMAL(5,2) -- atomic failure
+                        .testResult(
+                                $("f1").jsonQuery(
+                                                "$.vals",
+                                                ARRAY(DECIMAL(5, 2)),
+                                                WITHOUT_ARRAY,
+                                                NULL,
+                                                NULL),
+                                "JSON_QUERY(f1, '$.vals' RETURNING ARRAY<DECIMAL(5,2)> NULL ON ERROR)",
+                                null,
+                                ARRAY(DECIMAL(5, 2))),
+
+                // Null element in NOT NULL array triggers ON ERROR behavior
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData("{\"vals\": [1, null, 3]}")
+                        .andDataTypes(STRING())
+                        // NULL ON ERROR: null element in NOT NULL array returns null
+                        .testSqlResult(
+                                "JSON_QUERY(f0, '$.vals' RETURNING ARRAY<INT NOT NULL> NULL ON ERROR)",
+                                null,
+                                ARRAY(INT().notNull()))
+                        .testSqlRuntimeError(
+                                "JSON_QUERY(f0, '$.vals' RETURNING ARRAY<INT NOT NULL> ERROR ON ERROR)",
+                                "Array element type mismatch in JSON_QUERY"));
     }
 
     private static List<TestSetSpec> jsonStringSpec() {

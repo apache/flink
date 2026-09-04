@@ -129,12 +129,14 @@ class JsonQueryCallGen extends CallGenerator {
               }
               val errorBehaviorEnum = qualifyEnum(errorBehavior)
 
+              val elementNullableStr = elementType.isNullable.toString
               val convertedTerm = CodeGenUtils.newName(ctx, "convertedArr")
               val conversionCode =
                 s"""
                    |$GENERIC_ARRAY $convertedTerm = $jsonUtils.convertJsonArray(
                    |    $rawResultTerm, $typeRootEnum,
                    |    $precisionStr, $scaleStr,
+                   |    $elementNullableStr,
                    |    $errorBehaviorEnum);
                  """.stripMargin
 

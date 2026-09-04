@@ -68,13 +68,13 @@ class SqlJsonUtilsConversionTest {
     }
 
     private static GenericArrayData array(Object[] raw, LogicalTypeRoot elementType) {
-        return SqlJsonUtils.convertJsonArray(raw, elementType, 0, 0, NULL);
+        return SqlJsonUtils.convertJsonArray(raw, elementType, 0, 0, true, NULL);
     }
 
     private static GenericArrayData arrayDecimal(
             Object[] raw, int precision, int scale,
             org.apache.flink.table.api.JsonQueryOnEmptyOrError onError) {
-        return SqlJsonUtils.convertJsonArray(raw, DECIMAL, precision, scale, onError);
+        return SqlJsonUtils.convertJsonArray(raw, DECIMAL, precision, scale, true, onError);
     }
 
     private static final BigInteger HUGE = new BigInteger("18446744073709551616");
@@ -182,6 +182,18 @@ class SqlJsonUtilsConversionTest {
             assertThat(scalar(new BigDecimal("1E309"), DOUBLE)).isNull();
             assertThat(scalar(new BigDecimal("-1E309"), DOUBLE)).isNull();
         }
+
+        @Test
+        void floatPrecisionLossSilent() {
+            // 2^24+1 cannot be represented exactly in float; rounds to 2^24
+            assertThat(scalar(16777217, FLOAT)).isEqualTo(16777216.0f);
+        }
+
+        @Test
+        void doublePrecisionLossSilent() {
+            // 2^53+1 cannot be represented exactly in double; rounds to 2^53
+            assertThat(scalar(9007199254740993L, DOUBLE)).isEqualTo(9.007199254740992E15);
+        }
     }
 
     @Nested
@@ -214,6 +226,34 @@ class SqlJsonUtilsConversionTest {
         void scientificNotation() {
             DecimalData result = SqlJsonUtils.toCheckedDecimal("1.5E1", 10, 2);
             assertThat(result.toBigDecimal()).isEqualByComparingTo(new BigDecimal("15.00"));
+        }
+
+        @Test
+        void maxPrecision38Digits() {
+            Object result = scalarDecimal("99999999999999999999999999999999999999", 38, 0);
+            assertThat(result).isInstanceOf(DecimalData.class);
+            assertThat(((DecimalData) result).toBigDecimal())
+                    .isEqualByComparingTo(
+                            new BigDecimal("99999999999999999999999999999999999999"));
+        }
+
+        @Test
+        void overflowAt39DigitsReturnsNull() {
+            assertThat(scalarDecimal("999999999999999999999999999999999999999", 38, 0)).isNull();
+        }
+
+        @Test
+        void roundingHalfUp() {
+            Object result = scalarDecimal("123.456", 5, 2);
+            assertThat(result).isInstanceOf(DecimalData.class);
+            assertThat(((DecimalData) result).toBigDecimal())
+                    .isEqualByComparingTo(new BigDecimal("123.46"));
+        }
+
+        @Test
+        void roundingOverflow() {
+            // 999.999 rounds to 1000.00 (precision 6) which overflows DECIMAL(5,2)
+            assertThat(scalarDecimal("999.999", 5, 2)).isNull();
         }
     }
 
@@ -289,6 +329,20 @@ class SqlJsonUtilsConversionTest {
         }
 
         @Test
+        void whitespaceInNumericStringIsTrimmed() {
+            // Matches PostgreSQL: CAST trims leading/trailing whitespace
+            assertThat(scalar(" 42 ", INTEGER)).isEqualTo(42);
+            assertThat(scalar(" 13.37 ", DOUBLE)).isEqualTo(13.37);
+        }
+
+        @Test
+        void whitespaceInBooleanStringSucceeds() {
+            // parseStringAsBoolean trims before matching
+            assertThat(scalar(" true ", BOOLEAN)).isEqualTo(true);
+            assertThat(scalar(" FALSE ", BOOLEAN)).isEqualTo(false);
+        }
+
+        @Test
         void typeMismatchThrows() {
             assertThatThrownBy(
                             () ->
@@ -327,7 +381,7 @@ class SqlJsonUtilsConversionTest {
 
         @Test
         void nullInputPassesThrough() {
-            assertThat(SqlJsonUtils.convertJsonArray(null, INTEGER, 0, 0, NULL)).isNull();
+            assertThat(SqlJsonUtils.convertJsonArray(null, INTEGER, 0, 0, true, NULL)).isNull();
         }
 
         @Test
@@ -337,9 +391,26 @@ class SqlJsonUtilsConversionTest {
         }
 
         @Test
-        void preservesNullElements() {
+        void preservesNullElementsInNullableArray() {
             assertThat(array(new Object[] {1, null, 3}, INTEGER).toObjectArray())
                     .containsExactly(1, null, 3);
+        }
+
+        @Test
+        void nullElementInNotNullArrayReturnsNull() {
+            assertThat(SqlJsonUtils.convertJsonArray(
+                    new Object[] {1, null, 3}, INTEGER, 0, 0, false, NULL))
+                    .isNull();
+        }
+
+        @Test
+        void nullElementInNotNullArrayThrows() {
+            assertThatThrownBy(
+                            () ->
+                                    SqlJsonUtils.convertJsonArray(
+                                            new Object[] {1, null, 3}, INTEGER, 0, 0, false, ERROR))
+                    .isInstanceOf(TableRuntimeException.class)
+                    .hasMessageContaining("Array element type mismatch");
         }
 
         @Test
@@ -367,7 +438,7 @@ class SqlJsonUtilsConversionTest {
 
         @Test
         void typeMismatchReturnsNull() {
-            assertThat(SqlJsonUtils.convertJsonArray(new Object[] {"a", "b"}, INTEGER, 0, 0, NULL))
+            assertThat(SqlJsonUtils.convertJsonArray(new Object[] {"a", "b"}, INTEGER, 0, 0, true, NULL))
                     .isNull();
         }
 
@@ -375,7 +446,7 @@ class SqlJsonUtilsConversionTest {
         void typeMismatchReturnsEmptyArray() {
             GenericArrayData result =
                     SqlJsonUtils.convertJsonArray(
-                            new Object[] {"a", "b"}, INTEGER, 0, 0, EMPTY_ARRAY);
+                            new Object[] {"a", "b"}, INTEGER, 0, 0, true, EMPTY_ARRAY);
             assertThat(result).isNotNull();
             assertThat(result.size()).isZero();
         }
@@ -385,7 +456,7 @@ class SqlJsonUtilsConversionTest {
             assertThatThrownBy(
                             () ->
                                     SqlJsonUtils.convertJsonArray(
-                                            new Object[] {"a", "b"}, INTEGER, 0, 0, ERROR))
+                                            new Object[] {"a", "b"}, INTEGER, 0, 0, true, ERROR))
                     .isInstanceOf(TableRuntimeException.class)
                     .hasMessageContaining("Array element type mismatch");
         }
@@ -394,13 +465,13 @@ class SqlJsonUtilsConversionTest {
         void partialMismatchFailsAtomically() {
             assertThat(
                             SqlJsonUtils.convertJsonArray(
-                                    new Object[] {1, "notANumber", 3}, INTEGER, 0, 0, NULL))
+                                    new Object[] {1, "notANumber", 3}, INTEGER, 0, 0, true, NULL))
                     .isNull();
         }
 
         @Test
         void decimalOverflowTriggersOnError() {
-            assertThat(SqlJsonUtils.convertJsonArray(new Object[] {999999}, DECIMAL, 2, 1, NULL))
+            assertThat(SqlJsonUtils.convertJsonArray(new Object[] {999999}, DECIMAL, 2, 1, true, NULL))
                     .isNull();
         }
 
@@ -423,6 +494,23 @@ class SqlJsonUtilsConversionTest {
             GenericArrayData result = arrayDecimal(new Object[0], 10, 2, NULL);
             assertThat(result).isNotNull();
             assertThat(result.size()).isZero();
+        }
+
+        @Test
+        void decimalArrayWithRounding() {
+            GenericArrayData result = arrayDecimal(new Object[] {1.5, 123.456}, 5, 2, NULL);
+            assertThat(result).isNotNull();
+            Object[] elements = result.toObjectArray();
+            assertThat(((DecimalData) elements[0]).toBigDecimal())
+                    .isEqualByComparingTo(new BigDecimal("1.50"));
+            assertThat(((DecimalData) elements[1]).toBigDecimal())
+                    .isEqualByComparingTo(new BigDecimal("123.46"));
+        }
+
+        @Test
+        void decimalArrayRoundingOverflowFailsAtomically() {
+            // 999.999 rounds to 1000.00 which overflows DECIMAL(5,2); whole array fails
+            assertThat(arrayDecimal(new Object[] {1.5, 999.999}, 5, 2, NULL)).isNull();
         }
     }
 }
