@@ -69,6 +69,7 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
                 ExecNodeContext.newPersistedConfig(BatchExecCalc.class, tableConfig),
                 projection,
                 condition,
+                null, // partialDeleteKeys: not applicable in batch mode
                 TableStreamOperator.class,
                 false, // retainHeader
                 Collections.singletonList(inputProperty),
@@ -92,6 +93,7 @@ public class BatchExecCalc extends CommonExecCalc implements BatchExecNode<RowDa
                 persistedConfig,
                 projection,
                 condition,
+                null, // partialDeleteKeys: not applicable in batch mode
                 TableStreamOperator.class,
                 false, // retainHeader
                 inputProperties,
