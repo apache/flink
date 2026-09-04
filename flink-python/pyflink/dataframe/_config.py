@@ -54,7 +54,7 @@ class DataFrameConfig:
     .. versionadded:: 2.4.0
     """
 
-    def __init__(self):
+    def __init__(self: "DataFrameConfig"):
         self._buffered: Dict[str, str] = {}
 
     def set(self, key: str, value: str) -> "DataFrameConfig":
