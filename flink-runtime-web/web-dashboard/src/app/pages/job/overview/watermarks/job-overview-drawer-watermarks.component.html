@@ -16,6 +16,27 @@
   ~ limitations under the License.
   -->
 
+<!-- Timezone selector -->
+<div class="timezone-selector">
+  <label>Timezone:</label>
+  <nz-select
+    [(ngModel)]="selectedTimezone"
+    nzSize="small"
+    nzShowSearch
+    [nzPlaceHolder]="'Select Timezone'"
+    style="width: 300px"
+  >
+    <nz-option
+      *ngFor="let option of timezoneOptions"
+      [nzLabel]="option.label"
+      [nzValue]="option.value"
+      nzCustomContent
+    >
+      <span [title]="option.label">{{ option.label }}</span>
+    </nz-option>
+  </nz-select>
+</div>
+
 <nz-table
   class="no-border small full-height"
   nzSize="small"
@@ -39,7 +60,7 @@
           class="header-icon"
           nz-icon
           nz-tooltip
-          nzTooltipTitle="This column shows the datetime that is parsed from watermark timestamp with local time zone. Note that the time zone is obtained through your browser. "
+          nzTooltipTitle="This column shows the datetime that is parsed from watermark timestamp. You can select the desired timezone from the dropdown above."
           nzType="info-circle"
         ></i>
       </th>
@@ -51,7 +72,7 @@
         <tr>
           <td>{{ watermark.subTaskIndex }}</td>
           <td>{{ watermark.watermark | humanizeWatermark }}</td>
-          <td>{{ watermark.watermark | humanizeWatermarkToDatetime }}</td>
+          <td>{{ watermark.watermark | humanizeWatermarkToDatetime: selectedTimezone }}</td>
         </tr>
       </ng-container>
     </ng-template>
