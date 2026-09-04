@@ -37,12 +37,12 @@ import java.util.Collection;
  * @param <OUT> Type of the asynchronous collection result.
  */
 @Internal
-class StreamRecordQueueEntry<OUT> implements StreamElementQueueEntry<OUT> {
+public class StreamRecordQueueEntry<OUT> implements StreamElementQueueEntry<OUT> {
     @Nonnull private final StreamRecord<?> inputRecord;
 
     private Collection<OUT> completedElements;
 
-    StreamRecordQueueEntry(StreamRecord<?> inputRecord) {
+    public StreamRecordQueueEntry(StreamRecord<?> inputRecord) {
         this.inputRecord = Preconditions.checkNotNull(inputRecord);
     }
 
