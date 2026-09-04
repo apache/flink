@@ -206,7 +206,7 @@ public final class VariantCastUtils {
 
     /**
      * Reads a timestamp variant as the target {@code TIMESTAMP}. {@link Variant#getDateTime()}
-     * already accepts both the microsecond ({@link Variant.Type#TIMESTAMP}) and nanosecond ({@link
+     * accepts both the microsecond ({@link Variant.Type#TIMESTAMP}) and nanosecond ({@link
      * Variant.Type#TIMESTAMP_NS}) encodings. Fractional seconds beyond the target precision are
      * truncated, the same as a regular {@code TIMESTAMP} to {@code TIMESTAMP(p)} cast.
      */
