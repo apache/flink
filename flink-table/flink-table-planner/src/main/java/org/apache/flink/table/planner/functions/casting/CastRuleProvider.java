@@ -102,6 +102,11 @@ public class CastRuleProvider {
                 // Bitmap rules
                 .addRule(BitmapToStringCastRule.INSTANCE)
                 .addRule(BitmapToBinaryCastRule.INSTANCE)
+                // UUID rules
+                .addRule(UuidToStringCastRule.INSTANCE)
+                .addRule(UuidToBinaryCastRule.INSTANCE)
+                .addRule(StringToUuidCastRule.INSTANCE)
+                .addRule(BinaryToUuidCastRule.INSTANCE)
                 // Special rules
                 .addRule(CharVarCharTrimPadCastRule.INSTANCE)
                 .addRule(NullToStringCastRule.INSTANCE);

@@ -45,6 +45,7 @@ import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.VariantType;
@@ -312,7 +313,31 @@ class LogicalTypeCastsTest {
                         new VariantType(),
                         new MultisetType(VarCharType.STRING_TYPE),
                         false,
-                        false));
+                        false),
+                // UUID casts are explicit only, in both directions
+                Arguments.of(new UuidType(), VarCharType.STRING_TYPE, false, true),
+                Arguments.of(new UuidType(), new CharType(), false, true),
+                Arguments.of(VarCharType.STRING_TYPE, new UuidType(), false, true),
+                Arguments.of(new CharType(), new UuidType(), false, true),
+                // UUID maps to its 16-byte encoding: only BINARY(16) and BYTES, any other width is
+                // rejected because it would pad or trim the value
+                Arguments.of(new UuidType(), new BinaryType(16), false, true),
+                Arguments.of(new UuidType(), new BinaryType(10), false, false),
+                Arguments.of(
+                        new UuidType(), new VarBinaryType(VarBinaryType.MAX_LENGTH), false, true),
+                Arguments.of(new UuidType(), new VarBinaryType(16), false, false),
+                // any binary source is accepted; the exact-16-bytes rule is enforced at runtime
+                Arguments.of(
+                        new VarBinaryType(VarBinaryType.MAX_LENGTH), new UuidType(), false, true),
+                Arguments.of(new BinaryType(16), new UuidType(), false, true),
+                Arguments.of(new BinaryType(10), new UuidType(), false, true),
+                // UUID identity cast is implicit
+                Arguments.of(new UuidType(), new UuidType(), true, true),
+                // numeric and VARIANT are not castable to or from UUID
+                Arguments.of(new UuidType(), new IntType(), false, false),
+                Arguments.of(new IntType(), new UuidType(), false, false),
+                Arguments.of(new UuidType(), new VariantType(), false, false),
+                Arguments.of(new VariantType(), new UuidType(), false, false));
     }
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Implicit: {2}, Explicit: {3}]")

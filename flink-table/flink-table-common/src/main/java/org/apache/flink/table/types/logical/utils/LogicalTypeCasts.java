@@ -79,6 +79,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WIT
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TINYINT;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.UUID;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARBINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARCHAR;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARIANT;
@@ -211,7 +212,7 @@ public final class LogicalTypeCasts {
         castTo(CHAR)
                 .implicitFrom(CHAR)
                 .explicitFromFamily(PREDEFINED, CONSTRUCTED)
-                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP, VARIANT)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP, VARIANT, UUID)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
                 .injectiveFrom(WHEN_CHAR_LENGTH_FITS_UTF8, BINARY, VARBINARY)
@@ -220,7 +221,7 @@ public final class LogicalTypeCasts {
         castTo(VARCHAR)
                 .implicitFromFamily(CHARACTER_STRING)
                 .explicitFromFamily(PREDEFINED, CONSTRUCTED)
-                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP, VARIANT)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP, VARIANT, UUID)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR, VARCHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
                 .injectiveFrom(WHEN_CHAR_LENGTH_FITS_UTF8, BINARY, VARBINARY)
@@ -398,6 +399,15 @@ public final class LogicalTypeCasts {
                 .implicitFrom(INTERVAL_DAY_TIME)
                 .explicitFromFamily(EXACT_NUMERIC, CHARACTER_STRING)
                 .build();
+
+        // -----------------------------------------------------------------------------------------
+        // UUID type
+        // -----------------------------------------------------------------------------------------
+
+        // A UUID can be parsed from a character string and reinterpreted from its 16-byte encoding.
+        // The reverse direction (UUID to CHAR/VARCHAR and to BINARY(16)/BYTES) is declared on the
+        // respective target types.
+        castTo(UUID).implicitFrom(UUID).explicitFromFamily(CHARACTER_STRING, BINARY_STRING).build();
     }
 
     /**
@@ -686,6 +696,13 @@ public final class LogicalTypeCasts {
         } else if (sourceRoot == BITMAP && targetRoot == VARBINARY) {
             // BITMAP can only be cast to BYTES (unbounded VARBINARY), because trimming or padding
             // would corrupt the serialized bitmap data.
+            return allowExplicit && getLength(targetType) == VarBinaryType.MAX_LENGTH;
+        } else if (sourceRoot == UUID && targetRoot == BINARY) {
+            // A UUID is exactly 16 bytes, so it maps to BINARY(16). Any other width would pad or
+            // trim the value and thereby corrupt it.
+            return allowExplicit && getLength(targetType) == 16;
+        } else if (sourceRoot == UUID && targetRoot == VARBINARY) {
+            // A UUID can only be cast to BYTES (unbounded VARBINARY), for the same reason.
             return allowExplicit && getLength(targetType) == VarBinaryType.MAX_LENGTH;
         }
 

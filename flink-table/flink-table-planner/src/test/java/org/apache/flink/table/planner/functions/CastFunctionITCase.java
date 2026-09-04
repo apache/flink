@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.AbstractDataType;
@@ -32,6 +33,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.bitmap.Bitmap;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
@@ -74,12 +76,14 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.apache.flink.table.api.DataTypes.UUID;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.util.CollectionUtil.entry;
 import static org.apache.flink.util.CollectionUtil.map;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -120,6 +124,18 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     private static final Bitmap DEFAULT_BITMAP = Bitmap.fromArray(new int[] {0, 1, 2});
 
+    private static final String DEFAULT_UUID_STRING = "550e8400-e29b-41d4-a716-446655440000";
+    private static final java.util.UUID DEFAULT_UUID =
+            java.util.UUID.fromString(DEFAULT_UUID_STRING);
+    private static final byte[] DEFAULT_UUID_BYTES = uuidBytes(DEFAULT_UUID);
+
+    private static byte[] uuidBytes(java.util.UUID uuid) {
+        return ByteBuffer.allocate(16)
+                .putLong(uuid.getMostSignificantBits())
+                .putLong(uuid.getLeastSignificantBits())
+                .array();
+    }
+
     @Override
     Configuration getConfiguration() {
         return super.getConfiguration().set(TableConfigOptions.LOCAL_TIME_ZONE, TEST_TZ.getId());
@@ -135,6 +151,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         specs.addAll(constructedTypes());
         specs.addAll(bitmapCasts());
         specs.addAll(variantCasts());
+        specs.addAll(uuidCasts());
         return specs.stream();
     }
 
@@ -492,6 +509,48 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .testTableApiValidationError(
                                 call("PARSE_JSON", "[1]").cast(ARRAY(INTERVAL(MONTH()))),
                                 "Unsupported cast"));
+    }
+
+    private static List<TestSetSpec> uuidCasts() {
+        // A UUID has no Table API literal, so a UUID source is produced from a string cast. The
+        // exhaustive value and lenient-parse matrix lives in CastRulesTest.
+        final String literal = "UUID '" + DEFAULT_UUID_STRING + "'";
+        return Arrays.asList(
+                // A string or a binary value casts to a UUID.
+                CastTestSpecBuilder.testCastTo(UUID())
+                        .fromCase(STRING(), DEFAULT_UUID_STRING, DEFAULT_UUID)
+                        .fromCase(BYTES(), DEFAULT_UUID_BYTES, DEFAULT_UUID)
+                        .fromCase(STRING(), null, null)
+                        .build(),
+                // A numeric source is rejected during validation.
+                CastTestSpecBuilder.testCastTo(UUID())
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .build(),
+                // A malformed string or a binary value of the wrong length fails CAST at runtime
+                // and yields NULL for TRY_CAST.
+                TestSetSpec.forExpression("Cast a malformed value to UUID")
+                        .onFieldsWithData("not-a-uuid", new byte[] {1, 2, 3})
+                        .andDataTypes(STRING(), BYTES())
+                        .testTableApiRuntimeError($("f0").cast(UUID()), TableRuntimeException.class)
+                        .testSqlRuntimeError("CAST(f0 AS UUID)", TableRuntimeException.class)
+                        .testResult($("f0").tryCast(UUID()), "TRY_CAST(f0 AS UUID)", null, UUID())
+                        .testTableApiRuntimeError($("f1").cast(UUID()), TableRuntimeException.class)
+                        .testSqlRuntimeError("CAST(f1 AS UUID)", TableRuntimeException.class)
+                        .testResult($("f1").tryCast(UUID()), "TRY_CAST(f1 AS UUID)", null, UUID()),
+                // A UUID casts to its canonical string and to its 16-byte encoding.
+                TestSetSpec.forExpression("Cast a UUID to a string and to bytes")
+                        .onFieldsWithData("unused")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                lit(DEFAULT_UUID_STRING).cast(UUID()).cast(STRING()),
+                                "CAST(" + literal + " AS STRING)",
+                                DEFAULT_UUID_STRING,
+                                STRING().notNull())
+                        .testResult(
+                                lit(DEFAULT_UUID_STRING).cast(UUID()).cast(BYTES()),
+                                "CAST(" + literal + " AS BYTES)",
+                                DEFAULT_UUID_BYTES,
+                                BYTES().notNull()));
     }
 
     private static List<TestSetSpec> allTypesBasic() {
