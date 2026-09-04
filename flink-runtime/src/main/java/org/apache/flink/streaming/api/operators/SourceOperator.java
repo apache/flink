@@ -24,6 +24,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.RichSourceReaderContext;
@@ -31,6 +32,9 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.util.ratelimit.DynamicRateLimitParams;
+import org.apache.flink.api.connector.source.util.ratelimit.SupportsDynamicRateLimit;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.io.InputStatus;
@@ -46,9 +50,11 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.DynamicRateLimitEvent;
 import org.apache.flink.runtime.source.event.IsProcessingBacklogEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+import org.apache.flink.runtime.source.event.ReportedRecordsEvent;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
@@ -187,6 +193,38 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private final CompletableFuture<Void> checkpointsStartedFuture;
 
+    private static final long NO_SNAPSHOT_YET = Long.MIN_VALUE;
+
+    /** Records emitted at the last snapshot. */
+    private long recordsAtLastSnapshot;
+
+    /**
+     * Trigger timestamp of the checkpoint of the last snapshot, or {@link #NO_SNAPSHOT_YET}. The
+     * timestamp is taken from the checkpoint coordinator, so it is not mixed with the local clock.
+     */
+    private long lastSnapshotTriggerTimestamp = NO_SNAPSHOT_YET;
+
+    @VisibleForTesting
+    static final ListStateDescriptor<Tuple3<Integer, Integer, Double>> DYNAMIC_RATE_STATE_DESC =
+            new ListStateDescriptor<>(
+                    "DynamicRateLimit", Types.TUPLE(Types.INT, Types.INT, Types.DOUBLE));
+
+    /**
+     * Holds this subtask's index, the parallelism and its last dynamic rate limit, so that a
+     * restarted subtask does not run unthrottled until the coordinator has re-learned the rate. It
+     * is a union list state so that a rescaled job can still recover the rate. It is only
+     * registered while the dynamic rate limit is enabled, so that a stale rate is not restored into
+     * a job that disabled the feature.
+     */
+    private ListState<Tuple3<Integer, Integer, Double>> dynamicRateState;
+
+    /** The last dynamic rate limit of this subtask, or {@code NaN} if there is none. */
+    private double lastDynamicRate = Double.NaN;
+
+    private double restoredDynamicRate = Double.NaN;
+
+    private final DynamicRateLimitParams dynamicRateLimitParams;
+
     private final Map<String, InternalSourceSplitMetricGroup> splitMetricGroups = new HashMap<>();
 
     private enum OperatingMode {
@@ -248,7 +286,41 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             Map<String, Boolean> watermarkIsAlignedMap,
             boolean supportsSplitReassignmentOnRecovery,
             boolean pauseSourcesUntilFirstCheckpoint) {
+        this(
+                parameters,
+                readerFactory,
+                operatorEventGateway,
+                splitSerializer,
+                watermarkStrategy,
+                timeService,
+                configuration,
+                localHostname,
+                emitProgressiveWatermarks,
+                canEmitBatchOfRecords,
+                watermarkIsAlignedMap,
+                supportsSplitReassignmentOnRecovery,
+                pauseSourcesUntilFirstCheckpoint,
+                DynamicRateLimitParams.DISABLED);
+    }
+
+    public SourceOperator(
+            StreamOperatorParameters<OUT> parameters,
+            FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
+                    readerFactory,
+            OperatorEventGateway operatorEventGateway,
+            SimpleVersionedSerializer<SplitT> splitSerializer,
+            WatermarkStrategy<OUT> watermarkStrategy,
+            ProcessingTimeService timeService,
+            Configuration configuration,
+            String localHostname,
+            boolean emitProgressiveWatermarks,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
+            Map<String, Boolean> watermarkIsAlignedMap,
+            boolean supportsSplitReassignmentOnRecovery,
+            boolean pauseSourcesUntilFirstCheckpoint,
+            DynamicRateLimitParams dynamicRateLimitParams) {
         super(parameters);
+        this.dynamicRateLimitParams = checkNotNull(dynamicRateLimitParams);
         this.watermarkBufferSize = configuration.get(WATERMARK_ALIGNMENT_BUFFER_SIZE);
         this.sampledLatestWatermark = new WatermarkSampler(watermarkBufferSize);
         this.readerFactory = checkNotNull(readerFactory);
@@ -271,6 +343,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 waitingForCheckpoint
                         ? new CompletableFuture<>()
                         : (CompletableFuture<Void>) AVAILABLE;
+        this.recordsAtLastSnapshot = 0L;
         LOG.info("SourceOperator initialized, wait for 1st checkpoint: {}", waitingForCheckpoint);
     }
 
@@ -449,6 +522,15 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             }
             splitsToInitializeOutput.addAll(splits);
             sourceReader.addSplits(splits);
+        }
+
+        if (isDynamicRateLimitActive() && !Double.isNaN(restoredDynamicRate)) {
+            LOG.info(
+                    "Restoring dynamic rate limit of {} records/s for subtask {}.",
+                    restoredDynamicRate,
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
+            lastDynamicRate = restoredDynamicRate;
+            ((SupportsDynamicRateLimit) sourceReader).updateTargetRate(restoredDynamicRate);
         }
 
         // Register the reader to the coordinator.
@@ -667,6 +749,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         long checkpointId = context.getCheckpointId();
         LOG.debug("Taking a snapshot for checkpoint {}", checkpointId);
         readerState.update(sourceReader.snapshotState(checkpointId));
+        if (isDynamicRateLimitActive()) {
+            reportRecordsSinceLastSnapshot(checkpointId, context.getCheckpointTimestamp());
+            snapshotDynamicRate();
+        }
     }
 
     @Override
@@ -696,6 +782,19 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         final ListState<byte[]> rawState =
                 context.getOperatorStateStore().getListState(SPLITS_STATE_DESC);
         readerState = new SimpleVersionedListState<>(rawState, splitSerializer);
+        if (dynamicRateLimitParams.isEnabled()) {
+            dynamicRateState =
+                    context.getOperatorStateStore().getUnionListState(DYNAMIC_RATE_STATE_DESC);
+            restoredDynamicRate =
+                    clampRestoredRate(
+                            restoreDynamicRate(
+                                    dynamicRateState.get(),
+                                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                    getRuntimeContext()
+                                            .getTaskInfo()
+                                            .getNumberOfParallelSubtasks()),
+                            dynamicRateLimitParams.getMaxRecordsPerSecond());
+        }
         if (waitingForCheckpoint && !context.isRestored()) {
             LOG.debug("Not a recovery, won't wait for the checkpoint to emit records");
             waitingForCheckpoint = false;
@@ -707,6 +806,91 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         super.notifyCheckpointComplete(checkpointId);
         sourceReader.notifyCheckpointComplete(checkpointId);
+    }
+
+    private void snapshotDynamicRate() throws Exception {
+        if (Double.isNaN(lastDynamicRate)) {
+            dynamicRateState.clear();
+            return;
+        }
+        dynamicRateState.update(
+                Collections.singletonList(
+                        Tuple3.of(
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
+                                lastDynamicRate)));
+    }
+
+    /**
+     * Recovers the rate for this subtask from the union of all subtasks' snapshotted rates. If the
+     * parallelism is unchanged and the subtask snapshotted a rate, it gets its own rate back.
+     * Otherwise the per-subtask allocation is meaningless, so the average rate of the snapshotted
+     * subtasks is scaled to the new parallelism. Subtasks without a rate are not counted, so they
+     * do not drag the total down.
+     */
+    @VisibleForTesting
+    static double restoreDynamicRate(
+            Iterable<Tuple3<Integer, Integer, Double>> snapshots,
+            int subtaskIndex,
+            int parallelism) {
+        double sum = 0;
+        int count = 0;
+        int previousParallelism = 0;
+        double own = Double.NaN;
+        for (Tuple3<Integer, Integer, Double> snapshot : snapshots) {
+            sum += snapshot.f2;
+            count++;
+            previousParallelism = snapshot.f1;
+            if (snapshot.f0 == subtaskIndex) {
+                own = snapshot.f2;
+            }
+        }
+        if (count == 0) {
+            return Double.NaN;
+        }
+        if (previousParallelism == parallelism && !Double.isNaN(own)) {
+            return own;
+        }
+        return sum / count * previousParallelism / parallelism;
+    }
+
+    /**
+     * Limits a restored rate to the currently configured maximum, which may have been lowered since
+     * the state was written. Rates that are not usable are dropped.
+     */
+    @VisibleForTesting
+    static double clampRestoredRate(double restoredRate, double maxRecordsPerSecond) {
+        if (!Double.isFinite(restoredRate) || restoredRate <= 0) {
+            return Double.NaN;
+        }
+        return Math.min(restoredRate, maxRecordsPerSecond);
+    }
+
+    private boolean isDynamicRateLimitActive() {
+        return dynamicRateLimitParams.isEnabled()
+                && sourceReader instanceof SupportsDynamicRateLimit;
+    }
+
+    /**
+     * Reports the number of records this subtask emitted since the last snapshot, and the time from
+     * the trigger of that snapshot's checkpoint to the trigger of this one, to the source
+     * coordinator, which derives the observed throughput from them, so that the next dynamic rate
+     * limit adjustment is based on what was actually produced over the whole checkpoint period
+     * rather than on the last broadcast target rate.
+     */
+    private void reportRecordsSinceLastSnapshot(long checkpointId, long triggerTimestamp) {
+        final long recordsOut = metrics.getIOMetricGroup().getNumRecordsOutCounter().getCount();
+        // The first snapshot has no baseline trigger timestamp, and the local clock cannot be
+        // compared with the checkpoint coordinator's, so it only establishes the baseline.
+        if (lastSnapshotTriggerTimestamp != NO_SNAPSHOT_YET) {
+            operatorEventGateway.sendEventToCoordinator(
+                    new ReportedRecordsEvent(
+                            checkpointId,
+                            recordsOut - recordsAtLastSnapshot,
+                            triggerTimestamp - lastSnapshotTriggerTimestamp));
+        }
+        recordsAtLastSnapshot = recordsOut;
+        lastSnapshotTriggerTimestamp = triggerTimestamp;
     }
 
     @Override
@@ -723,6 +907,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             checkSplitWatermarkAlignment();
         } else if (event instanceof AddSplitEvent) {
             handleAddSplitsEvent(((AddSplitEvent<SplitT>) event));
+        } else if (event instanceof DynamicRateLimitEvent) {
+            updateDynamicRateLimit((DynamicRateLimitEvent) event);
         } else if (event instanceof SourceEventWrapper) {
             sourceReader.handleSourceEvents(((SourceEventWrapper) event).getSourceEvent());
         } else if (event instanceof NoMoreSplitsEvent) {
@@ -737,6 +923,13 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             .build());
         } else {
             throw new IllegalStateException("Received unexpected operator event " + event);
+        }
+    }
+
+    private void updateDynamicRateLimit(DynamicRateLimitEvent event) {
+        if (sourceReader instanceof SupportsDynamicRateLimit) {
+            lastDynamicRate = event.getRecordsPerSecond();
+            ((SupportsDynamicRateLimit) sourceReader).updateTargetRate(event.getRecordsPerSecond());
         }
     }
 
