@@ -23,10 +23,12 @@ import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.data.{BoxedWrapperRowData, RowData}
 import org.apache.flink.table.functions.FunctionKind
 import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.className
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.types.RowKind
 
 import org.apache.calcite.rex._
 
@@ -40,6 +42,7 @@ object CalcCodeGenerator {
       outputType: RowType,
       projection: Seq[RexNode],
       condition: Option[RexNode],
+      partialDeleteKeys: Array[Int],
       typeFactory: FlinkTypeFactory,
       retainHeader: Boolean = false,
       opName: String): CodeGenOperatorFactory[RowData] = {
@@ -52,6 +55,7 @@ object CalcCodeGenerator {
       classOf[BoxedWrapperRowData],
       projection,
       condition,
+      Option(partialDeleteKeys),
       typeFactory,
       inputTerm,
       CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM,
@@ -92,6 +96,7 @@ object CalcCodeGenerator {
       outRowClass,
       calcProjection,
       calcCondition,
+      None,
       typeFactory,
       inputTerm,
       collectorTerm = collectorTerm,
@@ -117,6 +122,7 @@ object CalcCodeGenerator {
       outRowClass: Class[_ <: RowData],
       projection: Seq[RexNode],
       condition: Option[RexNode],
+      partialDeleteKeys: Option[Array[Int]],
       typeFactory: FlinkTypeFactory,
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       collectorTerm: String = CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM,
@@ -146,17 +152,17 @@ object CalcCodeGenerator {
       s"${OperatorCodeGenerator.generateCollect(resultTerm)}"
     }
 
-    def produceProjectionCode: String = {
-      val projection = rexProgram.getProjectList.asScala
+    def produceFullProjectionCode: String = {
+      val fullProjectList = rexProgram.getProjectList.asScala
 
-      val projectionExprs = projection.map(exprGenerator.generateExpression)
-      val projectionExpression =
-        exprGenerator.generateResultExpression(projectionExprs, outRowType, outRowClass)
+      val expressions = fullProjectList.map(exprGenerator.generateExpression)
+      val resultExpression =
+        exprGenerator.generateResultExpression(expressions, outRowType, outRowClass)
 
-      val projectionExpressionCode = projectionExpression.code
+      val projectionExpressionCode = resultExpression.code
 
       val header = if (retainHeader) {
-        s"${projectionExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
+        s"${resultExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
       } else {
         ""
       }
@@ -164,8 +170,51 @@ object CalcCodeGenerator {
       s"""
          |$header
          |$projectionExpressionCode
-         |${produceOutputCode(projectionExpression.resultTerm)}
+         |${produceOutputCode(resultExpression.resultTerm)}
          |""".stripMargin
+    }
+
+    def produceProjectionCode: String = partialDeleteKeys match {
+      case Some(keys) =>
+        // In case of partial deletes, the calc must only forward the key columns, non-key
+        // expressions must not be evaluated.
+        //
+        // Any RexLocalRef sub-expression evaluated while generating either branch (e.g. the
+        // BinaryRowWriter code backing a ROW(...) constructor) would otherwise be hoisted, by
+        // default, to the bottom (unconditional) local-ref cache scope and run for *every* row
+        // regardless of which branch is actually taken. Each branch is therefore generated
+        // inside its own pushed local-ref scope (mirroring
+        // ExprCodeGenerator.visitOperandInScopedCache, used for CASE/AND/OR short-circuiting) so
+        // that such code is folded into that branch only and never runs unconditionally.
+        ctx.pushLocalRefScope()
+        val keyProjection = buildKeyProjections(exprGenerator, rexProgram, outRowType, keys)
+        val resultExpression =
+          exprGenerator.generateResultExpression(keyProjection, outRowType, outRowClass)
+        val keyScopedCode = ctx.popLocalRefScope().values.map(_.code).mkString("\n")
+
+        val keyHeader = if (retainHeader) {
+          s"${resultExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
+        } else {
+          ""
+        }
+
+        ctx.pushLocalRefScope()
+        val fullProjectionCode = produceFullProjectionCode
+        val fullScopedCode = ctx.popLocalRefScope().values.map(_.code).mkString("\n")
+
+        s"""
+           |if ($inputTerm.getRowKind() == ${className[RowKind]}.DELETE) {
+           |  $keyScopedCode
+           |  ${resultExpression.code}
+           |  $keyHeader
+           |  ${produceOutputCode(resultExpression.resultTerm)}
+           |} else {
+           |  $fullScopedCode
+           |  $fullProjectionCode
+           |}
+           |""".stripMargin
+      case None =>
+        produceFullProjectionCode
     }
 
     if (condition.isEmpty && onlyFilter) {
@@ -230,6 +279,29 @@ object CalcCodeGenerator {
            |}
            |""".stripMargin
       }
+    }
+  }
+
+  /**
+   * Builds the key-only projection's per-output-column expressions for a Calc forwarding partial
+   * delete changes. Output columns listed in `partialDeleteKeys` are evaluated from the regular
+   * projection; every other column is generated directly as a typed `NULL` so that its (potentially
+   * unsafe) expression is never evaluated on a delete-by-key tombstone, whose non-key columns may
+   * not be present.
+   */
+  private def buildKeyProjections(
+      exprGenerator: ExprCodeGenerator,
+      rexProgram: RexProgram,
+      outRowType: RowType,
+      partialDeleteKeys: Array[Int]): Seq[GeneratedExpression] = {
+    val keyIndices = partialDeleteKeys.toSet
+    rexProgram.getProjectList.asScala.zipWithIndex.map {
+      case (projectRef, idx) =>
+        if (keyIndices.contains(idx)) {
+          exprGenerator.generateExpression(projectRef)
+        } else {
+          GenerateUtils.generateNullLiteral(outRowType.getTypeAt(idx).copy(true))
+        }
     }
   }
 
