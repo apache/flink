@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.BINARY_SEARCH_THRESHOLD;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
@@ -225,6 +226,12 @@ public final class BinaryVariant implements Variant {
     }
 
     @Override
+    public UUID getUUID() throws VariantTypeException {
+        checkType(Type.UUID, getType());
+        return BinaryVariantUtil.getUUID(value, pos);
+    }
+
+    @Override
     public Object get() throws VariantTypeException {
         switch (getType()) {
             case NULL:
@@ -259,6 +266,8 @@ public final class BinaryVariant implements Variant {
                 return getInstant();
             case BYTES:
                 return getBytes();
+            case UUID:
+                return getUUID();
             default:
                 throw new VariantTypeException(
                         String.format("Expecting a primitive variant but got %s", getType()));
@@ -458,6 +467,9 @@ public final class BinaryVariant implements Variant {
                         sb,
                         Base64.getEncoder()
                                 .encodeToString(BinaryVariantUtil.getBinary(value, pos)));
+                break;
+            case UUID:
+                appendQuoted(sb, BinaryVariantUtil.getUUID(value, pos).toString());
                 break;
             default:
                 throw unexpectedType(BinaryVariantUtil.getType(value, pos));

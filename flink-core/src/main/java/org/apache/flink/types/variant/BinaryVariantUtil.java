@@ -28,6 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.UUID;
 
 /* This file is based on source code from the Spark Project (http://spark.apache.org/), licensed by the Apache
  * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
@@ -201,6 +202,9 @@ public class BinaryVariantUtil {
      */
     public static final int TIMESTAMP_NS = 19;
 
+    /** UUID value */
+    public static final int UUID = 20;
+
     public static final byte VERSION = 1;
 
     /** The lower 4 bits of the first metadata byte contain the version. */
@@ -246,6 +250,16 @@ public class BinaryVariantUtil {
     public static void writeLong(byte[] bytes, int pos, long value, int numBytes) {
         for (int i = 0; i < numBytes; ++i) {
             bytes[pos + i] = (byte) ((value >>> (8 * i)) & 0xFF);
+        }
+    }
+
+    /**
+     * Write a big-endian 8-byte long value to {@code bytes[pos, pos + 8)}. Variant primitives are
+     * little-endian except for UUID, which the spec stores as 16 big-endian bytes.
+     */
+    static void writeLongBigEndian(byte[] bytes, int pos, long value) {
+        for (int i = 0; i < 8; ++i) {
+            bytes[pos + i] = (byte) ((value >>> (8 * (7 - i))) & 0xFF);
         }
     }
 
@@ -319,6 +333,17 @@ public class BinaryVariantUtil {
         }
         long signedByteValue = bytes[pos + numBytes - 1];
         result |= signedByteValue << (8 * (numBytes - 1));
+        return result;
+    }
+
+    /** Read a big-endian 8-byte long value from {@code bytes[pos, pos + 8)}. */
+    static long readLongBigEndian(byte[] bytes, int pos) {
+        checkIndex(pos, bytes.length);
+        checkIndex(pos + 7, bytes.length);
+        long result = 0;
+        for (int i = 0; i < 8; ++i) {
+            result = (result << 8) | (bytes[pos + i] & 0xFF);
+        }
         return result;
     }
 
@@ -403,6 +428,8 @@ public class BinaryVariantUtil {
                         return Type.TIMESTAMP_LTZ_NS;
                     case TIMESTAMP_NS:
                         return Type.TIMESTAMP_NS;
+                    case UUID:
+                        return Type.UUID;
                     default:
                         throw unknownPrimitiveTypeInVariant(typeInfo);
                 }
@@ -470,6 +497,8 @@ public class BinaryVariantUtil {
                         return 6;
                     case DECIMAL8:
                         return 10;
+                    case UUID:
+                        return 17;
                     case DECIMAL16:
                         return 18;
                     case BINARY:
@@ -672,6 +701,20 @@ public class BinaryVariantUtil {
             return new String(value, start, length, StandardCharsets.UTF_8);
         }
         throw unexpectedType(Type.STRING);
+    }
+
+    public static UUID getUUID(byte[] value, int pos) {
+        checkIndex(pos, value.length);
+        int basicType = value[pos] & BASIC_TYPE_MASK;
+        int typeInfo = (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;
+        if (basicType != PRIMITIVE || typeInfo != UUID) {
+            throw unexpectedType(Type.UUID);
+        }
+        // The 16 UUID bytes are big-endian (most significant bytes first): the most significant 8
+        // bytes followed by the least significant 8 bytes.
+        long msb = readLongBigEndian(value, pos + 1);
+        long lsb = readLongBigEndian(value, pos + 9);
+        return new UUID(msb, lsb);
     }
 
     /** A handler that receives the decoded header fields of a variant object. */

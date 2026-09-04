@@ -29,6 +29,7 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.UUID;
 
 /** Builder for binary encoded variant. */
 @Internal
@@ -165,6 +166,13 @@ public class BinaryVariantBuilder implements VariantBuilder {
     public Variant of(LocalTime localTime) {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
         builder.appendTime(localTime.toNanoOfDay() / 1000);
+        return builder.build();
+    }
+
+    @Override
+    public Variant of(UUID uuid) {
+        BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        builder.appendUUID(uuid);
         return builder.build();
     }
 

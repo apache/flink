@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.UUID;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.ARRAY;
 import static org.apache.flink.types.variant.BinaryVariantUtil.BASIC_TYPE_MASK;
@@ -326,6 +327,18 @@ public class BinaryVariantInternalBuilder {
         writePos += U32_SIZE;
         System.arraycopy(binary, 0, writeBuffer, writePos, binary.length);
         writePos += binary.length;
+    }
+
+    public void appendUUID(UUID uuid) {
+        checkCapacity(1 + 16);
+        writeBuffer[writePos++] = primitiveHeader(BinaryVariantUtil.UUID);
+        // The variant spec stores UUIDs as 16 big-endian bytes: the most significant 8 bytes
+        // followed by the least significant 8 bytes. UUID is the only primitive that is not
+        // little-endian, so we use the big-endian writer instead of writeLong.
+        BinaryVariantUtil.writeLongBigEndian(writeBuffer, writePos, uuid.getMostSignificantBits());
+        BinaryVariantUtil.writeLongBigEndian(
+                writeBuffer, writePos + 8, uuid.getLeastSignificantBits());
+        writePos += 16;
     }
 
     // Add a key to the variant dictionary. If the key already exists, the dictionary is not
