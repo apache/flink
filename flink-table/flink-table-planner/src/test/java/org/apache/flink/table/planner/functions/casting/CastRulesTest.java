@@ -44,6 +44,7 @@ import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantBuilder;
 
+import org.assertj.core.api.AbstractThrowableAssert;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.parallel.Execution;
@@ -2257,6 +2258,14 @@ class CastRulesTest {
 
         private CastTestSpecBuilder fail(
                 DataType dataType, Object src, Class<? extends Throwable> exception) {
+            return fail(dataType, src, exception, null);
+        }
+
+        private CastTestSpecBuilder fail(
+                DataType dataType,
+                Object src,
+                Class<? extends Throwable> exception,
+                String messageSubstring) {
             return fail(
                     dataType,
                     CastRule.Context.create(
@@ -2266,7 +2275,8 @@ class CastRulesTest {
                             Thread.currentThread().getContextClassLoader(),
                             CTX),
                     src,
-                    exception);
+                    exception,
+                    messageSubstring);
         }
 
         private CastTestSpecBuilder fail(
@@ -2274,34 +2284,27 @@ class CastRulesTest {
                 CastRule.Context castContext,
                 Object src,
                 Class<? extends Throwable> exception) {
-            this.inputTypes.add(dataType);
-            this.assertionExecutors.add(
-                    executor ->
-                            assertThatThrownBy(() -> executor.cast(src)).isInstanceOf(exception));
-            this.descriptions.add("{" + src + " => " + exception.getName() + "}");
-            this.castContexts.add(castContext);
-            return this;
+            return fail(dataType, castContext, src, exception, null);
         }
 
         private CastTestSpecBuilder fail(
                 DataType dataType,
+                CastRule.Context castContext,
                 Object src,
                 Class<? extends Throwable> exception,
                 String messageSubstring) {
             this.inputTypes.add(dataType);
             this.assertionExecutors.add(
-                    executor ->
-                            assertThatThrownBy(() -> executor.cast(src))
-                                    .isInstanceOf(exception)
-                                    .hasStackTraceContaining(messageSubstring));
+                    executor -> {
+                        final AbstractThrowableAssert<?, ?> thrown =
+                                assertThatThrownBy(() -> executor.cast(src))
+                                        .isInstanceOf(exception);
+                        if (messageSubstring != null) {
+                            thrown.hasStackTraceContaining(messageSubstring);
+                        }
+                    });
             this.descriptions.add("{" + src + " => " + exception.getName() + "}");
-            this.castContexts.add(
-                    CastRule.Context.create(
-                            false,
-                            false,
-                            DateTimeUtils.UTC_ZONE.toZoneId(),
-                            Thread.currentThread().getContextClassLoader(),
-                            CTX));
+            this.castContexts.add(castContext);
             return this;
         }
 

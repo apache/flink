@@ -310,10 +310,7 @@ class LogicalTypeCastsTest {
                         false),
                 // MULTISET has no variant counterpart and stays unsupported
                 Arguments.of(
-                        new VariantType(),
-                        new MultisetType(VarCharType.STRING_TYPE),
-                        false,
-                        false),
+                        new VariantType(), new MultisetType(VarCharType.STRING_TYPE), false, false),
                 // UUID casts are explicit only, in both directions
                 Arguments.of(new UuidType(), VarCharType.STRING_TYPE, false, true),
                 Arguments.of(new UuidType(), new CharType(), false, true),
