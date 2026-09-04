@@ -20,10 +20,15 @@ package org.apache.flink.api.connector.source.util.ratelimit;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.InputStatus;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -32,10 +37,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Wraps the actual {@link SourceReader} and rate limits its data emission. */
 @Experimental
 public class RateLimitedSourceReader<E, SplitT extends SourceSplit>
-        implements SourceReader<E, SplitT> {
+        implements SourceReader<E, SplitT>, SupportsDynamicRateLimit {
+
+    private static final Logger LOG = LoggerFactory.getLogger(RateLimitedSourceReader.class);
 
     private final SourceReader<E, SplitT> sourceReader;
     private final RateLimiter<SplitT> rateLimiter;
+    private boolean warnedAboutStaticRateLimiter;
     private CompletableFuture<Void> availabilityFuture = null;
 
     /**
@@ -111,5 +119,30 @@ public class RateLimitedSourceReader<E, SplitT extends SourceSplit>
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         rateLimiter.notifyCheckpointComplete(checkpointId);
+        sourceReader.notifyCheckpointComplete(checkpointId);
+    }
+
+    @Override
+    public void handleSourceEvents(SourceEvent sourceEvent) {
+        sourceReader.handleSourceEvents(sourceEvent);
+    }
+
+    @Override
+    public void pauseOrResumeSplits(
+            Collection<String> splitsToPause, Collection<String> splitsToResume) {
+        sourceReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
+    }
+
+    @Override
+    public void updateTargetRate(double recordsPerSecond) {
+        if (rateLimiter instanceof DynamicRateLimiter) {
+            ((DynamicRateLimiter<SplitT>) rateLimiter).updateRate(recordsPerSecond);
+        } else if (!warnedAboutStaticRateLimiter) {
+            warnedAboutStaticRateLimiter = true;
+            LOG.warn(
+                    "Dynamic rate limit is enabled but {} does not support updating its rate; "
+                            + "use RateLimiterStrategy#dynamic. The new target rate is ignored.",
+                    rateLimiter.getClass().getName());
+        }
     }
 }

@@ -25,6 +25,7 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorCheckpointSerializer;
+import org.apache.flink.api.connector.source.util.ratelimit.DynamicRateLimitParams;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -34,6 +35,8 @@ import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorCo
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.junit.jupiter.api.AfterEach;
@@ -206,6 +209,28 @@ abstract class SourceCoordinatorTestBase {
                 new CoordinatorStoreImpl(),
                 watermarkAlignmentParams,
                 null);
+    }
+
+    protected SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> getNewSourceCoordinator(
+            DynamicRateLimitParams dynamicRateLimitParams) throws Exception {
+        return getNewSourceCoordinator(dynamicRateLimitParams, SystemClock.getInstance());
+    }
+
+    protected SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> getNewSourceCoordinator(
+            DynamicRateLimitParams dynamicRateLimitParams, Clock clock) throws Exception {
+        final Source<Integer, MockSourceSplit, Set<MockSourceSplit>> mockSource =
+                createMockSource();
+
+        return new SourceCoordinator<>(
+                new JobID(),
+                OPERATOR_NAME,
+                mockSource,
+                getNewSourceCoordinatorContext(),
+                new CoordinatorStoreImpl(),
+                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                dynamicRateLimitParams,
+                null,
+                clock);
     }
 
     Source<Integer, MockSourceSplit, Set<MockSourceSplit>> createMockSource() {
