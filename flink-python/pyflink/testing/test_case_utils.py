@@ -31,7 +31,7 @@ from decimal import Decimal
 from functools import wraps
 from py4j.java_gateway import JavaObject
 
-from pyflink.common import JobExecutionResult, Time, Instant, Row
+from pyflink.common import JobExecutionResult, Time, Instant, Row, RowKind
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
 from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
@@ -237,6 +237,25 @@ class PyFlinkStreamDataFrameTestCase(PyFlinkStreamTableTestCase):
             super(PyFlinkStreamDataFrameTestCase, cls).tearDownClass()
         finally:
             set_table_environment(cls._previous_table_environment)
+
+    @staticmethod
+    def _materialize(dataframe, key=None):
+        # Fold the collected changelog into the final table so assertions read as the
+        # resulting rows rather than the raw +I/-U/+U events.
+        columns = dataframe._table.get_resolved_schema().get_column_names()
+        if key is None:
+            indices = list(range(len(columns)))
+        else:
+            indices = [columns.index(name) for name in key]
+
+        state = {}
+        for row in dataframe.collect():
+            key_value = tuple(row[index] for index in indices)
+            if row.get_row_kind() in (RowKind.INSERT, RowKind.UPDATE_AFTER):
+                state[key_value] = tuple(row)
+            else:
+                state.pop(key_value, None)
+        return sorted(state.values())
 
 
 class PyFlinkBatchTableTestCase(PyFlinkITTestCase):

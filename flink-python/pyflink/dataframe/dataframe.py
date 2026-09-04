@@ -542,11 +542,71 @@ class DataFrame:
                     "subset column '%s' does not exist, available columns: %s" % (name, columns)
                 )
 
+        order_list = order_keys if order_keys is not None else [None]
+        descending_flags = [keep == "last"] * len(order_list)
+        rank_nulls = nulls if nulls is not None else [None] * len(order_list)
         return DataFrame(
-            _build_deduplication_query(
-                self._table, columns, subset_keys, order_keys, keep, nulls
-            )
-        )
+            _build_rank_sql(self._table, subset_keys, order_list, descending_flags, rank_nulls, 1))
+
+    @PublicEvolving()
+    def top_n(
+        self,
+        n: int,
+        *,
+        partition_by: Union[str, List[str]] = None,
+        order_by: Union[str, Expression, List[Union[str, Expression]]] = None,
+        descending: Union[bool, List[bool]] = False,
+        nulls_first: Union[bool, List[bool]] = None,
+    ) -> "DataFrame":
+        """
+        Keep the top ``n`` rows per group, ordered by ``order_by``.
+
+        With ``partition_by`` the ranking is per group; without it the ranking is global.
+        ``top_n(1, ...)`` keeps a single row per group.
+
+        The default ranking direction is ascending (``descending=False``), so ``top_n`` keeps
+        the SMALLEST ``n`` rows by ``order_by``. Pass ``descending=True`` to keep the largest.
+
+        :param n: Number of rows to keep per group. Must be >= 1.
+        :param partition_by: Column name or list of column names defining the groups.
+        :param order_by: Column name or expression (or a list of them) defining the ranking order.
+        :param descending: Ranking direction (default ``False``); a bool or one per ``order_by``.
+        :param nulls_first: Where NULLs rank in ``order_by``: a single boolean applied to every key,
+            or a list with one boolean per key. When omitted, the engine default applies. Requires
+            ``order_by``.
+        :return: A new DataFrame with the top ``n`` rows per group.
+        :raises ValueError: If ``n`` is not an int or is < 1, if a ``descending``
+            or ``nulls_first`` list has a length different from ``order_by``, or if a named
+            column does not exist.
+        :raises TypeError: If an argument has an unsupported type, or ``order_by`` is missing
+            or empty.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"cat": "a", "amount": 10}])
+            >>> top3 = df.top_n(3, partition_by="cat", order_by="amount", descending=True)
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(n, int) or n < 1:
+            raise ValueError("n must be an integer >= 1")
+
+        if order_by is None or (isinstance(order_by, (list, tuple)) and not order_by):
+            raise TypeError("top_n requires a non-empty order_by")
+        order_keys = _normalize_order_by(order_by)
+
+        if partition_by is None or (isinstance(partition_by, (list, tuple)) and not partition_by):
+            partition_keys = []
+        else:
+            partition_keys = _normalize_subset(partition_by)
+
+        descending_flags = _normalize_descending(descending, len(order_keys))
+        nulls = _normalize_nulls_first(nulls_first, len(order_keys))
+        rank_nulls = nulls if nulls is not None else [None] * len(order_keys)
+        return DataFrame(
+            _build_rank_sql(self._table, partition_keys, order_keys, descending_flags, rank_nulls,
+                            n))
 
     distinct = drop_duplicates
     unique = drop_duplicates
@@ -1063,58 +1123,61 @@ def _normalize_nulls_first(
     return values
 
 
-def _build_deduplication_query(
-    table: Table,
-    columns: List[str],
-    subset_keys: List[str],
-    order_keys: Optional[List[Union[str, Expression]]],
-    keep: str,
-    nulls: Optional[List[bool]],
-) -> Table:
-    direction = "DESC" if keep == "last" else "ASC"
+def _normalize_descending(descending, order_len):
+    if isinstance(descending, bool):
+        return [descending] * order_len
+    if isinstance(descending, (list, tuple)):
+        if len(descending) != order_len:
+            raise ValueError("descending must have the same length as order_by")
+        if not all(isinstance(v, bool) for v in descending):
+            raise TypeError("descending must be a boolean or a list of booleans")
+        return list(descending)
+    raise TypeError("descending must be a boolean or a list of booleans")
+
+
+def _build_rank_sql(table, partition_keys, order_keys, descending_flags, nulls, n) -> Table:
+    columns = table.get_resolved_schema().get_column_names()
+    for name in partition_keys:
+        if name not in columns:
+            raise ValueError(
+                "partition_by column '%s' does not exist, available columns: %s" % (name, columns))
     taken = set(columns)
 
-    if order_keys is None:
-        # Arrival order (processing time); keep decides its direction.
-        order_terms = ["PROCTIME() " + direction]
-    else:
-        order_terms = []
-        for index, key in enumerate(order_keys):
-            if isinstance(key, str):
-                if key not in columns:
-                    raise ValueError(
-                        "order_by column '%s' does not exist, available columns: %s"
-                        % (key, columns)
-                    )
-                name = key
-            else:
-                # An Expression cannot be rendered to SQL text, so materialize it as a helper
-                # column and reference it by name.
-                name = _unique_name("__pf_order_%d" % index, taken)
-                taken.add(name)
-                table = table.add_columns(key.alias(name))
-            term = _quote_identifier(name) + " " + direction
-            if nulls is not None:
-                term += " NULLS FIRST" if nulls[index] else " NULLS LAST"
-            order_terms.append(term)
+    order_terms = []
+    for index, key in enumerate(order_keys):
+        direction = "DESC" if descending_flags[index] else "ASC"
+        if key is None:
+            expr_sql = "PROCTIME()"
+        elif isinstance(key, str):
+            if key not in columns:
+                raise ValueError(
+                    "order_by column '%s' does not exist, available columns: %s" % (key, columns))
+            expr_sql = _quote_identifier(key)
+        else:
+            name = _unique_name("__pf_order_%d" % index, taken)
+            taken.add(name)
+            table = table.add_columns(key.alias(name))
+            expr_sql = _quote_identifier(name)
+        term = expr_sql + " " + direction
+        if nulls is not None and nulls[index] is not None:
+            term += " NULLS FIRST" if nulls[index] else " NULLS LAST"
+        order_terms.append(term)
 
     rank_column = _quote_identifier(_unique_name("__pf_row_number", taken))
     source = _quote_identifier(str(table))
     select_list = ", ".join(_quote_identifier(name) for name in columns)
-    partition_by = ", ".join(_quote_identifier(name) for name in subset_keys)
+    over_clause = "ORDER BY " + ", ".join(order_terms)
+    if partition_keys:
+        over_clause = (
+            "PARTITION BY %s " % ", ".join(_quote_identifier(k) for k in partition_keys)
+        ) + over_clause
+    rank_filter = "= 1" if n == 1 else "<= %d" % n
     query = (
         "SELECT %s FROM (\n"
-        "  SELECT *, ROW_NUMBER() OVER (PARTITION BY %s ORDER BY %s) AS %s\n"
+        "  SELECT *, ROW_NUMBER() OVER (%s) AS %s\n"
         "  FROM %s\n"
-        ") WHERE %s = 1"
-        % (
-            select_list,
-            partition_by,
-            ", ".join(order_terms),
-            rank_column,
-            source,
-            rank_column,
-        )
+        ") WHERE %s %s"
+        % (select_list, over_clause, rank_column, source, rank_column, rank_filter)
     )
     return table._t_env.sql_query(query)
 
