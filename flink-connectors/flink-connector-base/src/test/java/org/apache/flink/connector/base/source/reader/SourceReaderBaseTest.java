@@ -26,7 +26,9 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.api.connector.source.util.ratelimit.DynamicRateLimiter;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.api.connector.source.util.ratelimit.SupportsDynamicRateLimit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.mocks.MockSourceReader;
@@ -70,12 +72,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.api.operators.source.TestingSourceOperator.createTestOperator;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** A unit test class for {@link SourceReaderBase}. */
@@ -174,6 +178,37 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         assertThat(System.currentTimeMillis() - startTime)
                 .isGreaterThan(Duration.ofSeconds(25).toMillis())
                 .isLessThan(Duration.ofSeconds(35).toMillis());
+    }
+
+    @Test
+    void testUpdateTargetRateReachesDynamicRateLimiter() throws Exception {
+        final AtomicReference<Double> updatedRate = new AtomicReference<>();
+        final RateLimiterStrategy<TestingSourceSplit> strategy =
+                parallelism -> new RecordingDynamicRateLimiter(updatedRate);
+        final SourceReader<?, ?> reader =
+                createReaderAndAwaitAvailable(
+                        Collections.singletonList("test-split"),
+                        Collections.singletonList(
+                                new TestingRecordsWithSplitIds<>("test-split", "value")),
+                        strategy);
+
+        assertThat(reader).isInstanceOf(SupportsDynamicRateLimit.class);
+        ((SupportsDynamicRateLimit) reader).updateTargetRate(42.0);
+
+        assertThat(updatedRate).hasValue(42.0);
+    }
+
+    @Test
+    void testUpdateTargetRateIgnoredForStaticRateLimiter() throws Exception {
+        final SourceReader<?, ?> reader =
+                createReaderAndAwaitAvailable(
+                        Collections.singletonList("test-split"),
+                        Collections.singletonList(
+                                new TestingRecordsWithSplitIds<>("test-split", "value")),
+                        RateLimiterStrategy.perSecond(2));
+
+        assertThatCode(() -> ((SupportsDynamicRateLimit) reader).updateTargetRate(42.0))
+                .doesNotThrowAnyException();
     }
 
     @Test
@@ -533,6 +568,25 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         config.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 1);
         config.set(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
         return config;
+    }
+
+    private static class RecordingDynamicRateLimiter
+            implements DynamicRateLimiter<TestingSourceSplit> {
+        private final AtomicReference<Double> updatedRate;
+
+        private RecordingDynamicRateLimiter(AtomicReference<Double> updatedRate) {
+            this.updatedRate = updatedRate;
+        }
+
+        @Override
+        public CompletionStage<Void> acquire(int numberOfEvents) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public void updateRate(double recordsPerSecond) {
+            updatedRate.set(recordsPerSecond);
+        }
     }
 
     // ------------------------------------------------------------------------
