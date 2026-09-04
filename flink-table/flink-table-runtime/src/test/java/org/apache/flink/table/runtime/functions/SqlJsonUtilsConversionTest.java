@@ -307,8 +307,18 @@ class SqlJsonUtilsConversionTest {
         }
 
         @Test
-        void intToBooleanReturnsNull() {
+        void intZeroOneToBooleanConverts() {
+            assertThat(scalar(0, BOOLEAN)).isEqualTo(false);
+            assertThat(scalar(1, BOOLEAN)).isEqualTo(true);
+            assertThat(scalar(0L, BOOLEAN)).isEqualTo(false);
+            assertThat(scalar(1L, BOOLEAN)).isEqualTo(true);
+        }
+
+        @Test
+        void otherIntToBooleanReturnsNull() {
             assertThat(scalar(42, BOOLEAN)).isNull();
+            assertThat(scalar(-1, BOOLEAN)).isNull();
+            assertThat(scalar(2, BOOLEAN)).isNull();
         }
     }
 
@@ -336,6 +346,12 @@ class SqlJsonUtilsConversionTest {
         void convertsBooleanArray() {
             assertThat(array(new Object[] {true, false}, BOOLEAN).toObjectArray())
                     .containsExactly(true, false);
+        }
+
+        @Test
+        void integerZeroOneToBooleanArray() {
+            assertThat(array(new Object[] {0, 1}, BOOLEAN).toObjectArray())
+                    .containsExactly(false, true);
         }
 
         @Test

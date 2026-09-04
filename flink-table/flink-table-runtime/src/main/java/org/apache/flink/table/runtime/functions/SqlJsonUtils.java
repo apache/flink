@@ -926,6 +926,13 @@ public class SqlJsonUtils {
         try {
             switch (typeRoot) {
                 case BOOLEAN:
+                    if (raw instanceof Number) {
+                        int v = ((Number) raw).intValue();
+                        if (v == 0) return false;
+                        if (v == 1) return true;
+                        throw new JsonConversionException(
+                                "Cannot convert " + raw + " to BOOLEAN");
+                    }
                     return (Boolean) raw;
                 case TINYINT:
                     return toCheckedByte((Number) raw);

@@ -38,6 +38,7 @@ import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -512,17 +513,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testResult(
                         $("f0").jsonValue("$.balance", DECIMAL(10, 2)),
                         "JSON_VALUE(f0, '$.balance' RETURNING DECIMAL(10, 2))",
-                        new java.math.BigDecimal("13.37"),
+                        new BigDecimal("13.37"),
                         DECIMAL(10, 2))
                 .testResult(
                         $("f0").jsonValue("$.balance", DECIMAL(9, 2)),
                         "JSON_VALUE(f0, '$.balance' RETURNING DECIMAL(9, 2))",
-                        new java.math.BigDecimal("13.37"),
+                        new BigDecimal("13.37"),
                         DECIMAL(9, 2))
                 .testResult(
                         $("f0").jsonValue("$.longBalance", DECIMAL(30, 10)),
                         "JSON_VALUE(f0, '$.longBalance' RETURNING DECIMAL(30, 10))",
-                        new java.math.BigDecimal("123456789.9876543210"),
+                        new BigDecimal("123456789.9876543210"),
                         DECIMAL(30, 10))
 
                 // ON EMPTY / ON ERROR
@@ -636,7 +637,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE(f0, '$.bigCount' RETURNING INTEGER)",
                         null,
                         INT())
-                // Fractional truncation toward zero (13.37 -> 13, -13.37 -> -13):
+                // Fractional truncation toward zero (13.89 -> 13, -13.89 -> -13):
                 // MySQL truncates, PostgreSQL errors. We match MySQL behavior
                 // (CAST(JSON_UNQUOTE(JSON_EXTRACT(...)) AS type)).
                 .testResult(
@@ -679,12 +680,12 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         JsonValueOnEmptyOrError.DEFAULT,
                                         0),
                         "JSON_VALUE(f0, '$.longBalance' RETURNING DECIMAL(5, 2) DEFAULT 0 ON ERROR)",
-                        new java.math.BigDecimal("0.00"),
+                        new BigDecimal("0.00"),
                         DECIMAL(5, 2))
                 // String-literal DEFAULT with numeric RETURNING type
                 .testSqlResult(
                         "JSON_VALUE(f0, '$.longBalance' RETURNING DECIMAL(5, 2) DEFAULT '0.00' ON ERROR)",
-                        new java.math.BigDecimal("0.00"),
+                        new BigDecimal("0.00"),
                         DECIMAL(5, 2))
 
                 // Boolean <-> numeric cross-type mismatch
@@ -709,6 +710,16 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         null),
                         "JSON_VALUE(f0, '$.age' RETURNING BOOLEAN NULL ON ERROR)",
                         null,
+                        BOOLEAN())
+
+                // Integer 0/1 to boolean conversion
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 1}', '$.x' RETURNING BOOLEAN)",
+                        true,
+                        BOOLEAN())
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 0}', '$.x' RETURNING BOOLEAN)",
+                        false,
                         BOOLEAN())
 
                 // Outer CAST on JSON_VALUE result (boxed-to-primitive codegen)
@@ -1155,9 +1166,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f0").jsonQuery("$.doubles", ARRAY(DECIMAL(10, 2))),
                                 "JSON_QUERY(f0, '$.doubles' RETURNING ARRAY<DECIMAL(10,2)>)",
-                                new java.math.BigDecimal[] {
-                                    new java.math.BigDecimal("1.50"),
-                                    new java.math.BigDecimal("2.50")
+                                new BigDecimal[] {
+                                    new BigDecimal("1.50"),
+                                    new BigDecimal("2.50")
                                 },
                                 ARRAY(DECIMAL(10, 2)))
                         .testResult(
@@ -1221,16 +1232,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 null,
                                 ARRAY(BOOLEAN()))
 
-                        // Integer [0, 1] does not convert to boolean
+                        // Integer [0, 1] converts to boolean {false, true}
                         .testResult(
-                                $("f4").jsonQuery(
-                                                "$.zeroAndOne",
-                                                ARRAY(BOOLEAN()),
-                                                WITHOUT_ARRAY,
-                                                NULL,
-                                                NULL),
-                                "JSON_QUERY(f4, '$.zeroAndOne' RETURNING ARRAY<BOOLEAN> NULL ON ERROR)",
-                                null,
+                                $("f4").jsonQuery("$.zeroAndOne", ARRAY(BOOLEAN())),
+                                "JSON_QUERY(f4, '$.zeroAndOne' RETURNING ARRAY<BOOLEAN>)",
+                                new Boolean[] {false, true},
                                 ARRAY(BOOLEAN()))
 
                         // String ["yes", "no"] converts to boolean via parseStringAsBoolean
