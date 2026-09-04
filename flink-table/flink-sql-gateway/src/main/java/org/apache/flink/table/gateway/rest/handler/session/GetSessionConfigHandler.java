@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.rest.handler.session;
 
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -59,8 +60,10 @@ public class GetSessionConfigHandler
             SessionHandle sessionHandle =
                     request.getPathParameter(SessionHandleIdPathParameter.class);
             Map<String, String> sessionConfig = this.service.getSessionConfig(sessionHandle);
+            Map<String, String> redactedSessionConfig =
+                    ConfigurationUtils.hideSensitiveValues(sessionConfig);
             return CompletableFuture.completedFuture(
-                    new GetSessionConfigResponseBody(sessionConfig));
+                    new GetSessionConfigResponseBody(redactedSessionConfig));
         } catch (SqlGatewayException e) {
             throw new RestHandlerException(
                     e.getMessage(), HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
