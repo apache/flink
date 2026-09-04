@@ -35,7 +35,8 @@ import java.util.Optional;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsImplicitCast;
 
 /**
- * Specific {@link ArgumentTypeStrategy} for {@link BuiltInFunctionDefinitions#MAP_CONTAINS_KEY}.
+ * Specific {@link ArgumentTypeStrategy} for the key argument of {@link
+ * BuiltInFunctionDefinitions#MAP_CONTAINS_KEY}.
  */
 @Internal
 class MapKeyArgumentTypeStrategy implements ArgumentTypeStrategy {
@@ -44,7 +45,8 @@ class MapKeyArgumentTypeStrategy implements ArgumentTypeStrategy {
     public Optional<DataType> inferArgumentType(
             CallContext callContext, int argumentPos, boolean throwOnFailure) {
         List<DataType> argumentTypes = callContext.getArgumentDataTypes();
-        final MapType mapType = (MapType) argumentTypes.get(0).getLogicalType();
+        final int mapArgumentPos = 0;
+        final MapType mapType = (MapType) argumentTypes.get(mapArgumentPos).getLogicalType();
         final LogicalType actualKeyType = argumentTypes.get(argumentPos).getLogicalType();
         LogicalType expectedKeyType = mapType.getKeyType();
 

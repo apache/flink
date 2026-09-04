@@ -1998,6 +1998,7 @@ class Expression(Generic[T]):
 
             >>> map_("a", 1, "b", 2).map_contains_key("a") # True
             >>> map_("a", 1, "b", 2).map_contains_key("z") # False
+            >>> map_(1, "a").map_contains_key(lit(1, DataTypes.TINYINT())) # True
         """
         return _binary_op("mapContainsKey")(self, key)
 

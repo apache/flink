@@ -1983,6 +1983,7 @@ public abstract class BaseExpressions<InType, OutType> {
      * <pre>{@code
      * map("a", 1, "b", 2).mapContainsKey("a") // TRUE
      * map("a", 1, "b", 2).mapContainsKey("z") // FALSE
+     * map(1, "a").mapContainsKey(lit(1).cast(DataTypes.TINYINT())) // TRUE
      * }</pre>
      */
     public OutType mapContainsKey(InType key) {

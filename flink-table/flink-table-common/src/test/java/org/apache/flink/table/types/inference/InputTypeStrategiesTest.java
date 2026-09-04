@@ -679,8 +679,8 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                                 DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()),
                                 DataTypes.BOOLEAN())
                         .expectErrorMessage(
-                                "Invalid input arguments. Expected signatures are:\n"
-                                        + "f(<MAP>, <MAP KEY>)"),
+                                "Unsupported argument type. Expected type 'INT' but actual "
+                                        + "type was 'BOOLEAN'."),
                 TestSpec.forStrategy(sequence(SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE))
                         .expectSignature("f(<ARRAY<COMPARABLE>>)")
                         .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.ROW()))
