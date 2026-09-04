@@ -107,6 +107,42 @@ public class SavepointRestoreSettingsTest {
     }
 
     @Test
+    void testForRecoveryClaimModeWritesClaimModeWithoutSavepointPath() {
+        SavepointRestoreSettings settings =
+                SavepointRestoreSettings.forRecoveryClaimMode(null, RecoveryClaimMode.CLAIM);
+
+        assertThat(settings.restoreSavepoint()).isFalse();
+        assertThat(settings.getRestorePath()).isNull();
+        assertThat(settings.getRecoveryClaimMode()).isEqualTo(RecoveryClaimMode.CLAIM);
+
+        Configuration configuration = new Configuration();
+        SavepointRestoreSettings.toConfiguration(settings, configuration);
+
+        assertThat(configuration.get(StateRecoveryOptions.RESTORE_MODE))
+                .isEqualTo(RecoveryClaimMode.CLAIM);
+        assertThat(configuration.containsKey(StateRecoveryOptions.SAVEPOINT_PATH.key())).isFalse();
+        // Not explicitly set, so it must not be written.
+        assertThat(
+                        configuration.containsKey(
+                                StateRecoveryOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE.key()))
+                .isFalse();
+    }
+
+    @Test
+    void testForRecoveryClaimModeWritesExplicitlySetAllowNonRestoredState() {
+        SavepointRestoreSettings settings =
+                SavepointRestoreSettings.forRecoveryClaimMode(true, RecoveryClaimMode.CLAIM);
+
+        Configuration configuration = new Configuration();
+        SavepointRestoreSettings.toConfiguration(settings, configuration);
+
+        assertThat(configuration.get(StateRecoveryOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE))
+                .isTrue();
+        assertThat(configuration.get(StateRecoveryOptions.RESTORE_MODE))
+                .isEqualTo(RecoveryClaimMode.CLAIM);
+    }
+
+    @Test
     void testFromConfigurationWithAllValuesSet() {
         Configuration configuration = new Configuration();
         configuration.set(StateRecoveryOptions.SAVEPOINT_PATH, "/tmp/savepoint");
