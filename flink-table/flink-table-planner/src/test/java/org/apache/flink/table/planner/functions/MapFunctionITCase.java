@@ -685,6 +685,12 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                         .mapContainsKey(nullOf(DataTypes.STRING())),
                                 "MAP_CONTAINS_KEY(MAP[CAST(NULL AS STRING), 1], CAST(NULL AS STRING))",
                                 true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                map(lit(1), lit("a"))
+                                        .mapContainsKey(lit(1).cast(DataTypes.TINYINT())),
+                                "MAP_CONTAINS_KEY(MAP[1, 'a'], CAST(1 AS TINYINT))",
+                                true,
                                 DataTypes.BOOLEAN().notNull()));
     }
 
