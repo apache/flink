@@ -25,6 +25,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -216,6 +217,50 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
         assertThat(savepointRestoreSettings.restoreSavepoint()).isTrue();
         assertThat(savepointRestoreSettings.getRestorePath()).isEqualTo(restorePath);
         assertThat(savepointRestoreSettings.allowNonRestoredState()).isTrue();
+    }
+
+    @Test
+    void testClaimModeParsing() throws FlinkParseException {
+        final String restorePath = "foobar";
+        final String[] args = {
+            "-c",
+            confDirPath,
+            "-j",
+            JOB_CLASS_NAME,
+            "-s",
+            restorePath,
+            "--claimMode",
+            RecoveryClaimMode.CLAIM.name()
+        };
+
+        final SavepointRestoreSettings savepointRestoreSettings =
+                commandLineParser.parse(args).getSavepointRestoreSettings();
+
+        assertThat(savepointRestoreSettings.getRestorePath()).isEqualTo(restorePath);
+        assertThat(savepointRestoreSettings.getRecoveryClaimMode())
+                .isEqualTo(RecoveryClaimMode.CLAIM);
+    }
+
+    @Test
+    void testRestoreModeParsing() throws FlinkParseException {
+        final String restorePath = "foobar";
+        final String[] args = {
+            "-c",
+            confDirPath,
+            "-j",
+            JOB_CLASS_NAME,
+            "-s",
+            restorePath,
+            "--restoreMode",
+            RecoveryClaimMode.CLAIM.name()
+        };
+
+        final SavepointRestoreSettings savepointRestoreSettings =
+                commandLineParser.parse(args).getSavepointRestoreSettings();
+
+        assertThat(savepointRestoreSettings.getRestorePath()).isEqualTo(restorePath);
+        assertThat(savepointRestoreSettings.getRecoveryClaimMode())
+                .isEqualTo(RecoveryClaimMode.CLAIM);
     }
 
     @Test
