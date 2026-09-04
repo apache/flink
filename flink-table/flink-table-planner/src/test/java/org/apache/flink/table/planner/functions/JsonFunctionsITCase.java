@@ -501,6 +501,46 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE(f0, '$.longBalance' RETURNING DOUBLE)",
                         123456789.987654321,
                         DOUBLE())
+                .testResult(
+                        $("f0").jsonValue("$.age", TINYINT()),
+                        "JSON_VALUE(f0, '$.age' RETURNING TINYINT)",
+                        (byte) 42,
+                        TINYINT())
+                .testResult(
+                        $("f0").jsonValue("$.age", SMALLINT()),
+                        "JSON_VALUE(f0, '$.age' RETURNING SMALLINT)",
+                        (short) 42,
+                        SMALLINT())
+                .testResult(
+                        $("f0").jsonValue("$.age", BIGINT()),
+                        "JSON_VALUE(f0, '$.age' RETURNING BIGINT)",
+                        42L,
+                        BIGINT())
+                .testResult(
+                        $("f0").jsonValue("$.bigCount", BIGINT()),
+                        "JSON_VALUE(f0, '$.bigCount' RETURNING BIGINT)",
+                        9999999999L,
+                        BIGINT())
+                .testResult(
+                        $("f0").jsonValue("$.balance", FLOAT()),
+                        "JSON_VALUE(f0, '$.balance' RETURNING FLOAT)",
+                        13.37f,
+                        FLOAT())
+                .testResult(
+                        $("f0").jsonValue("$.balance", DECIMAL(10, 2)),
+                        "JSON_VALUE(f0, '$.balance' RETURNING DECIMAL(10, 2))",
+                        new java.math.BigDecimal("13.37"),
+                        DECIMAL(10, 2))
+                .testResult(
+                        $("f0").jsonValue("$.balance", DECIMAL(9, 2)),
+                        "JSON_VALUE(f0, '$.balance' RETURNING DECIMAL(9, 2))",
+                        new java.math.BigDecimal("13.37"),
+                        DECIMAL(9, 2))
+                .testResult(
+                        $("f0").jsonValue("$.longBalance", DECIMAL(30, 10)),
+                        "JSON_VALUE(f0, '$.longBalance' RETURNING DECIMAL(30, 10))",
+                        new java.math.BigDecimal("123456789.9876543210"),
+                        DECIMAL(30, 10))
 
                 // ON EMPTY / ON ERROR
                 .testResult(
@@ -613,8 +653,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE(f0, '$.bigCount' RETURNING INTEGER)",
                         null,
                         INT())
-                // Fractional truncation (13.37 -> 13): MySQL truncates, PostgreSQL errors.
-                // We match MySQL (CAST(JSON_UNQUOTE(JSON_EXTRACT(...)) AS type)).
+                // Fractional truncation toward zero (13.37 -> 13, -13.37 -> -13):
+                // MySQL truncates, PostgreSQL errors. We match MySQL behavior
+                // (CAST(JSON_UNQUOTE(JSON_EXTRACT(...)) AS type)).
                 .testResult(
                         $("f0").jsonValue("$.balance", INT()),
                         "JSON_VALUE(f0, '$.balance' RETURNING INTEGER)",
@@ -702,6 +743,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "CAST(JSON_VALUE(f0, '$.longBalance' RETURNING DOUBLE) AS BIGINT)",
                         123456789L,
                         BIGINT())
+
+                // Equality on typed RETURNING results from different paths
+                // (distinct objects, same value -- must use value comparison, not reference)
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 99999, \"b\": 99999}', '$.a' RETURNING INT) = JSON_VALUE('{\"a\": 99999, \"b\": 99999}', '$.b' RETURNING INT)",
+                        true,
+                        BOOLEAN())
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 13.37, \"b\": 13.37}', '$.a' RETURNING DOUBLE) = JSON_VALUE('{\"a\": 13.37, \"b\": 13.37}', '$.b' RETURNING DOUBLE)",
+                        true,
+                        BOOLEAN())
 
                 // path contains blank characters.
                 .testResult(
@@ -1125,6 +1177,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                     new java.math.BigDecimal("2.50")
                                 },
                                 ARRAY(DECIMAL(10, 2)))
+                        .testResult(
+                                $("f0").jsonQuery("$.ints", ARRAY(INT().notNull())),
+                                "JSON_QUERY(f0, '$.ints' RETURNING ARRAY<INT NOT NULL>)",
+                                new Integer[] {1, 2, 3},
+                                ARRAY(INT().notNull()))
                         .testSqlValidationError(
                                 "JSON_QUERY(f0, '$.ints' RETURNING ARRAY<TIMESTAMP>)",
                                 "Unsupported array element type"),
@@ -1135,8 +1192,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "{\"strings\": [\"a\", \"b\"]}",
                                 "{\"mixed\": [1, \"notANumber\", 3]}",
                                 "{\"ints\": [1, 2, 3]}",
-                                "{\"empty\": []}")
-                        .andDataTypes(STRING(), STRING(), STRING(), STRING())
+                                "{\"empty\": []}",
+                                "{\"zeroAndOne\": [0, 1], \"yesAndNo\": [\"yes\", \"no\"], \"yAndN\": [\"Y\", \"n\"]}")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING())
                         .testResult(
                                 $("f0").jsonQuery(
                                                 "$.strings",
@@ -1177,6 +1235,37 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                                 NULL,
                                                 NULL),
                                 "JSON_QUERY(f2, '$.ints' RETURNING ARRAY<BOOLEAN> NULL ON ERROR)",
+                                null,
+                                ARRAY(BOOLEAN()))
+
+                        // Integer [0, 1] does not convert to boolean
+                        .testResult(
+                                $("f4").jsonQuery(
+                                                "$.zeroAndOne",
+                                                ARRAY(BOOLEAN()),
+                                                WITHOUT_ARRAY,
+                                                NULL,
+                                                NULL),
+                                "JSON_QUERY(f4, '$.zeroAndOne' RETURNING ARRAY<BOOLEAN> NULL ON ERROR)",
+                                null,
+                                ARRAY(BOOLEAN()))
+
+                        // String ["yes", "no"] converts to boolean via parseStringAsBoolean
+                        .testResult(
+                                $("f4").jsonQuery("$.yesAndNo", ARRAY(BOOLEAN())),
+                                "JSON_QUERY(f4, '$.yesAndNo' RETURNING ARRAY<BOOLEAN>)",
+                                new Boolean[] {true, false},
+                                ARRAY(BOOLEAN()))
+
+                        // String ["Y", "n"] does not convert (not in accepted set)
+                        .testResult(
+                                $("f4").jsonQuery(
+                                                "$.yAndN",
+                                                ARRAY(BOOLEAN()),
+                                                WITHOUT_ARRAY,
+                                                NULL,
+                                                NULL),
+                                "JSON_QUERY(f4, '$.yAndN' RETURNING ARRAY<BOOLEAN> NULL ON ERROR)",
                                 null,
                                 ARRAY(BOOLEAN()))
 
