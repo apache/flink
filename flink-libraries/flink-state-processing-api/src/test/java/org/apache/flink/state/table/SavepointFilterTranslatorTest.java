@@ -638,7 +638,8 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void lessThanFractionalLiteralAgainstBigintKeyIsNotPushed() {
-        // key < 1.5 (DECIMAL literal, BIGINT key) -> truncating to 1 would drop key 1, not pushed
+        // key < 1.5 (DECIMAL literal, BIGINT key) -> no long bound is exact here, and a
+        // truncated 1 would drop key 1, so the predicate is not pushed
         SavepointFilterTranslator.Result applied =
                 apply(List.of(lt(longKeyRef(), decLit("1.5"))), LONG_KEY_TYPE);
 
@@ -650,7 +651,7 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void greaterThanOrEqualFractionalLiteralAgainstBigintKeyIsNotPushed() {
-        // key >= 1.5 -> truncating to 1 would wrongly admit key 1, not pushed
+        // key >= 1.5 -> a truncated bound of 1 would wrongly admit key 1, not pushed
         SavepointFilterTranslator.Result applied =
                 apply(List.of(gte(longKeyRef(), decLit("1.5"))), LONG_KEY_TYPE);
 
@@ -667,13 +668,13 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void equalsFractionalLiteralAgainstBigintKeyIsNotPushed() {
-        // key = 1.5 -> no BIGINT key can equal 1.5, and truncating to 1 would match key 1
+        // key = 1.5 -> no BIGINT key equals 1.5, and a truncated 1 would match the wrong key
         assertThat(keyFilterOf(eq(longKeyRef(), decLit("1.5")))).isNull();
     }
 
     @Test
-    void integralDecimalLiteralAgainstBigintKeyIsWidenedAndPushed() {
-        // key = 5.0 -> the widening is exact, so the pushdown is still safe
+    void integralDecimalLiteralAgainstBigintKeyIsConvertedAndPushed() {
+        // key = 5.0 -> the conversion to 5L is exact, so the pushdown is still safe
         SavepointKeyFilter<Object> filter = keyFilterOf(eq(longKeyRef(), decLit("5.0")));
 
         assertNotNull(filter);
@@ -683,7 +684,7 @@ class SavepointFilterTranslatorTest {
 
     @Test
     void outOfRangeLiteralAgainstBigintKeyIsNotPushed() {
-        // key < 10^30 -> the value does not fit in a long, so the bound would wrap around
+        // key < 10^30 -> the value does not fit in a long, not pushed
         ValueLiteralExpression hugeLit =
                 new ValueLiteralExpression(
                         new BigDecimal("1000000000000000000000000000000"),
@@ -693,22 +694,186 @@ class SavepointFilterTranslatorTest {
     }
 
     @Test
-    void literalLosingPrecisionAgainstDoubleKeyIsNotPushed() {
-        // key = 9007199254740993 (BIGINT literal, DOUBLE key) -> not representable as a double
-        FieldReferenceExpression doubleKey =
-                new FieldReferenceExpression("key", DataTypes.DOUBLE().notNull(), 0, KEY_COL);
-
-        assertThat(keyFilterOf(eq(doubleKey, longLit(9007199254740993L)))).isNull();
+    void negativeFractionalLiteralAgainstBigintKeyIsNotPushed() {
+        // key > -1.5 -> fractional, so no long bound represents it exactly, not pushed
+        assertThat(keyFilterOf(gt(longKeyRef(), decLit("-1.5")))).isNull();
     }
 
     @Test
-    void fractionalLiteralAgainstDoubleKeyIsWidenedAndPushed() {
-        // key BETWEEN 1.5 AND 3.5 (DECIMAL literals, DOUBLE key) -> exact, so pushed
+    void floatLiteralWithFractionAgainstBigintKeyIsNotPushed() {
+        // key < 1.5 (FLOAT literal, BIGINT key) -> lossy, not pushed
+        ValueLiteralExpression floatLit =
+                new ValueLiteralExpression(1.5f, DataTypes.FLOAT().notNull());
+
+        assertThat(keyFilterOf(lt(longKeyRef(), floatLit))).isNull();
+    }
+
+    @Test
+    void integralFloatLiteralAgainstBigintKeyIsConvertedAndPushed() {
+        // key = 5.0 (FLOAT literal, BIGINT key) -> the conversion is exact, so still pushed
+        ValueLiteralExpression floatLit =
+                new ValueLiteralExpression(5.0f, DataTypes.FLOAT().notNull());
+
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(longKeyRef(), floatLit));
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).containsExactly(5L);
+    }
+
+    @Test
+    void approximateLiteralAtBigintExactIntegerLimitIsNotPushed() {
+        List<ValueLiteralExpression> aliasedLiterals =
+                List.of(
+                        new ValueLiteralExpression(16777216f, DataTypes.FLOAT().notNull()),
+                        new ValueLiteralExpression(-16777216f, DataTypes.FLOAT().notNull()),
+                        new ValueLiteralExpression(9007199254740992d, DataTypes.DOUBLE().notNull()),
+                        new ValueLiteralExpression(
+                                -9007199254740992d, DataTypes.DOUBLE().notNull()));
+
+        for (ValueLiteralExpression literal : aliasedLiterals) {
+            for (ResolvedExpression predicate :
+                    List.of(eq(longKeyRef(), literal), gt(longKeyRef(), literal))) {
+                SavepointFilterTranslator.Result applied = apply(List.of(predicate), LONG_KEY_TYPE);
+
+                assertThat(applied.keyFilter()).isNull();
+                assertThat(applied.accepted()).isEmpty();
+                assertThat(applied.remaining()).containsExactly(predicate);
+            }
+        }
+    }
+
+    @Test
+    void approximateLiteralBelowBigintExactIntegerLimitIsPushed() {
+        List<ValueLiteralExpression> exactLiterals =
+                List.of(
+                        new ValueLiteralExpression(16777215f, DataTypes.FLOAT().notNull()),
+                        new ValueLiteralExpression(-16777215f, DataTypes.FLOAT().notNull()),
+                        new ValueLiteralExpression(9007199254740991d, DataTypes.DOUBLE().notNull()),
+                        new ValueLiteralExpression(
+                                -9007199254740991d, DataTypes.DOUBLE().notNull()));
+
+        for (ValueLiteralExpression literal : exactLiterals) {
+            assertThat(keyFilterOf(eq(longKeyRef(), literal))).isNotNull();
+        }
+    }
+
+    @Test
+    void tinyintLiteralAgainstBigintKeyIsConvertedAndPushed() {
+        // key = 5 (TINYINT literal, BIGINT key) -> {5L}
+        ValueLiteralExpression tinyLit =
+                new ValueLiteralExpression((byte) 5, DataTypes.TINYINT().notNull());
+
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(longKeyRef(), tinyLit));
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).containsExactly(5L);
+    }
+
+    @Test
+    void smallintLiteralAgainstBigintKeyIsConvertedAndPushed() {
+        // key = 5 (SMALLINT literal, BIGINT key) -> {5L}
+        ValueLiteralExpression smallLit =
+                new ValueLiteralExpression((short) 5, DataTypes.SMALLINT().notNull());
+
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(longKeyRef(), smallLit));
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).containsExactly(5L);
+    }
+
+    @Test
+    void nanLiteralAgainstBigintKeyIsNotPushed() {
+        // key = NaN -> no decimal value at all, not pushed
+        ValueLiteralExpression nanLit =
+                new ValueLiteralExpression(Double.NaN, DataTypes.DOUBLE().notNull());
+
+        assertThat(keyFilterOf(eq(longKeyRef(), nanLit))).isNull();
+    }
+
+    @Test
+    void infiniteLiteralAgainstBigintKeyIsNotPushed() {
+        // key < +Infinity -> no decimal value at all, not pushed
+        ValueLiteralExpression infLit =
+                new ValueLiteralExpression(Double.POSITIVE_INFINITY, DataTypes.DOUBLE().notNull());
+
+        assertThat(keyFilterOf(lt(longKeyRef(), infLit))).isNull();
+    }
+
+    @Test
+    void fractionalLiteralAgainstDoubleKeyIsConvertedAndPushed() {
+        // key BETWEEN 1.5 AND 3.5 (DECIMAL literals, DOUBLE key) -> [1.5, 3.5]
         FieldReferenceExpression doubleKey =
                 new FieldReferenceExpression("key", DataTypes.DOUBLE().notNull(), 0, KEY_COL);
 
         SavepointKeyFilter<Object> filter =
                 keyFilterOf(between(doubleKey, decLit("1.5"), decLit("3.5")));
+
+        assertNotNull(filter);
+        assertThat(filter.test(1.4d)).isFalse();
+        assertThat(filter.test(1.5d)).isTrue();
+        assertThat(filter.test(3.5d)).isTrue();
+        assertThat(filter.test(3.6d)).isFalse();
+    }
+
+    @Test
+    void floatLiteralAgainstDoubleKeyIsConvertedAndPushed() {
+        // key = 0.5 (FLOAT literal, DOUBLE key) -> exactly representable, so pushed
+        FieldReferenceExpression doubleKey =
+                new FieldReferenceExpression("key", DataTypes.DOUBLE().notNull(), 0, KEY_COL);
+        ValueLiteralExpression floatLit =
+                new ValueLiteralExpression(0.5f, DataTypes.FLOAT().notNull());
+
+        SavepointKeyFilter<Object> filter = keyFilterOf(eq(doubleKey, floatLit));
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).containsExactly(0.5d);
+    }
+
+    @Test
+    void literalNotRepresentableAsDoubleIsConvertedToTheNearestDouble() {
+        // key > 9007199254740993 (BIGINT literal, DOUBLE key) -> 2^53 + 1 is not representable, so
+        // the bound becomes the nearest double, which is the value SQL compares against too. The
+        // planner folds such a literal itself for equality, but hands bounds over untouched.
+        FieldReferenceExpression doubleKey =
+                new FieldReferenceExpression("key", DataTypes.DOUBLE().notNull(), 0, KEY_COL);
+
+        SavepointKeyFilter<Object> filter = keyFilterOf(gt(doubleKey, longLit(9007199254740993L)));
+
+        assertNotNull(filter);
+        assertThat(filter.test(9007199254740992.0d)).isFalse();
+        assertThat(filter.test(9007199254740994.0d)).isTrue();
+    }
+
+    @Test
+    void outOfRangeLiteralAgainstDoubleKeyIsNotPushed() {
+        // key < 10^400 (DOUBLE key) -> the value overflows to +Infinity, not pushed
+        FieldReferenceExpression doubleKey =
+                new FieldReferenceExpression("key", DataTypes.DOUBLE().notNull(), 0, KEY_COL);
+        ValueLiteralExpression hugeLit =
+                new ValueLiteralExpression(
+                        new BigDecimal("1E+400"), DataTypes.DECIMAL(38, 0).notNull());
+
+        assertThat(keyFilterOf(lt(doubleKey, hugeLit))).isNull();
+
+        // A literal of the same shape that still fits in a double is pushed, so the rejection
+        // above is the overflow guard rather than an unreadable literal.
+        ValueLiteralExpression largeLit =
+                new ValueLiteralExpression(
+                        new BigDecimal("1E+300"), DataTypes.DECIMAL(38, 0).notNull());
+        assertNotNull(keyFilterOf(lt(doubleKey, largeLit)));
+    }
+
+    @Test
+    void doubleLiteralAgainstDoubleKeyIsPushed() {
+        // key BETWEEN 1.5 AND 3.5 (DOUBLE literals, DOUBLE key) -> [1.5, 3.5]
+        FieldReferenceExpression doubleKey =
+                new FieldReferenceExpression("key", DataTypes.DOUBLE().notNull(), 0, KEY_COL);
+        ValueLiteralExpression lower =
+                new ValueLiteralExpression(1.5d, DataTypes.DOUBLE().notNull());
+        ValueLiteralExpression upper =
+                new ValueLiteralExpression(3.5d, DataTypes.DOUBLE().notNull());
+
+        SavepointKeyFilter<Object> filter = keyFilterOf(between(doubleKey, lower, upper));
 
         assertNotNull(filter);
         assertThat(filter.test(1.4d)).isFalse();

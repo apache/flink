@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -53,6 +52,8 @@ import java.util.function.Consumer;
 class SavepointFilterTranslator {
 
     private static final Logger LOG = LoggerFactory.getLogger(SavepointFilterTranslator.class);
+    private static final long FLOAT_EXACT_INTEGER_LIMIT = 1L << 24;
+    private static final long DOUBLE_EXACT_INTEGER_LIMIT = 1L << 53;
 
     private static final Map<
                     FunctionDefinition,
@@ -311,9 +312,25 @@ class SavepointFilterTranslator {
             return value;
         }
         if (value instanceof Number) {
-            final Object widened = widenNumberToKeyType((Number) value, keyClass);
-            if (widened != null) {
-                return widened;
+            if (keyClass == Long.class) {
+                final boolean unsafeLongConversion =
+                        (value instanceof Float
+                                        && Math.abs((Float) value) >= FLOAT_EXACT_INTEGER_LIMIT)
+                                || (value instanceof Double
+                                        && Math.abs((Double) value) >= DOUBLE_EXACT_INTEGER_LIMIT);
+                if (!unsafeLongConversion) {
+                    try {
+                        return new BigDecimal(value.toString()).longValueExact();
+                    } catch (NumberFormatException | ArithmeticException lossy) {
+                        // Not a decimal (NaN, Infinity), fractional, or outside the long range:
+                        // fall through and refuse the pushdown.
+                    }
+                }
+            } else if (keyClass == Double.class) {
+                final double converted = ((Number) value).doubleValue();
+                if (Double.isFinite(converted)) {
+                    return converted;
+                }
             }
         }
         LOG.debug(
@@ -322,57 +339,6 @@ class SavepointFilterTranslator {
                 value,
                 value.getClass().getName(),
                 keyColumnType);
-        return null;
-    }
-
-    /**
-     * Widens a numeric literal to the key type, or returns {@code null} when the conversion would
-     * lose information. A lossy conversion must not be pushed down: the pushed filter is the only
-     * thing evaluating the predicate, so a truncated bound silently returns the wrong rows.
-     */
-    @Nullable
-    private static Object widenNumberToKeyType(Number value, Class<?> keyClass) {
-        final BigDecimal exact = toExactDecimal(value);
-        if (exact == null) {
-            return null;
-        }
-        if (keyClass == Long.class) {
-            // longValue() discards any fractional part and keeps only the low-order 64 bits, so
-            // the round-trip rejects both fractional and out-of-range literals.
-            final long widened = exact.longValue();
-            if (BigDecimal.valueOf(widened).compareTo(exact) == 0) {
-                return widened;
-            }
-            return null;
-        }
-        if (keyClass == Double.class) {
-            final double widened = exact.doubleValue();
-            if (Double.isFinite(widened) && BigDecimal.valueOf(widened).compareTo(exact) == 0) {
-                return widened;
-            }
-        }
-        return null;
-    }
-
-    /** Returns the exact decimal value of a numeric literal, or {@code null} if it has none. */
-    @Nullable
-    private static BigDecimal toExactDecimal(Number value) {
-        if (value instanceof BigDecimal) {
-            return (BigDecimal) value;
-        }
-        if (value instanceof BigInteger) {
-            return new BigDecimal((BigInteger) value);
-        }
-        if (value instanceof Byte
-                || value instanceof Short
-                || value instanceof Integer
-                || value instanceof Long) {
-            return BigDecimal.valueOf(value.longValue());
-        }
-        if (value instanceof Float || value instanceof Double) {
-            final double doubleValue = value.doubleValue();
-            return Double.isFinite(doubleValue) ? BigDecimal.valueOf(doubleValue) : null;
-        }
         return null;
     }
 
