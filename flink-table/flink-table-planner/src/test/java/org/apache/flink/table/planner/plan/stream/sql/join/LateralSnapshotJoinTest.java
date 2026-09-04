@@ -342,7 +342,7 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Argument 'on_time' of SNAPSHOT must reference a row-time attribute");
+                        "Argument 'on_time' of SNAPSHOT must reference a rowtime attribute");
     }
 
     @Test
@@ -364,7 +364,7 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Argument 'on_time' of SNAPSHOT must reference a row-time attribute");
+                        "Argument 'on_time' of SNAPSHOT must reference a rowtime attribute");
     }
 
     @Test
@@ -412,8 +412,8 @@ public class LateralSnapshotJoinTest extends TableTestBase {
 
     @Test
     void testRejectProctimeOnTimeColumn() {
-        // A proc-time column is a TIMESTAMP_LTZ(3), so it passes the type-strategy check, but it is
-        // a proc-time (not a row-time) attribute and cannot drive the load phase, so the rule
+        // A proctime column is a TIMESTAMP_LTZ(3), so it passes the type-strategy check, but it is
+        // a proctime (not a rowtime) attribute and cannot drive the load phase, so the rule
         // rejects it.
         util.tableEnv()
                 .executeSql(
@@ -424,8 +424,8 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                                 + "  pt AS PROCTIME(),"
                                 + "  WATERMARK FOR bts AS bts"
                                 + ") WITH ('connector' = 'values', 'bounded' = 'false')");
-        // Select s.pt so the proc-time column is forced into the build-side expansion and reaches
-        // the rule as a proc-time (not row-time) indicator.
+        // Select s.pt so the proctime column is forced into the build-side expansion and reaches
+        // the rule as a proctime (not rowtime) indicator.
         final String sql =
                 "SELECT probe.pk, s.bk, s.pt FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b_proctime_wm, on_time => DESCRIPTOR(pt), "
@@ -436,7 +436,7 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasStackTraceContaining(
-                        "Argument 'on_time' of SNAPSHOT must reference a row-time attribute");
+                        "Argument 'on_time' of SNAPSHOT must reference a rowtime attribute");
     }
 
     @Test

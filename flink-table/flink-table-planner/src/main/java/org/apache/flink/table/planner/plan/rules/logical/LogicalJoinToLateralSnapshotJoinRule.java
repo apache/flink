@@ -126,7 +126,7 @@ public class LogicalJoinToLateralSnapshotJoinRule
                             + "issue.");
         }
 
-        // Resolve the build-side row-time column named by the on_time argument. Streaming
+        // Resolve the build-side rowtime column named by the on_time argument. Streaming
         // requires it; in batch the join degrades to a regular join (see
         // BatchPhysicalLateralSnapshotJoinRule) and no watermark is needed.
         final boolean isBatch = ShortcutUtils.unwrapContext(join).isBatchMode();
@@ -209,7 +209,7 @@ public class LogicalJoinToLateralSnapshotJoinRule
 
         // The original join condition's field types were resolved against the SNAPSHOT scan's
         // materialized output, but buildInputNode (its raw TABLE input) still exposes the
-        // build-side row-time attribute as an indicator (see replaceSnapshotScan). Retype the
+        // build-side rowtime attribute as an indicator (see replaceSnapshotScan). Retype the
         // condition to the actual left+right input types.
         final List<RelDataTypeField> leftRightFields = new ArrayList<>();
         leftRightFields.addAll(probeInputNode.getRowType().getFieldList());
@@ -243,7 +243,7 @@ public class LogicalJoinToLateralSnapshotJoinRule
         final int newRightCount = buildInputNode.getRowType().getFieldCount();
         final boolean isRowtimeFieldAdded = newRightCount > origRightCount;
         if (isRowtimeFieldAdded) {
-            // If a build-side projection stripped the row-time attribute, rebaseCalc re-appended it
+            // If a build-side projection stripped the rowtime attribute, rebaseCalc re-appended it
             // as a trailing column so it reaches the operator. Project that column away with a
             // wrapper Calc to restore the original join's output type.
             final RelDataType originalOutputType = join.getRowType();
@@ -326,10 +326,10 @@ public class LogicalJoinToLateralSnapshotJoinRule
      * Walks the right subtree replacing the {@link FlinkLogicalTableFunctionScan} (the SNAPSHOT
      * scan) with the scan's TABLE input, while preserving any {@link FlinkLogicalCalc} nodes
      * stacked above the scan. The SNAPSHOT type strategy materializes the build-side time
-     * attributes, so the scan's output type differs from its input's (the build-side row-time
-     * attribute is a plain timestamp on the scan output but a row-time indicator on the raw input).
+     * attributes, so the scan's output type differs from its input's (the build-side rowtime
+     * attribute is a plain timestamp on the scan output but a rowtime indicator on the raw input).
      * Each preserved Calc was built against the materialized scan output, so its {@link RexProgram}
-     * is rebased onto the raw (row-time-bearing) input type, which lets the row-time attribute flow
+     * is rebased onto the raw (rowtime-bearing) input type, which lets the rowtime attribute flow
      * through to the operator.
      */
     @Nullable
@@ -360,9 +360,9 @@ public class LogicalJoinToLateralSnapshotJoinRule
     }
 
     /**
-     * Resolves the build-side row-time column named by the {@code on_time} argument to its field
+     * Resolves the build-side rowtime column named by the {@code on_time} argument to its field
      * index in {@code buildInputNode}. Streaming requires the argument and the referenced column to
-     * be a row-time attribute; batch does not use a row-time attribute and returns {@code -1} when
+     * be a rowtime attribute; batch does not use a rowtime attribute and returns {@code -1} when
      * the argument is absent.
      */
     private static int resolveOnTimeIndex(
@@ -374,7 +374,7 @@ public class LogicalJoinToLateralSnapshotJoinRule
             if (!isBatch) {
                 throw new ValidationException(
                         "LATERAL SNAPSHOT requires the 'on_time' argument to identify the "
-                                + "build-side row-time attribute.");
+                                + "build-side rowtime attribute.");
             }
             return -1;
         }
@@ -385,17 +385,17 @@ public class LogicalJoinToLateralSnapshotJoinRule
                 RexLiteral.stringValue((RexLiteral) ((RexCall) timeColumnArg).getOperands().get(0));
         final int timeColIdx = buildInputNode.getRowType().getFieldNames().indexOf(timeColName);
         if (isBatch) {
-            // Batch degrades to a regular join and does not use the row-time attribute.
+            // Batch degrades to a regular join and does not use the rowtime attribute.
             return timeColIdx;
         }
-        // A row-time column named by on_time is always retained in the build input, so a missing
-        // index means the referenced column is not a row-time attribute.
+        // A rowtime column named by on_time is always retained in the build input, so a missing
+        // index means the referenced column is not a rowtime attribute.
         if (timeColIdx < 0
                 || !FlinkTypeFactory.isRowtimeIndicatorType(
                         buildInputNode.getRowType().getFieldList().get(timeColIdx).getType())) {
             throw new ValidationException(
                     String.format(
-                            "Argument 'on_time' of SNAPSHOT must reference a row-time attribute "
+                            "Argument 'on_time' of SNAPSHOT must reference a rowtime attribute "
                                     + "(a column with a watermark), but column '%s' is not one.",
                             timeColName));
         }
@@ -404,10 +404,10 @@ public class LogicalJoinToLateralSnapshotJoinRule
 
     /**
      * Rebuilds {@code calc}'s {@link RexProgram} so it reads from {@code newInput} (whose
-     * build-side time attributes are still row-time indicators) instead of the materialized
-     * SNAPSHOT scan output it was originally built against. Input references are retyped to the new
-     * input's field types; the projection/condition expressions and output field names are
-     * otherwise preserved.
+     * build-side time attributes are still rowtime indicators) instead of the materialized SNAPSHOT
+     * scan output it was originally built against. Input references are retyped to the new input's
+     * field types; the projection/condition expressions and output field names are otherwise
+     * preserved.
      */
     private static RelNode rebaseCalc(FlinkLogicalCalc calc, RelNode newInput) {
         final RexProgram program = calc.getProgram();
@@ -433,7 +433,7 @@ public class LogicalJoinToLateralSnapshotJoinRule
                         : program.expandLocalRef(program.getCondition()).accept(retyper);
         final List<String> fieldNames = new ArrayList<>(program.getOutputRowType().getFieldNames());
 
-        // Re-append the build-side row-time attribute if this projection dropped it, so it reaches
+        // Re-append the build-side rowtime attribute if this projection dropped it, so it reaches
         // the operator even when the outer query does not select it.
         final boolean exposesRowtime =
                 newProjects.stream()
