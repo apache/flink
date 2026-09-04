@@ -81,6 +81,8 @@ public class StandaloneApplicationClusterConfigurationParserFactory
         options.addOption(DYNAMIC_PROPERTY_OPTION);
         options.addOption(CliFrontendParser.SAVEPOINT_PATH_OPTION);
         options.addOption(CliFrontendParser.SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
+        options.addOption(CliFrontendParser.SAVEPOINT_CLAIM_MODE);
+        options.addOption(CliFrontendParser.SAVEPOINT_RESTORE_MODE);
 
         return options;
     }
