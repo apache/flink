@@ -20,15 +20,16 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 /**
  * {@link LogicalTypeRoot#UUID} to binary cast rule, the inverse of {@link BinaryToUuidCastRule}.
  *
  * <p>A UUID is its 16-byte big-endian encoding, so the internal {@code byte[]} is returned
- * unchanged. Only {@code BINARY(16)} and {@code BYTES} are supported targets; any other width would
- * pad or trim the value and thereby corrupt it. Example generated code:
+ * unchanged. Supported targets are {@code BINARY(16)} and any {@code VARBINARY(n)} with {@code n >=
+ * 16} (including {@code BYTES}); a narrower or padded width would trim or pad the value and thereby
+ * corrupt it. Example generated code:
  *
  * <pre>
  * result$0 = uuid$0;
@@ -49,10 +50,10 @@ class UuidToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<byte[
 
     private static boolean isSupportedTarget(LogicalType target) {
         if (target.is(LogicalTypeRoot.BINARY)) {
-            return LogicalTypeChecks.getLength(target) == 16;
+            return LogicalTypeChecks.getLength(target) == UuidType.BYTE_LENGTH;
         }
         if (target.is(LogicalTypeRoot.VARBINARY)) {
-            return LogicalTypeChecks.getLength(target) == VarBinaryType.MAX_LENGTH;
+            return LogicalTypeChecks.getLength(target) >= UuidType.BYTE_LENGTH;
         }
         return false;
     }

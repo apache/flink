@@ -28,6 +28,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -698,12 +699,14 @@ public final class LogicalTypeCasts {
             // would corrupt the serialized bitmap data.
             return allowExplicit && getLength(targetType) == VarBinaryType.MAX_LENGTH;
         } else if (sourceRoot == UUID && targetRoot == BINARY) {
-            // A UUID is exactly 16 bytes, so it maps to BINARY(16). Any other width would pad or
-            // trim the value and thereby corrupt it.
-            return allowExplicit && getLength(targetType) == 16;
+            // A UUID is exactly BYTE_LENGTH bytes. BINARY is fixed width, so only
+            // BINARY(BYTE_LENGTH)
+            // holds it without padding or trimming.
+            return allowExplicit && getLength(targetType) == UuidType.BYTE_LENGTH;
         } else if (sourceRoot == UUID && targetRoot == VARBINARY) {
-            // A UUID can only be cast to BYTES (unbounded VARBINARY), for the same reason.
-            return allowExplicit && getLength(targetType) == VarBinaryType.MAX_LENGTH;
+            // VARBINARY is variable width, so any VARBINARY(n) with n >= BYTE_LENGTH, up to BYTES,
+            // holds the bytes without trimming.
+            return allowExplicit && getLength(targetType) >= UuidType.BYTE_LENGTH;
         }
 
         if (implicitCastingRules.get(targetRoot).contains(sourceRoot)) {

@@ -531,11 +531,23 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                 TestSetSpec.forExpression("Cast a malformed value to UUID")
                         .onFieldsWithData("not-a-uuid", new byte[] {1, 2, 3})
                         .andDataTypes(STRING(), BYTES())
-                        .testTableApiRuntimeError($("f0").cast(UUID()), TableRuntimeException.class)
-                        .testSqlRuntimeError("CAST(f0 AS UUID)", TableRuntimeException.class)
+                        .testTableApiRuntimeError(
+                                $("f0").cast(UUID()),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits")
+                        .testSqlRuntimeError(
+                                "CAST(f0 AS UUID)",
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits")
                         .testResult($("f0").tryCast(UUID()), "TRY_CAST(f0 AS UUID)", null, UUID())
-                        .testTableApiRuntimeError($("f1").cast(UUID()), TableRuntimeException.class)
-                        .testSqlRuntimeError("CAST(f1 AS UUID)", TableRuntimeException.class)
+                        .testTableApiRuntimeError(
+                                $("f1").cast(UUID()),
+                                TableRuntimeException.class,
+                                "requires exactly 16 bytes")
+                        .testSqlRuntimeError(
+                                "CAST(f1 AS UUID)",
+                                TableRuntimeException.class,
+                                "requires exactly 16 bytes")
                         .testResult($("f1").tryCast(UUID()), "TRY_CAST(f1 AS UUID)", null, UUID()),
                 // A UUID casts to its canonical string and to its 16-byte encoding.
                 TestSetSpec.forExpression("Cast a UUID to a string and to bytes")

@@ -319,13 +319,16 @@ class LogicalTypeCastsTest {
                 Arguments.of(new UuidType(), new CharType(), false, true),
                 Arguments.of(VarCharType.STRING_TYPE, new UuidType(), false, true),
                 Arguments.of(new CharType(), new UuidType(), false, true),
-                // UUID maps to its 16-byte encoding: only BINARY(16) and BYTES, any other width is
-                // rejected because it would pad or trim the value
+                // UUID maps to its 16-byte encoding. BINARY is fixed width, so only BINARY(16)
+                // fits. VARBINARY is variable width, so any VARBINARY(n >= 16), up to BYTES, fits.
                 Arguments.of(new UuidType(), new BinaryType(16), false, true),
                 Arguments.of(new UuidType(), new BinaryType(10), false, false),
+                Arguments.of(new UuidType(), new BinaryType(20), false, false),
                 Arguments.of(
                         new UuidType(), new VarBinaryType(VarBinaryType.MAX_LENGTH), false, true),
-                Arguments.of(new UuidType(), new VarBinaryType(16), false, false),
+                Arguments.of(new UuidType(), new VarBinaryType(16), false, true),
+                Arguments.of(new UuidType(), new VarBinaryType(20), false, true),
+                Arguments.of(new UuidType(), new VarBinaryType(8), false, false),
                 // any binary source is accepted; the exact-16-bytes rule is enforced at runtime
                 Arguments.of(
                         new VarBinaryType(VarBinaryType.MAX_LENGTH), new UuidType(), false, true),

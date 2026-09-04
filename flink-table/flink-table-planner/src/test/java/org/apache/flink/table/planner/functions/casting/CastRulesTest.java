@@ -1654,6 +1654,10 @@ class CastRulesTest {
                 CastTestSpecBuilder.testCastTo(BINARY(16))
                         .fromCase(UUID(), UUID_BYTES, UUID_BYTES)
                         .fromCase(UUID(), null, null),
+                // a VARBINARY(n) with n >= 16 holds the value without trimming
+                CastTestSpecBuilder.testCastTo(VARBINARY(16))
+                        .fromCase(UUID(), UUID_BYTES, UUID_BYTES)
+                        .fromCase(UUID(), null, null),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(UUID(), UUID_BYTES, UUID_BYTES)
                         .fromCase(UUID(), null, null),
@@ -1670,21 +1674,38 @@ class CastRulesTest {
                                 UUID_BYTES)
                         .fromCase(STRING(), null, null)
                         // a malformed value fails, and yields null for TRY_CAST
-                        .fail(STRING(), fromString("not-a-uuid"), TableRuntimeException.class)
-                        .fail(STRING(), fromString("550e8400"), TableRuntimeException.class)
+                        .fail(
+                                STRING(),
+                                fromString("not-a-uuid"),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits")
+                        .fail(
+                                STRING(),
+                                fromString("550e8400"),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits")
                         // too many hexadecimal digits
-                        .fail(STRING(), fromString(UUID_STRING + "00"), TableRuntimeException.class)
+                        .fail(
+                                STRING(),
+                                fromString(UUID_STRING + "00"),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits")
                         // a hyphen inside a four-digit group is rejected
                         .fail(
                                 STRING(),
                                 fromString("5-50e8400e29b41d4a716446655440000"),
-                                TableRuntimeException.class),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits"),
                 // a binary value is reinterpreted, and has to be exactly 16 bytes long
                 CastTestSpecBuilder.testCastTo(UUID())
                         .fromCase(BYTES(), UUID_BYTES, UUID_BYTES)
                         .fromCase(BINARY(16), UUID_BYTES, UUID_BYTES)
                         .fromCase(BYTES(), null, null)
-                        .fail(BYTES(), new byte[] {1, 2, 3}, TableRuntimeException.class),
+                        .fail(
+                                BYTES(),
+                                new byte[] {1, 2, 3},
+                                TableRuntimeException.class,
+                                "requires exactly 16 bytes"),
                 // From VARIANT to primitive types. A cast succeeds only when the target holds the
                 // stored value unaltered, except for the approximate FLOAT and DOUBLE.
                 // A character string renders like a regular cast of the stored kind, so these
@@ -2259,6 +2280,28 @@ class CastRulesTest {
                             assertThatThrownBy(() -> executor.cast(src)).isInstanceOf(exception));
             this.descriptions.add("{" + src + " => " + exception.getName() + "}");
             this.castContexts.add(castContext);
+            return this;
+        }
+
+        private CastTestSpecBuilder fail(
+                DataType dataType,
+                Object src,
+                Class<? extends Throwable> exception,
+                String messageSubstring) {
+            this.inputTypes.add(dataType);
+            this.assertionExecutors.add(
+                    executor ->
+                            assertThatThrownBy(() -> executor.cast(src))
+                                    .isInstanceOf(exception)
+                                    .hasStackTraceContaining(messageSubstring));
+            this.descriptions.add("{" + src + " => " + exception.getName() + "}");
+            this.castContexts.add(
+                    CastRule.Context.create(
+                            false,
+                            false,
+                            DateTimeUtils.UTC_ZONE.toZoneId(),
+                            Thread.currentThread().getContextClassLoader(),
+                            CTX));
             return this;
         }
 

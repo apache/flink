@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.types.logical.UuidType;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
@@ -33,8 +34,6 @@ import java.util.UUID;
  */
 @Internal
 public final class UuidCastUtils {
-
-    private static final int UUID_BYTES = 16;
 
     private UuidCastUtils() {}
 
@@ -69,9 +68,9 @@ public final class UuidCastUtils {
             value = value.substring(1);
         }
 
-        final byte[] result = new byte[UUID_BYTES];
+        final byte[] result = new byte[UuidType.BYTE_LENGTH];
         int pos = 0;
-        for (int i = 0; i < UUID_BYTES; i++) {
+        for (int i = 0; i < UuidType.BYTE_LENGTH; i++) {
             if (pos + 2 > value.length()) {
                 throw invalidString(input);
             }
@@ -85,7 +84,7 @@ public final class UuidCastUtils {
             // A single hyphen may follow any group of four digits, i.e. after every second byte
             // except the last one.
             if (i % 2 == 1
-                    && i < UUID_BYTES - 1
+                    && i < UuidType.BYTE_LENGTH - 1
                     && pos < value.length()
                     && value.charAt(pos) == '-') {
                 pos++;
@@ -118,12 +117,12 @@ public final class UuidCastUtils {
      * has to be exactly 16 bytes long, otherwise the cast fails.
      */
     public static byte[] fromBytes(byte[] bytes) {
-        if (bytes.length != UUID_BYTES) {
+        if (bytes.length != UuidType.BYTE_LENGTH) {
             throw new TableRuntimeException(
                     String.format(
                             "Cannot cast a binary value of length %d to UUID because a UUID requires "
                                     + "exactly %d bytes.",
-                            bytes.length, UUID_BYTES));
+                            bytes.length, UuidType.BYTE_LENGTH));
         }
         return bytes;
     }
