@@ -1725,21 +1725,18 @@ public class DateTimeUtils {
     }
 
     public static TimestampData truncate(TimestampData ts, int precision) {
-        // Zero-pad to nine digits so leading zeros are not dropped and the precision understated.
-        String fraction = String.format("%09d", ts.toLocalDateTime().getNano());
-        if (fraction.length() <= precision) {
+        // A timestamp holds at most nine fractional-second digits, so a higher precision keeps it
+        // unchanged. Otherwise, the digits beyond the precision are zeroed out.
+        if (precision >= 9) {
             return ts;
-        } else {
-            // need to truncate
-            if (precision <= 3) {
-                return TimestampData.fromEpochMillis(
-                        zeroLastDigits(ts.getMillisecond(), 3 - precision));
-            } else {
-                return TimestampData.fromEpochMillis(
-                        ts.getMillisecond(),
-                        (int) zeroLastDigits(ts.getNanoOfMillisecond(), 9 - precision));
-            }
         }
+        if (precision <= 3) {
+            return TimestampData.fromEpochMillis(
+                    zeroLastDigits(ts.getMillisecond(), 3 - precision));
+        }
+        return TimestampData.fromEpochMillis(
+                ts.getMillisecond(),
+                (int) zeroLastDigits(ts.getNanoOfMillisecond(), 9 - precision));
     }
 
     public static int truncate(int time, int precision) {
