@@ -2597,7 +2597,7 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(JSON_TYPE, toExpr(), valueLiteral(path)));
     }
 
-    /*    *
+    /**
      * Extracts JSON values from a JSON string.
      *
      * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
