@@ -35,6 +35,7 @@ public class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderPr
     private final PersistenceComponentFactory persistenceComponentFactory;
     private final BlobServer blobServer;
     private final Executor ioExecutor;
+    private final boolean jobErrorIsolationEnabled;
     private final FatalErrorHandler fatalErrorHandler;
 
     public SessionDispatcherLeaderProcessFactory(
@@ -43,11 +44,13 @@ public class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderPr
             PersistenceComponentFactory persistenceComponentFactory,
             BlobServer blobServer,
             Executor ioExecutor,
+            boolean jobErrorIsolationEnabled,
             FatalErrorHandler fatalErrorHandler) {
         this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
         this.persistenceComponentFactory = persistenceComponentFactory;
         this.blobServer = blobServer;
         this.ioExecutor = ioExecutor;
+        this.jobErrorIsolationEnabled = jobErrorIsolationEnabled;
         this.fatalErrorHandler = fatalErrorHandler;
     }
 
@@ -62,6 +65,7 @@ public class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderPr
                 persistenceComponentFactory.createApplicationResultStore(),
                 blobServer,
                 ioExecutor,
+                jobErrorIsolationEnabled,
                 fatalErrorHandler);
     }
 }

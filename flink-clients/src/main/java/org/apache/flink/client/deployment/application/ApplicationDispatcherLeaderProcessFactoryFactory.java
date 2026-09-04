@@ -20,6 +20,7 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
@@ -78,6 +79,7 @@ public class ApplicationDispatcherLeaderProcessFactoryFactory
                 persistenceComponentFactory,
                 partialDispatcherServices.getBlobServer(),
                 ioExecutor,
+                configuration.get(ClusterOptions.JOB_ERROR_ISOLATION_ENABLED),
                 fatalErrorHandler);
     }
 

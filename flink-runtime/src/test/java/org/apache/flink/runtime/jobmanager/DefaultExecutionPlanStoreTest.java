@@ -39,6 +39,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -141,6 +142,22 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
                 .hasCause(testException);
         String actual = releaseFuture.get(timeout, TimeUnit.MILLISECONDS);
         assertThat(testingExecutionPlan.getJobID()).hasToString(actual);
+    }
+
+    @Test
+    public void testRecoverExecutionPlanWithBrokenStateHandleThrowsDedicatedException()
+            throws Exception {
+        final TestingStateHandleStore<ExecutionPlan> stateHandleStore =
+                builder.setGetFunction(ignore -> new BrokenRetrievableStateHandle()).build();
+
+        final ExecutionPlanStore executionPlanStore =
+                createAndStartExecutionPlanStore(stateHandleStore);
+
+        assertThatThrownBy(
+                        () ->
+                                executionPlanStore.recoverExecutionPlan(
+                                        testingExecutionPlan.getJobID()))
+                .isInstanceOf(BrokenExecutionPlanStateHandleException.class);
     }
 
     @Test
@@ -480,5 +497,30 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
                         });
         executionPlanStore.start(testingExecutionPlanListener);
         return executionPlanStore;
+    }
+
+    /**
+     * A {@link RetrievableStateHandle} whose {@link #retrieveState()} always fails, simulating a
+     * corrupted/broken state handle. Deliberately a named (not anonymous) class: subtypes of {@link
+     * org.apache.flink.runtime.state.StateObject} must not be anonymous, see {@link
+     * org.apache.flink.test.state.StateHandleSerializationTest}.
+     */
+    private static final class BrokenRetrievableStateHandle
+            implements RetrievableStateHandle<ExecutionPlan> {
+
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public ExecutionPlan retrieveState() throws IOException {
+            throw new IOException("Test IO exception simulating a broken handle.");
+        }
+
+        @Override
+        public void discardState() {}
+
+        @Override
+        public long getStateSize() {
+            return 0;
+        }
     }
 }
