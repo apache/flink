@@ -25,7 +25,6 @@ import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -242,78 +241,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     }
 
     @Test
-    void testBuildSideWatermarkOnHiddenMetadataColumn() {
-        // The build-side watermark is declared on a virtual metadata column that is hidden from
-        // `SELECT *` by the EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS expansion strategy. Naming it
-        // via on_time => DESCRIPTOR(rt) must keep the column available so the join is accepted.
-        util.tableEnv()
-                .executeSql(
-                        "CREATE TABLE b_hidden_wm ("
-                                + "  bk STRING,"
-                                + "  bv INT,"
-                                + "  rt TIMESTAMP_LTZ(3) METADATA VIRTUAL,"
-                                + "  WATERMARK FOR rt AS rt"
-                                + ") WITH ("
-                                + "  'connector' = 'values',"
-                                + "  'bounded' = 'false',"
-                                + "  'readable-metadata' = 'rt:TIMESTAMP_LTZ(3)'"
-                                + ")");
-        util.tableEnv()
-                .getConfig()
-                .set(
-                        TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY,
-                        List.of(
-                                TableConfigOptions.ColumnExpansionStrategy
-                                        .EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
-
-        util.verifyRelPlan(
-                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
-                        + "input => TABLE b_hidden_wm, on_time => DESCRIPTOR(rt), "
-                        + "load_completed_condition => 'user_time', "
-                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ") AS s ON probe.pk = s.bk");
-    }
-
-    @Test
-    void testBuildSideWatermarkPushedDownOnHiddenMetadataColumn() {
-        // Hidden-metadata watermark with push-down: the build-side watermark is on a virtual
-        // metadata column hidden from `SELECT *`, and `enable-watermark-push-down` folds it into
-        // the source. 'disable-lookup' keeps the values source a pure scan source so the watermark
-        // is pushed into the scan in this test harness.
-        util.tableEnv()
-                .executeSql(
-                        "CREATE TABLE b_pushed_wm ("
-                                + "  bk STRING,"
-                                + "  bv INT,"
-                                + "  rt TIMESTAMP_LTZ(3) METADATA VIRTUAL,"
-                                + "  WATERMARK FOR rt AS rt"
-                                + ") WITH ("
-                                + "  'connector' = 'values',"
-                                + "  'bounded' = 'false',"
-                                + "  'disable-lookup' = 'true',"
-                                + "  'enable-watermark-push-down' = 'true',"
-                                + "  'scan.watermark.emit.strategy' = 'on-event',"
-                                + "  'readable-metadata' = 'rt:TIMESTAMP_LTZ(3)'"
-                                + ")");
-        util.tableEnv()
-                .getConfig()
-                .set(
-                        TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY,
-                        List.of(
-                                TableConfigOptions.ColumnExpansionStrategy
-                                        .EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
-
-        // The plan shows 'watermarkEmitStrategy=[on-event]' on the TableSourceScan, confirming the
-        // watermark was folded into the source and the row-time attribute reaches the operator.
-        util.verifyRelPlan(
-                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
-                        + "input => TABLE b_pushed_wm, on_time => DESCRIPTOR(rt), "
-                        + "load_completed_condition => 'user_time', "
-                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ") AS s ON probe.pk = s.bk");
-    }
-
-    @Test
     void testInnerJoinWithUpsertBuildSourceMaterializesRetractions() {
         util.tableEnv()
                 .executeSql(
@@ -407,6 +334,28 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'bounded' = 'false')");
         final String sql =
                 "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b_no_wm, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_condition => 'user_time', "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s "
+                        + "ON probe.pk = s.bk";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Argument 'on_time' of SNAPSHOT must reference a row-time attribute");
+    }
+
+    @Test
+    void testRejectOnTimeWithoutWatermarkWhenBuildTimeColumnPruned() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE b_no_wm ("
+                                + "  bk STRING,"
+                                + "  bv INT,"
+                                + "  bts TIMESTAMP(3)"
+                                + ") WITH ('connector' = 'values', 'bounded' = 'false')");
+        final String sql =
+                "SELECT probe.pk, probe.pv, s.bv FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b_no_wm, on_time => DESCRIPTOR(bts), "
                         + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"

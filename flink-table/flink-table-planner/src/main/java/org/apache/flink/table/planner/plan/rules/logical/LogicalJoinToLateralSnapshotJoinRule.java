@@ -47,7 +47,6 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexShuttle;
-import org.apache.calcite.sql.SqlDescriptorOperator;
 import org.apache.calcite.sql.SqlKind;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.immutables.value.Value;
@@ -379,26 +378,20 @@ public class LogicalJoinToLateralSnapshotJoinRule
             }
             return -1;
         }
-        if (!(timeColumnArg instanceof RexCall)
-                || !(((RexCall) timeColumnArg).getOperator() instanceof SqlDescriptorOperator)) {
-            throw new ValidationException("Argument 'on_time' of SNAPSHOT must be a DESCRIPTOR.");
-        }
-        final List<RexNode> descriptorOperands = ((RexCall) timeColumnArg).getOperands();
-        if (descriptorOperands.size() != 1 || !(descriptorOperands.get(0) instanceof RexLiteral)) {
-            throw new ValidationException(
-                    "Argument 'on_time' of SNAPSHOT must reference exactly one column.");
-        }
-        final String timeColName = RexLiteral.stringValue((RexLiteral) descriptorOperands.get(0));
+        // The type strategy (LateralSnapshotTypeStrategy#validateOnTime) already validated that
+        // on_time is a single-column DESCRIPTOR referencing an existing TIMESTAMP/TIMESTAMP_LTZ
+        // column, so the operand structure is safe to read here.
+        final String timeColName =
+                RexLiteral.stringValue((RexLiteral) ((RexCall) timeColumnArg).getOperands().get(0));
         final int timeColIdx = buildInputNode.getRowType().getFieldNames().indexOf(timeColName);
-        if (timeColIdx < 0) {
-            throw new ValidationException(
-                    String.format(
-                            "Argument 'on_time' of SNAPSHOT references column '%s' which is not "
-                                    + "present in the input table.",
-                            timeColName));
+        if (isBatch) {
+            // Batch degrades to a regular join and does not use the row-time attribute.
+            return timeColIdx;
         }
-        if (!isBatch
-                && !FlinkTypeFactory.isRowtimeIndicatorType(
+        // A row-time column named by on_time is always retained in the build input, so a missing
+        // index means the referenced column is not a row-time attribute.
+        if (timeColIdx < 0
+                || !FlinkTypeFactory.isRowtimeIndicatorType(
                         buildInputNode.getRowType().getFieldList().get(timeColIdx).getType())) {
             throw new ValidationException(
                     String.format(

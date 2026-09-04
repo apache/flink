@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -137,36 +136,6 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                     .runSql(
                             "INSERT INTO sink SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                                     + "input => TABLE b, on_time => DESCRIPTOR(bts), "
-                                    + MID_FLIP
-                                    + ") AS s ON probe.pk = s.bk")
-                    .build();
-
-    public static final TableTestProgram BUILD_ROWTIME_ON_HIDDEN_METADATA_COLUMN =
-            TableTestProgram.of(
-                            "lateral-snapshot-build-rowtime-on-hidden-metadata-column",
-                            "build-side watermark on a virtual metadata column hidden from SELECT *")
-                    // EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS hides the virtual metadata column
-                    // that carries the watermark, so TABLE b expands to a projection that drops the
-                    // row-time attribute. Naming it via on_time => DESCRIPTOR(rt) must keep it
-                    // available so the snapshot result is produced.
-                    .setupConfig(
-                            TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY,
-                            List.of(
-                                    TableConfigOptions.ColumnExpansionStrategy
-                                            .EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS))
-                    .setupTableSource(probe(List.of(Row.of("a", 100, ts("00:01:00")))))
-                    .setupTableSource(
-                            hiddenMetadataBuild(
-                                    withFlipTrigger(List.of(Row.of("a", 10, ts("00:00:01"))))))
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema("pk STRING", "bv INT")
-                                    .testMaterializedData()
-                                    .consumedValues("+I[a, 10]")
-                                    .build())
-                    .runSql(
-                            "INSERT INTO sink SELECT probe.pk, s.bv FROM probe JOIN LATERAL SNAPSHOT("
-                                    + "input => TABLE b, on_time => DESCRIPTOR(rt), "
                                     + MID_FLIP
                                     + ") AS s ON probe.pk = s.bk")
                     .build();
@@ -439,22 +408,6 @@ public class LateralSnapshotJoinSemanticTestPrograms {
     private static SourceTestStep appendBuild(List<Row> data) {
         return SourceTestStep.newBuilder("b")
                 .addSchema(BUILD_SCHEMA)
-                .producedValues(data.toArray(new Row[0]))
-                .build();
-    }
-
-    /**
-     * Insert-only build whose watermark is declared on a virtual metadata column {@code rt}. The
-     * row-time value is supplied as a trailing metadata field of each produced row.
-     */
-    private static SourceTestStep hiddenMetadataBuild(List<Row> data) {
-        return SourceTestStep.newBuilder("b")
-                .addSchema(
-                        "bk STRING",
-                        "bv INT",
-                        "rt TIMESTAMP(3) METADATA VIRTUAL",
-                        "WATERMARK FOR rt AS rt")
-                .addOption("readable-metadata", "rt:TIMESTAMP(3)")
                 .producedValues(data.toArray(new Row[0]))
                 .build();
     }

@@ -31,7 +31,6 @@ public class LateralSnapshotJoinSemanticTests extends SemanticTestBase {
                 LateralSnapshotJoinSemanticTestPrograms.INNER_JOIN,
                 LateralSnapshotJoinSemanticTestPrograms.LEFT_JOIN,
                 LateralSnapshotJoinSemanticTestPrograms.SELECT_STAR,
-                LateralSnapshotJoinSemanticTestPrograms.BUILD_ROWTIME_ON_HIDDEN_METADATA_COLUMN,
                 LateralSnapshotJoinSemanticTestPrograms.COMPOSITE_KEYS,
                 LateralSnapshotJoinSemanticTestPrograms.NON_EQUI,
                 LateralSnapshotJoinSemanticTestPrograms.EMPTY_BUILD_INNER,

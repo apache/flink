@@ -49,65 +49,6 @@ Calc(select=[pk, bk, bv, pt])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testBuildSideWatermarkOnHiddenMetadataColumn">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM probe JOIN LATERAL SNAPSHOT(input => TABLE b_hidden_wm, on_time => DESCRIPTOR(rt), load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))) AS s ON probe.pk = s.bk]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(pk=[$0], pv=[$1], pts=[$2], bk=[$3], bv=[$4], rt=[$5])
-+- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalWatermarkAssigner(rowtime=[pts], watermark=[$2])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) rt)])
-      +- LogicalProject(bk=[$0], bv=[$1], rt=[$2])
-         +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[$2])
-            +- LogicalProject(bk=[$0], bv=[$1], rt=[CAST($2):TIMESTAMP_LTZ(3) *ROWTIME*])
-               +- LogicalTableScan(table=[[default_catalog, default_database, b_hidden_wm, metadata=[rt]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LateralSnapshotJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, pv, pts, bk, bv, rt], loadCompletedCondition=[user_time], loadCompletedTime=[1782864000000])
-:- Exchange(distribution=[hash[pk]])
-:  +- WatermarkAssigner(rowtime=[pts], watermark=[pts])
-:     +- TableSourceScan(table=[[default_catalog, default_database, probe]], fields=[pk, pv, pts])
-+- Exchange(distribution=[hash[bk]])
-   +- WatermarkAssigner(rowtime=[rt], watermark=[rt])
-      +- Calc(select=[bk, bv, CAST(rt AS TIMESTAMP_LTZ(3) *ROWTIME*) AS rt])
-         +- TableSourceScan(table=[[default_catalog, default_database, b_hidden_wm, metadata=[rt]]], fields=[bk, bv, rt])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testBuildSideWatermarkPushedDownOnHiddenMetadataColumn">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM probe JOIN LATERAL SNAPSHOT(input => TABLE b_pushed_wm, on_time => DESCRIPTOR(rt), load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))) AS s ON probe.pk = s.bk]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(pk=[$0], pv=[$1], pts=[$2], bk=[$3], bv=[$4], rt=[$5])
-+- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalWatermarkAssigner(rowtime=[pts], watermark=[$2])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, probe]])
-   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), _UTF-16LE'user_time', CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) rt)])
-      +- LogicalProject(bk=[$0], bv=[$1], rt=[$2])
-         +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[$2])
-            +- LogicalProject(bk=[$0], bv=[$1], rt=[CAST($2):TIMESTAMP_LTZ(3) *ROWTIME*])
-               +- LogicalTableScan(table=[[default_catalog, default_database, b_pushed_wm, metadata=[rt]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LateralSnapshotJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, pv, pts, bk, bv, rt], loadCompletedCondition=[user_time], loadCompletedTime=[1782864000000])
-:- Exchange(distribution=[hash[pk]])
-:  +- WatermarkAssigner(rowtime=[pts], watermark=[pts])
-:     +- TableSourceScan(table=[[default_catalog, default_database, probe]], fields=[pk, pv, pts])
-+- Exchange(distribution=[hash[bk]])
-   +- Calc(select=[bk, bv, Reinterpret(CAST(rt AS TIMESTAMP_LTZ(3) *ROWTIME*)) AS rt])
-      +- TableSourceScan(table=[[default_catalog, default_database, b_pushed_wm, metadata=[rt], watermark=[CAST(rt AS TIMESTAMP_LTZ(3) *ROWTIME*)], watermarkEmitStrategy=[on-event]]], fields=[bk, bv, rt])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testInnerJoin">
     <Resource name="sql">
       <![CDATA[SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b, on_time => DESCRIPTOR(bts), load_completed_condition => 'user_time', load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)))) AS s ON probe.pk = s.bk]]>

@@ -814,7 +814,11 @@ public class SystemTypeInference {
         }
     }
 
-    private static boolean isUnsupportedOnTimeColumn(LogicalType type) {
+    /**
+     * Checks whether a column referenced by an {@code on_time} argument has an unsupported data
+     * type. A supported column is a TIMESTAMP or TIMESTAMP_LTZ column up to precision 3.
+     */
+    public static boolean isUnsupportedOnTimeColumn(LogicalType type) {
         return !LogicalTypeChecks.canBeTimeAttributeType(type)
                 || LogicalTypeChecks.getPrecision(type) > 3;
     }

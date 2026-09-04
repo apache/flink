@@ -31,9 +31,9 @@ import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.Signature.Argument;
+import org.apache.flink.table.types.inference.SystemTypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.ColumnList;
 
@@ -282,8 +282,7 @@ public final class LateralSnapshotTypeStrategy {
         }
         final LogicalType columnType =
                 DataType.getFieldDataTypes(inputType).get(idx).getLogicalType();
-        if (!LogicalTypeChecks.canBeTimeAttributeType(columnType)
-                || LogicalTypeChecks.getPrecision(columnType) > 3) {
+        if (SystemTypeInference.isUnsupportedOnTimeColumn(columnType)) {
             return callContext.fail(
                     throwOnFailure,
                     "Argument 'on_time' of SNAPSHOT must reference a TIMESTAMP or TIMESTAMP_LTZ "
