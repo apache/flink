@@ -38,6 +38,9 @@ public final class UuidType extends LogicalType {
 
     private static final long serialVersionUID = 1L;
 
+    /** Length of a UUID in bytes, as stored in its canonical big-endian encoding. */
+    public static final int BYTE_LENGTH = 16;
+
     private static final Set<String> INPUT_OUTPUT_CONVERSION =
             conversionSet(UUID.class.getName(), byte[].class.getName());
 

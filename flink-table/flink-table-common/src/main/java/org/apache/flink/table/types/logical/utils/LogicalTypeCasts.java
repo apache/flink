@@ -28,6 +28,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -79,6 +80,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WIT
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TINYINT;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.UUID;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARBINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARCHAR;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARIANT;
@@ -211,7 +213,7 @@ public final class LogicalTypeCasts {
         castTo(CHAR)
                 .implicitFrom(CHAR)
                 .explicitFromFamily(PREDEFINED, CONSTRUCTED)
-                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP, VARIANT)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP, VARIANT, UUID)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
                 .injectiveFrom(WHEN_CHAR_LENGTH_FITS_UTF8, BINARY, VARBINARY)
@@ -220,7 +222,7 @@ public final class LogicalTypeCasts {
         castTo(VARCHAR)
                 .implicitFromFamily(CHARACTER_STRING)
                 .explicitFromFamily(PREDEFINED, CONSTRUCTED)
-                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP, VARIANT)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP, VARIANT, UUID)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR, VARCHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
                 .injectiveFrom(WHEN_CHAR_LENGTH_FITS_UTF8, BINARY, VARBINARY)
@@ -398,6 +400,15 @@ public final class LogicalTypeCasts {
                 .implicitFrom(INTERVAL_DAY_TIME)
                 .explicitFromFamily(EXACT_NUMERIC, CHARACTER_STRING)
                 .build();
+
+        // -----------------------------------------------------------------------------------------
+        // UUID type
+        // -----------------------------------------------------------------------------------------
+
+        // A UUID can be parsed from a character string and reinterpreted from its 16-byte encoding.
+        // The reverse direction (UUID to CHAR/VARCHAR and to BINARY(16)/BYTES) is declared on the
+        // respective target types.
+        castTo(UUID).implicitFrom(UUID).explicitFromFamily(CHARACTER_STRING, BINARY_STRING).build();
     }
 
     /**
@@ -687,6 +698,15 @@ public final class LogicalTypeCasts {
             // BITMAP can only be cast to BYTES (unbounded VARBINARY), because trimming or padding
             // would corrupt the serialized bitmap data.
             return allowExplicit && getLength(targetType) == VarBinaryType.MAX_LENGTH;
+        } else if (sourceRoot == UUID && targetRoot == BINARY) {
+            // A UUID is exactly BYTE_LENGTH bytes. BINARY is fixed width, so only
+            // BINARY(BYTE_LENGTH)
+            // holds it without padding or trimming.
+            return allowExplicit && getLength(targetType) == UuidType.BYTE_LENGTH;
+        } else if (sourceRoot == UUID && targetRoot == VARBINARY) {
+            // VARBINARY is variable width, so any VARBINARY(n) with n >= BYTE_LENGTH, up to BYTES,
+            // holds the bytes without trimming.
+            return allowExplicit && getLength(targetType) >= UuidType.BYTE_LENGTH;
         }
 
         if (implicitCastingRules.get(targetRoot).contains(sourceRoot)) {
