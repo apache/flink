@@ -75,6 +75,7 @@ public final class InternalSerializers {
                 return BooleanSerializer.INSTANCE;
             case BINARY:
             case VARBINARY:
+            case UUID:
                 return BytePrimitiveArraySerializer.INSTANCE;
             case DECIMAL:
                 return new DecimalDataSerializer(getPrecision(type), getScale(type));

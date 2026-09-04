@@ -38,7 +38,8 @@ public final class UuidType extends LogicalType {
 
     private static final long serialVersionUID = 1L;
 
-    private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(UUID.class.getName());
+    private static final Set<String> INPUT_OUTPUT_CONVERSION =
+            conversionSet(UUID.class.getName(), byte[].class.getName());
 
     public UuidType(boolean isNullable) {
         super(isNullable, LogicalTypeRoot.UUID);

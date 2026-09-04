@@ -636,8 +636,8 @@ public class LogicalTypesTest {
                         baseAssertions(
                                 "UUID",
                                 "UUID",
-                                new Class[] {UUID.class},
-                                new Class[] {UUID.class},
+                                new Class[] {UUID.class, byte[].class},
+                                new Class[] {UUID.class, byte[].class},
                                 new LogicalType[] {},
                                 new UuidType(false)));
     }

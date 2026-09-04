@@ -435,7 +435,7 @@ object FlinkRelMdSize {
         SqlTypeName.DATE =>
       12d
     case SqlTypeName.ANY | SqlTypeName.OTHER => 128d // 128 is an arbitrary estimate
-    case SqlTypeName.BINARY | SqlTypeName.VARBINARY | SqlTypeName.VARIANT =>
+    case SqlTypeName.BINARY | SqlTypeName.VARBINARY | SqlTypeName.VARIANT | SqlTypeName.UUID =>
       16d // 16 is an arbitrary estimate
     case _ => throw new TableException(s"Unsupported data type encountered: $sqlType")
   }

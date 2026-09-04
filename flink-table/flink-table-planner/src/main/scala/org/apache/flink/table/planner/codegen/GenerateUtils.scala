@@ -314,7 +314,7 @@ object GenerateUtils {
         // so that the literalValue can be also used directly when needed
         generateNonNullLiteral(literalType, field, str)
 
-      case BINARY | VARBINARY =>
+      case BINARY | VARBINARY | UUID =>
         val bytesVal = literalValue.asInstanceOf[Array[Byte]]
         val fieldTerm =
           ctx.addReusableObject(bytesVal, "binary", bytesVal.getClass.getCanonicalName)

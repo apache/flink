@@ -166,6 +166,7 @@ public interface BinaryWriter {
                 break;
             case BINARY:
             case VARBINARY:
+            case UUID:
                 writer.writeBinary(pos, (byte[]) o);
                 break;
             case VARIANT:
@@ -194,6 +195,7 @@ public interface BinaryWriter {
                 return (writer, pos, value) -> writer.writeBoolean(pos, (boolean) value);
             case BINARY:
             case VARBINARY:
+            case UUID:
                 return (writer, pos, value) -> writer.writeBinary(pos, (byte[]) value);
             case DECIMAL:
                 final int decimalPrecision = getPrecision(elementType);
