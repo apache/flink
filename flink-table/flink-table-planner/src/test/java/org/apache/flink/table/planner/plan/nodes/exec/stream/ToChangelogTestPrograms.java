@@ -62,6 +62,28 @@ public class ToChangelogTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM TO_CHANGELOG(input => TABLE t)")
                     .build();
 
+    public static final TableTestProgram WITHOUT_OP_COLUMN =
+            TableTestProgram.of(
+                            "to-changelog-without-op-column",
+                            "include_op_column=false preserves the input schema")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("id INT", "name STRING")
+                                    .addMode(ChangelogMode.insertOnly())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "name STRING")
+                                    .consumedValues("+I[1, Alice]", "+I[2, Bob]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM TO_CHANGELOG("
+                                    + "input => TABLE t, include_op_column => false)")
+                    .build();
+
     public static final TableTestProgram RETRACT =
             TableTestProgram.of(
                             "to-changelog-updating-input",

@@ -49,13 +49,14 @@ import java.util.Set;
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_OP_MAPPING;
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_PRODUCES_FULL_DELETES;
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_TABLE;
+import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.shouldIncludeOpColumn;
 
 /**
  * Runtime implementation of {@link BuiltInFunctionDefinitions#TO_CHANGELOG}.
  *
- * <p>Converts each input row into an INSERT-only output row with an operation code column. Output
- * schema is {@code [op_column, ...projected_input_columns...]}. Partition columns are prepended by
- * the framework outside this function and are not part of the projection.
+ * <p>Converts each input row into an INSERT-only output row. When requested, an operation code
+ * column is prepended to the projected input columns. Partition columns are prepended by the
+ * framework outside this function and are not part of the projection.
  *
  * <p>Uses {@link JoinedRowData} to combine the op column with the full input row.
  */
@@ -75,6 +76,7 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
     private final int[] outputIndices;
     private final RowType inputRowType;
     private final boolean producesFullDelete;
+    private final boolean includeOpColumn;
     private final boolean[] upsertKeyColumn;
 
     private transient Map<RowKind, StringData> opMap;
@@ -94,9 +96,10 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         final Map<String, String> opMapping =
                 callContext.getArgumentValue(ARG_OP_MAPPING, Map.class).orElse(null);
         this.rawOpMap = buildOpMap(opMapping);
-
         this.producesFullDelete =
                 callContext.getArgumentValue(ARG_PRODUCES_FULL_DELETES, Boolean.class).orElse(true);
+        this.includeOpColumn = shouldIncludeOpColumn(callContext);
+
         final boolean isExplicit = !callContext.isArgumentNull(ARG_PRODUCES_FULL_DELETES);
         validateProducesPartialDeletes(producesFullDelete, isExplicit, tableSemantics);
 
@@ -192,25 +195,41 @@ public class ToChangelogFunction extends BuiltInProcessTableFunction<RowData> {
         }
     }
 
+    /** Maintains compatibility with compiled plans created before {@code include_op_column}. */
     public void eval(
             final Context ctx,
             final RowData input,
             @Nullable final ColumnList op,
             @Nullable final MapData opMapping,
             @Nullable final Boolean producesFullDeletes) {
+        eval(ctx, input, op, opMapping, producesFullDeletes, null);
+    }
+
+    public void eval(
+            final Context ctx,
+            final RowData input,
+            @Nullable final ColumnList op,
+            @Nullable final MapData opMapping,
+            @Nullable final Boolean producesFullDeletes,
+            @Nullable final Boolean includeOpColumn) {
         final StringData opCode = opMap.get(input.getRowKind());
         if (opCode == null) {
             return;
         }
 
-        opRow.setField(0, opCode);
         final RowData payload;
         if (input.getRowKind() == RowKind.DELETE && !producesFullDelete) {
             payload = buildPartialDeletePayload(input);
         } else {
             payload = projectedOutput.replaceRow(input);
         }
-        collect(output.replace(opRow, payload));
+
+        if (this.includeOpColumn) {
+            opRow.setField(0, opCode);
+            collect(output.replace(opRow, payload));
+        } else {
+            collect(payload);
+        }
     }
 
     /**

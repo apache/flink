@@ -47,6 +47,7 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
                 ToChangelogTestPrograms.RETRACT_PARTITION_BY,
                 ToChangelogTestPrograms.CUSTOM_OP_MAPPING,
                 ToChangelogTestPrograms.CUSTOM_OP_NAME,
+                ToChangelogTestPrograms.WITHOUT_OP_COLUMN,
                 ToChangelogTestPrograms.TABLE_API_DEFAULT,
                 ToChangelogTestPrograms.TABLE_API_RETRACT_PARTITION_BY,
                 ToChangelogTestPrograms.LAG_ON_UPSERT_VIA_CHANGELOG,
