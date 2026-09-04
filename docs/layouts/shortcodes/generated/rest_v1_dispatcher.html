@@ -4563,29 +4563,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         }
       }
     }
-  },
-  "properties" : {
-    "jobVertexResourceRequirements" : {
-      "type" : "object",
-      "additionalProperties" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements",
-        "properties" : {
-          "parallelism" : {
-            "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements:Parallelism",
-            "properties" : {
-              "lowerBound" : {
-                "type" : "integer"
-              },
-              "upperBound" : {
-                "type" : "integer"
-              }
-            }
-          }
-        }
-      }
-    }
   }
 }</code></pre>
         </label>
@@ -4636,29 +4613,6 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           },
           "upperBound" : {
             "type" : "integer"
-          }
-        }
-      }
-    }
-  },
-  "properties" : {
-    "jobVertexResourceRequirements" : {
-      "type" : "object",
-      "additionalProperties" : {
-        "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements",
-        "properties" : {
-          "parallelism" : {
-            "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements:Parallelism",
-            "properties" : {
-              "lowerBound" : {
-                "type" : "integer"
-              },
-              "upperBound" : {
-                "type" : "integer"
-              }
-            }
           }
         }
       }

@@ -237,6 +237,7 @@ components:
       properties:
         comment:
           type: string
+          nullable: true
         dataType:
           $ref: "#/components/schemas/DataType"
         name:
@@ -250,6 +251,7 @@ components:
       properties:
         comment:
           type: string
+          nullable: true
         logicalType:
           $ref: "#/components/schemas/LogicalType"
         name:
@@ -276,9 +278,11 @@ components:
           type: object
           additionalProperties:
             type: string
+          nullable: true
         executionTimeout:
           type: integer
           format: int64
+          nullable: true
         statement:
           type: string
     ExecuteStatementResponseBody:
@@ -295,6 +299,7 @@ components:
           $ref: "#/components/schemas/JobID"
         nextResultUri:
           type: string
+          nullable: true
         queryResult:
           type: boolean
         resultKind:
@@ -411,8 +416,10 @@ components:
           type: object
           additionalProperties:
             type: string
+          nullable: true
         sessionName:
           type: string
+          nullable: true
     OpenSessionResponseBody:
       type: object
       properties:

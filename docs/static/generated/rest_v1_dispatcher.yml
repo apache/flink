@@ -2105,6 +2105,7 @@ components:
         checkpointId:
           type: integer
           format: int64
+          nullable: true
         failureCause:
           $ref: "#/components/schemas/SerializedThrowable"
     CheckpointStatistics:
@@ -2147,6 +2148,7 @@ components:
           format: int64
         savepointFormat:
           type: string
+          nullable: true
         state_size:
           type: integer
           format: int64
@@ -2156,6 +2158,7 @@ components:
           type: object
           additionalProperties:
             $ref: "#/components/schemas/TaskCheckpointStatistics"
+          nullable: true
         trigger_timestamp:
           type: integer
           format: int64
@@ -2195,6 +2198,7 @@ components:
           $ref: "#/components/schemas/TriggerId"
     CheckpointType:
       type: string
+      nullable: true
       enum:
       - CONFIGURED
       - FULL
@@ -2251,6 +2255,7 @@ components:
         slots-free-and-blocked:
           type: integer
           format: int32
+          nullable: true
         slots-total:
           type: integer
           format: int32
@@ -2260,6 +2265,7 @@ components:
         taskmanagers-blocked:
           type: integer
           format: int32
+          nullable: true
     CompletedCheckpointStatistics:
       type: object
       allOf:
@@ -2268,6 +2274,7 @@ components:
         properties:
           external_path:
             type: string
+            nullable: true
           discarded:
             type: boolean
     CompletedSubtaskCheckpointStatistics:
@@ -2359,6 +2366,7 @@ components:
       properties:
         endpoint:
           type: string
+          nullable: true
         exceptionName:
           type: string
         failureLabels:
@@ -2369,8 +2377,10 @@ components:
           type: string
         taskManagerId:
           type: string
+          nullable: true
         taskName:
           type: string
+          nullable: true
         timestamp:
           type: integer
           format: int64
@@ -2419,6 +2429,7 @@ components:
             format: int64
           failure_message:
             type: string
+            nullable: true
     FailureLabel:
       type: object
       properties:
@@ -2505,17 +2516,20 @@ components:
       properties:
         caching:
           type: string
+          nullable: true
         exchange:
           type: string
         id:
           type: string
         local_strategy:
           type: string
+          nullable: true
         num:
           type: integer
           format: int64
         ship_strategy:
           type: string
+          nullable: true
     IntermediateDataSetID:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -2535,6 +2549,7 @@ components:
       properties:
         description:
           type: string
+          nullable: true
         name:
           type: string
     JarFileInfo:
@@ -2565,17 +2580,21 @@ components:
       properties:
         entryClass:
           type: string
+          nullable: true
         flinkConfiguration:
           type: object
           additionalProperties:
             type: string
+          nullable: true
         jobId:
           $ref: "#/components/schemas/JobID"
         parallelism:
           type: integer
           format: int32
+          nullable: true
         programArgsList:
           type: array
+          nullable: true
           items:
             type: string
     JarRunApplicationRequestBody:
@@ -2583,27 +2602,33 @@ components:
       properties:
         allowNonRestoredState:
           type: boolean
+          nullable: true
         applicationId:
           $ref: "#/components/schemas/ApplicationID"
         claimMode:
           $ref: "#/components/schemas/RecoveryClaimMode"
         entryClass:
           type: string
+          nullable: true
         flinkConfiguration:
           type: object
           additionalProperties:
             type: string
+          nullable: true
         jobId:
           $ref: "#/components/schemas/JobID"
         parallelism:
           type: integer
           format: int32
+          nullable: true
         programArgsList:
           type: array
+          nullable: true
           items:
             type: string
         savepointPath:
           type: string
+          nullable: true
     JarRunApplicationResponseBody:
       type: object
       properties:
@@ -2614,27 +2639,33 @@ components:
       properties:
         allowNonRestoredState:
           type: boolean
+          nullable: true
         claimMode:
           $ref: "#/components/schemas/RecoveryClaimMode"
         entryClass:
           type: string
+          nullable: true
         flinkConfiguration:
           type: object
           additionalProperties:
             type: string
+          nullable: true
         jobId:
           $ref: "#/components/schemas/JobID"
         parallelism:
           type: integer
           format: int32
+          nullable: true
         programArgsList:
           type: array
+          nullable: true
           items:
             type: string
         restoreMode:
           $ref: "#/components/schemas/RecoveryClaimMode"
         savepointPath:
           type: string
+          nullable: true
     JarRunResponseBody:
       type: object
       properties:
@@ -2880,6 +2911,7 @@ components:
         endTimestampInMillis:
           type: integer
           format: int64
+          nullable: true
         rescaleAttemptId:
           type: integer
           format: int64
@@ -2966,6 +2998,7 @@ components:
           type: boolean
     JobStatus:
       type: string
+      nullable: true
       enum:
       - INITIALIZING
       - CREATED
@@ -2985,6 +3018,7 @@ components:
           $ref: "#/components/schemas/JobStatus"
     JobType:
       type: string
+      nullable: true
       enum:
       - BATCH
       - STREAMING
@@ -3005,10 +3039,12 @@ components:
         end-timestamp:
           type: integer
           format: int64
+          nullable: true
         status:
           $ref: "#/components/schemas/VertexBackPressureStatus"
         subtasks:
           type: array
+          nullable: true
           items:
             $ref: "#/components/schemas/SubtaskBackPressureInfo"
     JobVertexDetailsInfo:
@@ -3134,6 +3170,7 @@ components:
           type: string
         value:
           type: string
+          nullable: true
     MetricCollectionResponseBody:
       type: object
       properties:
@@ -3206,6 +3243,7 @@ components:
           type: string
         inputs:
           type: array
+          nullable: true
           items:
             $ref: "#/components/schemas/Input"
         operator:
@@ -3231,8 +3269,10 @@ components:
           $ref: "#/components/schemas/Id"
     RawJson:
       type: object
+      nullable: true
     RecoveryClaimMode:
       type: string
+      nullable: true
       enum:
       - CLAIM
       - NO_CLAIM
@@ -3302,6 +3342,7 @@ components:
       properties:
         external_path:
           type: string
+          nullable: true
         id:
           type: integer
           format: int64
@@ -3319,6 +3360,7 @@ components:
             $ref: "#/components/schemas/ExceptionInfo"
         endpoint:
           type: string
+          nullable: true
         exceptionName:
           type: string
         failureLabels:
@@ -3329,8 +3371,10 @@ components:
           type: string
         taskManagerId:
           type: string
+          nullable: true
         taskName:
           type: string
+          nullable: true
         timestamp:
           type: integer
           format: int64
@@ -3339,8 +3383,10 @@ components:
       properties:
         savepoint-path:
           type: string
+          nullable: true
     SavepointFormatType:
       type: string
+      nullable: true
       enum:
       - CANONICAL
       - NATIVE
@@ -3351,15 +3397,18 @@ components:
           $ref: "#/components/schemas/SerializedThrowable"
         location:
           type: string
+          nullable: true
     SavepointTriggerRequestBody:
       type: object
       properties:
         cancel-job:
           type: boolean
+          nullable: true
         formatType:
           $ref: "#/components/schemas/SavepointFormatType"
         target-directory:
           type: string
+          nullable: true
         triggerId:
           $ref: "#/components/schemas/TriggerId"
     SchedulerExecutionMode:
@@ -3372,18 +3421,23 @@ components:
         durationInMillis:
           type: integer
           format: int64
+          nullable: true
         enterTimestampInMillis:
           type: integer
           format: int64
+          nullable: true
         leaveTimestampInMillis:
           type: integer
           format: int64
+          nullable: true
         state:
           type: string
         stringifiedException:
           type: string
+          nullable: true
     SchedulerType:
       type: string
+      nullable: true
       enum:
       - Default
       - Adaptive
@@ -3477,10 +3531,12 @@ components:
       properties:
         drain:
           type: boolean
+          nullable: true
         formatType:
           $ref: "#/components/schemas/SavepointFormatType"
         targetDirectory:
           type: string
+          nullable: true
         triggerId:
           $ref: "#/components/schemas/TriggerId"
     SubtaskAccumulatorsInfo:
@@ -3504,6 +3560,7 @@ components:
         attempt-number:
           type: integer
           format: int32
+          nullable: true
         backpressureLevel:
           $ref: "#/components/schemas/VertexBackPressureLevel"
         busyRatio:
@@ -3514,6 +3571,7 @@ components:
           format: double
         other-concurrent-attempts:
           type: array
+          nullable: true
           items:
             $ref: "#/components/schemas/SubtaskBackPressureInfo"
         ratio:
@@ -3572,6 +3630,7 @@ components:
           $ref: "#/components/schemas/IOMetricsInfo"
         other-concurrent-attempts:
           type: array
+          nullable: true
           items:
             $ref: "#/components/schemas/SubtaskExecutionAttemptDetailsInfo"
         start-time:
@@ -3767,6 +3826,7 @@ components:
           format: int32
         blocked:
           type: boolean
+          nullable: true
         dataPort:
           type: integer
           format: int32
@@ -3804,6 +3864,7 @@ components:
           format: int32
         blocked:
           type: boolean
+          nullable: true
         dataPort:
           type: integer
           format: int32
@@ -4027,9 +4088,11 @@ components:
         postRescaleParallelism:
           type: integer
           format: int32
+          nullable: true
         preRescaleParallelism:
           type: integer
           format: int32
+          nullable: true
         requiredParallelisms:
           $ref: "#/components/schemas/VertexParallelismInformation"
         slotSharingGroupId:
