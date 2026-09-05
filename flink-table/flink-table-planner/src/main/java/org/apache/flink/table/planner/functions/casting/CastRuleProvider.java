@@ -99,6 +99,7 @@ public class CastRuleProvider {
                 .addRule(VariantToStringCastRule.INSTANCE)
                 .addRule(VariantToPrimitiveCastRule.INSTANCE)
                 .addRule(VariantToArrayCastRule.INSTANCE)
+                .addRule(VariantToRowCastRule.INSTANCE)
                 // Bitmap rules
                 .addRule(BitmapToStringCastRule.INSTANCE)
                 .addRule(BitmapToBinaryCastRule.INSTANCE)

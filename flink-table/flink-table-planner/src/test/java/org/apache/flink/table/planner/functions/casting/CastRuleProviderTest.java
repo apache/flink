@@ -157,4 +157,17 @@ class CastRuleProviderTest {
         // MULTISET has no variant counterpart
         assertThat(CastRuleProvider.exists(VARIANT, MULTISET(STRING()).getLogicalType())).isFalse();
     }
+
+    @Test
+    void testResolveVariantToRow() {
+        assertThat(CastRuleProvider.resolve(VARIANT, ROW(FIELD("f0", INT())).getLogicalType()))
+                .isSameAs(VariantToRowCastRule.INSTANCE);
+        // a structured target shares the ROW rule
+        assertThat(CastRuleProvider.resolve(VARIANT, STRUCTURED))
+                .isSameAs(VariantToRowCastRule.INSTANCE);
+
+        // a field with no variant counterpart makes the whole cast unresolvable
+        assertThat(CastRuleProvider.exists(VARIANT, ROW(FIELD("f0", TIME())).getLogicalType()))
+                .isFalse();
+    }
 }

@@ -30,9 +30,9 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.met
  * a shape check at each level, so the recursion bottoms out at the same scalar cast the primitive
  * and string rules perform and no new leaf semantics are introduced.
  *
- * <p>A constructed cast can always fail, on a shape mismatch, an unreadable leaf, or a missing
- * {@code NOT NULL} field, so {@code TRY_CAST} wraps the whole value and returns {@code NULL} for
- * any failure rather than a partial result.
+ * <p>A constructed cast can always fail, on a shape mismatch, an unreadable leaf, a missing field,
+ * or a JSON {@code null} in a {@code NOT NULL} position, so {@code TRY_CAST} wraps the whole value
+ * and returns {@code NULL} for any failure rather than a partial result.
  */
 abstract class AbstractVariantToConstructedCastRule<OUT>
         extends AbstractNullAwareCodeGeneratorCastRule<Variant, OUT> {

@@ -1614,6 +1614,33 @@ CAST(m AS ARRAY<STRING>)   -- ['1', 'a'], a heterogeneous array still renders ea
 CAST(m AS ARRAY<VARIANT>)  -- [1, "a"] as variants, one level shredded
 ```
 
+A variant object casts to `ROW` or `STRUCTURED`, which likewise imposes a schema on it. The variant
+must be an object, otherwise the cast fails. Each field is itself a `VARIANT`, so it casts to its
+declared type by the same rules, recursively. Fields match by name rather than by position, since a
+JSON object is unordered, and name matching is case sensitive. A `ROW` declared without field names
+uses the default names `f0`, `f1`, and so on, which must then be present in the object.
+
+- A field absent from the object fails the cast, whether the target field is nullable or not.
+- A field present but set to a variant null maps to SQL `NULL` when the field is nullable and fails
+  the cast when it is `NOT NULL`.
+- Object fields the target does not name are dropped, so the row is a projection.
+- A `ROW` or `STRUCTURED` whose fields are `VARIANT` is the identity on those fields: it shreds one
+  level and keeps the rest semi-structured. A field set to a variant null stays a variant null
+  rather than becoming SQL `NULL`.
+
+If any field cast fails, the whole cast fails, and `TRY_CAST` returns `NULL` for the entire value
+rather than a partial result, exactly as for an array target.
+
+The following examples use `o` for `PARSE_JSON('{"id": 7, "name": "ada", "email": null}')`:
+
+```sql
+CAST(o AS ROW<`id` INT, `name` STRING>)         -- (7, 'ada')
+CAST(o AS ROW<`name` STRING, `id` INT>)         -- ('ada', 7), the order of target fields is free
+CAST(o AS ROW<`id` INT, `email` STRING>)        -- (7, NULL), a field present as a variant null maps to NULL
+CAST(o AS ROW<`id` INT, `phone` STRING>)        -- fails, the field 'phone' is not present in the VARIANT
+CAST(o AS ROW<`id` VARIANT, `email` VARIANT>)   -- (7, null), each field kept as a variant, the variant null preserved
+```
+
 **Declaration**
 
 {{< tabs "25c30432-8460-441d-a036-9416d8202882" >}}

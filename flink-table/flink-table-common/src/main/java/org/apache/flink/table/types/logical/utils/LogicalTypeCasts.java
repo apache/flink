@@ -674,6 +674,11 @@ public final class LogicalTypeCasts {
             // array cast rule; a per-element mismatch fails there, not here.
             return allowExplicit
                     && supportsCasting(sourceType, ((ArrayType) targetType).getElementType(), true);
+        } else if (sourceRoot == VARIANT && (targetRoot == ROW || targetRoot == STRUCTURED_TYPE)) {
+            // A variant object casts to ROW or STRUCTURED when VARIANT casts to every field type.
+            return allowExplicit
+                    && targetType.getChildren().stream()
+                            .allMatch(field -> supportsCasting(sourceType, field, true));
         } else if (sourceRoot == RAW
                         && !targetType.is(BINARY_STRING)
                         && !targetType.is(CHARACTER_STRING)
