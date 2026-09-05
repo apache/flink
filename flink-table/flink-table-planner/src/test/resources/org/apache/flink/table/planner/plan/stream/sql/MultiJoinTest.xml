@@ -2100,6 +2100,43 @@ Calc(select=[user_id, name, order_id, payment_id])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testThreeWayInnerJoinWithIsNotDistinctRelPlan">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+INNER JOIN Orders o
+    ON u.user_id IS NOT DISTINCT FROM o.user_id
+INNER JOIN Payments p
+    ON u.user_id = p.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
+   :- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $4)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (order_id), (payment_id)], joinConditions=[IS NOT DISTINCT FROM(user_id, user_id0), =(user_id, user_id1)], select=[user_id,name,order_id,user_id0,payment_id,user_id1], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id1)])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   +- Exchange(distribution=[hash[user_id]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testThreeWayInnerJoinWithSingleTttlHint">
     <Resource name="sql">
       <![CDATA[
