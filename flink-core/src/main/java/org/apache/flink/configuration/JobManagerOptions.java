@@ -309,6 +309,29 @@ public class JobManagerOptions {
                             "Directory for JobManager to store the archives of completed jobs.");
 
     /**
+     * Whether only jobs that reached the {@code FAILED} terminal state should be archived to {@link
+     * #ARCHIVE_DIR}.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Boolean> ARCHIVE_ON_FAILED_JOBS_ONLY =
+            key("jobmanager.archive.only-failed-jobs")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to only archive jobs that reached the %s terminal state to %s.",
+                                            code("FAILED"), code(ARCHIVE_DIR.key()))
+                                    .text(
+                                            "When enabled, jobs that finished, were canceled, or were suspended are not "
+                                                    + "archived to the history server, reducing the number of files written "
+                                                    + "for large clusters running many short-lived batch jobs. ")
+                                    .text(
+                                            "This option has no effect unless %s is configured.",
+                                            code(ARCHIVE_DIR.key()))
+                                    .build());
+
+    /**
      * @deprecated Use {@link JobManagerOptions#COMPLETED_APPLICATION_STORE_CACHE_SIZE}
      */
     @Deprecated
