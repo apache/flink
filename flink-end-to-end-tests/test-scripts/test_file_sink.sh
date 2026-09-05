@@ -62,7 +62,7 @@ if [ "${OUT_TYPE}" == "local" ]; then
   echo "[INFO] Test run in local environment: No S3 environment is loaded."
 elif [ "${OUT_TYPE}" == "s3" ]; then
   source "$(dirname "$0")"/common_s3_seaweedfs.sh
-  s3_setup hadoop
+  s3_setup
 
   # overwrites JOB_OUTPUT_PATH to point to S3
   S3_DATA_PREFIX="${RANDOM_PREFIX}"
