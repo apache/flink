@@ -653,6 +653,61 @@ public abstract class CatalogTest {
     }
 
     @Test
+    public void testRenameConnection() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogConnection connection = createConnection();
+        catalog.createConnection(connectionPath1, connection, false);
+
+        catalog.renameConnection(connectionPath1, c2, false);
+
+        assertThat(catalog.connectionExists(connectionPath1)).isFalse();
+        assertThat(catalog.getConnection(connectionPath2).getOptions())
+                .isEqualTo(connection.getOptions());
+    }
+
+    @Test
+    public void testRenameConnection_ConnectionAlreadyExistException() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.createConnection(connectionPath1, createConnection(), false);
+        catalog.createConnection(connectionPath2, createConnection(), false);
+
+        assertThatThrownBy(() -> catalog.renameConnection(connectionPath1, c2, false))
+                .isInstanceOf(ConnectionAlreadyExistException.class)
+                .hasMessage(
+                        "Connection 'db1.c2' already exists in catalog '"
+                                + TEST_CATALOG_NAME
+                                + "'.");
+    }
+
+    @Test
+    public void testRenameMissingConnectionNotExistException() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+
+        assertThatThrownBy(() -> catalog.renameConnection(connectionPath1, c2, false))
+                .isInstanceOf(ConnectionNotExistException.class)
+                .hasMessage("Connection 'db1.c1' does not exist in catalog 'test-catalog'.");
+    }
+
+    @Test
+    public void testRenameMissingConnectionIgnoreIfNotExist() throws Exception {
+        if (!supportsConnections()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+
+        catalog.renameConnection(connectionPath1, c2, true);
+    }
+
+    @Test
     public void testDropMissingConnectionNotExistException() throws Exception {
         if (!supportsConnections()) {
             return;
