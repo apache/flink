@@ -41,9 +41,25 @@ from pyflink.table.expressions import (
     and_,
     call_sql,
     col as table_col,
+    if_then_else,
+    is_nan,
+    is_not_nan,
     lit as table_lit,
+    or_,
 )
 from pyflink.table.table import Table
+from pyflink.table.types import (
+    DataTypes as TableDataTypes,
+    FloatType,
+    DoubleType,
+    AtomicType,
+    IntegralType,
+    FractionalType,
+    DecimalType,
+    CharType,
+    VarCharType,
+    BooleanType,
+)
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["DataFrame", "GroupedDataFrame", "col", "lit"]
@@ -814,6 +830,279 @@ class DataFrame:
         .. versionadded:: 2.4.0
         """
         return func(self, *args, **kwargs)
+
+    # ======================== Missing Value Handling ========================
+
+    def _validate_subset(self, subset: Optional[List[str]]) -> List[str]:
+        """
+        Validate and normalize the subset parameter.
+
+        :param subset: Column names to validate, or None for all columns.
+        :return: Validated list of column names.
+        :raises ValueError: If subset contains invalid column names.
+        :raises TypeError: If subset is not a list of strings.
+        """
+        schema = self._table.get_schema()
+        all_columns = schema.get_field_names()
+
+        if subset is None:
+            return all_columns
+
+        if not isinstance(subset, list):
+            raise TypeError("subset must be a list of strings")
+
+        # Empty subset is allowed - it's a no-op
+        if not subset:
+            return []
+
+        # Validate all column names exist
+        all_columns_set = set(all_columns)
+        invalid_columns = set(subset) - all_columns_set
+        if invalid_columns:
+            raise ValueError(f"Columns not found in DataFrame: {sorted(invalid_columns)}")
+
+        return subset
+
+    def _is_type_compatible(self, value: Any, col_type: DataType) -> bool:
+        """
+        Check if a value's type is compatible with a column's data type.
+
+        Only atomic (primitive) types are supported. Complex types (arrays, maps, rows)
+        are not compatible and will return False.
+
+        :param value: The value to check.
+        :param col_type: The column's Flink data type.
+        :return: True if types are compatible, False otherwise.
+        """
+        # Skip complex types
+        if not isinstance(col_type, AtomicType):
+            return False
+
+        # Map Python types to compatible Flink types
+        type_map = {
+            bool: (BooleanType,),
+            int: (IntegralType, FractionalType, DecimalType),
+            float: (FractionalType, DecimalType),
+            str: (CharType, VarCharType),
+        }
+
+        compatible_types = type_map.get(type(value))
+        if compatible_types is None:
+            return False
+
+        return isinstance(col_type, compatible_types)
+
+    def _fill_values(
+        self,
+        value: Any,
+        subset: Optional[List[str]],
+        condition_fn: Callable[[Expression], Expression]
+    ) -> "DataFrame":
+        """
+        Helper method to fill values based on a condition.
+
+        :param value: The value to use as replacement.
+        :param subset: Column names to fill, or None for all columns.
+        :param condition_fn: Function that takes a column expression and returns
+                           a boolean expression indicating when to replace.
+        :return: A new DataFrame with values replaced.
+        """
+        subset = self._validate_subset(subset)
+
+        # Empty subset is a no-op - return self unchanged
+        if not subset:
+            return self
+
+        subset_set = set(subset)
+
+        schema = self._table.get_schema()
+        all_columns = schema.get_field_names()
+
+        expressions = []
+        for col_name in all_columns:
+            col_expr = table_col(col_name)
+            if col_name in subset_set:
+                col_type = schema.get_field_data_type(col_name)
+
+                # Only fill type-compatible columns
+                if self._is_type_compatible(value, col_type):
+                    typed_value = table_lit(value).cast(col_type)
+                    filled_expr = if_then_else(
+                        condition_fn(col_expr),
+                        typed_value,
+                        col_expr
+                    ).alias(col_name)
+                    expressions.append(filled_expr)
+                else:
+                    expressions.append(col_expr)
+            else:
+                expressions.append(col_expr)
+
+        return DataFrame(self._table.select(*expressions))
+
+    @PublicEvolving()
+    def drop_null(self, subset: Optional[List[str]] = None) -> "DataFrame":
+        """
+        Remove rows containing NULL values.
+
+        This method uses three-valued logic: NULL values in the specified columns
+        will cause the row to be filtered out. Rows where all checked columns are
+        non-NULL will be retained.
+
+        :param subset: Column names to check. If None, checks all columns.
+        :return: A new DataFrame with rows containing NULL values removed.
+        :raises ValueError: If subset is empty or contains invalid column names.
+        :raises TypeError: If subset is not a list of strings.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([
+            ...     {"id": 1, "name": "Alice", "age": 30},
+            ...     {"id": 2, "name": None, "age": 25},
+            ...     {"id": 3, "name": "Bob", "age": None},
+            ... ])
+            >>> df.drop_null()  # Drop rows with any NULL
+            >>> df.drop_null(subset=["age"])  # Drop rows where "age" is NULL
+
+        .. versionadded:: 2.4.0
+        """
+        subset = self._validate_subset(subset)
+
+        # Empty subset is a no-op - return self unchanged
+        if not subset:
+            return self
+
+        conditions = [table_col(col_name).is_not_null for col_name in subset]
+        condition = and_(*conditions) if len(conditions) > 1 else conditions[0]
+        return DataFrame(self._table.filter(condition))
+
+    @PublicEvolving()
+    def drop_nan(self, subset: Optional[List[str]] = None) -> "DataFrame":
+        """
+        Remove rows containing NaN values (for float/double columns).
+
+        This method uses three-valued logic: NaN values in the specified columns
+        will cause the row to be filtered out. NULL values are preserved (not
+        treated as NaN). Only applies to floating-point numeric types.
+
+        :param subset: Column names to check. If None, checks all columns.
+        :return: A new DataFrame with rows containing NaN values removed.
+        :raises ValueError: If subset is empty or contains invalid column names.
+        :raises TypeError: If subset is not a list of strings.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([
+            ...     {"id": 1, "score": 0.95},
+            ...     {"id": 2, "score": float('nan')},
+            ... ])
+            >>> df.drop_nan()  # Drop rows with any NaN
+            >>> df.drop_nan(subset=["score"])  # Drop rows where "score" is NaN
+
+        .. versionadded:: 2.4.0
+        """
+        schema = self._table.get_schema()
+        
+        if subset is None:
+            # Auto-filter to only floating-point columns
+            subset = [
+                col_name for col_name in schema.get_field_names()
+                if isinstance(schema.get_field_data_type(col_name), (FloatType, DoubleType))
+            ]
+            
+            # If no floating-point columns, return unchanged DataFrame
+            if not subset:
+                return self
+        else:
+            subset = self._validate_subset(subset)
+
+            # Empty subset is a no-op - return self unchanged
+            if not subset:
+                return self
+        
+        # Preserve NULL values: (is_not_nan(col) OR col IS NULL)
+        conditions = [
+            or_(is_not_nan(table_col(col_name)), table_col(col_name).is_null)
+            for col_name in subset
+        ]
+        condition = and_(*conditions) if len(conditions) > 1 else conditions[0]
+        return DataFrame(self._table.filter(condition))
+
+    @PublicEvolving()
+    def fill_null(self, value: Any, subset: Optional[List[str]] = None) -> "DataFrame":
+        """
+        Replace NULL values with a specified value.
+
+        This method uses three-valued logic: NULL values in the specified columns
+        are replaced with the provided value, while non-NULL values are preserved.
+        The replacement value is automatically cast to match each column's data type.
+
+        :param value: The value to replace NULL with.
+        :param subset: Column names to fill. If None, fills all columns.
+        :return: A new DataFrame with NULL values replaced.
+        :raises ValueError: If subset is empty or contains invalid column names.
+        :raises TypeError: If subset is not a list of strings.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([
+            ...     {"id": 1, "name": "Alice", "quantity": 10},
+            ...     {"id": 2, "name": None, "quantity": None},
+            ... ])
+            >>> df.fill_null(0, subset=["quantity"])
+            >>> df.fill_null("unknown", subset=["name"])
+
+        .. versionadded:: 2.4.0
+        """
+        return self._fill_values(value, subset, lambda col: col.is_null)
+
+    @PublicEvolving()
+    def fill_nan(self, value: Any, subset: Optional[List[str]] = None) -> "DataFrame":
+        """
+        Replace NaN values with a specified value (for float/double columns).
+
+        This method uses three-valued logic: NaN values in the specified columns
+        are replaced with the provided value, while non-NaN values are preserved.
+        NULL values are preserved (not treated as NaN). The replacement value is
+        automatically cast to match each column's data type. If ``value`` is
+        ``None``, NaN values are converted to NULL.
+
+        :param value: The value to replace NaN with. Can be ``None`` to convert
+            NaN values to NULL.
+        :param subset: Column names to fill. If None, fills all floating-point
+            columns.
+        :return: A new DataFrame with NaN values replaced.
+        :raises ValueError: If subset is empty or contains invalid column names.
+        :raises TypeError: If subset is not a list of strings.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([
+            ...     {"id": 1, "score": 0.95},
+            ...     {"id": 2, "score": float('nan')},
+            ... ])
+            >>> df.fill_nan(0.0, subset=["score"])
+
+        .. versionadded:: 2.4.0
+        """
+        schema = self._table.get_schema()
+        
+        if subset is None:
+            # Auto-filter to only floating-point columns
+            subset = [
+                col_name for col_name in schema.get_field_names()
+                if isinstance(schema.get_field_data_type(col_name), (FloatType, DoubleType))
+            ]
+            
+            # If no floating-point columns, return unchanged DataFrame
+            if not subset:
+                return self
+        
+        return self._fill_values(value, subset, lambda col: is_nan(col))
 
     # ======================== Conversion ========================
 
