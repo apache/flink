@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogConnection;
 import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
@@ -69,6 +70,8 @@ class ShowCreateUtilTest {
             ObjectIdentifier.of("catalogName", "dbName", "tableName");
     private static final ObjectIdentifier VIEW_IDENTIFIER =
             ObjectIdentifier.of("catalogName", "dbName", "viewName");
+    private static final ObjectIdentifier CONNECTION_IDENTIFIER =
+            ObjectIdentifier.of("catalogName", "dbName", "connectionName");
     private static final ObjectIdentifier MATERIALIZED_TABLE_IDENTIFIER =
             ObjectIdentifier.of("catalogName", "dbName", "materializedTableName");
 
@@ -225,6 +228,69 @@ class ShowCreateUtilTest {
         final String createCatalogString =
                 ShowCreateUtil.buildShowCreateCatalogRow(catalogDescriptor, List.of());
         assertThat(createCatalogString).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "{index}: {3}")
+    @MethodSource("argsForShowCreateConnection")
+    void showCreateConnection(
+            CatalogConnection catalogConnection,
+            boolean isTemporary,
+            List<String> additionalSensitiveKeys,
+            String expected) {
+        final String createConnectionString =
+                ShowCreateUtil.buildShowCreateConnectionRow(
+                        catalogConnection,
+                        CONNECTION_IDENTIFIER,
+                        isTemporary,
+                        additionalSensitiveKeys);
+        assertThat(createConnectionString).isEqualTo(expected);
+    }
+
+    private static Collection<Arguments> argsForShowCreateConnection() {
+        final Collection<Arguments> argList = new ArrayList<>();
+
+        final Map<String, String> options = new HashMap<>();
+        options.put("url", "jdbc:mysql://localhost:3306/db");
+        options.put("type", "default");
+        addTemporaryAndPermanent(
+                argList,
+                CatalogConnection.of(options, null),
+                List.of(),
+                "CREATE %sCONNECTION `catalogName`.`dbName`.`connectionName`\n"
+                        + "WITH (\n"
+                        + "  'type' = 'default',\n"
+                        + "  'url' = 'jdbc:mysql://localhost:3306/db'\n"
+                        + ")\n");
+
+        final Map<String, String> commentedOptions = new HashMap<>();
+        commentedOptions.put("connector", "jdbc");
+        addTemporaryAndPermanent(
+                argList,
+                CatalogConnection.of(commentedOptions, "Connection's comment"),
+                List.of(),
+                "CREATE %sCONNECTION `catalogName`.`dbName`.`connectionName`\n"
+                        + "COMMENT 'Connection''s comment'\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'jdbc'\n"
+                        + ")\n");
+
+        final Map<String, String> sensitiveOptions = new HashMap<>();
+        sensitiveOptions.put("__flink.encrypted-secret-key__", "secret-id");
+        sensitiveOptions.put("endpoint", "service");
+        sensitiveOptions.put("my.custom.cred", "supersecret");
+        sensitiveOptions.put("password", "topsecret");
+        addTemporaryAndPermanent(
+                argList,
+                CatalogConnection.of(sensitiveOptions, null),
+                List.of("custom.cred"),
+                "CREATE %sCONNECTION `catalogName`.`dbName`.`connectionName`\n"
+                        + "WITH (\n"
+                        + "  'endpoint' = 'service',\n"
+                        + "  'my.custom.cred' = '******',\n"
+                        + "  'password' = '******'\n"
+                        + ")\n");
+
+        return argList;
     }
 
     private static Collection<Arguments> argsForShowCreateCatalog() {
@@ -581,6 +647,22 @@ class ShowCreateUtilTest {
             Collection<Arguments> argList, CatalogBaseTable catalogBaseTable, String sql) {
         argList.add(Arguments.of(catalogBaseTable, false, String.format(sql, "")));
         argList.add(Arguments.of(catalogBaseTable, true, String.format(sql, "TEMPORARY ")));
+    }
+
+    private static void addTemporaryAndPermanent(
+            Collection<Arguments> argList,
+            CatalogConnection catalogConnection,
+            List<String> additionalSensitiveKeys,
+            String sql) {
+        argList.add(
+                Arguments.of(
+                        catalogConnection, false, additionalSensitiveKeys, String.format(sql, "")));
+        argList.add(
+                Arguments.of(
+                        catalogConnection,
+                        true,
+                        additionalSensitiveKeys,
+                        String.format(sql, "TEMPORARY ")));
     }
 
     private static void addCreateAndCreateOrAlter(

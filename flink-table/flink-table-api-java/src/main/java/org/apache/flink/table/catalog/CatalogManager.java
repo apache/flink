@@ -1924,6 +1924,30 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         }
     }
 
+    /** Get a connection from the catalog with contextual metadata. */
+    public Optional<ContextResolvedConnection> getResolvedConnection(
+            ObjectIdentifier objectIdentifier) {
+        CatalogConnection temporaryConnection = temporaryConnections.get(objectIdentifier);
+        if (temporaryConnection != null) {
+            return Optional.of(
+                    ContextResolvedConnection.of(objectIdentifier, temporaryConnection, true));
+        }
+
+        Optional<Catalog> catalog = getCatalog(objectIdentifier.getCatalogName());
+        if (catalog.isPresent()) {
+            try {
+                return Optional.of(
+                        ContextResolvedConnection.of(
+                                objectIdentifier,
+                                catalog.get().getConnection(objectIdentifier.toObjectPath()),
+                                false));
+            } catch (ConnectionNotExistException | UnsupportedOperationException e) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
     /**
      * List all connections in the given catalog and database.
      *
