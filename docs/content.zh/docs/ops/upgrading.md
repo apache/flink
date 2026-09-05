@@ -247,6 +247,12 @@ $ bin/flink run -s :savepointPath [:runArgs]
 
 ***注意***：此处的“兼容”仅指 Savepoint 内部数据格式的兼容性，并不包含 SQL 算子或其他上层改动的兼容性。
 在实践中，只要 Flink SQL 语义没有发生变化，这种状态格式的兼容性通常也能保证作业级别的兼容性。
+对于 SQL/Table API 作业，即使是小版本升级（例如 1.18 到 1.20）也可能产生不兼容的 Savepoint，
+因为新的优化器规则或更专用的运行时算子会改变执行计划，详见上文 [Table API & SQL](#table-api--sql) 部分。
+
+1.x 与 2.x 之间不保证状态兼容性，参见
+[Flink 2.0 release notes](https://nightlies.apache.org/flink/flink-docs-release-2.0/release-notes/flink-2.0/#misc)，
+因此对于使用 1.x 版本创建的 Savepoint，表中 2.x 的列均留空。
 
 <table class="table table-bordered" style="font-size:8pt">
   <thead>
@@ -256,7 +262,10 @@ $ bin/flink run -s :savepointPath [:runArgs]
       <th class="text-center">1.18.x</th>
       <th class="text-center">1.19.x</th>
       <th class="text-center">1.20.x</th>
-      <th class="text-center" style="width: 50%">限制</th>
+      <th class="text-center">2.0.x</th>
+      <th class="text-center">2.1.x</th>
+      <th class="text-center">2.2.x</th>
+      <th class="text-center" style="width: 35%">限制</th>
     </tr>
   </thead>
   <tbody>
@@ -266,6 +275,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -274,6 +286,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -282,6 +297,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -290,6 +308,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -298,6 +319,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -306,6 +330,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left">Don't upgrade from 1.12.x to 1.13.x with an unaligned checkpoint. Please use a savepoint for migrating.</td>
         </tr>
     <tr>
@@ -314,6 +341,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -322,6 +352,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left">
             For Table API: 1.15.0 and 1.15.1 generated non-deterministic UIDs for operators that 
             make it difficult/impossible to restore state or upgrade to next patch version. A new 
@@ -338,6 +371,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -346,6 +382,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -354,6 +393,9 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -362,10 +404,49 @@ $ bin/flink run -s :savepointPath [:runArgs]
           <td class="text-center"></td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
           <td class="text-center"><strong>1.20.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-left"></td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>2.0.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-left"></td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>2.1.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-left"></td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>2.2.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
