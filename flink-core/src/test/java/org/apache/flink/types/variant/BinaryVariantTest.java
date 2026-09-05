@@ -34,6 +34,7 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -104,6 +105,10 @@ class BinaryVariantTest {
         LocalTime localTime = LocalTime.now().truncatedTo(ChronoUnit.MICROS);
         assertThat(builder.of(localTime).getTime()).isEqualTo(localTime);
         assertThat(builder.of(localTime).get()).isEqualTo(localTime);
+
+        UUID uuid = UUID.randomUUID();
+        assertThat(builder.of(uuid).getUUID()).isEqualTo(uuid);
+        assertThat(builder.of(uuid).get()).isEqualTo(uuid);
 
         assertThat(builder.ofNull().get()).isEqualTo(null);
         assertThat(builder.ofNull().isNull()).isTrue();
@@ -289,6 +294,7 @@ class BinaryVariantTest {
         LocalTime localTime = LocalTime.of(13, 45, 30, 123456789);
         Instant nanoInstant = Instant.EPOCH.plusNanos(123456789);
         LocalDateTime nanoLocalDateTime = LocalDateTime.of(2000, 1, 1, 0, 0, 0, 123456789);
+        UUID uuid = UUID.fromString("00112233-4455-6677-8899-aabbccddeeff");
 
         assertThat(builder.of((byte) 1).toJson()).isEqualTo("1");
         assertThat(builder.of((short) 1).toJson()).isEqualTo("1");
@@ -308,7 +314,44 @@ class BinaryVariantTest {
         assertThat(builder.of(nanoLocalDateTime).toJson())
                 .isEqualTo("\"2000-01-01T00:00:00.123456789\"");
         assertThat(builder.of("hello".getBytes()).toJson()).isEqualTo("\"aGVsbG8=\"");
+        assertThat(builder.of(uuid).toJson()).isEqualTo("\"00112233-4455-6677-8899-aabbccddeeff\"");
         assertThat(builder.ofNull().toJson()).isEqualTo("null");
+    }
+
+    @Test
+    void testUuidDecodeFromSpecBytes() {
+        // Interop check against the shared variant wire format: this is the exact byte sequence
+        // from Iceberg's TestSerializedPrimitives#testUUID (primitive header for type 20 followed
+        // by 16 big-endian UUID bytes). Decoding it must produce the same UUID, which proves Flink
+        // reads variants written by other implementations of the spec.
+        // https://github.com/apache/iceberg/blob/9da109dd2537e77e8e5034068933575aa4e235ff/api/src/test/java/org/apache/iceberg/variants/TestSerializedPrimitives.java#L586
+        byte[] value = {
+            BinaryVariantUtil.primitiveHeader(BinaryVariantUtil.UUID),
+            (byte) 0xf2,
+            0x4f,
+            (byte) 0x9b,
+            0x64,
+            (byte) 0x81,
+            (byte) 0xfa,
+            0x49,
+            (byte) 0xd1,
+            (byte) 0xb7,
+            0x4e,
+            (byte) 0x8c,
+            0x09,
+            (byte) 0xa6,
+            (byte) 0xe3,
+            0x1c,
+            0x56
+        };
+        // A primitive carries no dictionary keys, so reuse an empty metadata block.
+        byte[] metadata = ((BinaryVariant) builder.of(0)).getMetadata();
+        Variant variant = new BinaryVariant(value, metadata);
+
+        UUID expected = UUID.fromString("f24f9b64-81fa-49d1-b74e-8c09a6e31c56");
+        assertThat(variant.getType()).isEqualTo(Variant.Type.UUID);
+        assertThat(variant.getUUID()).isEqualTo(expected);
+        assertThat(variant.get()).isEqualTo(expected);
     }
 
     @Test

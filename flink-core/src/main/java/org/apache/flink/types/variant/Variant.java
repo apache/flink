@@ -27,6 +27,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Variant represent a semi-structured data.
@@ -172,6 +173,14 @@ public interface Variant extends Serializable {
     byte[] getBytes() throws VariantTypeException;
 
     /**
+     * Get the scalar value of variant as UUID, if the variant type is {@link Type#UUID}.
+     *
+     * @throws VariantTypeException If this variant is not a scalar value or is not {@link
+     *     Type#UUID}.
+     */
+    UUID getUUID() throws VariantTypeException;
+
+    /**
      * Get the scalar value of variant.
      *
      * @throws VariantTypeException If this variant is not a scalar value.
@@ -249,7 +258,8 @@ public interface Variant extends Serializable {
         TIMESTAMP_LTZ,
         TIMESTAMP_NS,
         TIMESTAMP_LTZ_NS,
-        BYTES
+        BYTES,
+        UUID
     }
 
     static VariantBuilder newBuilder() {
