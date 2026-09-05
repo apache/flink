@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CollectSinkFunction}. */
@@ -52,6 +53,19 @@ class CollectSinkFunctionTest {
     @AfterEach
     void after() throws Exception {
         functionWrapper.closeWrapper();
+    }
+
+    @Test
+    void testCloseBeforeOpenDoesNotThrow() {
+        CollectSinkFunction<Integer> function =
+                new CollectSinkFunction<>(
+                        serializer, 12, CollectSinkFunctionTestWrapper.ACCUMULATOR_NAME);
+        assertThatCode(
+                        () -> {
+                            function.accumulateFinalResults();
+                            function.close();
+                        })
+                .doesNotThrowAnyException();
     }
 
     @Test
