@@ -103,12 +103,6 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
-      <td><a href="{{< ref "docs/connectors/table/hive/overview" >}}">Apache Hive</a></td>
-      <td><a href="{{< ref "docs/connectors/table/hive/overview" >}}#supported-hive-versions">Supported Versions</a></td>
-      <td>Unbounded Scan, Bounded Scan, Lookup</td>
-      <td>Streaming Sink, Batch Sink</td>
-    </tr>
-    <tr>
       <td><a href="{{< ref "docs/connectors/table/mongodb" >}}">MongoDB</a></td>
       <td>3.6.x & 4.x & 5.x & 6.0.x</td>
       <td>Bounded Scan, Lookup</td>
