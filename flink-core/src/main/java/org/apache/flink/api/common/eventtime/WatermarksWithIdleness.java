@@ -33,6 +33,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A WatermarkGenerator that adds idleness detection to another WatermarkGenerator. If no events
  * come within a certain time (timeout duration) then this generator marks the stream as idle, until
  * the next watermark is generated.
+ *
+ * <p>Idleness is only evaluated in {@link #onPeriodicEmit(WatermarkOutput)}: the timeout countdown
+ * starts at the first periodic emission that saw no events since the previous one, and the stream
+ * is marked idle at the first periodic emission after strictly more than the timeout has elapsed
+ * since the countdown started. The stream is therefore marked idle no earlier than the timeout
+ * after the last event and, in the worst case, up to the timeout plus three periodic emission
+ * intervals after it.
  */
 @Public
 public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
