@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.StopMode;
@@ -109,9 +109,9 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     /** Used to compress buffer to reduce IO. */
     @Nullable protected final BufferCompressor bufferCompressor;
 
-    protected Counter numBytesOut = new SimpleCounter();
+    protected Counter numBytesOut = new SimpleMonotonicCounter();
 
-    protected Counter numBuffersOut = new SimpleCounter();
+    protected Counter numBuffersOut = new SimpleMonotonicCounter();
 
     protected ResultPartitionBytesCounter resultPartitionBytes;
 

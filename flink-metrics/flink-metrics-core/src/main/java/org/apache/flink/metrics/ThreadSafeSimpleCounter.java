@@ -21,9 +21,9 @@ import org.apache.flink.annotation.Internal;
 
 import java.util.concurrent.atomic.LongAdder;
 
-/** A simple low-overhead {@link org.apache.flink.metrics.Counter} that is thread-safe. */
+/** A simple low-overhead {@link org.apache.flink.metrics.UpDownCounter} that is thread-safe. */
 @Internal
-public class ThreadSafeSimpleCounter implements Counter {
+public class ThreadSafeSimpleCounter implements UpDownCounter {
 
     /** the current count. */
     private final LongAdder longAdder = new LongAdder();

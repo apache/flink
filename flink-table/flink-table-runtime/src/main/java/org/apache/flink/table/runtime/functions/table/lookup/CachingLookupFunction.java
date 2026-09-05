@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.functions.table.lookup;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.InternalCacheMetricGroup;
@@ -101,9 +101,9 @@ public class CachingLookupFunction extends LookupFunction {
                 new InternalCacheMetricGroup(
                         context.getMetricGroup(), LOOKUP_CACHE_METRIC_GROUP_NAME);
         if (!(cache instanceof LookupFullCache)) {
-            loadCounter = new SimpleCounter();
+            loadCounter = new SimpleMonotonicCounter();
             cacheMetricGroup.loadCounter(loadCounter);
-            numLoadFailuresCounter = new SimpleCounter();
+            numLoadFailuresCounter = new SimpleMonotonicCounter();
             cacheMetricGroup.numLoadFailuresCounter(numLoadFailuresCounter);
         } else {
             initializeFullCache(((LookupFullCache) cache), context);

@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.functions.table.lookup.fullcache;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.ThreadSafeSimpleCounter;
+import org.apache.flink.metrics.ThreadSafeSimpleMonotonicCounter;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
 import org.apache.flink.table.connector.source.ScanTableSource.ScanRuntimeProvider;
 import org.apache.flink.table.data.RowData;
@@ -84,10 +84,10 @@ public abstract class CacheLoader implements AutoCloseable, Serializable {
 
     public void initializeMetrics(CacheMetricGroup cacheMetricGroup) {
         if (loadCounter == null) {
-            loadCounter = new ThreadSafeSimpleCounter();
+            loadCounter = new ThreadSafeSimpleMonotonicCounter();
         }
         if (loadFailuresCounter == null) {
-            loadFailuresCounter = new ThreadSafeSimpleCounter();
+            loadFailuresCounter = new ThreadSafeSimpleMonotonicCounter();
         }
         if (cache == null) {
             cache = new ConcurrentHashMap<>();
