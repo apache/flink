@@ -41,6 +41,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarDecimalArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableRetractArgFunction;
@@ -63,6 +64,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
+import java.math.BigDecimal;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.function.Function;
@@ -686,7 +688,22 @@ class ProcessTableFunctionTest extends TableTestBase {
                         TypedRowSemanticTableFunction.class,
                         env -> env.fromValues(row("Bob", 1.99)).process("f", 1),
                         "Invalid argument value. Argument 'u' expects a typed table, but the provided "
-                                + "table is incompatible and cannot be cast to the target type."));
+                                + "table is incompatible and cannot be cast to the target type."),
+                ErrorSpec.ofTableApi(
+                        "decimal scalar arg that overflows the declared precision",
+                        ScalarDecimalArgFunction.class,
+                        env -> env.fromCall("f", new BigDecimal("123.456")),
+                        "The value '123.456' does not fit the expected data type"),
+                ErrorSpec.ofSelect(
+                        "decimal scalar arg that overflows the declared precision in SQL",
+                        ScalarDecimalArgFunction.class,
+                        "SELECT * FROM f(123.456)",
+                        "The value '123.456' does not fit the expected data type"),
+                ErrorSpec.ofSelect(
+                        "non-decimal numeric constant that overflows the declared precision",
+                        ScalarDecimalArgFunction.class,
+                        "SELECT * FROM f(123)",
+                        "The value '123' does not fit the expected data type"));
     }
 
     /** Testing function. */
