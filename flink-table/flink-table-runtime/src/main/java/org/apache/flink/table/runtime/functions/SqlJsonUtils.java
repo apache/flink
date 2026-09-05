@@ -24,8 +24,11 @@ import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
 import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.apache.flink.shaded.com.jayway.jsonpath.Configuration;
 import org.apache.flink.shaded.com.jayway.jsonpath.DocumentContext;
@@ -48,7 +51,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -241,7 +248,8 @@ public class SqlJsonUtils {
 
     public enum JsonQueryReturnType {
         STRING,
-        ARRAY
+        ARRAY,
+        RAW_ARRAY
     }
 
     public static Object jsonQuery(
@@ -333,6 +341,9 @@ public class SqlJsonUtils {
                             }
 
                             return new GenericArrayData(arr);
+                        case RAW_ARRAY:
+                            final List<Object> rawList = (List<Object>) value;
+                            return rawList.toArray();
                         default:
                             throw new TableRuntimeException("illegal return type");
                     }
@@ -355,6 +366,8 @@ public class SqlJsonUtils {
                 switch (returnType) {
                     case ARRAY:
                         return new GenericArrayData(new StringData[0]);
+                    case RAW_ARRAY:
+                        return new Object[0];
                     case STRING:
                         return "[]";
                     default:
@@ -381,6 +394,8 @@ public class SqlJsonUtils {
                 switch (returnType) {
                     case ARRAY:
                         return new GenericArrayData(new StringData[0]);
+                    case RAW_ARRAY:
+                        return new Object[0];
                     case STRING:
                         return "[]";
                     default:
@@ -813,6 +828,271 @@ public class SqlJsonUtils {
         public String toString() {
             return "JsonPathContext{" + "mode=" + mode + ", obj=" + obj + ", exc=" + exc + '}';
         }
+    }
+
+    // --- Type conversion for JSON_VALUE / JSON_QUERY RETURNING ---
+
+    private static final java.util.EnumSet<LogicalTypeRoot> SUPPORTED_JSON_RETURNING_TYPES =
+            java.util.EnumSet.of(
+                    LogicalTypeRoot.BOOLEAN,
+                    LogicalTypeRoot.TINYINT,
+                    LogicalTypeRoot.SMALLINT,
+                    LogicalTypeRoot.INTEGER,
+                    LogicalTypeRoot.BIGINT,
+                    LogicalTypeRoot.FLOAT,
+                    LogicalTypeRoot.DOUBLE,
+                    LogicalTypeRoot.DECIMAL);
+
+    public static boolean isSupportedJsonReturningType(LogicalTypeRoot typeRoot) {
+        return SUPPORTED_JSON_RETURNING_TYPES.contains(typeRoot);
+    }
+
+    public static Object convertJsonScalar(
+            Object raw,
+            LogicalTypeRoot typeRoot,
+            int precision,
+            int scale,
+            JsonValueOnEmptyOrError errorBehavior,
+            Object defaultValue) {
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return convertToType(raw, typeRoot, precision, scale);
+        } catch (JsonConversionException e) {
+            switch (errorBehavior) {
+                case NULL:
+                    return null;
+                case DEFAULT:
+                    return convertDefault(defaultValue, typeRoot, precision, scale);
+                case ERROR:
+                    throw new TableRuntimeException(
+                            "Cannot cast " + raw.getClass().getName() + " to " + typeRoot, e);
+                default:
+                    throw new TableRuntimeException(
+                            "Unreachable: unknown error behavior " + errorBehavior);
+            }
+        }
+    }
+
+    public static GenericArrayData convertJsonArray(
+            Object rawResult,
+            LogicalTypeRoot elementTypeRoot,
+            int precision,
+            int scale,
+            boolean elementNullable,
+            JsonQueryOnEmptyOrError errorBehavior) {
+        if (rawResult == null) {
+            return null;
+        }
+        try {
+            Object[] rawArr = (Object[]) rawResult;
+            Object[] converted = new Object[rawArr.length];
+            for (int i = 0; i < rawArr.length; i++) {
+                if (rawArr[i] != null) {
+                    converted[i] = convertToType(rawArr[i], elementTypeRoot, precision, scale);
+                } else if (!elementNullable) {
+                    throw new JsonConversionException(
+                            "Null element at index " + i + " in NOT NULL array");
+                }
+            }
+            return new GenericArrayData(converted);
+        } catch (JsonConversionException e) {
+            switch (errorBehavior) {
+                case NULL:
+                    return null;
+                case EMPTY_ARRAY:
+                    return new GenericArrayData(new Object[0]);
+                case ERROR:
+                    throw new TableRuntimeException("Array element type mismatch in JSON_QUERY", e);
+                default:
+                    return null;
+            }
+        }
+    }
+
+    private static Object convertToType(
+            Object raw, LogicalTypeRoot typeRoot, int precision, int scale) {
+        if (raw instanceof StringData) {
+            return convertToType(raw.toString(), typeRoot, precision, scale);
+        }
+        if (raw instanceof String) {
+            if (typeRoot == LogicalTypeRoot.BOOLEAN) {
+                return parseStringAsBoolean((String) raw);
+            }
+            try {
+                String trimmed = ((String) raw).trim();
+                return convertToType(new BigDecimal(trimmed), typeRoot, precision, scale);
+            } catch (NumberFormatException e) {
+                throw new JsonConversionException(
+                        "Cannot parse string '" + raw + "' as " + typeRoot, e);
+            }
+        }
+        try {
+            switch (typeRoot) {
+                case BOOLEAN:
+                    if (raw instanceof Number) {
+                        double d = ((Number) raw).doubleValue();
+                        if (d == 0.0) return false;
+                        if (d == 1.0) return true;
+                        throw new JsonConversionException(
+                                "Cannot convert " + raw + " to BOOLEAN");
+                    }
+                    return (Boolean) raw;
+                case TINYINT:
+                    return toCheckedByte((Number) raw);
+                case SMALLINT:
+                    return toCheckedShort((Number) raw);
+                case INTEGER:
+                    return toCheckedInt((Number) raw);
+                case BIGINT:
+                    return toCheckedLong((Number) raw);
+                case FLOAT:
+                    return toCheckedFloat((Number) raw);
+                case DOUBLE:
+                    return toCheckedDouble((Number) raw);
+                case DECIMAL:
+                    return toCheckedDecimal(raw.toString(), precision, scale);
+                default:
+                    throw new JsonConversionException(
+                            "Unsupported type for JSON conversion: " + typeRoot);
+            }
+        } catch (ClassCastException e) {
+            throw new JsonConversionException(
+                    "Cannot convert " + raw.getClass().getName() + " to " + typeRoot, e);
+        }
+    }
+
+    private static Object convertDefault(
+            Object defaultValue, LogicalTypeRoot typeRoot, int precision, int scale) {
+        if (defaultValue == null) {
+            return null;
+        }
+        try {
+            return convertToType(defaultValue, typeRoot, precision, scale);
+        } catch (JsonConversionException e) {
+            throw new TableRuntimeException(
+                    "Default value " + defaultValue + " cannot be represented as " + typeRoot, e);
+        }
+    }
+
+    private static @Nullable BigInteger toBigIntegerTruncated(Number n) {
+        if (n instanceof BigDecimal) {
+            return ((BigDecimal) n).toBigInteger();
+        }
+        if (n instanceof BigInteger) {
+            return (BigInteger) n;
+        }
+        return null;
+    }
+
+    static byte toCheckedByte(Number n) {
+        BigInteger bi = toBigIntegerTruncated(n);
+        if (bi != null) {
+            if (bi.compareTo(BigInteger.valueOf(Byte.MAX_VALUE)) > 0
+                    || bi.compareTo(BigInteger.valueOf(Byte.MIN_VALUE)) < 0) {
+                throw new JsonConversionException("Value " + n + " is out of range for TINYINT");
+            }
+            return bi.byteValue();
+        }
+        long v = n.longValue();
+        if (v < Byte.MIN_VALUE || v > Byte.MAX_VALUE) {
+            throw new JsonConversionException("Value " + n + " is out of range for TINYINT");
+        }
+        return (byte) v;
+    }
+
+    static short toCheckedShort(Number n) {
+        BigInteger bi = toBigIntegerTruncated(n);
+        if (bi != null) {
+            if (bi.compareTo(BigInteger.valueOf(Short.MAX_VALUE)) > 0
+                    || bi.compareTo(BigInteger.valueOf(Short.MIN_VALUE)) < 0) {
+                throw new JsonConversionException("Value " + n + " is out of range for SMALLINT");
+            }
+            return bi.shortValue();
+        }
+        long v = n.longValue();
+        if (v < Short.MIN_VALUE || v > Short.MAX_VALUE) {
+            throw new JsonConversionException("Value " + n + " is out of range for SMALLINT");
+        }
+        return (short) v;
+    }
+
+    static int toCheckedInt(Number n) {
+        BigInteger bi = toBigIntegerTruncated(n);
+        if (bi != null) {
+            if (bi.compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0
+                    || bi.compareTo(BigInteger.valueOf(Integer.MIN_VALUE)) < 0) {
+                throw new JsonConversionException("Value " + n + " is out of range for INTEGER");
+            }
+            return bi.intValue();
+        }
+        long v = n.longValue();
+        if (v < Integer.MIN_VALUE || v > Integer.MAX_VALUE) {
+            throw new JsonConversionException("Value " + n + " is out of range for INTEGER");
+        }
+        return (int) v;
+    }
+
+    static boolean parseStringAsBoolean(String s) {
+        String v = s.trim().toLowerCase(Locale.ROOT);
+        switch (v) {
+            case "true":
+            case "t":
+            case "yes":
+            case "1":
+                return true;
+            case "false":
+            case "f":
+            case "no":
+            case "0":
+                return false;
+            default:
+                throw new JsonConversionException("Cannot parse string '" + s + "' as BOOLEAN");
+        }
+    }
+
+    static float toCheckedFloat(Number n) {
+        float f = n.floatValue();
+        if (Float.isInfinite(f) || Float.isNaN(f)) {
+            throw new JsonConversionException("Value " + n + " is out of range for FLOAT");
+        }
+        return f;
+    }
+
+    static double toCheckedDouble(Number n) {
+        double d = n.doubleValue();
+        if (Double.isInfinite(d) || Double.isNaN(d)) {
+            throw new JsonConversionException("Value " + n + " is out of range for DOUBLE");
+        }
+        return d;
+    }
+
+    static long toCheckedLong(Number n) {
+        BigInteger bi = toBigIntegerTruncated(n);
+        if (bi != null) {
+            if (bi.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0
+                    || bi.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0) {
+                throw new JsonConversionException("Value " + n + " is out of range for BIGINT");
+            }
+            return bi.longValue();
+        }
+        return n.longValue();
+    }
+
+    static DecimalData toCheckedDecimal(String value, int precision, int scale) {
+        DecimalData result = DecimalDataUtils.castFrom(value, precision, scale);
+        if (result == null) {
+            throw new JsonConversionException(
+                    "Value "
+                            + value
+                            + " cannot be represented as DECIMAL("
+                            + precision
+                            + ", "
+                            + scale
+                            + ")");
+        }
+        return result;
     }
 
     public static class JsonValueContext {

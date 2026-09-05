@@ -38,6 +38,7 @@ import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -51,18 +52,22 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
+import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BINARY;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
+import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.api.Expressions.$;
@@ -480,6 +485,46 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE(f0, '$.longBalance' RETURNING DOUBLE)",
                         123456789.987654321,
                         DOUBLE())
+                .testResult(
+                        $("f0").jsonValue("$.age", TINYINT()),
+                        "JSON_VALUE(f0, '$.age' RETURNING TINYINT)",
+                        (byte) 42,
+                        TINYINT())
+                .testResult(
+                        $("f0").jsonValue("$.age", SMALLINT()),
+                        "JSON_VALUE(f0, '$.age' RETURNING SMALLINT)",
+                        (short) 42,
+                        SMALLINT())
+                .testResult(
+                        $("f0").jsonValue("$.age", BIGINT()),
+                        "JSON_VALUE(f0, '$.age' RETURNING BIGINT)",
+                        42L,
+                        BIGINT())
+                .testResult(
+                        $("f0").jsonValue("$.bigCount", BIGINT()),
+                        "JSON_VALUE(f0, '$.bigCount' RETURNING BIGINT)",
+                        9999999999L,
+                        BIGINT())
+                .testResult(
+                        $("f0").jsonValue("$.balance", FLOAT()),
+                        "JSON_VALUE(f0, '$.balance' RETURNING FLOAT)",
+                        13.37f,
+                        FLOAT())
+                .testResult(
+                        $("f0").jsonValue("$.balance", DECIMAL(10, 2)),
+                        "JSON_VALUE(f0, '$.balance' RETURNING DECIMAL(10, 2))",
+                        new BigDecimal("13.37"),
+                        DECIMAL(10, 2))
+                .testResult(
+                        $("f0").jsonValue("$.balance", DECIMAL(9, 2)),
+                        "JSON_VALUE(f0, '$.balance' RETURNING DECIMAL(9, 2))",
+                        new BigDecimal("13.37"),
+                        DECIMAL(9, 2))
+                .testResult(
+                        $("f0").jsonValue("$.longBalance", DECIMAL(30, 10)),
+                        "JSON_VALUE(f0, '$.longBalance' RETURNING DECIMAL(30, 10))",
+                        new BigDecimal("123456789.9876543210"),
+                        DECIMAL(30, 10))
 
                 // ON EMPTY / ON ERROR
                 .testResult(
@@ -528,7 +573,245 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE(f0, 'strict $.invalid' RETURNING INTEGER NULL ON EMPTY DEFAULT 42 ON ERROR)",
                         42,
                         INT())
+                .testResult(
+                        $("f0").jsonValue(
+                                        "lax $.invalid",
+                                        BIGINT(),
+                                        JsonValueOnEmptyOrError.DEFAULT,
+                                        99L,
+                                        JsonValueOnEmptyOrError.ERROR,
+                                        null),
+                        "JSON_VALUE(f0, 'lax $.invalid' RETURNING BIGINT DEFAULT 99 ON EMPTY ERROR ON ERROR)",
+                        99L,
+                        BIGINT())
 
+                // JSON null at a valid path triggers ON EMPTY (default: NULL)
+                .testResult(
+                        $("f0").jsonValue("$.nullField", INT()),
+                        "JSON_VALUE(f0, '$.nullField' RETURNING INTEGER)",
+                        null,
+                        INT())
+
+                // Type mismatch: string value cast to numeric triggers ON ERROR
+                .testResult(
+                        $("f0").jsonValue(
+                                        "$.type",
+                                        INT(),
+                                        JsonValueOnEmptyOrError.NULL,
+                                        null,
+                                        JsonValueOnEmptyOrError.DEFAULT,
+                                        42),
+                        "JSON_VALUE(f0, '$.type' RETURNING INTEGER DEFAULT 42 ON ERROR)",
+                        42,
+                        INT())
+                .testResult(
+                        $("f0").jsonValue(
+                                        "$.type",
+                                        INT(),
+                                        JsonValueOnEmptyOrError.NULL,
+                                        null,
+                                        JsonValueOnEmptyOrError.NULL,
+                                        null),
+                        "JSON_VALUE(f0, '$.type' RETURNING INTEGER NULL ON ERROR)",
+                        null,
+                        INT())
+                .testResult(
+                        $("f0").jsonValue(
+                                        "$.type",
+                                        BIGINT(),
+                                        JsonValueOnEmptyOrError.NULL,
+                                        null,
+                                        JsonValueOnEmptyOrError.DEFAULT,
+                                        0L),
+                        "JSON_VALUE(f0, '$.type' RETURNING BIGINT DEFAULT 0 ON ERROR)",
+                        0L,
+                        BIGINT())
+                .testSqlRuntimeError(
+                        "JSON_VALUE(f0, '$.type' RETURNING INTEGER ERROR ON ERROR)",
+                        TableRuntimeException.class,
+                        "Cannot cast")
+
+                // Numeric overflow triggers ON ERROR (not silent wrapping)
+                .testResult(
+                        $("f0").jsonValue("$.bigCount", INT()),
+                        "JSON_VALUE(f0, '$.bigCount' RETURNING INTEGER)",
+                        null,
+                        INT())
+                // Fractional truncation toward zero (13.89 -> 13, -13.89 -> -13):
+                // MySQL truncates, PostgreSQL errors. We match MySQL behavior
+                // (CAST(JSON_UNQUOTE(JSON_EXTRACT(...)) AS type)).
+                .testResult(
+                        $("f0").jsonValue("$.balance", INT()),
+                        "JSON_VALUE(f0, '$.balance' RETURNING INTEGER)",
+                        13,
+                        INT())
+                .testResult(
+                        $("f0").jsonValue(
+                                        "$.bigCount",
+                                        INT(),
+                                        JsonValueOnEmptyOrError.NULL,
+                                        null,
+                                        JsonValueOnEmptyOrError.DEFAULT,
+                                        -1),
+                        "JSON_VALUE(f0, '$.bigCount' RETURNING INTEGER DEFAULT -1 ON ERROR)",
+                        -1,
+                        INT())
+                .testSqlRuntimeError(
+                        "JSON_VALUE(f0, '$.bigCount' RETURNING INTEGER ERROR ON ERROR)",
+                        TableRuntimeException.class,
+                        "Cannot cast")
+
+                // DECIMAL precision overflow triggers ON ERROR
+                .testResult(
+                        $("f0").jsonValue("$.longBalance", DECIMAL(5, 2)),
+                        "JSON_VALUE(f0, '$.longBalance' RETURNING DECIMAL(5, 2))",
+                        null,
+                        DECIMAL(5, 2))
+                .testSqlRuntimeError(
+                        "JSON_VALUE(f0, '$.longBalance' RETURNING DECIMAL(5, 2) ERROR ON ERROR)",
+                        TableRuntimeException.class,
+                        "Cannot cast")
+                .testResult(
+                        $("f0").jsonValue(
+                                        "$.longBalance",
+                                        DECIMAL(5, 2),
+                                        JsonValueOnEmptyOrError.NULL,
+                                        null,
+                                        JsonValueOnEmptyOrError.DEFAULT,
+                                        0),
+                        "JSON_VALUE(f0, '$.longBalance' RETURNING DECIMAL(5, 2) DEFAULT 0 ON ERROR)",
+                        new BigDecimal("0.00"),
+                        DECIMAL(5, 2))
+                // String-literal DEFAULT with numeric RETURNING type
+                .testSqlResult(
+                        "JSON_VALUE(f0, '$.longBalance' RETURNING DECIMAL(5, 2) DEFAULT '0.00' ON ERROR)",
+                        new BigDecimal("0.00"),
+                        DECIMAL(5, 2))
+
+                // Boolean <-> numeric cross-type mismatch
+                .testResult(
+                        $("f0").jsonValue(
+                                        "$.activated",
+                                        INT(),
+                                        JsonValueOnEmptyOrError.NULL,
+                                        null,
+                                        JsonValueOnEmptyOrError.NULL,
+                                        null),
+                        "JSON_VALUE(f0, '$.activated' RETURNING INTEGER NULL ON ERROR)",
+                        null,
+                        INT())
+                .testResult(
+                        $("f0").jsonValue(
+                                        "$.age",
+                                        BOOLEAN(),
+                                        JsonValueOnEmptyOrError.NULL,
+                                        null,
+                                        JsonValueOnEmptyOrError.NULL,
+                                        null),
+                        "JSON_VALUE(f0, '$.age' RETURNING BOOLEAN NULL ON ERROR)",
+                        null,
+                        BOOLEAN())
+
+                // Integer 0/1 to boolean conversion
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 1}', '$.x' RETURNING BOOLEAN)",
+                        true,
+                        BOOLEAN())
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 0}', '$.x' RETURNING BOOLEAN)",
+                        false,
+                        BOOLEAN())
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 1.9}', '$.x' RETURNING BOOLEAN NULL ON ERROR)",
+                        null,
+                        BOOLEAN())
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 2}', '$.x' RETURNING BOOLEAN NULL ON ERROR)",
+                        null,
+                        BOOLEAN())
+
+                // Outer CAST on JSON_VALUE result (boxed-to-primitive codegen)
+                .testSqlResult(
+                        "CAST(JSON_VALUE(f0, '$.balance' RETURNING DOUBLE) AS BIGINT)",
+                        13L,
+                        BIGINT())
+                .testSqlResult(
+                        "CAST(JSON_VALUE(f0, '$.age' RETURNING INTEGER) AS DOUBLE)", 42.0, DOUBLE())
+                .testSqlResult(
+                        "CAST(JSON_VALUE(f0, '$.age' RETURNING INTEGER) AS BIGINT)", 42L, BIGINT())
+                .testSqlResult(
+                        "CAST(JSON_VALUE(f0, '$.balance' RETURNING DOUBLE) AS INTEGER)", 13, INT())
+                .testSqlResult(
+                        "CAST(JSON_VALUE(f0, '$.longBalance' RETURNING DOUBLE) AS BIGINT)",
+                        123456789L,
+                        BIGINT())
+
+                // Equality on typed RETURNING results from different paths
+                // (distinct objects, same value -- must use value comparison, not reference)
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 99999, \"b\": 99999}', '$.a' RETURNING INT) = JSON_VALUE('{\"a\": 99999, \"b\": 99999}', '$.b' RETURNING INT)",
+                        true,
+                        BOOLEAN())
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 13.37, \"b\": 13.37}', '$.a' RETURNING DOUBLE) = JSON_VALUE('{\"a\": 13.37, \"b\": 13.37}', '$.b' RETURNING DOUBLE)",
+                        true,
+                        BOOLEAN())
+                // 200 is outside Short cache (-128..127), so boxed == would fail
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 200, \"b\": 200}', '$.a' RETURNING SMALLINT) = JSON_VALUE('{\"a\": 200, \"b\": 200}', '$.b' RETURNING SMALLINT)",
+                        true,
+                        BOOLEAN())
+                // 9999999999 is outside Long cache (-128..127)
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 9999999999, \"b\": 9999999999}', '$.a' RETURNING BIGINT) = JSON_VALUE('{\"a\": 9999999999, \"b\": 9999999999}', '$.b' RETURNING BIGINT)",
+                        true,
+                        BOOLEAN())
+                // Float has no JVM cache; exercises boxed Float equality codegen
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 13.37, \"b\": 13.37}', '$.a' RETURNING FLOAT) = JSON_VALUE('{\"a\": 13.37, \"b\": 13.37}', '$.b' RETURNING FLOAT)",
+                        true,
+                        BOOLEAN())
+                // DECIMAL boundary: max precision (38 digits) succeeds
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 99999999999999999999999999999999999999}', '$.x' RETURNING DECIMAL(38,0))",
+                        new BigDecimal("99999999999999999999999999999999999999"),
+                        DECIMAL(38, 0))
+                // DECIMAL boundary: 39-digit value overflows DECIMAL(38,0)
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 999999999999999999999999999999999999999}', '$.x' RETURNING DECIMAL(38,0) NULL ON ERROR)",
+                        null,
+                        DECIMAL(38, 0))
+                // DECIMAL rounding: 123.456 rounds to 123.46 via HALF_UP
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 123.456}', '$.x' RETURNING DECIMAL(5,2))",
+                        new BigDecimal("123.46"),
+                        DECIMAL(5, 2))
+                // DECIMAL rounding overflow: 999.999 rounds to 1000.00, exceeds DECIMAL(5,2)
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 999.999}', '$.x' RETURNING DECIMAL(5,2) NULL ON ERROR)",
+                        null,
+                        DECIMAL(5, 2))
+                // Float precision: 2^24+1 silently loses precision to 2^24
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 16777217}', '$.x' RETURNING FLOAT)",
+                        16777216.0f,
+                        FLOAT())
+                // Double precision: 2^53+1 silently loses precision to 2^53
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 9007199254740993}', '$.x' RETURNING DOUBLE)",
+                        9.007199254740992E15,
+                        DOUBLE())
+
+                // String with whitespace: trimmed before parsing (matches PostgreSQL CAST)
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": \" 42 \"}', '$.x' RETURNING INT)",
+                        42,
+                        INT())
+                // Boolean with whitespace: parseStringAsBoolean trims
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": \" true \"}', '$.x' RETURNING BOOLEAN)",
+                        true,
+                        BOOLEAN())
                 // path contains blank characters.
                 .testResult(
                         $("f0").jsonValue(
@@ -709,9 +992,14 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_QUERY(f0, '$.b' RETURNING ARRAY<STRING> WITH CONDITIONAL WRAPPER)",
                                 new String[] {"1", "2"},
                                 DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f0").jsonQuery("$.b", ARRAY(INT()), CONDITIONAL_ARRAY),
+                                "JSON_QUERY(f0, '$.b' RETURNING ARRAY<INTEGER> WITH CONDITIONAL WRAPPER)",
+                                new Integer[] {1, 2},
+                                ARRAY(INT()))
                         .testSqlValidationError(
-                                "JSON_QUERY(f0, '$.b' RETURNING ARRAY<INTEGER>  WITH CONDITIONAL WRAPPER ERROR ON ERROR)",
-                                " Unsupported array element type 'INTEGER' for RETURNING ARRAY in JSON_QUERY()")
+                                "JSON_QUERY(f0, '$.n1' RETURNING INTEGER)",
+                                "for RETURNING in JSON_QUERY().")
                         .testResult(
                                 $("f0").jsonQuery("$.a"),
                                 "JSON_QUERY(f0, '$.a')",
@@ -886,7 +1174,285 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiRuntimeError(
                                 $("f0").jsonQuery("strict $.err10", WITHOUT_ARRAY, NULL, ERROR),
                                 TableRuntimeException.class,
-                                "No results for path"));
+                                "No results for path"),
+
+                // Typed RETURNING ARRAY<T> support
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData(
+                                "{\"ints\": [1, 2, 3], \"doubles\": [1.5, 2.5], \"bools\": [true, false], \"withNull\": [1, null, 3], \"bigints\": [1, 9999999999]}")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.ints", ARRAY(INT())),
+                                "JSON_QUERY(f0, '$.ints' RETURNING ARRAY<INT>)",
+                                new Integer[] {1, 2, 3},
+                                ARRAY(INT()))
+                        .testResult(
+                                $("f0").jsonQuery("$.ints", ARRAY(TINYINT())),
+                                "JSON_QUERY(f0, '$.ints' RETURNING ARRAY<TINYINT>)",
+                                new Byte[] {1, 2, 3},
+                                ARRAY(TINYINT()))
+                        .testResult(
+                                $("f0").jsonQuery("$.ints", ARRAY(SMALLINT())),
+                                "JSON_QUERY(f0, '$.ints' RETURNING ARRAY<SMALLINT>)",
+                                new Short[] {1, 2, 3},
+                                ARRAY(SMALLINT()))
+                        .testResult(
+                                $("f0").jsonQuery("$.ints", ARRAY(BIGINT())),
+                                "JSON_QUERY(f0, '$.ints' RETURNING ARRAY<BIGINT>)",
+                                new Long[] {1L, 2L, 3L},
+                                ARRAY(BIGINT()))
+                        .testResult(
+                                $("f0").jsonQuery("$.bigints", ARRAY(BIGINT())),
+                                "JSON_QUERY(f0, '$.bigints' RETURNING ARRAY<BIGINT>)",
+                                new Long[] {1L, 9999999999L},
+                                ARRAY(BIGINT()))
+                        .testResult(
+                                $("f0").jsonQuery("$.doubles", ARRAY(DOUBLE())),
+                                "JSON_QUERY(f0, '$.doubles' RETURNING ARRAY<DOUBLE>)",
+                                new Double[] {1.5, 2.5},
+                                ARRAY(DOUBLE()))
+                        .testResult(
+                                $("f0").jsonQuery("$.doubles", ARRAY(FLOAT())),
+                                "JSON_QUERY(f0, '$.doubles' RETURNING ARRAY<FLOAT>)",
+                                new Float[] {1.5f, 2.5f},
+                                ARRAY(FLOAT()))
+                        .testResult(
+                                $("f0").jsonQuery("$.bools", ARRAY(BOOLEAN())),
+                                "JSON_QUERY(f0, '$.bools' RETURNING ARRAY<BOOLEAN>)",
+                                new Boolean[] {true, false},
+                                ARRAY(BOOLEAN()))
+                        .testResult(
+                                $("f0").jsonQuery("$.withNull", ARRAY(INT())),
+                                "JSON_QUERY(f0, '$.withNull' RETURNING ARRAY<INT>)",
+                                new Integer[] {1, null, 3},
+                                ARRAY(INT()))
+                        .testResult(
+                                $("f0").jsonQuery("$.doubles", ARRAY(DECIMAL(10, 2))),
+                                "JSON_QUERY(f0, '$.doubles' RETURNING ARRAY<DECIMAL(10,2)>)",
+                                new BigDecimal[] {
+                                    new BigDecimal("1.50"),
+                                    new BigDecimal("2.50")
+                                },
+                                ARRAY(DECIMAL(10, 2)))
+                        .testResult(
+                                $("f0").jsonQuery("$.ints", ARRAY(INT().notNull())),
+                                "JSON_QUERY(f0, '$.ints' RETURNING ARRAY<INT NOT NULL>)",
+                                new Integer[] {1, 2, 3},
+                                ARRAY(INT().notNull()))
+                        .testSqlValidationError(
+                                "JSON_QUERY(f0, '$.ints' RETURNING ARRAY<TIMESTAMP>)",
+                                "Unsupported array element type"),
+
+                // Type mismatch with ON ERROR behavior
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData(
+                                "{\"strings\": [\"a\", \"b\"]}",
+                                "{\"mixed\": [1, \"notANumber\", 3]}",
+                                "{\"ints\": [1, 2, 3]}",
+                                "{\"empty\": []}",
+                                "{\"zeroAndOne\": [0, 1], \"yesAndNo\": [\"yes\", \"no\"], \"yAndN\": [\"Y\", \"n\"]}")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "$.strings",
+                                                ARRAY(INT()),
+                                                WITHOUT_ARRAY,
+                                                NULL,
+                                                NULL),
+                                "JSON_QUERY(f0, '$.strings' RETURNING ARRAY<INT> NULL ON ERROR)",
+                                null,
+                                ARRAY(INT()))
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "$.strings",
+                                                ARRAY(INT()),
+                                                WITHOUT_ARRAY,
+                                                NULL,
+                                                EMPTY_ARRAY),
+                                "JSON_QUERY(f0, '$.strings' RETURNING ARRAY<INT> EMPTY ARRAY ON ERROR)",
+                                new Integer[] {},
+                                ARRAY(INT()))
+                        .testSqlRuntimeError(
+                                "JSON_QUERY(f0, '$.strings' RETURNING ARRAY<INT> ERROR ON ERROR)",
+                                TableRuntimeException.class,
+                                "Array element type mismatch in JSON_QUERY")
+
+                        // Mixed-type array: one unconvertible element fails the whole array
+                        .testResult(
+                                $("f1").jsonQuery(
+                                                "$.mixed", ARRAY(INT()), WITHOUT_ARRAY, NULL, NULL),
+                                "JSON_QUERY(f1, '$.mixed' RETURNING ARRAY<INT> NULL ON ERROR)",
+                                null,
+                                ARRAY(INT()))
+                        .testResult(
+                                $("f2").jsonQuery(
+                                                "$.ints",
+                                                ARRAY(BOOLEAN()),
+                                                WITHOUT_ARRAY,
+                                                NULL,
+                                                NULL),
+                                "JSON_QUERY(f2, '$.ints' RETURNING ARRAY<BOOLEAN> NULL ON ERROR)",
+                                null,
+                                ARRAY(BOOLEAN()))
+
+                        // Integer [0, 1] converts to boolean {false, true}
+                        .testResult(
+                                $("f4").jsonQuery("$.zeroAndOne", ARRAY(BOOLEAN())),
+                                "JSON_QUERY(f4, '$.zeroAndOne' RETURNING ARRAY<BOOLEAN>)",
+                                new Boolean[] {false, true},
+                                ARRAY(BOOLEAN()))
+
+                        // String ["yes", "no"] converts to boolean via parseStringAsBoolean
+                        .testResult(
+                                $("f4").jsonQuery("$.yesAndNo", ARRAY(BOOLEAN())),
+                                "JSON_QUERY(f4, '$.yesAndNo' RETURNING ARRAY<BOOLEAN>)",
+                                new Boolean[] {true, false},
+                                ARRAY(BOOLEAN()))
+
+                        // String ["Y", "n"] does not convert (not in accepted set)
+                        .testResult(
+                                $("f4").jsonQuery(
+                                                "$.yAndN",
+                                                ARRAY(BOOLEAN()),
+                                                WITHOUT_ARRAY,
+                                                NULL,
+                                                NULL),
+                                "JSON_QUERY(f4, '$.yAndN' RETURNING ARRAY<BOOLEAN> NULL ON ERROR)",
+                                null,
+                                ARRAY(BOOLEAN()))
+
+                        // Empty JSON array and missing path
+                        .testResult(
+                                $("f3").jsonQuery("$.empty", ARRAY(INT())),
+                                "JSON_QUERY(f3, '$.empty' RETURNING ARRAY<INT>)",
+                                new Integer[] {},
+                                ARRAY(INT()))
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "lax $.missing",
+                                                ARRAY(INT()),
+                                                WITHOUT_ARRAY,
+                                                NULL,
+                                                NULL),
+                                "JSON_QUERY(f0, 'lax $.missing' RETURNING ARRAY<INT> NULL ON EMPTY)",
+                                null,
+                                ARRAY(INT()))
+                        .testResult(
+                                $("f0").jsonQuery(
+                                                "lax $.missing",
+                                                ARRAY(INT()),
+                                                WITHOUT_ARRAY,
+                                                EMPTY_ARRAY,
+                                                NULL),
+                                "JSON_QUERY(f0, 'lax $.missing' RETURNING ARRAY<INT> EMPTY ARRAY ON EMPTY)",
+                                new Integer[] {},
+                                ARRAY(INT())),
+
+                // ARRAY<BIGINT> near Long.MAX_VALUE boundary
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData(
+                                "{\"big\": [9223372036854775807, -9223372036854775808]}",
+                                "{\"overflow\": [9223372036854775808]}")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.big", ARRAY(BIGINT())),
+                                "JSON_QUERY(f0, '$.big' RETURNING ARRAY<BIGINT>)",
+                                new Long[] {Long.MAX_VALUE, Long.MIN_VALUE},
+                                ARRAY(BIGINT()))
+                        .testResult(
+                                $("f1").jsonQuery(
+                                                "$.overflow",
+                                                ARRAY(BIGINT()),
+                                                WITHOUT_ARRAY,
+                                                NULL,
+                                                NULL),
+                                "JSON_QUERY(f1, '$.overflow' RETURNING ARRAY<BIGINT> NULL ON ERROR)",
+                                null,
+                                ARRAY(BIGINT())),
+
+                // Edge cases: quoted number strings, nested arrays
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_VALUE)
+                        .onFieldsWithData("{\"v\":\"42\"}", "{\"neg\":-100}")
+                        .andDataTypes(STRING(), STRING())
+                        // Jayway returns String "42" -- string is parsed as number (MySQL/PG
+                        // compatible)
+                        .testResult(
+                                $("f0").jsonValue(
+                                                "$.v",
+                                                INT(),
+                                                JsonValueOnEmptyOrError.NULL,
+                                                null,
+                                                JsonValueOnEmptyOrError.NULL,
+                                                null),
+                                "JSON_VALUE(f0, '$.v' RETURNING INTEGER NULL ON ERROR)",
+                                42,
+                                INT())
+                        .testResult(
+                                $("f0").jsonValue(
+                                                "$.v",
+                                                INT(),
+                                                JsonValueOnEmptyOrError.NULL,
+                                                null,
+                                                JsonValueOnEmptyOrError.DEFAULT,
+                                                -1),
+                                "JSON_VALUE(f0, '$.v' RETURNING INTEGER DEFAULT -1 ON ERROR)",
+                                42,
+                                INT())
+                        // Negative value within TINYINT range
+                        .testResult(
+                                $("f1").jsonValue("$.neg", TINYINT()),
+                                "JSON_VALUE(f1, '$.neg' RETURNING TINYINT)",
+                                (byte) -100,
+                                TINYINT()),
+
+                // Nested arrays: inner arrays are Lists, not Numbers
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData("{\"a\":[[1,2],[3,4]]}")
+                        .andDataTypes(STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.a", ARRAY(INT()), WITHOUT_ARRAY, NULL, NULL),
+                                "JSON_QUERY(f0, '$.a' RETURNING ARRAY<INT> NULL ON ERROR)",
+                                null,
+                                ARRAY(INT())),
+
+                // ARRAY<DECIMAL(5,2)> with rounding
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData(
+                                "{\"vals\": [1.5, 123.456]}",
+                                "{\"vals\": [1.5, 999.999]}")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonQuery("$.vals", ARRAY(DECIMAL(5, 2))),
+                                "JSON_QUERY(f0, '$.vals' RETURNING ARRAY<DECIMAL(5,2)>)",
+                                new BigDecimal[] {
+                                    new BigDecimal("1.50"),
+                                    new BigDecimal("123.46")
+                                },
+                                ARRAY(DECIMAL(5, 2)))
+                        // 999.999 rounds to 1000.00 which overflows DECIMAL(5,2) -- atomic failure
+                        .testResult(
+                                $("f1").jsonQuery(
+                                                "$.vals",
+                                                ARRAY(DECIMAL(5, 2)),
+                                                WITHOUT_ARRAY,
+                                                NULL,
+                                                NULL),
+                                "JSON_QUERY(f1, '$.vals' RETURNING ARRAY<DECIMAL(5,2)> NULL ON ERROR)",
+                                null,
+                                ARRAY(DECIMAL(5, 2))),
+
+                // Null element in NOT NULL array triggers ON ERROR behavior
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUERY)
+                        .onFieldsWithData("{\"vals\": [1, null, 3]}")
+                        .andDataTypes(STRING())
+                        // NULL ON ERROR: null element in NOT NULL array returns null
+                        .testSqlResult(
+                                "JSON_QUERY(f0, '$.vals' RETURNING ARRAY<INT NOT NULL> NULL ON ERROR)",
+                                null,
+                                ARRAY(INT().notNull()))
+                        .testSqlRuntimeError(
+                                "JSON_QUERY(f0, '$.vals' RETURNING ARRAY<INT NOT NULL> ERROR ON ERROR)",
+                                "Array element type mismatch in JSON_QUERY"));
     }
 
     private static List<TestSetSpec> jsonStringSpec() {
