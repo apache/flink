@@ -46,9 +46,12 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val da = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a1, 'a2)
     tEnv.createTemporaryView("a", da)
 
+    // The rejection is raised during optimization and wrapped by the Volcano program, so assert
+    // on a contained substring rather than an exact message.
     assertThatThrownBy(() => tEnv.sqlQuery(sqlQuery).toRetractStream[Row])
-      .hasMessage("Sort on a non-time-attribute field is not supported.")
-      .isInstanceOf[TableException]
+      .isExactlyInstanceOf(classOf[TableException])
+      .hasMessageContaining(
+        "requires the primary sort key to be a time attribute in ascending order")
   }
 
   @TestTemplate
