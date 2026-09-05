@@ -26,6 +26,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.function.SupplierWithException;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +48,13 @@ public class TtlAwareSerializer<T, S extends TypeSerializer<T>> extends TypeSeri
     private final boolean isTtlEnabled;
 
     private final S typeSerializer;
+
+    /**
+     * Snapshot of {@link #bareValueSerializer()}, computed on first use. {@link
+     * #migrateValueFromPriorSerializer} runs once per migrated state value while the serializer
+     * stays the same, and taking a snapshot allocates one object per nested serializer.
+     */
+    private transient TypeSerializerSnapshot<?> bareValueSerializerSnapshot;
 
     public TtlAwareSerializer(S typeSerializer) {
         checkArgument(
@@ -128,29 +137,127 @@ public class TtlAwareSerializer<T, S extends TypeSerializer<T>> extends TypeSeri
         return Objects.hash(isTtlEnabled, typeSerializer);
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Reads one state value written by {@code priorTtlAwareSerializer}, adapts it to this
+     * serializer's TTL setting and value schema, and writes it to {@code target}.
+     *
+     * <p>The value is unwrapped to its bare form, passed through {@link
+     * TypeSerializerSnapshot#migrate}, and re-wrapped. The hook returns the value unchanged unless
+     * the value serializer overrides it, so a value whose schema did not change is written back
+     * byte for byte.
+     *
+     * @param priorSerializerSnapshot the snapshot persisted with the state for {@code
+     *     priorTtlAwareSerializer}, or {@code null} for a state that carries none.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void migrateValueFromPriorSerializer(
             TtlAwareSerializer<T, ?> priorTtlAwareSerializer,
+            @Nullable TypeSerializerSnapshot<T> priorSerializerSnapshot,
             SupplierWithException<T, IOException> inputSupplier,
             DataOutputView target,
             TtlTimeProvider ttlTimeProvider)
             throws IOException {
+        T priorValue = inputSupplier.get();
+        Object bareValue =
+                priorTtlAwareSerializer.wrapsTtlValue()
+                        ? ((TtlValue<?>) priorValue).getUserValue()
+                        : priorValue;
+
+        TypeSerializerSnapshot newSnapshot = bareValueSerializerSnapshot();
+        Object migratedValue =
+                newSnapshot.migrate(
+                        priorBareValueSerializerSnapshot(
+                                priorTtlAwareSerializer, priorSerializerSnapshot),
+                        bareValue);
+
         T outputRecord;
-        if (this.isTtlEnabled()) {
-            outputRecord =
-                    priorTtlAwareSerializer.isTtlEnabled
-                            ? inputSupplier.get()
-                            : (T)
-                                    new TtlValue<>(
-                                            inputSupplier.get(),
-                                            ttlTimeProvider.currentTimestamp());
+        if (this.wrapsTtlValue()) {
+            // Carrying the prior timestamp over keeps the value's expiry where it was; migration
+            // is not a state access.
+            long lastAccessTimestamp =
+                    priorTtlAwareSerializer.wrapsTtlValue()
+                            ? ((TtlValue<?>) priorValue).getLastAccessTimestamp()
+                            : ttlTimeProvider.currentTimestamp();
+            outputRecord = (T) new TtlValue<>(migratedValue, lastAccessTimestamp);
         } else {
-            outputRecord =
-                    priorTtlAwareSerializer.isTtlEnabled
-                            ? ((TtlValue<T>) inputSupplier.get()).getUserValue()
-                            : inputSupplier.get();
+            outputRecord = (T) migratedValue;
         }
         this.serialize(outputRecord, target);
+    }
+
+    /**
+     * The snapshot describing the schema the prior bare value was written with.
+     *
+     * <p>The snapshot persisted with the state is preferred over one re-derived from the prior
+     * serializer, because the prior serializer is itself restored from that snapshot and the round
+     * trip back to a snapshot is not always lossless: a POJO field that no longer exists on the
+     * class returns under a generated placeholder name, which would present a schema that was never
+     * written. Only the absence of a persisted snapshot falls back to the re-derived one: a
+     * persisted snapshot that does not match the prior serializer is an error, not a second reason
+     * to fall back, because re-deriving there would silently reintroduce that lossy round trip.
+     */
+    private static TypeSerializerSnapshot<?> priorBareValueSerializerSnapshot(
+            TtlAwareSerializer<?, ?> priorSerializer,
+            @Nullable TypeSerializerSnapshot<?> priorSerializerSnapshot) {
+        if (priorSerializerSnapshot == null) {
+            return priorSerializer.bareValueSerializerSnapshot();
+        }
+        // TtlAwareSerializerSnapshot is the snapshot counterpart of this class, so the persisted
+        // snapshot carries that layer wherever the serializer carries the wrapper: for a list or
+        // map state it is the element or value snapshot, for a value state the whole snapshot.
+        TypeSerializerSnapshot<?> priorSnapshot =
+                priorSerializerSnapshot instanceof TtlAwareSerializerSnapshot
+                        ? ((TtlAwareSerializerSnapshot<?>) priorSerializerSnapshot)
+                                .getOriginalTypeSerializerSnapshot()
+                        : priorSerializerSnapshot;
+
+        // Thrown rather than checked through Preconditions: this runs once per migrated state
+        // value, so the message must not be built while the check is passing.
+        boolean isTtlSnapshot = priorSnapshot instanceof TtlStateFactory.TtlSerializerSnapshot;
+        if (!priorSerializer.wrapsTtlValue()) {
+            if (isTtlSnapshot) {
+                throw new IllegalArgumentException(
+                        "The prior serializer does not wrap values in TtlValue, but its persisted snapshot is a TtlSerializerSnapshot.");
+            }
+            return priorSnapshot;
+        }
+        if (!isTtlSnapshot) {
+            throw new IllegalArgumentException(
+                    "The prior serializer wraps values in TtlValue, so its persisted snapshot should be a TtlSerializerSnapshot, but was "
+                            + priorSnapshot.getClass().getName()
+                            + ".");
+        }
+        // The persisted snapshot describes the TtlValue envelope, so descend to the user value
+        // the same way bareValueSerializer() descends the serializer.
+        return ((TtlStateFactory.TtlSerializerSnapshot<?>) priorSnapshot)
+                .getValueSerializerSnapshot();
+    }
+
+    private TypeSerializerSnapshot<?> bareValueSerializerSnapshot() {
+        if (bareValueSerializerSnapshot == null) {
+            bareValueSerializerSnapshot = bareValueSerializer().snapshotConfiguration();
+        }
+        return bareValueSerializerSnapshot;
+    }
+
+    /**
+     * The serializer of the bare (non-TTL) value: the user value serializer of a {@link
+     * TtlStateFactory.TtlSerializer}, otherwise the wrapped serializer itself.
+     */
+    private TypeSerializer<?> bareValueSerializer() {
+        return wrapsTtlValue()
+                ? ((TtlStateFactory.TtlSerializer<?>) typeSerializer).getValueSerializer()
+                : typeSerializer;
+    }
+
+    /**
+     * Whether the values this serializer reads and writes are {@link TtlValue} envelopes. Narrower
+     * than {@link #isTtlEnabled()}, which is also true for a list or map serializer whose element
+     * or value serializer is a {@link TtlStateFactory.TtlSerializer}: such a serializer wraps the
+     * collection, not a single {@code TtlValue}.
+     */
+    private boolean wrapsTtlValue() {
+        return typeSerializer instanceof TtlStateFactory.TtlSerializer;
     }
 
     @Override
