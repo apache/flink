@@ -94,6 +94,30 @@ Calc(select=[a, b, _1, _2], where=[(_1 > a)])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLateralProjectionFromUnnest">
+    <Resource name="sql">
+      <![CDATA[SELECT a, doubled FROM MyTable, LATERAL (SELECT s * 2 FROM UNNEST(MyTable.b) AS T(s)) AS R(doubled)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], doubled=[$2])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(EXPR$0=[*($0, 2)])
+      +- LogicalProject(s=[$0])
+         +- Uncollect
+            +- LogicalProject(b=[$cor0.b])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, *(f0, 2) AS doubled])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1($cor0.b))], select=[a,b,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER f0)], joinType=[INNER])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testLeftUnnestMultiSetFromCollectResult">
     <Resource name="sql">
       <![CDATA[
@@ -688,8 +712,8 @@ LogicalProject(a=[$0], number=[$1], ordinality=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, number, ordinality])
-+- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,number,ordinality], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER number, INTEGER ordinality)], joinType=[INNER], condition=[=($1, 1)])
+Calc(select=[a, b0 AS number, 1 AS ordinality])
++- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,b0,ORDINALITY], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER b0, INTEGER ORDINALITY)], joinType=[INNER], condition=[=($1, 1)])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
 ]]>
     </Resource>

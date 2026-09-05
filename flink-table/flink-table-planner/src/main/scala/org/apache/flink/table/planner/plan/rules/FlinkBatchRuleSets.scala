@@ -431,6 +431,7 @@ object FlinkBatchRuleSets {
 
   /** RuleSet to do physical optimize for batch */
   val PHYSICAL_OPT_RULES: RuleSet = RuleSets.ofList(
+    FlinkCalcMergeRule.BATCH_PHYSICAL_INSTANCE,
     FlinkExpandConversionRule.BATCH_INSTANCE,
     // source
     BatchPhysicalBoundedStreamScanRule.INSTANCE,
