@@ -2827,7 +2827,7 @@ public final class BuiltInFunctionDefinitions {
                     .callSyntax("window_start", SqlCallSyntax.WINDOW_START_END)
                     .kind(OTHER)
                     .inputTypeStrategy(SpecificInputTypeStrategies.windowTimeIndicator())
-                    .outputTypeStrategy(explicit(DataTypes.TIMESTAMP(3)))
+                    .outputTypeStrategy(argument(0))
                     .build();
 
     public static final BuiltInFunctionDefinition WINDOW_END =
@@ -2836,7 +2836,7 @@ public final class BuiltInFunctionDefinitions {
                     .callSyntax("window_end", SqlCallSyntax.WINDOW_START_END)
                     .kind(OTHER)
                     .inputTypeStrategy(SpecificInputTypeStrategies.windowTimeIndicator())
-                    .outputTypeStrategy(explicit(DataTypes.TIMESTAMP(3)))
+                    .outputTypeStrategy(argument(0))
                     .build();
 
     // --------------------------------------------------------------------------------------------
