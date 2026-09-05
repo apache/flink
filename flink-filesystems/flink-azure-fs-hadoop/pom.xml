@@ -150,6 +150,15 @@ under the License.
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.fs.azure.common</shadedPattern>
 								</relocation>
+								<!-- Relocate Jackson to a plugin-specific namespace rather than reusing a
+								     Flink-wide shaded Jackson, because each filesystem plugin is loaded in
+								     isolation and may bundle a different transitive Jackson version.
+								     Per-plugin relocation keeps each JAR self-contained and prevents its
+								     bundled Jackson from shadowing the version on the user's job classpath. -->
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.fs.azure.shaded.jackson</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>
