@@ -18,13 +18,18 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql;
 
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -73,8 +78,33 @@ class CreateConnectionITCase extends BatchTestBase {
                 .hasMessageContaining("WritableSecretStore must be configured");
     }
 
+    @Test
+    void testShowConnections() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION b_conn WITH ('k' = 'v')");
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION a_conn WITH ('k' = 'v')");
+
+        assertThat(collectRows("SHOW CONNECTIONS"))
+                .containsExactly(Row.of("a_conn"), Row.of("b_conn"));
+    }
+
+    @Test
+    void testShowConnectionsLike() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION prod_conn WITH ('k' = 'v')");
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION tmp_conn WITH ('k' = 'v')");
+
+        assertThat(collectRows("SHOW CONNECTIONS LIKE 'prod_%'"))
+                .containsExactly(Row.of("prod_conn"));
+        assertThat(collectRows("SHOW CONNECTIONS NOT LIKE 'prod_%'"))
+                .containsExactly(Row.of("tmp_conn"));
+    }
+
     private CatalogManager catalogManager() {
         return ((TableEnvironmentInternal) tEnv()).getCatalogManager();
+    }
+
+    private List<Row> collectRows(String sql) {
+        TableResult result = tEnv().executeSql(sql);
+        return CollectionUtil.iteratorToList(result.collect());
     }
 
     private ObjectIdentifier connectionIdentifier(String connectionName) {
