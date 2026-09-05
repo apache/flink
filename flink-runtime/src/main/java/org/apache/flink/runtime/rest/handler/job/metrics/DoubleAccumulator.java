@@ -20,6 +20,9 @@ package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.annotation.VisibleForTesting;
 
+import org.apache.commons.math3.stat.descriptive.rank.Percentile;
+import org.apache.commons.math3.stat.ranking.NaNStrategy;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -141,6 +144,36 @@ interface DoubleAccumulator {
 
         public static DoubleDataSkewFactory get() {
             return INSTANCE;
+        }
+    }
+
+    /** Factory for {@link DoublePercentile}. */
+    final class DoublePercentileFactory implements DoubleAccumulatorFactory<DoublePercentile> {
+        private static final DoublePercentileFactory P50 = new DoublePercentileFactory(50);
+        private static final DoublePercentileFactory P90 = new DoublePercentileFactory(90);
+        private static final DoublePercentileFactory P99 = new DoublePercentileFactory(99);
+
+        private final double percentile;
+
+        private DoublePercentileFactory(double percentile) {
+            this.percentile = percentile;
+        }
+
+        @Override
+        public DoublePercentile get(double init) {
+            return new DoublePercentile(percentile, init);
+        }
+
+        public static DoublePercentileFactory p50() {
+            return P50;
+        }
+
+        public static DoublePercentileFactory p90() {
+            return P90;
+        }
+
+        public static DoublePercentileFactory p99() {
+            return P99;
         }
     }
 
@@ -300,6 +333,42 @@ interface DoubleAccumulator {
         @Override
         public String getName() {
             return NAME;
+        }
+    }
+
+    /**
+     * {@link DoubleAccumulator} that returns a percentile (e.g. p50/p90/p99) over all values. A
+     * percentile needs the whole sample, so this buffers every value (like {@link DoubleDataSkew})
+     * and computes the result lazily in {@link #getValue()}.
+     */
+    final class DoublePercentile implements DoubleAccumulator {
+
+        private final double percentile;
+
+        private final String name;
+
+        private final List<Double> values = new ArrayList<>();
+
+        private DoublePercentile(double percentile, double init) {
+            this.percentile = percentile;
+            this.name = "p" + (int) percentile;
+            values.add(init);
+        }
+
+        @Override
+        public void add(double value) {
+            values.add(value);
+        }
+
+        @Override
+        public double getValue() {
+            double[] arr = values.stream().mapToDouble(Double::doubleValue).toArray();
+            return new Percentile().withNaNStrategy(NaNStrategy.FIXED).evaluate(arr, percentile);
+        }
+
+        @Override
+        public String getName() {
+            return name;
         }
     }
 }
