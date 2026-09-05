@@ -34,6 +34,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
 import java.io.IOException;
@@ -219,8 +221,9 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
         assertThat(savepointRestoreSettings.allowNonRestoredState()).isTrue();
     }
 
-    @Test
-    void testClaimModeParsing() throws FlinkParseException {
+    @ParameterizedTest
+    @ValueSource(strings = {"--claimMode", "--restoreMode"})
+    void testClaimModeParsing(String option) throws FlinkParseException {
         final String restorePath = "foobar";
         final String[] args = {
             "-c",
@@ -229,29 +232,7 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
             JOB_CLASS_NAME,
             "-s",
             restorePath,
-            "--claimMode",
-            RecoveryClaimMode.CLAIM.name()
-        };
-
-        final SavepointRestoreSettings savepointRestoreSettings =
-                commandLineParser.parse(args).getSavepointRestoreSettings();
-
-        assertThat(savepointRestoreSettings.getRestorePath()).isEqualTo(restorePath);
-        assertThat(savepointRestoreSettings.getRecoveryClaimMode())
-                .isEqualTo(RecoveryClaimMode.CLAIM);
-    }
-
-    @Test
-    void testRestoreModeParsing() throws FlinkParseException {
-        final String restorePath = "foobar";
-        final String[] args = {
-            "-c",
-            confDirPath,
-            "-j",
-            JOB_CLASS_NAME,
-            "-s",
-            restorePath,
-            "--restoreMode",
+            option,
             RecoveryClaimMode.CLAIM.name()
         };
 
