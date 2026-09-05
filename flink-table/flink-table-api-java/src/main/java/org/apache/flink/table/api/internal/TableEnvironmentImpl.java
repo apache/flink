@@ -674,6 +674,48 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public Table from(String path, Map<String, String> dynamicOptions) {
+        Preconditions.checkNotNull(dynamicOptions, "Dynamic options must not be null.");
+
+        if (!tableConfig.get(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
+            throw new ValidationException(
+                    String.format(
+                            "Dynamic table options are disabled. Set '%s' to 'true' to enable them.",
+                            TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key()));
+        }
+
+        UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
+        ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        ContextResolvedTable contextResolvedTable =
+                catalogManager
+                        .getTable(tableIdentifier)
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                String.format(
+                                                        "Table %s was not found.",
+                                                        unresolvedIdentifier)));
+
+        if (dynamicOptions.isEmpty()) {
+            return createTable(new SourceQueryOperation(contextResolvedTable));
+        }
+
+        if (contextResolvedTable.getResolvedTable().getTableKind()
+                == CatalogBaseTable.TableKind.VIEW) {
+            throw new ValidationException(
+                    String.format(
+                            "View '%s' cannot be enriched with dynamic options.",
+                            unresolvedIdentifier));
+        }
+
+        Map<String, String> mergedOptions =
+                new HashMap<>(contextResolvedTable.getResolvedTable().getOptions());
+        mergedOptions.putAll(dynamicOptions);
+        ContextResolvedTable withOptions = contextResolvedTable.copy(mergedOptions);
+        return createTable(new SourceQueryOperation(withOptions));
+    }
+
+    @Override
     public Table from(TableDescriptor descriptor) {
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
