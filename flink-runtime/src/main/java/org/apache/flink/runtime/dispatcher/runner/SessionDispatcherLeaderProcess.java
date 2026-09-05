@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.JobInfoImpl;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.application.SingleJobApplication;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.highavailability.ApplicationResultStore;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmanager.ApplicationStore;
 import org.apache.flink.runtime.jobmanager.ApplicationStoreEntry;
+import org.apache.flink.runtime.jobmanager.BrokenExecutionPlanStateHandleException;
 import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.FlinkApplicationNotFoundException;
@@ -82,6 +84,8 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
     private final Executor ioExecutor;
 
+    private final boolean jobErrorIsolationEnabled;
+
     private CompletableFuture<Void> onGoingRecoveryOperation = FutureUtils.completedVoidFuture();
 
     private SessionDispatcherLeaderProcess(
@@ -93,6 +97,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
             ApplicationResultStore applicationResultStore,
             BlobServer blobServer,
             Executor ioExecutor,
+            boolean jobErrorIsolationEnabled,
             FatalErrorHandler fatalErrorHandler) {
         super(leaderSessionId, fatalErrorHandler);
 
@@ -103,6 +108,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
         this.applicationResultStore = applicationResultStore;
         this.blobServer = blobServer;
         this.ioExecutor = ioExecutor;
+        this.jobErrorIsolationEnabled = jobErrorIsolationEnabled;
     }
 
     @Override
@@ -262,6 +268,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
     private Optional<ExecutionPlan> tryRecoverJob(JobID jobId) {
         log.info("Trying to recover job with job id {}.", jobId);
+        final String errorMessage = String.format("Could not recover job with job id %s.", jobId);
         try {
             final ExecutionPlan executionPlan = executionPlanStore.recoverExecutionPlan(jobId);
             if (executionPlan == null) {
@@ -270,9 +277,20 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
                         jobId);
             }
             return Optional.ofNullable(executionPlan);
+        } catch (BrokenExecutionPlanStateHandleException e) {
+            if (!jobErrorIsolationEnabled) {
+                throw new FlinkRuntimeException(errorMessage, e);
+            }
+            log.error(
+                    "The persisted ExecutionPlan of job {} is broken beyond repair and cannot be recovered. Skipping "
+                            + "recovery for this job. This job will not be resubmitted and no automatic cleanup will "
+                            + "be performed for it; manual cleanup of its dangling HA state is required. See cause "
+                            + "for details.",
+                    jobId,
+                    e);
+            return Optional.empty();
         } catch (Exception e) {
-            throw new FlinkRuntimeException(
-                    String.format("Could not recover job with job id %s.", jobId), e);
+            throw new FlinkRuntimeException(errorMessage, e);
         }
     }
 
@@ -553,6 +571,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
             ApplicationResultStore applicationResultStore,
             BlobServer blobServer,
             Executor ioExecutor,
+            boolean jobErrorIsolationEnabled,
             FatalErrorHandler fatalErrorHandler) {
         return new SessionDispatcherLeaderProcess(
                 leaderSessionId,
@@ -563,6 +582,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
                 applicationResultStore,
                 blobServer,
                 ioExecutor,
+                jobErrorIsolationEnabled,
                 fatalErrorHandler);
     }
 }

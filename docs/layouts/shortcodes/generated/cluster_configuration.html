@@ -27,6 +27,12 @@
             <td>The size of the IO executor pool used by the cluster to execute blocking IO operations (Master as well as TaskManager processes). By default it will use 4 * the number of CPU cores (hardware contexts) that the cluster process has access to. Increasing the pool size allows to run more IO operations concurrently.</td>
         </tr>
         <tr>
+            <td><h5>cluster.job-error-isolation.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether errors that can be scoped to a single job are handled by failing only the affected job instead of the whole cluster. For example, if a job's persisted execution plan cannot be recovered because its state handle is broken, enabling this option marks only that job as failed instead of aborting recovery for every job in the cluster.</td>
+        </tr>
+        <tr>
             <td><h5>cluster.processes.halt-on-fatal-error</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.jobmanager.PersistenceComponentFactory;
@@ -53,6 +54,9 @@ public class SessionDispatcherLeaderProcessFactoryFactory
                 persistenceComponentFactory,
                 partialDispatcherServices.getBlobServer(),
                 ioExecutor,
+                partialDispatcherServices
+                        .getConfiguration()
+                        .get(ClusterOptions.JOB_ERROR_ISOLATION_ENABLED),
                 fatalErrorHandler);
     }
 
