@@ -152,6 +152,20 @@ public final class StateTableUtils {
         return buildKeyedStateSchemaInfo(schemas, classified.voidNamespaceStates, null);
     }
 
+    /**
+     * Like {@link #getKeyedStateSchema}, but for the namespaced (e.g. window-scoped) states exposed
+     * by the {@code _windowed}/{@code _windowed_flat} tables. Empty if the operator has no
+     * namespaced state; see {@link #classifyStates} for how multiple namespace types are handled.
+     */
+    public static KeyedStateSchemaInfo getWindowKeyedStateSchema(
+            CheckpointMetadata metadata, OperatorIdentifier operatorId) throws IOException {
+        OperatorState opState = findOperatorState(metadata, operatorId);
+        List<StateSchemaInfo> schemas = StateSchemaExtractor.extractSchema(opState);
+        ClassifiedStates classified = classifyStates(operatorId.toString(), schemas);
+        return buildKeyedStateSchemaInfo(
+                schemas, classified.windowNamespaceStates, classified.windowLogicalType);
+    }
+
     private static KeyedStateSchemaInfo buildKeyedStateSchemaInfo(
             List<StateSchemaInfo> allSchemas,
             List<StateSchemaInfo> statesToInclude,
@@ -237,46 +251,6 @@ public final class StateTableUtils {
     }
 
     /**
-     * Builds a {@link CatalogTable} representing all keyed states of an operator, or, when {@code
-     * windowType} is non-null, all namespaced (e.g. window-scoped) states of an operator.
-     */
-    private static CatalogTable buildKeyedCatalogTable(
-            CheckpointMetadata metadata,
-            KeyedStateSchemaInfo schemaInfo,
-            String statePath,
-            OperatorIdentifier operatorIdentifier,
-            @Nullable LogicalType windowType) {
-
-        Schema.Builder schemaBuilder = Schema.newBuilder();
-        schemaBuilder.column(
-                "state_key", LogicalTypeDataTypeConverter.toDataType(schemaInfo.keyType).notNull());
-        if (windowType != null) {
-            schemaBuilder.column(
-                    "state_window", LogicalTypeDataTypeConverter.toDataType(windowType).notNull());
-        }
-
-        for (Map.Entry<String, KeyedStateSchemaInfo.StateEntryInfo> entry :
-                schemaInfo.stateSchemas.entrySet()) {
-            schemaBuilder.column(entry.getKey(), stateValueColumnDataType(entry.getValue()));
-        }
-        if (windowType == null) {
-            schemaBuilder.primaryKeyNamed("PK_state_key", "state_key");
-        }
-        Schema schema = schemaBuilder.build();
-
-        Map<String, String> options = buildBaseConnectorOptions(statePath, operatorIdentifier);
-        options.put(
-                SavepointConnectorOptions.STATE_READER_MODE.key(),
-                (windowType == null
-                                ? SavepointConnectorOptions.StateReaderMode.KEYED
-                                : SavepointConnectorOptions.StateReaderMode.WINDOWED)
-                        .toString());
-        withStateBackendType(options, metadata, operatorIdentifier);
-
-        return CatalogTable.newBuilder().schema(schema).options(options).build();
-    }
-
-    /**
      * Builds a {@link CatalogTable} exposing a single keyed LIST or MAP state flattened into one
      * row per list element / map entry, rather than one row per key.
      *
@@ -309,9 +283,94 @@ public final class StateTableUtils {
     }
 
     /**
+     * Builds a {@link CatalogTable} representing all namespaced (e.g. window-scoped) states of an
+     * operator, as returned by {@link #getWindowKeyedStateSchema}: one row per {@code (state_key,
+     * state_window)} pair, plus one column per namespaced VALUE-shaped state.
+     */
+    public static CatalogTable getWindowStateCatalogTable(
+            CheckpointMetadata metadata,
+            KeyedStateSchemaInfo schemaInfo,
+            String statePath,
+            OperatorIdentifier operatorIdentifier) {
+
+        LogicalType windowType =
+                schemaInfo.stateSchemas.values().stream()
+                        .map(entry -> entry.windowLogicalType)
+                        .filter(java.util.Objects::nonNull)
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "No namespaced state found for operator '"
+                                                        + operatorIdentifier
+                                                        + "'."));
+
+        return buildKeyedCatalogTable(
+                metadata, schemaInfo, statePath, operatorIdentifier, windowType);
+    }
+
+    /**
+     * Builds a {@link CatalogTable} for either the plain keyed table ({@code windowType == null})
+     * or the namespaced/window table (see {@link #getWindowStateCatalogTable}).
+     */
+    private static CatalogTable buildKeyedCatalogTable(
+            CheckpointMetadata metadata,
+            KeyedStateSchemaInfo schemaInfo,
+            String statePath,
+            OperatorIdentifier operatorIdentifier,
+            @Nullable LogicalType windowType) {
+
+        Schema.Builder schemaBuilder = Schema.newBuilder();
+        schemaBuilder.column(
+                "state_key", LogicalTypeDataTypeConverter.toDataType(schemaInfo.keyType).notNull());
+        if (windowType != null) {
+            schemaBuilder.column(
+                    "state_window", LogicalTypeDataTypeConverter.toDataType(windowType).notNull());
+        }
+
+        for (Map.Entry<String, KeyedStateSchemaInfo.StateEntryInfo> entry :
+                schemaInfo.stateSchemas.entrySet()) {
+            schemaBuilder.column(entry.getKey(), stateValueColumnDataType(entry.getValue()));
+        }
+        if (windowType == null) {
+            schemaBuilder.primaryKeyNamed("PK_state_key", "state_key");
+        }
+        // No formal PK on the window table: Flink's PK validation for arbitrary (including
+        // zero-field) ROW columns like state_window is unreliable. Row identity is still
+        // conceptually (state_key, state_window).
+        Schema schema = schemaBuilder.build();
+
+        Map<String, String> options = buildBaseConnectorOptions(statePath, operatorIdentifier);
+        if (windowType != null) {
+            options.put(
+                    SavepointConnectorOptions.STATE_READER_MODE.key(),
+                    SavepointConnectorOptions.StateReaderMode.WINDOWED.toString());
+        }
+        withStateBackendType(options, metadata, operatorIdentifier);
+
+        return CatalogTable.newBuilder().schema(schema).options(options).build();
+    }
+
+    /**
+     * Like {@link #getFlattenedStateCatalogTable}, but for a namespaced (window-scoped) LIST/MAP
+     * state: {@code (state_key, state_window, list_index, list_value)} for LIST, or {@code
+     * (state_key, state_window, map_key, map_value)} for MAP.
+     */
+    public static CatalogTable getFlattenedWindowStateCatalogTable(
+            CheckpointMetadata metadata,
+            KeyedStateSchemaInfo schemaInfo,
+            String stateName,
+            String statePath,
+            OperatorIdentifier operatorIdentifier) {
+        return buildFlattenedKeyedCatalogTable(
+                metadata, schemaInfo, stateName, statePath, operatorIdentifier, true);
+    }
+
+    /**
      * Builds a {@link CatalogTable} exposing a single LIST or MAP state flattened into one row per
      * list element / map entry, either plain-keyed ({@code windowed == false}, see {@link
-     * #getFlattenedStateCatalogTable}) or namespaced ({@code windowed == true}).
+     * #getFlattenedStateCatalogTable}) or namespaced ({@code windowed == true}, see {@link
+     * #getFlattenedWindowStateCatalogTable}).
      */
     private static CatalogTable buildFlattenedKeyedCatalogTable(
             CheckpointMetadata metadata,
