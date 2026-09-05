@@ -1659,6 +1659,24 @@ class CastRulesTest {
                                 CET_CONTEXT,
                                 VARIANT_BUILDER.of(TIMESTAMP.toInstant()),
                                 TIMESTAMP_STRING_CET)
+                        // a time renders at millisecond resolution, the same as a regular TIME to
+                        // string cast, so the stored microseconds are truncated
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(LocalTime.of(12, 34, 56, 123_456_000)),
+                                fromString("12:34:56.123"))
+                        // a nanosecond timestamp keeps its full precision when rendered
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123_456_789)),
+                                fromString("2021-09-24 12:34:56.123456789"))
+                        .fromCase(
+                                VARIANT(),
+                                CET_CONTEXT,
+                                Variant.newBuilder()
+                                        .of(Instant.parse("2021-09-24T12:34:56.123456789Z")),
+                                fromString("2021-09-24 14:34:56.123456789"))
                         // a binary value is read as UTF-8, like a regular BINARY to string cast
                         .fromCase(
                                 VARIANT(),
@@ -1813,7 +1831,28 @@ class CastRulesTest {
                                 VARIANT(),
                                 VARIANT_BUILDER.of(LocalDate.of(2020, 1, 1)),
                                 (int) LocalDate.of(2020, 1, 1).toEpochDay())
-                        .fail(VARIANT(), VARIANT_BUILDER.of(1), TableRuntimeException.class),
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
+                // A variant keeps microseconds for TIME, so fractional seconds beyond the target
+                // precision are truncated, matching a regular cast into a narrower TIME.
+                CastTestSpecBuilder.testCastTo(TIME(3))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalTime.of(12, 0, 0).plus(Duration.ofMillis(123))),
+                                DateTimeUtils.toInternal(
+                                        LocalTime.of(12, 0, 0).plus(Duration.ofMillis(123))))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(LocalTime.of(12, 0, 0, 123_456_000)),
+                                DateTimeUtils.toInternal(LocalTime.of(12, 0, 0, 123_000_000)))
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
+                // TIME has no runtime representation finer than milliseconds, so a target
+                // precision above 3 truncates no further than TIME(3) already does.
+                CastTestSpecBuilder.testCastTo(TIME(6))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(LocalTime.of(12, 0, 0, 123_456_789)),
+                                DateTimeUtils.toInternal(LocalTime.of(12, 0, 0, 123_000_000))),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP())
                         .fromCase(VARIANT(), null, null)
                         .fromCase(
@@ -1821,7 +1860,14 @@ class CastRulesTest {
                                 VARIANT_BUILDER.of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.of(2020, 1, 1, 12, 0, 0)))
-                        .fail(VARIANT(), VARIANT_BUILDER.of(1), TableRuntimeException.class)
+                        // the default precision keeps microseconds, truncating the nanoseconds
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)))
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class)
                         // a TIMESTAMP_LTZ is a different kind and is not read as a TIMESTAMP
                         .fail(
                                 VARIANT(),
@@ -1854,6 +1900,35 @@ class CastRulesTest {
                                         LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.of(2020, 1, 1, 12, 0, 0))),
+                // A fraction with leading zeros (.000123456) is still truncated to the precision.
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(6))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123_456)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123_000))),
+                // The cast accepts either storage kind: TIMESTAMP_NS for a value that needs
+                // nanosecond precision, plain TIMESTAMP when microseconds already hold it exactly.
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(9))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789)))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)))
+                        // a TIMESTAMP_LTZ_NS is a different kind and is not read as a TIMESTAMP
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(Instant.ofEpochSecond(1_600_000_000L, 123456789)),
+                                TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ())
                         .fromCase(
                                 VARIANT(),
@@ -1872,6 +1947,28 @@ class CastRulesTest {
                                         Instant.ofEpochSecond(1_600_000_000L, 123456000)),
                                 TimestampData.fromInstant(
                                         Instant.ofEpochSecond(1_600_000_000L, 123000000))),
+                // The cast accepts either storage kind: TIMESTAMP_LTZ_NS for a value that needs
+                // nanosecond precision, plain TIMESTAMP_LTZ when microseconds already hold it
+                // exactly.
+                CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(Instant.ofEpochSecond(1_600_000_000L, 123456789)),
+                                TimestampData.fromInstant(
+                                        Instant.ofEpochSecond(1_600_000_000L, 123456789)))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(Instant.ofEpochSecond(1_600_000_000L, 123456000)),
+                                TimestampData.fromInstant(
+                                        Instant.ofEpochSecond(1_600_000_000L, 123456000)))
+                        // a TIMESTAMP_NS is a different kind and is not read as a TIMESTAMP_LTZ
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789)),
+                                TableRuntimeException.class),
                 // A binary target pads a shorter value and truncates a longer one, matching a
                 // regular cast into the same type.
                 CastTestSpecBuilder.testCastTo(BINARY(4))

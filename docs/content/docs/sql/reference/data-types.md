@@ -1562,6 +1562,7 @@ to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`.
 | numeric kinds   | any numeric target that holds the value             |
 | `BOOLEAN`       | `BOOLEAN`                                           |
 | `DATE`          | `DATE`                                              |
+| `TIME`          | `TIME(p)`                                           |
 | `TIMESTAMP`     | `TIMESTAMP(p)`                                      |
 | `TIMESTAMP_LTZ` | `TIMESTAMP_LTZ(p)`                                  |
 | `BYTES`         | `BINARY(n)`, `VARBINARY(n)`, and a character string |
@@ -1580,6 +1581,8 @@ The conditions above mean:
 - A **length or precision** is adjusted the same way a regular cast into that type would: a value
   longer than the target is trimmed, fractional seconds beyond the target precision are truncated,
   and the fixed width types `CHAR(n)` and `BINARY(n)` pad a shorter value.
+- A **`TIME`** value keeps only millisecond precision, the resolution Flink's runtime `TIME` type
+  supports, so `TIME(4)` through `TIME(9)` behave like `TIME(3)`.
 
 To reach a type the table does not list, wrap the cast in a regular cast. Only the inner cast is a
 `VARIANT` cast, so the outer one applies the usual rules and may round, truncate, or overflow:
@@ -1837,7 +1840,7 @@ The matrix below describes the supported cast pairs, where "Y" means supported, 
 | `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     N     |    N     |
 | `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     N     |    N     |
 | `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |     N     |    N     |
-| `VARIANT`                              |                   N                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   N    |      !      |        !        |     N      |   !³    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
+| `VARIANT`                              |                   !                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   !    |      !      |        !        |     N      |   !³    |     N      |   N   |   N   |      N       |   N   |     Y     |    N     |
 | `BITMAP`                               |                   Y                   |                   Y⁷                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
 
 Notes:

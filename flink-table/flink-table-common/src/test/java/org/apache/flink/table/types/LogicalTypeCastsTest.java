@@ -286,10 +286,9 @@ class LogicalTypeCastsTest {
                         true),
                 Arguments.of(new VariantType(), new CharType(), false, true),
                 Arguments.of(new VariantType(), VarCharType.STRING_TYPE, false, true),
+                Arguments.of(new VariantType(), new TimeType(), false, true),
                 // variant identity cast is implicit
                 Arguments.of(new VariantType(), new VariantType(), true, true),
-                // TIME has no variant counterpart, so it is not castable from variant
-                Arguments.of(new VariantType(), new TimeType(), false, false),
                 // A variant imposes a schema on a constructed target, explicit only, recursing on
                 // every leaf, which is itself a VARIANT cast
                 Arguments.of(new VariantType(), new ArrayType(new IntType()), false, true),

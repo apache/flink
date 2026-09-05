@@ -356,6 +356,7 @@ public final class LogicalTypeCasts {
         castTo(TIME_WITHOUT_TIME_ZONE)
                 .implicitFrom(TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE)
                 .explicitFromFamily(TIME, TIMESTAMP, CHARACTER_STRING)
+                .explicitFrom(VARIANT)
                 .injectiveFrom(WHEN_PRECISION_MATCHES, TIME_WITHOUT_TIME_ZONE)
                 .build();
 
