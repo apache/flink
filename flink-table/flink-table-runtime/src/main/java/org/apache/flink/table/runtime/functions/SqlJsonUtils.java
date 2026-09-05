@@ -932,12 +932,9 @@ public class SqlJsonUtils {
             switch (typeRoot) {
                 case BOOLEAN:
                     if (raw instanceof Number) {
-                        BigDecimal bd =
-                                raw instanceof BigDecimal
-                                        ? (BigDecimal) raw
-                                        : new BigDecimal(raw.toString());
-                        if (BigDecimal.ZERO.compareTo(bd) == 0) return false;
-                        if (BigDecimal.ONE.compareTo(bd) == 0) return true;
+                        double d = ((Number) raw).doubleValue();
+                        if (d == 0.0) return false;
+                        if (d == 1.0) return true;
                         throw new JsonConversionException(
                                 "Cannot convert " + raw + " to BOOLEAN");
                     }
