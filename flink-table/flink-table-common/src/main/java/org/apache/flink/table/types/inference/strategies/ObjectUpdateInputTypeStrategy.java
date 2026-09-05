@@ -37,7 +37,6 @@ import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -94,20 +93,16 @@ public class ObjectUpdateInputTypeStrategy implements InputTypeStrategy {
             final List<DataType> argumentDataTypes,
             final StructuredType structuredType) {
         final Set<String> fieldNames = new HashSet<>();
-        final Map<String, LogicalType> structuredTypeAttributeNameToLogicalType =
+        // A list keeps the declaration order of the attributes, which the error message below
+        // reports back to the user.
+        final List<String> attributeNames =
                 structuredType.getAttributes().stream()
-                        .collect(
-                                Collectors.toMap(
-                                        StructuredAttribute::getName,
-                                        StructuredAttribute::getType));
+                        .map(StructuredAttribute::getName)
+                        .collect(Collectors.toList());
 
         for (int i = 1; i < argumentDataTypes.size(); i += 2) {
             validateFieldNameArgument(
-                    callContext,
-                    argumentDataTypes,
-                    i,
-                    structuredTypeAttributeNameToLogicalType,
-                    fieldNames);
+                    callContext, argumentDataTypes, i, attributeNames, fieldNames);
         }
     }
 
@@ -115,7 +110,7 @@ public class ObjectUpdateInputTypeStrategy implements InputTypeStrategy {
             final CallContext callContext,
             final List<DataType> argumentDataTypes,
             final int pos,
-            final Map<String, LogicalType> attributes,
+            final List<String> attributeNames,
             final Set<String> fieldNames) {
         final LogicalType fieldNameLogicalType = argumentDataTypes.get(pos).getLogicalType();
         if (!fieldNameLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
@@ -147,11 +142,11 @@ public class ObjectUpdateInputTypeStrategy implements InputTypeStrategy {
         }
 
         // validate that the field name is part of the structured type attributes
-        if (!attributes.containsKey(fieldName)) {
+        if (!attributeNames.contains(fieldName)) {
             final String message =
                     String.format(
                             "The field name '%s' at position %d is not part of the structured type attributes. Available attributes: %s.",
-                            fieldName, pos + 1, attributes.keySet());
+                            fieldName, pos + 1, attributeNames);
             throw new ValidationException(message);
         }
     }
