@@ -1,0 +1,169 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "arr",
+              "dataType" : "ARRAY<INT> NOT NULL"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "id" ]
+            }
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "FilterPushDown",
+        "predicates" : [ ]
+      } ]
+    },
+    "outputType" : "ROW<`id` INT NOT NULL, `arr` ARRAY<INT> NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, filter=[]]], fields=[id, arr])"
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "ARRAY<INT> NOT NULL"
+    } ],
+    "condition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$>$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "INT NOT NULL"
+      }, {
+        "kind" : "LITERAL",
+        "value" : 0,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    },
+    "partialDeleteKeys" : [ 0 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` INT NOT NULL, `arr` ARRAY<INT> NOT NULL>",
+    "description" : "Calc(select=[id, arr], where=[(id > 0)])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$ROW$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "INT NOT NULL"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "ARRAY<INT> NOT NULL"
+      } ],
+      "type" : "ROW<`EXPR$0` INT NOT NULL, `EXPR$1` ARRAY<INT> NOT NULL> NOT NULL"
+    } ],
+    "condition" : null,
+    "partialDeleteKeys" : [ 0 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` INT NOT NULL, `EXPR$1` ROW<`EXPR$0` INT NOT NULL, `EXPR$1` ARRAY<INT> NOT NULL> NOT NULL>",
+    "description" : "Calc(select=[id, ROW(id, arr) AS EXPR$1])"
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "r",
+              "dataType" : "ROW<`a` INT, `b` ARRAY<INT>> NOT NULL"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "id" ]
+            }
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "~DELETE" ],
+    "upsertMaterializeStrategy" : "VALUE",
+    "inputUpsertKey" : [ 0 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` INT NOT NULL, `EXPR$1` ROW<`EXPR$0` INT NOT NULL, `EXPR$1` ARRAY<INT> NOT NULL> NOT NULL>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[id, EXPR$1])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
