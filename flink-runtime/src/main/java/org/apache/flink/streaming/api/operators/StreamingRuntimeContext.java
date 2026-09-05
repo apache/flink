@@ -203,21 +203,18 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     @Override
     public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getState(stateProperties);
     }
 
     @Override
     public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getListState(stateProperties);
     }
 
     @Override
     public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getReducingState(stateProperties);
     }
 
@@ -225,14 +222,12 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(
             AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getAggregatingState(stateProperties);
     }
 
     @Override
     public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
         KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
-        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getMapState(stateProperties);
     }
 
