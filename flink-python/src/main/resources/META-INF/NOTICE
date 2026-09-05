@@ -6,10 +6,10 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.fasterxml.jackson.core:jackson-annotations:2.21
-- com.fasterxml.jackson.core:jackson-core:2.21.3
-- com.fasterxml.jackson.core:jackson-databind:2.21.3
-- com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.21.3
+- com.fasterxml.jackson.core:jackson-annotations:2.22
+- com.fasterxml.jackson.core:jackson-core:2.22.2
+- com.fasterxml.jackson.core:jackson-databind:2.22.2
+- com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.22.2
 - com.google.flatbuffers:flatbuffers-java:25.2.10
 - joda-time:joda-time:2.5
 - io.opentelemetry:opentelemetry-api:1.62.0
