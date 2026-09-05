@@ -118,6 +118,85 @@ public class TritonOptions {
                                     .build());
 
     @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
+    public static final ConfigOption<Boolean> SEQUENCE_ID_AUTO_INCREMENT =
+            ConfigOptions.key("sequence-id-auto-increment")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Enable auto-increment strategy for sequence ID. When enabled, a monotonically "
+                                                    + "increasing counter is appended to the sequence-id to ensure sequence isolation "
+                                                    + "across Flink job restarts and failovers. This is particularly useful for non-reentrant "
+                                                    + "models where duplicate inference requests must be avoided after failover. "
+                                                    + "Format: {sequence-id}-{subtask-index}-{counter}. "
+                                                    + "Requires 'sequence-id' to be configured, and both 'sequence-start' and 'sequence-end' "
+                                                    + "to be set to true (each generated ID represents a one-shot stateful request, so the "
+                                                    + "Triton sequence batcher must open and close the slot on the same call). "
+                                                    + "See 'sequence-id-counter-init-strategy' to control how the counter is seeded "
+                                                    + "across restarts. Defaults to false.")
+                                    .build());
+
+    /**
+     * Strategy for seeding the per-subtask counter that backs {@link #SEQUENCE_ID_AUTO_INCREMENT}.
+     *
+     * <p>The choice trades off ID readability against cross-restart uniqueness:
+     *
+     * <ul>
+     *   <li>{@link #ZERO} keeps IDs short and predictable but reuses the same numeric range after
+     *       every restart, so a downstream system that has not yet finished processing the old
+     *       sequence may see ID collisions.
+     *   <li>{@link #NANO_TIME} and {@link #EPOCH_MILLIS} seed the counter from the local clock at
+     *       {@code open()} time. Each restart picks a fresh, strictly larger seed (assuming a
+     *       monotonic clock), so the new ID range cannot overlap with what the previous incarnation
+     *       emitted.
+     * </ul>
+     */
+    public enum SequenceIdCounterInitStrategy {
+        /** Counter starts at 0 on every {@code open()}. Compact IDs, no cross-restart isolation. */
+        ZERO,
+
+        /**
+         * Counter starts at {@link System#nanoTime()} captured during {@code open()}. Highest
+         * resolution; the seed difference between two restarts is essentially never zero so the ID
+         * ranges cannot overlap in practice.
+         */
+        NANO_TIME,
+
+        /**
+         * Counter starts at {@link System#currentTimeMillis()} captured during {@code open()}.
+         * Lower resolution than {@link #NANO_TIME} but the seed is human-readable as a wall-clock
+         * timestamp, which is useful for log forensics.
+         */
+        EPOCH_MILLIS
+    }
+
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
+    public static final ConfigOption<SequenceIdCounterInitStrategy>
+            SEQUENCE_ID_COUNTER_INIT_STRATEGY =
+                    ConfigOptions.key("sequence-id-counter-init-strategy")
+                            .enumType(SequenceIdCounterInitStrategy.class)
+                            .defaultValue(SequenceIdCounterInitStrategy.ZERO)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Controls how the auto-increment counter is seeded at operator start. "
+                                                            + "Only effective when 'sequence-id-auto-increment' is true. "
+                                                            + "%s starts the counter at 0 (compact IDs, but a job restart will reuse the same "
+                                                            + "numeric range as before — fine when downstream is also reset, but causes ID "
+                                                            + "collisions when the previous run's records are still in flight). "
+                                                            + "%s seeds from System.nanoTime() so each restart picks a strictly larger range "
+                                                            + "and old/new sequence IDs cannot overlap. "
+                                                            + "%s seeds from System.currentTimeMillis() — same isolation property as nano-time "
+                                                            + "but with wall-clock readability. "
+                                                            + "Defaults to %s.",
+                                                    code("ZERO"),
+                                                    code("NANO_TIME"),
+                                                    code("EPOCH_MILLIS"),
+                                                    code("ZERO"))
+                                            .build());
+
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON_ADVANCED})
     public static final ConfigOption<Boolean> SEQUENCE_START =
             ConfigOptions.key("sequence-start")
                     .booleanType()
