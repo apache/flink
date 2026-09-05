@@ -35,6 +35,10 @@ def set_table_environment(t_env: Optional[TableEnvironment]) -> None:
     """
     Set the environment used by DataFrame operations.
 
+    Values buffered in :data:`config` are applied to the injected environment for every key
+    it does not already set explicitly. If applying them fails, the previously configured
+    environment is kept.
+
     :param t_env: Environment to use, or ``None`` to clear it.
     :raises TypeError: If ``t_env`` is neither a :class:`TableEnvironment` nor ``None``.
 
@@ -50,6 +54,10 @@ def set_table_environment(t_env: Optional[TableEnvironment]) -> None:
     global _global_table_environment
     if t_env is not None and not isinstance(t_env, TableEnvironment):
         raise TypeError("t_env must be a TableEnvironment or None")
+    if t_env is not None:
+        from pyflink.dataframe._config import config
+
+        config._apply_to(t_env, overwrite=False)
     _global_table_environment = t_env
 
 
@@ -77,8 +85,10 @@ def get_or_create_table_environment() -> TableEnvironment:
     """
     Return the configured environment, creating one when necessary.
 
-    The created environment is retained for subsequent DataFrame operations and calls to
-    :func:`get_table_environment`.
+    The environment is created from the values buffered in :data:`config`, so options that
+    can only be chosen at creation time, such as ``execution.runtime-mode``, take effect.
+    It is retained for subsequent DataFrame operations and calls to
+    :func:`get_table_environment` only once it has been fully configured.
 
     :return: The configured or newly created environment.
 
@@ -95,9 +105,14 @@ def get_or_create_table_environment() -> TableEnvironment:
     global _global_table_environment
 
     if _global_table_environment is None:
+        from pyflink.dataframe._config import config
         from pyflink.datastream import StreamExecutionEnvironment
 
-        stream_environment = StreamExecutionEnvironment.get_execution_environment()
-        _global_table_environment = StreamTableEnvironment.create(stream_environment)
+        stream_environment = StreamExecutionEnvironment.get_execution_environment(
+            config._to_configuration()
+        )
+        t_env = StreamTableEnvironment.create(stream_environment)
+        config._apply_to(t_env, overwrite=True)
+        _global_table_environment = t_env
 
     return _global_table_environment
