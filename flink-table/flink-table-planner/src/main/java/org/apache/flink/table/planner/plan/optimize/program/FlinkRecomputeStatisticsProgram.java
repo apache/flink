@@ -181,8 +181,10 @@ public class FlinkRecomputeStatisticsProgram implements FlinkOptimizeProgram<Bat
                     for (CatalogPartitionSpec partitionSpec : catalogPartitionSpecs) {
                         partitionList.add(partitionSpec.getPartitionSpec());
                     }
-                } catch (TableNotExistException | TableNotPartitionedException e) {
+                } catch (TableNotExistException e) {
                     throw new TableException("Table not exists!", e);
+                } catch (TableNotPartitionedException e) {
+                    return TableStats.UNKNOWN;
                 }
             } else {
                 partitionList = partitionPushDownSpec.getPartitions();
