@@ -63,6 +63,17 @@ public class TimeFormats {
                     .appendPattern("'Z'")
                     .toFormatter();
 
+    /**
+     * Formatter for ISO8601 string representation of a timestamp value (with explicit timezone
+     * offset).
+     */
+    public static final DateTimeFormatter ISO8601_TIMESTAMP_WITH_OFFSET_FORMAT =
+            new DateTimeFormatterBuilder()
+                    .append(DateTimeFormatter.ISO_LOCAL_DATE)
+                    .appendLiteral('T')
+                    .append(DateTimeFormatter.ISO_OFFSET_TIME)
+                    .toFormatter();
+
     /** Formatter for SQL string representation of a time value. */
     public static final DateTimeFormatter SQL_TIME_FORMAT =
             new DateTimeFormatterBuilder()
