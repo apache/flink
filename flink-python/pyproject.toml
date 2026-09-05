@@ -51,6 +51,7 @@ dev = [
   "protobuf>=6.31.1,<7.0.0.dev0",
   "pytest~=8.0",
   "ruamel.yaml>=0.18.4",
+  "typing-extensions>=4.5.0",
 ]
 tox = [
     "tox==3.14.0"
