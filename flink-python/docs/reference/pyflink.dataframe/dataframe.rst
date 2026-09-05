@@ -63,6 +63,7 @@ Transformations
     DataFrame.drop_duplicates
     DataFrame.distinct
     DataFrame.unique
+    DataFrame.top_n
     DataFrame.limit
     DataFrame.offset
     DataFrame.head

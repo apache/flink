@@ -28,7 +28,7 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pyarrow as pa
 import pyflink.dataframe as pf
-from pyflink.common import Row, RowKind
+from pyflink.common import Row
 from pyflink.table import (
     DataTypes as TableDataTypes,
     EnvironmentSettings,
@@ -1469,30 +1469,55 @@ class DataFrameUniqueTests(PyFlinkDataFrameUTTestCase):
         )
 
 
+class DataFrameTopNTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.df = pf.from_records([{"id": 1, "cat": "a", "amount": 10}])
+
+    def test_output_schema_equals_input(self):
+        self.assert_dataframe_schema(
+            self.df.top_n(3, partition_by="cat", order_by="amount", descending=True),
+            self.df.columns)
+
+    def test_empty_partition_by_is_global(self):
+        self.assert_dataframe_schema(
+            self.df.top_n(2, partition_by=[], order_by="amount"),
+            self.df.columns)
+
+    def test_requires_order_by(self):
+        with self.assertRaisesRegex(TypeError, "top_n requires a non-empty order_by"):
+            self.df.top_n(3, partition_by="cat")
+
+    def test_rejects_empty_order_by(self):
+        with self.assertRaisesRegex(TypeError, "top_n requires a non-empty order_by"):
+            self.df.top_n(3, partition_by="cat", order_by=[])
+
+    def test_rejects_non_positive_n(self):
+        with self.assertRaisesRegex(ValueError, "n must be an integer >= 1"):
+            self.df.top_n(0, order_by="amount")
+
+    def test_unknown_partition_column(self):
+        with self.assertRaisesRegex(ValueError, "partition_by column 'nope' does not exist"):
+            self.df.top_n(2, partition_by="nope", order_by="amount")
+
+    def test_sql_global_has_no_partition_by(self):
+        df = pf.from_records([{"id": 1, "name": "a", "score": 10}])
+
+        self.assert_dataframe_sql(
+            df,
+            "SELECT `id`, `name`, `score` FROM (\n"
+            "  SELECT *, ROW_NUMBER() OVER (ORDER BY `score` ASC) AS `__pf_row_number`\n"
+            "  FROM `SRC`\n"
+            ") WHERE `__pf_row_number` <= 2",
+            lambda: df.top_n(2, order_by="score"),
+        )
+
+
 class DataFrameDropDuplicatesITTests(PyFlinkStreamDataFrameTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.t_env.get_config().set("table.exec.resource.default-parallelism", "1")
-
-    @staticmethod
-    def _materialize(dataframe, key=None):
-        # Fold the collected changelog into the final table so assertions read as the
-        # resulting rows rather than the raw +I/-U/+U events.
-        columns = dataframe._table.get_resolved_schema().get_column_names()
-        if key is None:
-            indices = list(range(len(columns)))
-        else:
-            indices = [columns.index(name) for name in key]
-
-        state = {}
-        for row in dataframe.collect():
-            key_value = tuple(row[index] for index in indices)
-            if row.get_row_kind() in (RowKind.INSERT, RowKind.UPDATE_AFTER):
-                state[key_value] = tuple(row)
-            else:
-                state.pop(key_value, None)
-        return sorted(state.values())
 
     def test_whole_row_removes_identical_rows(self):
         dataframe = pf.from_records(
@@ -1666,6 +1691,54 @@ class DataFrameDropDuplicatesITTests(PyFlinkStreamDataFrameTestCase):
             self._materialize(result, key=["id"]),
             [(2, "c", 30)],
         )
+
+
+class DataFrameTopNITTests(PyFlinkStreamDataFrameTestCase):
+    def test_per_group_top_2(self):
+        df = pf.from_records([{"cat": "a", "v": 3}, {"cat": "a", "v": 1},
+                              {"cat": "a", "v": 2}, {"cat": "b", "v": 5}])
+
+        self.assertEqual(
+            self._materialize(df.top_n(2, partition_by="cat", order_by="v", descending=True)),
+            [("a", 2), ("a", 3), ("b", 5)])
+
+    def test_global_top_1(self):
+        df = pf.from_records([{"v": 3}, {"v": 1}, {"v": 2}])
+
+        self.assertEqual(self._materialize(df.top_n(1, order_by="v", descending=True)), [(3,)])
+
+    def test_nulls_first(self):
+        df = pf.from_records([{"cat": "a", "v": 3}, {"cat": "a", "v": None}])
+
+        self.assertEqual(
+            self._materialize(df.top_n(1, partition_by="cat", order_by="v",
+                                       descending=True, nulls_first=True)),
+            [("a", None)])
+
+    def test_expression_order_key(self):
+        df = pf.from_records([{"cat": "a", "v": -3}, {"cat": "a", "v": 2}])
+
+        self.assertEqual(
+            self._materialize(df.top_n(1, partition_by="cat", order_by=pf.col("v").abs,
+                                       descending=True)),
+            [("a", -3)])
+
+    def test_descending_per_key_list(self):
+        df = pf.from_records([{"a": 2, "b": 1}, {"a": 2, "b": 9},
+                              {"a": 2, "b": 5}, {"a": 1, "b": 100}])
+
+        self.assertEqual(
+            self._materialize(df.top_n(2, order_by=["a", "b"], descending=[True, False])),
+            [(2, 1), (2, 5)])
+
+    def test_nulls_first_per_key_list(self):
+        df = pf.from_records([{"cat": "x", "a": 1, "b": None}, {"cat": "x", "a": 1, "b": 5},
+                              {"cat": "y", "a": 2, "b": 3}])
+
+        self.assertEqual(
+            self._materialize(df.top_n(1, partition_by="cat", order_by=["a", "b"],
+                                       nulls_first=[False, True])),
+            [("x", 1, None), ("y", 2, 3)])
 
 
 class DataFrameITTests(PyFlinkStreamDataFrameTestCase):
