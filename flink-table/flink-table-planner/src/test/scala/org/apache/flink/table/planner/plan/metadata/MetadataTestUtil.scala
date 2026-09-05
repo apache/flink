@@ -289,8 +289,10 @@ object MetadataTestUtil {
       ImmutableBitSet.of(0),
       ImmutableBitSet.of(1),
       ImmutableBitSet.of(2),
+      ImmutableBitSet.of(),
       new TumblingWindowSpec(Duration.ofMinutes(10L), null),
-      fieldTypes.apply(2))
+      fieldTypes.apply(2)
+    )
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(3740000000L, 0L, 4d, 4, null, null),
