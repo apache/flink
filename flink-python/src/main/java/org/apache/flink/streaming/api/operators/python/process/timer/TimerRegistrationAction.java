@@ -23,7 +23,7 @@ import java.util.List;
 /** {@link TimerRegistrationAction} used to register Timer. */
 public class TimerRegistrationAction {
 
-    private final TimerRegistration timerRegistration;
+    private final TimerRegistrationHandler timerRegistration;
 
     private final byte[] serializedTimerData;
 
@@ -32,7 +32,7 @@ public class TimerRegistrationAction {
     private final List<TimerRegistrationAction> containingList;
 
     public TimerRegistrationAction(
-            TimerRegistration timerRegistration,
+            TimerRegistrationHandler timerRegistration,
             byte[] serializedTimerData,
             List<TimerRegistrationAction> containingList) {
         this.timerRegistration = timerRegistration;
