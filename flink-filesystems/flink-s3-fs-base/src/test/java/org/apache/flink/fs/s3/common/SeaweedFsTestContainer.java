@@ -28,9 +28,8 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.github.dockerjava.api.command.InspectContainerResponse;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
+import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
 import org.testcontainers.utility.Base58;
 
 import java.io.File;
@@ -48,7 +47,6 @@ class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContainer> {
     private static final String AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY";
 
     private static final String DEFAULT_STORAGE_DIRECTORY = "/data";
-    private static final String HEALTH_ENDPOINT = "/healthz";
 
     private final String accessKey;
     private final String secretKey;
@@ -71,21 +69,16 @@ class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContainer> {
         withEnv(AWS_ACCESS_KEY_ID, this.accessKey);
         withEnv(AWS_SECRET_ACCESS_KEY, this.secretKey);
         withCommand(
-                "server", "-s3", "-s3.port=" + DEFAULT_PORT, "-dir=" + DEFAULT_STORAGE_DIRECTORY);
+                "mini",
+                "-s3.port=" + DEFAULT_PORT,
+                "-dir=" + DEFAULT_STORAGE_DIRECTORY,
+                "-bucket=" + defaultBucketName);
+        // mini pre-creates the bucket and only reports readiness once every component,
+        // including that bucket, is available.
         setWaitStrategy(
-                new HttpWaitStrategy()
-                        .forPort(DEFAULT_PORT)
-                        .forPath(HEALTH_ENDPOINT)
+                new LogMessageWaitStrategy()
+                        .withRegEx("(?s).*All enabled components are running and ready to use.*")
                         .withStartupTimeout(Duration.ofMinutes(2)));
-        // Very rarely, a 503 status will be returned continuously while the container is
-        // starting up, slipping past the AmazonS3 client's default retry strategy.
-        withStartupAttempts(3);
-    }
-
-    @Override
-    protected void containerIsStarted(InspectContainerResponse containerInfo) {
-        super.containerIsStarted(containerInfo);
-        createDefaultBucket();
     }
 
     private static String randomString(String prefix, int length) {
@@ -127,10 +120,6 @@ class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContainer> {
                 AbstractS3FileSystemFactory.ENDPOINT.key()
                         + " needs to be specified before initializing the FileSystems.");
         FileSystem.initialize(config, null);
-    }
-
-    private void createDefaultBucket() {
-        getClient().createBucket(defaultBucketName);
     }
 
     /** Returns the internally used default bucket. */
