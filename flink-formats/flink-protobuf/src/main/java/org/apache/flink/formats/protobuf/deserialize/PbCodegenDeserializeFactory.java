@@ -23,16 +23,25 @@ import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 
 /** Codegen factory class which return {@link PbCodegenDeserializer} of different data type. */
 public class PbCodegenDeserializeFactory {
     public static PbCodegenDeserializer getPbCodegenDes(
             Descriptors.FieldDescriptor fd, LogicalType type, PbFormatContext formatContext)
             throws PbCodegenException {
+        // Check for recursive message type represented as raw bytes:
+        // the proto field is a MESSAGE but the logical type has been resolved to VARBINARY
+        // by PbToRowTypeUtil's cycle detection.
+        if (fd.getJavaType() == JavaType.MESSAGE
+                && type.getTypeRoot() == LogicalTypeRoot.VARBINARY) {
+            return new PbCodegenBytesDeserializer(fd);
+        }
         // We do not use FieldDescriptor to check because there's no way to get
         // element field descriptor of array type.
         if (type instanceof RowType) {
