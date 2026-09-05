@@ -3062,6 +3062,27 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "FROM `T3`\n"
                                 + ";\n"
                                 + "END");
+
+        // Inline (no file path) — plan returned as result set
+        sql("compile plan for insert into t1 select * from t2")
+                .ok("COMPILE PLAN FOR INSERT INTO `T1`\n" + "SELECT *\n" + "FROM `T2`");
+        sql("compile plan for statement set "
+                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "COMPILE PLAN FOR STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "SELECT *\n"
+                                + "FROM `T2`\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "SELECT *\n"
+                                + "FROM `T3`\n"
+                                + ";\n"
+                                + "END");
+
+        // IF NOT EXISTS is only valid when a file path is specified.
+        sql("compile plan ^if^ not exists for insert into t1 select * from t2")
+                .fails("(?s).*Encountered \"if\" at line 1, column 14.\n.*");
     }
 
     @Test
