@@ -41,7 +41,7 @@ public abstract class AbstractS3DelegationTokenReceiver implements DelegationTok
     private static final Logger LOG =
             LoggerFactory.getLogger(AbstractS3DelegationTokenReceiver.class);
 
-    @VisibleForTesting @Nullable static volatile Credentials credentials;
+    @VisibleForTesting @Nullable static volatile S3SessionCredentials credentials;
 
     @VisibleForTesting @Nullable static volatile String region;
 
@@ -79,24 +79,39 @@ public abstract class AbstractS3DelegationTokenReceiver implements DelegationTok
                                 DelegationTokenProvider.CONFIG_PREFIX, serviceName()),
                         null);
         if (!StringUtils.isNullOrWhitespaceOnly(region)) {
-            LOG.debug("Region: " + region);
+            LOG.debug("Region: {}", region);
         }
     }
 
     @Override
     public void onNewTokensObtained(byte[] tokens) throws Exception {
         LOG.info("Updating session credentials");
-        credentials =
+        Credentials sessionCredentials =
                 InstantiationUtil.deserializeObject(
                         tokens, AbstractS3DelegationTokenReceiver.class.getClassLoader());
+        credentials =
+                new S3SessionCredentials(
+                        sessionCredentials.getAccessKeyId(),
+                        sessionCredentials.getSecretAccessKey(),
+                        sessionCredentials.getSessionToken());
         LOG.info(
                 "Session credentials updated successfully with access key: {} expiration: {}",
-                credentials.getAccessKeyId(),
-                credentials.getExpiration());
+                sessionCredentials.getAccessKeyId(),
+                sessionCredentials.getExpiration());
+    }
+
+    /**
+     * Updates the credentials handed out via {@link #getCredentials()}. Used by receivers that
+     * obtain credentials through a different AWS SDK (e.g. the SDK v2 based receiver in
+     * flink-s3-fs-hadoop) so that SDK-agnostic consumers like the s5cmd integration see a single
+     * source of truth.
+     */
+    public static void updateCredentials(@Nullable S3SessionCredentials newCredentials) {
+        credentials = newCredentials;
     }
 
     @Nullable
-    public static Credentials getCredentials() {
+    public static S3SessionCredentials getCredentials() {
         return credentials;
     }
 }
