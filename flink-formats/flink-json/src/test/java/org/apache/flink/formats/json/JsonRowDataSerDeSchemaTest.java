@@ -23,8 +23,10 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.connector.testutils.formats.DummyInitializationContext;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.formats.common.TimestampFormat;
+import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -299,6 +301,85 @@ public class JsonRowDataSerDeSchemaTest {
         open(deserializationSchema);
         assertThat(deserializationSchema.deserialize(json).getVariant(0).toJson())
                 .isEqualTo("{\"key\":2}");
+    }
+
+    @TestTemplate
+    void testVariantParseErrorDoesNotDropSiblingFields() throws Exception {
+        // A non-finite number makes the VARIANT invalid at various nesting depths. With
+        // ignoreParseErrors the variant field becomes null, but the sibling 'other' must still be
+        // read from the same row. Some cases interleave valid and invalid values across several
+        // levels of nested variants, so recovery must skip trailing fields, including deeper nested
+        // variants, at every level.
+        RowType rowType =
+                (RowType) ROW(FIELD("v", VARIANT()), FIELD("other", INT())).getLogicalType();
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, true, TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+
+        final String[] badVariants = {
+            "{\"x\":1e400,\"y\":2}",
+            "{\"a\":{\"b\":1e400},\"c\":9}",
+            "{\"a\":{\"b\":1e400,\"z\":7},\"c\":9}",
+            "{\"a\":{\"b\":[1e400,2]},\"c\":9}",
+            "{\"a\":{\"b\":1e400,\"c\":5,\"d\":{\"e\":1e400,\"f\":7}}}",
+            "{\"a\":[1e400,5,[1e400,7]],\"g\":8}",
+            "[1e400,2]",
+            "1e400"
+        };
+        for (String badVariant : badVariants) {
+            byte[] json = ("{\"v\":" + badVariant + ",\"other\":5}").getBytes();
+            RowData rowData = deserializationSchema.deserialize(json);
+            assertThat(rowData.isNullAt(0)).as("invalid variant is null: %s", badVariant).isTrue();
+            assertThat(rowData.getInt(1)).as("sibling survives: %s", badVariant).isEqualTo(5);
+        }
+    }
+
+    @TestTemplate
+    void testVariantMapValueParseErrorDropsOnlyBadEntry() throws Exception {
+        // A VARIANT in a MAP value position nulls at a finer granularity than a ROW field: an
+        // invalid entry becomes null on its own, while the other entries and the sibling 'other'
+        // survive. The failing value may be a scalar or a container with fields after it, and the
+        // valid entry after it is a non-trivial nested variant that must still parse in full.
+        RowType rowType =
+                (RowType)
+                        ROW(FIELD("m", MAP(STRING(), VARIANT())), FIELD("other", INT()))
+                                .getLogicalType();
+        DeserializationSchema<RowData> deserializationSchema =
+                createDeserializationSchema(
+                        isJsonParser, rowType, false, true, TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+
+        // 'k3' is given with keys out of order; the variant stores them sorted, so toJson renders
+        // "a" before "b". This is the entry that must parse in full after the bad 'k2' is skipped.
+        final String k3 = "{\"b\":\"x\",\"a\":[1,2,{\"z\":true}]}";
+        final String k3Json = "{\"a\":[1,2,{\"z\":true}],\"b\":\"x\"}";
+        final String[] badMaps = {
+            "{\"k1\":1,\"k2\":1e400,\"k3\":" + k3 + "}",
+            "{\"k1\":1,\"k2\":{\"bad\":1e400,\"x\":9},\"k3\":" + k3 + "}",
+            "{\"k1\":1,\"k2\":[1e400,7],\"k3\":" + k3 + "}"
+        };
+        for (String badMap : badMaps) {
+            byte[] json = ("{\"m\":" + badMap + ",\"other\":5}").getBytes();
+            RowData rowData = deserializationSchema.deserialize(json);
+
+            assertThat(rowData.getInt(1)).as("sibling survives: %s", badMap).isEqualTo(5);
+
+            MapData map = rowData.getMap(0);
+            assertThat(map.size()).as("map keeps all keys: %s", badMap).isEqualTo(3);
+            Map<String, String> valueJsonByKey = new HashMap<>();
+            ArrayData keys = map.keyArray();
+            ArrayData values = map.valueArray();
+            for (int i = 0; i < map.size(); i++) {
+                final String key = keys.getString(i).toString();
+                valueJsonByKey.put(key, values.isNullAt(i) ? null : values.getVariant(i).toJson());
+            }
+            assertThat(valueJsonByKey.get("k1")).as("k1 valid: %s", badMap).isEqualTo("1");
+            assertThat(valueJsonByKey.get("k2")).as("k2 invalid, nulled: %s", badMap).isNull();
+            assertThat(valueJsonByKey.get("k3"))
+                    .as("k3 complex variant intact: %s", badMap)
+                    .isEqualTo(k3Json);
+        }
     }
 
     @TestTemplate
