@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 
+import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
     from pyflink.table.table_schema import TableSchema
 
 from pyflink.common import Row
+from pyflink.java_gateway import get_gateway
 from pyflink.dataframe.datatype import _INT_MAX, DataType
 from pyflink.table.expression import Expression
 from pyflink.table.expressions import (
@@ -559,6 +561,111 @@ class DataFrame:
 
     distinct = drop_duplicates
     unique = drop_duplicates
+
+    # ======================== Windowing ========================
+
+    @PublicEvolving()
+    def tumble(
+        self,
+        *,
+        on: Union[str, Expression],
+        size: Union["datetime.timedelta", Expression],
+    ) -> "DataFrame":
+        """
+        Assign rows to fixed-size, non-overlapping (tumbling) windows.
+
+        Appends ``window_start``, ``window_end`` and ``window_time`` and returns an ordinary
+        DataFrame.
+
+        :param on: An existing event-time or processing-time column.
+        :param size: Window length.
+        :return: A new DataFrame with the window columns appended.
+        :raises TypeError: If ``on`` or ``size`` has an unsupported type.
+
+        .. versionadded:: 2.4.0
+        """
+        time_col = _resolve_window_time_column(on)
+        return _window_dataframe(
+            self._table, "TUMBLE", time_col, _to_interval_expression(size)
+        )
+
+    @PublicEvolving()
+    def hop(
+        self,
+        *,
+        on: Union[str, Expression],
+        slide: Union["datetime.timedelta", Expression],
+        size: Union["datetime.timedelta", Expression],
+    ) -> "DataFrame":
+        """
+        Assign rows to overlapping fixed-size (hopping/sliding) windows of length ``size`` starting
+        every ``slide``. Appends ``window_start``/``window_end``/``window_time``.
+
+        :param on: An existing event-time or processing-time column.
+        :param slide: Interval between successive window starts.
+        :param size: Window length.
+        :return: A new DataFrame with the window columns appended.
+
+        .. versionadded:: 2.4.0
+        """
+        time_col = _resolve_window_time_column(on)
+        return _window_dataframe(
+            self._table,
+            "HOP",
+            time_col,
+            _to_interval_expression(slide),
+            _to_interval_expression(size),
+        )
+
+    @PublicEvolving()
+    def cumulate(
+        self,
+        *,
+        on: Union[str, Expression],
+        step: Union["datetime.timedelta", Expression],
+        size: Union["datetime.timedelta", Expression],
+    ) -> "DataFrame":
+        """
+        Assign rows to cumulating windows that share a start and grow by ``step`` up to ``size``.
+        Appends ``window_start``/``window_end``/``window_time``.
+
+        :param on: An existing event-time or processing-time column.
+        :param step: Interval by which each window grows.
+        :param size: Maximum window length (a whole multiple of ``step``).
+        :return: A new DataFrame with the window columns appended.
+
+        .. versionadded:: 2.4.0
+        """
+        time_col = _resolve_window_time_column(on)
+        return _window_dataframe(
+            self._table,
+            "CUMULATE",
+            time_col,
+            _to_interval_expression(step),
+            _to_interval_expression(size),
+        )
+
+    @PublicEvolving()
+    def session(
+        self,
+        *,
+        on: Union[str, Expression],
+        gap: Union["datetime.timedelta", Expression],
+    ) -> "DataFrame":
+        """
+        Assign rows to activity-based (session) windows that close after ``gap`` of inactivity.
+        Appends ``window_start``/``window_end``/``window_time``.
+
+        :param on: An existing event-time or processing-time column.
+        :param gap: Inactivity gap that closes a session.
+        :return: A new DataFrame with the window columns appended.
+
+        .. versionadded:: 2.4.0
+        """
+        time_col = _resolve_window_time_column(on)
+        return _window_dataframe(
+            self._table, "SESSION", time_col, _to_interval_expression(gap)
+        )
 
     # ======================== Slicing ========================
 
@@ -1137,6 +1244,50 @@ def _unique_name(base: str, taken: Set[str]) -> str:
 
 def _quote_identifier(name: str) -> str:
     return "`" + name.replace("`", "``") + "`"
+
+
+def _resolve_window_time_column(on: Union[str, Expression]) -> Expression:
+    if isinstance(on, str):
+        return table_col(on)
+    if isinstance(on, Expression):
+        return on
+    raise TypeError("on must be a column name or expression")
+
+
+def _window_dataframe(
+    table: Table, window_kind: str, time_col: Expression, *interval_exprs: Any
+) -> "DataFrame":
+    jvm = get_gateway().jvm
+    kind = getattr(
+        jvm.org.apache.flink.table.operations.WindowTableFunctionQueryOperation.WindowKind,
+        window_kind,
+    )
+    intervals = jvm.java.util.ArrayList()
+    for interval in interval_exprs:
+        intervals.add(interval)
+    operation_tree_builder = table._t_env._j_tenv.getOperationTreeBuilder()
+    window_op = operation_tree_builder.windowTableFunction(
+        kind,
+        time_col._j_expr,
+        intervals,
+        table._j_table.getQueryOperation(),
+    )
+    j_table = table._t_env._j_tenv.createTable(window_op)
+    return DataFrame(Table(j_table, table._t_env))
+
+
+def _to_interval_expression(value: Union["datetime.timedelta", Expression]) -> Any:
+    if isinstance(value, datetime.timedelta):
+        millis = value // datetime.timedelta(milliseconds=1)
+        return (
+            get_gateway()
+            .jvm.org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis(
+                millis
+            )
+        )
+    if isinstance(value, Expression):
+        return value._j_expr
+    raise TypeError("interval must be a datetime.timedelta or Expression")
 
 
 def _normalize_aggregations(

@@ -32,8 +32,11 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
+import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
+import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.expressions.resolver.SqlExpressionResolver;
@@ -50,7 +53,9 @@ import org.apache.flink.table.operations.PartitionQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
+import org.apache.flink.table.operations.WindowTableFunctionQueryOperation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
@@ -58,6 +63,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -361,6 +367,57 @@ public final class OperationTreeBuilder {
         // window attribute.
         return aliasBackwardFields(
                 flattenedProjection, aggregateWithAlias.aliases, groupingExpressions.size());
+    }
+
+    public QueryOperation windowTableFunction(
+            WindowTableFunctionQueryOperation.WindowKind windowKind,
+            Expression timeColumn,
+            List<Expression> intervals,
+            QueryOperation child) {
+        final String timeColumnName = extractTimeColumnName(timeColumn);
+        final List<Duration> durations = new ArrayList<>(intervals.size());
+        for (Expression interval : intervals) {
+            durations.add(toDayTimeDuration(interval));
+        }
+        return new WindowTableFunctionQueryOperation(windowKind, timeColumnName, durations, child);
+    }
+
+    private static String extractTimeColumnName(Expression timeColumn) {
+        final Expression unwrapped = ApiExpressionUtils.unwrapFromApi(timeColumn);
+        if (unwrapped instanceof UnresolvedReferenceExpression) {
+            return ((UnresolvedReferenceExpression) unwrapped).getName();
+        }
+        if (unwrapped instanceof FieldReferenceExpression) {
+            return ((FieldReferenceExpression) unwrapped).getName();
+        }
+        throw new ValidationException(
+                "Window time column must be a column reference, but was: "
+                        + timeColumn.asSummaryString());
+    }
+
+    private static Duration toDayTimeDuration(Expression interval) {
+        final Expression unwrapped = ApiExpressionUtils.unwrapFromApi(interval);
+        if (!(unwrapped instanceof ValueLiteralExpression)) {
+            throw new ValidationException(
+                    "Window interval must be an interval literal, e.g. lit(10).minutes().");
+        }
+        final ValueLiteralExpression literal = (ValueLiteralExpression) unwrapped;
+        final LogicalTypeRoot root = literal.getOutputDataType().getLogicalType().getTypeRoot();
+        if (root != LogicalTypeRoot.INTERVAL_DAY_TIME) {
+            throw new ValidationException(
+                    "Window interval must be a day-time interval, but was " + root + ".");
+        }
+        final Duration duration =
+                literal.getValueAs(Duration.class)
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                "Could not read interval value from " + literal));
+        if (duration.isZero() || duration.isNegative()) {
+            throw new ValidationException(
+                    "Window interval must be positive, but was " + duration.toMillis() + " ms.");
+        }
+        return duration;
     }
 
     public QueryOperation join(
