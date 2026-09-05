@@ -35,6 +35,16 @@ public interface PythonFunctionRunner extends AutoCloseable {
     void close() throws Exception;
 
     /**
+     * Cancels the Python function runner.
+     *
+     * <p>The default implementation keeps compatibility with runners that do not need a separate
+     * cancellation path. Runners with a blocking graceful close should override this method.
+     */
+    default void cancel() throws Exception {
+        close();
+    }
+
+    /**
      * Executes the Python function with the input byte array.
      *
      * @param data the byte array data.
