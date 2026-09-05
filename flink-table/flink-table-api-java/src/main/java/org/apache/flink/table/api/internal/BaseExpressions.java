@@ -161,6 +161,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LPAD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LTRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAKE_VALID_UTF8;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_CONTAINS_KEY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_ENTRIES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_FROM_ENTRIES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_KEYS;
@@ -1967,6 +1968,27 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns an array of all entries in the given map. */
     public OutType mapEntries() {
         return toApiSpecificExpression(unresolvedCall(MAP_ENTRIES, toExpr()));
+    }
+
+    /**
+     * Returns {@code TRUE} if the given key exists in the map, {@code FALSE} otherwise. Returns
+     * {@code NULL} if the map is {@code NULL}.
+     *
+     * <p>If the search key is {@code NULL}, the function returns {@code TRUE} when the map contains
+     * a {@code NULL} key. The given key is cast implicitly to the map's key type where Flink's
+     * implicit casting rules allow it; otherwise the call fails validation.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * map("a", 1, "b", 2).mapContainsKey("a") // TRUE
+     * map("a", 1, "b", 2).mapContainsKey("z") // FALSE
+     * map(1, "a").mapContainsKey(lit(1).cast(DataTypes.TINYINT())) // TRUE
+     * }</pre>
+     */
+    public OutType mapContainsKey(InType key) {
+        return toApiSpecificExpression(
+                unresolvedCall(MAP_CONTAINS_KEY, toExpr(), objectToExpression(key)));
     }
 
     /**

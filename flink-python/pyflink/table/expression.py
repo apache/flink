@@ -1984,6 +1984,24 @@ class Expression(Generic[T]):
         """
         return _unary_op("mapFromEntries")(self)
 
+    def map_contains_key(self, key) -> 'Expression':
+        """
+        Returns True if the given key exists in the map, False otherwise. Returns None if the map
+        is None.
+
+        If the search key is None, the function returns True when the map contains a None key.
+        The given key is cast implicitly to the map's key type where Flink's implicit casting
+        rules allow it; otherwise the call fails validation.
+
+        Examples:
+        ::
+
+            >>> map_("a", 1, "b", 2).map_contains_key("a") # True
+            >>> map_("a", 1, "b", 2).map_contains_key("z") # False
+            >>> map_(1, "a").map_contains_key(lit(1, DataTypes.TINYINT())) # True
+        """
+        return _binary_op("mapContainsKey")(self, key)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property
