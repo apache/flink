@@ -105,6 +105,12 @@ Flink SQL> SELECT *
 +------------------+------------------+-------------+-------+-----+--------+
 ```
 
+{{< hint info >}}
+The result table above shows the final results after both windows have been closed. In batch mode, all remaining windows are closed when the bounded input finishes. In streaming mode, the watermark must advance past the end of a window before Window Top-N emits its final result.
+
+With only the records shown above, the maximum event time is `2020-04-15 08:17:00.000`, so the watermark defined as `bidtime - INTERVAL '1' SECOND` can advance only to approximately `2020-04-15 08:16:59.000`. Therefore, an unbounded streaming source emits only the result for `[08:00, 08:10)` until subsequent records advance the watermark past the end of `[08:10, 08:20)`.
+{{< /hint >}}
+
 *Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
 
 ### Window Top-N follows after Windowing TVF
