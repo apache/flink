@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.execution.CheckpointingMode;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
@@ -72,7 +73,8 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
                         joinFunction,
                         0,
                         0,
-                        -1L);
+                        -1L,
+                        false);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -147,7 +149,8 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
                         joinFunction,
                         0,
                         0,
-                        -1L);
+                        -1L,
+                        false);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -202,7 +205,18 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testRowTimeInnerJoinRealtimeCleanUp() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.LEFT, -5, 9, 0, 0, rowType, rowType, joinFunction, 0, 0, -1L);
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        -1L,
+                        false);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
 
@@ -231,7 +245,18 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testRowTimeLeftOuterJoin() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.LEFT, -5, 9, 0, 7, rowType, rowType, joinFunction, 0, 0, -1L);
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        7,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        -1L,
+                        false);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -311,7 +336,8 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
                         joinFunction,
                         0,
                         0,
-                        -1L);
+                        -1L,
+                        false);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -382,7 +408,18 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testRowTimeFullOuterJoin() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.FULL, -5, 9, 0, 7, rowType, rowType, joinFunction, 0, 0, -1L);
+                        FlinkJoinType.FULL,
+                        -5,
+                        9,
+                        0,
+                        7,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        -1L,
+                        false);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -472,7 +509,8 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
                         joinFunction,
                         0,
                         0,
-                        -1L);
+                        -1L,
+                        false);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -550,7 +588,18 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testRowTimeLeftOuterEarlyFire() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.LEFT, -5, 9, 0, 0, rowType, rowType, joinFunction, 0, 0, 3L);
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        false);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
         testHarness.open();
@@ -580,7 +629,18 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testRowTimeLeftOuterEarlyFireThenMatch() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.LEFT, -5, 9, 0, 0, rowType, rowType, joinFunction, 0, 0, 3L);
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        false);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
         testHarness.open();
@@ -612,7 +672,18 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testRowTimeRightOuterEarlyFireThenMatch() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.RIGHT, -5, 9, 0, 0, rowType, rowType, joinFunction, 0, 0, 3L);
+                        FlinkJoinType.RIGHT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        false);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
         testHarness.open();
@@ -642,7 +713,18 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testRowTimeFullOuterEarlyFireOneMatches() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.FULL, -5, 9, 0, 0, rowType, rowType, joinFunction, 0, 0, 3L);
+                        FlinkJoinType.FULL,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        false);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
         testHarness.open();
@@ -686,7 +768,18 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testRowTimeInnerJoinIgnoresEarlyFire() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.INNER, -5, 9, 0, 0, rowType, rowType, joinFunction, 0, 0, 3L);
+                        FlinkJoinType.INNER,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        false);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
         testHarness.open();
@@ -713,7 +806,18 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         // Window span is 5 + 9 = 14; the delay exceeds it so cleanup may reach the row first.
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.LEFT, -5, 9, 0, 0, rowType, rowType, joinFunction, 0, 0, 20L);
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        20L,
+                        false);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
         testHarness.open();
@@ -735,7 +839,18 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testRowTimeEarlyFireRowKindIsolation() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.LEFT, -5, 9, 0, 0, rowType, rowType, joinFunction, 0, 0, 3L);
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        false);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
         testHarness.open();
@@ -768,7 +883,18 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testRowTimeLeftOuterEarlyFireMultiMatch() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
-                        FlinkJoinType.LEFT, -5, 9, 0, 0, rowType, rowType, joinFunction, 0, 0, 3L);
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        false);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
         testHarness.open();
@@ -793,6 +919,255 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         expectedOutput.add(insertRecord(10L, "k1", 14L, "k1"));
         expectedOutput.add(new Watermark(30 - 9));
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    /**
+     * Cross-domain early fire: an event-time interval join firing speculative pads on the wall
+     * clock. The early-fire timer is a processing-time timer while cleanup stays an event-time
+     * timer, so the pad fires on a processing-time advance with the watermark unchanged.
+     */
+    @Test
+    void testRowTimeCrossDomainEarlyFireOnWallClock() throws Exception {
+        RowTimeIntervalJoin joinProcessFunc =
+                new RowTimeIntervalJoin(
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        true);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+        testHarness.open();
+        testHarness.setProcessingTime(0L);
+
+        testHarness.processElement1(insertRecord(10L, "k1"));
+        // The early-fire timer is processing-time (fires at now + delay = 3); the cleanup timer is
+        // event-time. The cross-domain split is visible in the per-domain timer counts.
+        assertThat(testHarness.numProcessingTimeTimers()).isEqualTo(1);
+        assertThat(testHarness.numEventTimeTimers()).isEqualTo(1);
+
+        // Advance the wall clock past the firing time without advancing the watermark: the pad
+        // fires purely on processing time.
+        testHarness.setProcessingTime(3L);
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(10L, "k1", null, null));
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    /**
+     * Cross-domain early fire followed by an in-window event-time match: the wall-clock pad is
+     * retracted via -U/+U and the later event-time cleanup emits nothing.
+     */
+    @Test
+    void testRowTimeCrossDomainEarlyFireThenMatch() throws Exception {
+        RowTimeIntervalJoin joinProcessFunc =
+                new RowTimeIntervalJoin(
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        true);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+        testHarness.open();
+        testHarness.setProcessingTime(0L);
+
+        testHarness.processElement1(insertRecord(10L, "k1"));
+        // Wall-clock pad fires.
+        testHarness.setProcessingTime(3L);
+
+        // A right row arrives in window (10 in [12 - 5, 12 + 9]) and matches the padded left row.
+        testHarness.processElement2(insertRecord(12L, "k1"));
+
+        // Cross cleanup on the event-time clock: no further pad, the row already matched.
+        testHarness.processWatermark1(new Watermark(30));
+        testHarness.processWatermark2(new Watermark(30));
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(10L, "k1", null, null));
+        expectedOutput.add(updateBeforeRecord(10L, "k1", null, null));
+        expectedOutput.add(updateAfterRecord(10L, "k1", 12L, "k1"));
+        expectedOutput.add(new Watermark(30 - 9));
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    /**
+     * Cross-domain restore safety: snapshot after the early-fire timer is registered but before it
+     * fires, then restore and advance the wall clock. Exactly one pad is emitted after restore -
+     * none lost, none duplicated.
+     */
+    @Test
+    void testRowTimeCrossDomainSnapshotBeforeFire() throws Exception {
+        RowTimeIntervalJoin joinProcessFunc =
+                new RowTimeIntervalJoin(
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        true);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+        testHarness.open();
+        testHarness.setProcessingTime(0L);
+
+        testHarness.processElement1(insertRecord(10L, "k1"));
+        // Snapshot with the processing-time early-fire timer pending (firing time is 3).
+        testHarness.prepareSnapshotPreBarrier(0L);
+        OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
+        testHarness.close();
+
+        // Nothing was emitted before the snapshot.
+        assertThat(testHarness.getOutput()).isEmpty();
+
+        RowTimeIntervalJoin restoredFunc =
+                new RowTimeIntervalJoin(
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        newJoinFunction(),
+                        0,
+                        0,
+                        3L,
+                        true);
+        testHarness = createTestHarness(restoredFunc);
+        testHarness.setup();
+        testHarness.initializeState(snapshot);
+        testHarness.open();
+
+        // The restored processing-time timer fires once on the wall-clock advance.
+        testHarness.setProcessingTime(3L);
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(10L, "k1", null, null));
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    /**
+     * Cross-domain restore safety: snapshot after the pad has already been emitted, then restore
+     * and let a match arrive. The positional fired bit survives the restore so the post-restore
+     * match still retracts the pad via -U/+U.
+     */
+    @Test
+    void testRowTimeCrossDomainSnapshotAfterFire() throws Exception {
+        RowTimeIntervalJoin joinProcessFunc =
+                new RowTimeIntervalJoin(
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        true);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+        testHarness.open();
+        testHarness.setProcessingTime(0L);
+
+        testHarness.processElement1(insertRecord(10L, "k1"));
+        // Fire the wall-clock pad before snapshotting.
+        testHarness.setProcessingTime(3L);
+        testHarness.prepareSnapshotPreBarrier(0L);
+        OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
+        testHarness.close();
+
+        RowTimeIntervalJoin restoredFunc =
+                new RowTimeIntervalJoin(
+                        FlinkJoinType.LEFT,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        newJoinFunction(),
+                        0,
+                        0,
+                        3L,
+                        true);
+        testHarness = createTestHarness(restoredFunc);
+        testHarness.setup();
+        testHarness.initializeState(snapshot);
+        testHarness.open();
+        testHarness.setProcessingTime(3L);
+
+        // A match arrives after restore; the restored fired bit drives the -U/+U correction.
+        testHarness.processElement2(insertRecord(12L, "k1"));
+        testHarness.processWatermark1(new Watermark(30));
+        testHarness.processWatermark2(new Watermark(30));
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(updateBeforeRecord(10L, "k1", null, null));
+        expectedOutput.add(updateAfterRecord(10L, "k1", 12L, "k1"));
+        expectedOutput.add(new Watermark(30 - 9));
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    /** An inner join with the cross-domain hint must not early-fire: the no-op guard holds. */
+    @Test
+    void testRowTimeCrossDomainInnerJoinIgnoresEarlyFire() throws Exception {
+        RowTimeIntervalJoin joinProcessFunc =
+                new RowTimeIntervalJoin(
+                        FlinkJoinType.INNER,
+                        -5,
+                        9,
+                        0,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0,
+                        3L,
+                        true);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+        testHarness.open();
+        testHarness.setProcessingTime(0L);
+
+        testHarness.processElement1(insertRecord(10L, "k1"));
+        // No early-fire processing-time timer for an inner join: only the event-time cleanup timer.
+        assertThat(testHarness.numProcessingTimeTimers()).isEqualTo(0);
+        assertThat(testHarness.numEventTimeTimers()).isEqualTo(1);
+
+        testHarness.setProcessingTime(3L);
+
+        assertThat(testHarness.getOutput()).isEmpty();
         testHarness.close();
     }
 
