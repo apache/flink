@@ -174,14 +174,29 @@ public interface SupportsReadingMetadata {
 
     /**
      * Provides a list of metadata filters in conjunctive form. A source can pick filters and return
-     * the accepted and remaining filters. Same contract as {@link
-     * SupportsFilterPushDown#applyFilters(List)}, but for metadata columns.
+     * the accepted and remaining filters.
+     *
+     * <p><b>Identity contract:</b> The source MUST return the exact same {@link ResolvedExpression}
+     * instances it received — no copies, no wrappers, no rebuilds. The planner uses instance
+     * identity (not {@code equals}) to correlate returned expressions back to their original
+     * positions. Typical implementations partition the input list:
+     *
+     * <pre>{@code
+     * return MetadataFilterResult.of(
+     *     metadataFilters.subList(0, accepted),
+     *     metadataFilters.subList(accepted, metadataFilters.size()));
+     * }</pre>
      *
      * <p>The provided filters reference metadata key names (from {@link #listReadableMetadata()}),
      * not SQL column aliases. For example, a column declared as {@code msg_offset BIGINT METADATA
      * FROM 'offset'} will have its predicate expressed as {@code offset >= 1000}, not {@code
      * msg_offset >= 1000}. The planner handles the alias-to-key translation before calling this
      * method.
+     *
+     * <p>Acceptance must be decided per predicate, independent of which other predicates are in the
+     * list. On compiled-plan restore only the previously-accepted subset is re-presented, so a
+     * source that accepts one predicate only when another is also present would fail to re-accept
+     * it.
      */
     default MetadataFilterResult applyMetadataFilters(List<ResolvedExpression> metadataFilters) {
         return MetadataFilterResult.of(Collections.emptyList(), metadataFilters);
