@@ -129,6 +129,34 @@ class AvroFormatFactoryTest {
         testSeDeSchema(NEW_ROW_TYPE, NEW_SCHEMA, false);
     }
 
+    @Test
+    void testGeographyTypeIsRejected() {
+        ResolvedSchema geographySchema =
+                ResolvedSchema.of(Column.physical("g", DataTypes.GEOGRAPHY()));
+
+        DynamicTableSource source =
+                FactoryMocks.createTableSource(geographySchema, getAllOptions(true));
+        assertThat(source).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
+        TestDynamicTableFactory.DynamicTableSourceMock sourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) source;
+        assertThatThrownBy(
+                        () ->
+                                sourceMock.valueFormat.createRuntimeDecoder(
+                                        ScanRuntimeProviderContext.INSTANCE,
+                                        geographySchema.toPhysicalRowDataType()))
+                .hasMessageContaining("Unsupported to derive Schema for type: GEOGRAPHY");
+
+        DynamicTableSink sink = FactoryMocks.createTableSink(geographySchema, getAllOptions(true));
+        assertThat(sink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) sink;
+        assertThatThrownBy(
+                        () ->
+                                sinkMock.valueFormat.createRuntimeEncoder(
+                                        null, geographySchema.toPhysicalRowDataType()))
+                .hasMessageContaining("Unsupported to derive Schema for type: GEOGRAPHY");
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void testSeDeSchema(boolean legacyTimestampMapping) {

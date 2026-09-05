@@ -26,12 +26,17 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.utils.PlannerMocks;
+import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.sql.SqlNode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /** Test for {@link FlinkCalciteSqlValidator}. */
@@ -156,6 +161,14 @@ class FlinkCalciteSqlValidatorTest {
                         () -> plannerMocks.getParser().parse("SELECT myFunc(1, in2 => 2) FROM t1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Cannot mix positional and named arguments");
+    }
+
+    private LogicalType projectedLogicalType(String expression) {
+        SqlNode parsed = plannerMocks.getPlanner().parser().parse("SELECT " + expression + " AS c");
+        SqlNode validated = plannerMocks.getPlanner().validate(parsed);
+        RelRoot relRoot = plannerMocks.getPlanner().rel(validated);
+        return FlinkTypeFactory.toLogicalType(
+                relRoot.rel.getRowType().getFieldList().get(0).getType());
     }
 
     /** Scalar function with named arguments for the mixed-argument validation test. */
