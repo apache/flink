@@ -435,13 +435,28 @@ public final class FlinkDistribution {
 
     public <T> Stream<T> searchAllLogs(Pattern pattern, Function<Matcher, T> matchProcessor)
             throws IOException {
+        return searchAllLogs(pattern, matchProcessor, false);
+    }
+
+    /**
+     * Searches the distribution's log files for lines matching the given pattern.
+     *
+     * @param includeRolledLogs whether to also search rolled log files ({@code .log.N}); the
+     *     distribution rolls logs on startup, which can move the startup banner out of the live
+     *     {@code .log} file
+     */
+    public <T> Stream<T> searchAllLogs(
+            Pattern pattern, Function<Matcher, T> matchProcessor, boolean includeRolledLogs)
+            throws IOException {
         final List<T> matches = new ArrayList<>(2);
 
         try (Stream<Path> logFilesStream = Files.list(log)) {
             final Iterator<Path> logFiles = logFilesStream.iterator();
             while (logFiles.hasNext()) {
                 final Path logFile = logFiles.next();
-                if (!logFile.getFileName().toString().endsWith(".log")) {
+                final String fileName = logFile.getFileName().toString();
+                final boolean isRolledLog = fileName.matches(".*\\.log\\.\\d+");
+                if (!fileName.endsWith(".log") && !(includeRolledLogs && isRolledLog)) {
                     // ignore logs for previous runs that have a number suffix
                     continue;
                 }
