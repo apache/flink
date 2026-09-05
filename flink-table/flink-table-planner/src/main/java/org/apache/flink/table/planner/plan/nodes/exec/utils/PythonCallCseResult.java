@@ -1,0 +1,94 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.planner.plan.nodes.exec.utils;
+
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
+
+import org.apache.calcite.rex.RexCall;
+
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/** Encapsulates the result of Python UDF call Common Sub-expression Elimination (CSE). */
+@Internal
+public class PythonCallCseResult {
+
+    /**
+     * The deduplicated Python UDF calls to be evaluated, in execution order.
+     *
+     * <p>Nested call trees are flattened so that a sub-expression shared between calls appears
+     * exactly once. For example {@code SELECT udf1(x), udf2(udf1(x))} yields {@code [udf1(x),
+     * udf2(<ref to udf1(x)>)]}.
+     */
+    private final List<RexCall> deduplicatedCalls;
+
+    /**
+     * For each projection entry, the position in {@link #deduplicatedCalls} holding its result.
+     *
+     * <p>Flattening appends intermediate sub-expressions that must not be emitted, and post-order
+     * can leave a projected result before the end of the list, so this is not necessarily the
+     * identity.
+     */
+    private final int[] outputIndices;
+
+    /**
+     * Maps a call to the position in {@link #deduplicatedCalls} where its result is computed.
+     *
+     * <p>Only deterministic calls are indexed. A non-deterministic call must be evaluated once per
+     * occurrence, so it must never become the target of a reference, even though it does occupy an
+     * entry of {@link #deduplicatedCalls} when it is a projection on its own.
+     */
+    private final Map<RexCall, Integer> refMap;
+
+    public PythonCallCseResult(List<RexCall> deduplicatedCalls, int[] outputIndices) {
+        this.deduplicatedCalls = deduplicatedCalls;
+        this.outputIndices = outputIndices;
+        this.refMap = buildRefMap(deduplicatedCalls);
+    }
+
+    public List<RexCall> getDeduplicatedCalls() {
+        return deduplicatedCalls;
+    }
+
+    public int[] getOutputIndices() {
+        return outputIndices;
+    }
+
+    public Map<RexCall, Integer> getRefMap() {
+        return refMap;
+    }
+
+    /**
+     * Indexes the referenceable calls by structural equality, keeping the first occurrence so that
+     * a parent references its own child rather than a later structurally equal duplicate.
+     */
+    private static Map<RexCall, Integer> buildRefMap(List<RexCall> deduplicatedCalls) {
+        Map<RexCall, Integer> result = new LinkedHashMap<>();
+        for (int i = 0; i < deduplicatedCalls.size(); i++) {
+            RexCall call = deduplicatedCalls.get(i);
+            if (ShortcutUtils.isDeterministicThroughProgram(call, null)) {
+                result.putIfAbsent(call, i);
+            }
+        }
+        return Collections.unmodifiableMap(result);
+    }
+}

@@ -39,6 +39,8 @@ message Input {
     UserDefinedFunction udf = 1;
     int32 inputOffset = 2;
     bytes inputConstant = 3;
+    // Reference to a previously computed UDF result (enables cross-subtree CSE).
+    int32 refIndex = 4;
   }
 }
 
@@ -85,6 +87,11 @@ message UserDefinedFunctions {
   // The runtime context of the user-defined functions, providing task info such as
   // task_name, parallelism, subtask_index, etc.
   UserDefinedDataStreamFunction.RuntimeContext runtime_context = 7;
+  // Positions in `udfs` whose results form the operator output, in output order.
+  // Flattening nested calls for CSE appends intermediate sub-expressions to `udfs`; those are
+  // consumed via Input.refIndex and must not be emitted. Empty means every UDF result is part
+  // of the output, which is the case when no flattening happened.
+  repeated int32 output_indices = 8;
 }
 
 // Used to describe the info of over window in pandas batch over window aggregation

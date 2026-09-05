@@ -30,7 +30,9 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.functions.python.InputRef;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
 import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.utils.PassThroughStreamAggregatePythonFunctionRunner;
@@ -211,7 +213,7 @@ class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStreamAggrega
                 new PythonAggregateFunctionInfo[] {
                     new PythonAggregateFunctionInfo(
                             PythonScalarFunctionOperatorTestBase.DummyPythonFunction.INSTANCE,
-                            new Integer[] {0},
+                            new PythonFunctionInput[] {new InputRef(0)},
                             -1,
                             false)
                 },
