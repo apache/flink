@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
 from pyflink.common import Row
 from pyflink.dataframe.datatype import _INT_MAX, DataType
+from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression
 from pyflink.table.expressions import (
     and_,
@@ -560,6 +561,82 @@ class DataFrame:
     distinct = drop_duplicates
     unique = drop_duplicates
 
+    # ======================== Filtering & Ordering ========================
+
+    @PublicEvolving()
+    def sort(
+        self,
+        by: Union[str, Expression, List[Union[str, Expression]]],
+        *,
+        descending: Union[bool, List[bool]] = False,
+        nulls_first: Union[bool, List[bool]] = None,
+    ) -> "DataFrame":
+        """
+        Sort rows globally by one or more columns or expressions.
+
+        This method builds a new DataFrame plan without executing a Flink job. The ``by``
+        expressions must not already specify ``asc`` or ``desc``; use ``descending`` to control
+        their direction. When ``nulls_first`` is omitted, the Table API default is used: NULLs
+        are ordered last for ascending keys and first for descending keys.
+
+        The result is globally sorted across all parallel partitions. For unbounded tables, this
+        operation requires a time-attribute sort or a subsequent fetch operation.
+
+        :param by: Column name or expression, or a list of them, used as sort keys.
+        :param descending: Whether to sort in descending order, either for all keys or once per
+            key.
+        :param nulls_first: Whether to place NULLs first, either for all keys or once per key. When
+            omitted, the Table API default applies.
+        :return: A new sorted DataFrame.
+        :raises TypeError: If ``by``, ``descending`` or ``nulls_first`` has an unsupported type.
+        :raises ValueError: If ``by`` is empty, option lengths do not match, a column does not
+            exist, or an expression already specifies ``asc`` or ``desc``.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records(
+            ...     [(2, "b"), (1, "a")], schema=["id", "name"]
+            ... )
+            >>> ascending = df.sort("id")
+            >>> mixed = df.sort(["id", "name"], descending=[False, True])
+
+        .. versionadded:: 2.4.0
+        """
+        order_keys = _normalize_order_by(by, "by")
+        if order_keys is None:
+            raise TypeError("by must be a string, an expression, or a list or tuple of them")
+        columns = self._table.get_resolved_schema().get_column_names()
+        for key in order_keys:
+            if isinstance(key, str) and key not in columns:
+                raise ValueError(
+                    "by column '%s' does not exist, available columns: %s" % (key, columns)
+                )
+            if isinstance(key, Expression) and _contains_ordering_expression(key):
+                raise ValueError(
+                    "sort() expressions must not specify asc or desc; use descending instead"
+                )
+
+        descending_values = _normalize_sort_flags(descending, len(order_keys), "descending")
+        nulls_values: List[Optional[bool]] = (
+            [None] * len(order_keys)
+            if nulls_first is None
+            else _normalize_sort_flags(nulls_first, len(order_keys), "nulls_first")
+        )
+
+        order_expressions: List[Expression] = []
+        for key, is_descending, is_nulls_first in zip(
+            order_keys, descending_values, nulls_values
+        ):
+            expression = table_col(key) if isinstance(key, str) else key
+            if is_nulls_first is not None:
+                order_expressions.append(
+                    expression.is_null.desc if is_nulls_first else expression.is_null.asc
+                )
+            order_expressions.append(expression.desc if is_descending else expression.asc)
+
+        return DataFrame(self._table.order_by(*order_expressions))
+
     # ======================== Slicing ========================
 
     @PublicEvolving()
@@ -1030,6 +1107,7 @@ def _normalize_subset(subset: Union[str, List[str], None]) -> Optional[List[str]
 
 def _normalize_order_by(
     order_by: Union[str, Expression, List[Union[str, Expression]], None],
+    parameter_name: str = "order_by",
 ) -> Optional[List[Union[str, Expression]]]:
     if order_by is None:
         return None
@@ -1041,13 +1119,47 @@ def _normalize_order_by(
             keys.append(value)
         else:
             raise TypeError(
-                "order_by must be a string, an expression, or a list or tuple of them"
+                "%s must be a string, an expression, or a list or tuple of them" % parameter_name
             )
 
     if not keys:
-        raise ValueError("order_by must not be empty")
+        raise ValueError("%s must not be empty" % parameter_name)
 
     return keys
+
+
+def _normalize_sort_flags(
+    value: Union[bool, List[bool]], order_len: int, parameter_name: str
+) -> List[bool]:
+    if isinstance(value, bool):
+        values = [value] * order_len
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            if not isinstance(item, bool):
+                raise TypeError("%s must be a boolean or a list of booleans" % parameter_name)
+        values = list(value)
+    else:
+        raise TypeError("%s must be a boolean or a list of booleans" % parameter_name)
+
+    if len(values) != order_len:
+        raise ValueError("%s must have the same length as by" % parameter_name)
+
+    return values
+
+
+def _contains_ordering_expression(expression: Expression) -> bool:
+    gateway = get_gateway()
+    api_expression_utils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
+    built_in_functions = gateway.jvm.org.apache.flink.table.functions.BuiltInFunctionDefinitions
+
+    def contains_ordering(j_expression) -> bool:
+        if api_expression_utils.isFunction(
+            j_expression, built_in_functions.ORDER_ASC
+        ) or api_expression_utils.isFunction(j_expression, built_in_functions.ORDER_DESC):
+            return True
+        return any(contains_ordering(child) for child in j_expression.getChildren())
+
+    return contains_ordering(expression._j_expr.toExpr())
 
 
 def _normalize_nulls_first(
