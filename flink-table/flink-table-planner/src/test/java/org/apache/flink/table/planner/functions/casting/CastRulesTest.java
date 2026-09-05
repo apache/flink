@@ -44,6 +44,7 @@ import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantBuilder;
 
+import org.assertj.core.api.AbstractThrowableAssert;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.parallel.Execution;
@@ -96,6 +97,7 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.apache.flink.table.api.DataTypes.UUID;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.VARIANT;
@@ -161,6 +163,18 @@ class CastRulesTest {
     private static final StringData TIMESTAMP_STRING_CET = fromString("2021-09-24 14:34:56.123456");
 
     private static final Bitmap DEFAULT_BITMAP = Bitmap.fromArray(new int[] {0, 1, 2});
+
+    private static final String UUID_STRING = "550e8400-e29b-41d4-a716-446655440000";
+    private static final byte[] UUID_BYTES = uuidBytes(UUID_STRING);
+
+    private static byte[] uuidBytes(String uuid) {
+        final java.util.UUID value = java.util.UUID.fromString(uuid);
+        final byte[] result = new byte[16];
+        java.nio.ByteBuffer.wrap(result)
+                .putLong(value.getMostSignificantBits())
+                .putLong(value.getLeastSignificantBits());
+        return result;
+    }
 
     /** A two-byte lead followed by a byte that is not a continuation byte. */
     private static final byte[] INVALID_UTF8 = new byte[] {(byte) 0xC3, (byte) 0x28};
@@ -1628,6 +1642,71 @@ class CastRulesTest {
                         .fromCase(BITMAP(), DEFAULT_BITMAP, DEFAULT_BITMAP.toBytes())
                         .fromCase(BITMAP(), Bitmap.empty(), Bitmap.empty().toBytes())
                         .fromCase(BITMAP(), null, null),
+                // UUID cast rules. A UUID renders as its canonical lower-case 8-4-4-4-12 form and
+                // maps to its 16-byte big-endian encoding.
+                CastTestSpecBuilder.testCastTo(STRING())
+                        .fromCase(UUID(), UUID_BYTES, fromString(UUID_STRING))
+                        .fromCase(UUID(), null, null),
+                // a bounded character target trims, and CHAR pads to its fixed width
+                CastTestSpecBuilder.testCastTo(VARCHAR(8))
+                        .fromCase(UUID(), UUID_BYTES, fromString("550e8400")),
+                CastTestSpecBuilder.testCastTo(CHAR(38))
+                        .fromCase(UUID(), UUID_BYTES, fromString(UUID_STRING + "  ")),
+                CastTestSpecBuilder.testCastTo(BINARY(16))
+                        .fromCase(UUID(), UUID_BYTES, UUID_BYTES)
+                        .fromCase(UUID(), null, null),
+                // a VARBINARY(n) with n >= 16 holds the value without trimming
+                CastTestSpecBuilder.testCastTo(VARBINARY(16))
+                        .fromCase(UUID(), UUID_BYTES, UUID_BYTES)
+                        .fromCase(UUID(), null, null),
+                CastTestSpecBuilder.testCastTo(BYTES())
+                        .fromCase(UUID(), UUID_BYTES, UUID_BYTES)
+                        .fromCase(UUID(), null, null),
+                // a UUID is parsed leniently from a string, following PostgreSQL conventions
+                CastTestSpecBuilder.testCastTo(UUID())
+                        .fromCase(STRING(), fromString(UUID_STRING), UUID_BYTES)
+                        .fromCase(STRING(), fromString(UUID_STRING.toUpperCase()), UUID_BYTES)
+                        .fromCase(STRING(), fromString("{" + UUID_STRING + "}"), UUID_BYTES)
+                        .fromCase(STRING(), fromString(UUID_STRING.replace("-", "")), UUID_BYTES)
+                        // a hyphen may follow any group of four digits, PostgreSQL style
+                        .fromCase(
+                                STRING(),
+                                fromString("550e-8400-e29b-41d4-a716-4466-5544-0000"),
+                                UUID_BYTES)
+                        .fromCase(STRING(), null, null)
+                        // a malformed value fails, and yields null for TRY_CAST
+                        .fail(
+                                STRING(),
+                                fromString("not-a-uuid"),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits")
+                        .fail(
+                                STRING(),
+                                fromString("550e8400"),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits")
+                        // too many hexadecimal digits
+                        .fail(
+                                STRING(),
+                                fromString(UUID_STRING + "00"),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits")
+                        // a hyphen inside a four-digit group is rejected
+                        .fail(
+                                STRING(),
+                                fromString("5-50e8400e29b41d4a716446655440000"),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits"),
+                // a binary value is reinterpreted, and has to be exactly 16 bytes long
+                CastTestSpecBuilder.testCastTo(UUID())
+                        .fromCase(BYTES(), UUID_BYTES, UUID_BYTES)
+                        .fromCase(BINARY(16), UUID_BYTES, UUID_BYTES)
+                        .fromCase(BYTES(), null, null)
+                        .fail(
+                                BYTES(),
+                                new byte[] {1, 2, 3},
+                                TableRuntimeException.class,
+                                "requires exactly 16 bytes"),
                 // From VARIANT to primitive types. A cast succeeds only when the target holds the
                 // stored value unaltered, except for the approximate FLOAT and DOUBLE.
                 // A character string renders like a regular cast of the stored kind, so these
@@ -2179,6 +2258,14 @@ class CastRulesTest {
 
         private CastTestSpecBuilder fail(
                 DataType dataType, Object src, Class<? extends Throwable> exception) {
+            return fail(dataType, src, exception, null);
+        }
+
+        private CastTestSpecBuilder fail(
+                DataType dataType,
+                Object src,
+                Class<? extends Throwable> exception,
+                String messageSubstring) {
             return fail(
                     dataType,
                     CastRule.Context.create(
@@ -2188,7 +2275,8 @@ class CastRulesTest {
                             Thread.currentThread().getContextClassLoader(),
                             CTX),
                     src,
-                    exception);
+                    exception,
+                    messageSubstring);
         }
 
         private CastTestSpecBuilder fail(
@@ -2196,10 +2284,25 @@ class CastRulesTest {
                 CastRule.Context castContext,
                 Object src,
                 Class<? extends Throwable> exception) {
+            return fail(dataType, castContext, src, exception, null);
+        }
+
+        private CastTestSpecBuilder fail(
+                DataType dataType,
+                CastRule.Context castContext,
+                Object src,
+                Class<? extends Throwable> exception,
+                String messageSubstring) {
             this.inputTypes.add(dataType);
             this.assertionExecutors.add(
-                    executor ->
-                            assertThatThrownBy(() -> executor.cast(src)).isInstanceOf(exception));
+                    executor -> {
+                        final AbstractThrowableAssert<?, ?> thrown =
+                                assertThatThrownBy(() -> executor.cast(src))
+                                        .isInstanceOf(exception);
+                        if (messageSubstring != null) {
+                            thrown.hasStackTraceContaining(messageSubstring);
+                        }
+                    });
             this.descriptions.add("{" + src + " => " + exception.getName() + "}");
             this.castContexts.add(castContext);
             return this;
