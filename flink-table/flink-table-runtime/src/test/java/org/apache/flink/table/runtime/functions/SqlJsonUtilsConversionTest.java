@@ -374,6 +374,19 @@ class SqlJsonUtilsConversionTest {
             assertThat(scalar(-1, BOOLEAN)).isNull();
             assertThat(scalar(2, BOOLEAN)).isNull();
         }
+
+        @Test
+        void fractionalNumberToBooleanReturnsNull() {
+            assertThat(scalar(1.9, BOOLEAN)).isNull();
+            assertThat(scalar(0.5, BOOLEAN)).isNull();
+            assertThat(scalar(-0.1, BOOLEAN)).isNull();
+        }
+
+        @Test
+        void exactDoubleZeroOneToBooleanConverts() {
+            assertThat(scalar(0.0, BOOLEAN)).isEqualTo(false);
+            assertThat(scalar(1.0, BOOLEAN)).isEqualTo(true);
+        }
     }
 
     @Nested

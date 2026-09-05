@@ -721,6 +721,14 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE('{\"x\": 0}', '$.x' RETURNING BOOLEAN)",
                         false,
                         BOOLEAN())
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 1.9}', '$.x' RETURNING BOOLEAN NULL ON ERROR)",
+                        null,
+                        BOOLEAN())
+                .testSqlResult(
+                        "JSON_VALUE('{\"x\": 2}', '$.x' RETURNING BOOLEAN NULL ON ERROR)",
+                        null,
+                        BOOLEAN())
 
                 // Outer CAST on JSON_VALUE result (boxed-to-primitive codegen)
                 .testSqlResult(
