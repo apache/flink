@@ -37,6 +37,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
@@ -45,6 +46,7 @@ import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
@@ -53,6 +55,7 @@ import javax.annotation.Nullable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.FileAlreadyExistsException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -207,21 +210,17 @@ class NativeS3FileSystem extends FileSystem
 
             final HeadObjectResponse response = s3Client.headObject(request);
             final Long contentLength = response.contentLength();
-
-            // In S3, a successful HeadObject with null/zero contentLength means
-            // this is a directory marker (prefix), not an actual file
-            if (contentLength == null || contentLength == 0) {
-                LOG.debug(
-                        "HeadObject returned null/zero content length, verifying if directory: {}",
-                        key);
-                return getDirectoryStatus(s3Client, key, path);
-            }
-
-            final long size = contentLength;
             final long modificationTime =
                     (response.lastModified() != null)
                             ? response.lastModified().toEpochMilli()
                             : System.currentTimeMillis();
+
+            if (isDirectoryMarkerKey(key)) {
+                LOG.debug("HeadObject resolved directory marker: {}", key);
+                return getDirectoryStatus(s3Client, key, path);
+            }
+
+            final long size = (contentLength != null) ? contentLength : 0L;
 
             LOG.trace(
                     "HeadObject successful for {} - size: {}, lastModified: {}",
@@ -262,6 +261,67 @@ class NativeS3FileSystem extends FileSystem
 
             throw S3ExceptionUtils.toIOException(
                     String.format("Failed to get file status for s3://%s/%s", bucketName, key), e);
+        }
+    }
+
+    /**
+     * Decides whether a key that resolves to an existing S3 object should be treated as a directory
+     * marker rather than a regular file. Only the bucket root ({@code ""}) and keys ending in
+     * {@code "/"} are directory markers; a zero-byte object whose key has no trailing slash is a
+     * genuine empty file.
+     */
+    @VisibleForTesting
+    static boolean isDirectoryMarkerKey(String key) {
+        return key.isEmpty() || key.endsWith("/");
+    }
+
+    /**
+     * Returns the directory-marker key for the parent of {@code key}, or {@code null} when {@code
+     * key} has no parent other than the bucket root. Both {@code "a/b/c"} and {@code "a/b/c/"}
+     * yield {@code "a/b/"}.
+     */
+    @VisibleForTesting
+    @Nullable
+    static String parentDirectoryMarkerKey(String key) {
+        if (key == null || key.isEmpty()) {
+            return null;
+        }
+        final String trimmed = key.endsWith("/") ? key.substring(0, key.length() - 1) : key;
+        final int lastSlash = trimmed.lastIndexOf('/');
+        if (lastSlash < 0) {
+            // top-level object; its parent is the bucket root, which has no marker
+            return null;
+        }
+        return trimmed.substring(0, lastSlash + 1);
+    }
+
+    /**
+     * Best-effort removal of the redundant directory marker for the parent of {@code key}. Once a
+     * real object exists under a prefix, the empty marker created by {@link #mkdirs(Path)} is no
+     * longer needed to keep the directory visible, and leaving it behind causes markers to
+     * accumulate and keeps logically-empty directories "alive" after their contents are removed.
+     * Failures are swallowed because the marker is only bookkeeping and must never fail the
+     * operation that triggered the cleanup.
+     */
+    private void deleteParentDirectoryMarkerQuietly(String key) {
+        final String parentMarker = parentDirectoryMarkerKey(key);
+        if (parentMarker == null) {
+            return;
+        }
+        try {
+            clientProvider
+                    .getS3Client()
+                    .deleteObject(
+                            DeleteObjectRequest.builder()
+                                    .bucket(bucketName)
+                                    .key(parentMarker)
+                                    .build());
+        } catch (S3Exception e) {
+            LOG.debug(
+                    "Could not delete redundant directory marker s3://{}/{}: {}",
+                    bucketName,
+                    parentMarker,
+                    S3ExceptionUtils.errorMessage(e));
         }
     }
 
@@ -397,6 +457,15 @@ class NativeS3FileSystem extends FileSystem
                     delete(file.getPath(), true);
                 }
 
+                if (!key.isEmpty()) {
+                    final String directoryMarkerKey = key.endsWith("/") ? key : key + "/";
+                    s3Client.deleteObject(
+                            DeleteObjectRequest.builder()
+                                    .bucket(bucketName)
+                                    .key(directoryMarkerKey)
+                                    .build());
+                }
+
                 return true;
             }
         } catch (FileNotFoundException e) {
@@ -410,23 +479,65 @@ class NativeS3FileSystem extends FileSystem
      * Creates a directory at the specified path.
      *
      * <p><b>S3 Behavior:</b> S3 is a flat object store and doesn't have true directories. Directory
-     * semantics are simulated through key prefixes. This method always returns true because:
-     *
-     * <ul>
-     *   <li>S3 doesn't require directories to exist before creating objects with that prefix
-     *   <li>Creating an empty "directory marker" object (key ending with /) is optional
-     *   <li>Most S3 implementations don't create these markers for consistency with Hadoop FS
-     * </ul>
-     *
-     * <p>If explicit directory markers are needed, consider using a custom implementation.
-     *
-     * @return always returns true (S3 doesn't require explicit directory creation)
+     * semantics are simulated through key prefixes. An empty directory marker is created so that
+     * the directory remains visible until a child object is written.
      */
     @Override
     public boolean mkdirs(Path path) throws IOException {
         checkNotClosed();
-        LOG.debug("mkdirs called for {} - S3 doesn't require explicit directory creation", path);
-        return true;
+        final String key = NativeS3ObjectOperations.extractKey(path);
+        if (key.isEmpty()) {
+            return true;
+        }
+
+        try {
+            final FileStatus status = getFileStatus(path);
+            if (status.isDir()) {
+                return true;
+            }
+            throw new FileAlreadyExistsException("File already exists: " + path);
+        } catch (FileNotFoundException ignored) {
+            // Create the missing directory below.
+        }
+
+        final String directoryMarkerKey = key.endsWith("/") ? key : key + "/";
+        try {
+            putDirectoryMarker(
+                    clientProvider.getS3Client(),
+                    bucketName,
+                    directoryMarkerKey,
+                    clientProvider.getEncryptionConfig());
+            // The new marker makes any marker for the parent directory redundant.
+            deleteParentDirectoryMarkerQuietly(directoryMarkerKey);
+            return true;
+        } catch (S3Exception e) {
+            throw new IOException("Failed to create directory: " + path, e);
+        }
+    }
+
+    @VisibleForTesting
+    static void putDirectoryMarker(
+            S3Client s3Client,
+            String bucketName,
+            String directoryMarkerKey,
+            S3EncryptionConfig encryptionConfig) {
+        final PutObjectRequest.Builder requestBuilder =
+                PutObjectRequest.builder().bucket(bucketName).key(directoryMarkerKey);
+
+        if (encryptionConfig.isEnabled()) {
+            requestBuilder.serverSideEncryption(encryptionConfig.getServerSideEncryption());
+            if (encryptionConfig.getEncryptionType() == S3EncryptionConfig.EncryptionType.SSE_KMS) {
+                if (encryptionConfig.getKmsKeyId() != null) {
+                    requestBuilder.ssekmsKeyId(encryptionConfig.getKmsKeyId());
+                }
+                if (encryptionConfig.hasEncryptionContext()) {
+                    requestBuilder.ssekmsEncryptionContext(
+                            encryptionConfig.serializeEncryptionContext());
+                }
+            }
+        }
+
+        s3Client.putObject(requestBuilder.build(), RequestBody.empty());
     }
 
     @Override
@@ -447,6 +558,8 @@ class NativeS3FileSystem extends FileSystem
         }
 
         final String key = NativeS3ObjectOperations.extractKey(path);
+        // Writing a real object makes any marker for its parent directory redundant.
+        deleteParentDirectoryMarkerQuietly(key);
         return new NativeS3OutputStream(
                 clientProvider.getS3Client(),
                 bucketName,
