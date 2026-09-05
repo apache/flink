@@ -22,6 +22,7 @@ import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.SensitiveConnection;
+import org.apache.flink.table.operations.DescribeConnectionOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
 
@@ -120,5 +121,31 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
         assertThatThrownBy(() -> parse("CREATE CONNECTION my_conn WITH ()"))
                 .isInstanceOf(SqlValidateException.class)
                 .hasMessageContaining("Connection property list can not be empty.");
+    }
+
+    @Test
+    void testDescribeConnection() {
+        Operation operation = parse("DESCRIBE CONNECTION my_conn");
+        assertThat(operation).isInstanceOf(DescribeConnectionOperation.class);
+        DescribeConnectionOperation op = (DescribeConnectionOperation) operation;
+
+        assertThat(op.getConnectionIdentifier())
+                .isEqualTo(ObjectIdentifier.of("builtin", "default", "my_conn"));
+        assertThat(op.isExtended()).isFalse();
+    }
+
+    @Test
+    void testDescribeConnectionExtended() {
+        Operation operation = parse("DESC CONNECTION EXTENDED my_conn");
+        DescribeConnectionOperation op = (DescribeConnectionOperation) operation;
+        assertThat(op.isExtended()).isTrue();
+    }
+
+    @Test
+    void testDescribeConnectionWithFullyQualifiedName() {
+        Operation operation = parse("DESCRIBE CONNECTION cat1.db1.my_conn");
+        DescribeConnectionOperation op = (DescribeConnectionOperation) operation;
+        assertThat(op.getConnectionIdentifier())
+                .isEqualTo(ObjectIdentifier.of("cat1", "db1", "my_conn"));
     }
 }
