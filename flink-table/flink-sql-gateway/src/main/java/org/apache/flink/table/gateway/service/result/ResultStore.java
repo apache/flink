@@ -134,7 +134,10 @@ public class ResultStore {
                 try {
                     resultLock.wait();
                 } catch (InterruptedException e) {
-                    // ignore
+                    // Restore interrupt status for proper shutdown handling
+                    Thread.currentThread().interrupt();
+                    LOG.debug("Result processing interrupted while waiting for buffer space", e);
+                    return;
                 }
             }
             recordsBuffer.add(row);
@@ -152,7 +155,7 @@ public class ResultStore {
         @Override
         public void run() {
             try {
-                while (isRunning && result.hasNext()) {
+                while (isRunning && !Thread.interrupted() && result.hasNext()) {
                     processRecord(result.next());
                 }
             } catch (RuntimeException e) {
