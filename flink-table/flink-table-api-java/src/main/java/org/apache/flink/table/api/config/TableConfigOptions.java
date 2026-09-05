@@ -185,6 +185,19 @@ public class TableConfigOptions {
                                     + "For example, it prevented using rows in computed columns or join keys. "
                                     + "The new behavior takes the nullability into consideration.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_GROUP_BY_ORDINAL_ENABLED =
+            key("table.group-by-ordinal-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Enables positional references in the 'GROUP BY' clause, where an"
+                                    + " integer literal n refers to the n-th expression in the"
+                                    + " SELECT list. WARNING: this changes the meaning of existing"
+                                    + " queries (today 'GROUP BY 1' groups by the constant 1)."
+                                    + " Disabled by default; intended to flip to true in a future"
+                                    + " release after a customer-notice period.");
+
     // ------------------------------------------------------------------------------------------
     // Options for plan handling
     // ------------------------------------------------------------------------------------------
