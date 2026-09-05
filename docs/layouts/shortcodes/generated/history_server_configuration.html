@@ -39,6 +39,12 @@
             <td>The mode that HistoryServer loads archives.<br /><br />Possible values:<ul><li>"EAGER"</li><li>"LAZY"</li></ul></td>
         </tr>
         <tr>
+            <td><h5>historyserver.archive.retain-remote-beyond-local-limit</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether job archives beyond the limit configured by <code class="highlighter-rouge">historyserver.archive.retained-jobs</code> should still be retained in the remote archive directory defined by <code class="highlighter-rouge">historyserver.archive.fs.dir</code>, instead of being deleted. When enabled, such archives are no longer polled/processed locally, but remain fetchable on demand when <code class="highlighter-rouge">historyserver.archive.load.mode</code> is set to <code class="highlighter-rouge">LAZY</code>. This option has no effect unless <code class="highlighter-rouge">historyserver.archive.retained-jobs</code> is set to a value other than <code class="highlighter-rouge">-1</code>. </td>
+        </tr>
+        <tr>
             <td><h5>historyserver.archive.retained-applications</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>

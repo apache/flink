@@ -291,6 +291,11 @@ public class HistoryServer {
                 config.get(HISTORY_SERVER_LAZY_FETCH_EXECUTOR_COMMON_POOL_SIZE);
         int lazyFetchExecutorIndividualPoolSize =
                 config.get(HISTORY_SERVER_LAZY_FETCH_EXECUTOR_INDIVIDUAL_POOL_SIZE);
+        boolean retainRemoteBeyondLocalLimit =
+                config.get(HistoryServerOptions.HISTORY_SERVER_RETAIN_REMOTE_BEYOND_LOCAL_LIMIT);
+        LOG.info(
+                "Archives beyond the local retention limit will {} in the remote archive directory.",
+                retainRemoteBeyondLocalLimit ? "be retained" : "be deleted");
         archiveFetcher =
                 new HistoryServerArchiveFetcher<>(
                         refreshDirs,
@@ -301,7 +306,8 @@ public class HistoryServer {
                         archiveStorage,
                         archiveMetaInfoCache,
                         lazyFetchExecutorCommonPoolSize,
-                        lazyFetchExecutorIndividualPoolSize);
+                        lazyFetchExecutorIndividualPoolSize,
+                        retainRemoteBeyondLocalLimit);
         applicationArchiveFetcher =
                 new HistoryServerApplicationArchiveFetcher<>(
                         refreshDirs,
