@@ -56,7 +56,7 @@ under the License.
 			-->--add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED <!--
 			-->--add-opens=java.base/java.lang.reflect=ALL-UNNAMED
 		</surefire.module.config>
-		<lombok.version>1.18.42</lombok.version>
+		<lombok.version>1.18.48</lombok.version>
 	</properties>
 
 	<dependencies>
