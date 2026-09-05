@@ -46,7 +46,7 @@ dev = [
   "grpcio>=1.33.1,<2",
   # Apache Beam 2.69 is the last version supporting Python 3.9 and requires grpcio<1.66.
   "grpcio-tools==1.80.0; python_version >= '3.10'",
-  "pemja>=0.5.7,<0.5.8; platform_system != 'Windows'",
+  "pemja>=0.5.7,<0.7; platform_system != 'Windows'",
   "httplib2>=0.19.0",
   "protobuf>=6.31.1,<7.0.0.dev0",
   "pytest~=8.0",
@@ -73,7 +73,7 @@ mypy = [
 
 
 [tool.cibuildwheel]
-build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*"]
+build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]

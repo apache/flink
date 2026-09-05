@@ -19,7 +19,7 @@ set -e -x
 dev/lint-python.sh -s py_env
 
 PY_ENV_DIR=`pwd`/dev/.uv/envs
-py_env=("3.9" "3.10" "3.11" "3.12")
+py_env=("3.9" "3.10" "3.11" "3.12" "3.13")
 ## 2. install dependency
 for ((i=0;i<${#py_env[@]};i++)) do
     source `pwd`/dev/.uv/envs/${py_env[i]}/bin/activate
@@ -31,10 +31,6 @@ done
 ## 3. build wheels
 for ((i=0;i<${#py_env[@]};i++)) do
     echo "Building wheel for environment: ${py_env[i]}"
-    if [[ "$(uname)" != "Darwin" ]]; then
-        # force the linker to use the older glibc version in Linux
-        export CFLAGS="-I. -include dev/glibc_version_fix.h"
-    fi
     ${PY_ENV_DIR}/${py_env[i]}/bin/python setup.py bdist_wheel
 done
 

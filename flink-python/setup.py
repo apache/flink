@@ -327,7 +327,7 @@ try:
                         'numpy>=1.22.4',
                         'pandas>=1.3.0,<2.3',  # FLINK-38513: 2.3+ drops cp39 wheels
                         'pyarrow>=5.0.0,<21.0.0',
-                        'pemja>=0.5.7,<0.5.8;platform_system != "Windows"',
+                        'pemja>=0.5.7,<0.7;platform_system != "Windows"',
                         'httplib2>=0.19.0',
                         'ruamel.yaml>=0.18.4',
                         apache_flink_libraries_dependency]
@@ -357,7 +357,8 @@ try:
             'Programming Language :: Python :: 3.9',
             'Programming Language :: Python :: 3.10',
             'Programming Language :: Python :: 3.11',
-            'Programming Language :: Python :: 3.12'],
+            'Programming Language :: Python :: 3.12',
+            'Programming Language :: Python :: 3.13'],
         ext_modules=extensions
     )
 finally:
