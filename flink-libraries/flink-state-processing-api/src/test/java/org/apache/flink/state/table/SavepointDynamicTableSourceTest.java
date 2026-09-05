@@ -28,6 +28,7 @@ import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,6 +57,8 @@ class SavepointDynamicTableSourceTest {
                     + "  'state.path' = 'src/test/resources/table-state',\n"
                     + "  'operator.uid' = 'keyed-state-process-uid'\n"
                     + ")";
+
+    private static final String TYPED_KEY_STATE_PATH = "src/test/resources/table-state-typed-keys";
 
     @Test
     @SuppressWarnings("unchecked")
@@ -396,6 +399,32 @@ class SavepointDynamicTableSourceTest {
     }
 
     @Test
+    void testOrOfExactAndRangeOnKeyIsNotPushedDownButReturnsCorrectResult() throws Exception {
+        // The planner hands this over intact as or(equals(k, 1), greaterThan(k, 5)), but OR only
+        // merges finite key sets, so a range branch makes the whole disjunction non-pushable.
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k = 1 OR k > 5 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isFalse();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(1L, 6L, 7L, 8L, 9L);
+    }
+
+    @Test
+    void testOrOfTwoRangesOnKeyIsNotPushedDownButReturnsCorrectResult() throws Exception {
+        // Same limitation for "outside a range". This is also the shape the planner produces
+        // when it expands a Sarg, which is why a range combined with <> is not pushed either.
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k < 2 OR k > 7 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isFalse();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(0L, 1L, 8L, 9L);
+    }
+
+    @Test
     void testUnsupportedFilterIsNotPushedDownButReturnsCorrectResult() throws Exception {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
@@ -409,6 +438,171 @@ class SavepointDynamicTableSourceTest {
         List<Long> keys =
                 result.stream().map(r -> (Long) r.getField("k")).collect(Collectors.toList());
         assertThat(keys).containsExactly(0L, 2L, 4L, 6L, 8L);
+    }
+
+    @Test
+    void testFilterPushDownUpperBoundReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k < 3 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(0L, 1L, 2L);
+    }
+
+    @Test
+    void testFilterPushDownStrictLowerBoundReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k > 7 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(8L, 9L);
+    }
+
+    @Test
+    void testFilterPushDownIntersectingRangesReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k >= 3 AND k <= 6 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(3L, 4L, 5L, 6L);
+    }
+
+    @Test
+    void testFilterPushDownComparisonWithLiteralOnLeftSide() throws Exception {
+        // verify that "5 < k" (literal on the left) works the same as "k > 5".
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE 5 < k ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(6L, 7L, 8L, 9L);
+    }
+
+    @Test
+    void testFilterPushDownOnIntKey() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(typedKeyDdl("int_key_table", "int", "int-key-state-op"));
+
+        String sql = "SELECT k FROM int_key_table WHERE k = 5";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectTypedKeys(tEnv, sql)).containsExactly(5);
+
+        String rangeSql = "SELECT k FROM int_key_table WHERE k BETWEEN 3 AND 6 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, rangeSql)).isTrue();
+        assertThat(collectTypedKeys(tEnv, rangeSql)).containsExactly(3, 4, 5, 6);
+    }
+
+    @Test
+    void testFilterPushDownOnDoubleKey() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(typedKeyDdl("double_key_table", "double", "double-key-state-op"));
+
+        String equalitySql = "SELECT k FROM double_key_table WHERE k = 5";
+
+        assertThat(hasPushedDownFilter(tEnv, equalitySql)).isTrue();
+        assertThat(collectTypedKeys(tEnv, equalitySql)).containsExactly(5.0d);
+
+        // Bounds keep their own type, so the INT literals are converted to the key type here.
+        String rangeSql = "SELECT k FROM double_key_table WHERE k BETWEEN 1 AND 3 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, rangeSql)).isTrue();
+        assertThat(collectTypedKeys(tEnv, rangeSql)).containsExactly(1.0d, 2.0d, 3.0d);
+
+        // A BIGINT bound beyond the range where doubles are exact still reaches the filter as a
+        // BIGINT literal, so the conversion happens on our side.
+        String largeBoundSql = "SELECT k FROM double_key_table WHERE k > 9007199254740000";
+
+        assertThat(hasPushedDownFilter(tEnv, largeBoundSql)).isTrue();
+        assertThat(collectTypedKeys(tEnv, largeBoundSql)).containsExactly(9007199254740992.0d);
+
+        // 9007199254740993 is 2^53 + 1, which no double holds. The planner folds the literal to
+        // the nearest double itself, so the row it asks for is the one keyed 2^53, and the pushed
+        // filter agrees with it rather than rounding on its own.
+        String beyondExactRangeSql = "SELECT k FROM double_key_table WHERE k = 9007199254740993";
+
+        assertThat(hasPushedDownFilter(tEnv, beyondExactRangeSql)).isTrue();
+        assertThat(collectTypedKeys(tEnv, beyondExactRangeSql))
+                .containsExactly(9007199254740992.0d);
+    }
+
+    @Test
+    void testFilterPushDownOnSmallintKey() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(typedKeyDdl("smallint_key_table", "smallint", "smallint-key-state-op"));
+
+        // The key column is bare here, but an INT literal is not converted to a SMALLINT key:
+        // only BIGINT and DOUBLE keys take a literal of another numeric type.
+        String sql = "SELECT k FROM smallint_key_table WHERE k BETWEEN 3 AND 6 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isFalse();
+        assertThat(collectTypedKeys(tEnv, sql))
+                .containsExactly((short) 3, (short) 4, (short) 5, (short) 6);
+
+        // The planner rewrites k = 5 into CAST(k AS INT) = 5, leaving no key column to push on.
+        // The predicate stays in the query and still returns the right row.
+        String equalitySql = "SELECT k FROM smallint_key_table WHERE k = 5";
+
+        assertThat(hasPushedDownFilter(tEnv, equalitySql)).isFalse();
+        assertThat(collectTypedKeys(tEnv, equalitySql)).containsExactly((short) 5);
+    }
+
+    @Test
+    void testFilterPushDownOnTinyintKey() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(typedKeyDdl("tinyint_key_table", "tinyint", "tinyint-key-state-op"));
+
+        // As for SMALLINT, an INT literal is not converted to a TINYINT key.
+        String sql = "SELECT k FROM tinyint_key_table WHERE k BETWEEN 3 AND 6 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isFalse();
+        assertThat(collectTypedKeys(tEnv, sql))
+                .containsExactly((byte) 3, (byte) 4, (byte) 5, (byte) 6);
+
+        // As for SMALLINT, k = 5 is rewritten to CAST(k AS INT) = 5 and cannot be pushed.
+        String equalitySql = "SELECT k FROM tinyint_key_table WHERE k = 5";
+
+        assertThat(hasPushedDownFilter(tEnv, equalitySql)).isFalse();
+        assertThat(collectTypedKeys(tEnv, equalitySql)).containsExactly((byte) 5);
+    }
+
+    @Test
+    void testFilterPushDownOnDecimalKey() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(typedKeyDdl("decimal_key_table", "decimal(10, 2)", "decimal-key-state-op"));
+
+        // Literal scale equal to the key scale.
+        String sameScaleSql = "SELECT k FROM decimal_key_table WHERE k = 5.00";
+
+        assertThat(hasPushedDownFilter(tEnv, sameScaleSql)).isTrue();
+        assertThat(collectTypedKeys(tEnv, sameScaleSql)).containsExactly(new BigDecimal("5.00"));
+
+        // Literal scale above the key scale: the planner widens the comparison and casts the key
+        // column, so nothing is pushed and the predicate is evaluated on the read rows instead.
+        String largerScaleSql = "SELECT k FROM decimal_key_table WHERE k = 5.000";
+
+        assertThat(hasPushedDownFilter(tEnv, largerScaleSql)).isFalse();
+        assertThat(collectTypedKeys(tEnv, largerScaleSql)).containsExactly(new BigDecimal("5.00"));
+
+        // A range keeps the key column bare, but an INT bound is not converted to a DECIMAL key,
+        // so this is not pushed either.
+        String rangeSql = "SELECT k FROM decimal_key_table WHERE k BETWEEN 3 AND 6 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, rangeSql)).isFalse();
+        assertThat(collectTypedKeys(tEnv, rangeSql))
+                .containsExactly(
+                        new BigDecimal("3.00"),
+                        new BigDecimal("4.00"),
+                        new BigDecimal("5.00"),
+                        new BigDecimal("6.00"));
     }
 
     // -------------------------------------------------------------------------
@@ -503,6 +697,41 @@ class SavepointDynamicTableSourceTest {
     //  Helpers
     // -------------------------------------------------------------------------
 
+    private static List<Object> collectTypedKeys(StreamTableEnvironment tEnv, String sql)
+            throws Exception {
+        return tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100).stream()
+                .map(r -> r.getField("k"))
+                .collect(Collectors.toList());
+    }
+
+    private static String typedKeyDdl(String table, String keyType, String uid) {
+        return "CREATE TABLE "
+                + table
+                + " (\n"
+                + "  k "
+                + keyType
+                + ",\n"
+                + "  v bigint,\n"
+                + "  PRIMARY KEY (k) NOT ENFORCED\n"
+                + ")\n"
+                + "with (\n"
+                + "  'connector' = 'savepoint',\n"
+                + "  'state.path' = '"
+                + TYPED_KEY_STATE_PATH
+                + "',\n"
+                + "  'operator.uid' = '"
+                + uid
+                + "'\n"
+                + ")";
+    }
+
+    private static List<Long> collectKeys(StreamTableEnvironment tEnv, String sql)
+            throws Exception {
+        return tEnv.toDataStream(tEnv.sqlQuery(sql)).executeAndCollect(100).stream()
+                .map(r -> (Long) r.getField("k"))
+                .collect(Collectors.toList());
+    }
+
     private static StreamTableEnvironment createBatchTableEnv() {
         Configuration config = new Configuration();
         config.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
@@ -512,7 +741,8 @@ class SavepointDynamicTableSourceTest {
 
     private static final Pattern PUSHED_DOWN_FILTER =
             Pattern.compile(
-                    "TableSourceScan\\(table=\\[\\[default_catalog, default_database, state_table, filter=\\[[^\\]]+\\]");
+                    "TableSourceScan\\(table=\\[\\[default_catalog, default_database, \\w+,"
+                            + " filter=\\[[^\\]]+\\]");
 
     private static boolean hasPushedDownFilter(StreamTableEnvironment tEnv, String sql) {
         return PUSHED_DOWN_FILTER.matcher(tEnv.explainSql(sql)).find();

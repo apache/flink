@@ -219,7 +219,8 @@ abstract class SavepointReaderKeyedStateITCase<B extends StateBackend> extends S
 
         SavepointReader savepoint = SavepointReader.read(env, savepointPath, backendTuple.f1);
         CountingReadResult result =
-                readKeyedStateWithCountingReader(savepoint, SavepointKeyFilter.empty());
+                readKeyedStateWithCountingReader(
+                        savepoint, SavepointKeyFilter.exact(Collections.emptySet()));
         // No key reaches the reader, so no state is read.
         assertThat(result.values).isEmpty();
         assertThat(result.counter).isZero();
