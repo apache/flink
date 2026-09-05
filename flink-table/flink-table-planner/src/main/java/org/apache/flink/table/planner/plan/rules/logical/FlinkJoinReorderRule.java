@@ -23,12 +23,9 @@ import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
-import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.rules.LoptOptimizeJoinRule;
 import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.rel.rules.TransformationRule;
-import org.apache.calcite.tools.RelBuilder;
-import org.apache.calcite.tools.RelBuilderFactory;
 import org.immutables.value.Value;
 
 /**
@@ -57,22 +54,6 @@ public class FlinkJoinReorderRule extends RelRule<FlinkJoinReorderRule.Config>
     /** Creates a FlinkJoinReorderRule. */
     protected FlinkJoinReorderRule(FlinkJoinReorderRule.Config config) {
         super(config);
-    }
-
-    @Deprecated // to be removed before 2.0
-    public FlinkJoinReorderRule(RelBuilderFactory relBuilderFactory) {
-        this(
-                FlinkJoinReorderRule.Config.DEFAULT
-                        .withRelBuilderFactory(relBuilderFactory)
-                        .as(FlinkJoinReorderRule.Config.class));
-    }
-
-    @Deprecated // to be removed before 2.0
-    public FlinkJoinReorderRule(
-            RelFactories.JoinFactory joinFactory,
-            RelFactories.ProjectFactory projectFactory,
-            RelFactories.FilterFactory filterFactory) {
-        this(RelBuilder.proto(joinFactory, projectFactory, filterFactory));
     }
 
     @Override
