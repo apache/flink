@@ -187,7 +187,9 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         this.finishedOnRestoreInput =
                 this.isTaskDeployedAsFinished()
                         ? new FinishedOnRestoreInput(
-                                streamOutputs, configuration.getInputs(userCodeClassloader).length)
+                                streamOutputs,
+                                configuration.getInputs(userCodeClassloader).length,
+                                containingTask.getName())
                         : null;
 
         // from here on, we need to make sure that the output writers are shut down again on failure
