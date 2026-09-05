@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
@@ -109,7 +110,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                 false,
                 null,
                 MemoryManager.DEFAULT_PAGE_SIZE,
-                null);
+                null,
+                new CloseableRegistry());
     }
 
     private AbstractInputChannelRecoveredStateHandler buildMultiChannelHandler() {
@@ -139,7 +141,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                 false,
                 null,
                 MemoryManager.DEFAULT_PAGE_SIZE,
-                null);
+                null,
+                new CloseableRegistry());
     }
 
     /** Builds a handler in filtering mode (non-null filtering handler, no-op stub). */
@@ -167,7 +170,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                         true,
                         stubFilteringHandler,
                         MemoryManager.DEFAULT_PAGE_SIZE,
-                        new String[] {tmpDir.toAbsolutePath().toString()});
+                        new String[] {tmpDir.toAbsolutePath().toString()},
+                        new CloseableRegistry());
     }
 
     private AbstractInputChannelRecoveredStateHandler buildSpillingNoFilteringHandler(
@@ -189,7 +193,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                 true,
                 null,
                 MemoryManager.DEFAULT_PAGE_SIZE,
-                spillTmpDirectories);
+                spillTmpDirectories,
+                new CloseableRegistry());
     }
 
     @Test
@@ -482,7 +487,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                             true,
                             filteringHandler,
                             MemoryManager.DEFAULT_PAGE_SIZE,
-                            new String[] {spillDir.toString()});
+                            new String[] {spillDir.toString()},
+                            new CloseableRegistry());
         }
 
         NoSpillingHandler newFilterOffHandler() {
@@ -493,7 +499,8 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                             false,
                             null,
                             MemoryManager.DEFAULT_PAGE_SIZE,
-                            null);
+                            null,
+                            new CloseableRegistry());
         }
 
         ChannelStateFilteringHandler newPassThroughFilteringHandler() {

@@ -18,8 +18,12 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -40,6 +44,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.testutils.EmptyStreamStateHandle;
 import org.apache.flink.streaming.runtime.io.recovery.RecordFilterContext;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
@@ -51,10 +56,13 @@ import org.apache.flink.shaded.guava33.com.google.common.io.Closer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -65,6 +73,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
@@ -73,6 +82,8 @@ import static java.util.stream.IntStream.range;
 import static org.apache.flink.runtime.state.ChannelStateHelper.castToInputStateCollection;
 import static org.apache.flink.runtime.state.ChannelStateHelper.castToOutputStateCollection;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /** {@link SequentialChannelStateReaderImpl} Test. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -106,6 +117,8 @@ public class SequentialChannelStateReaderImplTest {
 
     @Parameter(value = 5)
     public int bufferSize;
+
+    @TempDir Path tempDir;
 
     private ChannelStateSerializer serializer;
     private Random random;
@@ -144,7 +157,9 @@ public class SequentialChannelStateReaderImplTest {
 
         withInputGates(
                 gates -> {
-                    reader.readInputData(gates, RecordFilterContext.disabled());
+                    try (CloseableRegistry cancelables = new CloseableRegistry()) {
+                        reader.readInputData(gates, RecordFilterContext.disabled(), cancelables);
+                    }
                     // Mirror the production legacy path (StreamTask#readInputChannelState): the
                     // EndOfInputChannelStateEvent sentinel that completes stateConsumedFuture is
                     // enqueued by finishReadRecoveredState(), not by readInputData() itself.
@@ -154,6 +169,97 @@ public class SequentialChannelStateReaderImplTest {
                     assertBuffersEquals(inputChannelsData, collectBuffers(gates));
                     assertConsumed(gates);
                 });
+    }
+
+    @TestTemplate
+    void testReadInputDataDeletesSpillFilesOnAbort() throws Exception {
+        // Needs real input-channel state so the spilling path actually writes >=1 file before it
+        // aborts; the empty-state parameter combinations spill nothing and have nothing to assert.
+        assumeTrue(stateParLevel > 0 && parLevel > 0);
+
+        Map<InputChannelInfo, List<byte[]>> inputChannelsData =
+                generateState(InputChannelInfo::new);
+
+        // read#1 (input channel state) is valid and spills; read#2 (upstream output buffer state)
+        // opens a delegate that fails, so readInputData aborts after >=1 spill file was written.
+        List<InputChannelStateHandle> validInputState =
+                writePermuted(inputChannelsData, Collections.emptyMap()).f0;
+        InputChannelStateHandle failingUpstreamState =
+                new InputChannelStateHandle(
+                        new InputChannelInfo(0, 0),
+                        new FailingStreamStateHandle(),
+                        Collections.singletonList(0L));
+        TaskStateSnapshot snapshot =
+                new TaskStateSnapshot(
+                        Collections.singletonMap(
+                                new OperatorID(),
+                                OperatorSubtaskState.builder()
+                                        .setInputChannelState(
+                                                castToInputStateCollection(validInputState))
+                                        .setUpstreamOutputBufferState(
+                                                new StateObjectCollection<>(
+                                                        Collections.singletonList(
+                                                                failingUpstreamState)))
+                                        .build()));
+
+        SequentialChannelStateReader reader = new SequentialChannelStateReaderImpl(snapshot);
+        // Empty inputConfigs -> no filtering handler -> the plain SpillingNoFilteringHandler path.
+        RecordFilterContext spillingContext =
+                new RecordFilterContext(
+                        new RecordFilterContext.InputFilterConfig[0],
+                        InflightDataRescalingDescriptor.NO_RESCALE,
+                        0,
+                        parLevel,
+                        new String[] {tempDir.toString()},
+                        true,
+                        bufferSize);
+
+        CloseableRegistry cancelables = new CloseableRegistry();
+        withInputGates(
+                gates -> {
+                    assertThatThrownBy(
+                                    () -> reader.readInputData(gates, spillingContext, cancelables))
+                            .isInstanceOf(IOException.class);
+
+                    // Spilling happened and the files are registered with cancelables, not deleted
+                    // inline.
+                    assertThat(listSpillDirs(tempDir)).isNotEmpty();
+                    assertThat(listSpillFiles(tempDir)).isNotEmpty();
+
+                    // Closing cancelables (task cleanup) deletes the whole spill directory.
+                    cancelables.close();
+                    assertThat(listSpillFiles(tempDir)).isEmpty();
+                    assertThat(listSpillDirs(tempDir)).isEmpty();
+                });
+    }
+
+    /**
+     * A stream state handle whose input stream cannot be opened, used to abort a channel-state read
+     * mid-recovery. A named (non-anonymous) class so it does not trip {@code
+     * StateHandleSerializationTest}, which forbids anonymous {@code StateObject} subclasses.
+     */
+    private static final class FailingStreamStateHandle extends EmptyStreamStateHandle {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public FSDataInputStream openInputStream() throws IOException {
+            throw new IOException("injected channel-state read failure");
+        }
+    }
+
+    private static List<Path> listSpillDirs(Path root) throws IOException {
+        try (Stream<Path> entries = Files.list(root)) {
+            return entries.filter(Files::isDirectory)
+                    .filter(p -> p.getFileName().toString().startsWith("flink-channel-spill-"))
+                    .collect(toList());
+        }
+    }
+
+    private static List<Path> listSpillFiles(Path root) throws IOException {
+        try (Stream<Path> entries = Files.walk(root)) {
+            return entries.filter(p -> p.getFileName().toString().endsWith(".bin"))
+                    .collect(toList());
+        }
     }
 
     private Map<ResultSubpartitionInfo, List<Buffer>> collectBuffers(

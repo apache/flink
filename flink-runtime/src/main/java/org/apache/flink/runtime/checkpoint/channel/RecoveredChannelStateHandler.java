@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.OffsetAwareOutputStream;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.MemorySegment;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel;
+import org.apache.flink.util.FileUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -123,19 +125,22 @@ abstract class AbstractInputChannelRecoveredStateHandler
             boolean checkpointingDuringRecoveryEnabled,
             @Nullable ChannelStateFilteringHandler filteringHandler,
             int memorySegmentSize,
-            String[] spillTmpDirectories) {
+            String[] spillTmpDirectories,
+            CloseableRegistry cancelables) {
         if (!checkpointingDuringRecoveryEnabled) {
             return new NoSpillingHandler(inputGates, channelMapping);
         }
         if (filteringHandler == null) {
-            return new SpillingNoFilteringHandler(inputGates, channelMapping, spillTmpDirectories);
+            return new SpillingNoFilteringHandler(
+                    inputGates, channelMapping, spillTmpDirectories, cancelables);
         }
         return new SpillingWithFilteringHandler(
                 inputGates,
                 channelMapping,
                 filteringHandler,
                 memorySegmentSize,
-                spillTmpDirectories);
+                spillTmpDirectories,
+                cancelables);
     }
 
     /** Default buffer allocation from the network buffer pool, used by non-filtering modes. */
@@ -299,12 +304,20 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
 
     @Nullable private FetchedChannelState producedChannelState;
 
+    /**
+     * Deletes the spill directory on an abort before drain() releases the files; registered lazily.
+     */
+    private final CloseableRegistry cancelables;
+
+    private boolean spillCleanupRegistered;
+
     AbstractSpillingHandler(
             InputGate[] inputGates,
             InflightDataRescalingDescriptor channelMapping,
             String[] spillTmpDirectories,
             long maxFileSizeBytes,
-            int maxSegmentSizeBytes) {
+            int maxSegmentSizeBytes,
+            CloseableRegistry cancelables) {
         super(inputGates, channelMapping);
         checkArgument(
                 checkNotNull(spillTmpDirectories).length > 0,
@@ -320,6 +333,7 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
         this.maxSegmentSizeBytes = maxSegmentSizeBytes;
         this.baseDir =
                 Paths.get(spillTmpDirectories[0], "flink-channel-spill-" + UUID.randomUUID());
+        this.cancelables = checkNotNull(cancelables);
     }
 
     /**
@@ -384,6 +398,12 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
         if (currentStream != null) {
             return;
         }
+        if (!spillCleanupRegistered) {
+            // Best-effort delete of the whole spill dir on an abort before drain() releases the
+            // files; deleting the dir (not the files list) avoids racing this recovery thread.
+            cancelables.registerCloseable(() -> FileUtils.deleteDirectoryQuietly(baseDir.toFile()));
+            spillCleanupRegistered = true;
+        }
         // create the spill dir on the first file; no-op afterwards
         Files.createDirectories(baseDir);
         Path filePath = baseDir.resolve("spill-segment-" + files.size() + ".bin");
@@ -445,13 +465,15 @@ class SpillingNoFilteringHandler extends AbstractSpillingHandler {
     SpillingNoFilteringHandler(
             InputGate[] inputGates,
             InflightDataRescalingDescriptor channelMapping,
-            String[] spillTmpDirectories) {
+            String[] spillTmpDirectories,
+            CloseableRegistry cancelables) {
         super(
                 inputGates,
                 channelMapping,
                 spillTmpDirectories,
                 DEFAULT_SPILL_FILE_SIZE_BYTES,
-                DEFAULT_MAX_SEGMENT_SIZE_BYTES);
+                DEFAULT_MAX_SEGMENT_SIZE_BYTES,
+                cancelables);
     }
 
     @Override
@@ -519,13 +541,15 @@ class SpillingWithFilteringHandler extends AbstractSpillingHandler {
             InflightDataRescalingDescriptor channelMapping,
             ChannelStateFilteringHandler filteringHandler,
             int memorySegmentSize,
-            String[] spillTmpDirectories) {
+            String[] spillTmpDirectories,
+            CloseableRegistry cancelables) {
         super(
                 inputGates,
                 channelMapping,
                 spillTmpDirectories,
                 DEFAULT_SPILL_FILE_SIZE_BYTES,
-                DEFAULT_MAX_SEGMENT_SIZE_BYTES);
+                DEFAULT_MAX_SEGMENT_SIZE_BYTES,
+                cancelables);
         this.filteringHandler = filteringHandler;
         checkArgument(
                 memorySegmentSize > 0, "memorySegmentSize must be positive: %s", memorySegmentSize);
