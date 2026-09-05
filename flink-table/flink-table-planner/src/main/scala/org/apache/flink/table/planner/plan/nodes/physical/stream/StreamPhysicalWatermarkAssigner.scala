@@ -71,6 +71,16 @@ class StreamPhysicalWatermarkAssigner(
           pw.getDetailLevel))
   }
 
+  override def withHints(hintList: util.List[RelHint]): RelNode = {
+    new StreamPhysicalWatermarkAssigner(
+      cluster,
+      traitSet,
+      input,
+      hintList,
+      rowtimeFieldIndex,
+      watermarkExpr)
+  }
+
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecWatermarkAssigner(
       unwrapTableConfig(this),
@@ -79,15 +89,5 @@ class StreamPhysicalWatermarkAssigner(
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
-  }
-
-  override def withHints(hintList: util.List[RelHint]): RelNode = {
-    new StreamPhysicalWatermarkAssigner(
-      cluster,
-      traitSet,
-      input,
-      hints,
-      rowtimeFieldIndex,
-      WatermarkUtils.simplify(cluster, watermarkExpr))
   }
 }

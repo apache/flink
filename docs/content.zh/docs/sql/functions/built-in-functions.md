@@ -197,6 +197,140 @@ Plural works for SQL only.
 
 {{< top >}}
 
+表函数
+---------------------------------------
+
+表函数接受零个、一个或多个标量值或表作为输入参数,并返回一个或多个行(结构化类型)作为结果。
+
+### APPLY_WATERMARK
+
+**语法:**
+
+```sql
+APPLY_WATERMARK(
+    表表达式,
+    DESCRIPTOR(时间字段名),
+    水印表达式
+)
+```
+
+**描述:**
+
+`APPLY_WATERMARK` 是一个内置表函数,用于在表、视图和子查询上灵活地分配水印。它允许用户在不修改目录表 DDL 定义的情况下分配或覆盖水印。
+
+**参数:**
+
+- `表表达式`: 需要分配水印的表引用、视图或子查询。
+- `DESCRIPTOR(时间字段名)`: 时间字段的名称(必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型)。
+- `水印表达式`: 基于时间字段生成水印值的表达式(必须返回 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型)。
+
+**返回类型:**
+
+返回一个与输入表相同 schema 的表,但在指定的时间字段上分配了水印。
+
+**行为:**
+
+- **验证**: 函数会验证时间字段是否存在、类型是否为 `TIMESTAMP` 或 `TIMESTAMP_LTZ`,以及水印表达式是否返回有效的时间戳类型。
+- **水印覆盖**: 如果输入表的 DDL 中已经定义了水印,`APPLY_WATERMARK` 将使用新的水印策略覆盖它。
+- **编译时检查**: 所有验证都在查询编译时进行,确保尽早发现错误。
+
+**使用场景:**
+
+1. **为目录表分配水印** - 当你没有权限修改目录表定义时很有用:
+
+```sql
+SELECT * FROM APPLY_WATERMARK(
+    catalog_table,
+    DESCRIPTOR(event_time),
+    event_time - INTERVAL '5' SECOND
+);
+```
+
+2. **覆盖视图上的水印** - 在不修改视图定义的情况下应用不同的水印策略:
+
+```sql
+CREATE VIEW recent_orders AS
+  SELECT * FROM orders
+  WHERE order_time > CURRENT_TIMESTAMP - INTERVAL '1' DAY;
+
+SELECT * FROM APPLY_WATERMARK(
+    recent_orders,
+    DESCRIPTOR(order_time),
+    order_time - INTERVAL '10' SECOND
+);
+```
+
+3. **为子查询分配水印** - 为经过过滤或转换的数据分配水印:
+
+```sql
+SELECT * FROM APPLY_WATERMARK(
+    (SELECT * FROM orders WHERE amount > 100),
+    DESCRIPTOR(order_time),
+    order_time - INTERVAL '3' SECOND
+);
+```
+
+4. **动态水印策略** - 根据运行时条件调整水印延迟:
+
+```sql
+SELECT * FROM APPLY_WATERMARK(
+    orders,
+    DESCRIPTOR(order_time),
+    CASE
+        WHEN order_source = 'mobile' THEN order_time - INTERVAL '15' SECOND
+        WHEN order_source = 'web' THEN order_time - INTERVAL '5' SECOND
+        ELSE order_time - INTERVAL '10' SECOND
+    END
+);
+```
+
+**窗口聚合示例:**
+
+```sql
+-- DDL 中没有水印的表
+CREATE TABLE events (
+    id INT,
+    event_time TIMESTAMP(3),
+    data STRING
+);
+
+-- 带水印和窗口的查询
+SELECT
+    TUMBLE_START(event_time, INTERVAL '1' MINUTE) AS window_start,
+    COUNT(*) AS cnt
+FROM APPLY_WATERMARK(
+    events,
+    DESCRIPTOR(event_time),
+    event_time - INTERVAL '5' SECOND
+)
+GROUP BY TUMBLE(event_time, INTERVAL '1' MINUTE);
+```
+
+**与 DDL 水印的对比:**
+
+| 特性 | DDL 水印 | `APPLY_WATERMARK` |
+|------|----------|-------------------|
+| **定义位置** | 表 DDL | 查询 |
+| **灵活性** | 每个表静态 | 每个查询动态 |
+| **所需权限** | 目录写权限 | 无 |
+| **适用范围** | 仅基表 | 表、视图、子查询 |
+| **覆盖能力** | 否 | 是 |
+
+**限制:**
+
+- 时间字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型。
+- 水印表达式必须返回 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型。
+- 必须使用 `DESCRIPTOR` 关键字指定列名。
+- 不支持嵌套的 `APPLY_WATERMARK` 调用。
+
+**另请参阅:**
+
+- [CREATE TABLE 与水印]({{< ref "docs/sql/reference/ddl/create" >}}#watermark)
+- [时间和水印]({{< ref "docs/concepts/time" >}})
+- [窗口聚合]({{< ref "docs/sql/reference/queries/window-agg" >}})
+
+{{< top >}}
+
 列函数
 ---------------------------------------
 

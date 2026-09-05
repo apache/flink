@@ -137,6 +137,9 @@ object FlinkBatchRuleSets {
         UncollectToTableFunctionScanRule.INSTANCE,
         // vector search rule.
         ConstantVectorSearchCallToCorrelateRule.INSTANCE,
+        // APPLY_WATERMARK rewrite (no-op at runtime in batch but kept consistent so that
+        // identical SQL is accepted by both batch and stream planners).
+        LogicalApplyWatermarkRule.INSTANCE,
         // Wrap arguments for JSON aggregate functions
         WrapJsonAggFunctionArgumentsRule.AGGREGATE_INSTANCE,
         WrapJsonAggFunctionArgumentsRule.WINDOW_AGGREGATE_INSTANCE,

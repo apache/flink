@@ -136,6 +136,10 @@ object FlinkStreamRuleSets {
           UncollectToTableFunctionScanRule.INSTANCE,
           // vector search rule.
           ConstantVectorSearchCallToCorrelateRule.INSTANCE,
+          // APPLY_WATERMARK TVF rewrite — must run before JoinTableFunctionScanToCorrelateRule
+          // so that LogicalTableFunctionScan(APPLY_WATERMARK) is rewritten to a watermark
+          // assigner instead of being converted to a correlate.
+          LogicalApplyWatermarkRule.INSTANCE,
           // rewrite constant table function scan to correlate
           JoinTableFunctionScanToCorrelateRule.INSTANCE,
           // Wrap arguments for JSON aggregate functions
