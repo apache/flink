@@ -254,6 +254,8 @@ public class HybridSourceReader<T> implements SourceReader<T, HybridSourceSplit>
     @Override
     public void pauseOrResumeSplits(
             Collection<String> splitsToPause, Collection<String> splitsToResume) {
-        currentReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
+        if (currentReader != null) {
+            currentReader.pauseOrResumeSplits(splitsToPause, splitsToResume);
+        }
     }
 }
