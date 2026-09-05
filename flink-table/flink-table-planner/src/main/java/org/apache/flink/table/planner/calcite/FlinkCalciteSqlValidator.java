@@ -34,7 +34,9 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.SystemTypeInference;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.logical.DecimalType;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -470,8 +472,11 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
      */
     private static void checkDisabledSystemArgs(SqlBasicCall call) {
         final SqlOperator operator = call.getOperator();
-        if (!(operator instanceof BridgingSqlFunction)
-                || !((BridgingSqlFunction) operator).getTypeInference().disableSystemArguments()) {
+        if (!(operator instanceof BridgingSqlFunction)) {
+            return;
+        }
+        final TypeInference typeInference = ((BridgingSqlFunction) operator).getTypeInference();
+        if (!typeInference.disableSystemArguments()) {
             return;
         }
         final Set<String> suppliedArgNames = new HashSet<>();
@@ -483,7 +488,14 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
                 }
             }
         }
-        SystemTypeInference.checkNoSystemArguments(true, suppliedArgNames, operator.getName());
+        // A function that disabled the automatic system arguments may still declare an argument
+        // with a reserved name (e.g. SNAPSHOT declares `on_time`); such declared names are allowed.
+        final Set<String> declaredArgNames =
+                typeInference.getStaticArguments().orElse(List.of()).stream()
+                        .map(StaticArgument::getName)
+                        .collect(Collectors.toSet());
+        SystemTypeInference.checkNoSystemArguments(
+                true, suppliedArgNames, declaredArgNames, operator.getName());
     }
 
     @Override

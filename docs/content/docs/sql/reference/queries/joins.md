@@ -328,7 +328,7 @@ For example, the following query enriches an append-only stream of `orders` (the
 
 SELECT o.order_id, o.currency, o.amount, r.rate
 FROM orders AS o
-JOIN LATERAL SNAPSHOT(input => TABLE currency_rates) AS r
+JOIN LATERAL SNAPSHOT(input => TABLE currency_rates, on_time => DESCRIPTOR(update_time)) AS r
 ON o.currency = r.currency;
 
 order_id  currency  amount  rate
@@ -377,6 +377,7 @@ SELECT [column_list]
 FROM probe_table
 [LEFT] JOIN LATERAL SNAPSHOT(
     input                        => TABLE build_table,
+    [ on_time                    => DESCRIPTOR(<rowtime_column>), ]
     [ load_completed_condition   => <'compile_time' | 'user_time'>, ]
     [ load_completed_time        => <timestamp_ltz>, ]
     [ load_completed_idle_timeout => <interval>, ]
@@ -386,15 +387,16 @@ ON probe_table.col = s.col
 
 The `SNAPSHOT` function accepts the following arguments:
 
-| Argument | Type | Required | Description                                                                                                                                                                                                                                                                                                                                                 |
-| --- | --- | --- |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `input` | TABLE | yes | The build-side table. It may use any [changelog mode]({{< ref "docs/sql/reference/queries/changelog" >}}) (inserts, updates, and deletes). In streaming mode it must declare a [watermark]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#event-time).                                                                                      |
-| `load_completed_condition` | STRING | no | Determines when the initial load phase completes. One of `'compile_time'` (default) or `'user_time'`. With `'compile_time'`, the load phase completes once the build-side watermark reaches the wall-clock time at which the query was compiled. With `'user_time'`, it completes once the build-side watermark reaches the explicit `load_completed_time`. |
-| `load_completed_time` | TIMESTAMP_LTZ(3) | no | The build-side event time that completes the load phase. Required when `load_completed_condition` is `'user_time'` and must not be set otherwise.                                                                                                                                                                                                           |
-| `load_completed_idle_timeout` | INTERVAL | no | A processing-time fallback to complete the load phase. The transition to the join phase happens when the build-side watermark does not advance for more than the configured interval.                                                                                                                                                                           |
-| `state_ttl` | INTERVAL | no | Retention time for build-side state. Join keys that are not accessed within this duration become eligible for eviction. Only applied during the join phase. Defaults to the pipeline's [state TTL]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl).                                                                                               |
+| Argument | Type | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --- | --- | --- |-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `input` | TABLE | yes | The build-side table. It may use any [changelog mode]({{< ref "docs/sql/reference/queries/changelog" >}}) (inserts, updates, and deletes).                                                                                                                                                                                                                                                                                                    |
+| `on_time` | DESCRIPTOR | no | Declares a build-side rowtime column that defines the order in which the build-side changes are applied. The referenced column must exist in `input` and be a `TIMESTAMP` or `TIMESTAMP_LTZ` column (up to precision 3) that is declared as a [watermarked rowtime attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#event-time). The argument is **required for streaming queries**. |
+| `load_completed_condition` | STRING | no | Determines when the initial load phase completes. One of `'compile_time'` (default) or `'user_time'`. With `'compile_time'`, the load phase completes once the build-side watermark reaches the wall-clock time at which the query was compiled. With `'user_time'`, it completes once the build-side watermark reaches the explicit `load_completed_time`.                                                                                   |
+| `load_completed_time` | TIMESTAMP_LTZ(3) | no | The build-side event time that completes the load phase. Required when `load_completed_condition` is `'user_time'` and must not be set otherwise.                                                                                                                                                                                                                                                                                             |
+| `load_completed_idle_timeout` | INTERVAL | no | A processing-time fallback to complete the load phase. The transition to the join phase happens when the build-side watermark does not advance for more than the configured interval.                                                                                                                                                                                                                                                         |
+| `state_ttl` | INTERVAL | no | Retention time for build-side state. Join keys that are not accessed within this duration become eligible for eviction. Only applied during the join phase. Defaults to the pipeline's [state TTL]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl).                                                                                                                                                                                 |
 
-`load_completed_condition`, `load_completed_time`, `load_completed_idle_timeout`, and `state_ttl` only affect streaming execution and are ignored in batch mode (see **Batch mode** below).
+`on_time`, `load_completed_condition`, `load_completed_time`, `load_completed_idle_timeout`, and `state_ttl` only affect streaming execution and are ignored in batch mode (see **Batch mode** below).
 
 **Result and state characteristics**
 
@@ -406,7 +408,7 @@ The build-side state grows with the number of distinct build-side keys, and duri
 
 **Batch mode**
 
-In batch mode, a `LATERAL SNAPSHOT` join is executed as a regular (`INNER` or `LEFT`) join between the probe side and the complete build side. Batch execution reads the entire build side before joining, so there is no load phase and no incremental state build-up. The streaming-specific arguments (`load_completed_condition`, `load_completed_time`, `load_completed_idle_timeout`, and `state_ttl`) are accepted but have no effect, and the build side does not need to declare a watermark.
+In batch mode, a `LATERAL SNAPSHOT` join is executed as a regular (`INNER` or `LEFT`) join between the probe side and the complete build side. Batch execution reads the entire build side before joining, so there is no load phase and no incremental state build-up. The streaming-specific arguments (`on_time`, `load_completed_condition`, `load_completed_time`, `load_completed_idle_timeout`, and `state_ttl`) are accepted but have no effect, and the build side does not need to declare a watermark or provide a `on_time`.
 
 Because every probe-side row is joined against the final, complete build side, the batch result is **deterministic**.
 
