@@ -521,9 +521,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BYTES(), DEFAULT_UUID_BYTES, DEFAULT_UUID)
                         .fromCase(STRING(), null, null)
                         .build(),
-                // A numeric source is rejected during validation.
+                // A numeric source, and a fixed BINARY of a width other than 16, are rejected
+                // during validation rather than at runtime.
                 CastTestSpecBuilder.testCastTo(UUID())
                         .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BINARY(10), new byte[10])
                         .build(),
                 // A malformed string or a binary value of the wrong length fails CAST at runtime
                 // and yields NULL for TRY_CAST.

@@ -22,6 +22,8 @@ import org.apache.flink.table.runtime.functions.UuidCastUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.UuidType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
@@ -29,8 +31,10 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.sta
  * {@link LogicalTypeFamily#BINARY_STRING} to {@link LogicalTypeRoot#UUID} cast rule, the inverse of
  * {@link UuidToBinaryCastRule}.
  *
- * <p>Reinterprets the bytes as a UUID via {@link UuidCastUtils#fromBytes(byte[])}, which requires
- * exactly 16 bytes. A different length fails {@code CAST}; since the rule {@link #canFail}, the
+ * <p>Reinterprets the bytes as a UUID via {@link UuidCastUtils#fromBytes(byte[])}. Supported inputs
+ * are {@code BINARY(16)} and any {@code VARBINARY(n)} with {@code n >= 16} (including {@code
+ * BYTES}); a fixed {@code BINARY} of another width is rejected during validation. A variable-width
+ * value that is not exactly 16 bytes fails {@code CAST}; since the rule {@link #canFail}, the
  * framework wraps the call in a {@code try/catch} that yields {@code null} for {@code TRY_CAST}.
  * Example generated code:
  *
@@ -45,9 +49,20 @@ class BinaryToUuidCastRule extends AbstractExpressionCodeGeneratorCastRule<byte[
     private BinaryToUuidCastRule() {
         super(
                 CastRulePredicate.builder()
-                        .input(LogicalTypeFamily.BINARY_STRING)
-                        .target(LogicalTypeRoot.UUID)
+                        .predicate(
+                                (input, target) ->
+                                        isSupportedInput(input) && target.is(LogicalTypeRoot.UUID))
                         .build());
+    }
+
+    private static boolean isSupportedInput(LogicalType input) {
+        if (input.is(LogicalTypeRoot.BINARY)) {
+            return LogicalTypeChecks.getLength(input) == UuidType.BYTE_LENGTH;
+        }
+        if (input.is(LogicalTypeRoot.VARBINARY)) {
+            return LogicalTypeChecks.getLength(input) >= UuidType.BYTE_LENGTH;
+        }
+        return false;
     }
 
     @Override

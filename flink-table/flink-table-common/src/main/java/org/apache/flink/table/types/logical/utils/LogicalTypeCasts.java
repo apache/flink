@@ -698,15 +698,11 @@ public final class LogicalTypeCasts {
             // BITMAP can only be cast to BYTES (unbounded VARBINARY), because trimming or padding
             // would corrupt the serialized bitmap data.
             return allowExplicit && getLength(targetType) == VarBinaryType.MAX_LENGTH;
-        } else if (sourceRoot == UUID && targetRoot == BINARY) {
-            // A UUID is exactly BYTE_LENGTH bytes. BINARY is fixed width, so only
-            // BINARY(BYTE_LENGTH)
-            // holds it without padding or trimming.
-            return allowExplicit && getLength(targetType) == UuidType.BYTE_LENGTH;
-        } else if (sourceRoot == UUID && targetRoot == VARBINARY) {
-            // VARBINARY is variable width, so any VARBINARY(n) with n >= BYTE_LENGTH, up to BYTES,
-            // holds the bytes without trimming.
-            return allowExplicit && getLength(targetType) >= UuidType.BYTE_LENGTH;
+        } else if (sourceRoot == UUID && (targetRoot == BINARY || targetRoot == VARBINARY)) {
+            // A UUID maps to and from its 16-byte encoding.
+            return allowExplicit && uuidFitsBinaryType(targetType);
+        } else if (targetRoot == UUID && (sourceRoot == BINARY || sourceRoot == VARBINARY)) {
+            return allowExplicit && uuidFitsBinaryType(sourceType);
         }
 
         if (implicitCastingRules.get(targetRoot).contains(sourceRoot)) {
@@ -716,6 +712,16 @@ public final class LogicalTypeCasts {
             return explicitCastingRules.get(targetRoot).contains(sourceRoot);
         }
         return false;
+    }
+
+    /**
+     * Whether a UUID's 16-byte encoding fits the given binary type. BINARY is fixed width, so only
+     * BINARY(16) fits; a VARBINARY(n) fits when n >= 16, with the exact length checked at runtime.
+     */
+    private static boolean uuidFitsBinaryType(LogicalType binaryType) {
+        return binaryType.is(BINARY)
+                ? getLength(binaryType) == UuidType.BYTE_LENGTH
+                : getLength(binaryType) >= UuidType.BYTE_LENGTH;
     }
 
     private static boolean supportsStructuredCasting(

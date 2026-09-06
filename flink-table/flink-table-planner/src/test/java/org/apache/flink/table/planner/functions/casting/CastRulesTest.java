@@ -51,6 +51,7 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -170,7 +171,7 @@ class CastRulesTest {
     private static byte[] uuidBytes(String uuid) {
         final java.util.UUID value = java.util.UUID.fromString(uuid);
         final byte[] result = new byte[16];
-        java.nio.ByteBuffer.wrap(result)
+        ByteBuffer.wrap(result)
                 .putLong(value.getMostSignificantBits())
                 .putLong(value.getLeastSignificantBits());
         return result;
