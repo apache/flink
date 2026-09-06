@@ -66,6 +66,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -169,7 +170,7 @@ class CastRulesTest {
     private static final byte[] UUID_BYTES = uuidBytes(UUID_STRING);
 
     private static byte[] uuidBytes(String uuid) {
-        final java.util.UUID value = java.util.UUID.fromString(uuid);
+        final UUID value = UUID.fromString(uuid);
         final byte[] result = new byte[16];
         ByteBuffer.wrap(result)
                 .putLong(value.getMostSignificantBits())
