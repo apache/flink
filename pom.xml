@@ -133,7 +133,7 @@ under the License.
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
 		<source.java.version>11</source.java.version>
 		<target.java.version>17</target.java.version>
-		<slf4j.version>1.7.36</slf4j.version>
+		<slf4j.version>2.0.19</slf4j.version>
 		<log4j.version>2.26.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 IntelliJ IDEA is (sometimes?) using those values to choose target language level
@@ -305,7 +305,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-slf4j-impl</artifactId>
+			<artifactId>log4j-slf4j2-impl</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -538,7 +538,7 @@ under the License.
 
 			<dependency>
 				<groupId>org.apache.logging.log4j</groupId>
-				<artifactId>log4j-slf4j-impl</artifactId>
+				<artifactId>log4j-slf4j2-impl</artifactId>
 				<version>${log4j.version}</version>
 			</dependency>
 
@@ -2285,7 +2285,7 @@ under the License.
 							<dependency>log4j:log4j</dependency>
 							<dependency>org.slf4j:slf4j-log4j12</dependency>
 							<!-- log4j2 -->
-							<dependency>org.apache.logging.log4j:log4j-slf4j-impl</dependency>
+							<dependency>org.apache.logging.log4j:log4j-slf4j2-impl</dependency>
 							<dependency>org.apache.logging.log4j:log4j-api</dependency>
 							<dependency>org.apache.logging.log4j:log4j-core</dependency>
 							<dependency>org.apache.logging.log4j:log4j-1.2-api</dependency>

@@ -46,7 +46,7 @@ See bundled license files for details.
 - net.razorvine:pyrolite:4.13
 - org.checkerframework:checker-qual:3.42.0
 - io.github.classgraph:classgraph:4.8.162
-- org.slf4j:slf4j-api:1.7.36
+- org.slf4j:slf4j-api:2.0.19
 - args4j:args4j:2.33
 
 The bundled Apache Beam dependencies bundle the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
