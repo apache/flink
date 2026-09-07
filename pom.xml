@@ -185,7 +185,7 @@ under the License.
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<checkstyle.version>10.18.2</checkstyle.version>
 		<spotless.skip>false</spotless.skip>
-		<spotless.version>2.43.0</spotless.version>
+		<spotless.version>2.46.1</spotless.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
 		<spotless.delimiter>package</spotless.delimiter>
 		<spotless.license.header>
@@ -2223,6 +2223,7 @@ under the License.
 							</importOrder>
 
 							<removeUnusedImports />
+							<removeWildcardImports />
 						</java>
 					</configuration>
 					<executions>
