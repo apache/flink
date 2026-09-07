@@ -159,6 +159,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         specs.addAll(variantPrimitiveCasts());
         specs.addAll(variantArrayCasts());
         specs.addAll(variantRowCasts());
+        specs.addAll(variantMapCasts());
         return specs;
     }
 
@@ -673,6 +674,48 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                                                 FIELD("since", STRING()))),
                                                 FIELD("tags", ARRAY(STRING())))
                                         .notNull()));
+    }
+
+    private static List<TestSetSpec> variantMapCasts() {
+        final String obj = "{\"id\": 7, \"name\": \"ada\", \"active\": true}";
+        final String objNull = "{\"id\": 7, \"email\": null}";
+        final String mixed = "{\"a\": 1, \"b\": \"x\"}";
+        return List.of(
+                TestSetSpec.forExpression("Cast a VARIANT produced by parseJson() to a MAP")
+                        .onFieldsWithData("unused")
+                        .andDataTypes(STRING())
+                        // MAP: each field name becomes a key, each value casts to V
+                        .testResult(
+                                lit(obj).parseJson().cast(MAP(STRING(), STRING())),
+                                "CAST(PARSE_JSON('" + obj + "') AS MAP<STRING, STRING>)",
+                                map(
+                                        entry("id", "7"),
+                                        entry("name", "ada"),
+                                        entry("active", "TRUE")),
+                                MAP(STRING(), STRING()).notNull())
+                        .testResult(
+                                lit("{}").parseJson().cast(MAP(STRING(), INT())),
+                                "CAST(PARSE_JSON('{}') AS MAP<STRING, INT>)",
+                                map(),
+                                MAP(STRING(), INT()).notNull())
+                        // a value present but set to a variant null maps to SQL NULL when nullable
+                        .testResult(
+                                lit(objNull).parseJson().cast(MAP(STRING(), STRING())),
+                                "CAST(PARSE_JSON('" + objNull + "') AS MAP<STRING, STRING>)",
+                                map(entry("id", "7"), entry("email", null)),
+                                MAP(STRING(), STRING()).notNull())
+                        // and fails when the value type is NOT NULL
+                        .testTableApiRuntimeError(
+                                lit(objNull).parseJson().cast(MAP(STRING(), STRING().notNull())),
+                                "NOT NULL map value type")
+                        // a value that is not an integer fails the cast
+                        .testTableApiRuntimeError(
+                                lit(mixed).parseJson().cast(MAP(STRING(), INT())),
+                                "does not change the type")
+                        // a non-string map key is rejected at validation
+                        .testTableApiValidationError(
+                                lit(obj).parseJson().cast(MAP(INT(), STRING())),
+                                "Unsupported cast"));
     }
 
     private static List<TestSetSpec> allTypesBasic() {

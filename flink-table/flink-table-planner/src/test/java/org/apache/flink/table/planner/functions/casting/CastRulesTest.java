@@ -327,6 +327,24 @@ class CastRulesTest {
                                     .build())
                     .build();
 
+    /** {@code {"a": 1, "b": 2}}, an all-numeric object. */
+    private static final Variant VARIANT_NUM_OBJECT =
+            VARIANT_BUILDER
+                    .object()
+                    .add("a", VARIANT_BUILDER.of(1))
+                    .add("b", VARIANT_BUILDER.of(2))
+                    .build();
+
+    private static final Variant VARIANT_EMPTY_OBJECT = VARIANT_BUILDER.object().build();
+
+    /** {@code {"a": 1, "b": "x"}}, an object with a mixed integer and string value. */
+    private static final Variant VARIANT_MIXED_OBJECT =
+            VARIANT_BUILDER
+                    .object()
+                    .add("a", VARIANT_BUILDER.of(1))
+                    .add("b", VARIANT_BUILDER.of("x"))
+                    .build();
+
     private static final DataType MY_STRUCTURED_TYPE =
             STRUCTURED(
                     MyStructuredType.class,
@@ -2257,7 +2275,75 @@ class CastRulesTest {
                                 GenericRowData.of(
                                         GenericRowData.of(1, fromString("2020-01-01")),
                                         new GenericArrayData(
-                                                new Object[] {fromString("x"), fromString("y")}))));
+                                                new Object[] {fromString("x"), fromString("y")}))),
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), STRING()))
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD,
+                                mapData(
+                                        entry(fromString("id"), fromString("7")),
+                                        entry(fromString("name"), fromString("ada")),
+                                        entry(fromString("active"), fromString("TRUE"))))
+                        // an empty object casts to an empty map
+                        .fromCase(VARIANT(), VARIANT_EMPTY_OBJECT, mapData())
+                        // a value present but set to a variant null maps to SQL NULL when nullable
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD_WITH_NULL,
+                                mapData(
+                                        entry(fromString("id"), fromString("7")),
+                                        entry(fromString("email"), null)))
+                        // a mixed object renders every value to STRING
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_MIXED_OBJECT,
+                                mapData(
+                                        entry(fromString("a"), fromString("1")),
+                                        entry(fromString("b"), fromString("x"))))
+                        // an array is not an object
+                        .fail(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                TableRuntimeException.class,
+                                "requires an object"),
+                // a NOT NULL value type rejects a variant null value
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), STRING().notNull()))
+                        .fail(
+                                VARIANT(),
+                                VARIANT_RECORD_WITH_NULL,
+                                TableRuntimeException.class,
+                                "NOT NULL map value type"),
+                // MAP<STRING, VARIANT> keeps each value a variant, one level shredded
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), VARIANT()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_NUM_OBJECT,
+                                mapData(
+                                        entry(fromString("a"), VARIANT_NUM_OBJECT.getField("a")),
+                                        entry(fromString("b"), VARIANT_NUM_OBJECT.getField("b"))))
+                        // a VARIANT value keeps a variant null as a variant null, not SQL NULL
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD_WITH_NULL,
+                                mapData(
+                                        entry(
+                                                fromString("id"),
+                                                VARIANT_RECORD_WITH_NULL.getField("id")),
+                                        entry(
+                                                fromString("email"),
+                                                VARIANT_RECORD_WITH_NULL.getField("email")))),
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), INT()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_NUM_OBJECT,
+                                mapData(entry(fromString("a"), 1), entry(fromString("b"), 2)))
+                        // a value that is not an integer fails the cast
+                        .fail(
+                                VARIANT(),
+                                VARIANT_MIXED_OBJECT,
+                                TableRuntimeException.class,
+                                "does not change the type"));
     }
 
     @TestFactory

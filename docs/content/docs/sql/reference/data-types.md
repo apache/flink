@@ -1649,6 +1649,24 @@ CAST(o AS ROW<`id` INT, `phone` STRING>)        -- fails, the field 'phone' is n
 CAST(o AS ROW<`id` VARIANT, `email` VARIANT>)   -- (7, null), each field kept as a variant, the variant null preserved
 ```
 
+A variant object also casts to `MAP<STRING, V>`, the schemaless read of an object. Each field name
+becomes a key and each value casts to `V` by the same rules, recursively. The key type must be a
+character string, since a variant object's keys are always strings, and a non-string key type is
+rejected at validation. This is the way to read an object whose keys are not known in advance.
+
+- A value present but set to a variant null maps to SQL `NULL` when `V` is nullable and fails the
+  cast when `V` is `NOT NULL`. An empty object casts to an empty map.
+- A `MAP<STRING, VARIANT>` is the identity on its values: it shreds one level and keeps each value a
+  variant, a variant null included.
+
+The following examples reuse `o` for `PARSE_JSON('{"id": 7, "name": "ada", "email": null}')`:
+
+```sql
+CAST(o AS MAP<STRING, STRING>)   -- {id=7, name=ada, email=NULL}, each value rendered like the scalar cast
+CAST(o AS MAP<STRING, VARIANT>)  -- values kept as variants, the variant null included
+CAST(o AS MAP<INT, STRING>)      -- fails at validation, a MAP key must be a character string
+```
+
 **Declaration**
 
 {{< tabs "25c30432-8460-441d-a036-9416d8202882" >}}
@@ -1864,7 +1882,7 @@ The matrix below describes the supported cast pairs, where "Y" means supported, 
 | `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     N     |    N     |
 | `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     N     |    N     |
 | `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |     N     |    N     |
-| `VARIANT`                              |                   N                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   N    |      !      |        !        |     N      |   !³    |     N      |   N   |  !³   |      !³      |   N   |     Y     |    N     |
+| `VARIANT`                              |                   N                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   N    |      !      |        !        |     N      |   !³    |     N      |  !³   |  !³   |      !³      |   N   |     Y     |    N     |
 | `BITMAP`                               |                   Y                   |                   Y⁷                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
 
 Notes:

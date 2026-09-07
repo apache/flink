@@ -69,6 +69,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.FLOAT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_YEAR_MONTH;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.MAP;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.NULL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.RAW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
@@ -690,6 +691,13 @@ public final class LogicalTypeCasts {
             return allowExplicit
                     && targetType.getChildren().stream()
                             .allMatch(field -> supportsCasting(sourceType, field, true));
+        } else if (sourceRoot == VARIANT && targetRoot == MAP) {
+            // A variant object casts to MAP<STRING, V> when the key is a character string, since
+            // VARIANT object keys are always strings, and VARIANT casts to the value type V.
+            final List<LogicalType> mapChildren = targetType.getChildren();
+            return allowExplicit
+                    && mapChildren.get(0).is(CHARACTER_STRING)
+                    && supportsCasting(sourceType, mapChildren.get(1), true);
         } else if (sourceRoot == RAW
                         && !targetType.is(BINARY_STRING)
                         && !targetType.is(CHARACTER_STRING)

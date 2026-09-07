@@ -36,6 +36,7 @@ import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
+import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.MONTH;
 import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
@@ -170,6 +171,19 @@ class CastRuleProviderTest {
         assertThat(
                         CastRuleProvider.exists(
                                 VARIANT, ROW(FIELD("f0", MULTISET(STRING()))).getLogicalType()))
+                .isFalse();
+    }
+
+    @Test
+    void testResolveVariantToMap() {
+        assertThat(CastRuleProvider.resolve(VARIANT, MAP(STRING(), INT()).getLogicalType()))
+                .isSameAs(VariantToMapCastRule.INSTANCE);
+        // the value recurses through the VARIANT rules, including the identity leaf
+        assertThat(CastRuleProvider.exists(VARIANT, MAP(STRING(), VARIANT()).getLogicalType()))
+                .isTrue();
+
+        // a non-string map key is rejected
+        assertThat(CastRuleProvider.exists(VARIANT, MAP(INT(), STRING()).getLogicalType()))
                 .isFalse();
     }
 }

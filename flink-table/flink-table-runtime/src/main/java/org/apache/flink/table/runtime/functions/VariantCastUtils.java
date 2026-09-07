@@ -84,6 +84,24 @@ public final class VariantCastUtils {
         }
     }
 
+    /**
+     * Renders an object field name as the map key, trimming or padding it to a bounded target the
+     * same way a regular cast into the key type would. Object keys are always strings, so no kind
+     * conversion happens here.
+     */
+    public static BinaryStringData variantKey(String name, int targetLength, boolean charTarget) {
+        final BinaryStringData key = BinaryStringData.fromString(name);
+        final int length = key.numChars();
+        if (length > targetLength) {
+            return key.substring(0, targetLength);
+        }
+        if (charTarget && length < targetLength) {
+            return BinaryStringDataUtil.concat(
+                    key, BinaryStringData.blankString(targetLength - length));
+        }
+        return key;
+    }
+
     private static TableRuntimeException wrongShape(
             Variant variant, String targetType, String required) {
         return new TableRuntimeException(
