@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.RefCountedFSOutputStream;
 
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.UploadPartResult;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -61,7 +61,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 
     private final Executor uploadThreadPool;
 
-    private final Deque<CompletableFuture<PartETag>> uploadsInProgress;
+    private final Deque<CompletableFuture<CompletedPart>> uploadsInProgress;
 
     private final String namePrefixForTempObjects;
 
@@ -74,7 +74,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
             Executor uploadThreadPool,
             String uploadId,
             String objectName,
-            List<PartETag> partsSoFar,
+            List<CompletedPart> partsSoFar,
             long numBytes,
             Optional<File> incompletePart) {
         checkArgument(numBytes >= 0L);
@@ -102,7 +102,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
         // writing to the file we are uploading.
         checkState(file.isClosed());
 
-        final CompletableFuture<PartETag> future = new CompletableFuture<>();
+        final CompletableFuture<CompletedPart> future = new CompletableFuture<>();
         uploadsInProgress.add(future);
 
         final long partLength = file.getPos();
@@ -153,7 +153,8 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 
         final String objectName = currentUploadInfo.getObjectName();
         final String uploadId = currentUploadInfo.getUploadId();
-        final List<PartETag> completedParts = currentUploadInfo.getCopyOfEtagsOfCompleteParts();
+        final List<CompletedPart> completedParts =
+                currentUploadInfo.getCopyOfEtagsOfCompleteParts();
         final long sizeInBytes = currentUploadInfo.getExpectedSizeInBytes();
 
         if (incompletePartObjectName == null) {
@@ -193,6 +194,25 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
     //  utils
     // ------------------------------------------------------------------------
 
+    /**
+     * Builds the {@link CompletedPart} for the CompleteMultipartUpload request from an upload-part
+     * response. Besides the ETag, every per-part checksum is copied: when checksum generation is
+     * enabled ({@code fs.s3a.checksum.generation}), S3 rejects a CompleteMultipartUpload whose
+     * parts do not repeat the checksum they were uploaded with.
+     */
+    @VisibleForTesting
+    static CompletedPart completedPartFromResponse(int partNumber, UploadPartResponse response) {
+        final CompletedPart.Builder builder =
+                CompletedPart.builder().partNumber(partNumber).eTag(response.eTag());
+        for (S3PartChecksum checksum : S3PartChecksum.values()) {
+            final String value = checksum.valueOf(response);
+            if (value != null) {
+                checksum.applyTo(builder, value);
+            }
+        }
+        return builder.build();
+    }
+
     @VisibleForTesting
     static String createIncompletePartObjectNamePrefix(String objectName) {
         checkNotNull(objectName);
@@ -219,16 +239,16 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
         checkState(currentUploadInfo.getRemainingParts() == uploadsInProgress.size());
 
         while (currentUploadInfo.getRemainingParts() > 0) {
-            CompletableFuture<PartETag> next = uploadsInProgress.peekFirst();
-            PartETag nextPart = awaitPendingPartUploadToComplete(next);
+            CompletableFuture<CompletedPart> next = uploadsInProgress.peekFirst();
+            CompletedPart nextPart = awaitPendingPartUploadToComplete(next);
             currentUploadInfo.registerCompletePart(nextPart);
             uploadsInProgress.removeFirst();
         }
     }
 
-    private PartETag awaitPendingPartUploadToComplete(CompletableFuture<PartETag> upload)
+    private CompletedPart awaitPendingPartUploadToComplete(CompletableFuture<CompletedPart> upload)
             throws IOException {
-        final PartETag completedUploadEtag;
+        final CompletedPart completedUploadEtag;
         try {
             completedUploadEtag = upload.get();
         } catch (InterruptedException e) {
@@ -267,7 +287,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
             final Executor uploadThreadPool,
             final String multipartUploadId,
             final String objectName,
-            final List<PartETag> partsSoFar,
+            final List<CompletedPart> partsSoFar,
             final long numBytesSoFar,
             final Optional<File> incompletePart) {
 
@@ -297,13 +317,13 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 
         private final RefCountedFSOutputStream file;
 
-        private final CompletableFuture<PartETag> future;
+        private final CompletableFuture<CompletedPart> future;
 
         UploadTask(
                 final S3AccessHelper s3AccessHelper,
                 final MultiPartUploadInfo currentUpload,
                 final RefCountedFSOutputStream file,
-                final CompletableFuture<PartETag> future) {
+                final CompletableFuture<CompletedPart> future) {
 
             checkNotNull(currentUpload);
 
@@ -322,14 +342,14 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
         @Override
         public void run() {
             try {
-                final UploadPartResult result =
+                final UploadPartResponse result =
                         s3AccessHelper.uploadPart(
                                 objectName,
                                 uploadId,
                                 partNumber,
                                 file.getInputFile(),
                                 file.getPos());
-                future.complete(new PartETag(result.getPartNumber(), result.getETag()));
+                future.complete(completedPartFromResponse(partNumber, result));
                 file.release();
             } catch (Throwable t) {
                 future.completeExceptionally(t);

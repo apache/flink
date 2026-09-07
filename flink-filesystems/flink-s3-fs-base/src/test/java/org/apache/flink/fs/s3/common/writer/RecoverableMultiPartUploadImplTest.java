@@ -23,14 +23,14 @@ import org.apache.flink.core.fs.RefCountedFileWithStream;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MathUtils;
 
-import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.UploadPartResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -141,6 +141,67 @@ class RecoverableMultiPartUploadImplTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
+    @Test
+    void partChecksumsShouldBePropagatedToRecoverable() throws IOException {
+        stubMultiPartUploader.enableChecksumGeneration();
+        final byte[] part = bytesOf("hello world");
+
+        uploadPart(part);
+        final S3Recoverable recoverable = multiPartUploadUnderTest.snapshotAndGetRecoverable(null);
+
+        assertThat(recoverable.parts()).hasSize(1);
+        final CompletedPart completedPart = recoverable.parts().get(0);
+        assertThat(completedPart.partNumber()).isEqualTo(1);
+        assertThat(completedPart.checksumCRC32C()).isEqualTo(createCRC32CChecksum(1));
+    }
+
+    @Test
+    void completedPartFromResponseShouldCopyEveryChecksum() {
+        final UploadPartResponse response =
+                UploadPartResponse.builder()
+                        .eTag("etag")
+                        .checksumCRC32("crc32")
+                        .checksumCRC32C("crc32c")
+                        .checksumCRC64NVME("crc64nvme")
+                        .checksumSHA1("sha1")
+                        .checksumSHA256("sha256")
+                        .checksumSHA512("sha512")
+                        .checksumMD5("md5")
+                        .checksumXXHASH64("xxhash64")
+                        .checksumXXHASH3("xxhash3")
+                        .checksumXXHASH128("xxhash128")
+                        .build();
+
+        final CompletedPart part =
+                RecoverableMultiPartUploadImpl.completedPartFromResponse(7, response);
+
+        assertThat(part.partNumber()).isEqualTo(7);
+        assertThat(part.eTag()).isEqualTo("etag");
+        assertThat(part.checksumCRC32()).isEqualTo("crc32");
+        assertThat(part.checksumCRC32C()).isEqualTo("crc32c");
+        assertThat(part.checksumCRC64NVME()).isEqualTo("crc64nvme");
+        assertThat(part.checksumSHA1()).isEqualTo("sha1");
+        assertThat(part.checksumSHA256()).isEqualTo("sha256");
+        assertThat(part.checksumSHA512()).isEqualTo("sha512");
+        assertThat(part.checksumMD5()).isEqualTo("md5");
+        assertThat(part.checksumXXHASH64()).isEqualTo("xxhash64");
+        assertThat(part.checksumXXHASH3()).isEqualTo("xxhash3");
+        assertThat(part.checksumXXHASH128()).isEqualTo("xxhash128");
+    }
+
+    @Test
+    void completedPartFromResponseShouldLeaveAbsentChecksumsUnset() {
+        final CompletedPart part =
+                RecoverableMultiPartUploadImpl.completedPartFromResponse(
+                        3, UploadPartResponse.builder().eTag("etag").build());
+
+        assertThat(part.partNumber()).isEqualTo(3);
+        assertThat(part.eTag()).isEqualTo("etag");
+        for (S3PartChecksum checksum : S3PartChecksum.values()) {
+            assertThat(checksum.valueOf(part)).isNull();
+        }
+    }
+
     private static void assertThatHasMultiPartUploadWithPart(
             StubMultiPartUploader actual, byte[] content, int partNo) {
         TestUploadPartResult expectedCompletePart =
@@ -168,8 +229,8 @@ class RecoverableMultiPartUploadImplTest {
         assertThat(actualRecoverable.incompleteObjectLength())
                 .isEqualTo(expectedRecoverable.incompleteObjectLength());
 
-        assertThat(actualRecoverable.parts().stream().map(PartETag::getETag).toArray())
-                .isEqualTo(expectedRecoverable.parts().stream().map(PartETag::getETag).toArray());
+        assertThat(actualRecoverable.parts().stream().map(CompletedPart::eTag).toArray())
+                .isEqualTo(expectedRecoverable.parts().stream().map(CompletedPart::eTag).toArray());
     }
 
     // ---------------------------------- Test Methods -------------------------------------------
@@ -180,12 +241,16 @@ class RecoverableMultiPartUploadImplTest {
 
     private static S3Recoverable createS3Recoverable(
             byte[] incompletePart, byte[]... completeParts) {
-        final List<PartETag> eTags = new ArrayList<>();
+        final List<CompletedPart> parts = new ArrayList<>();
 
         int index = 1;
         long bytesInPart = 0L;
         for (byte[] part : completeParts) {
-            eTags.add(new PartETag(index, createETag(TEST_OBJECT_NAME, index)));
+            parts.add(
+                    CompletedPart.builder()
+                            .partNumber(index)
+                            .eTag(createETag(TEST_OBJECT_NAME, index))
+                            .build());
             bytesInPart += part.length;
             index++;
         }
@@ -193,7 +258,7 @@ class RecoverableMultiPartUploadImplTest {
         return new S3Recoverable(
                 TEST_OBJECT_NAME,
                 createMPUploadId(TEST_OBJECT_NAME),
-                eTags,
+                parts,
                 bytesInPart,
                 "IGNORED-DUE-TO-RANDOMNESS",
                 (long) incompletePart.length);
@@ -201,21 +266,14 @@ class RecoverableMultiPartUploadImplTest {
 
     private static RecoverableMultiPartUploadImplTest.TestPutObjectResult createPutObjectResult(
             String key, byte[] content) {
-        final RecoverableMultiPartUploadImplTest.TestPutObjectResult result =
-                new RecoverableMultiPartUploadImplTest.TestPutObjectResult();
-        result.setETag(createETag(key, -1));
-        result.setContent(content);
-        return result;
+        return new RecoverableMultiPartUploadImplTest.TestPutObjectResult(
+                createETag(key, -1), content);
     }
 
     private static RecoverableMultiPartUploadImplTest.TestUploadPartResult createUploadPartResult(
             String key, int number, byte[] payload) {
-        final RecoverableMultiPartUploadImplTest.TestUploadPartResult result =
-                new RecoverableMultiPartUploadImplTest.TestUploadPartResult();
-        result.setETag(createETag(key, number));
-        result.setPartNumber(number);
-        result.setContent(payload);
-        return result;
+        return new RecoverableMultiPartUploadImplTest.TestUploadPartResult(
+                number, createETag(key, number), payload);
     }
 
     private static String createMPUploadId(String key) {
@@ -224,6 +282,10 @@ class RecoverableMultiPartUploadImplTest {
 
     private static String createETag(String key, int partNo) {
         return "ETAG-" + key + '-' + partNo;
+    }
+
+    private static String createCRC32CChecksum(int partNo) {
+        return "CRC32C-" + partNo;
     }
 
     private S3Recoverable uploadObject(byte[] content) throws IOException {
@@ -283,6 +345,16 @@ class RecoverableMultiPartUploadImplTest {
         private final List<RecoverableMultiPartUploadImplTest.TestPutObjectResult>
                 incompletePartsUploaded = new ArrayList<>();
 
+        private boolean checksumGenerationEnabled;
+
+        /**
+         * Makes upload-part responses carry a per-part checksum, as S3 does when {@code
+         * fs.s3a.checksum.generation} is enabled.
+         */
+        void enableChecksumGeneration() {
+            this.checksumGenerationEnabled = true;
+        }
+
         List<RecoverableMultiPartUploadImplTest.TestUploadPartResult> getCompletePartsUploaded() {
             return completePartsUploaded;
         }
@@ -297,7 +369,7 @@ class RecoverableMultiPartUploadImplTest {
         }
 
         @Override
-        public UploadPartResult uploadPart(
+        public UploadPartResponse uploadPart(
                 String key, String uploadId, int partNumber, File inputFile, long length)
                 throws IOException {
             final byte[] content =
@@ -306,7 +378,7 @@ class RecoverableMultiPartUploadImplTest {
         }
 
         @Override
-        public PutObjectResult putObject(String key, File inputFile) throws IOException {
+        public PutObjectResponse putObject(String key, File inputFile) throws IOException {
             final byte[] content =
                     getFileContentBytes(inputFile, MathUtils.checkedDownCast(inputFile.length()));
             return storeAndGetPutObjectResult(key, content);
@@ -323,10 +395,10 @@ class RecoverableMultiPartUploadImplTest {
         }
 
         @Override
-        public CompleteMultipartUploadResult commitMultiPartUpload(
+        public CompleteMultipartUploadResponse commitMultiPartUpload(
                 String key,
                 String uploadId,
-                List<PartETag> partETags,
+                List<CompletedPart> partETags,
                 long length,
                 AtomicInteger errorCount)
                 throws IOException {
@@ -334,7 +406,7 @@ class RecoverableMultiPartUploadImplTest {
         }
 
         @Override
-        public ObjectMetadata getObjectMetadata(String key) throws IOException {
+        public HeadObjectResponse getObjectMetadata(String key) throws IOException {
             throw new UnsupportedOperationException();
         }
 
@@ -344,35 +416,50 @@ class RecoverableMultiPartUploadImplTest {
             return content;
         }
 
-        private RecoverableMultiPartUploadImplTest.TestUploadPartResult storeAndGetUploadPartResult(
+        private UploadPartResponse storeAndGetUploadPartResult(
                 String key, int number, byte[] payload) {
             final RecoverableMultiPartUploadImplTest.TestUploadPartResult result =
                     createUploadPartResult(key, number, payload);
             completePartsUploaded.add(result);
-            return result;
+            if (checksumGenerationEnabled) {
+                return result.toUploadPartResponse().toBuilder()
+                        .checksumCRC32C(createCRC32CChecksum(number))
+                        .build();
+            }
+            return result.toUploadPartResponse();
         }
 
-        private RecoverableMultiPartUploadImplTest.TestPutObjectResult storeAndGetPutObjectResult(
-                String key, byte[] payload) {
+        private PutObjectResponse storeAndGetPutObjectResult(String key, byte[] payload) {
             final RecoverableMultiPartUploadImplTest.TestPutObjectResult result =
                     createPutObjectResult(key, payload);
             incompletePartsUploaded.add(result);
-            return result;
+            return result.toPutObjectResponse();
         }
     }
 
-    /** A {@link PutObjectResult} that also contains the actual content of the uploaded part. */
-    private static class TestPutObjectResult extends PutObjectResult {
-        private static final long serialVersionUID = 1L;
+    /**
+     * A wrapper for {@link PutObjectResponse} that also contains the actual content of the uploaded
+     * part.
+     */
+    private static class TestPutObjectResult {
+        private final String eTag;
+        private final byte[] content;
 
-        private byte[] content;
+        TestPutObjectResult(String eTag, byte[] content) {
+            this.eTag = eTag;
+            this.content = content;
+        }
 
-        void setContent(byte[] payload) {
-            this.content = payload;
+        public String getETag() {
+            return eTag;
         }
 
         public byte[] getContent() {
             return content;
+        }
+
+        public PutObjectResponse toPutObjectResponse() {
+            return PutObjectResponse.builder().eTag(eTag).build();
         }
 
         @Override
@@ -400,19 +487,35 @@ class RecoverableMultiPartUploadImplTest {
         }
     }
 
-    /** A {@link UploadPartResult} that also contains the actual content of the uploaded part. */
-    private static class TestUploadPartResult extends UploadPartResult {
+    /**
+     * A wrapper for {@link UploadPartResponse} that also contains the actual content of the
+     * uploaded part.
+     */
+    private static class TestUploadPartResult {
+        private final int partNumber;
+        private final String eTag;
+        private final byte[] content;
 
-        private static final long serialVersionUID = 1L;
-
-        private byte[] content;
-
-        void setContent(byte[] content) {
+        TestUploadPartResult(int partNumber, String eTag, byte[] content) {
+            this.partNumber = partNumber;
+            this.eTag = eTag;
             this.content = content;
+        }
+
+        public String getETag() {
+            return eTag;
+        }
+
+        public int getPartNumber() {
+            return partNumber;
         }
 
         public byte[] getContent() {
             return content;
+        }
+
+        public UploadPartResponse toUploadPartResponse() {
+            return UploadPartResponse.builder().eTag(eTag).build();
         }
 
         @Override

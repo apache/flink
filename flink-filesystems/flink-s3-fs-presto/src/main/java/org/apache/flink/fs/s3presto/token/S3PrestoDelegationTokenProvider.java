@@ -20,12 +20,42 @@ package org.apache.flink.fs.s3presto.token;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.fs.s3.common.token.AbstractS3DelegationTokenProvider;
+import org.apache.flink.fs.s3.common.token.S3SessionCredentials;
 
-/** Delegation token provider for S3 Presto filesystems. */
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
+import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
+import com.amazonaws.services.securitytoken.model.Credentials;
+
+/** Delegation token provider for S3 Presto filesystems, based on AWS SDK v1. */
 @Internal
 public class S3PrestoDelegationTokenProvider extends AbstractS3DelegationTokenProvider {
+
     @Override
     public String serviceName() {
         return "s3-presto";
+    }
+
+    @Override
+    protected S3SessionCredentials getSessionCredentials(
+            String region, String accessKey, String secretKey) {
+        AWSSecurityTokenService stsClient =
+                AWSSecurityTokenServiceClientBuilder.standard()
+                        .withRegion(region)
+                        .withCredentials(
+                                new AWSStaticCredentialsProvider(
+                                        new BasicAWSCredentials(accessKey, secretKey)))
+                        .build();
+        try {
+            Credentials credentials = stsClient.getSessionToken().getCredentials();
+            return new S3SessionCredentials(
+                    credentials.getAccessKeyId(),
+                    credentials.getSecretAccessKey(),
+                    credentials.getSessionToken(),
+                    credentials.getExpiration().getTime());
+        } finally {
+            stsClient.shutdown();
+        }
     }
 }

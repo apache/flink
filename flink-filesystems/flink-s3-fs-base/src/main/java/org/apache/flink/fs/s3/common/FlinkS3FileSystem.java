@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.fs.RefCountedFileWithStream;
 import org.apache.flink.core.fs.RefCountedTmpFileCreator;
 import org.apache.flink.fs.s3.common.token.AbstractS3DelegationTokenReceiver;
+import org.apache.flink.fs.s3.common.token.S3SessionCredentials;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.fs.s3.common.writer.S3RecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
@@ -36,7 +37,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionWithException;
 
-import com.amazonaws.services.securitytoken.model.Credentials;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -167,7 +167,7 @@ public class FlinkS3FileSystem extends HadoopFileSystem
         }
 
         private void configureEnvironment(Map<String, String> environment) {
-            Credentials credentials = AbstractS3DelegationTokenReceiver.getCredentials();
+            S3SessionCredentials credentials = AbstractS3DelegationTokenReceiver.getCredentials();
             if (credentials != null) {
                 maybeSetEnvironmentVariable(
                         environment, "AWS_ACCESS_KEY_ID", credentials.getAccessKeyId());

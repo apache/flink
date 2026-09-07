@@ -25,18 +25,19 @@ import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.StringUtils;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
-import com.amazonaws.services.securitytoken.model.Credentials;
-import com.amazonaws.services.securitytoken.model.GetSessionTokenResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
-/** Delegation token provider for S3 filesystems. */
+/**
+ * Delegation token provider for S3 filesystems.
+ *
+ * <p>This class deliberately references no AWS SDK types (see {@link S3SessionCredentials}): the
+ * STS call to obtain session credentials is left to {@link #getSessionCredentials(String, String,
+ * String)}, implemented with AWS SDK v1 in {@code flink-s3-fs-presto} and with AWS SDK v2 in {@code
+ * flink-s3-fs-hadoop}.
+ */
 @Internal
 public abstract class AbstractS3DelegationTokenProvider implements DelegationTokenProvider {
 
@@ -51,24 +52,21 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
     public void init(Configuration configuration) {
         region = configuration.getString(String.format("%s.region", serviceConfigPrefix()), null);
         if (!StringUtils.isNullOrWhitespaceOnly(region)) {
-            LOG.debug("Region: " + region);
+            LOG.debug("Region: {}", region);
         }
 
         accessKey =
                 configuration.getString(
                         String.format("%s.access-key", serviceConfigPrefix()), null);
         if (!StringUtils.isNullOrWhitespaceOnly(accessKey)) {
-            LOG.debug("Access key: " + accessKey);
+            LOG.debug("Access key: {}", accessKey);
         }
 
         secretKey =
                 configuration.getString(
                         String.format("%s.secret-key", serviceConfigPrefix()), null);
         if (!StringUtils.isNullOrWhitespaceOnly(secretKey)) {
-            LOG.debug(
-                    "Secret key: "
-                            + GlobalConfiguration.HIDDEN_CONTENT
-                            + " (sensitive information)");
+            LOG.debug("Secret key: {} (sensitive information)", GlobalConfiguration.HIDDEN_CONTENT);
         }
     }
 
@@ -87,22 +85,21 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
     public ObtainedDelegationTokens obtainDelegationTokens() throws Exception {
         LOG.info("Obtaining session credentials token with access key: {}", accessKey);
 
-        AWSSecurityTokenService stsClient =
-                AWSSecurityTokenServiceClientBuilder.standard()
-                        .withRegion(region)
-                        .withCredentials(
-                                new AWSStaticCredentialsProvider(
-                                        new BasicAWSCredentials(accessKey, secretKey)))
-                        .build();
-        GetSessionTokenResult sessionTokenResult = stsClient.getSessionToken();
-        Credentials credentials = sessionTokenResult.getCredentials();
+        S3SessionCredentials credentials = getSessionCredentials(region, accessKey, secretKey);
         LOG.info(
                 "Session credentials obtained successfully with access key: {} expiration: {}",
                 credentials.getAccessKeyId(),
-                credentials.getExpiration());
+                credentials.getExpirationEpochMilli());
 
         return new ObtainedDelegationTokens(
                 InstantiationUtil.serializeObject(credentials),
-                Optional.of(credentials.getExpiration().getTime()));
+                Optional.of(credentials.getExpirationEpochMilli()));
     }
+
+    /**
+     * Obtains session credentials from AWS STS with the SDK bundled into the concrete filesystem
+     * plugin.
+     */
+    protected abstract S3SessionCredentials getSessionCredentials(
+            String region, String accessKey, String secretKey) throws Exception;
 }
