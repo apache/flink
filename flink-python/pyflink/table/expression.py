@@ -2303,8 +2303,8 @@ class Expression(Generic[T]):
         None is returned. To throw an error instead, use :func:`~Expression.parse_json`.
 
         If there are duplicate keys in the input, allow_duplicate_keys controls whether the
-        parser keeps the last occurrence of each duplicated key (True) or throws an error
-        (False). The default value of allow_duplicate_keys is False.
+        parser keeps the last occurrence of each duplicated key (True) or returns
+        None (False). The default value of allow_duplicate_keys is False.
         """
         if allow_duplicate_keys is None:
             return _unary_op("tryParseJson")(self)

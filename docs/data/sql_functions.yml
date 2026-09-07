@@ -1352,7 +1352,7 @@ variant:
   - sql: TRY_PARSE_JSON(json_string[, allow_duplicate_keys])
     table: STRING.tryParseJson([allowDuplicateKeys])
     description: |
-      Try to parse a JSON string into a Variant if possible. If the JSON string is invalid, return 
+      Try to parse a JSON string into a Variant if possible. If the JSON string is invalid, return
       NULL. To throw an error instead of returning NULL, use the `PARSE_JSON` function.
 
       If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the 
