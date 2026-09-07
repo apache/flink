@@ -470,6 +470,27 @@ class BinaryVariantTest {
     }
 
     @Test
+    void testUuidGetThrowException() {
+        // Reading a UUID from a non-UUID variant, and reading another type from a UUID variant,
+        // must both fail with a type exception.
+        assertThatThrownBy(builder.of(10)::getUUID)
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("Expected type UUID but got INT");
+
+        assertThatThrownBy(builder.of(UUID.randomUUID())::getString)
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("Expected type STRING but got UUID");
+
+        // A UUID header followed by fewer than 16 bytes is malformed and must be rejected
+        byte[] truncated = {
+            BinaryVariantUtil.primitiveHeader(BinaryVariantUtil.UUID), 0x00, 0x01, 0x02, 0x03
+        };
+        assertThatThrownBy(() -> BinaryVariantUtil.getUUID(truncated, 0))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("MALFORMED_VARIANT");
+    }
+
+    @Test
     void testJavaSerialization() throws Exception {
         Variant variant =
                 builder.object()
