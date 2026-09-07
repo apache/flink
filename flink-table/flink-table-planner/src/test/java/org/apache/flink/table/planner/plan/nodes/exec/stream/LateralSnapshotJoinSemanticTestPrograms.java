@@ -92,7 +92,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                                     + "SELECT probe.pk, probe.pv, s.bk, s.bv "
                                     + "FROM probe "
                                     + "  JOIN LATERAL TABLE(SNAPSHOT("
-                                    + "    input => TABLE b, "
+                                    + "    input => TABLE b, on_time => DESCRIPTOR(bts), "
                                     + "    load_completed_condition => 'user_time', "
                                     + "    load_completed_time => CAST(TIMESTAMP '2020-01-01 00:00:10' AS TIMESTAMP_LTZ(3)))) AS s "
                                     + "  ON probe.pk = s.bk")
@@ -135,7 +135,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM probe JOIN LATERAL SNAPSHOT("
-                                    + "input => TABLE b, "
+                                    + "input => TABLE b, on_time => DESCRIPTOR(bts), "
                                     + MID_FLIP
                                     + ") AS s ON probe.pk = s.bk")
                     .build();
@@ -262,7 +262,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                     .runSql(
                             "INSERT INTO sink SELECT probe.pk, probe.pv, s.bk, s.bv "
                                     + "FROM probe JOIN LATERAL SNAPSHOT("
-                                    + "input => TABLE b"
+                                    + "input => TABLE b, on_time => DESCRIPTOR(bts)"
                                     + ") AS s ON probe.pk = s.bk")
                     .build();
 
@@ -354,7 +354,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                 + " FROM probe "
                 + joinType
                 + " LATERAL SNAPSHOT("
-                + "input => TABLE b, "
+                + "input => TABLE b, on_time => DESCRIPTOR(bts), "
                 + flip
                 + ") AS s ON "
                 + condition;

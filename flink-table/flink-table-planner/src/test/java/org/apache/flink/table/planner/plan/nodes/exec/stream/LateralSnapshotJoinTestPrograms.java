@@ -96,7 +96,7 @@ public class LateralSnapshotJoinTestPrograms {
 
     private static final String SNAPSHOT_BUILD =
             "LATERAL SNAPSHOT("
-                    + "input => TABLE b, "
+                    + "input => TABLE b, on_time => DESCRIPTOR(bts), "
                     + "load_completed_condition => 'user_time', "
                     + "load_completed_time => CAST(TIMESTAMP '2020-01-01 00:00:03' AS TIMESTAMP_LTZ(3))"
                     + ") AS s ON probe.pk = s.bk";

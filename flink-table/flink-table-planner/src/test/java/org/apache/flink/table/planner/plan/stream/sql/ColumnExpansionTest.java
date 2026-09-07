@@ -452,6 +452,96 @@ class ColumnExpansionTest {
                                 + "argument 'r2' has data type 'INT'.");
     }
 
+    @Test
+    void testLateralSnapshotJoinWithOnTimeOnHiddenMetadataColumn() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        tableEnv.executeSql(
+                "CREATE TABLE snapshot_probe (\n"
+                        + "  pk STRING,\n"
+                        + "  pts TIMESTAMP(3),\n"
+                        + "  WATERMARK FOR pts AS pts\n"
+                        + ") WITH ('connector' = 'values', 'bounded' = 'false')");
+
+        // The build-side watermark is declared on a virtual metadata column that
+        // EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS hides from SELECT *.
+        tableEnv.executeSql(
+                "CREATE TABLE snapshot_build_hidden (\n"
+                        + "  bk STRING,\n"
+                        + "  bv INT,\n"
+                        + "  rt TIMESTAMP_LTZ(3) METADATA VIRTUAL,\n"
+                        + "  WATERMARK FOR rt AS rt\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'false',\n"
+                        + " 'readable-metadata' = 'rt:TIMESTAMP_LTZ(3)'\n"
+                        + ")");
+
+        final String sql =
+                "SELECT * FROM snapshot_probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE snapshot_build_hidden, on_time => DESCRIPTOR(rt), "
+                        + "load_completed_condition => 'user_time', "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s ON snapshot_probe.pk = s.bk";
+
+        // rt is selected due to the on_time descriptor, even though it is a hidden metadata column.
+        assertColumnNames(sql, "pk", "pts", "bk", "bv", "rt");
+        // The row-time attribute named by on_time is recognized, so the join plans as a LATERAL
+        // SNAPSHOT join instead of being rejected for a missing build-side watermark.
+        assertThat(tableEnv.explainSql(sql)).contains("LateralSnapshotJoin");
+    }
+
+    @Test
+    void testLateralSnapshotJoinWithOnTimeOnPushedDownHiddenMetadataColumn() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        tableEnv.executeSql(
+                "CREATE TABLE snapshot_probe (\n"
+                        + "  pk STRING,\n"
+                        + "  pts TIMESTAMP(3),\n"
+                        + "  WATERMARK FOR pts AS pts\n"
+                        + ") WITH ('connector' = 'values', 'bounded' = 'false')");
+
+        // Same hidden-metadata watermark, but enable-watermark-push-down folds it into the source;
+        // disable-lookup keeps the values source a pure scan source so the watermark is pushed into
+        // the scan.
+        tableEnv.executeSql(
+                "CREATE TABLE snapshot_build_pushed (\n"
+                        + "  bk STRING,\n"
+                        + "  bv INT,\n"
+                        + "  rt TIMESTAMP_LTZ(3) METADATA VIRTUAL,\n"
+                        + "  WATERMARK FOR rt AS rt\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'false',\n"
+                        + " 'disable-lookup' = 'true',\n"
+                        + " 'enable-watermark-push-down' = 'true',\n"
+                        + " 'scan.watermark.emit.strategy' = 'on-event',\n"
+                        + " 'readable-metadata' = 'rt:TIMESTAMP_LTZ(3)'\n"
+                        + ")");
+
+        final String sql =
+                "SELECT * FROM snapshot_probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE snapshot_build_pushed, on_time => DESCRIPTOR(rt), "
+                        + "load_completed_condition => 'user_time', "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s ON snapshot_probe.pk = s.bk";
+
+        // rt is selected due to the on_time descriptor, even though it is a hidden metadata column.
+        assertColumnNames(sql, "pk", "pts", "bk", "bv", "rt");
+        final String plan = tableEnv.explainSql(sql);
+        assertThat(plan).contains("LateralSnapshotJoin");
+        // watermarkEmitStrategy only appears on the TableSourceScan when the watermark is folded
+        // into the source, confirming the pushed-down row-time attribute reaches the operator.
+        assertThat(plan).contains("watermarkEmitStrategy=[on-event]");
+    }
+
     @DataTypeHint("ROW<out STRING>")
     public static class PassThroughPtf extends ProcessTableFunction<Row> {
         @SuppressWarnings("unused")
