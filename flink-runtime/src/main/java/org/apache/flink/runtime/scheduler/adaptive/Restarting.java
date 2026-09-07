@@ -114,14 +114,19 @@ class Restarting extends StateWithExecutionGraph {
     }
 
     private void goToSubsequentState() {
-        if (parallelismBasedOnFreeSlotsUnchanged() || context.hasDesiredResources()) {
+        // hasDesiredResources() counts all slots allocated to the job, including ones still
+        // reserved by the execution that is only now being cancelled: it must not be used as a
+        // fallback here when a restart target is known, or it would immediately undo the very
+        // guard freeSlotVertexParallelismUnchanged() exists to provide.
+        if (freeSlotVertexParallelismUnchanged()
+                || (restartWithParallelism == null && context.hasDesiredResources())) {
             context.goToCreatingExecutionGraph(getExecutionGraph());
         } else {
             context.goToWaitingForResources(getExecutionGraph(), restartWithParallelism);
         }
     }
 
-    private boolean parallelismBasedOnFreeSlotsUnchanged() {
+    private boolean freeSlotVertexParallelismUnchanged() {
         if (restartWithParallelism == null) {
             return false;
         }

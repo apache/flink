@@ -36,6 +36,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Mock the {@link StateWithExecutionGraph.Context} for restarting state. */
 class MockRestartingContext extends MockStateWithExecutionGraphContext
@@ -50,7 +51,7 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
     private final StateValidator<ExecutionGraph> creatingExecutionGraphStateValidator =
             new StateValidator<>("CreatingExecutionGraph");
 
-    @Nullable private VertexParallelism achievableVertexParallelism;
+    @Nullable private VertexParallelism freeSlotVertexParallelism;
 
     private boolean hasDesiredResources = false;
 
@@ -58,17 +59,23 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
         cancellingStateValidator.expectInput(asserter);
     }
 
-    public void setExpectWaitingForResources() {
-        waitingForResourcesStateValidator.expectInput(assertNonNull());
+    public void setExpectWaitingForResources(
+            @Nullable VertexParallelism expectedTargetVertexParallelism) {
+        waitingForResourcesStateValidator.expectInput(
+                arguments -> {
+                    assertNonNull().accept(arguments);
+                    assertThat(arguments.getTargetVertexParallelism())
+                            .isEqualTo(expectedTargetVertexParallelism);
+                });
     }
 
     public void setExpectCreatingExecutionGraph() {
         creatingExecutionGraphStateValidator.expectInput(assertNonNull());
     }
 
-    public void setAchievableVertexParallelism(
-            @Nullable VertexParallelism achievableVertexParallelism) {
-        this.achievableVertexParallelism = achievableVertexParallelism;
+    public void setFreeSlotVertexParallelism(
+            @Nullable VertexParallelism freeSlotVertexParallelism) {
+        this.freeSlotVertexParallelism = freeSlotVertexParallelism;
     }
 
     public void setHasDesiredResources(boolean hasDesiredResources) {
@@ -103,9 +110,9 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
     @Override
     public void goToWaitingForResources(
             @Nullable ExecutionGraph previousExecutionGraph,
-            @Nullable VertexParallelism restartWithParallelism) {
+            @Nullable VertexParallelism targetVertexParallelism) {
         waitingForResourcesStateValidator.validateInput(
-                new WaitingForResourcesArguments(previousExecutionGraph, restartWithParallelism));
+                new WaitingForResourcesArguments(previousExecutionGraph, targetVertexParallelism));
         hadStateTransition = true;
     }
 
@@ -125,7 +132,7 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
 
     @Override
     public Optional<VertexParallelism> getFreeSlotVertexParallelism() {
-        return Optional.ofNullable(achievableVertexParallelism);
+        return Optional.ofNullable(freeSlotVertexParallelism);
     }
 
     @Override
@@ -139,13 +146,13 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
     /** Arguments passed to {@link #goToWaitingForResources}. */
     static class WaitingForResourcesArguments {
         @Nullable private final ExecutionGraph executionGraph;
-        @Nullable private final VertexParallelism restartWithParallelism;
+        @Nullable private final VertexParallelism targetVertexParallelism;
 
         WaitingForResourcesArguments(
                 @Nullable ExecutionGraph executionGraph,
-                @Nullable VertexParallelism restartWithParallelism) {
+                @Nullable VertexParallelism targetVertexParallelism) {
             this.executionGraph = executionGraph;
-            this.restartWithParallelism = restartWithParallelism;
+            this.targetVertexParallelism = targetVertexParallelism;
         }
 
         @Nullable
@@ -154,8 +161,8 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
         }
 
         @Nullable
-        public VertexParallelism getRestartWithParallelism() {
-            return restartWithParallelism;
+        public VertexParallelism getTargetVertexParallelism() {
+            return targetVertexParallelism;
         }
     }
 }

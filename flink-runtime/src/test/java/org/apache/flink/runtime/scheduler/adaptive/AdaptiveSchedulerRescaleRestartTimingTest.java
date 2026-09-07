@@ -84,9 +84,11 @@ class AdaptiveSchedulerRescaleRestartTimingTest extends AdaptiveSchedulerTestBas
         offerSlots(declarativeSlotPool, taskManagerGateway, 1);
 
         // only 1 of the 2 targeted slots is free: must not have shortcut to
-        // CreatingExecutionGraph yet, even though 1 slot is already "sufficient" to run the job
-        // at a lower parallelism.
-        Thread.sleep(300);
+        // CreatingExecutionGraph, even though 1 slot is already "sufficient" to run the job at a
+        // lower parallelism. No sleep is needed here: offerSlots() runs synchronously on the main
+        // thread executor, and no stabilization work gets scheduled while desired resources
+        // (gated on the restart target) aren't met, so the state is already final by the time it
+        // returns.
         assertThat(scheduler.getState()).isInstanceOf(WaitingForResources.class);
 
         offerSlots(declarativeSlotPool, taskManagerGateway, 1);
@@ -104,15 +106,20 @@ class AdaptiveSchedulerRescaleRestartTimingTest extends AdaptiveSchedulerTestBas
         final DefaultDeclarativeSlotPool declarativeSlotPool =
                 createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
+        // short enough to keep the test fast, but comfortably longer than the offerSlots() call
+        // below so the fallback can only be triggered by the timeout, not by a race with it.
+        final Duration rescaleResourceStabilizationTimeout = Duration.ofMillis(300);
         scheduler =
-                prepareScheduler(jobGraph, declarativeSlotPool, Duration.ofMillis(300)).build();
+                prepareScheduler(jobGraph, declarativeSlotPool, rescaleResourceStabilizationTimeout)
+                        .build();
 
+        final int requiredParallelism = 2;
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
-                new SubmissionBufferingTaskManagerGateway(1);
+                new SubmissionBufferingTaskManagerGateway(requiredParallelism - 1);
 
         // go straight to the restart-triggered WaitingForResources from the initial Created
         // state, as in the test above - never through the plain submission path.
-        final VertexParallelism restartTarget = vertexParallelism(2);
+        final VertexParallelism restartTarget = vertexParallelism(requiredParallelism);
         runInMainThread(
                 () ->
                         scheduler.goToWaitingForResources(
@@ -121,7 +128,7 @@ class AdaptiveSchedulerRescaleRestartTimingTest extends AdaptiveSchedulerTestBas
         assertThat(scheduler.getState()).isInstanceOf(WaitingForResources.class);
 
         // only 1 of the 2 targeted slots is ever offered.
-        offerSlots(declarativeSlotPool, taskManagerGateway, 1);
+        offerSlots(declarativeSlotPool, taskManagerGateway, requiredParallelism - 1);
 
         // the target is never reached, but the stabilization timeout must still force the
         // transition once it elapses, rather than waiting forever.

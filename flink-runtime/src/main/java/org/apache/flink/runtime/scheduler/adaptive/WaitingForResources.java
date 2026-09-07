@@ -147,7 +147,7 @@ class WaitingForResources extends StateWithoutExecutionGraph
     @Override
     public boolean hasDesiredResources() {
         if (targetVertexParallelism != null) {
-            return isParallelismBasedOnFreeSlotsAtLeast(targetVertexParallelism);
+            return isFreeSlotVertexParallelismAtLeast(targetVertexParallelism);
         }
         return context.hasDesiredResources();
     }
@@ -162,14 +162,14 @@ class WaitingForResources extends StateWithoutExecutionGraph
         return context.runIfState(this, callback, delay);
     }
 
-    private boolean isParallelismBasedOnFreeSlotsAtLeast(VertexParallelism target) {
-        final Optional<VertexParallelism> maybeParallelismBasedOnFreeSlots =
+    private boolean isFreeSlotVertexParallelismAtLeast(VertexParallelism target) {
+        final Optional<VertexParallelism> maybeFreeSlotVertexParallelism =
                 context.getFreeSlotVertexParallelism();
-        if (maybeParallelismBasedOnFreeSlots.isEmpty()) {
+        if (maybeFreeSlotVertexParallelism.isEmpty()) {
             return false;
         }
 
-        final VertexParallelism parallelismBasedOnFreeSlots = maybeParallelismBasedOnFreeSlots.get();
+        final VertexParallelism freeSlotVertexParallelism = maybeFreeSlotVertexParallelism.get();
         return target.getVertices().stream()
                 .allMatch(
                         vertex -> {
@@ -181,7 +181,7 @@ class WaitingForResources extends StateWithoutExecutionGraph
                                     Math.min(
                                             target.getParallelism(vertex),
                                             context.getUpperBoundParallelism(vertex));
-                            return cappedTarget <= parallelismBasedOnFreeSlots.getParallelism(vertex);
+                            return cappedTarget <= freeSlotVertexParallelism.getParallelism(vertex);
                         });
     }
 

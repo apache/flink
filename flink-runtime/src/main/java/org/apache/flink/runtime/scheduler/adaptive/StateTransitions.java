@@ -175,6 +175,6 @@ public interface StateTransitions {
         /** Transitions into the {@link WaitingForResources} state. */
         void goToWaitingForResources(
                 @Nullable ExecutionGraph previousExecutionGraph,
-                @Nullable VertexParallelism restartWithParallelism);
+                @Nullable VertexParallelism targetVertexParallelism);
     }
 }
