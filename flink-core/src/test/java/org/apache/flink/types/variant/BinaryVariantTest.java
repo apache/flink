@@ -123,7 +123,7 @@ class BinaryVariantTest {
 
         // Sub-microsecond precision switches to the nanosecond encoding instead of truncating,
         // but getInstant()/getDateTime() still work regardless of which encoding was picked.
-        Instant nanoInstant = Instant.now().truncatedTo(ChronoUnit.NANOS).plusNanos(123);
+        Instant nanoInstant = Instant.now().truncatedTo(ChronoUnit.MICROS).plusNanos(123);
         Variant instantVariant = builder.of(nanoInstant);
         assertThat(instantVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP_LTZ_NS);
         assertThat(instantVariant.getInstant()).isEqualTo(nanoInstant);
