@@ -106,6 +106,26 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       // invalid length
       ($"f0".overlay("IS", 6, -1), "OVERLAY(f0 PLACING 'IS' FROM 6 FOR -1)", "This IS"),
 
+      // a zero length replaces nothing, so the whole tail survives
+      ("abcdef".overlay("X", 2, 0), "OVERLAY('abcdef' PLACING 'X' FROM 2 FOR 0)", "aXbcdef"),
+      ("abcdef".overlay("X", 1, 0), "OVERLAY('abcdef' PLACING 'X' FROM 1 FOR 0)", "Xabcdef"),
+      ("abcdef".overlay("X", 6, 0), "OVERLAY('abcdef' PLACING 'X' FROM 6 FOR 0)", "abcdeXf"),
+
+      // a supplementary-plane character is one character and is never split into half a pair
+      ("a😀b".overlay("X", 2, 1), "OVERLAY('a😀b' PLACING 'X' FROM 2 FOR 1)", "aXb"),
+      ("a😀b".overlay("X", 3, 1), "OVERLAY('a😀b' PLACING 'X' FROM 3 FOR 1)", "a😀X"),
+      ("😀😀".overlay("X", 1, 1), "OVERLAY('😀😀' PLACING 'X' FROM 1 FOR 1)", "X😀"),
+
+      // without FOR, the replaced length is the character count of the replacement
+      ("a😀b".overlay("X", 2), "OVERLAY('a😀b' PLACING 'X' FROM 2)", "aXb"),
+      ("abc".overlay("😀", 2), "OVERLAY('abc' PLACING '😀' FROM 2)", "a😀c"),
+
+      // a length large enough to overflow the end offset still replaces the whole tail
+      (
+        "123456789".overlay("abc", 2, 2147483647),
+        "OVERLAY('123456789' PLACING 'abc' FROM 2 FOR 2147483647)",
+        "1abc"),
+
       // null field. f40 is NULL.
       ($"f40".overlay("It", 1, 4), "OVERLAY(f40 PLACING 'It' FROM 1 FOR 2)", "NULL")
     )
