@@ -226,9 +226,9 @@ public final class BinaryVariant implements Variant {
     }
 
     @Override
-    public UUID getUUID() throws VariantTypeException {
+    public UUID getUuid() throws VariantTypeException {
         checkType(Type.UUID, getType());
-        return BinaryVariantUtil.getUUID(value, pos);
+        return BinaryVariantUtil.getUuid(value, pos);
     }
 
     @Override
@@ -267,7 +267,7 @@ public final class BinaryVariant implements Variant {
             case BYTES:
                 return getBytes();
             case UUID:
-                return getUUID();
+                return getUuid();
             default:
                 throw new VariantTypeException(
                         String.format("Expecting a primitive variant but got %s", getType()));
@@ -469,7 +469,7 @@ public final class BinaryVariant implements Variant {
                                 .encodeToString(BinaryVariantUtil.getBinary(value, pos)));
                 break;
             case UUID:
-                appendQuoted(sb, BinaryVariantUtil.getUUID(value, pos).toString());
+                appendQuoted(sb, BinaryVariantUtil.getUuid(value, pos).toString());
                 break;
             default:
                 throw unexpectedType(BinaryVariantUtil.getType(value, pos));

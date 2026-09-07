@@ -107,7 +107,7 @@ class BinaryVariantTest {
         assertThat(builder.of(localTime).get()).isEqualTo(localTime);
 
         UUID uuid = UUID.randomUUID();
-        assertThat(builder.of(uuid).getUUID()).isEqualTo(uuid);
+        assertThat(builder.of(uuid).getUuid()).isEqualTo(uuid);
         assertThat(builder.of(uuid).get()).isEqualTo(uuid);
 
         assertThat(builder.ofNull().get()).isEqualTo(null);
@@ -350,7 +350,7 @@ class BinaryVariantTest {
 
         UUID expected = UUID.fromString("f24f9b64-81fa-49d1-b74e-8c09a6e31c56");
         assertThat(variant.getType()).isEqualTo(Variant.Type.UUID);
-        assertThat(variant.getUUID()).isEqualTo(expected);
+        assertThat(variant.getUuid()).isEqualTo(expected);
         assertThat(variant.get()).isEqualTo(expected);
     }
 
@@ -473,7 +473,7 @@ class BinaryVariantTest {
     void testUuidGetThrowException() {
         // Reading a UUID from a non-UUID variant, and reading another type from a UUID variant,
         // must both fail with a type exception.
-        assertThatThrownBy(builder.of(10)::getUUID)
+        assertThatThrownBy(builder.of(10)::getUuid)
                 .isInstanceOf(VariantTypeException.class)
                 .hasMessage("Expected type UUID but got INT");
 
@@ -485,7 +485,7 @@ class BinaryVariantTest {
         byte[] truncated = {
             BinaryVariantUtil.primitiveHeader(BinaryVariantUtil.UUID), 0x00, 0x01, 0x02, 0x03
         };
-        assertThatThrownBy(() -> BinaryVariantUtil.getUUID(truncated, 0))
+        assertThatThrownBy(() -> BinaryVariantUtil.getUuid(truncated, 0))
                 .isInstanceOf(VariantTypeException.class)
                 .hasMessage("MALFORMED_VARIANT");
     }

@@ -172,7 +172,7 @@ public class BinaryVariantBuilder implements VariantBuilder {
     @Override
     public Variant of(UUID uuid) {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
-        builder.appendUUID(uuid);
+        builder.appendUuid(uuid);
         return builder.build();
     }
 

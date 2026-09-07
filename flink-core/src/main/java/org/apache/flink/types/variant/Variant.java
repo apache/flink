@@ -178,7 +178,7 @@ public interface Variant extends Serializable {
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
      *     Type#UUID}.
      */
-    UUID getUUID() throws VariantTypeException;
+    UUID getUuid() throws VariantTypeException;
 
     /**
      * Get the scalar value of variant.

@@ -703,7 +703,7 @@ public class BinaryVariantUtil {
         throw unexpectedType(Type.STRING);
     }
 
-    public static UUID getUUID(byte[] value, int pos) {
+    public static UUID getUuid(byte[] value, int pos) {
         checkIndex(pos, value.length);
         int basicType = value[pos] & BASIC_TYPE_MASK;
         int typeInfo = (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;

@@ -329,7 +329,7 @@ public class BinaryVariantInternalBuilder {
         writePos += binary.length;
     }
 
-    public void appendUUID(UUID uuid) {
+    public void appendUuid(UUID uuid) {
         checkCapacity(1 + 16);
         writeBuffer[writePos++] = primitiveHeader(BinaryVariantUtil.UUID);
         // The variant spec stores UUIDs as 16 big-endian bytes: the most significant 8 bytes
