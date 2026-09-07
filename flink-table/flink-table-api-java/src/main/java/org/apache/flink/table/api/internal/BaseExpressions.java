@@ -1411,8 +1411,8 @@ public abstract class BaseExpressions<InType, OutType> {
      * #parseJson(boolean)}.
      *
      * <p>If there are duplicate keys in the input, {@code allowDuplicateKeys} controls whether the
-     * parser keeps the last occurrence of each duplicated key ({@code true}) or throws an error
-     * ({@code false}).
+     * parser keeps the last occurrence of each duplicated key ({@code true}) or returns {@code
+     * NULL} ({@code false}).
      */
     public OutType tryParseJson(boolean allowDuplicateKeys) {
         return toApiSpecificExpression(
