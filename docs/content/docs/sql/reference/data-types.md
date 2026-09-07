@@ -1591,10 +1591,11 @@ CAST(CAST(PARSE_JSON('3.9') AS DECIMAL(2, 1)) AS INT)     -- returns 3 (truncate
 
 A cast to a character string renders the value exactly as a regular SQL cast of the stored kind
 would, so a boolean becomes `TRUE`, a timestamp uses the SQL format, a `TIMESTAMP_LTZ` is shifted into
-the session time zone, and a binary value is read as UTF-8. Only an object or an array has no such
-rendering. Use `JSON_STRING` for the JSON representation instead, where a string stays quoted as
-`"foo"` and an object or array is serialized. A variant that stores a JSON `null` casts to SQL
-`NULL`.
+the session time zone, and a binary value is read as UTF-8. An object or an array has no scalar
+form, so it renders like a regular `ARRAY` or `MAP` cast to a string: an array as `[e1, e2]` and an
+object as `{k1=v1, k2=v2}`, with each value rendered by these same rules and a nested variant null
+shown as `NULL`. A string is never quoted, at any depth. Use `JSON_STRING` for the JSON form with
+quoted strings. A variant that stores a JSON `null` casts to SQL `NULL`.
 
 A `VARIANT` can also be cast to a constructed target, which imposes a schema on it. A variant array
 casts to `ARRAY<T>`. The variant must be an array, otherwise the cast fails. Each element is itself a
@@ -1882,7 +1883,7 @@ The matrix below describes the supported cast pairs, where "Y" means supported, 
 | `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     N     |    N     |
 | `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     N     |    N     |
 | `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |     N     |    N     |
-| `VARIANT`                              |                   N                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   N    |      !      |        !        |     N      |   !³    |     N      |  !³   |  !³   |      !³      |   N   |     Y     |    N     |
+| `VARIANT`                              |                   !                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   N    |      !      |        !        |     N      |   !³    |     N      |  !³   |  !³   |      !³      |   N   |     Y     |    N     |
 | `BITMAP`                               |                   Y                   |                   Y⁷                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
 
 Notes:

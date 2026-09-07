@@ -1847,11 +1847,32 @@ class CastRulesTest {
                                 VARIANT(),
                                 VARIANT_BUILDER.of(INVALID_UTF8),
                                 TableRuntimeException.class)
-                        // an object or an array has no scalar rendering and fails the cast
-                        .fail(VARIANT(), VARIANT_ARRAY, TableRuntimeException.class)
-                        .fail(VARIANT(), VARIANT_OBJECT, TableRuntimeException.class)
-                        // printing is not a cast and cannot fail, so it renders JSON instead,
-                        // which leaves a stored string quoted
+                        // a byte value nested in a container is rendered as an unbounded character
+                        // string, so its error names that rather than the container's target; the
+                        // same holds for an object field value
+                        .fail(
+                                VARIANT(),
+                                VARIANT_BUILDER
+                                        .array()
+                                        .add(VARIANT_BUILDER.of(INVALID_UTF8))
+                                        .build(),
+                                TableRuntimeException.class,
+                                "binary value to a character string")
+                        .fail(
+                                VARIANT(),
+                                VARIANT_BUILDER
+                                        .object()
+                                        .add("k", VARIANT_BUILDER.of(INVALID_UTF8))
+                                        .build(),
+                                TableRuntimeException.class,
+                                "binary value to a character string")
+                        // an object or an array has no scalar form, so it renders like a regular
+                        // ARRAY or MAP to string cast, with strings unquoted and a nested null
+                        // shown as NULL
+                        .fromCase(VARIANT(), VARIANT_ARRAY, fromString("[1, two, FALSE, NULL]"))
+                        .fromCase(VARIANT(), VARIANT_OBJECT, fromString("{k=[1, 2]}"))
+                        // printing renders every variant as JSON instead, so a nested string is
+                        // quoted and a null is the JSON null
                         .fromCasePrinting(
                                 VARIANT(), VARIANT_ARRAY, fromString("[1,\"two\",false,null]"))
                         .fromCasePrinting(VARIANT(), VARIANT_OBJECT, fromString("{\"k\":[1,2]}"))

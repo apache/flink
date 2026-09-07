@@ -263,11 +263,15 @@ public final class VariantCastUtils {
     }
 
     /**
-     * Casts a scalar {@code VARIANT} to a character string, rendering the value the way a regular
-     * SQL cast of the stored kind would. A value longer than {@code targetLength} is trimmed, and a
-     * {@code CHAR} target pads a shorter value to its fixed width. Both are measured in code
-     * points, so a character outside the BMP fills a single position even though it occupies two
-     * UTF-16 units.
+     * Casts a {@code VARIANT} to a character string, rendering the value the way a regular SQL cast
+     * of the stored kind would. An object or array has no scalar form, so it renders like a regular
+     * cast of a {@code MAP} or {@code ARRAY} to a string: an array as {@code [e1, e2]}, an object
+     * as {@code {k1=v1, k2=v2}}, with every value rendered by these same rules and a nested variant
+     * null shown as {@code NULL}. A string is never quoted, at any depth; this is a SQL rendering,
+     * not JSON. Use {@code JSON_STRING} for the JSON form with quoted strings. A value longer than
+     * {@code targetLength} is trimmed, and a {@code CHAR} target pads a shorter value to its fixed
+     * width. Both are measured in code points, so a character outside the BMP fills a single
+     * position even though it occupies two UTF-16 units.
      *
      * <p>A stored binary value has to be well-formed UTF-8, since a character string cannot carry
      * bytes that no character maps to. Invalid input is rejected rather than decoded into {@code
@@ -277,26 +281,65 @@ public final class VariantCastUtils {
      */
     public static BinaryStringData toStringValue(
             Variant variant, TimeZone sessionZone, int targetLength, boolean charTarget) {
-        final String value = getVariantTypeAsString(variant, sessionZone, targetLength, charTarget);
+        final String targetDescription = characterTarget(targetLength, charTarget);
+        final String value = renderValue(variant, sessionZone, targetDescription);
         // numChars and substring both count code points, so a character outside the BMP fills one
         // position rather than the two UTF-16 units it occupies.
-        final BinaryStringData result = BinaryStringData.fromString(value);
-        final int length = result.numChars();
-        if (length > targetLength) {
-            return result.substring(0, targetLength);
-        }
-        if (charTarget && length < targetLength) {
-            return BinaryStringDataUtil.concat(
-                    result, BinaryStringData.blankString(targetLength - length));
-        }
-        return result;
+        return variantKey(value, targetLength, charTarget);
     }
 
-    private static String getVariantTypeAsString(
-            final Variant variant,
-            final TimeZone sessionZone,
-            final int targetLength,
-            final boolean charTarget) {
+    /**
+     * Renders a variant as a character string. An array becomes {@code [e1, e2]} and an object
+     * becomes {@code {k1=v1, k2=v2}}, matching how a regular {@code ARRAY} or {@code MAP} casts to
+     * a string. Elements and field values recurse through the same rendering, so a string stays
+     * unquoted at every depth. A scalar renders like a regular cast of its stored kind.
+     */
+    private static String renderValue(
+            final Variant variant, final TimeZone sessionZone, final String targetDescription) {
+        if (variant.isArray()) {
+            final int size = variant.getArraySize();
+            final StringBuilder sb = new StringBuilder();
+            sb.append('[');
+            for (int i = 0; i < size; i++) {
+                if (i > 0) {
+                    sb.append(", ");
+                }
+                sb.append(renderElement(variant.getElement(i), sessionZone));
+            }
+            return sb.append(']').toString();
+        }
+        if (variant.isObject()) {
+            final StringBuilder sb = new StringBuilder();
+            sb.append('{');
+            boolean first = true;
+            for (final String fieldName : variant.getFieldNames()) {
+                if (!first) {
+                    sb.append(", ");
+                }
+                first = false;
+                sb.append(fieldName)
+                        .append('=')
+                        .append(renderElement(variant.getField(fieldName), sessionZone));
+            }
+            return sb.append('}').toString();
+        }
+        return renderScalar(variant, sessionZone, targetDescription);
+    }
+
+    /**
+     * Renders one array element or object field value. A nested value has no bounded target of its
+     * own: it is rendered in full and only the whole cast result is trimmed, so it reports an
+     * unbounded character string in an error rather than the container's {@code CHAR(n)} or {@code
+     * VARCHAR(n)} target. A variant null shows as the text {@code NULL}, the same as a regular
+     * {@code ARRAY} or {@code MAP} to string cast, rather than failing the way a top-level
+     * null-valued variant does.
+     */
+    private static String renderElement(final Variant element, final TimeZone sessionZone) {
+        return element.isNull() ? "NULL" : renderValue(element, sessionZone, "a character string");
+    }
+
+    private static String renderScalar(
+            final Variant variant, final TimeZone sessionZone, final String targetDescription) {
         final String value;
         switch (variant.getType()) {
             case BOOLEAN:
@@ -331,9 +374,7 @@ public final class VariantCastUtils {
                                             + "of %d. Cast to BYTES to inspect the raw value, or "
                                             + "wrap that in MAKE_VALID_UTF8 to replace every "
                                             + "invalid byte with the U+FFFD replacement character.",
-                                    characterTarget(targetLength, charTarget),
-                                    invalidAt,
-                                    utf8.length));
+                                    targetDescription, invalidAt, utf8.length));
                 }
                 value = new String(utf8, StandardCharsets.UTF_8);
                 break;
@@ -363,9 +404,9 @@ public final class VariantCastUtils {
                         String.format(
                                 "Cannot cast a VARIANT null value to %s because the target does not "
                                         + "accept NULL.",
-                                characterTarget(targetLength, charTarget)));
+                                targetDescription));
             default:
-                // An object or array has no scalar rendering.
+                // Any remaining kind has no scalar string rendering; JSON_STRING serializes it.
                 throw new TableRuntimeException(
                         String.format(
                                 "Cannot cast a VARIANT %s value to a character string. Use the "

@@ -301,21 +301,27 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(PARSE_JSON('true') AS STRING)",
                                 "TRUE",
                                 STRING().notNull())
-                        // An object or array has no scalar value, so the error points to
-                        // JSON_STRING.
-                        .testTableApiRuntimeError(
-                                lit("[\"a\", \"b\"]").parseJson().cast(STRING()), "JSON_STRING")
+                        // An object or array has no scalar form, so it renders like a regular ARRAY
+                        // or MAP to string cast, with strings unquoted at every depth.
+                        .testResult(
+                                lit("[\"a\", \"b\"]").parseJson().cast(STRING()),
+                                "CAST(PARSE_JSON('[\"a\", \"b\"]') AS STRING)",
+                                "[a, b]",
+                                STRING().notNull())
                         .testResult(
                                 lit("[\"a\", \"b\"]").parseJson().tryCast(STRING()),
                                 "TRY_CAST(PARSE_JSON('[\"a\", \"b\"]') AS STRING)",
-                                null,
+                                "[a, b]",
                                 STRING())
-                        .testTableApiRuntimeError(
-                                lit("{\"a\": 1}").parseJson().cast(STRING()), "JSON_STRING")
+                        .testResult(
+                                lit("{\"a\": 1}").parseJson().cast(STRING()),
+                                "CAST(PARSE_JSON('{\"a\": 1}') AS STRING)",
+                                "{a=1}",
+                                STRING().notNull())
                         .testResult(
                                 lit("{\"a\": 1}").parseJson().tryCast(STRING()),
                                 "TRY_CAST(PARSE_JSON('{\"a\": 1}') AS STRING)",
-                                null,
+                                "{a=1}",
                                 STRING())
                         // A bounded CHAR/VARCHAR target trims a longer value, and CHAR pads a
                         // shorter one to its fixed width, the same as a regular cast into it.
@@ -354,6 +360,25 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "TRY_CAST(PARSE_JSON('\"ab\"') AS CHAR(5))",
                                 "ab   ",
                                 CHAR(5))
+                        // A nested variant null renders as NULL and a nested container renders in
+                        // full, with strings unquoted, like a regular ARRAY or MAP to string cast.
+                        .testResult(
+                                lit("[\"a\", null, 1]").parseJson().cast(STRING()),
+                                "CAST(PARSE_JSON('[\"a\", null, 1]') AS STRING)",
+                                "[a, NULL, 1]",
+                                STRING().notNull())
+                        .testResult(
+                                lit("{\"k\": [\"a\", \"b\"]}").parseJson().cast(STRING()),
+                                "CAST(PARSE_JSON('{\"k\": [\"a\", \"b\"]}') AS STRING)",
+                                "{k=[a, b]}",
+                                STRING().notNull())
+                        // A container renders in full and is then trimmed to a bounded target, the
+                        // same as any other value longer than the target.
+                        .testResult(
+                                lit("[1, 2, 3]").parseJson().cast(VARCHAR(5)),
+                                "CAST(PARSE_JSON('[1, 2, 3]') AS VARCHAR(5))",
+                                "[1, 2",
+                                VARCHAR(5).notNull())
                         // A variant holding a JSON null casts to SQL NULL, not to the text 'null'.
                         // The length of that text must not be checked against the target either.
                         .testResult(
