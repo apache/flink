@@ -1287,7 +1287,7 @@ public class AdaptiveScheduler
     @Override
     public void goToWaitingForResources(
             @Nullable ExecutionGraph previousExecutionGraph,
-            @Nullable VertexParallelism restartWithParallelism) {
+            @Nullable VertexParallelism targetVertexParallelism) {
         declareDesiredResources();
 
         transitionToState(
@@ -1295,11 +1295,11 @@ public class AdaptiveScheduler
                         this,
                         LOG,
                         settings.getSubmissionResourceWaitTimeout(),
-                        restartWithParallelism != null
+                        targetVertexParallelism != null
                                 ? this::createRestartWaitingForResourceStateTransitionManager
                                 : this::createWaitingForResourceStateTransitionManager,
                         previousExecutionGraph,
-                        restartWithParallelism));
+                        targetVertexParallelism));
     }
 
     private StateTransitionManager createWaitingForResourceStateTransitionManager(

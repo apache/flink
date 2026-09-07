@@ -65,13 +65,13 @@ class RestartingTest {
     public void testTransitionToSubsequentStateWhenCancellationComplete(
             Optional<VertexParallelism> restartWithParallelism) throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            restartWithParallelism.ifPresent(ctx::setAchievableVertexParallelism);
+            restartWithParallelism.ifPresent(ctx::setFreeSlotVertexParallelism);
             Restarting restarting = createRestartingState(ctx, restartWithParallelism.orElse(null));
 
             if (restartWithParallelism.isPresent()) {
                 ctx.setExpectCreatingExecutionGraph();
             } else {
-                ctx.setExpectWaitingForResources();
+                ctx.setExpectWaitingForResources(null);
             }
             restarting.onGloballyTerminalState(JobStatus.CANCELED);
         }
@@ -85,20 +85,19 @@ class RestartingTest {
             JobVertexID jobVertexId = new JobVertexID();
             // Only 1 slot is genuinely free (e.g. the slot backing the just-cancelled execution
             // has not been released yet), even though the restart target is 2: must not shortcut
-            // straight to CreatingExecutionGraph.
-            VertexParallelism parallelismBasedOnFreeSlots =
+            // straight to CreatingExecutionGraph, regardless of hasDesiredResources() - which
+            // counts all slots allocated to the job, including the ones not yet released by the
+            // execution being cancelled, and must not be allowed to bypass the free-slot-based
+            // target gate.
+            VertexParallelism freeSlotVertexParallelism =
                     new VertexParallelism(singletonMap(jobVertexId, 1));
             VertexParallelism requiredParallelismForForcedRestart =
                     new VertexParallelism(singletonMap(jobVertexId, 2));
 
-            ctx.setAchievableVertexParallelism(parallelismBasedOnFreeSlots);
+            ctx.setFreeSlotVertexParallelism(freeSlotVertexParallelism);
             ctx.setHasDesiredResources(hasDesiredResources);
             Restarting restarting = createRestartingState(ctx, requiredParallelismForForcedRestart);
-            if (hasDesiredResources) {
-                ctx.setExpectCreatingExecutionGraph();
-            } else {
-                ctx.setExpectWaitingForResources();
-            }
+            ctx.setExpectWaitingForResources(requiredParallelismForForcedRestart);
             restarting.onGloballyTerminalState(JobStatus.CANCELED);
         }
     }
@@ -156,7 +155,7 @@ class RestartingTest {
     public void testStateDoesNotExposeGloballyTerminalExecutionGraph(
             Optional<VertexParallelism> restartWithParallelism) throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            restartWithParallelism.ifPresent(ctx::setAchievableVertexParallelism);
+            restartWithParallelism.ifPresent(ctx::setFreeSlotVertexParallelism);
             StateTrackingMockExecutionGraph mockExecutionGraph =
                     new StateTrackingMockExecutionGraph();
             Restarting restarting =
@@ -167,7 +166,7 @@ class RestartingTest {
             if (restartWithParallelism.isPresent()) {
                 ctx.setExpectCreatingExecutionGraph();
             } else {
-                ctx.setExpectWaitingForResources();
+                ctx.setExpectWaitingForResources(null);
             }
 
             mockExecutionGraph.completeTerminationFuture(JobStatus.CANCELED);
