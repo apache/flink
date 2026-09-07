@@ -55,6 +55,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -138,7 +139,7 @@ class KeyedStateInputFormatTest {
 
     @ParameterizedTest(name = "Enable async state = {0}")
     @ValueSource(booleans = {false, true})
-    void testEmptyFilterProducesNoInputSplits(boolean asyncState) throws Exception {
+    void testEmptyExactFilterProducesNoInputSplits(boolean asyncState) throws Exception {
         OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
 
         OperatorSubtaskState state =
@@ -153,10 +154,10 @@ class KeyedStateInputFormatTest {
                         new Configuration(),
                         new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT),
                         new ExecutionConfig(),
-                        SavepointKeyFilter.empty());
+                        SavepointKeyFilter.exact(Collections.emptySet()));
         KeyGroupRangeInputSplit[] splits = format.createInputSplits(10);
 
-        assertThat(splits).isEmpty();
+        assertThat(splits).as("A filter matching no key leaves nothing to read").isEmpty();
     }
 
     @ParameterizedTest(name = "Enable async state = {0}")
