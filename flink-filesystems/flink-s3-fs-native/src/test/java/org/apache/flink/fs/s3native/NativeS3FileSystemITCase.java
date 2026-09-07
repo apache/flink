@@ -110,6 +110,39 @@ class NativeS3FileSystemITCase {
     }
 
     @Test
+    void testRecursiveDeleteManyFilesWithBatchingEnabled() throws Exception {
+        assertRecursiveDeleteOfManyFiles(fs);
+    }
+
+    @Test
+    void testRecursiveDeleteManyFilesWithBatchingDisabled() throws Exception {
+        final Configuration config = new Configuration();
+        container().setS3ConfigOptions(config);
+        config.set(NativeS3FileSystemFactory.DELETE_BATCH_ENABLED, false);
+
+        final NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
+        factory.configure(config);
+        final FileSystem fsWithBatchingDisabled = factory.create(URI.create(bucketUri + "/"));
+
+        assertRecursiveDeleteOfManyFiles(fsWithBatchingDisabled);
+    }
+
+    private void assertRecursiveDeleteOfManyFiles(FileSystem targetFs) throws Exception {
+        final String dir = "bulk-delete-" + UUID.randomUUID();
+        final int numFiles = 25;
+        for (int i = 0; i < numFiles; i++) {
+            write(
+                    targetFs,
+                    path(dir + "/file-" + i + ".txt"),
+                    ("data-" + i).getBytes(StandardCharsets.UTF_8));
+        }
+
+        assertThat(targetFs.listStatus(path(dir))).hasSize(numFiles);
+        assertThat(targetFs.delete(path(dir), true)).isTrue();
+        assertThat(targetFs.exists(path(dir))).isFalse();
+    }
+
+    @Test
     void testRecoverableWriterMultipartCommit() throws Exception {
         final Path file = path("recoverable-" + UUID.randomUUID() + ".bin");
         // Bigger than the S3 multipart minimum part size so the commit exercises a real
@@ -132,7 +165,11 @@ class NativeS3FileSystemITCase {
     }
 
     private static void write(Path path, byte[] data) throws Exception {
-        try (FSDataOutputStream out = fs.create(path, FileSystem.WriteMode.OVERWRITE)) {
+        write(fs, path, data);
+    }
+
+    private static void write(FileSystem targetFs, Path path, byte[] data) throws Exception {
+        try (FSDataOutputStream out = targetFs.create(path, FileSystem.WriteMode.OVERWRITE)) {
             out.write(data);
         }
     }

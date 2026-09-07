@@ -39,12 +39,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+import software.amazon.awssdk.services.s3.model.S3Error;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
@@ -114,7 +119,11 @@ class NativeS3FileSystem extends FileSystem
     private final boolean useAsyncOperations;
     private final int readBufferSize;
     private final Duration fsCloseTimeout;
+    private final boolean deleteBatchEnabled;
     private final AtomicBoolean closed = new AtomicBoolean(false);
+
+    /** Maximum number of keys accepted per S3 {@code DeleteObjects} request. */
+    private static final int DELETE_BATCH_SIZE = 1000;
 
     public NativeS3FileSystem(
             S3ClientProvider clientProvider,
@@ -127,7 +136,8 @@ class NativeS3FileSystem extends FileSystem
             @Nullable NativeS3BulkCopyHelper bulkCopyHelper,
             boolean useAsyncOperations,
             int readBufferSize,
-            Duration fsCloseTimeout) {
+            Duration fsCloseTimeout,
+            boolean deleteBatchEnabled) {
         this.clientProvider =
                 Preconditions.checkNotNull(clientProvider, "clientProvider must not be null");
         this.uri = uri;
@@ -140,6 +150,7 @@ class NativeS3FileSystem extends FileSystem
         this.useAsyncOperations = useAsyncOperations;
         this.readBufferSize = readBufferSize;
         this.fsCloseTimeout = fsCloseTimeout;
+        this.deleteBatchEnabled = deleteBatchEnabled;
         this.s3AccessHelper =
                 new NativeS3ObjectOperations(
                         clientProvider.getS3Client(),
@@ -155,16 +166,22 @@ class NativeS3FileSystem extends FileSystem
         }
 
         LOG.info(
-                "Created Native S3 FileSystem for bucket: {}, entropy injection: {}, bulk copy: {}, read buffer: {} KB",
+                "Created Native S3 FileSystem for bucket: {}, entropy injection: {}, bulk copy: {}, read buffer: {} KB, delete batching: {}",
                 bucketName,
                 entropyInjectionKey != null,
                 bulkCopyHelper != null,
-                readBufferSize / 1024);
+                readBufferSize / 1024,
+                deleteBatchEnabled);
     }
 
     @VisibleForTesting
     Duration getFsCloseTimeout() {
         return fsCloseTimeout;
+    }
+
+    @VisibleForTesting
+    boolean isDeleteBatchEnabled() {
+        return deleteBatchEnabled;
     }
 
     @VisibleForTesting
@@ -392,17 +409,94 @@ class NativeS3FileSystem extends FileSystem
                     throw new IOException("Directory not empty and recursive = false");
                 }
 
-                final FileStatus[] contents = listStatus(path);
-                for (FileStatus file : contents) {
-                    delete(file.getPath(), true);
-                }
-
+                deleteRecursively(s3Client, key);
                 return true;
             }
         } catch (FileNotFoundException e) {
             return false;
         } catch (S3Exception e) {
             throw new IOException("Failed to delete: " + path, e);
+        }
+    }
+
+    /**
+     * Deletes every object under the given key prefix. Lists all keys with a single flat (i.e.
+     * non-delimited) listing, then either issues one {@code DeleteObjects} batch request per
+     * {@value #DELETE_BATCH_SIZE} keys, or falls back to one {@code DeleteObject} request per key
+     * when {@link #deleteBatchEnabled} is {@code false} (e.g. for S3-compatible stores that don't
+     * support multi-object delete).
+     */
+    private void deleteRecursively(S3Client s3Client, String key) throws IOException {
+        final String prefix = key.endsWith("/") ? key : key + "/";
+        final List<String> keysToDelete = new ArrayList<>();
+        String continuationToken = null;
+
+        do {
+            ListObjectsV2Request.Builder requestBuilder =
+                    ListObjectsV2Request.builder().bucket(bucketName).prefix(prefix);
+            if (continuationToken != null) {
+                requestBuilder.continuationToken(continuationToken);
+            }
+
+            final ListObjectsV2Response response = s3Client.listObjectsV2(requestBuilder.build());
+            for (S3Object s3Object : response.contents()) {
+                keysToDelete.add(s3Object.key());
+            }
+            continuationToken = response.nextContinuationToken();
+        } while (continuationToken != null);
+
+        if (deleteBatchEnabled) {
+            LOG.debug(
+                    "Deleting {} object(s) under prefix {} using batched DeleteObjects (batch size {})",
+                    keysToDelete.size(),
+                    prefix,
+                    DELETE_BATCH_SIZE);
+            for (int i = 0; i < keysToDelete.size(); i += DELETE_BATCH_SIZE) {
+                final List<String> batch =
+                        keysToDelete.subList(
+                                i, Math.min(i + DELETE_BATCH_SIZE, keysToDelete.size()));
+                deleteBatch(s3Client, batch);
+            }
+        } else {
+            LOG.debug(
+                    "Deleting {} object(s) under prefix {} using individual DeleteObject calls "
+                            + "(delete batching disabled)",
+                    keysToDelete.size(),
+                    prefix);
+            for (String keyToDelete : keysToDelete) {
+                final DeleteObjectRequest request =
+                        DeleteObjectRequest.builder().bucket(bucketName).key(keyToDelete).build();
+                s3Client.deleteObject(request);
+            }
+        }
+    }
+
+    private void deleteBatch(S3Client s3Client, List<String> keys) throws IOException {
+        final List<ObjectIdentifier> objectIdentifiers = new ArrayList<>(keys.size());
+        for (String keyToDelete : keys) {
+            objectIdentifiers.add(ObjectIdentifier.builder().key(keyToDelete).build());
+        }
+
+        final DeleteObjectsRequest request =
+                DeleteObjectsRequest.builder()
+                        .bucket(bucketName)
+                        .delete(Delete.builder().objects(objectIdentifiers).build())
+                        .build();
+
+        LOG.debug("Issuing batch DeleteObjects request for {} key(s)", keys.size());
+        final DeleteObjectsResponse response = s3Client.deleteObjects(request);
+        if (response.hasErrors() && !response.errors().isEmpty()) {
+            final StringBuilder errorMessage = new StringBuilder("Failed to delete objects: ");
+            for (S3Error error : response.errors()) {
+                errorMessage
+                        .append(error.key())
+                        .append(" (")
+                        .append(error.code())
+                        .append(": ")
+                        .append(error.message())
+                        .append("); ");
+            }
+            throw new IOException(errorMessage.toString());
         }
     }
 

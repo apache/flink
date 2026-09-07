@@ -77,6 +77,7 @@ input.sinkTo(FileSink.forRowFormat(new Path("s3://my-bucket/output"),
 | s3.connection.max | 50 | Maximum HTTP connections in the S3 client connection pool. Applies to sync and async clients, including CRT when enabled. Must be ≥ `s3.bulk-copy.max-concurrent` |
 | s3.async.enabled | true | Enable async read/write with TransferManager |
 | s3.read.buffer.size | 262144 (256KB) | Read buffer size per stream (64KB - 4MB) |
+| s3.delete.batch.enabled | true | Use S3's batch `DeleteObjects` API when recursively deleting a directory, instead of issuing one `DeleteObject` call per file. Disable for S3-compatible stores that do not support multi-object delete |
 
 ### Metrics
 
@@ -156,6 +157,7 @@ Only the following properties can be overridden at the bucket level. Any other `
 - **Credentials:** `access-key`, `secret-key`, `aws.credentials.provider`
 - **Encryption:** `sse.type`, `sse.kms.key-id`
 - **IAM Assume Role:** `assume-role.arn`, `assume-role.external-id`, `assume-role.session-name`, `assume-role.session-duration`
+- **Delete behavior:** `delete.batch.enabled`
 
 Timeouts, retries, encoding/checksum flags, entropy, upload/copy settings, and the credentials provider chain are configured globally only.
 
