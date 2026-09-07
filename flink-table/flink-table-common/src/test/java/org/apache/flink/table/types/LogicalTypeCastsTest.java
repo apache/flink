@@ -45,6 +45,7 @@ import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.VariantType;
@@ -309,10 +310,38 @@ class LogicalTypeCastsTest {
                         false),
                 // MULTISET has no variant counterpart and stays unsupported
                 Arguments.of(
-                        new VariantType(),
-                        new MultisetType(VarCharType.STRING_TYPE),
-                        false,
-                        false));
+                        new VariantType(), new MultisetType(VarCharType.STRING_TYPE), false, false),
+                // UUID casts are explicit only, in both directions
+                Arguments.of(new UuidType(), VarCharType.STRING_TYPE, false, true),
+                Arguments.of(new UuidType(), new CharType(), false, true),
+                Arguments.of(VarCharType.STRING_TYPE, new UuidType(), false, true),
+                Arguments.of(new CharType(), new UuidType(), false, true),
+                // UUID maps to its 16-byte encoding. BINARY is fixed width, so only BINARY(16)
+                // fits. VARBINARY is variable width, so any VARBINARY(n >= 16), up to BYTES, fits.
+                Arguments.of(new UuidType(), new BinaryType(16), false, true),
+                Arguments.of(new UuidType(), new BinaryType(10), false, false),
+                Arguments.of(new UuidType(), new BinaryType(20), false, false),
+                Arguments.of(
+                        new UuidType(), new VarBinaryType(VarBinaryType.MAX_LENGTH), false, true),
+                Arguments.of(new UuidType(), new VarBinaryType(16), false, true),
+                Arguments.of(new UuidType(), new VarBinaryType(20), false, true),
+                Arguments.of(new UuidType(), new VarBinaryType(8), false, false),
+                // A binary source maps back from the 16-byte encoding. BINARY is fixed width, so
+                // only BINARY(16) fits; a VARBINARY(n >= 16) may hold it, with the exact length
+                // checked at runtime.
+                Arguments.of(
+                        new VarBinaryType(VarBinaryType.MAX_LENGTH), new UuidType(), false, true),
+                Arguments.of(new VarBinaryType(16), new UuidType(), false, true),
+                Arguments.of(new VarBinaryType(8), new UuidType(), false, false),
+                Arguments.of(new BinaryType(16), new UuidType(), false, true),
+                Arguments.of(new BinaryType(10), new UuidType(), false, false),
+                // UUID identity cast is implicit
+                Arguments.of(new UuidType(), new UuidType(), true, true),
+                // numeric and VARIANT are not castable to or from UUID
+                Arguments.of(new UuidType(), new IntType(), false, false),
+                Arguments.of(new IntType(), new UuidType(), false, false),
+                Arguments.of(new UuidType(), new VariantType(), false, false),
+                Arguments.of(new VariantType(), new UuidType(), false, false));
     }
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Implicit: {2}, Explicit: {3}]")
