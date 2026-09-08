@@ -78,9 +78,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * atomically moved into place after the stream has been fully copied. Cancellation through the
  * provided {@link ICloseableRegistry} aborts active S3 response streams, cancels pending futures,
  * stops the worker pool, and deletes incomplete temporary files.
- *
- * <p><b>TODO:</b> Consider extracting URI parsing logic to a shared S3UriUtils utility class to
- * consolidate S3 URI handling across the codebase.
  */
 @Internal
 class NativeS3BulkCopyHelper {
@@ -185,8 +182,8 @@ class NativeS3BulkCopyHelper {
             for (int i = 0; i < requests.size(); i++) {
                 PathsCopyingFileSystem.CopyRequest request = requests.get(i);
                 String sourceUri = request.getSource().toUri().toString();
-                if (isSupportedS3Scheme(request.getSource())
-                        && isSupportedLocalScheme(request.getDestination())) {
+                if (S3UriUtils.isSupportedS3Scheme(request.getSource())
+                        && S3UriUtils.isSupportedLocalScheme(request.getDestination())) {
                     copyFutures.add(copyS3ToLocal(request, downloadPool, cancellation));
                 } else {
                     throw new UnsupportedOperationException(
@@ -237,8 +234,8 @@ class NativeS3BulkCopyHelper {
             throws IOException {
 
         String sourceUri = request.getSource().toUri().toString();
-        String bucket = extractBucket(sourceUri);
-        String key = extractKey(sourceUri);
+        String bucket = S3UriUtils.extractBucket(sourceUri);
+        String key = S3UriUtils.extractKey(sourceUri);
         Path destination = new File(request.getDestination().getPath()).toPath().toAbsolutePath();
 
         Path parent = destination.getParent();
@@ -388,16 +385,6 @@ class NativeS3BulkCopyHelper {
         }
     }
 
-    static boolean isSupportedS3Scheme(org.apache.flink.core.fs.Path path) {
-        String scheme = path.toUri().getScheme();
-        return "s3".equalsIgnoreCase(scheme) || "s3a".equalsIgnoreCase(scheme);
-    }
-
-    static boolean isSupportedLocalScheme(org.apache.flink.core.fs.Path path) {
-        String scheme = path.toUri().getScheme();
-        return scheme == null || "file".equalsIgnoreCase(scheme);
-    }
-
     private static void abortAndClose(ResponseInputStream<GetObjectResponse> stream) {
         try {
             stream.abort();
@@ -501,41 +488,5 @@ class NativeS3BulkCopyHelper {
             current = current.getCause();
         }
         return false;
-    }
-
-    /**
-     * Extracts the bucket name from an S3 URI.
-     *
-     * <p>Supports both s3:// and s3a:// schemes (s3a is normalized to s3).
-     *
-     * @param s3Uri the S3 URI
-     * @return the bucket name
-     */
-    String extractBucket(String s3Uri) {
-        String uri = s3Uri.replaceFirst("s3a://", "s3://");
-        int bucketStart = uri.indexOf("://") + 3;
-        int bucketEnd = uri.indexOf("/", bucketStart);
-        if (bucketEnd == -1) {
-            return uri.substring(bucketStart);
-        }
-        return uri.substring(bucketStart, bucketEnd);
-    }
-
-    /**
-     * Extracts the object key from an S3 URI.
-     *
-     * <p>Supports both s3:// and s3a:// schemes (s3a is normalized to s3).
-     *
-     * @param s3Uri the S3 URI
-     * @return the object key (empty string if no key in URI)
-     */
-    String extractKey(String s3Uri) {
-        String uri = s3Uri.replaceFirst("s3a://", "s3://");
-        int bucketStart = uri.indexOf("://") + 3;
-        int keyStart = uri.indexOf("/", bucketStart);
-        if (keyStart == -1) {
-            return "";
-        }
-        return uri.substring(keyStart + 1);
     }
 }
