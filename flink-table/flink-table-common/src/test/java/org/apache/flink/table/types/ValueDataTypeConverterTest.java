@@ -43,6 +43,7 @@ import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -124,7 +125,8 @@ class ValueDataTypeConverterTest {
                 of(Bitmap.empty(), DataTypes.BITMAP().bridgedTo(RoaringBitmapData.class)),
                 of(
                         Bitmap.fromArray(new int[] {1, 2}),
-                        DataTypes.BITMAP().bridgedTo(RoaringBitmapData.class)));
+                        DataTypes.BITMAP().bridgedTo(RoaringBitmapData.class)),
+                of(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"), DataTypes.UUID()));
     }
 
     @ParameterizedTest(name = "[{index}] value: {0} type: {1}")

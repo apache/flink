@@ -47,6 +47,7 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoField;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
@@ -242,6 +243,16 @@ class ExpressionTest {
                                 .getValueAs(Instant.class)
                                 .orElseThrow(AssertionError::new))
                 .isEqualTo(instant.minusMillis(100));
+    }
+
+    @Test
+    void testUuidValueLiteralExtraction() {
+        final UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        assertThat(
+                        new ValueLiteralExpression(uuid)
+                                .getValueAs(UUID.class)
+                                .orElseThrow(AssertionError::new))
+                .isEqualTo(uuid);
     }
 
     @Test

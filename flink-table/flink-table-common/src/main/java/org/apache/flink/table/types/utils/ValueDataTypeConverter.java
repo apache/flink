@@ -31,6 +31,7 @@ import org.apache.flink.types.variant.Variant;
 import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
@@ -97,6 +98,8 @@ public final class ValueDataTypeConverter {
             return Optional.of(DataTypes.VARIANT().notNull());
         } else if (value instanceof RoaringBitmapData) {
             convertedDataType = DataTypes.BITMAP();
+        } else if (value instanceof UUID) {
+            convertedDataType = DataTypes.UUID();
         }
 
         final Optional<DataType> resultType;

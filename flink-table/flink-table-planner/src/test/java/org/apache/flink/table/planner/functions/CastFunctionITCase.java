@@ -538,9 +538,6 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     private static List<TestSetSpec> uuidCasts() {
-        // A UUID has no Table API literal, so a UUID source is produced from a string cast. The
-        // exhaustive value and lenient-parse matrix lives in CastRulesTest.
-        final String literal = "UUID '" + DEFAULT_UUID_STRING + "'";
         return Arrays.asList(
                 // A string or a binary value casts to a UUID.
                 CastTestSpecBuilder.testCastTo(UUID())
@@ -577,20 +574,16 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 TableRuntimeException.class,
                                 "requires exactly 16 bytes")
                         .testResult($("f1").tryCast(UUID()), "TRY_CAST(f1 AS UUID)", null, UUID()),
-                // A UUID casts to its canonical string and to its 16-byte encoding.
-                TestSetSpec.forExpression("Cast a UUID to a string and to bytes")
-                        .onFieldsWithData("unused")
-                        .andDataTypes(STRING())
-                        .testResult(
-                                lit(DEFAULT_UUID_STRING).cast(UUID()).cast(STRING()),
-                                "CAST(" + literal + " AS STRING)",
-                                DEFAULT_UUID_STRING,
-                                STRING().notNull())
-                        .testResult(
-                                lit(DEFAULT_UUID_STRING).cast(UUID()).cast(BYTES()),
-                                "CAST(" + literal + " AS BYTES)",
-                                DEFAULT_UUID_BYTES,
-                                BYTES().notNull()));
+                // A UUID casts to its canonical string.
+                CastTestSpecBuilder.testCastTo(STRING())
+                        .fromCase(UUID(), DEFAULT_UUID, DEFAULT_UUID_STRING)
+                        .fromCase(UUID(), null, null)
+                        .build(),
+                // A UUID casts to its 16-byte encoding.
+                CastTestSpecBuilder.testCastTo(BYTES())
+                        .fromCase(UUID(), DEFAULT_UUID, DEFAULT_UUID_BYTES)
+                        .fromCase(UUID(), null, null)
+                        .build());
     }
 
     private static List<TestSetSpec> variantRowCasts() {

@@ -58,6 +58,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -306,6 +307,8 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                                 .map(EncodingUtils::escapeBackticks)
                                 .map(c -> String.format("`%s`", c))
                                 .collect(Collectors.joining()));
+            case UUID:
+                return String.format("UUID '%s'", getValueAs(UUID.class).get());
             case ARRAY:
             case MULTISET:
             case MAP:
