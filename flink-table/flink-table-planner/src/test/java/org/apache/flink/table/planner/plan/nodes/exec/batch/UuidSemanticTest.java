@@ -16,32 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.planner.plan.nodes.exec.UuidTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchSemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.List;
 
-/** Semantic tests for the {@link DataTypes#UUID()} type. */
-public class UuidSemanticTest extends SemanticTestBase {
+/**
+ * Batch semantic tests for the {@link DataTypes#UUID()} type as an ordering, grouping and join key.
+ */
+public class UuidSemanticTest extends BatchSemanticTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                UuidTestPrograms.UUID_SOURCE_SINK,
-                UuidTestPrograms.UUID_LITERAL,
-                UuidTestPrograms.UUID_ARRAY,
-                UuidTestPrograms.UUID_MAP,
-                UuidTestPrograms.UUID_NESTED_ROW,
                 UuidTestPrograms.UUID_EQUALITY,
                 UuidTestPrograms.UUID_COMPARISON,
                 UuidTestPrograms.UUID_LITERAL_FILTER,
                 UuidTestPrograms.UUID_ORDER_BY,
                 UuidTestPrograms.UUID_GROUP_BY,
-                UuidTestPrograms.UUID_JOIN,
-                UuidTestPrograms.UUID_INVALID_LITERAL);
+                UuidTestPrograms.UUID_JOIN);
     }
 }

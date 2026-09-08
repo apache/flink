@@ -139,16 +139,16 @@ public class TypeCheckUtils {
         return type.getTypeRoot() == STRUCTURED_TYPE;
     }
 
+    public static boolean isUuid(LogicalType type) {
+        return type.getTypeRoot() == UUID;
+    }
+
     private static boolean isVariantType(LogicalType type) {
         return type.getTypeRoot() == VARIANT;
     }
 
     private static boolean isBitmapType(LogicalType type) {
         return type.getTypeRoot() == BITMAP;
-    }
-
-    private static boolean isUuidType(LogicalType type) {
-        return type.getTypeRoot() == UUID;
     }
 
     public static boolean isComparable(LogicalType type) {
@@ -159,8 +159,7 @@ public class TypeCheckUtils {
                 && !isArray(type)
                 && !isStructuredType(type)
                 && !isVariantType(type)
-                && !isBitmapType(type)
-                && !isUuidType(type);
+                && !isBitmapType(type);
     }
 
     public static boolean isMutable(LogicalType type) {

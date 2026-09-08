@@ -629,7 +629,9 @@ object GenerateUtils {
       s"$leftTerm.compareTo($rightTerm)"
     case BOOLEAN =>
       s"($leftTerm == $rightTerm ? 0 : ($leftTerm ? 1 : -1))"
-    case BINARY | VARBINARY =>
+    case BINARY | VARBINARY | UUID =>
+      // UUID is stored as its 16-byte big-endian encoding, so it orders by the same unsigned
+      // byte-wise comparison as binary strings.
       val sortUtil =
         classOf[org.apache.flink.table.runtime.operators.sort.SortUtil].getCanonicalName
       s"$sortUtil.compareBinary($leftTerm, $rightTerm)"
