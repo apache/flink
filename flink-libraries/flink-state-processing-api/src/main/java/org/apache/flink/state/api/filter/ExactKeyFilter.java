@@ -18,7 +18,6 @@
 
 package org.apache.flink.state.api.filter;
 
-import java.util.HashSet;
 import java.util.Set;
 
 /** A filter that accepts a finite set of keys. */
@@ -40,20 +39,6 @@ final class ExactKeyFilter<K> implements SavepointKeyFilter<K> {
     @Override
     public Set<K> getExactKeys() {
         return keys;
-    }
-
-    @Override
-    public SavepointKeyFilter<K> intersect(SavepointKeyFilter<K> other) {
-        if (other.isEmpty()) {
-            return other;
-        }
-        final Set<K> otherKeys = other.getExactKeys();
-        if (otherKeys != null) {
-            final Set<K> intersection = new HashSet<>(keys);
-            intersection.retainAll(otherKeys);
-            return SavepointKeyFilter.exact(intersection);
-        }
-        return SavepointKeyFilter.filterKeys(keys, other);
     }
 
     @Override
