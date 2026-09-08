@@ -19,28 +19,29 @@
 from typing import Dict, Optional
 
 from pyflink.common import Configuration
-from pyflink.table import TableEnvironment
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = [
-    "DataFrameConfig",
     "config",
 ]
 
 
-@PublicEvolving()
-class DataFrameConfig:
+class _DataFrameConfig:
     """
     A unified entry point for Flink configuration in the DataFrame API.
 
-    Accepts any Flink configuration key and buffers the value, so configuration can be set
-    at any time -- even before an environment exists. Buffered values are used when
+    Accepts any Flink configuration key and buffers the value until
     :func:`get_or_create_table_environment` creates the underlying
-    :class:`~pyflink.table.TableEnvironment`, so options that can only be chosen at creation
-    time, such as ``execution.runtime-mode``, take effect. An environment injected via
-    :func:`set_table_environment` receives the buffered values for every key it does not
-    already set explicitly. While an environment is active, values are also written through
-    to its configuration immediately.
+    :class:`~pyflink.table.TableEnvironment`. Because the values are supplied at creation
+    time, options that can only be chosen then, such as ``execution.runtime-mode`` or
+    ``table.builtin-catalog-name``, take effect.
+
+    Configuration must therefore be set before the environment exists. Once an environment
+    is active, whether created or injected via :func:`set_table_environment`, use its own
+    :meth:`~pyflink.table.TableEnvironment.get_config` instead. An environment passed to
+    :func:`set_table_environment` is treated as fully configured and does not receive
+    buffered values. Buffered values survive clearing the environment with
+    ``set_table_environment(None)`` and feed the next environment created.
 
     Use the module-level singleton :data:`config` instead of instantiating this class.
 
@@ -54,22 +55,25 @@ class DataFrameConfig:
     .. versionadded:: 2.4.0
     """
 
-    def __init__(self: "DataFrameConfig"):
+    def __init__(self: "_DataFrameConfig"):
         self._buffered: Dict[str, str] = {}
 
-    def set(self, key: str, value: str) -> "DataFrameConfig":
+    @PublicEvolving()
+    def set(self, key: str, value: str) -> "_DataFrameConfig":
         """
         Sets a string-based value for the given string-based key.
 
-        The value is buffered and applied to the underlying environment once it is created
-        or injected; when an environment is already active, the value is applied to its
-        configuration immediately as well. A value the active environment rejects is not
-        buffered.
+        The value is buffered and supplied to the environment created by
+        :func:`get_or_create_table_environment`. It cannot be called while an environment
+        is active, because options consumed at creation time could no longer take effect;
+        configure the active environment through its
+        :meth:`~pyflink.table.TableEnvironment.get_config` instead.
 
         :param key: The configuration key.
         :param value: The configuration value. It will be parsed by the framework on access.
         :return: This object, to allow chaining of calls.
         :raises TypeError: If ``key`` or ``value`` is not a string.
+        :raises RuntimeError: If an environment is already active.
 
         Example::
 
@@ -86,12 +90,16 @@ class DataFrameConfig:
 
         from pyflink.dataframe.context import get_table_environment
 
-        t_env = get_table_environment()
-        if t_env is not None:
-            t_env.get_config().set(key, value)
+        if get_table_environment() is not None:
+            raise RuntimeError(
+                "DataFrame configuration must be set before the table environment exists. "
+                "Configure the active environment through t_env.get_config(), or clear it "
+                "with set_table_environment(None) before calling config.set()."
+            )
         self._buffered[key] = value
         return self
 
+    @PublicEvolving()
     def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
         """
         Returns the value associated with the given key as a string.
@@ -135,17 +143,6 @@ class DataFrameConfig:
             configuration.set_string(key, value)
         return configuration
 
-    def _apply_to(self, t_env: TableEnvironment, overwrite: bool) -> None:
-        """
-        Applies the buffered values to ``t_env``. With ``overwrite`` set to ``False``, keys
-        the environment already sets explicitly in its own configuration are left untouched.
-        """
-        table_config = t_env.get_config()
-        explicit_configuration = table_config.get_configuration()
-        for key, value in self._buffered.items():
-            if overwrite or not explicit_configuration.contains_key(key):
-                table_config.set(key, value)
 
-
-config = DataFrameConfig()
-"""The singleton :class:`DataFrameConfig` used by the DataFrame API."""
+config = _DataFrameConfig()
+"""The singleton :class:`_DataFrameConfig` used by the DataFrame API."""

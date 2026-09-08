@@ -21,10 +21,14 @@ Configuration
 =============
 
 A unified entry point for Flink configuration. The module-level singleton ``pf.config``
-accepts any Flink configuration key and buffers the value, so configuration can be set at
-any time -- even before an environment exists. Buffered values are used when the underlying
-TableEnvironment is created, and are applied to an injected environment for every key it
-does not already set explicitly.
+accepts any Flink configuration key and buffers the value until
+``pf.get_or_create_table_environment()`` creates the underlying TableEnvironment. Because
+the values are supplied at creation time, options that can only be chosen then, such as
+``execution.runtime-mode``, take effect.
+
+Configuration must be set before the environment exists; ``pf.config.set()`` raises once an
+environment is active. An environment injected via ``pf.set_table_environment()`` is treated
+as fully configured and does not receive buffered values.
 
 Example::
 
@@ -34,8 +38,8 @@ Example::
     >>> pf.config.get("parallelism.default")
     '4'
 
-DataFrameConfig
----------------
+config
+------
 
 .. currentmodule:: pyflink.dataframe
 
@@ -43,6 +47,5 @@ DataFrameConfig
     :toctree: api/
 
     config
-    DataFrameConfig
-    DataFrameConfig.set
-    DataFrameConfig.get
+    config.set
+    config.get

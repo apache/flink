@@ -18,10 +18,9 @@
 
 import unittest
 from typing import get_type_hints, Optional
-from unittest import mock
 
 import pyflink.dataframe as pf
-from pyflink.table import EnvironmentSettings, TableConfig, TableEnvironment
+from pyflink.dataframe.dataframe_config import _DataFrameConfig
 from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 
 
@@ -34,19 +33,21 @@ class DataFrameConfigValidationTests(unittest.TestCase):
         pf.config._buffered.clear()
 
     def test_config_is_a_dataframe_config_singleton(self):
-        self.assertIsInstance(pf.config, pf.DataFrameConfig)
+        self.assertIsInstance(pf.config, _DataFrameConfig)
+        self.assertNotIn("DataFrameConfig", pf.__all__)
+        self.assertNotIn("_DataFrameConfig", pf.__all__)
 
     def test_public_type_hints_are_resolvable(self):
         self.assertEqual(
-            get_type_hints(pf.DataFrameConfig.set),
+            get_type_hints(_DataFrameConfig.set),
             {
                 "key": str,
                 "value": str,
-                "return": pf.DataFrameConfig,
+                "return": _DataFrameConfig,
             },
         )
         self.assertEqual(
-            get_type_hints(pf.DataFrameConfig.get),
+            get_type_hints(_DataFrameConfig.get),
             {
                 "key": str,
                 "default": Optional[str],
@@ -98,15 +99,6 @@ class DataFrameConfigTests(PyFlinkUTTestCase):
         pf.set_table_environment(None)
         pf.config._buffered.clear()
 
-    def test_buffered_values_are_applied_when_an_environment_is_injected(self):
-        pf.config.set("pipeline.name", "buffered-name")
-
-        pf.set_table_environment(self.t_env)
-
-        self.assertEqual(
-            self.t_env.get_config().get("pipeline.name", None), "buffered-name"
-        )
-
     def test_buffered_values_are_applied_to_the_lazily_created_environment(self):
         pf.config.set("pipeline.name", "lazy-name")
 
@@ -116,14 +108,58 @@ class DataFrameConfigTests(PyFlinkUTTestCase):
             created_environment.get_config().get("pipeline.name", None), "lazy-name"
         )
 
-    def test_set_writes_through_to_the_active_environment(self):
+    def test_table_creation_time_option_takes_effect(self):
+        # The built-in catalog is chosen when the TableEnvironment is instantiated, so the
+        # buffered value has to reach EnvironmentSettings rather than TableConfig afterwards.
+        pf.config.set("table.builtin-catalog-name", "my_catalog")
+
+        created_environment = pf.get_or_create_table_environment()
+
+        self.assertEqual(created_environment.get_current_catalog(), "my_catalog")
+
+    def test_set_is_rejected_while_an_environment_is_active(self):
         pf.set_table_environment(self.t_env)
 
-        pf.config.set("pipeline.name", "write-through")
+        with self.assertRaisesRegex(RuntimeError, "before the table environment exists"):
+            pf.config.set("pipeline.name", "too-late")
 
-        self.assertEqual(
-            self.t_env.get_config().get("pipeline.name", None), "write-through"
-        )
+        self.assertEqual(pf.config._buffered, {})
+        self.assertIsNone(self.t_env.get_config().get("pipeline.name", None))
+
+    def test_set_is_allowed_again_after_the_environment_is_cleared(self):
+        pf.set_table_environment(self.t_env)
+        pf.set_table_environment(None)
+
+        pf.config.set("pipeline.name", "after-clear")
+
+        self.assertEqual(pf.config.get("pipeline.name"), "after-clear")
+
+    def test_injecting_an_environment_is_rejected_when_values_are_buffered(self):
+        pf.config.set("pipeline.name", "buffered-name")
+
+        with self.assertRaisesRegex(RuntimeError, "buffered values"):
+            pf.set_table_environment(self.t_env)
+
+        self.assertIsNone(pf.get_table_environment())
+        self.assertIsNone(self.t_env.get_config().get("pipeline.name", None))
+
+    def test_injected_environment_is_not_modified(self):
+        self.t_env.get_config().set("pipeline.name", "explicit")
+
+        pf.set_table_environment(self.t_env)
+
+        self.assertIs(pf.get_table_environment(), self.t_env)
+        self.assertEqual(self.t_env.get_config().get("pipeline.name", None), "explicit")
+
+    def test_clearing_the_environment_keeps_buffered_values(self):
+        pf.config.set("pipeline.name", "kept")
+        pf.get_or_create_table_environment()
+
+        pf.set_table_environment(None)
+
+        self.assertEqual(pf.config.get("pipeline.name"), "kept")
+        created_environment = pf.get_or_create_table_environment()
+        self.assertEqual(created_environment.get_config().get("pipeline.name", None), "kept")
 
     def test_get_reads_from_the_active_environment(self):
         pf.set_table_environment(self.t_env)
@@ -145,57 +181,6 @@ class DataFrameConfigTests(PyFlinkUTTestCase):
         table = created_environment.from_elements([(1, "a"), (2, "b")], ["id", "name"])
         with table.execute().collect() as rows:
             self.assertEqual(len(list(rows)), 2)
-
-    def test_set_environment_leaves_state_unchanged_when_applying_buffered_values_fails(
-        self,
-    ):
-        pf.config.set("pipeline.name", "buffered-name")
-
-        with mock.patch.object(TableConfig, "set", side_effect=RuntimeError("boom")):
-            with self.assertRaisesRegex(RuntimeError, "boom"):
-                pf.set_table_environment(self.t_env)
-
-        self.assertIsNone(pf.get_table_environment())
-
-    def test_get_or_create_does_not_retain_a_half_configured_environment(self):
-        # Failure is injected through TableConfig.set; move the injection point if the
-        # fix no longer routes buffered values through it.
-        pf.config.set("pipeline.name", "lazy-name")
-
-        with mock.patch.object(TableConfig, "set", side_effect=RuntimeError("boom")):
-            with self.assertRaisesRegex(RuntimeError, "boom"):
-                pf.get_or_create_table_environment()
-
-        self.assertIsNone(pf.get_table_environment())
-        created_environment = pf.get_or_create_table_environment()
-        self.assertEqual(
-            created_environment.get_config().get("pipeline.name", None), "lazy-name"
-        )
-
-    def test_set_does_not_buffer_a_value_the_active_environment_rejects(self):
-        pf.set_table_environment(self.t_env)
-
-        with self.assertRaises(Exception):
-            pf.config.set("pipeline.jars", "not-a-valid-url")
-
-        self.assertEqual(pf.config._buffered, {})
-        other_environment = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
-        pf.set_table_environment(other_environment)  # must not replay the rejected value
-        self.assertIsNone(other_environment.get_config().get("pipeline.jars", None))
-
-    def test_injected_environment_keeps_values_it_set_explicitly(self):
-        # Encodes a design decision: a value written while environment A was active must
-        # not silently override a value the caller set directly on environment B.
-        pf.set_table_environment(self.t_env)
-        pf.config.set("pipeline.name", "for-first-environment")
-        other_environment = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
-        other_environment.get_config().set("pipeline.name", "explicit-on-other")
-
-        pf.set_table_environment(other_environment)
-
-        self.assertEqual(
-            other_environment.get_config().get("pipeline.name", None), "explicit-on-other"
-        )
 
 
 if __name__ == "__main__":
