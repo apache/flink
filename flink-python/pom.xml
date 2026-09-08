@@ -38,7 +38,8 @@ under the License.
 		<!-- Override Beam's optional transitive with a version that fixes CVE-2026-45292. -->
 		<opentelemetry.bundled.version>1.62.0</opentelemetry.bundled.version>
 		
-		<arrow.version>25.0.1</arrow.version>
+		<!-- Arrow Java is released from apache/arrow-java and is not version-aligned with pyarrow. -->
+		<arrow.version>19.0.0</arrow.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv
 			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
