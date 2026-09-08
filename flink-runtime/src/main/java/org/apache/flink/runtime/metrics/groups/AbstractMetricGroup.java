@@ -85,9 +85,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
     /** All metric subgroups of this group. */
     private final Map<String, AbstractMetricGroup<?>> groups = new HashMap<>();
 
-    /**
-     * Key under which this group sits in its parent's {@link #groups} map.
-     */
+    /** Key under which this group sits in its parent's {@link #groups} map. */
     private volatile String nameInParent;
 
     /**
