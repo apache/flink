@@ -1847,9 +1847,9 @@ class CastRulesTest {
                                 VARIANT(),
                                 VARIANT_BUILDER.of(INVALID_UTF8),
                                 TableRuntimeException.class)
-                        // a byte value nested in a container is rendered as an unbounded character
-                        // string, so its error names that rather than the container's target; the
-                        // same holds for an object field value
+                        // a byte value nested in a container is rendered unbounded, so its error
+                        // names STRING rather than the container's target; the same holds for an
+                        // object field value
                         .fail(
                                 VARIANT(),
                                 VARIANT_BUILDER
@@ -1857,7 +1857,7 @@ class CastRulesTest {
                                         .add(VARIANT_BUILDER.of(INVALID_UTF8))
                                         .build(),
                                 TableRuntimeException.class,
-                                "binary value to a character string")
+                                "binary value to STRING")
                         .fail(
                                 VARIANT(),
                                 VARIANT_BUILDER
@@ -1865,7 +1865,7 @@ class CastRulesTest {
                                         .add("k", VARIANT_BUILDER.of(INVALID_UTF8))
                                         .build(),
                                 TableRuntimeException.class,
-                                "binary value to a character string")
+                                "binary value to STRING")
                         // an object or an array has no scalar form, so it renders like a regular
                         // ARRAY or MAP to string cast, with strings unquoted and a nested null
                         // shown as NULL
