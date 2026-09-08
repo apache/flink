@@ -43,9 +43,9 @@ describe('HumanizeDatePipe', () => {
     expect(pipe.transform(0, undefined, 'UTC')).toBe('Jan 1, 1970');
   });
 
-  it('swallows formatting errors and returns undefined when the format needs unloaded extra locale data', () => {
-    // 'B' (flexible day period, e.g. "in the morning") requires extra Angular locale data
-    // that plain "en-US" doesn't register by default, so formatDate throws internally.
-    expect(pipe.transform(0, 'B', 'UTC')).toBeUndefined();
+  it('swallows formatting errors and returns undefined', () => {
+    // An unregistered locale always throws (a stable part of Angular's i18n contract), unlike
+    // format 'B' needing "extra" locale data, which is a version-dependent implementation detail.
+    expect(pipe.transform(0, 'yyyy-MM-dd', 'UTC', 'not-a-registered-locale')).toBeUndefined();
   });
 });

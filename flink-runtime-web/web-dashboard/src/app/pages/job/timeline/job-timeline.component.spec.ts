@@ -28,7 +28,13 @@ import { JobLocalService } from '../job-local.service';
 
 const mockJobDetail = {
   jid: 'job-1',
-  vertices: [{ id: 'v1', name: 'Source: generator', 'start-time': 1000, 'end-time': 2000, duration: 1000 }]
+  vertices: [
+    // No end-time recorded yet: the range end must be derived from start-time + duration.
+    { id: 'v2', name: 'Sink: writer', 'start-time': 3000, 'end-time': -1, duration: 500 },
+    { id: 'v1', name: 'Source: generator', 'start-time': 1000, 'end-time': 2000, duration: 1000 },
+    // Not started yet: must be filtered out of the timeline entirely.
+    { id: 'v3', name: 'Not started yet', 'start-time': -1, 'end-time': -1, duration: 0 }
+  ]
 };
 
 const mockSubTaskTimes = {
@@ -39,7 +45,7 @@ const mockSubTaskTimes = {
     {
       subtask: 0,
       endpoint: 'host-a',
-      duration: 500,
+      duration: 1000,
       timestamps: {
         CREATED: 1000,
         RUNNING: 1200,
@@ -88,25 +94,31 @@ describe('JobTimelineComponent', () => {
     });
   });
 
-  it('maps the vertices into timeline ranges and renders the main chart', () => {
+  it('maps the vertices into timeline ranges, filtering unstarted ones and sorting by start time', () => {
     fixture.detectChanges();
 
     expect(component.jobDetail).toEqual(mockJobDetail);
-    expect(component.listOfVertex).toHaveLength(1);
+    expect(component.listOfVertex.map(v => v.id)).toEqual(['v1', 'v2']);
     expect(component.listOfVertex[0].range).toEqual([1000, 2000]);
+    expect(component.listOfVertex[1].range).toEqual([3000, 3500]);
     expect(fakeMain.data).toHaveBeenCalledWith(component.listOfVertex);
     expect(fakeMain.render).toHaveBeenCalled();
   });
 
-  it('builds the subtask timeline from subtask time stamps', () => {
+  it('derives each subtask timeline range from its ordered status timestamps', () => {
     fixture.detectChanges();
 
     component.updateSubTaskChart('v1');
 
     expect(loadSubTaskTimes).toHaveBeenCalledWith('job-1', 'v1');
     expect(component.isShowSubTaskTimeLine).toBe(true);
-    expect(component.listOfSubTaskTimeLine.length).toBeGreaterThan(0);
-    expect(component.listOfSubTaskTimeLine.every(item => item.name === '0 - host-a')).toBe(true);
+    expect(component.listOfSubTaskTimeLine).toEqual([
+      { name: '0 - host-a', status: 'CREATED', range: [1000, 1200] },
+      { name: '0 - host-a', status: 'RUNNING', range: [1200, 1700] },
+      // The final status runs until the subtask's overall finish (first start + duration).
+      { name: '0 - host-a', status: 'FINISHED', range: [1700, 2000] }
+    ]);
+    expect(fakeSub.data).toHaveBeenCalledWith(component.listOfSubTaskTimeLine);
     expect(fakeSub.render).toHaveBeenCalled();
   });
 });

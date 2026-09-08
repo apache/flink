@@ -17,12 +17,12 @@
  */
 
 import { NgIf } from '@angular/common';
-import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { ChangeDetectorRef, CUSTOM_ELEMENTS_SCHEMA, ElementRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { EMPTY, of } from 'rxjs';
 
-import { NodesItemCorrect } from '@flink-runtime-web/interfaces';
+import { JobDetailCorrect, NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
 import { JobService, MetricsService } from '@flink-runtime-web/services';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -95,6 +95,86 @@ describe('JobOverviewComponent', () => {
     expect(success).toHaveBeenCalledWith(
       'Rescaling operation.',
       'Job resources requirements have been updated. Job will now try to rescale.'
+    );
+  });
+});
+
+describe('JobOverviewComponent with a resolved plan', () => {
+  // The Dagre graph relies on SVG layout APIs jsdom does not implement, so the component is
+  // constructed directly (bypassing TestBed/change detection) and given a fake dagreComponent,
+  // rather than trying to render the real child through the view.
+  const mockPlan: JobDetailCorrect['plan'] = {
+    jid: 'job-1',
+    name: 'Test Job',
+    type: 'STREAMING',
+    nodes: [{ id: 'vertex-a' } as NodesItemCorrect],
+    links: [] as NodesItemLink[],
+    streamNodes: [
+      { id: 'node-a', job_vertex_id: 'vertex-a' } as NodesItemCorrect,
+      { id: 'node-b' } as NodesItemCorrect
+    ],
+    streamLinks: [{ id: 'link-1', source: 'node-a', target: 'node-b' } as NodesItemLink]
+  };
+
+  function createComponent(): {
+    component: JobOverviewComponent;
+    fakeDagre: { showPendingOperators: boolean; flush: ReturnType<typeof vi.fn>; updateNode: ReturnType<typeof vi.fn> };
+  } {
+    const fakeDagre = {
+      showPendingOperators: false,
+      flush: vi.fn().mockResolvedValue(undefined),
+      updateNode: vi.fn()
+    };
+    const component = new JobOverviewComponent(
+      {} as unknown as Router,
+      activatedRoute as unknown as ActivatedRoute,
+      {} as ElementRef,
+      {
+        loadMetricsWithAllAggregates: vi.fn().mockReturnValue(of({})),
+        loadWatermarks: vi.fn().mockReturnValue(of({ lowWatermark: NaN }))
+      } as unknown as MetricsService,
+      {
+        jobDetailChanges: () => of({ jid: 'job-1', plan: mockPlan } as JobDetailCorrect),
+        selectedVertexChanges: () => EMPTY
+      } as unknown as JobLocalService,
+      {} as unknown as JobService,
+      {} as unknown as NzNotificationService,
+      { markForCheck: vi.fn() } as unknown as ChangeDetectorRef
+    );
+    (component as unknown as { dagreComponent: typeof fakeDagre }).dagreComponent = fakeDagre;
+    return { component, fakeDagre };
+  }
+
+  it('derives pending nodes and links from the streaming graph when a plan arrives', () => {
+    const { component } = createComponent();
+    component.ngOnInit();
+
+    expect(component.nodes).toEqual(mockPlan.nodes);
+    expect(component.pendingNodes).toEqual([{ id: 'node-b' }]);
+    // The pending link's endpoints are remapped through the streaming-graph node ids onto
+    // their job-vertex ids, so 'node-a' becomes 'vertex-a' while the still-pending 'node-b'
+    // (no job vertex yet) is left as-is.
+    expect(component.pendingLinks).toEqual([
+      { id: 'vertex-a-node-b', source: 'vertex-a', target: 'node-b', pending: true }
+    ]);
+  });
+
+  it('flushes the dagre graph with the resolved nodes and links', () => {
+    const { component, fakeDagre } = createComponent();
+    component.ngOnInit();
+
+    expect(fakeDagre.flush).toHaveBeenCalledWith(mockPlan.nodes, mockPlan.links, true);
+  });
+
+  it('flushes the pending nodes and links alongside the resolved ones when pending operators are shown', () => {
+    const { component, fakeDagre } = createComponent();
+    fakeDagre.showPendingOperators = true;
+    component.ngOnInit();
+
+    expect(fakeDagre.flush).toHaveBeenCalledWith(
+      [...mockPlan.nodes, { id: 'node-b' }],
+      [{ id: 'vertex-a-node-b', source: 'vertex-a', target: 'node-b', pending: true }],
+      true
     );
   });
 });

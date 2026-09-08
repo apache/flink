@@ -18,7 +18,7 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { of } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
 
 import { ApplicationService, OverviewService, StatusService } from '@flink-runtime-web/services';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -57,6 +57,26 @@ const mockApplications = [
     duration: 150,
     completed: true,
     jobs: { ...emptyJobStatus, FINISHED: 1 }
+  },
+  {
+    id: 'app-3',
+    name: 'another-running-app',
+    status: 'RUNNING',
+    'start-time': 120,
+    'end-time': -1,
+    duration: 20,
+    completed: false,
+    jobs: { ...emptyJobStatus, RUNNING: 1 }
+  },
+  {
+    id: 'app-4',
+    name: 'cancelled-app',
+    status: 'CANCELED',
+    'start-time': 30,
+    'end-time': 90,
+    duration: 60,
+    completed: true,
+    jobs: { ...emptyJobStatus, CANCELED: 1 }
   }
 ];
 
@@ -106,6 +126,26 @@ describe('OverviewComponent', () => {
     // Both application-list children render with their titles.
     expect(text).toContain('Running Application List');
     expect(text).toContain('Completed Application List');
+  });
+
+  it('derives the cluster statistics from the applications and overview data', async () => {
+    fixture.detectChanges();
+
+    const stats = await firstValueFrom(fixture.componentInstance.statisticData$);
+
+    expect(stats).toEqual({
+      'applications-running': 2,
+      'applications-finished': 1,
+      'applications-cancelled': 1,
+      'applications-failed': 0,
+      taskmanagers: 3,
+      'taskmanagers-blocked': 0,
+      'slots-total': 12,
+      'slots-available': 5,
+      'slots-free-and-blocked': 0,
+      'flink-version': '2.4-SNAPSHOT',
+      'flink-commit': 'abcdef0'
+    });
   });
 
   it('navigates when an application is selected', () => {
