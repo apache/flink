@@ -307,6 +307,9 @@ class DataTypesTest {
                         .expectUnresolvedString("['EnumTypeInfo<java.time.DayOfWeek>']")
                         .lookupReturns(dummyRaw(DayOfWeek.class))
                         .expectResolvedDataType(dummyRaw(DayOfWeek.class)),
+                TestSpec.forUnresolvedDataType(DataTypes.of(UUID.class))
+                        .expectUnresolvedString("['java.util.UUID']")
+                        .expectResolvedDataType(UUID()),
                 TestSpec.forUnresolvedDataType(DataTypes.of(Variant.class))
                         .expectUnresolvedString("['org.apache.flink.types.variant.Variant']")
                         .expectResolvedDataType(VARIANT()),
