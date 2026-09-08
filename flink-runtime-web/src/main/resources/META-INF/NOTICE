@@ -10,15 +10,15 @@ The Apache Software Foundation (http://www.apache.org/).
 
 | Package Name | Version | License |
 | ------------ | ------- | ------- |
-| @angular/animations | 21.2.17 | MIT |
+| @angular/animations | 21.2.22 | MIT |
 | @angular/cdk | 21.2.14 | MIT |
-| @angular/common | 21.2.17 | MIT |
-| @angular/compiler | 21.2.17 | MIT |
-| @angular/core | 21.2.17 | MIT |
-| @angular/forms | 21.2.17 | MIT |
-| @angular/platform-browser | 21.2.17 | MIT |
-| @angular/platform-browser-dynamic | 21.2.17 | MIT |
-| @angular/router | 21.2.17 | MIT |
+| @angular/common | 21.2.22 | MIT |
+| @angular/compiler | 21.2.22 | MIT |
+| @angular/core | 21.2.22 | MIT |
+| @angular/forms | 21.2.22 | MIT |
+| @angular/platform-browser | 21.2.22 | MIT |
+| @angular/platform-browser-dynamic | 21.2.22 | MIT |
+| @angular/router | 21.2.22 | MIT |
 | @ant-design/colors | 7.2.1 | MIT |
 | @ant-design/fast-color | 2.0.6 | MIT |
 | @ant-design/icons-angular | 21.0.0 | MIT |
@@ -86,14 +86,14 @@ The Apache Software Foundation (http://www.apache.org/).
 | date-fns | 2.30.0 | MIT |
 | delaunator | 5.1.0 | ISC |
 | detect-browser | 5.3.0 | MIT |
-| dompurify | 3.2.7 | Apache-2.0 |
+| dompurify | 3.4.8 | Apache-2.0 |
 | entities | 8.0.0 | BSD-2-Clause |
 | fecha | 4.2.3 | MIT |
 | gl-matrix | 3.4.4 | MIT |
 | iconv-lite | 0.6.3 | MIT |
 | internmap | 2.0.3 | ISC |
 | marked | 14.0.0 | MIT |
-| monaco-editor | 0.55.1 | MIT |
+| monaco-editor | 0.56.0 | MIT |
 | ng-zorro-antd | 21.3.2 | MIT |
 | parse5 | 8.0.1 | MIT |
 | robust-predicates | 3.0.3 | Unlicense |
@@ -106,7 +106,7 @@ The Apache Software Foundation (http://www.apache.org/).
 
 
 ## Licenses:
-@angular/animations@21.2.17
+@angular/animations@21.2.22
 ---
 The MIT License
 
@@ -156,7 +156,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ---
-@angular/common@21.2.17
+@angular/common@21.2.22
 ---
 The MIT License
 
@@ -181,7 +181,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ---
-@angular/compiler@21.2.17
+@angular/compiler@21.2.22
 ---
 The MIT License
 
@@ -206,7 +206,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ---
-@angular/core@21.2.17
+@angular/core@21.2.22
 ---
 The MIT License
 
@@ -231,7 +231,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ---
-@angular/forms@21.2.17
+@angular/forms@21.2.22
 ---
 The MIT License
 
@@ -256,7 +256,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ---
-@angular/platform-browser@21.2.17
+@angular/platform-browser@21.2.22
 ---
 The MIT License
 
@@ -281,7 +281,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ---
-@angular/platform-browser-dynamic@21.2.17
+@angular/platform-browser-dynamic@21.2.22
 ---
 The MIT License
 
@@ -306,7 +306,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ---
-@angular/router@21.2.17
+@angular/router@21.2.22
 ---
 The MIT License
 
@@ -1702,7 +1702,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ---
-dompurify@3.2.7
+dompurify@3.4.8
 ---
 DOMPurify
 Copyright 2025 Dr.-Ing. Mario Heiderich, Cure53
@@ -1915,6 +1915,7 @@ terms of the Apache License Version 2.0
    limitations under the License.
 
 ---
+---
 entities@8.0.0
 ---
 Copyright (c) Felix Böhm
@@ -2068,7 +2069,7 @@ Redistribution and use in source and binary forms, with or without modification,
 This software is provided by the copyright holders and contributors “as is” and any express or implied warranties, including, but not limited to, the implied warranties of merchantability and fitness for a particular purpose are disclaimed. In no event shall the copyright owner or contributors be liable for any direct, indirect, incidental, special, exemplary, or consequential damages (including, but not limited to, procurement of substitute goods or services; loss of use, data, or profits; or business interruption) however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence or otherwise) arising in any way out of the use of this software, even if advised of the possibility of such damage.
 
 ---
-monaco-editor@0.55.1
+monaco-editor@0.56.0
 ---
 The MIT License (MIT)
 
