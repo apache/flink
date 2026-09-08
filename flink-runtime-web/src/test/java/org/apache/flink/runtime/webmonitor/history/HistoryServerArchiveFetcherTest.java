@@ -71,6 +71,7 @@ class HistoryServerArchiveFetcherTest {
     private ArchiveStorage<Object> archiveStorage;
     private ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache;
     private List<HistoryServerArchiveFetcher.ArchiveEvent> archiveEvents;
+    private HistoryServerArchiveFetcher<?> fetcher;
 
     @Parameters(name = "storageFactory={0}")
     private static Collection<ArchiveStorageFactory<?>> storageFactories() {
@@ -95,9 +96,19 @@ class HistoryServerArchiveFetcherTest {
     @AfterEach
     void tearDown() throws Exception {
         archiveEvents.clear();
-        if (archiveStorage != null) {
-            archiveStorage.close();
-            archiveStorage = null;
+        // Shut the fetcher down before deleting the @TempDir: its executor threads write into
+        // localArchiveRootPath, and a task still running during cleanup fails the temp-dir
+        // deletion.
+        try {
+            if (fetcher != null) {
+                fetcher.close();
+            }
+        } finally {
+            fetcher = null;
+            if (archiveStorage != null) {
+                archiveStorage.close();
+                archiveStorage = null;
+            }
         }
     }
 
@@ -139,8 +150,7 @@ class HistoryServerArchiveFetcherTest {
             createJobArchive(remoteArchiveRootPath, jobId, true);
         }
 
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
         fetcher.fetchArchives(EAGER);
 
         assertThat(archiveEvents).hasSize(numJobs);
@@ -170,8 +180,7 @@ class HistoryServerArchiveFetcherTest {
         // Replace the field so that close() in tearDown() releases the underlying storage too.
         archiveStorage = blockingStorage;
 
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(remoteArchiveRootPath, false, blockingStorage);
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, false, blockingStorage);
 
         fetcher.fetchArchives(LAZY);
 
@@ -202,8 +211,7 @@ class HistoryServerArchiveFetcherTest {
             createJobArchive(remoteArchiveRootPath, jobId, true);
         }
 
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
         fetcher.fetchArchives(LAZY);
 
         assertThat(archiveEvents).hasSize(numJobs);
@@ -229,8 +237,7 @@ class HistoryServerArchiveFetcherTest {
         Path archivePath = new Path(remoteArchiveRootPath.toURI().toString(), jobId.toString());
         FsJsonArchivist.writeArchivedJsons(archivePath, Collections.emptyList());
 
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
 
         assertThatThrownBy(
                         () -> fetcher.lazyProcessJobArchive(jobId.toString(), archivePath, false))
@@ -258,8 +265,7 @@ class HistoryServerArchiveFetcherTest {
                         archiveStorage, "jobs/" + jobIdWithDetail + "/config");
         archiveStorage = blockingStorage;
 
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(remoteArchiveRootPath, false, blockingStorage);
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, false, blockingStorage);
 
         fetcher.fetchArchives(LAZY);
 
@@ -313,8 +319,7 @@ class HistoryServerArchiveFetcherTest {
         createJobArchive(remoteArchiveRootPath, job1, true);
         createJobArchive(remoteArchiveRootPath, job2, true);
 
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(remoteArchiveRootPath, true, archiveStorage);
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, true, archiveStorage);
         fetcher.fetchArchives(EAGER);
 
         Object overviewObject = archiveStorage.getEntry("jobs/overview.json");
@@ -345,8 +350,7 @@ class HistoryServerArchiveFetcherTest {
     void testLegacyJobOverviewMigration() throws Exception {
         JobID jobId = createLegacyArchive(remoteArchiveRootPath.toPath(), false);
 
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
         fetcher.fetchArchives(LAZY);
 
         assertThat(archiveEvents).hasSize(1);
@@ -361,8 +365,7 @@ class HistoryServerArchiveFetcherTest {
         JobID jobId = JobID.generate();
         createJobArchive(remoteArchiveRootPath, jobId, true);
 
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(remoteArchiveRootPath, true, archiveStorage);
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, true, archiveStorage);
 
         fetcher.scanArchives(EAGER, false);
         assertThat(archiveEvents).isEmpty();
@@ -375,8 +378,7 @@ class HistoryServerArchiveFetcherTest {
         JobID jobId = JobID.generate();
         Path archivePath = createJobArchive(remoteArchiveRootPath, jobId, true);
 
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, false, archiveStorage);
 
         fetcher.lazyFetchArchiveProactively(jobId.toString(), archivePath);
         waitForArchiveLoaded(archiveMetaInfoCache, jobId.toString());
@@ -410,8 +412,7 @@ class HistoryServerArchiveFetcherTest {
                         archiveStorage, "jobs/" + jobId + "/config");
         archiveStorage = blockingStorage;
 
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(remoteArchiveRootPath, false, blockingStorage);
+        fetcher = createArchiveFetcher(remoteArchiveRootPath, false, blockingStorage);
         fetcher.fetchArchives(LAZY);
         // make sure the async detail task has started
         assertThat(blockingStorage.asyncStartLatch.await(10, TimeUnit.SECONDS)).isTrue();
