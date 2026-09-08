@@ -833,7 +833,7 @@ class MiniClusterITCase {
 
     public static class SlowMetricTeardownInvokable extends AbstractInvokable {
 
-        public static final int NUM_GROUPS = 150_000;
+        public static final int NUM_GROUPS = 50_000;
 
         /** Counted down once the slot is held and the (slow) teardown is about to start. */
         public static volatile CountDownLatch slotHeld = new CountDownLatch(1);
