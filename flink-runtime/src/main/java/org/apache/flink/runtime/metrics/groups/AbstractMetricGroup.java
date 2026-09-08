@@ -86,6 +86,11 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
     private final Map<String, AbstractMetricGroup<?>> groups = new HashMap<>();
 
     /**
+     * Key under which this group sits in its parent's {@link #groups} map.
+     */
+    private volatile String nameInParent;
+
+    /**
      * The metrics scope represented by this group. For example ["host-7", "taskmanager-2",
      * "window_word_count", "my-mapper" ].
      */
@@ -337,15 +342,15 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
                 metrics.clear();
             }
         }
-        if (parent != null) {
-            parent.removeChildGroup(this);
+        if (parent != null && nameInParent != null) {
+            parent.removeChildGroup(nameInParent, this);
         }
     }
 
-    void removeChildGroup(AbstractMetricGroup<?> childGroup) {
+    void removeChildGroup(String name, AbstractMetricGroup<?> childGroup) {
         synchronized (this) {
             if (!closed) {
-                groups.values().remove(childGroup);
+                groups.remove(name, childGroup);
             }
         }
     }
@@ -518,6 +523,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
                 AbstractMetricGroup<?> prior = groups.put(name, newGroup);
                 if (prior == null || prior.isClosed()) {
                     // no prior group or closed group with that name
+                    newGroup.nameInParent = name;
                     return newGroup;
                 } else {
                     // had a prior group with that name, add the prior group back

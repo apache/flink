@@ -23,12 +23,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.Tasks.AgnosticBinaryReceiver;
 import org.apache.flink.runtime.jobmanager.Tasks.AgnosticReceiver;
 import org.apache.flink.runtime.jobmanager.Tasks.AgnosticTertiaryReceiver;
@@ -41,6 +44,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Receiver;
 import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
@@ -51,11 +55,15 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration test cases for the {@link MiniCluster}. */
@@ -187,6 +195,51 @@ class MiniClusterITCase {
                             cause ->
                                     assertThat(cause)
                                             .isInstanceOf(NoResourceAvailableException.class));
+        }
+    }
+
+    @Test
+    void slowMetricTeardownStarvesTheNextJob() throws Exception {
+        final Configuration config = new Configuration();
+        final Duration timeout = Duration.ofSeconds(4);
+        config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, timeout);
+        config.set(JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT, timeout);
+        config.set(ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY, Duration.ofMillis(20));
+        config.set(
+                ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME,
+                Duration.ofMillis(1L));
+
+        final MiniClusterConfiguration cfg =
+                new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
+                        .setNumTaskManagers(1)
+                        .setNumSlotsPerTaskManager(1)
+                        .setConfiguration(config)
+                        .build();
+
+        // Job A grabs the single slot.
+        final JobVertex slow = new JobVertex("slow-metric-teardown");
+        slow.setParallelism(1);
+        slow.setInvokableClass(SlowMetricTeardownInvokable.class);
+        final JobGraph jobA = JobGraphTestUtils.streamingJobGraph(slow);
+
+        // Job B just needs the slot once A releases it.
+        final JobVertex worker = new JobVertex("worker");
+        worker.setParallelism(1);
+        worker.setInvokableClass(NoOpInvokable.class);
+        final JobGraph jobB = JobGraphTestUtils.streamingJobGraph(worker);
+
+        SlowMetricTeardownInvokable.slotHeld = new CountDownLatch(1);
+
+        try (final MiniCluster miniCluster = new MiniCluster(cfg)) {
+            miniCluster.start();
+
+            miniCluster.submitJob(jobA).get();
+            // Wait until A holds the slot and is entering its teardown.
+            SlowMetricTeardownInvokable.slotHeld.await();
+
+            // Passes only if A releases its slot before the timeout.
+            assertThatCode(() -> miniCluster.executeJobBlocking(jobB)).doesNotThrowAnyException();
         }
     }
 
@@ -775,6 +828,32 @@ class MiniClusterITCase {
         @Override
         public void initializeOnMaster(InitializeOnMasterContext context) {
             throw new OutOfMemoryError("Java heap space");
+        }
+    }
+
+    public static class SlowMetricTeardownInvokable extends AbstractInvokable {
+
+        public static final int NUM_GROUPS = 150_000;
+
+        /** Counted down once the slot is held and the (slow) teardown is about to start. */
+        public static volatile CountDownLatch slotHeld = new CountDownLatch(1);
+
+        public SlowMetricTeardownInvokable(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            final MetricGroup parent = getEnvironment().getMetricGroup().addGroup("splits");
+            final List<AbstractMetricGroup<?>> kids = new ArrayList<>(NUM_GROUPS);
+            for (int i = 0; i < NUM_GROUPS; i++) {
+                kids.add((AbstractMetricGroup<?>) parent.addGroup("s" + i));
+            }
+            slotHeld.countDown();
+            // per-split teardown: each close() -> parent.removeChildGroup.
+            for (AbstractMetricGroup<?> kid : kids) {
+                kid.close();
+            }
         }
     }
 }
