@@ -1543,6 +1543,21 @@ class CastRulesTest {
                                             null,
                                             fromString("2021-09-24 14:34:56.123456")
                                         })),
+                CastTestSpecBuilder.testCastTo(ARRAY(VARBINARY(1)))
+                        .fromCase(ARRAY(BYTES()), null, null)
+                        .fromCase(
+                                ARRAY(BYTES()),
+                                new GenericArrayData(new byte[][] {}),
+                                new GenericArrayData(new byte[][] {}))
+                        .fromCase(
+                                ARRAY(BYTES()),
+                                new GenericArrayData(new byte[][] {{1}, {2, 3}, null, {}}),
+                                new GenericArrayData(new byte[][] {{1}, {2}, null, {}})),
+                CastTestSpecBuilder.testCastTo(ARRAY(BINARY(2).notNull()))
+                        .fromCase(
+                                ARRAY(BYTES().notNull()),
+                                new GenericArrayData(new byte[][] {{1}, {2, 3, 4}}),
+                                new GenericArrayData(new byte[][] {{1, 0}, {2, 3}})),
                 CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().nullable()))
                         .fromCase(
                                 ARRAY(INT().nullable()),
@@ -2119,6 +2134,16 @@ class CastRulesTest {
                                 new GenericArrayData(new int[] {1, 2, 3}))
                         // a VARIANT null element fails a NOT NULL element type
                         .fail(VARIANT(), VARIANT_INT_ARRAY_WITH_NULL, TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(ARRAY(BYTES()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER
+                                        .array()
+                                        .add(VARIANT_BUILDER.of(new byte[] {1}))
+                                        .add(VARIANT_BUILDER.of(new byte[] {2, 3}))
+                                        .add(VARIANT_BUILDER.ofNull())
+                                        .build(),
+                                new GenericArrayData(new byte[][] {{1}, {2, 3}, null})),
                 CastTestSpecBuilder.testCastTo(ARRAY(STRING()))
                         // each element renders to string like the scalar cast
                         .fromCase(
