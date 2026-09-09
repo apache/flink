@@ -149,15 +149,46 @@ public class ForStDBTtlCompactFiltersManager {
 
     public void configCompactFilter(
             @Nonnull StateDescriptor<?, ?> stateDesc, TypeSerializer<?> stateSerializer) {
-        StateTtlConfig ttlConfig = stateDesc.getTtlConfig();
+        configCompactFilter(
+                stateDesc.getName(),
+                stateDesc.getTtlConfig(),
+                stateDesc instanceof ListStateDescriptor,
+                stateDesc instanceof MapStateDescriptor,
+                stateSerializer);
+    }
+
+    /**
+     * Configures the TTL compaction filter for a state created through the State V2 API. This is
+     * the counterpart of {@link #configCompactFilter(StateDescriptor, TypeSerializer)}: registering
+     * the filter factory on the column family alone (see {@link
+     * #setAndRegisterCompactFilterIfStateTtlV2}) is not sufficient, the native filter stays
+     * disabled until it receives its {@link FlinkCompactionFilter.Config}.
+     */
+    public void configCompactFilter(
+            @Nonnull org.apache.flink.api.common.state.v2.StateDescriptor<?> stateDesc,
+            TypeSerializer<?> stateSerializer) {
+        org.apache.flink.api.common.state.v2.StateDescriptor.Type type = stateDesc.getType();
+        configCompactFilter(
+                stateDesc.getStateId(),
+                stateDesc.getTtlConfig(),
+                type == org.apache.flink.api.common.state.v2.StateDescriptor.Type.LIST,
+                type == org.apache.flink.api.common.state.v2.StateDescriptor.Type.MAP,
+                stateSerializer);
+    }
+
+    private void configCompactFilter(
+            String stateName,
+            StateTtlConfig ttlConfig,
+            boolean isListState,
+            boolean isMapState,
+            TypeSerializer<?> stateSerializer) {
         if (ttlConfig.isEnabled() && ttlConfig.getCleanupStrategies().inRocksdbCompactFilter()) {
             FlinkCompactionFilterFactory compactionFilterFactory =
-                    compactionFilterFactories.get(stateDesc.getName());
+                    compactionFilterFactories.get(stateName);
             Preconditions.checkNotNull(compactionFilterFactory);
             long ttl = ttlConfig.getTimeToLive().toMillis();
 
-            ColumnFamilyOptions columnFamilyOptions =
-                    columnFamilyOptionsMap.get(stateDesc.getName());
+            ColumnFamilyOptions columnFamilyOptions = columnFamilyOptionsMap.get(stateName);
             Preconditions.checkNotNull(columnFamilyOptions);
 
             StateTtlConfig.RocksdbCompactFilterCleanupStrategy rocksdbCompactFilterCleanupStrategy =
@@ -178,7 +209,7 @@ public class ForStDBTtlCompactFiltersManager {
             }
 
             FlinkCompactionFilter.Config config;
-            if (stateDesc instanceof ListStateDescriptor) {
+            if (isListState) {
                 TypeSerializer<?> elemSerializer =
                         ((ListSerializer<?>) stateSerializer).getElementSerializer();
                 int len = elemSerializer.getLength();
@@ -195,7 +226,7 @@ public class ForStDBTtlCompactFiltersManager {
                                     queryTimeAfterNumEntries,
                                     new ListElementFilterFactory<>(elemSerializer.duplicate()));
                 }
-            } else if (stateDesc instanceof MapStateDescriptor) {
+            } else if (isMapState) {
                 config = FlinkCompactionFilter.Config.createForMap(ttl, queryTimeAfterNumEntries);
             } else {
                 config = FlinkCompactionFilter.Config.createForValue(ttl, queryTimeAfterNumEntries);
