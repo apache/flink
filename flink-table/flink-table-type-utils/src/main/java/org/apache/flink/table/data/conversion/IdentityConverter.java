@@ -24,6 +24,8 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public class IdentityConverter<I> implements DataStructureConverter<I, I> {
 
+    public static final IdentityConverter<?> INSTANCE = new IdentityConverter<>();
+
     private static final long serialVersionUID = 1L;
 
     @Override

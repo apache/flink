@@ -23,7 +23,6 @@ import org.apache.flink.types.variant.Variant;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Data type of semi-structured data.
@@ -38,8 +37,7 @@ import java.util.Set;
 @PublicEvolving
 public final class VariantType extends LogicalType {
 
-    private static final Set<String> INPUT_OUTPUT_CONVERSION =
-            conversionSet(Variant.class.getName());
+    private static final long serialVersionUID = 1L;
 
     public VariantType(boolean isNullable) {
         super(isNullable, LogicalTypeRoot.VARIANT);
@@ -61,12 +59,12 @@ public final class VariantType extends LogicalType {
 
     @Override
     public boolean supportsInputConversion(Class<?> clazz) {
-        return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+        return Variant.class.isAssignableFrom(clazz);
     }
 
     @Override
     public boolean supportsOutputConversion(Class<?> clazz) {
-        return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+        return Variant.class.isAssignableFrom(clazz);
     }
 
     @Override

@@ -25,13 +25,12 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
-import org.apache.flink.types.bitmap.RoaringBitmapData;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 
 import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
@@ -92,14 +91,6 @@ public final class ValueDataTypeConverter {
             // don't let the class-based extraction kick in if array elements differ
             return convertToArrayType((Object[]) value)
                     .map(dt -> dt.notNull().bridgedTo(value.getClass()));
-        } else if (value instanceof Variant) {
-            // BinaryVariant is internal, so the conversion class is the Variant interface rather
-            // than the runtime class of the value.
-            return Optional.of(DataTypes.VARIANT().notNull());
-        } else if (value instanceof RoaringBitmapData) {
-            convertedDataType = DataTypes.BITMAP();
-        } else if (value instanceof UUID) {
-            convertedDataType = DataTypes.UUID();
         }
 
         final Optional<DataType> resultType;
@@ -111,7 +102,16 @@ public final class ValueDataTypeConverter {
             // DATE, TIME with java.sql.Time, and arrays of primitive types
             resultType = ClassDataTypeConverter.extractDataType(value.getClass());
         }
-        return resultType.map(dt -> dt.notNull().bridgedTo(value.getClass()));
+        return resultType.map(
+                dt -> {
+                    final DataType notNullDataType = dt.notNull();
+                    // Because they are interfaces, and we want to avoid bridgeTo internal
+                    // conversion classes.
+                    if (value instanceof Variant || value instanceof Bitmap) {
+                        return notNullDataType;
+                    }
+                    return notNullDataType.bridgedTo(value.getClass());
+                });
     }
 
     private static DataType convertToCharType(String string) {
