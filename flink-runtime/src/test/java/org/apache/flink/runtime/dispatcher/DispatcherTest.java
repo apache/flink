@@ -1444,8 +1444,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
         try {
             multipleJobsDetails = multipleJobsDetailsFuture.get();
         } catch (ExecutionException e) {
-            // Failing the whole request is acceptable: the client learns that the view is
-            // incomplete instead of concluding that the job is gone.
+            // Failing the whole request is acceptable, but it must fail for the right reason:
+            // an exception naming the job whose JobMaster could not be queried.
+            assertThat(e)
+                    .hasStackTraceContaining("Could not retrieve the details of job")
+                    .hasStackTraceContaining(secondJobID.toString());
             return;
         }
 
