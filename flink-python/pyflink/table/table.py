@@ -116,10 +116,11 @@ class Table(object):
 
             >>> tab.select(tab.a)
         """
-        if name not in self.get_schema().get_field_names():
+        column_names = self.get_resolved_schema().get_column_names()
+        if name not in column_names:
             raise AttributeError(
                 "The current table has no column named '%s', available columns: [%s]"
-                % (name, ', '.join(self.get_schema().get_field_names())))
+                % (name, ', '.join(column_names)))
         return col(name)
 
     def select(self, *fields: Expression) -> 'Table':
@@ -947,10 +948,10 @@ class Table(object):
             import pytz
             timezone = pytz.timezone(
                 self._j_table.getTableEnvironment().getConfig().getLocalTimeZone().getId())
+            schema = self.get_schema()
             serializer = ArrowSerializer(
-                create_arrow_schema(self.get_schema().get_field_names(),
-                                    self.get_schema().get_field_data_types()),
-                self.get_schema().to_row_data_type(),
+                create_arrow_schema(schema.get_field_names(), schema.get_field_data_types()),
+                schema.to_row_data_type(),
                 timezone)
             import pyarrow as pa
             table = pa.Table.from_batches(serializer.load_from_iterator(batches_iterator))
