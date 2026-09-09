@@ -330,8 +330,9 @@ try:
                         'pemja>=0.5.7,<0.5.8;platform_system != "Windows"',
                         'httplib2>=0.19.0',
                         'ruamel.yaml>=0.18.4',
-                        # 4.5.0 is the first release with typing_extensions.deprecated.
-                        'typing-extensions>=4.5.0',
+                        # deprecated() landed in 4.5.0, but 4.6.0 is the first release
+                        # that imports on Python 3.12.
+                        'typing-extensions>=4.6.0',
                         apache_flink_libraries_dependency]
 
     setup(
