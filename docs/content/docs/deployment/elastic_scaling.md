@@ -54,7 +54,7 @@ Externalized Declarative Resource Management is an MVP ("minimum viable product"
 {{< /hint >}}
 
 {{< hint info >}}
-You can use Externalized Declarative Resource Management with the [Apache Flink Kubernetes operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-release-1.6/docs/custom-resource/autoscaler/#flink-118-and-in-place-scaling-support) for a fully-fledged auto-scaling experience.
+You can use Externalized Declarative Resource Management with the [Apache Flink Kubernetes operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-stable/docs/managing/autoscaler/) for a fully-fledged auto-scaling experience.
 {{< /hint >}}
 
 Externalized Declarative Resource Management aims to address two deployment scenarios:
