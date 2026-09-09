@@ -103,6 +103,14 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
             // stateHandler.close() (above) has flushed the filter writer and published the
             // produced spill file, so read getProducedChannelState() after the close completes.
             return Optional.ofNullable(stateHandler.getProducedChannelState());
+        } catch (Throwable t) {
+            // The state was not handed off, so no drainer will release its spill files: delete
+            // them here. This does not rely on the produced state having been built, since
+            // stateHandler.close() itself may be what failed.
+            if (stateHandler instanceof AbstractSpillingHandler) {
+                ((AbstractSpillingHandler) stateHandler).discardSpilledFiles();
+            }
+            throw t;
         }
     }
 

@@ -1081,6 +1081,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             Optional<FetchedChannelState> state =
                     reader.readInputData(inputGates, createRecordFilterContext());
             if (state.isPresent()) {
+                // The task owns the spill files until a drainer releases them; registering here
+                // deletes them on cleanUp() if recovery aborts anywhere between fetch and drain
+                // (the drainer never gets built, a mailbox mail is rejected or dropped, drain() is
+                // never scheduled). close() is idempotent, so a completed drain makes this a no-op.
+                // If cleanUp() already ran, the registry closes the state right here instead.
+                resourceCloser.registerCloseable(state.get());
                 LOG.info(
                         "Fetched and filtered the recovered channel state into {} spill file(s).",
                         state.get().files().size());

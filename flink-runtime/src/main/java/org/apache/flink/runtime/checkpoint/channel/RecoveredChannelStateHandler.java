@@ -36,6 +36,8 @@ import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel;
+import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.IOUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -411,6 +413,18 @@ abstract class AbstractSpillingHandler extends AbstractInputChannelRecoveredStat
     @VisibleForTesting
     List<Path> peekSpillFilesForTesting() {
         return files;
+    }
+
+    /**
+     * Deletes the spill directory with everything written so far, whether or not {@link
+     * #closeInternal()} has built {@link #producedChannelState}. Best-effort, never throws.
+     */
+    void discardSpilledFiles() {
+        IOUtils.closeQuietly(currentStream);
+        currentStream = null;
+        // Marks the state closed for anyone still holding it before the directory goes away.
+        IOUtils.closeQuietly(producedChannelState);
+        FileUtils.deleteDirectoryQuietly(baseDir.toFile());
     }
 
     /**
