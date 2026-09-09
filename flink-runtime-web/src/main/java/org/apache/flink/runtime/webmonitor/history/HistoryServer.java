@@ -262,7 +262,7 @@ public class HistoryServer {
         HistoryServerOptions.HistoryServerArchiveStorageType archiveStorageType =
                 config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_STORAGE_TYPE);
         LOG.info(
-                "HistoryServer effective configuration: storage-type={}, load-mode={}, "
+                "HistoryServer effective configuration: storage.type={}, load.mode={}, "
                         + "retained-jobs={}, retained-applications={}, retained-ttl={}, "
                         + "clean-expired-jobs={}, clean-expired-applications={}.",
                 archiveStorageType,
