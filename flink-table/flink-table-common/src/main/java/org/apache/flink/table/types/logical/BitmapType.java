@@ -20,11 +20,9 @@ package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.types.bitmap.Bitmap;
-import org.apache.flink.types.bitmap.RoaringBitmapData;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Data type of bitmap data.
@@ -38,9 +36,6 @@ import java.util.Set;
 public final class BitmapType extends LogicalType {
 
     private static final long serialVersionUID = 1L;
-
-    private static final Set<String> INPUT_OUTPUT_CONVERSION =
-            conversionSet(Bitmap.class.getName(), RoaringBitmapData.class.getName());
 
     public BitmapType(boolean isNullable) {
         super(isNullable, LogicalTypeRoot.BITMAP);
@@ -62,12 +57,12 @@ public final class BitmapType extends LogicalType {
 
     @Override
     public boolean supportsInputConversion(Class<?> clazz) {
-        return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+        return Bitmap.class.isAssignableFrom(clazz);
     }
 
     @Override
     public boolean supportsOutputConversion(Class<?> clazz) {
-        return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+        return Bitmap.class.isAssignableFrom(clazz);
     }
 
     @Override

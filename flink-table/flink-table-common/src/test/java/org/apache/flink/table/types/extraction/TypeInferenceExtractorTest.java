@@ -883,14 +883,6 @@ class TypeInferenceExtractorTest {
                                 StaticArgument.scalar("bitmap", DataTypes.BITMAP(), false))
                         .expectAccumulator(TypeStrategies.explicit(DataTypes.BITMAP()))
                         .expectOutput(TypeStrategies.explicit(DataTypes.BITMAP())),
-                TestSpec.forScalarFunction(
-                                "Bitmap bridged to custom Bitmap",
-                                InvalidCustomBitmapTypeFunction1.class)
-                        .expectErrorMessage(
-                                "Logical type 'BITMAP' does not support a conversion from or to class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$CustomBitmap'."),
-                TestSpec.forScalarFunction("Custom Bitmap", InvalidCustomBitmapTypeFunction2.class)
-                        .expectErrorMessage(
-                                "Could not extract a valid type inference for function class 'org.apache.flink.table.types.extraction.TypeInferenceExtractorTest$InvalidCustomBitmapTypeFunction2'."),
                 // ---
                 TestSpec.forScalarFunction("Variant in scalar function", VariantTypeFunction.class)
                         .expectStaticArgument(
@@ -2751,78 +2743,5 @@ class TypeInferenceExtractorTest {
                 @DataTypeHint("ROW<a VARIANT>") Row row) {
             return null;
         }
-    }
-
-    @FunctionHint(input = @DataTypeHint(value = "BITMAP", bridgedTo = CustomBitmap.class))
-    private static class InvalidCustomBitmapTypeFunction1 extends ScalarFunction {
-        public Bitmap eval(Bitmap bitmap) {
-            return null;
-        }
-    }
-
-    private static class InvalidCustomBitmapTypeFunction2 extends ScalarFunction {
-        public Bitmap eval(CustomBitmap bitmap) {
-            return null;
-        }
-    }
-
-    public static class CustomBitmap implements Bitmap {
-
-        @Override
-        public void add(int value) {}
-
-        @Override
-        public void add(long rangeStart, long rangeEnd) {}
-
-        @Override
-        public void addN(int[] values, int offset, int n) {}
-
-        @Override
-        public void and(@Nullable Bitmap other) {}
-
-        @Override
-        public void andNot(@Nullable Bitmap other) {}
-
-        @Override
-        public void clear() {}
-
-        @Override
-        public boolean contains(int value) {
-            return false;
-        }
-
-        @Override
-        public int getCardinality() {
-            return 0;
-        }
-
-        @Override
-        public long getLongCardinality() {
-            return 0;
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return false;
-        }
-
-        @Override
-        public void or(@Nullable Bitmap other) {}
-
-        @Override
-        public void remove(int value) {}
-
-        @Override
-        public int[] toArray() {
-            return new int[0];
-        }
-
-        @Override
-        public byte[] toBytes() {
-            return new byte[0];
-        }
-
-        @Override
-        public void xor(@Nullable Bitmap other) {}
     }
 }
