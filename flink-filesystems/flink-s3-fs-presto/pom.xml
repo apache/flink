@@ -182,6 +182,14 @@ under the License.
 					<artifactId>presto-memory-context</artifactId>
 				</exclusion>
 
+				<!-- Alluxio: only used by Presto's caching filesystem, which the S3
+				     file system does not use. The shaded client is an outdated uber-jar
+				     that unnecessarily bloats the bundle. -->
+				<exclusion>
+					<groupId>org.alluxio</groupId>
+					<artifactId>alluxio-shaded-client</artifactId>
+				</exclusion>
+
 				<!-- Airlift -->
 				<exclusion>
 					<groupId>io.airlift</groupId>
