@@ -997,6 +997,20 @@ class UserDefinedFunctionTests(object):
                         f"nested Nondet reused the projected result: {vals}"),
                 ),
             ),
+            (
+                "Det(s) below Nondet must not read a result computed later",
+                "SELECT Det(Nondet(Det(s))), Det(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    # The inner Det(s) is evaluated inline as part of the first column. If it
+                    # referenced the entry of the projected Det(s), which is evaluated afterwards,
+                    # it would read an unset slot and the whole column would silently be None.
+                    self.assertIsNotNone(
+                        vals[0], f"forward reference produced a null column: {vals}"),
+                    self.assertTrue(vals[0].startswith("HELLO_")),
+                    self.assertTrue(vals[1].startswith("HELLO_")),
+                ),
+            ),
         ]
 
         for desc, sql, verify_fn in cases:

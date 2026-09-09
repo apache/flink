@@ -113,21 +113,19 @@ public class PythonCallDeduplicator {
     }
 
     /**
-     * Recursively collects all deterministic Python UDF calls from a call tree in DFS post-order.
+     * Recursively collects all Python UDF calls from a call tree in DFS post-order.
      *
      * <p>Post-order ensures child results are computed before parents that reference them via
-     * refIndex. Non-deterministic children are NOT flattened to prevent incorrect sharing.
+     * refIndex. Every call is collected, including non-deterministic ones: whether a call may be
+     * shared is decided by the deduplication and the reference map, not by leaving it nested. A
+     * call that stayed nested would be evaluated inline, and anything below it that happens to
+     * equal an entry evaluated later could otherwise reference a result that does not exist yet.
      */
     private static List<RexCall> collectAllPythonUdfCalls(RexCall root) {
         List<RexCall> result = new ArrayList<>();
         for (RexNode operand : root.getOperands()) {
             if (operand instanceof RexCall && PythonUtil.isPythonCall((RexCall) operand)) {
-                RexCall childCall = (RexCall) operand;
-                // Only flatten deterministic child calls for CSE.
-                // Non-deterministic calls must remain nested to avoid incorrect sharing.
-                if (ShortcutUtils.isDeterministicThroughProgram(childCall, null)) {
-                    result.addAll(collectAllPythonUdfCalls(childCall));
-                }
+                result.addAll(collectAllPythonUdfCalls((RexCall) operand));
             }
         }
         result.add(root);
