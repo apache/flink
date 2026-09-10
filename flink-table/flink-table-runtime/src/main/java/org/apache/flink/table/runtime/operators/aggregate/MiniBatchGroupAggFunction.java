@@ -187,7 +187,10 @@ public class MiniBatchGroupAggFunction
                     }
                 }
                 if (inputRows.isEmpty()) {
-                    return;
+                    // Skip this key and continue processing other keys in the bundle.
+                    // Using 'return' here would incorrectly exit the entire method,
+                    // silently dropping all remaining keys in the bundle.
+                    continue;
                 }
                 acc = function.createAccumulators();
                 firstRow = true;
