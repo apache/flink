@@ -505,19 +505,42 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
         try {
             Collection<JobDetails> allJobs = new ArrayList<>();
             List<Entry> overviews = archiveStorage.getEntriesByPrefix(JOB_OVERVIEWS_KEY_PREFIX);
+            int skipped = 0;
             for (Entry overview : overviews) {
-                MultipleJobsDetails subJobs;
-                // We treated File as a special case, mainly as a performance trade-off to avoid the
-                // overhead of loading the archive into string.
-                if (overview instanceof File) {
-                    subJobs = mapper.readValue((File) overview, MultipleJobsDetails.class);
-                } else {
-                    subJobs =
-                            mapper.readValue(
-                                    archiveStorage.readArchiveContent(overview),
-                                    MultipleJobsDetails.class);
+                try {
+                    MultipleJobsDetails subJobs;
+                    // We treated File as a special case, mainly as a performance trade-off to
+                    // avoid the overhead of loading the archive into string.
+                    if (overview instanceof File) {
+                        subJobs = mapper.readValue((File) overview, MultipleJobsDetails.class);
+                    } else {
+                        subJobs =
+                                mapper.readValue(
+                                        archiveStorage.readArchiveContent(overview),
+                                        MultipleJobsDetails.class);
+                    }
+                    allJobs.addAll(subJobs.getJobs());
+                } catch (Exception e) {
+                    // A single malformed/incompatible archive (e.g. written by a different Flink
+                    // version) must not prevent the remaining archives from being aggregated.
+                    skipped++;
+                    LOG.warn(
+                            "Failed to parse job overview from entry {}, skipping it.",
+                            overview,
+                            e);
                 }
-                allJobs.addAll(subJobs.getJobs());
+            }
+            if (skipped > 0) {
+                LOG.warn("Skipped {} job overview(s) that could not be parsed.", skipped);
+            }
+            if (!overviews.isEmpty() && allJobs.isEmpty()) {
+                // Every entry failed to parse; keep the previously written overview instead of
+                // replacing it with an empty one.
+                LOG.error(
+                        "All {} job overview(s) failed to parse; keeping the last known good "
+                                + "combined overview instead of overwriting it.",
+                        overviews.size());
+                return;
             }
             String overviewWithJobs = mapper.writeValueAsString(new MultipleJobsDetails(allJobs));
             archiveStorage.putArchiveContent(
