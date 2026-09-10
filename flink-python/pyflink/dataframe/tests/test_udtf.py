@@ -58,7 +58,10 @@ class DataFrameUDTFDeclarationTests(unittest.TestCase):
         def emit(value) -> Iterator[_Output]:
             yield {"value": value, "label": "ok"}
 
-        expected = pf.DataType.struct({"value": pf.DataType.int64(), "label": pf.DataType.string()})
+        expected = pf.DataType.struct({
+            "value": pf.DataType.int64().not_null(),
+            "label": pf.DataType.string().not_null(),
+        }).not_null()
         for declaration in (pf.udtf(emit), pf.udtf()(emit), pf.udtf(return_dtype=expected)(emit),
                             pf.udtf(emit, return_dtype=_Output)):
             self.assertEqual(declaration.return_dtype, expected)
@@ -71,15 +74,16 @@ class DataFrameUDTFDeclarationTests(unittest.TestCase):
                 return [value]
             emit.__annotations__ = {"return": hint}
             with self.subTest(hint=hint):
-                self.assertEqual(pf.udtf(emit).return_dtype, pf.DataType.int64())
+                self.assertEqual(pf.udtf(emit).return_dtype, pf.DataType.int64().not_null())
 
     def test_explicit_type_does_not_resolve_annotations(self):
         def emit(value):
             return [value]
         emit.__annotations__ = {"value": "UnavailableInput", "return": "UnavailableOutput"}
-        self.assertEqual(pf.udtf(emit, return_dtype=int).return_dtype, pf.DataType.int64())
+        self.assertEqual(
+            pf.udtf(emit, return_dtype=int).return_dtype, pf.DataType.int64().not_null())
         emit.__annotations__["return"] = Iterator[int]
-        self.assertEqual(pf.udtf(emit).return_dtype, pf.DataType.int64())
+        self.assertEqual(pf.udtf(emit).return_dtype, pf.DataType.int64().not_null())
 
     def test_callable_instance_and_partial(self):
         class Repeat:
@@ -543,7 +547,7 @@ class _DataFrameFlatMapTests:
         result = source.flat_map(expand)
         self.assertEqual(result.columns, ["value", "label"])
         self.assertEqual(result.schema.get_field_data_types(),
-                         [DataTypes.BIGINT(), DataTypes.STRING()])
+                         [DataTypes.BIGINT().not_null(), DataTypes.STRING().not_null()])
         rows = result.filter(pf.col("value") >= 0).select("label", "value").collect()
         self.assertCountEqual(rows, [Row("a", 0), Row("b", 0), Row("b", 1)])
 
@@ -686,7 +690,8 @@ class _DataFrameFlatMapTests:
         result = pf.from_dict({"x": [1]}).flat_map(expand)
         self.assertEqual(result.columns, ["f0"])
         self.assertEqual(result.schema.get_field_data_types(),
-                         [DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT())])
+                         [DataTypes.MAP(DataTypes.STRING().not_null(),
+                                        DataTypes.BIGINT().not_null()).not_null()])
         self.assertCountEqual(result.collect(), [Row({"value": 1}), Row({"value": 2})])
 
 
