@@ -218,6 +218,29 @@ class NativeS3FileSystemFactoryTest {
                 .isEqualTo(256 * 1024);
     }
 
+    // --- Delete batching ---
+
+    @Test
+    void testDeleteBatchEnabledDefaultIsTrue() throws Exception {
+        assertThat(createFs(baseConfig()).isDeleteBatchEnabled()).isTrue();
+    }
+
+    @Test
+    void testDeleteBatchEnabledExplicitlyDisabled() throws Exception {
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.DELETE_BATCH_ENABLED, false);
+        assertThat(createFs(config).isDeleteBatchEnabled()).isFalse();
+    }
+
+    @Test
+    void testDeleteBatchEnabledBucketOverridesGlobal() throws Exception {
+        // Global: true; bucket: false → bucket wins
+        Configuration config = baseConfig();
+        config.set(NativeS3FileSystemFactory.DELETE_BATCH_ENABLED, true);
+        config.setString("s3.bucket.test-bucket.delete.batch.enabled", "false");
+        assertThat(createFs(config).isDeleteBatchEnabled()).isFalse();
+    }
+
     // --- Max connections ---
 
     @Test

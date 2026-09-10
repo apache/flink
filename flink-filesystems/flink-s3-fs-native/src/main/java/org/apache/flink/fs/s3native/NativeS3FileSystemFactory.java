@@ -188,6 +188,16 @@ public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAwar
                     .withDescription(
                             "Enable async read/write operations using S3TransferManager for improved performance");
 
+    public static final ConfigOption<Boolean> DELETE_BATCH_ENABLED =
+            ConfigOptions.key("s3.delete.batch.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Use S3's batch DeleteObjects API when recursively deleting a "
+                                    + "directory, instead of issuing one DeleteObject call per "
+                                    + "file. Disable for S3-compatible stores that don't support "
+                                    + "multi-object delete.");
+
     public static final ConfigOption<Integer> READ_BUFFER_SIZE =
             ConfigOptions.key("s3.read.buffer.size")
                     .intType()
@@ -529,6 +539,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAwar
         String assumeRoleSessionName = config.get(ASSUME_ROLE_SESSION_NAME);
         int assumeRoleSessionDuration = config.get(ASSUME_ROLE_SESSION_DURATION_SECONDS);
         String credentialsProviderClasses = config.get(AWS_CREDENTIALS_PROVIDER);
+        boolean deleteBatchEnabled = config.get(DELETE_BATCH_ENABLED);
 
         // Apply bucket-specific overrides
         String bucketName = fsUri.getHost();
@@ -561,6 +572,9 @@ public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAwar
                 }
                 if (overrides.getAssumeRoleSessionDurationSeconds() != null) {
                     assumeRoleSessionDuration = overrides.getAssumeRoleSessionDurationSeconds();
+                }
+                if (overrides.getDeleteBatchEnabled() != null) {
+                    deleteBatchEnabled = overrides.getDeleteBatchEnabled();
                 }
             }
         }
@@ -750,7 +764,8 @@ public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAwar
                 bulkCopyHelper,
                 useAsyncOperations,
                 readBufferSize,
-                config.get(FS_CLOSE_TIMEOUT));
+                config.get(FS_CLOSE_TIMEOUT),
+                deleteBatchEnabled);
     }
 
     @Nullable
