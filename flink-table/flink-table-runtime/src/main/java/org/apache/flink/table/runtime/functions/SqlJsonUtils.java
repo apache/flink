@@ -933,8 +933,12 @@ public class SqlJsonUtils {
                 case BOOLEAN:
                     if (raw instanceof Number) {
                         double d = ((Number) raw).doubleValue();
-                        if (d == 0.0) return false;
-                        if (d == 1.0) return true;
+                        if (d == 0.0) {
+                            return false;
+                        }
+                        if (d == 1.0) {
+                            return true;
+                        }
                         throw new JsonConversionException(
                                 "Cannot convert " + raw + " to BOOLEAN");
                     }
