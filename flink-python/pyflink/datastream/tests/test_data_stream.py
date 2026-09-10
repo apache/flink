@@ -1255,6 +1255,68 @@ class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTe
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("python.execution-mode", "thread")
 
+    def test_state_ttl_without_gateway(self):
+        self.addCleanup(self.env.set_parallelism, self.env.get_parallelism())
+        self.env.set_parallelism(1)
+        config = get_j_env_configuration(self.env._j_stream_execution_environment)
+        if config.containsKey("state.backend.type"):
+            self.addCleanup(config.setString, "state.backend.type",
+                            config.getString("state.backend.type", None))
+        else:
+            self.addCleanup(config.removeKey, "state.backend.type")
+        config.setString("state.backend.type", "rocksdb")
+
+        class TtlStateFunction(KeyedProcessFunction):
+            def open(self, runtime_context: RuntimeContext):
+                from unittest.mock import patch
+
+                from pyflink.fn_execution.embedded.java_utils import to_java_state_ttl_config
+
+                self.states = []
+                cases = [('default', None, True),
+                         ('explicit_default', 17, True),
+                         ('disabled', None, False),
+                         ('explicit_disabled', 23, False)]
+                # Guard the actual embedded worker, after the client gateway already exists.
+                with patch('pyflink.common.time.get_gateway', side_effect=AssertionError(
+                        'TTL state initialization must not request a Py4J gateway')):
+                    for name, queries, background in cases:
+                        builder = StateTtlConfig.new_builder(Time.days(1))
+                        if queries is not None:
+                            builder.cleanup_in_rocksdb_compact_filter(queries)
+                        if not background:
+                            builder.disable_cleanup_in_background()
+                        ttl_config = builder.build()
+                        descriptor = ValueStateDescriptor('ttl_' + name, Types.INT())
+                        descriptor.enable_time_to_live(ttl_config)
+                        self.states.append(runtime_context.get_state(descriptor))
+
+                        j_ttl_config = to_java_state_ttl_config(ttl_config)
+                        assert j_ttl_config.getTimeToLive().toMillis() == 86400000
+                        cleanup = j_ttl_config.getCleanupStrategies()
+                        assert cleanup.isCleanupInBackground() == background
+                        rocksdb_cleanup = cleanup.getRocksdbCompactFilterCleanupStrategy()
+                        if background or queries is not None:
+                            assert rocksdb_cleanup.getQueryTimeAfterNumEntries() == (
+                                1000 if queries is None else queries)
+                            assert rocksdb_cleanup.getPeriodicCompactionTime().toMillis() == (
+                                30 * 24 * 60 * 60 * 1000)
+                        else:
+                            assert rocksdb_cleanup is None
+
+            def process_element(self, value, ctx):
+                for index, state in enumerate(self.states):
+                    state.update((state.value() or 0) + value)
+                    yield index, state.value()
+
+        (self.env.from_collection([1, 2], type_info=Types.INT())
+         .key_by(lambda value: 0)
+         .process(TtlStateFunction(), output_type=Types.TUPLE([Types.INT(), Types.INT()]))
+         .add_sink(self.test_sink))
+        self.env.execute('test_state_ttl_without_gateway')
+        expected = ['(%s,%s)' % (index, total) for index in range(4) for total in [1, 3]]
+        self.assert_equals_sorted(expected, self.test_sink.get_results())
+
     def test_metrics(self):
         ds = self.env.from_collection(
             [('ab', 'a', decimal.Decimal(1)),
