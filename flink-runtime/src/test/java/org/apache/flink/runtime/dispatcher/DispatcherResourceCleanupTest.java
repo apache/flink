@@ -496,6 +496,14 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.SUSPENDED);
     }
 
+    private void failJobAndApplication(TestingJobManagerRunner takeCreatedJobManagerRunner) {
+        terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.FAILED);
+        application.jobStatusChanges(
+                takeCreatedJobManagerRunner.getJobID(),
+                JobStatus.FAILED,
+                System.currentTimeMillis());
+    }
+
     private void cancelJob(TestingJobManagerRunner takeCreatedJobManagerRunner) {
         terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.CANCELED);
     }
@@ -796,8 +804,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitApplication(testingDispatcherBuilder, 0);
 
-        terminateJobWithState(
-                jobManagerRunnerFactory.takeCreatedJobManagerRunner(), JobStatus.FAILED);
+        failJobAndApplication(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
 
         assertGlobalCleanupTriggered(jobId);
         dispatcher.getJobTerminationFuture(jobId, Duration.ofHours(1)).join();
