@@ -24,7 +24,7 @@ import operator
 import types
 import unittest
 from dataclasses import dataclass
-from typing import Any, Callable, TypedDict, cast
+from typing import Any, Callable, Optional, TypedDict, cast
 from unittest import mock
 
 import pandas as pd
@@ -74,6 +74,9 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             """Add one to a value."""
             return value + 1
 
+        def optional_return(value: int) -> Optional[int]:
+            return value if value % 2 == 0 else None
+
         def identity(value):
             return value
 
@@ -104,7 +107,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         self.assertFalse(hasattr(pf, "DataFrameUDFWrapper"))
         udf_module = importlib.import_module("pyflink.dataframe.udf")
         self.assertFalse(hasattr(udf_module, "DataFrameUDFWrapper"))
-        self.assertEqual(_return_dtype(decorated), pf.DataType.int64())
+        self.assertEqual(_return_dtype(decorated), pf.DataType.int64().not_null())
         self.assertEqual(decorated.__name__, "add_one")
         self.assertEqual(decorated.__qualname__, add_one.__qualname__)
         self.assertEqual(decorated.__module__, add_one.__module__)
@@ -128,7 +131,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         direct = pf.udf(functools.partial(add_one), name="partial_add_one")
 
         self.assertEqual(_return_dtype(configured), pf.DataType.string())
-        self.assertEqual(_return_dtype(direct), pf.DataType.int64())
+        self.assertEqual(_return_dtype(direct), pf.DataType.int64().not_null())
         self.assertEqual(direct.__name__, "partial_add_one")
         with mock.patch.object(
             pf.DataType,
@@ -141,19 +144,26 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
         expected_result_dtype = pf.DataType.struct(
             {
-                "id": pf.DataType.int64(),
+                "id": pf.DataType.int64().not_null(),
                 "details": pf.DataType.struct(
                     {
-                        "label": pf.DataType.string(),
-                        "scores": pf.DataType.list(pf.DataType.int64()),
+                        "label": pf.DataType.string().not_null(),
+                        "scores": pf.DataType.list(
+                            pf.DataType.int64().not_null()
+                        ).not_null(),
                     }
-                ),
+                ).not_null(),
             }
-        )
+        ).not_null()
         declarations = [
             (
                 "Python type",
                 lambda: pf.udf(identity, return_dtype=int),
+                pf.DataType.int64().not_null(),
+            ),
+            (
+                "Optional return annotation widens to nullable",
+                lambda: pf.udf(optional_return),
                 pf.DataType.int64(),
             ),
             (
@@ -169,12 +179,12 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             (
                 "concrete return with unresolved input",
                 lambda: pf.udf(concrete_return_with_unresolved_input),
-                pf.DataType.int64(),
+                pf.DataType.int64().not_null(),
             ),
             (
                 "postponed return with unresolved input",
                 lambda: pf.udf(postponed_return_with_unresolved_input),
-                pf.DataType.int64(),
+                pf.DataType.int64().not_null(),
             ),
         ]
         for case_name, declare, expected in declarations:
@@ -246,7 +256,9 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         for source in callables:
             with self.subTest(source=source):
                 decorated = pf.udf(source)
-                self.assertEqual(_return_dtype(decorated), pf.DataType.int64())
+                self.assertEqual(
+                    _return_dtype(decorated), pf.DataType.int64().not_null()
+                )
 
         self.assertEqual(plain_constructor_calls, [])
         self.assertEqual(scalar_constructor_calls, [])
@@ -263,7 +275,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             def __call__(self, value: int) -> "Output":
                 return {"value": value}
 
-        expected = pf.DataType.struct({"value": pf.DataType.int64()})
+        expected = pf.DataType.struct({"value": pf.DataType.int64().not_null()}).not_null()
         for source in (Describe, Describe()):
             with self.subTest(source=source):
                 self.assertEqual(_return_dtype(pf.udf(source)), expected)
@@ -293,7 +305,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             def __call__(self, value: int) -> "SelfQualified.Output":
                 return {"value": value}
 
-        expected = pf.DataType.struct({"value": pf.DataType.int64()})
+        expected = pf.DataType.struct({"value": pf.DataType.int64().not_null()}).not_null()
         bound_method = BoundMethodOwner().describe
         for source in (
             bound_method,
@@ -318,7 +330,8 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             __call__ = _module_alias_method
 
         self.assertEqual(
-            _return_dtype(pf.udf(ReceivingCallable)), pf.DataType.int64()
+            _return_dtype(pf.udf(ReceivingCallable)),
+            pf.DataType.int64().not_null(),
         )
 
         class OverriddenScalarFunction(ScalarFunction):
@@ -331,7 +344,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         overridden = OverriddenScalarFunction()
         overridden.eval = types.MethodType(_module_alias_method, overridden)
         self.assertEqual(
-            _return_dtype(pf.udf(overridden)), pf.DataType.int64()
+            _return_dtype(pf.udf(overridden)), pf.DataType.int64().not_null()
         )
 
     def test_wrapped_callable_annotations_and_partial_validation(self):
@@ -363,7 +376,9 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             pf.udf(functools.partial(add, missing=1))
 
         uninspectable = pf.udf(operator.itemgetter(0), return_dtype=int)
-        self.assertEqual(_return_dtype(uninspectable), pf.DataType.int64())
+        self.assertEqual(
+            _return_dtype(uninspectable), pf.DataType.int64().not_null()
+        )
 
         wrapped_callable_instance = WrappedCallableClass()
         for source in (
@@ -391,7 +406,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         functools.update_wrapper(cross_namespace_wrapper, _module_alias_function)
         self.assertEqual(
             _return_dtype(pf.udf(cross_namespace_wrapper)),
-            pf.DataType.int64(),
+            pf.DataType.int64().not_null(),
         )
 
     def test_func_type_resolution_and_async_detection(self):
@@ -737,7 +752,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                     source(), return_dtype=int, func_type="general"
                 )
                 self.assertEqual(
-                    _return_dtype(declaration), pf.DataType.int64()
+                    _return_dtype(declaration), pf.DataType.int64().not_null()
                 )
 
     def test_unresolved_typed_dict_fields_have_actionable_errors(self):
@@ -1506,7 +1521,7 @@ class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
             ["id", "rendered", "description"],
             [
                 TableDataTypes.BIGINT(),
-                TableDataTypes.STRING(),
+                TableDataTypes.STRING().not_null(),
                 TableDataTypes.ROW(
                     [
                         TableDataTypes.FIELD("value", TableDataTypes.BIGINT()),
