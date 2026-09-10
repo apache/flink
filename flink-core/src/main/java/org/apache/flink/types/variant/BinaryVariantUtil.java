@@ -336,10 +336,11 @@ public class BinaryVariantUtil {
         return result;
     }
 
-    /** Read a big-endian 8-byte long value from {@code bytes[pos, pos + 8)}. */
-    static long readLongBigEndian(byte[] bytes, int pos) {
-        checkIndex(pos, bytes.length);
-        checkIndex(pos + 7, bytes.length);
+    /**
+     * Read a big-endian 8-byte long value from {@code bytes[pos, pos + 8)}. The caller must ensure
+     * those 8 bytes are within bounds.
+     */
+    private static long readLongBigEndian(byte[] bytes, int pos) {
         long result = 0;
         for (int i = 0; i < 8; ++i) {
             result = (result << 8) | (bytes[pos + i] & 0xFF);
@@ -704,7 +705,10 @@ public class BinaryVariantUtil {
     }
 
     public static UUID getUuid(byte[] value, int pos) {
+        // The header byte and the 16 UUID bytes occupy value[pos, pos + 16], so checking the first
+        // and last index once covers the whole read.
         checkIndex(pos, value.length);
+        checkIndex(pos + 16, value.length);
         int basicType = value[pos] & BASIC_TYPE_MASK;
         int typeInfo = (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;
         if (basicType != PRIMITIVE || typeInfo != UUID) {
