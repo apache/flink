@@ -19,7 +19,10 @@
 package org.apache.flink.table.functions.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 /**
  * PythonFunctionInfo contains the execution information of a Python function, such as: the actual
@@ -39,9 +42,23 @@ public class PythonFunctionInfo implements PythonFunctionInput {
     /** The input arguments of this function. */
     private PythonFunctionInput[] inputs;
 
+    @Nullable private final LogicalType outputType;
+
     public PythonFunctionInfo(PythonFunction pythonFunction, PythonFunctionInput[] inputs) {
+        this(pythonFunction, inputs, null);
+    }
+
+    public PythonFunctionInfo(
+            PythonFunction pythonFunction, PythonFunctionInput[] inputs,
+            @Nullable LogicalType outputType) {
         this.pythonFunction = Preconditions.checkNotNull(pythonFunction);
         this.inputs = Preconditions.checkNotNull(inputs);
+        this.outputType = outputType;
+    }
+
+    @Nullable
+    public LogicalType getOutputType() {
+        return outputType;
     }
 
     public PythonFunction getPythonFunction() {

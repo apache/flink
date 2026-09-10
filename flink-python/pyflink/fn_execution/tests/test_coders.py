@@ -19,7 +19,12 @@
 """Tests common to all coder implementations."""
 import decimal
 import logging
+import os
 import unittest
+from unittest import mock
+
+import pyarrow as pa
+import pytz
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
@@ -28,6 +33,113 @@ from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder,
     TimeWindowCoder, CountWindowCoder, InstantCoder
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.testing.test_case_utils import PyFlinkTestCase
+
+
+class ArrowCodersTests(unittest.TestCase):
+    from pyflink.fn_execution import coder_impl_slow as implementation
+
+    def arrow_coder(self, schema, row_type):
+        return self.implementation.ArrowCoderImpl(schema, row_type, pytz.UTC, "ARROW")
+
+    def test_arrow_descriptor_preserves_pandas_default(self):
+        from pyflink.fn_execution import flink_fn_execution_pb2 as proto
+        from pyflink.fn_execution.coders import LengthPrefixBaseCoder
+        import pandas as pd
+
+        arrow_type = proto.CoderInfoDescriptor.ArrowType(schema=proto.Schema(fields=[
+            proto.Schema.Field(name="name", type=proto.Schema.FieldType(
+                type_name=proto.Schema.VARCHAR, nullable=True,
+                var_char_info=proto.Schema.VarCharInfo(length=2147483647)))]))
+        descriptor = proto.CoderInfoDescriptor(arrow_type=arrow_type)
+        with mock.patch.dict(os.environ, {"TABLE_LOCAL_TIME_ZONE": "UTC"}):
+            pandas_coder = LengthPrefixBaseCoder._to_field_coder(descriptor).get_impl()
+            result = pandas_coder.decode(pandas_coder.encode([pd.Series(["a", None])]))
+            self.assertIsInstance(result[0], pd.Series)
+            self.assertEqual(result[0].tolist(), ["a", None])
+            descriptor.arrow_type.batch_format = proto.CoderInfoDescriptor.ArrowType.ARROW
+            arrow_coder = LengthPrefixBaseCoder._to_field_coder(descriptor).get_impl()
+            batch = pa.record_batch([pa.array(["a", None])], names=["name"])
+            self.assertEqual(arrow_coder.decode(arrow_coder.encode(batch)), batch)
+
+    def test_arrow_nested_nullability(self):
+        from pyflink.table import DataTypes
+        from pyflink.table.types import to_arrow_type
+
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD("values", DataTypes.ARRAY(DataTypes.INT().not_null()))])
+        schema = pa.schema([pa.field("values", to_arrow_type(row_type.field_types()[0]))])
+        coder = self.arrow_coder(schema, row_type)
+        batch = pa.record_batch([pa.array([[1, None]], type=pa.list_(pa.int32()))], schema=schema)
+        with self.assertRaisesRegex(ValueError, "values.*not nullable"):
+            coder.encode(batch)
+
+        valid = pa.record_batch([pa.array([[1, 2], None], type=pa.list_(pa.int32()))],
+                                schema=schema)
+        self.assertEqual(coder.decode(coder.encode(valid)), valid)
+
+    def test_struct_map_and_temporal_results(self):
+        import datetime
+        from pyflink.table import DataTypes
+        from pyflink.fn_execution.utils.arrow_utils import to_arrow_schema
+
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD("record", DataTypes.ROW([
+                DataTypes.FIELD("inner", DataTypes.ROW([
+                    DataTypes.FIELD("value", DataTypes.INT().not_null())]))])),
+            DataTypes.FIELD("lookup", DataTypes.MAP(
+                DataTypes.STRING().not_null(), DataTypes.INT().not_null())),
+            DataTypes.FIELD("amount", DataTypes.DECIMAL(6, 2)),
+            DataTypes.FIELD("time", DataTypes.TIMESTAMP(3))])
+        schema = to_arrow_schema(row_type)
+        coder = self.arrow_coder(schema, row_type)
+        rows = [
+            {"record": {"inner": {"value": 7}}, "lookup": [("a", 1)],
+             "amount": decimal.Decimal("12.34"), "time": datetime.datetime(2020, 1, 2)},
+            {"record": None, "lookup": None, "amount": None, "time": None},
+            {"record": {"inner": None}, "lookup": [],
+             "amount": decimal.Decimal("-0.50"), "time": datetime.datetime(2021, 3, 4)}]
+        batch = pa.RecordBatch.from_pylist(rows, schema=schema)
+        self.assertEqual(coder.decode(coder.encode(batch)).to_pylist(), rows)
+        self.assertEqual(coder.decode(coder.encode(batch.slice(1))).to_pylist(), rows[1:])
+
+        for field, value, message in (
+            ("record", {"inner": {"value": None}}, "record.inner.value.*not nullable"),
+            ("lookup", [("a", None)], "lookup.value.*not nullable"),
+        ):
+            with self.subTest(field=field):
+                invalid = pa.RecordBatch.from_pylist([{**rows[0], field: value}], schema=schema)
+                with self.assertRaisesRegex(ValueError, message):
+                    coder.encode(invalid)
+
+        wrong = pa.StructArray.from_arrays([pa.array([1], type=pa.int64())], names=["value"])
+        invalid = pa.record_batch([pa.StructArray.from_arrays([wrong], names=["inner"]),
+                                   batch.column(1).slice(0, 1), batch.column(2).slice(0, 1),
+                                   batch.column(3).slice(0, 1)], names=schema.names)
+        with self.assertRaisesRegex(TypeError, "record.inner.value.*int64.*int32"):
+            coder.encode(invalid)
+
+    def test_native_arrow_round_trip(self):
+        from pyflink.table import DataTypes
+
+        row_type = DataTypes.ROW([DataTypes.FIELD("name", DataTypes.STRING())])
+        schema = pa.schema([pa.field("name", pa.string())])
+        coder = self.arrow_coder(schema, row_type)
+        batch = pa.record_batch([pa.array(["ALICE", None, "BOB"])], schema=schema)
+        self.assertEqual(coder.decode(coder.encode(batch)), batch)
+
+        with self.assertRaisesRegex(TypeError, "name.*string"):
+            coder.encode(pa.record_batch([pa.array([1, 2])], names=["name"]))
+
+
+try:
+    from pyflink.fn_execution import coder_impl_fast
+except ImportError:
+    coder_impl_fast = None
+
+
+@unittest.skipIf(coder_impl_fast is None, "Compiled coders are not installed")
+class FastArrowCodersTests(ArrowCodersTests):
+    implementation = coder_impl_fast
 
 
 class CodersTest(PyFlinkTestCase):

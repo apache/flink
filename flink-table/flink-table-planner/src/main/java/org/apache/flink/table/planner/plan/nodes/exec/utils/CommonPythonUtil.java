@@ -36,6 +36,8 @@ import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInput;
 import org.apache.flink.table.functions.python.ResultRef;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.CountAggFunction;
@@ -508,8 +510,13 @@ public class CommonPythonUtil {
                 inputNodes.put(operand, inputOffset);
             }
         }
+        final PythonFunction pythonFunction = (PythonFunction) functionDefinition;
         return new PythonFunctionInfo(
-                (PythonFunction) functionDefinition, inputs.toArray(new PythonFunctionInput[0]));
+                pythonFunction,
+                inputs.toArray(new PythonFunctionInput[0]),
+                pythonFunction.getPythonFunctionKind() == PythonFunctionKind.ARROW
+                        ? FlinkTypeFactory.toLogicalType(pythonRexCall.getType())
+                        : null);
     }
 
     private static BuiltInPythonAggregateFunction getBuiltInPythonAggregateFunction(

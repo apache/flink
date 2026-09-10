@@ -109,11 +109,24 @@ public enum ProtoUtils {
             RowType rowType,
             FlinkFnApi.CoderInfoDescriptor.Mode mode,
             boolean separatedWithEndMessage) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                rowType,
+                mode,
+                separatedWithEndMessage,
+                FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat.PANDAS);
+    }
+
+    public static FlinkFnApi.CoderInfoDescriptor createArrowTypeCoderInfoDescriptorProto(
+            RowType rowType,
+            FlinkFnApi.CoderInfoDescriptor.Mode mode,
+            boolean separatedWithEndMessage,
+            FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat batchFormat) {
         return createCoderInfoDescriptorProto(
                 null,
                 null,
                 FlinkFnApi.CoderInfoDescriptor.ArrowType.newBuilder()
                         .setSchema(toProtoType(rowType).getRowSchema())
+                        .setBatchFormat(batchFormat)
                         .build(),
                 null,
                 null,
@@ -229,6 +242,12 @@ public enum ProtoUtils {
         builder.setIsPandasUdf(
                 pythonFunctionInfo.getPythonFunction().getPythonFunctionKind()
                         == PythonFunctionKind.PANDAS);
+        builder.setIsArrowUdf(
+                pythonFunctionInfo.getPythonFunction().getPythonFunctionKind()
+                        == PythonFunctionKind.ARROW);
+        if (pythonFunctionInfo.getOutputType() != null) {
+            builder.setOutputType(toProtoType(pythonFunctionInfo.getOutputType()));
+        }
         return builder.build();
     }
 

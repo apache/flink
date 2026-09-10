@@ -45,18 +45,22 @@ class Input(_message.Message):
     def __init__(self, udf: _Optional[_Union[UserDefinedFunction, _Mapping]] = ..., inputOffset: _Optional[int] = ..., inputConstant: _Optional[bytes] = ..., refIndex: _Optional[int] = ...) -> None: ...
 
 class UserDefinedFunction(_message.Message):
-    __slots__ = ("payload", "inputs", "window_index", "takes_row_as_input", "is_pandas_udf")
+    __slots__ = ("payload", "inputs", "window_index", "takes_row_as_input", "is_pandas_udf", "is_arrow_udf", "output_type")
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
     INPUTS_FIELD_NUMBER: _ClassVar[int]
     WINDOW_INDEX_FIELD_NUMBER: _ClassVar[int]
     TAKES_ROW_AS_INPUT_FIELD_NUMBER: _ClassVar[int]
     IS_PANDAS_UDF_FIELD_NUMBER: _ClassVar[int]
+    IS_ARROW_UDF_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_TYPE_FIELD_NUMBER: _ClassVar[int]
     payload: bytes
     inputs: _containers.RepeatedCompositeFieldContainer[Input]
     window_index: int
     takes_row_as_input: bool
     is_pandas_udf: bool
-    def __init__(self, payload: _Optional[bytes] = ..., inputs: _Optional[_Iterable[_Union[Input, _Mapping]]] = ..., window_index: _Optional[int] = ..., takes_row_as_input: bool = ..., is_pandas_udf: bool = ...) -> None: ...
+    is_arrow_udf: bool
+    output_type: Schema.FieldType
+    def __init__(self, payload: _Optional[bytes] = ..., inputs: _Optional[_Iterable[_Union[Input, _Mapping]]] = ..., window_index: _Optional[int] = ..., takes_row_as_input: bool = ..., is_pandas_udf: bool = ..., is_arrow_udf: bool = ..., output_type: _Optional[_Union[Schema.FieldType, _Mapping]] = ...) -> None: ...
 
 class AsyncOptions(_message.Message):
     __slots__ = ("max_concurrent_operations", "timeout_ms", "retry_enabled", "retry_max_attempts", "retry_delay_ms")
@@ -645,10 +649,18 @@ class CoderInfoDescriptor(_message.Message):
         schema: Schema
         def __init__(self, schema: _Optional[_Union[Schema, _Mapping]] = ...) -> None: ...
     class ArrowType(_message.Message):
-        __slots__ = ("schema",)
+        __slots__ = ("schema", "batch_format")
+        class BatchFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            PANDAS: _ClassVar[CoderInfoDescriptor.ArrowType.BatchFormat]
+            ARROW: _ClassVar[CoderInfoDescriptor.ArrowType.BatchFormat]
+        PANDAS: CoderInfoDescriptor.ArrowType.BatchFormat
+        ARROW: CoderInfoDescriptor.ArrowType.BatchFormat
         SCHEMA_FIELD_NUMBER: _ClassVar[int]
+        BATCH_FORMAT_FIELD_NUMBER: _ClassVar[int]
         schema: Schema
-        def __init__(self, schema: _Optional[_Union[Schema, _Mapping]] = ...) -> None: ...
+        batch_format: CoderInfoDescriptor.ArrowType.BatchFormat
+        def __init__(self, schema: _Optional[_Union[Schema, _Mapping]] = ..., batch_format: _Optional[_Union[CoderInfoDescriptor.ArrowType.BatchFormat, str]] = ...) -> None: ...
     class OverWindowArrowType(_message.Message):
         __slots__ = ("schema",)
         SCHEMA_FIELD_NUMBER: _ClassVar[int]

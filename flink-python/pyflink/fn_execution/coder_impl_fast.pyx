@@ -37,6 +37,7 @@ from pyflink.fn_execution.formats.avro import FlinkAvroDecoder, FlinkAvroDatumRe
     FlinkAvroBufferWrapper, FlinkAvroEncoder, FlinkAvroDatumWriter
 from pyflink.fn_execution.ResettableIO import ResettableIO
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
+from pyflink.fn_execution.utils.arrow_utils import validate_arrow_batch
 
 ROW_KIND_BIT_SIZE = 2
 
@@ -431,7 +432,8 @@ cdef class ArrowCoderImpl(FieldCoderImpl):
     A coder for arrow format data.
     """
 
-    def __init__(self, schema, row_type, timezone):
+    def __init__(self, schema, row_type, timezone, batch_format="PANDAS"):
+        self._batch_format = batch_format
         self._schema = schema
         self._field_types = row_type.field_types()
         self._timezone = timezone
@@ -443,16 +445,22 @@ cdef class ArrowCoderImpl(FieldCoderImpl):
 
         self._resettable_io.set_output_stream(out_stream)
         batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
-        batch_writer.write_batch(
-            pandas_to_arrow(self._schema, self._timezone, self._field_types, cols))
+        if self._batch_format == "ARROW":
+            batch = validate_arrow_batch(cols, self._schema, self._field_types)
+        else:
+            batch = pandas_to_arrow(self._schema, self._timezone, self._field_types, cols)
+        batch_writer.write_batch(batch)
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return self.decode_one_batch_from_stream(in_stream, size)
 
-    cdef list decode_one_batch_from_stream(self, InputStream in_stream, size_t size):
+    cdef decode_one_batch_from_stream(self, InputStream in_stream, size_t size):
         self._resettable_io.set_input_bytes(in_stream.read(size))
         # there is only one arrow batch in the underlying input stream
-        return arrow_to_pandas(self._timezone, self._field_types, [next(self._batch_reader)])
+        batch = next(self._batch_reader)
+        if self._batch_format == "ARROW":
+            return batch
+        return arrow_to_pandas(self._timezone, self._field_types, [batch])
 
     def _load_from_stream(self, stream):
         import pyarrow as pa

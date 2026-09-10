@@ -420,16 +420,41 @@ def udf(
         ...     incremented=increment(pf.col("value"), 2),
         ... )
 
+    Arrow UDFs operate directly on Arrow columns and require ``return_dtype``.
+    Select ``func_type="arrow"`` explicitly or annotate an unbound parameter or
+    the return value with ``pyarrow.Array`` or ``pyarrow.ChunkedArray``::
+
+        >>> import pyarrow as pa
+        >>> import pyarrow.compute as pc
+        >>> @pf.udf(return_dtype=pf.DataType.string())
+        ... def normalize_name(names: pa.Array) -> pa.Array:
+        ...     return pc.utf8_upper(names)
+        >>> result = df.with_column("normalized_name", normalize_name(pf.col("name")))
+
+    Column arguments arrive as Arrow arrays, including ``StructArray`` for
+    ``ROW`` columns. Literal arguments remain Python scalars. At least one
+    column-valued argument is required. Return an ``Array`` or ``ChunkedArray``
+    with the declared element type and the same number of rows as the input
+    batch. Nested types and nullability are validated without implicit element
+    casts. Intermediate results in composed Arrow calls may remain chunked.
+    Scalar values, lists, Arrow tables, and record batches are not scalar UDF
+    results. Arrow mode supports synchronous functions only.
+
+    Explicit ``func_type`` overrides annotations. Without it, a declaration
+    containing both pandas and Arrow container hints is ambiguous and raises
+    an error directing the caller to select a mode explicitly.
+
     :param func: Function, callable object, scalar UDF instance, or zero-argument
                  callable/scalar-UDF class.
     :param return_dtype: DataFrame logical type, Python type, or SQL type string.
                          General UDFs may infer it from a return annotation;
-                         pandas UDFs require it.
+                         pandas and Arrow UDFs require it.
     :param deterministic: Whether equal inputs always produce equal results.
                           Must agree with scalar-function metadata.
     :param name: Non-empty function identity used by the Table planner.
-    :param func_type: ``"general"`` or ``"pandas"``. If omitted, any unbound
-                      pandas container annotation selects pandas mode.
+    :param func_type: ``"general"``, ``"pandas"``, or ``"arrow"``. If omitted,
+                      unbound container annotations select pandas or Arrow mode;
+                      otherwise general mode is used.
     :return: A callable that accepts DataFrame expressions or Python literals and
              returns an :class:`~pyflink.table.expression.Expression`, or a decorator
              producing such a callable when ``func`` is omitted.
@@ -487,18 +512,18 @@ def _validate_scalar_udf_options(
     return_dtype: Optional[_DataTypeLike],
     is_async: bool,
 ) -> None:
-    if func_type not in ("general", "pandas"):
+    if func_type not in ("general", "pandas", "arrow"):
         raise ValueError(
-            f"The func_type must be one of 'general, pandas', got {func_type}."
+            f"The func_type must be one of 'general, pandas, arrow', got {func_type}."
         )
-    if return_dtype is None and func_type == "pandas":
+    if return_dtype is None and func_type in ("pandas", "arrow"):
         raise TypeError(
-            "return_dtype is required for pandas UDFs because pandas container "
+            f"return_dtype is required for {func_type} UDFs because {func_type} container "
             "annotations do not describe the logical result type."
         )
-    if is_async and func_type == "pandas":
+    if is_async and func_type in ("pandas", "arrow"):
         raise ValueError(
-            "Async scalar functions do not support pandas func_type. "
+            f"Async scalar functions do not support {func_type} func_type. "
             "Use func_type='general'."
         )
 
@@ -1003,30 +1028,39 @@ def _data_type_from_type_hint(type_hint: Any) -> DataType:
 
 
 def _detect_func_type(declaration_context: _UDFDeclarationContext) -> str:
-    """Detect pandas mode from an unbound pandas container annotation."""
+    """Detect a unique vectorized mode from unbound container annotations."""
     hint_func = declaration_context.annotation_target
+    container_types: Dict[str, Tuple[Type, ...]] = {}
+    container_globalns: Dict[str, Any] = {}
     try:
         import pandas as pd
+        container_types["pandas"] = (pd.Series, pd.DataFrame)
+        container_globalns.update(pandas=pd, pd=pd)
     except ImportError:
-        return "general"
+        pass
+    try:
+        import pyarrow as pa
+        container_types["arrow"] = (pa.Array, pa.ChunkedArray)
+        container_globalns.update(pyarrow=pa, pa=pa)
+    except ImportError:
+        pass
 
-    pandas_types = (pd.Series, pd.DataFrame)
-    pandas_globalns = {
-        "pandas": pd,
-        "pd": pd,
-        **declaration_context.globalns,
-    }
+    modes: set[str] = set()
     for name in getattr(hint_func, "__annotations__", {}):
         if name in declaration_context.ignored_hint_names:
             continue
         hint = _resolve_callable_annotation(
             declaration_context,
             name,
-            globalns=pandas_globalns,
+            globalns={**container_globalns, **declaration_context.globalns},
         )
-        if hint in pandas_types:
-            return "pandas"
-    return "general"
+        modes.update(mode for mode, types in container_types.items() if hint in types)
+    if len(modes) > 1:
+        raise ValueError(
+            "UDF annotations contain both pandas and Arrow containers; "
+            "specify func_type explicitly."
+        )
+    return next(iter(modes), "general")
 
 
 # ======================== Worker Adapters ========================

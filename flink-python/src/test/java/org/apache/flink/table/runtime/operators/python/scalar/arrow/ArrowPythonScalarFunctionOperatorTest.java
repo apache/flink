@@ -20,13 +20,18 @@ package org.apache.flink.table.runtime.operators.python.scalar.arrow;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.table.functions.python.PythonScalarFunction;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
@@ -39,10 +44,14 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+
 import java.io.IOException;
 import java.util.Collection;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ArrowPythonScalarFunctionOperator}. */
 public class ArrowPythonScalarFunctionOperatorTest
@@ -55,6 +64,60 @@ public class ArrowPythonScalarFunctionOperatorTest
                         DataTypes.STRING().getLogicalType(),
                         DataTypes.BIGINT().getLogicalType()
                     });
+
+    @ParameterizedTest
+    @EnumSource(
+            value = PythonFunctionKind.class,
+            names = {"PANDAS", "ARROW"})
+    void testScalarBatchFormat(PythonFunctionKind kind) {
+        final RowType rowType = RowType.of(DataTypes.STRING().getLogicalType());
+        final PythonFunctionInfo function =
+                new PythonFunctionInfo(
+                        new PythonScalarFunction(
+                                "identity",
+                                new byte[0],
+                                kind,
+                                true,
+                                false,
+                                new PythonEnv(PythonEnv.ExecType.PROCESS)),
+                        new Object[] {0},
+                        kind == PythonFunctionKind.ARROW
+                                ? DataTypes.STRING().notNull().getLogicalType()
+                                : null);
+        final ArrowPythonScalarFunctionOperator operator =
+                getTestOperator(
+                        new Configuration(),
+                        new PythonFunctionInfo[] {function},
+                        rowType,
+                        rowType,
+                        new int[] {0},
+                        new int[0]);
+        final FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat expected =
+                FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat.valueOf(kind.name());
+        assertThat(operator.createInputCoderInfoDescriptor(rowType).getArrowType().getBatchFormat())
+                .isEqualTo(expected);
+        assertThat(
+                        operator.createOutputCoderInfoDescriptor(rowType)
+                                .getArrowType()
+                                .getBatchFormat())
+                .isEqualTo(expected);
+        assertThat(ProtoUtils.createUserDefinedFunctionProto(function).getIsArrowUdf())
+                .isEqualTo(kind == PythonFunctionKind.ARROW);
+        final FlinkFnApi.UserDefinedFunction functionProto =
+                ProtoUtils.createUserDefinedFunctionProto(function);
+        assertThat(functionProto.hasOutputType()).isEqualTo(kind == PythonFunctionKind.ARROW);
+        if (kind == PythonFunctionKind.ARROW) {
+            assertThat(functionProto.getOutputType().getTypeName())
+                    .isEqualTo(FlinkFnApi.Schema.TypeName.VARCHAR);
+            assertThat(functionProto.getOutputType().getNullable()).isFalse();
+        }
+        assertThat(
+                        ProtoUtils.createArrowTypeCoderInfoDescriptorProto(
+                                        rowType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false)
+                                .getArrowType()
+                                .getBatchFormat())
+                .isEqualTo(FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat.PANDAS);
+    }
 
     @Override
     public ArrowPythonScalarFunctionOperator getTestOperator(

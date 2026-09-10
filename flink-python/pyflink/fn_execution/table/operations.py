@@ -141,9 +141,11 @@ class ScalarFunctionOperation(BaseOperation):
         Generates a UDF execution function. Uses sequential execution with result references
         when refIndex is present (CSE mode), otherwise uses lambda-based approach.
         """
+        is_arrow = all(udf.is_arrow_udf for udf in serialized_fn.udfs)
+        one_arg_optimization = self._one_arg_optimization and not is_arrow
         udf_infos = [
             operation_utils.extract_user_defined_function(
-                udf, one_arg_optimization=self._one_arg_optimization)
+                udf, one_arg_optimization=one_arg_optimization)
             for udf in serialized_fn.udfs]
 
         variable_dict = {}
@@ -154,6 +156,10 @@ class ScalarFunctionOperation(BaseOperation):
             user_defined_funcs.extend(funcs)
             func_strs.append(func_str)
 
+        if is_arrow:
+            from pyflink.fn_execution.utils.arrow_utils import create_arrow_batch
+            variable_dict['create_arrow_batch'] = create_arrow_batch
+
         output_indices = list(serialized_fn.output_indices)
         # Result references require sequential evaluation. A non-empty output_indices does too:
         # it may repeat or reorder results even when none of the UDFs references another result.
@@ -163,7 +169,9 @@ class ScalarFunctionOperation(BaseOperation):
         if not requires_sequential_execution:
             # Keep original lambda-based approach for backward compatibility
             scalar_functions = ','.join(func_strs)
-            if self._one_result_optimization:
+            if is_arrow:
+                func_str = f'lambda value: create_arrow_batch([{scalar_functions}], value.num_rows)'
+            elif self._one_result_optimization:
                 func_str = 'lambda value: %s' % scalar_functions
             else:
                 func_str = 'lambda value: [%s]' % scalar_functions
@@ -186,7 +194,10 @@ class ScalarFunctionOperation(BaseOperation):
         code_lines.append('    results = [None] * %d' % len(func_strs))
         for i, fn in enumerate(func_strs):
             code_lines.append('    results[%d] = %s' % (i, fn))
-        if self._one_result_optimization:
+        if is_arrow:
+            outputs = ','.join('results[%d]' % i for i in output_indices)
+            code_lines.append(f'    return create_arrow_batch([{outputs}], value.num_rows)')
+        elif self._one_result_optimization:
             code_lines.append('    return results[%d]' % output_indices[0])
         else:
             code_lines.append(

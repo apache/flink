@@ -87,7 +87,14 @@ class LengthPrefixBaseCoder(ABC):
             timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
             schema_proto = coder_info_descriptor_proto.arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
-            return ArrowCoder(cls._to_arrow_schema(row_type), row_type, timezone)
+            batch_format = coder_info_descriptor_proto.arrow_type.BatchFormat.Name(
+                coder_info_descriptor_proto.arrow_type.batch_format)
+            if batch_format == "ARROW":
+                from pyflink.fn_execution.utils.arrow_utils import to_arrow_schema
+                schema = to_arrow_schema(row_type)
+            else:
+                schema = cls._to_arrow_schema(row_type)
+            return ArrowCoder(schema, row_type, timezone, batch_format)
         elif coder_info_descriptor_proto.HasField('over_window_arrow_type'):
             timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
             schema_proto = coder_info_descriptor_proto.over_window_arrow_type.schema
@@ -242,13 +249,15 @@ class ArrowCoder(FieldCoder):
     Coder for Arrow.
     """
 
-    def __init__(self, schema, row_type, timezone):
+    def __init__(self, schema, row_type, timezone, batch_format="PANDAS"):
+        self._batch_format = batch_format
         self._schema = schema
         self._row_type = row_type
         self._timezone = timezone
 
     def get_impl(self):
-        return coder_impl.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
+        return coder_impl.ArrowCoderImpl(
+            self._schema, self._row_type, self._timezone, self._batch_format)
 
     def __repr__(self):
         return 'ArrowCoder[%s]' % self._schema
