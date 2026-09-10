@@ -227,7 +227,7 @@ arithmetic:
     description: Returns a pseudorandom integer value in the range [0, INT2) with an initial seed INT1. Two RAND_INTEGER functions will return identical sequences of numbers if they have the same initial seed and bound.
   - sql: UUID()
     table: uuid()
-    description: Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.
+    description: Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 9562 version 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.
   - sql: UUID_V4()
     table: uuidV4()
     description: Returns a random RFC 9562 version 4 UUID value. The UUID is generated using a cryptographically strong pseudo random number generator.

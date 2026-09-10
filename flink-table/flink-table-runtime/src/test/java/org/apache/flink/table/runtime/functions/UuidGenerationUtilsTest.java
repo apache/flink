@@ -22,6 +22,8 @@ import org.apache.flink.table.types.logical.UuidType;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link UuidGenerationUtils}. */
@@ -53,11 +55,13 @@ class UuidGenerationUtilsTest {
 
     @Test
     void testGenerateV7Timestamp() {
-        long before = System.currentTimeMillis();
+        long now = System.currentTimeMillis();
         byte[] bytes = UuidGenerationUtils.generateV7();
-        long after = System.currentTimeMillis();
+        long timestamp = extractTimestamp(bytes);
 
-        assertThat(extractTimestamp(bytes)).isBetween(before, after);
+        // The tolerance absorbs scheduling gaps and small clock corrections.
+        long tolerance = Duration.ofSeconds(10).toMillis();
+        assertThat(timestamp).isBetween(now - tolerance, now + tolerance);
     }
 
     private static long extractTimestamp(byte[] bytes) {

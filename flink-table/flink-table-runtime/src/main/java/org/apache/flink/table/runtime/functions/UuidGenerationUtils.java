@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.UuidType;
 
 import java.security.SecureRandom;
+import java.util.UUID;
 
 /**
  * Runtime helpers for generating {@code UUID} values, stored as their 16-byte big-endian encoding.
@@ -29,18 +30,20 @@ import java.security.SecureRandom;
 @Internal
 public final class UuidGenerationUtils {
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private UuidGenerationUtils() {}
 
     /**
      * Generates a random RFC 9562 version 4 {@code UUID}.
      *
-     * <p>Fills the bytes directly rather than via {@link java.util.UUID#randomUUID()}. The internal
+     * <p>Fills the bytes directly rather than via {@link UUID#randomUUID()}. The internal
      * representation is already a {@code byte[]}, so this avoids an extra round-trip through a
-     * {@link java.util.UUID} object.
+     * {@link UUID} object.
      */
     public static byte[] generateV4() {
         final byte[] bytes = new byte[UuidType.BYTE_LENGTH];
-        Holder.SECURE_RANDOM.nextBytes(bytes);
+        SECURE_RANDOM.nextBytes(bytes);
 
         // set the version to 4
         bytes[6] &= 0x0F;
@@ -59,13 +62,13 @@ public final class UuidGenerationUtils {
      * variant bits set accordingly.
      *
      * <p>Implements the layout from the RFC directly rather than delegating to the JDK, since a
-     * built-in generator for this ({@code java.util.UUID.ofEpochMillis}) only exists starting with
-     * JDK 26, newer than what Flink's minimum supported Java version provides.
+     * built-in generator for this ({@code UUID.ofEpochMillis}) only exists starting with JDK 26,
+     * newer than what Flink's minimum supported Java version provides.
      */
     public static byte[] generateV7() {
         final long timestamp = System.currentTimeMillis();
         final byte[] bytes = new byte[UuidType.BYTE_LENGTH];
-        Holder.SECURE_RANDOM.nextBytes(bytes);
+        SECURE_RANDOM.nextBytes(bytes);
 
         // embed the timestamp into the first 6 bytes
         bytes[0] = (byte) (timestamp >>> 40);
@@ -84,13 +87,5 @@ public final class UuidGenerationUtils {
         bytes[8] |= (byte) 0x80;
 
         return bytes;
-    }
-
-    /**
-     * Holder for the {@link SecureRandom} instance, so that seeding it is deferred until a {@code
-     * UUID} is actually generated for the first time.
-     */
-    private static final class Holder {
-        static final SecureRandom SECURE_RANDOM = new SecureRandom();
     }
 }
