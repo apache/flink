@@ -32,6 +32,8 @@ import org.apache.flink.core.testutils.TestContainerExtension;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -109,25 +111,17 @@ class NativeS3FileSystemITCase {
                 .doesNotThrowAnyException();
     }
 
-    @Test
-    void testRecursiveDeleteManyFilesWithBatchingEnabled() throws Exception {
-        assertRecursiveDeleteOfManyFiles(fs);
-    }
-
-    @Test
-    void testRecursiveDeleteManyFilesWithBatchingDisabled() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testRecursiveDeleteManyFiles(boolean batchingEnabled) throws Exception {
         final Configuration config = new Configuration();
         container().setS3ConfigOptions(config);
-        config.set(NativeS3FileSystemFactory.DELETE_BATCH_ENABLED, false);
+        config.set(NativeS3FileSystemFactory.DELETE_BATCH_ENABLED, batchingEnabled);
 
         final NativeS3FileSystemFactory factory = new NativeS3FileSystemFactory();
         factory.configure(config);
-        final FileSystem fsWithBatchingDisabled = factory.create(URI.create(bucketUri + "/"));
+        final FileSystem targetFs = factory.create(URI.create(bucketUri + "/"));
 
-        assertRecursiveDeleteOfManyFiles(fsWithBatchingDisabled);
-    }
-
-    private void assertRecursiveDeleteOfManyFiles(FileSystem targetFs) throws Exception {
         final String dir = "bulk-delete-" + UUID.randomUUID();
         final int numFiles = 25;
         for (int i = 0; i < numFiles; i++) {
