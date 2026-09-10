@@ -738,6 +738,19 @@ trait ImplicitExpressionConversions {
     Expressions.uuid()
   }
 
+  /** Returns a random RFC 9562 version 4 (pseudo randomly generated) UUID value. */
+  def uuidV4(): Expression = {
+    Expressions.uuidV4()
+  }
+
+  /**
+   * Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current timestamp and
+   * a random component.
+   */
+  def uuidV7(): Expression = {
+    Expressions.uuidV7()
+  }
+
   /**
    * Returns a null literal value of a given data type.
    *

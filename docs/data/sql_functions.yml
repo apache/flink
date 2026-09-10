@@ -228,6 +228,12 @@ arithmetic:
   - sql: UUID()
     table: uuid()
     description: Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.
+  - sql: UUID_V4()
+    table: uuidV4()
+    description: Returns a random RFC 9562 version 4 UUID value. The UUID is generated using a cryptographically strong pseudo random number generator.
+  - sql: UUID_V7()
+    table: uuidV7()
+    description: Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current timestamp and a random component.
   - sql: BIN(INT)
     table: INT.bin()
     description: Returns a string representation of INTEGER in binary format. Returns NULL if INTEGER is NULL. E.g., 4.bin() returns "100" and 12.bin() returns "1100".

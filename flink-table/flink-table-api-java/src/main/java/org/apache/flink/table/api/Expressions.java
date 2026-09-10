@@ -835,6 +835,19 @@ public final class Expressions {
         return apiCall(BuiltInFunctionDefinitions.UUID);
     }
 
+    /** Returns a random RFC 9562 version 4 (pseudo randomly generated) {@code UUID} value. */
+    public static ApiExpression uuidV4() {
+        return apiCall(BuiltInFunctionDefinitions.UUID_V4);
+    }
+
+    /**
+     * Returns a time-ordered RFC 9562 version 7 {@code UUID} value, generated from the current
+     * timestamp and a random component.
+     */
+    public static ApiExpression uuidV7() {
+        return apiCall(BuiltInFunctionDefinitions.UUID_V7);
+    }
+
     /**
      * Returns a null literal value of a given data type.
      *
