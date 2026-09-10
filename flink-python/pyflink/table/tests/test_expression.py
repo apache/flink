@@ -53,7 +53,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('and(a, b)', str(expr1 & expr2))
         self.assertEqual('or(a, b)', str(expr1 | expr2))
         self.assertEqual('isNotTrue(a)', str(expr1.is_not_true))
-        self.assertEqual('isNotTrue(a)', str(~expr1))
+        self.assertEqual('not(a)', str(~expr1))
 
         # arithmetic functions
         self.assertEqual('plus(a, b)', str(expr1 + expr2))
