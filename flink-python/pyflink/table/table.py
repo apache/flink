@@ -116,10 +116,11 @@ class Table(object):
 
             >>> tab.select(tab.a)
         """
-        if name not in self.get_schema().get_field_names():
+        column_names = self.get_resolved_schema().get_column_names()
+        if name not in column_names:
             raise AttributeError(
                 "The current table has no column named '%s', available columns: [%s]"
-                % (name, ', '.join(self.get_schema().get_field_names())))
+                % (name, ', '.join(column_names)))
         return col(name)
 
     def select(self, *fields: Expression) -> 'Table':
@@ -943,27 +944,26 @@ class Table(object):
             .get(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE)
         batches_iterator = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
             .collectAsPandasDataFrame(self._j_table, max_arrow_batch_size)
+        schema = self.get_schema()
         if batches_iterator.hasNext():
             import pytz
             timezone = pytz.timezone(
                 self._j_table.getTableEnvironment().getConfig().getLocalTimeZone().getId())
             serializer = ArrowSerializer(
-                create_arrow_schema(self.get_schema().get_field_names(),
-                                    self.get_schema().get_field_data_types()),
-                self.get_schema().to_row_data_type(),
+                create_arrow_schema(schema.get_field_names(), schema.get_field_data_types()),
+                schema.to_row_data_type(),
                 timezone)
             import pyarrow as pa
             table = pa.Table.from_batches(serializer.load_from_iterator(batches_iterator))
             pdf = table.to_pandas()
 
-            schema = self.get_schema()
             for field_name in schema.get_field_names():
                 pdf[field_name] = tz_convert_from_internal(
                     pdf[field_name], schema.get_field_data_type(field_name), timezone)
             return pdf
         else:
             import pandas as pd
-            return pd.DataFrame.from_records([], columns=self.get_schema().get_field_names())
+            return pd.DataFrame.from_records([], columns=schema.get_field_names())
 
     @Deprecated(since="2.1.0", detail="Use :func:`Table.get_resolved_schema` instead.")
     def get_schema(self) -> TableSchema:
