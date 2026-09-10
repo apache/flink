@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SecurityOptions;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.rest.handler.cluster.JobManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerEnvironmentHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogListHandler;
+import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogUrlHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingFileHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingHandler;
 import org.apache.flink.runtime.rest.handler.cluster.JobManagerProfilingListHandler;
@@ -113,6 +115,7 @@ import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHan
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerDetailsHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogUrlHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingListHandler;
@@ -728,14 +731,6 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         executor,
                         metricFetcher);
 
-        final GeneratedLogUrlHandler jobManagerLogUrlHandler =
-                new GeneratedLogUrlHandler(
-                        localAddressFuture.thenApply(url -> url + "/#/job-manager/logs"));
-
-        final GeneratedLogUrlHandler taskManagerLogUrlHandler =
-                new GeneratedLogUrlHandler(
-                        localAddressFuture.thenApply(url -> url + "/#/task-manager/<tmid>/logs"));
-
         final SavepointDisposalHandlers savepointDisposalHandlers =
                 new SavepointDisposalHandlers(asyncOperationStoreDuration);
 
@@ -928,8 +923,51 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(
                         jobManagerJobConfigurationHandler.getMessageHeaders(),
                         jobManagerJobConfigurationHandler));
-        handlers.add(Tuple2.of(JobManagerLogUrlHeaders.getInstance(), jobManagerLogUrlHandler));
-        handlers.add(Tuple2.of(TaskManagerLogUrlHeaders.getInstance(), taskManagerLogUrlHandler));
+
+        if (clusterConfiguration.contains(
+                HistoryServerOptions
+                        .HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS)) {
+            JobManagerLogUrlHandler jobManagerLogUrlHandler =
+                    new JobManagerLogUrlHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            JobManagerLogUrlHeaders.getInstance(),
+                            clusterConfiguration);
+            TaskManagerLogUrlHandler taskManagerLogUrlHandler =
+                    new TaskManagerLogUrlHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            TaskManagerLogUrlHeaders.getInstance(),
+                            executionGraphCache,
+                            executor,
+                            clusterConfiguration);
+            handlers.add(
+                    Tuple2.of(
+                            jobManagerLogUrlHandler.getMessageHeaders(), jobManagerLogUrlHandler));
+            handlers.add(
+                    Tuple2.of(
+                            taskManagerLogUrlHandler.getMessageHeaders(),
+                            taskManagerLogUrlHandler));
+        } else {
+            final GeneratedLogUrlHandler jobManagerGeneratedLogUrlHandler =
+                    new GeneratedLogUrlHandler(
+                            localAddressFuture.thenApply(url -> url + "/#/job-manager/logs"));
+
+            final GeneratedLogUrlHandler taskManagerGeneratedLogUrlHandler =
+                    new GeneratedLogUrlHandler(
+                            localAddressFuture.thenApply(
+                                    url -> url + "/#/task-manager/<tmid>/logs"));
+            handlers.add(
+                    Tuple2.of(
+                            JobManagerLogUrlHeaders.getInstance(),
+                            jobManagerGeneratedLogUrlHandler));
+            handlers.add(
+                    Tuple2.of(
+                            TaskManagerLogUrlHeaders.getInstance(),
+                            taskManagerGeneratedLogUrlHandler));
+        }
 
         final AbstractRestHandler<?, ?, ?, ?> jobVertexFlameGraphHandler;
         if (clusterConfiguration.get(RestOptions.ENABLE_FLAMEGRAPH)) {
