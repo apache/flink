@@ -280,7 +280,7 @@ arithmetic:
   - sql: UUID()
     table: uuid()
     description: |
-      根据 RFC 4122 类型 4（伪随机生成）UUID，返回 UUID（通用唯一标识符）字符串。
+      根据 RFC 9562 类型 4（伪随机生成）UUID，返回 UUID（通用唯一标识符）字符串。
       例如“3d3c68f7-f608-473f-b60c-b0c44ad4cc4e”，UUID 是使用加密强的伪随机数生成器生成的。
   - sql: UUID_V4()
     table: uuidV4()

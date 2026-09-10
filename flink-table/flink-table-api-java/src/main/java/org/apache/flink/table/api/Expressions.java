@@ -827,15 +827,21 @@ public final class Expressions {
 
     /**
      * Returns an UUID (Universally Unique Identifier) string (e.g.,
-     * "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
+     * "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 9562 version 4 (pseudo randomly
      * generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
      * generator.
+     *
+     * @see <a href="https://www.rfc-editor.org/rfc/rfc9562.html">RFC 9562</a>
      */
     public static ApiExpression uuid() {
         return apiCall(BuiltInFunctionDefinitions.UUID);
     }
 
-    /** Returns a random RFC 9562 version 4 (pseudo randomly generated) {@code UUID} value. */
+    /**
+     * Returns a random RFC 9562 version 4 (pseudo randomly generated) {@code UUID} value.
+     *
+     * @see <a href="https://www.rfc-editor.org/rfc/rfc9562.html">RFC 9562</a>
+     */
     public static ApiExpression uuidV4() {
         return apiCall(BuiltInFunctionDefinitions.UUID_V4);
     }
@@ -843,6 +849,8 @@ public final class Expressions {
     /**
      * Returns a time-ordered RFC 9562 version 7 {@code UUID} value, generated from the current
      * timestamp and a random component.
+     *
+     * @see <a href="https://www.rfc-editor.org/rfc/rfc9562.html">RFC 9562</a>
      */
     public static ApiExpression uuidV7() {
         return apiCall(BuiltInFunctionDefinitions.UUID_V7);

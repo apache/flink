@@ -730,25 +730,12 @@ trait ImplicitExpressionConversions {
 
   /**
    * Returns an UUID (Universally Unique Identifier) string (e.g.,
-   * "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
+   * "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 9562 version 4 (pseudo randomly
    * generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
    * generator.
    */
   def uuid(): Expression = {
     Expressions.uuid()
-  }
-
-  /** Returns a random RFC 9562 version 4 (pseudo randomly generated) UUID value. */
-  def uuidV4(): Expression = {
-    Expressions.uuidV4()
-  }
-
-  /**
-   * Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current timestamp and
-   * a random component.
-   */
-  def uuidV7(): Expression = {
-    Expressions.uuidV7()
   }
 
   /**
