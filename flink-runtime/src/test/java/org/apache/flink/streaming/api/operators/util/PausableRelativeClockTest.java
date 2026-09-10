@@ -77,4 +77,25 @@ class PausableRelativeClockTest {
         assertThat((durationNanos) / 1_000_000).isEqualTo(TIME_STEP * 2);
         assertThat(durationMillis).isEqualTo(TIME_STEP * 2);
     }
+
+    @Test
+    void layeredClockFollowsBaseClockPauses() {
+        ManualClock baseClock = new ManualClock();
+        PausableRelativeClock parent = new PausableRelativeClock(baseClock);
+        PausableRelativeClock child = new PausableRelativeClock(parent);
+
+        long startNanos = child.relativeTimeNanos();
+
+        baseClock.advanceTime(Duration.ofMillis(TIME_STEP)); // counts
+        parent.pause();
+        baseClock.advanceTime(Duration.ofMillis(TIME_STEP)); // parent paused: doesn't count
+        child.pause();
+        parent.unPause();
+        baseClock.advanceTime(Duration.ofMillis(TIME_STEP)); // child paused: doesn't count
+        child.unPause();
+        baseClock.advanceTime(Duration.ofMillis(TIME_STEP)); // counts
+
+        long durationNanos = child.relativeTimeNanos() - startNanos;
+        assertThat(durationNanos / 1_000_000).isEqualTo(TIME_STEP * 2);
+    }
 }

@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.operators.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.metrics.TimerGauge;
-import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.RelativeClock;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -28,14 +27,14 @@ import javax.annotation.concurrent.ThreadSafe;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link RelativeClock} whose time progress with respect to the wall clock can be paused and
+ * A {@link RelativeClock} whose time progress with respect to its base clock can be paused and
  * un-paused. It can be paused multiple times. If it is paused N times, it has to be un-paused also
  * N times to resume progress.
  */
 @Internal
 @ThreadSafe
 public class PausableRelativeClock implements RelativeClock, TimerGauge.StartStopListener {
-    private final Clock baseClock;
+    private final RelativeClock baseClock;
 
     private long accumulativeBlockedNanoTime;
     private long currentBlockedNanoTimeStart;
@@ -43,7 +42,11 @@ public class PausableRelativeClock implements RelativeClock, TimerGauge.StartSto
     /** How many times this clock has been paused. */
     private long pausedCounter;
 
-    public PausableRelativeClock(Clock baseClock) {
+    /**
+     * @param baseClock the clock this one derives its time from. It can itself be a {@link
+     *     PausableRelativeClock}, in which case pausing the base clock also pauses this one.
+     */
+    public PausableRelativeClock(RelativeClock baseClock) {
         this.baseClock = baseClock;
     }
 

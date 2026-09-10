@@ -24,10 +24,9 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.streaming.api.operators.util.PausableRelativeClock;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.RelativeClock;
 
 import java.time.Duration;
@@ -104,9 +103,7 @@ public interface TimestampsAndWatermarks<T> {
             MetricGroup metrics,
             ProcessingTimeService timeService,
             long periodicWatermarkIntervalMillis,
-            RelativeClock mainInputActivityClock,
-            Clock clock,
-            TaskIOMetricGroup taskIOMetricGroup) {
+            PausableRelativeClock mainInputActivityClock) {
 
         TimestampsAndWatermarksContextProvider contextProvider =
                 new TimestampsAndWatermarksContextProvider(metrics);
@@ -120,9 +117,7 @@ public interface TimestampsAndWatermarks<T> {
                 contextProvider,
                 timeService,
                 Duration.ofMillis(periodicWatermarkIntervalMillis),
-                mainInputActivityClock,
-                clock,
-                taskIOMetricGroup);
+                mainInputActivityClock);
     }
 
     static <E> TimestampsAndWatermarks<E> createNoOpEventTimeLogic(
@@ -142,12 +137,30 @@ public interface TimestampsAndWatermarks<T> {
     class TimestampsAndWatermarksContextProvider {
         private final MetricGroup metrics;
 
+        /** Whether any created context handed out the input activity clock. */
+        private boolean inputActivityClockRequested;
+
         public TimestampsAndWatermarksContextProvider(MetricGroup metrics) {
             this.metrics = metrics;
         }
 
         public TimestampsAndWatermarksContext create(RelativeClock inputActivityClock) {
-            return new TimestampsAndWatermarksContext(metrics, inputActivityClock);
+            return new TimestampsAndWatermarksContext(
+                    metrics, inputActivityClock, () -> inputActivityClockRequested = true);
+        }
+
+        /**
+         * Returns true if a timestamp assigner or watermark generator created through this provider
+         * asked for the input activity clock, which is the case with {@link
+         * org.apache.flink.api.common.eventtime.WatermarkStrategy#withIdleness(java.time.Duration)}.
+         * Only then is it worth paying for keeping that clock accurate.
+         *
+         * <p>The decision to hide downstream processing time from the clock is taken once, when the
+         * main output is created. A supplier that asks for the clock lazily, after its first {@code
+         * createWatermarkGenerator} call returned, therefore keeps the previous behaviour.
+         */
+        public boolean isInputActivityClockRequested() {
+            return inputActivityClockRequested;
         }
     }
 }

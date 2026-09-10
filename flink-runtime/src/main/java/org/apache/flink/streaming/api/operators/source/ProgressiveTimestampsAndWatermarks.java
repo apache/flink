@@ -27,12 +27,9 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceOutput;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.operators.util.PausableRelativeClock;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.util.clock.Clock;
-import org.apache.flink.util.clock.RelativeClock;
 
 import javax.annotation.Nullable;
 
@@ -66,11 +63,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
 
     private final long periodicWatermarkInterval;
 
-    private final RelativeClock mainInputActivityClock;
-
-    private final Clock clock;
-
-    private final TaskIOMetricGroup taskIOMetricGroup;
+    private final PausableRelativeClock mainInputActivityClock;
 
     @Nullable private SplitLocalOutputs<T> currentPerSplitOutputs;
 
@@ -84,17 +77,13 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
             TimestampsAndWatermarksContextProvider watermarksContextProvider,
             ProcessingTimeService timeService,
             Duration periodicWatermarkInterval,
-            RelativeClock mainInputActivityClock,
-            Clock clock,
-            TaskIOMetricGroup taskIOMetricGroup) {
+            PausableRelativeClock mainInputActivityClock) {
 
         this.timestampAssigner = timestampAssigner;
         this.watermarksFactory = watermarksFactory;
         this.watermarksContextProvider = watermarksContextProvider;
         this.timeService = timeService;
         this.mainInputActivityClock = mainInputActivityClock;
-        this.clock = clock;
-        this.taskIOMetricGroup = taskIOMetricGroup;
 
         long periodicWatermarkIntervalMillis;
         try {
@@ -120,28 +109,36 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
                 currentMainOutput == null && currentPerSplitOutputs == null,
                 "already created a main output");
 
-        final WatermarkOutput watermarkOutput =
-                new WatermarkToDataOutput(output, watermarkUpdateListener);
-        IdlenessManager idlenessManager = new IdlenessManager(watermarkOutput);
-
         final WatermarkGenerator<T> watermarkGenerator =
                 watermarksFactory.createWatermarkGenerator(
                         watermarksContextProvider.create(mainInputActivityClock));
 
+        // Downstream operators process every emitted element synchronously on the task thread,
+        // during which no split can be polled. When something measures input activity time (i.e.
+        // idleness detection is configured), hide that time from the activity clocks; otherwise
+        // keep the plain output to leave the hot path untouched.
+        final PushingAsyncDataInput.DataOutput<T> recordOutput =
+                watermarksContextProvider.isInputActivityClockRequested()
+                        ? new ActivityClockPausingDataOutput<>(output, mainInputActivityClock)
+                        : output;
+
+        final WatermarkOutput watermarkOutput =
+                new WatermarkToDataOutput(recordOutput, watermarkUpdateListener);
+        IdlenessManager idlenessManager = new IdlenessManager(watermarkOutput);
+
         currentPerSplitOutputs =
                 new SplitLocalOutputs<>(
-                        output,
+                        recordOutput,
                         idlenessManager.getSplitLocalOutput(),
                         watermarkUpdateListener,
                         timestampAssigner,
                         watermarksFactory,
                         watermarksContextProvider,
-                        clock,
-                        taskIOMetricGroup);
+                        mainInputActivityClock);
 
         currentMainOutput =
                 new StreamingReaderOutput<>(
-                        output,
+                        recordOutput,
                         idlenessManager.getMainOutput(),
                         timestampAssigner,
                         watermarkGenerator,
@@ -237,8 +234,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
         private final WatermarkGeneratorSupplier<T> watermarksFactory;
         private final TimestampsAndWatermarksContextProvider watermarksContextProvider;
         private final WatermarkUpdateListener watermarkUpdateListener;
-        private final Clock clock;
-        private final TaskIOMetricGroup taskIOMetricGroup;
+        private final PausableRelativeClock mainInputActivityClock;
 
         private SplitLocalOutputs(
                 PushingAsyncDataInput.DataOutput<T> recordOutput,
@@ -247,16 +243,14 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
                 TimestampAssigner<T> timestampAssigner,
                 WatermarkGeneratorSupplier<T> watermarksFactory,
                 TimestampsAndWatermarksContextProvider watermarksContextProvider,
-                Clock clock,
-                TaskIOMetricGroup taskIOMetricGroup) {
+                PausableRelativeClock mainInputActivityClock) {
 
             this.recordOutput = recordOutput;
             this.timestampAssigner = timestampAssigner;
             this.watermarksFactory = watermarksFactory;
             this.watermarksContextProvider = watermarksContextProvider;
             this.watermarkUpdateListener = watermarkUpdateListener;
-            this.clock = clock;
-            this.taskIOMetricGroup = taskIOMetricGroup;
+            this.mainInputActivityClock = mainInputActivityClock;
 
             this.watermarkMultiplexer = new WatermarkOutputMultiplexer(watermarkOutput);
             this.localOutputs =
@@ -303,11 +297,12 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
         }
 
         private PausableRelativeClock createInputActivityClock(String splitId) {
-            // Dedicated inputActivityClock for a particular split. It will be paused both in case
-            // of back pressure and when split is paused due to watermark alignment.
-            PausableRelativeClock inputActivityClock = new PausableRelativeClock(clock);
+            // Dedicated inputActivityClock for a particular split, layered on the main input
+            // activity clock: it is paused whenever the main clock is (backpressure, downstream
+            // processing) and additionally when this split is paused due to watermark alignment.
+            PausableRelativeClock inputActivityClock =
+                    new PausableRelativeClock(mainInputActivityClock);
             inputActivityClocks.put(splitId, inputActivityClock);
-            taskIOMetricGroup.registerBackPressureListener(inputActivityClock);
             return inputActivityClock;
         }
 
@@ -315,9 +310,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
             watermarkUpdateListener.splitFinished(splitId);
             localOutputs.remove(splitId);
             watermarkMultiplexer.unregisterOutput(splitId);
-            PausableRelativeClock inputActivityClock =
-                    requireNonNull(inputActivityClocks.remove(splitId));
-            taskIOMetricGroup.unregisterBackPressureListener(inputActivityClock);
+            requireNonNull(inputActivityClocks.remove(splitId));
         }
 
         void emitPeriodicWatermark() {

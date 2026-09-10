@@ -72,6 +72,15 @@ public class TestProcessingTimeService implements TimerService {
         maybeFireTimers();
     }
 
+    /**
+     * Advances the clock without firing any timers. This models wall-clock time passing while the
+     * task thread is busy and therefore unable to service timers, for example inside a slow chained
+     * operator.
+     */
+    public void advanceClockWithoutFiringTimers(long delta) {
+        clock.advanceTime(Duration.ofMillis(delta));
+    }
+
     private void maybeFireTimers() throws Exception {
         if (!isQuiesced) {
             while (!priorityQueue.isEmpty()

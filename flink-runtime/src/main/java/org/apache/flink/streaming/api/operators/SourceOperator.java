@@ -431,9 +431,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             sourceMetricGroup,
                             getProcessingTimeService(),
                             getExecutionConfig().getAutoWatermarkInterval(),
-                            mainInputActivityClock,
-                            getProcessingTimeService().getClock(),
-                            taskIOMetricGroup);
+                            mainInputActivityClock);
         } else {
             eventTimeLogic =
                     TimestampsAndWatermarks.createNoOpEventTimeLogic(

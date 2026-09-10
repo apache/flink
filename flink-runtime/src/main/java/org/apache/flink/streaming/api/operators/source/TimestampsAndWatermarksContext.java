@@ -35,12 +35,27 @@ public final class TimestampsAndWatermarksContext
         implements TimestampAssignerSupplier.Context, WatermarkGeneratorSupplier.Context {
 
     private final MetricGroup metricGroup;
+
     private final RelativeClock inputActivityClock;
+
+    private final Runnable onInputActivityClockRequested;
 
     public TimestampsAndWatermarksContext(
             MetricGroup metricGroup, RelativeClock inputActivityClock) {
+        this(metricGroup, inputActivityClock, () -> {});
+    }
+
+    /**
+     * @param onInputActivityClockRequested invoked every time {@link #getInputActivityClock()} is
+     *     called, so that the owner can tell whether anything measures input activity time.
+     */
+    public TimestampsAndWatermarksContext(
+            MetricGroup metricGroup,
+            RelativeClock inputActivityClock,
+            Runnable onInputActivityClockRequested) {
         this.metricGroup = checkNotNull(metricGroup);
         this.inputActivityClock = inputActivityClock;
+        this.onInputActivityClockRequested = checkNotNull(onInputActivityClockRequested);
     }
 
     @Override
@@ -50,6 +65,7 @@ public final class TimestampsAndWatermarksContext
 
     @Override
     public RelativeClock getInputActivityClock() {
+        onInputActivityClockRequested.run();
         return inputActivityClock;
     }
 }

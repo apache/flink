@@ -31,6 +31,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
@@ -47,6 +48,9 @@ import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
@@ -629,6 +633,142 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         assertOutput(actualOutput, Arrays.asList(5, 6));
     }
 
+    /**
+     * FLINK-40234: a split whose records have been fetched but not yet polled must not be marked
+     * idle because a slow chained operator kept the task thread busy for longer than the idle
+     * timeout. Otherwise the watermark advances on the other splits alone and the pending records
+     * arrive late.
+     */
+    @Test
+    void testSlowDownstreamRecordProcessingDoesNotMarkUnpolledSplitIdle() throws Exception {
+        final long idleTimeout = 1000;
+        final MockSourceReader sourceReader =
+                new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
+        final TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+        processingTimeService.setCurrentTime(0);
+        final SourceOperator<Integer, MockSourceSplit> operator =
+                createAndOpenSourceOperatorWithIdleness(
+                        sourceReader, processingTimeService, idleTimeout);
+
+        final MockSourceSplit split0 = new MockSourceSplit(0, 0, 10).addRecord(5).addRecord(6);
+        final MockSourceSplit split1 = new MockSourceSplit(1, 10, 20).addRecord(2);
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Arrays.asList(split0, split1), new MockSourceSplitSerializer()));
+        final CollectingDataOutput<Integer> collected = new CollectingDataOutput<>();
+        final BusyDataOutput<Integer> dataOutput =
+                new BusyDataOutput<>(collected, processingTimeService, false);
+
+        // Rule out watermark alignment pauses for this test.
+        operator.handleOperatorEvent(new WatermarkAlignmentEvent(Long.MAX_VALUE));
+
+        operator.emitNext(dataOutput); // split0 emits 5, periodic watermark timer is armed
+
+        // A few periodic probes pass while split1 is quiet, well within the idle timeout.
+        for (int i = 0; i < 4; i++) {
+            processingTimeService.advance(100);
+        }
+        assertThat(operator.getSplitMetricGroup(split1.splitId()).isIdle()).isFalse();
+
+        // The chained operator now takes ten idle timeouts to process the next record. No timer
+        // can fire in the meantime because the task thread is busy.
+        dataOutput.setBusyMillis(10 * idleTimeout);
+        operator.emitNext(dataOutput); // split0 emits 6
+        dataOutput.setBusyMillis(0);
+
+        // Thread frees up, the overdue periodic probe fires.
+        processingTimeService.advance(50);
+
+        // split1 has a pending record that nothing asked for yet; the busy time was not idle time.
+        assertThat(operator.getSplitMetricGroup(split1.splitId()).isIdle()).isFalse();
+
+        operator.emitNext(dataOutput); // split1 emits 2
+        final List<Object> events = collected.getEvents();
+        final int recordIndex = indexOfRecordWithValue(events, 2);
+        final int watermarkIndex = indexOfWatermarkAtLeast(events, 5);
+        assertThat(recordIndex).isNotNegative();
+        assertThat(watermarkIndex == -1 || recordIndex < watermarkIndex)
+                .as("record with timestamp 2 must not arrive behind a watermark of 5 or more")
+                .isTrue();
+    }
+
+    /**
+     * FLINK-40234, second scenario: the busy work is triggered by a watermark (e.g. a HOP window
+     * firing) rather than by a record. The quiet split with a pending record must not be marked
+     * idle for the duration of that work either.
+     */
+    @Test
+    void testSlowDownstreamWatermarkProcessingDoesNotMarkUnpolledSplitIdle() throws Exception {
+        final long idleTimeout = 1000;
+        final MockSourceReader sourceReader =
+                new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
+        final TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+        processingTimeService.setCurrentTime(0);
+        final SourceOperator<Integer, MockSourceSplit> operator =
+                createAndOpenSourceOperatorWithIdleness(
+                        sourceReader, processingTimeService, idleTimeout);
+
+        // split0 is ahead in event time and goes quiet; split1 keeps advancing the combined
+        // watermark, each advance firing a slow downstream computation.
+        final MockSourceSplit split0 = new MockSourceSplit(0, 0, 10).addRecord(8);
+        final MockSourceSplit split1 = new MockSourceSplit(1, 10, 20).addRecord(5).addRecord(6);
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Arrays.asList(split0, split1), new MockSourceSplitSerializer()));
+        final CollectingDataOutput<Integer> collected = new CollectingDataOutput<>();
+        final BusyDataOutput<Integer> dataOutput =
+                new BusyDataOutput<>(collected, processingTimeService, true);
+
+        operator.handleOperatorEvent(new WatermarkAlignmentEvent(Long.MAX_VALUE));
+
+        operator.emitNext(dataOutput); // split0 emits 8
+        operator.emitNext(dataOutput); // split1 emits 5, combined watermark 5 goes downstream
+
+        for (int i = 0; i < 4; i++) {
+            processingTimeService.advance(100);
+        }
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isIdle()).isFalse();
+
+        // split1's next record advances the combined watermark to 6, and the downstream reaction
+        // to that watermark takes ten idle timeouts.
+        dataOutput.setBusyMillis(10 * idleTimeout);
+        operator.emitNext(dataOutput); // split1 emits 6
+        dataOutput.setBusyMillis(0);
+        assertThat(collected.getEvents())
+                .contains(new org.apache.flink.streaming.api.watermark.Watermark(6));
+
+        // Meanwhile more data arrived for split0 in the reader, but it has not been polled yet.
+        // (Added after the emit above because the mock reader always polls split0 first.)
+        split0.addRecord(9);
+
+        processingTimeService.advance(50);
+
+        assertThat(operator.getSplitMetricGroup(split0.splitId()).isIdle()).isFalse();
+    }
+
+    private static int indexOfWatermarkAtLeast(List<Object> events, long minTimestamp) {
+        for (int i = 0; i < events.size(); i++) {
+            Object event = events.get(i);
+            if (event instanceof org.apache.flink.streaming.api.watermark.Watermark
+                    && ((org.apache.flink.streaming.api.watermark.Watermark) event).getTimestamp()
+                            >= minTimestamp) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static int indexOfRecordWithValue(List<Object> events, int value) {
+        for (int i = 0; i < events.size(); i++) {
+            Object event = events.get(i);
+            if (event instanceof StreamRecord
+                    && ((StreamRecord<?>) event).getValue().equals(value)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     private void sampleAllWatermarks(TestProcessingTimeService timeService) throws Exception {
         sampleWatermarks(timeService, WATERMARK_ALIGNMENT_BUFFER_SIZE.defaultValue());
     }
@@ -755,6 +895,75 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         @Override
         public void onPeriodicEmit(WatermarkOutput output) {
             output.emitWatermark(new Watermark(maxWatermark));
+        }
+    }
+
+    /**
+     * Output that models a slow chained operator: every record (or every watermark, if {@code
+     * busyOnWatermarks}) burns {@code busyMillis} of wall-clock time on the task thread, during
+     * which no timer can fire.
+     */
+    private static final class BusyDataOutput<E> implements PushingAsyncDataInput.DataOutput<E> {
+
+        private final CollectingDataOutput<E> delegate;
+        private final TestProcessingTimeService timeService;
+        private final boolean busyOnWatermarks;
+        private long busyMillis;
+
+        BusyDataOutput(
+                CollectingDataOutput<E> delegate,
+                TestProcessingTimeService timeService,
+                boolean busyOnWatermarks) {
+            this.delegate = delegate;
+            this.timeService = timeService;
+            this.busyOnWatermarks = busyOnWatermarks;
+        }
+
+        void setBusyMillis(long busyMillis) {
+            this.busyMillis = busyMillis;
+        }
+
+        private void burn() {
+            if (busyMillis > 0) {
+                timeService.advanceClockWithoutFiringTimers(busyMillis);
+            }
+        }
+
+        @Override
+        public void emitRecord(StreamRecord<E> streamRecord) throws Exception {
+            if (!busyOnWatermarks) {
+                burn();
+            }
+            delegate.emitRecord(streamRecord);
+        }
+
+        @Override
+        public void emitWatermark(org.apache.flink.streaming.api.watermark.Watermark watermark)
+                throws Exception {
+            if (busyOnWatermarks) {
+                burn();
+            }
+            delegate.emitWatermark(watermark);
+        }
+
+        @Override
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            delegate.emitWatermarkStatus(watermarkStatus);
+        }
+
+        @Override
+        public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+            delegate.emitLatencyMarker(latencyMarker);
+        }
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+            delegate.emitRecordAttributes(recordAttributes);
+        }
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) throws Exception {
+            delegate.emitWatermark(watermark);
         }
     }
 
