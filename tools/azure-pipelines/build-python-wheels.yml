@@ -40,7 +40,7 @@ jobs:
       - script: |
           cd flink-python
           python -m pip install --upgrade pip
-          pip install cibuildwheel==2.16.5
+          pip install cibuildwheel==4.2.0
           cibuildwheel --platform macos --output-dir dist .
       - task: PublishPipelineArtifact@0
         inputs:
