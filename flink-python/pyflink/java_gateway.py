@@ -20,6 +20,7 @@ import os
 import shlex
 import shutil
 import struct
+import sys
 import tempfile
 import time
 from logging import WARN
@@ -44,10 +45,21 @@ def is_launch_gateway_disabled():
         return False
 
 
+def _check_gateway_access():
+    # Pemja registers its native module before loading code in an embedded interpreter.
+    if '_pemja' in sys.modules:
+        raise RuntimeError(
+            'Accessing Java through Py4J is not supported in Python thread mode. '
+            'Use pemja.findClass to access Java classes instead. Launching a Py4J gateway '
+            'subprocess from the multithreaded TaskManager can deadlock. See FLINK-40628 for '
+            'details: https://issues.apache.org/jira/browse/FLINK-40628.')
+
+
 def get_gateway():
     # type: () -> JavaGateway
     global _gateway
     global _lock
+    _check_gateway_access()
     with _lock:
         if _gateway is None:
             # Set the level to WARN to mute the noisy INFO level logs
@@ -84,6 +96,7 @@ def launch_gateway():
     """
     launch jvm gateway
     """
+    _check_gateway_access()
     if is_launch_gateway_disabled():
         raise Exception("It's launching the PythonGatewayServer during Python UDF execution "
                         "which is unexpected. It usually happens when the job codes are "
