@@ -94,6 +94,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests the resource cleanup by the {@link Dispatcher}. */
@@ -768,6 +769,40 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         dispatcher.getJobTerminationFuture(jobId, Duration.ofHours(1)).join();
 
         assertFalse(isArchived.get());
+    }
+
+    @Test
+    public void testArchivingFailedJobToHistoryServerWhenOnlyFailedJobsConfigured()
+            throws Exception {
+
+        final AtomicBoolean isArchived = new AtomicBoolean(false);
+
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.ARCHIVE_ON_FAILED_JOBS_ONLY, true);
+
+        final TestingDispatcher.Builder testingDispatcherBuilder =
+                createTestingDispatcherBuilder()
+                        .setConfiguration(configuration)
+                        .setHistoryServerArchivist(
+                                TestingHistoryServerArchivist.builder()
+                                        .setArchiveExecutionGraphFunction(
+                                                (executionGraphInfo, applicationId) -> {
+                                                    isArchived.set(true);
+                                                    return CompletableFuture.completedFuture(
+                                                            Acknowledge.get());
+                                                })
+                                        .build());
+
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                startDispatcherAndSubmitApplication(testingDispatcherBuilder, 0);
+
+        terminateJobWithState(
+                jobManagerRunnerFactory.takeCreatedJobManagerRunner(), JobStatus.FAILED);
+
+        assertGlobalCleanupTriggered(jobId);
+        dispatcher.getJobTerminationFuture(jobId, Duration.ofHours(1)).join();
+
+        assertTrue(isArchived.get());
     }
 
     private static final class BlockingJobManagerRunnerFactory

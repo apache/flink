@@ -320,10 +320,10 @@ public class JobManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Whether to only archive jobs that reached the %s terminal state to %s.",
+                                            "Whether to only archive jobs that reached the %s terminal state to %s. ",
                                             code("FAILED"), code(ARCHIVE_DIR.key()))
                                     .text(
-                                            "When enabled, jobs that finished, were canceled, or were suspended are not "
+                                            "When enabled, jobs that finished or were canceled are not "
                                                     + "archived to the history server, reducing the number of files written "
                                                     + "for large clusters running many short-lived batch jobs. ")
                                     .text(
