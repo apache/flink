@@ -282,6 +282,16 @@ arithmetic:
     description: |
       根据 RFC 4122 类型 4（伪随机生成）UUID，返回 UUID（通用唯一标识符）字符串。
       例如“3d3c68f7-f608-473f-b60c-b0c44ad4cc4e”，UUID 是使用加密强的伪随机数生成器生成的。
+  - sql: UUID_V4()
+    table: uuidV4()
+    description: |
+      Returns a random RFC 9562 version 4 UUID value. The UUID is generated using a
+      cryptographically strong pseudo random number generator.
+  - sql: UUID_V7()
+    table: uuidV7()
+    description: |
+      Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current
+      timestamp and a random component.
   - sql: BIN(INT)
     table: INT.bin()
     description: |
