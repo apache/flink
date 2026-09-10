@@ -21,10 +21,8 @@ package org.apache.flink.types.variant;
 import org.apache.flink.annotation.Internal;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.exc.InputCoercionException;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -103,27 +101,44 @@ public class BinaryVariantInternalBuilder {
     /**
      * Parse a JSON string as a Variant value.
      *
-     * @throws IOException if any JSON parsing error happens.
+     * @throws IOException if the JSON is malformed, or a number is out of the range a Variant can
+     *     store.
      */
     public static BinaryVariant parseJson(String json, boolean allowDuplicateKeys)
             throws IOException {
         try (JsonParser parser = JSON_FACTORY.createParser(json)) {
-            parser.nextToken();
-            return parseJson(parser, allowDuplicateKeys);
+            return parseJson(new JacksonJsonTokenSource(parser), allowDuplicateKeys);
         }
     }
 
     /**
-     * Similar {@link #parseJson(String, boolean)}, but takes a JSON parser instead of string input.
+     * Parse the JSON value at a Jackson parser as a Variant value. The parser may be positioned
+     * before the value, as after {@code createParser} or a tree's {@code traverse()}, or on the
+     * value's first token when read mid-stream.
+     *
+     * @throws IOException if the JSON is malformed, or a number is out of the range a Variant can
+     *     store.
      */
-    private static BinaryVariant parseJson(JsonParser parser, boolean allowDuplicateKeys)
+    public static BinaryVariant parseJson(JsonParser jsonParser, boolean allowDuplicateKeys)
+            throws IOException {
+        return parseJson(new JacksonJsonTokenSource(jsonParser), allowDuplicateKeys);
+    }
+
+    /**
+     * Parse the tokens produced by a {@link JsonTokenSource} as a Variant value.
+     *
+     * @throws IOException if the token stream is not well-formed JSON, a {@code VALUE_NUMBER} token
+     *     carries a literal that is not a valid JSON number, or a number is out of the range a
+     *     Variant can store.
+     */
+    public static BinaryVariant parseJson(JsonTokenSource source, boolean allowDuplicateKeys)
             throws IOException {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(allowDuplicateKeys);
-        builder.buildJson(parser);
+        builder.buildJson(source, source.next());
         return builder.build();
     }
 
-    // Build the variant metadata from `dictionaryKeys` and return the variant result.
+    /** Build the variant metadata from `dictionaryKeys` and return the variant result. */
     public BinaryVariant build() {
         int numKeys = dictionaryKeys.size();
         // Use long to avoid overflow in accumulating lengths.
@@ -236,8 +251,10 @@ public class BinaryVariantInternalBuilder {
         writePos += 8;
     }
 
-    // Append a decimal value to the variant builder. The caller should guarantee that its precision
-    // and scale fit into `MAX_DECIMAL16_PRECISION`.
+    /**
+     * Append a decimal value to the variant builder. The caller should guarantee that its precision
+     * and scale fit into `MAX_DECIMAL16_PRECISION`.
+     */
     public void appendDecimal(BigDecimal d) {
         checkCapacity(2 + 16);
         BigInteger unscaled = d.unscaledValue();
@@ -328,14 +345,13 @@ public class BinaryVariantInternalBuilder {
         writePos += binary.length;
     }
 
-    // Add a key to the variant dictionary. If the key already exists, the dictionary is not
-    // modified.
-    // In either case, return the id of the key.
+    /**
+     * Add a key to the variant dictionary. If the key already exists, the dictionary is not
+     * modified. In either case, return the id of the key.
+     */
     public int addKey(String key) {
-        int id;
-        if (dictionary.containsKey(key)) {
-            id = dictionary.get(key);
-        } else {
+        Integer id = dictionary.get(key);
+        if (id == null) {
             id = dictionaryKeys.size();
             dictionary.put(key, id);
             dictionaryKeys.add(key.getBytes(StandardCharsets.UTF_8));
@@ -343,26 +359,27 @@ public class BinaryVariantInternalBuilder {
         return id;
     }
 
-    // Return the current write position of the variant builder. It is used together with
-    // `finishWritingObject` or `finishWritingArray`.
+    /**
+     * Return the current write position of the variant builder. It is used together with
+     * `finishWritingObject` or `finishWritingArray`.
+     */
     public int getWritePos() {
         return writePos;
     }
 
-    // Finish writing a variant object after all of its fields have already been written. The
-    // process
-    // is as follows:
-    // 1. The caller calls `getWritePos` before writing any fields to obtain the `start` parameter.
-    // 2. The caller appends all the object fields to the builder. In the meantime, it should
-    // maintain
-    // the `fields` parameter. Before appending each field, it should append an entry to `fields` to
-    // record the offset of the field. The offset is computed as `getWritePos() - start`.
-    // 3. The caller calls `finishWritingObject` to finish writing a variant object.
-    //
-    // This function is responsible to sort the fields by key. If there are duplicate field keys:
-    // - when `allowDuplicateKeys` is true, the field with the greatest offset value (the last
-    // appended one) is kept.
-    // - otherwise, throw an exception.
+    /**
+     * Finish writing a variant object after all of its fields have already been written. The
+     * process is as follows: 1. The caller calls `getWritePos` before writing any fields to obtain
+     * the `start` parameter. 2. The caller appends all the object fields to the builder. In the
+     * meantime, it should maintain the `fields` parameter. Before appending each field, it should
+     * append an entry to `fields` to record the offset of the field. The offset is computed as
+     * `getWritePos() - start`. 3. The caller calls `finishWritingObject` to finish writing a
+     * variant object.
+     *
+     * <p>This function is responsible to sort the fields by key. If there are duplicate field keys:
+     * - when `allowDuplicateKeys` is true, the field with the greatest offset value (the last
+     * appended one) is kept. - otherwise, throw an exception.
+     */
     public void finishWritingObject(int start, ArrayList<FieldEntry> fields) {
         int size = fields.size();
         Collections.sort(fields);
@@ -441,9 +458,10 @@ public class BinaryVariantInternalBuilder {
         writeLong(writeBuffer, offsetStart + size * offsetSize, dataSize, offsetSize);
     }
 
-    // Finish writing a variant array after all of its elements have already been written. The
-    // process
-    // is similar to that of `finishWritingObject`.
+    /**
+     * Finish writing a variant array after all of its elements have already been written. The
+     * process is similar to that of `finishWritingObject`.
+     */
     public void finishWritingArray(int start, ArrayList<Integer> offsets) {
         int dataSize = writePos - start;
         int size = offsets.size();
@@ -465,11 +483,11 @@ public class BinaryVariantInternalBuilder {
         writeLong(writeBuffer, offsetStart + size * offsetSize, dataSize, offsetSize);
     }
 
-    // Append a variant value to the variant builder. We need to insert the keys in the input
-    // variant
-    // into the current variant dictionary and rebuild it with new field ids. For scalar values in
-    // the
-    // input variant, we can directly copy the binary slice.
+    /**
+     * Append a variant value to the variant builder. We need to insert the keys in the input
+     * variant into the current variant dictionary and rebuild it with new field ids. For scalar
+     * values in the input variant, we can directly copy the binary slice.
+     */
     public void appendVariant(BinaryVariant v) {
         appendVariantImpl(v.getValue(), v.getMetadata(), v.getPos());
     }
@@ -548,9 +566,10 @@ public class BinaryVariantInternalBuilder {
         }
     }
 
-    // Temporarily store the information of a field. We need to collect all fields in an JSON
-    // object,
-    // sort them by their keys, and build the variant object in sorted order.
+    /**
+     * Temporarily store the information of a field. We need to collect all fields in an JSON
+     * object, sort them by their keys, and build the variant object in sorted order.
+     */
     public static final class FieldEntry implements Comparable<FieldEntry> {
         final String key;
         final int id;
@@ -572,22 +591,36 @@ public class BinaryVariantInternalBuilder {
         }
     }
 
-    private void buildJson(JsonParser parser) throws IOException {
-        JsonToken token = parser.currentToken();
+    /**
+     * Build an IOException enriched with the source's location, mirroring the location that a
+     * Jackson JsonParseException used to carry before the builder was decoupled from Jackson.
+     */
+    private static IOException parseError(JsonTokenSource source, String message) {
+        final String location = source.currentLocation();
+        if (location == null) {
+            return new IOException(message);
+        }
+        return new IOException(message + "\n at " + location);
+    }
+
+    private void buildJson(JsonTokenSource source, JsonTokenSource.Token token) throws IOException {
         if (token == null) {
-            throw new JsonParseException(parser, "Unexpected null token");
+            throw parseError(source, "Unexpected end of JSON input.");
         }
         switch (token) {
             case START_OBJECT:
                 {
                     ArrayList<FieldEntry> fields = new ArrayList<>();
                     int start = writePos;
-                    while (parser.nextToken() != JsonToken.END_OBJECT) {
-                        String key = parser.currentName();
-                        parser.nextToken();
+                    JsonTokenSource.Token next;
+                    while ((next = source.next()) != JsonTokenSource.Token.END_OBJECT) {
+                        if (next != JsonTokenSource.Token.FIELD_NAME) {
+                            throw parseError(source, "Expected a field name but got " + next + ".");
+                        }
+                        String key = source.fieldName();
                         int id = addKey(key);
                         fields.add(new FieldEntry(key, id, writePos - start));
-                        buildJson(parser);
+                        buildJson(source, source.next());
                     }
                     finishWritingObject(start, fields);
                     break;
@@ -596,27 +629,19 @@ public class BinaryVariantInternalBuilder {
                 {
                     ArrayList<Integer> offsets = new ArrayList<>();
                     int start = writePos;
-                    while (parser.nextToken() != JsonToken.END_ARRAY) {
+                    JsonTokenSource.Token next;
+                    while ((next = source.next()) != JsonTokenSource.Token.END_ARRAY) {
                         offsets.add(writePos - start);
-                        buildJson(parser);
+                        buildJson(source, next);
                     }
                     finishWritingArray(start, offsets);
                     break;
                 }
             case VALUE_STRING:
-                appendString(parser.getText());
+                appendString(source.stringValue());
                 break;
-            case VALUE_NUMBER_INT:
-                try {
-                    appendNumeric(parser.getLongValue());
-                } catch (InputCoercionException ignored) {
-                    // If the value doesn't fit any integer type, parse it as decimal or floating
-                    // instead.
-                    parseFloatingPoint(parser);
-                }
-                break;
-            case VALUE_NUMBER_FLOAT:
-                parseFloatingPoint(parser);
+            case VALUE_NUMBER:
+                appendNumber(source, source.numberText());
                 break;
             case VALUE_TRUE:
                 appendBoolean(true);
@@ -628,12 +653,55 @@ public class BinaryVariantInternalBuilder {
                 appendNull();
                 break;
             default:
-                throw new JsonParseException(parser, "Unexpected token " + token);
+                throw parseError(source, "Unexpected token " + token + ".");
         }
     }
 
-    // Choose the smallest unsigned integer type that can store `value`. It must be within
-    // `[0, U24_MAX]`.
+    /**
+     * Classifies a raw JSON number literal and appends it as an integer, decimal, or double.
+     * Centralizing the choice here keeps every {@link JsonTokenSource} consistent.
+     */
+    private void appendNumber(JsonTokenSource source, String text) throws IOException {
+        // Only try Long.parseLong for integer literals so float literals do not pay the cost of a
+        // thrown NumberFormatException on the common path.
+        if (isIntegerLiteral(text)) {
+            try {
+                appendNumeric(Long.parseLong(text));
+                return;
+            } catch (NumberFormatException outOfLongRange) {
+                // The value is an integer but too large for a long. Fall through and store it as a
+                // decimal or double instead.
+            }
+        }
+        try {
+            appendFloatingPoint(source, text);
+        } catch (NumberFormatException malformed) {
+            // A well-formed JSON number always parses, so Jackson never reaches here. A
+            // JsonTokenSource that reports a literal which is not a valid JSON number does. Surface
+            // it as a located IOException carrying the literal, so it reads like every other JSON
+            // error instead of an opaque NumberFormatException.
+            throw parseError(source, String.format("Invalid numeric value '%s'.", text));
+        }
+    }
+
+    /**
+     * A JSON number is an integer literal when it has neither a fractional part nor an exponent.
+     */
+    private static boolean isIntegerLiteral(String text) {
+        final int length = text.length();
+        for (int i = 0; i < length; ++i) {
+            char ch = text.charAt(i);
+            if (ch == '.' || ch == 'e' || ch == 'E') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Choose the smallest unsigned integer type that can store `value`. It must be within `[0,
+     * U24_MAX]`.
+     */
     private int getIntegerSize(int value) {
         assert value >= 0 && value <= U24_MAX;
         if (value <= U8_MAX) {
@@ -645,27 +713,31 @@ public class BinaryVariantInternalBuilder {
         return U24_SIZE;
     }
 
-    private void parseFloatingPoint(JsonParser parser) throws IOException {
-        if (!tryParseDecimal(parser.getText())) {
-            final double d = parser.getDoubleValue();
-            // Jackson coerces out-of-range numbers like 1e400 to +/-Infinity. Reject them instead
-            // of storing a non-finite double that toJson() could not render as valid JSON.
-            if (Double.isInfinite(d) || Double.isNaN(d)) {
-                throw new JsonParseException(
-                        parser,
+    private void appendFloatingPoint(JsonTokenSource source, String text) throws IOException {
+        if (!tryParseDecimal(text)) {
+            final double d = Double.parseDouble(text);
+            // A large magnitude overflows double to +Infinity (1e400) or -Infinity (-1e400), not a
+            // '+' sign in the input. Reject non-finite values instead of storing a double that
+            // toJson() could not render as valid JSON.
+            if (!Double.isFinite(d)) {
+                throw parseError(
+                        source,
                         String.format(
                                 "Numeric value '%s' is out of the range of double precision and cannot be stored as a Variant.",
-                                parser.getText()));
+                                text));
             }
             appendDouble(d);
         }
     }
 
-    // Try to parse a JSON number as a decimal. Return whether the parsing succeeds. The input must
-    // only use the decimal format (an integer value with an optional '.' in it) and must not use
-    // scientific notation. It also must fit into the precision limitation of decimal types.
+    /**
+     * Try to parse a JSON number as a decimal. Return whether the parsing succeeds. The input must
+     * only use the decimal format (an integer value with an optional '.' in it) and must not use
+     * scientific notation. It also must fit into the precision limitation of decimal types.
+     */
     private boolean tryParseDecimal(String input) {
-        for (int i = 0; i < input.length(); ++i) {
+        final int length = input.length();
+        for (int i = 0; i < length; ++i) {
             char ch = input.charAt(i);
             if (ch != '-' && ch != '.' && !(ch >= '0' && ch <= '9')) {
                 return false;
@@ -687,4 +759,81 @@ public class BinaryVariantInternalBuilder {
     // Store all keys in `dictionary` in the order of id.
     private final ArrayList<byte[]> dictionaryKeys = new ArrayList<>();
     private final boolean allowDuplicateKeys;
+
+    /** Adapts a shaded Jackson {@link JsonParser} to a {@link JsonTokenSource}. */
+    private static final class JacksonJsonTokenSource implements JsonTokenSource {
+
+        private final JsonParser parser;
+        private boolean started;
+
+        private JacksonJsonTokenSource(JsonParser parser) {
+            this.parser = parser;
+        }
+
+        @Override
+        public Token next() throws IOException {
+            // The parser may already sit on the value's first token when a caller hands it to us
+            // mid-stream. Consume that token before advancing.
+            final JsonToken token;
+            if (!started && parser.currentToken() != null) {
+                token = parser.currentToken();
+            } else {
+                token = parser.nextToken();
+            }
+            started = true;
+            return token == null ? null : toToken(token);
+        }
+
+        @Override
+        public String fieldName() throws IOException {
+            return parser.currentName();
+        }
+
+        @Override
+        public String stringValue() throws IOException {
+            return parser.getText();
+        }
+
+        @Override
+        public String numberText() throws IOException {
+            return parser.getText();
+        }
+
+        @Override
+        public String currentLocation() {
+            return parser.currentLocation().toString();
+        }
+
+        private Token toToken(JsonToken token) throws IOException {
+            switch (token) {
+                case START_OBJECT:
+                    return Token.START_OBJECT;
+                case END_OBJECT:
+                    return Token.END_OBJECT;
+                case START_ARRAY:
+                    return Token.START_ARRAY;
+                case END_ARRAY:
+                    return Token.END_ARRAY;
+                case FIELD_NAME:
+                    return Token.FIELD_NAME;
+                case VALUE_STRING:
+                    return Token.VALUE_STRING;
+                case VALUE_NUMBER_INT:
+                case VALUE_NUMBER_FLOAT:
+                    return Token.VALUE_NUMBER;
+                case VALUE_TRUE:
+                    return Token.VALUE_TRUE;
+                case VALUE_FALSE:
+                    return Token.VALUE_FALSE;
+                case VALUE_NULL:
+                    return Token.VALUE_NULL;
+                default:
+                    throw new IOException(
+                            "Unsupported JSON token: "
+                                    + token
+                                    + "\n at "
+                                    + parser.currentLocation());
+            }
+        }
+    }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.types.variant;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
@@ -138,9 +139,11 @@ class BinaryVariantInternalBuilderTest {
     @ValueSource(strings = {"NaN", "Infinity", "-Infinity", "1e400", "-1e400"})
     void testParseJsonRejectsNonFiniteNumbers(final String nonFiniteNumber) {
         // NaN and the infinities are not valid JSON; 1e400 is valid JSON but overflows the double
-        // range. Both must be rejected so PARSE_JSON errors and TRY_PARSE_JSON returns NULL.
+        // range. Both must be rejected so PARSE_JSON errors and TRY_PARSE_JSON returns NULL. The
+        // error keeps the JSON location, whether it comes from Jackson or from the builder.
         assertThatThrownBy(() -> BinaryVariantInternalBuilder.parseJson(nonFiniteNumber, false))
-                .isInstanceOf(IOException.class);
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("line:");
     }
 
     @Test
@@ -149,5 +152,15 @@ class BinaryVariantInternalBuilderTest {
         ArrayList<Float> floatList = new ArrayList<>(Collections.nCopies(25, 4.2f));
 
         assertThatCode(() -> floatList.forEach(builder::appendFloat)).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"1e+10, 1e10", "1E+10, 1e10", "1e-10, 1e-10", "1.5e+10, 1.5e10"})
+    void testParseJsonSignedExponent(final String literal, final double expected)
+            throws IOException {
+        // A JSON exponent may carry a sign. tryParseDecimal rejects the 'e', so the value is stored
+        // as a double.
+        assertThat(BinaryVariantInternalBuilder.parseJson(literal, false).getDouble())
+                .isEqualTo(expected);
     }
 }
