@@ -121,6 +121,7 @@ public class TaskManagerLogUrlHandlerTest {
                         String.format(
                                 TaskManagerLogUrlHandler.TASK_MANAGER_LOG_URL_FORMAT,
                                 NM_HOST,
+                                NM_PORT,
                                 CONTAINER_ID,
                                 environmentContext.user));
 

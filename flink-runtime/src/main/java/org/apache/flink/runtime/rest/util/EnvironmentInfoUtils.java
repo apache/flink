@@ -27,7 +27,7 @@ public class EnvironmentInfoUtils {
 
     private static final String ENV_CONTAINER_ID = "CONTAINER_ID";
     private static final String ENV_NM_HOST = "NM_HOST";
-    private static final String ENV_NM_PORT = "NM_PORT";
+    private static final String ENV_NM_HTTP_PORT = "NM_HTTP_PORT";
     private static final String ENV_USER = "USER";
 
     /** Class that holds the application environment context. */
@@ -70,7 +70,7 @@ public class EnvironmentInfoUtils {
     }
 
     private static String getNodeManagerHttpPort() {
-        return System.getenv(ENV_NM_PORT);
+        return System.getenv(ENV_NM_HTTP_PORT);
     }
 
     private static String getUserInfo() {

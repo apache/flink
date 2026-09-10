@@ -76,6 +76,7 @@ public class JobManagerLogUrlHandlerTest {
                         String.format(
                                 JobManagerLogUrlHandler.JOB_MANAGER_LOG_URL_FORMAT,
                                 environmentContext.nodeManagerHostName,
+                                environmentContext.nodeManagerHttpPort,
                                 environmentContext.containerId,
                                 environmentContext.user));
 

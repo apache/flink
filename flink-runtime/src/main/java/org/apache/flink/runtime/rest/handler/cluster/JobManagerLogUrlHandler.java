@@ -52,7 +52,8 @@ public class JobManagerLogUrlHandler
                 RestfulGateway, EmptyRequestBody, LogUrlResponse, JobMessageParameters>
         implements JsonArchivist {
     public static final String JOB_MANAGER_LOG_URL_FORMAT =
-            "http://%s:8042/node/containerlogs/%s/%s";
+            "http://%s:%s/node/containerlogs/%s/%s";
+
     private final Configuration config;
 
     public JobManagerLogUrlHandler(
@@ -91,7 +92,7 @@ public class JobManagerLogUrlHandler
 
     /**
      * Generates a URL that will link to the location of the job manager logs. The format of the URL
-     * will be: CONTAINER-NM-HOST:8042/node/containerlogs/CONTAINER-ID/USER/
+     * will be: CONTAINER-NM-HOST:CONTAINER-NM-HTTP-PORT/node/containerlogs/CONTAINER-ID/USER/
      */
     @VisibleForTesting
     public LogUrlResponse createJobManagerURL(
@@ -100,6 +101,7 @@ public class JobManagerLogUrlHandler
                 String.format(
                         JOB_MANAGER_LOG_URL_FORMAT,
                         environmentContext.nodeManagerHostName,
+                        environmentContext.nodeManagerHttpPort,
                         environmentContext.containerId,
                         environmentContext.user));
     }
