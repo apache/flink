@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
@@ -72,10 +73,10 @@ public class JsonParserRowDataDeserializationSchema extends AbstractJsonDeserial
     }
 
     @Override
-    public RowData deserialize(byte[] message) throws IOException {
+    public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
         // return null when there is no token
         if (message == null || message.length == 0) {
-            return null;
+            return;
         }
         try (JsonParser root = objectMapper.getFactory().createParser(message)) {
             /* First: must point to a token; if not pointing to one, advance.
@@ -85,16 +86,30 @@ public class JsonParserRowDataDeserializationSchema extends AbstractJsonDeserial
             if (root.currentToken() == null) {
                 root.nextToken();
             }
-            if (root.currentToken() != JsonToken.START_OBJECT) {
+            if (root.currentToken() != JsonToken.START_OBJECT
+                    && root.currentToken() != JsonToken.START_ARRAY) {
                 throw JsonMappingException.from(root, "No content to map due to end-of-input");
             }
-            return (RowData) runtimeConverter.convert(root);
-        } catch (Throwable t) {
-            if (ignoreParseErrors) {
-                return null;
+            if (root.currentToken() == JsonToken.START_ARRAY) {
+                processArray(root, out);
+            } else {
+                processObject(root, out);
             }
-            throw new IOException(
-                    format("Failed to deserialize JSON '%s'.", new String(message)), t);
+        } catch (Throwable t) {
+            if (!ignoreParseErrors) {
+                throw new IOException(
+                        format("Failed to deserialize JSON '%s'.", new String(message)), t);
+            }
         }
+    }
+
+    private void processArray(JsonParser root, Collector<RowData> out) throws IOException {
+        while (root.nextToken() != JsonToken.END_ARRAY) {
+            out.collect((RowData) runtimeConverter.convert(root));
+        }
+    }
+
+    private void processObject(JsonParser root, Collector<RowData> out) throws IOException {
+        out.collect((RowData) runtimeConverter.convert(root));
     }
 }

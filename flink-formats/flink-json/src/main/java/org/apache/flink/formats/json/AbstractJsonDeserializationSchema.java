@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json;
 
+import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.common.TimestampFormat;
@@ -25,12 +26,19 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.util.Collector;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.json.JsonReadFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
+import javax.annotation.Nullable;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -62,6 +70,10 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
 
     private final boolean hasDecimalType;
 
+    private transient Collector<RowData> collector;
+
+    private transient List<RowData> reusableCollectList;
+
     public AbstractJsonDeserializationSchema(
             RowType rowType,
             TypeInformation<RowData> resultTypeInfo,
@@ -89,6 +101,29 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
         if (hasDecimalType) {
             objectMapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
         }
+        reusableCollectList = new ArrayList<>();
+        collector = new ListCollector<>(reusableCollectList);
+    }
+
+    /**
+     * @deprecated Use {@link DeserializationSchema#deserialize(byte[], Collector)} instead. The
+     *     implementation of {@link AbstractJsonDeserializationSchema#deserialize(byte[])} will be
+     *     removed in <a href="https://issues.apache.org/jira/browse/FLINK-37707">FLINK-37707</a>.
+     */
+    @Deprecated
+    @Override
+    public RowData deserialize(@Nullable byte[] message) throws IOException {
+        reusableCollectList.clear();
+        deserialize(message, collector);
+        if (reusableCollectList.size() > 1) {
+            throw new FlinkRuntimeException(
+                    "Please invoke "
+                            + "DeserializationSchema#deserialize(byte[], Collector<RowData>) instead.");
+        }
+        if (reusableCollectList.isEmpty()) {
+            return null;
+        }
+        return reusableCollectList.get(0);
     }
 
     @Override
