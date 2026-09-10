@@ -66,5 +66,14 @@ class SystemResourcesCounterTest {
                 .withFailMessage("There should be at least one network interface")
                 .isGreaterThan(0);
         assertThat(totalCpuUsage + systemResources.getCpuIdle()).isCloseTo(100.0, within(EPSILON));
+
+        // The current process must occupy some resident memory; CPU and I/O can legitimately be
+        // zero on a quiet/unsupported platform, so we only assert they are non-negative.
+        assertThat(systemResources.getProcessMemoryRSS())
+                .withFailMessage("Process RSS should be positive")
+                .isGreaterThan(0);
+        assertThat(systemResources.getProcessCpuUsage()).isGreaterThanOrEqualTo(0.0);
+        assertThat(systemResources.getProcessBytesRead()).isGreaterThanOrEqualTo(0);
+        assertThat(systemResources.getProcessBytesWritten()).isGreaterThanOrEqualTo(0);
     }
 }

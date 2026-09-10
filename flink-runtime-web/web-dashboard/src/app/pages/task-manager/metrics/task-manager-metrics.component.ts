@@ -96,7 +96,11 @@ export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
         'Status.Flink.Memory.Managed.Used',
         'Status.Flink.Memory.Managed.Total',
         'Status.JVM.Memory.Metaspace.Used',
-        'Status.JVM.Memory.Metaspace.Max'
+        'Status.JVM.Memory.Metaspace.Max',
+        'Process.CPU.Usage',
+        'Process.Memory.RSS',
+        'Process.IO.Read',
+        'Process.IO.Write'
       ])
       .pipe(
         catchError(() => of({} as MetricMap)),
