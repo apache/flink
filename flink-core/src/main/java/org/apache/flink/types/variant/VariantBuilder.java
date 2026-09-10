@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.UUID;
 
 /** Builder for variants. */
 @PublicEvolving
@@ -71,6 +72,9 @@ public interface VariantBuilder {
 
     /** Create a variant from a LocalTime. Sub-microsecond precision is truncated. */
     Variant of(LocalTime localTime);
+
+    /** Create a variant from a UUID. */
+    Variant of(UUID uuid);
 
     /** Create a variant of null. */
     Variant ofNull();
