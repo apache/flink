@@ -2446,18 +2446,9 @@ class DataFrameWindowITTests(PyFlinkStreamDataFrameTestCase):
         self.assertEqual(sorted(row[-1] for row in partitioned_rows), [10, 20, 40])
 
     def test_tumble_processing_time_assigns_aligned_windows(self):
-        """PROCTIME() drives tumble window assignment end-to-end. Window *contents*
-        are non-deterministic under processing time, so we assert only invariants
-        that survive any wall-clock timing: each row lands in a 10-minute window
-        aligned to the epoch grid and containing its own proc_time. Deterministic
-        bucketing of rows into windows is covered by test_tumble_window_aggregation
-        (event time)."""
         rows = (
             self._proctime_source()
             .tumble(on="proc_time", size=timedelta(minutes=10))
-            # proc_time is a TIMESTAMP_LTZ time attribute: cast to a plain
-            # TIMESTAMP so it materializes through collect() and shares the
-            # wall-clock frame of the (TIMESTAMP) window bounds.
             .select(
                 "window_start",
                 "window_end",
@@ -2466,13 +2457,13 @@ class DataFrameWindowITTests(PyFlinkStreamDataFrameTestCase):
             .collect()
         )
 
-        self.assertEqual(len(rows), 3)  # tumbling: one window per row (no overlap)
+        self.assertEqual(len(rows), 3)
         for start, end, proc_time in rows:
-            self.assertEqual(end - start, timedelta(minutes=10))  # size
+            self.assertEqual(end - start, timedelta(minutes=10))
             self.assertEqual(
                 (start.minute % 10, start.second, start.microsecond), (0, 0, 0)
-            )  # epoch grid
-            self.assertTrue(start <= proc_time < end)  # window derived from proc_time
+            )
+            self.assertTrue(start <= proc_time < end)
 
 
 if __name__ == "__main__":
