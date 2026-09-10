@@ -480,7 +480,7 @@ class Expression(Generic[T]):
     # logic functions
     __and__ = _binary_op("and")
     __or__ = _binary_op("or")
-    __invert__ = _unary_op('isNotTrue')
+    __invert__ = _unary_op("not")
 
     __rand__ = _binary_op("and")
     __ror__ = _binary_op("or")
