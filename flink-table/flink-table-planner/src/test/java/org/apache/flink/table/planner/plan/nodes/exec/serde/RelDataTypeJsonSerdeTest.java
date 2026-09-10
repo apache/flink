@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
+import org.apache.flink.table.planner.plan.schema.RawRelDataType;
 import org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverterTest.PojoClass;
 import org.apache.flink.table.types.logical.BitmapType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
@@ -64,7 +65,14 @@ public class RelDataTypeJsonSerdeTest {
         final String json = toJson(serdeContext, relDataType);
         final RelDataType actual = toObject(serdeContext, json, RelDataType.class);
 
-        assertThat(actual).isSameAs(relDataType);
+        if (relDataType instanceof RawRelDataType) {
+            // RAW types are not shared across factories because their classloaders may differ.
+            assertThat(FlinkTypeFactory.toLogicalType(actual))
+                    .isEqualTo(FlinkTypeFactory.toLogicalType(relDataType));
+            assertThat(toJson(serdeContext, actual)).isEqualTo(json);
+        } else {
+            assertThat(actual).isSameAs(relDataType);
+        }
     }
 
     @Test

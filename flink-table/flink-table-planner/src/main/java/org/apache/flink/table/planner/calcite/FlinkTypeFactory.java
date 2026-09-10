@@ -74,6 +74,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelCrossType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -87,6 +88,8 @@ import org.apache.calcite.sql.type.BasicSqlType;
 import org.apache.calcite.sql.type.MapSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ConversionUtil;
+
+import javax.annotation.Nullable;
 
 import java.lang.reflect.Type;
 import java.nio.charset.Charset;
@@ -121,6 +124,49 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
 
     public FlinkTypeFactory(ClassLoader classLoader) {
         this(classLoader, FlinkTypeSystem.INSTANCE);
+    }
+
+    // Calcite's canonical type caches are shared across factories and user-code classloaders.
+    // RAW type digests do not distinguish classes with the same name from different classloaders.
+    // Keep RAW types and their containers out of those caches so that later jobs retain their own
+    // classes and serializers. Logical types are still cached in this factory's seenTypes map.
+    @Override
+    protected RelDataType canonize(RelDataType relDataType) {
+        return containsRawType(relDataType) ? relDataType : super.canonize(relDataType);
+    }
+
+    @Override
+    protected RelDataType canonize(
+            StructKind kind,
+            List<String> fieldNames,
+            List<RelDataType> fieldTypes,
+            boolean nullable) {
+        if (fieldTypes.stream().noneMatch(FlinkTypeFactory::containsRawType)) {
+            return super.canonize(kind, fieldNames, fieldTypes, nullable);
+        }
+
+        final List<RelDataTypeField> fields = new ArrayList<>();
+        for (int i = 0; i < fieldTypes.size(); i++) {
+            fields.add(new RelDataTypeFieldImpl(fieldNames.get(i), i, fieldTypes.get(i)));
+        }
+        return new RelRecordType(kind, fields, nullable);
+    }
+
+    private static boolean containsRawType(@Nullable RelDataType relDataType) {
+        if (relDataType == null) {
+            return false;
+        }
+        return relDataType instanceof RawRelDataType
+                || relDataType instanceof GenericRelDataType
+                || containsRawType(relDataType.getComponentType())
+                || containsRawType(relDataType.getKeyType())
+                || containsRawType(relDataType.getValueType())
+                || (relDataType instanceof RelCrossType
+                        && ((RelCrossType) relDataType)
+                                .getTypes().stream().anyMatch(FlinkTypeFactory::containsRawType))
+                || (relDataType.isStruct()
+                        && relDataType.getFieldList().stream()
+                                .anyMatch(field -> containsRawType(field.getType())));
     }
 
     @Override
