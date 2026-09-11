@@ -49,7 +49,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
     private final CompletableFuture<JobManagerRunnerResult> resultFuture;
 
-    private final Supplier<JobDetails> jobDetailsFunction;
+    private final Supplier<CompletableFuture<JobDetails>> jobDetailsFunction;
 
     private final OneShotLatch closeAsyncCalledLatch = new OneShotLatch();
 
@@ -60,7 +60,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
             boolean blockingTermination,
             CompletableFuture<JobMasterGateway> jobMasterGatewayFuture,
             CompletableFuture<JobManagerRunnerResult> resultFuture,
-            Supplier<JobDetails> jobDetailsFunction) {
+            Supplier<CompletableFuture<JobDetails>> jobDetailsFunction) {
         this.jobId = jobId;
         this.blockingTermination = blockingTermination;
         this.jobMasterGatewayFuture = jobMasterGatewayFuture;
@@ -116,7 +116,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
     @Override
     public CompletableFuture<JobDetails> requestJobDetails(Duration timeout) {
-        return CompletableFuture.completedFuture(jobDetailsFunction.get());
+        return jobDetailsFunction.get();
     }
 
     @Override
@@ -183,7 +183,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         private CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
                 new CompletableFuture<>();
         private CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
-        private Supplier<JobDetails> jobDetailsFunction =
+        private Supplier<CompletableFuture<JobDetails>> jobDetailsFunction =
                 () -> {
                     throw new UnsupportedOperationException();
                 };
@@ -216,7 +216,14 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         }
 
         public Builder setJobDetailsFunction(Supplier<JobDetails> jobDetailsFunction) {
-            this.jobDetailsFunction = Preconditions.checkNotNull(jobDetailsFunction);
+            Preconditions.checkNotNull(jobDetailsFunction);
+            return setJobDetailsFutureFunction(
+                    () -> CompletableFuture.completedFuture(jobDetailsFunction.get()));
+        }
+
+        public Builder setJobDetailsFutureFunction(
+                Supplier<CompletableFuture<JobDetails>> jobDetailsFutureFunction) {
+            this.jobDetailsFunction = Preconditions.checkNotNull(jobDetailsFutureFunction);
             return this;
         }
 

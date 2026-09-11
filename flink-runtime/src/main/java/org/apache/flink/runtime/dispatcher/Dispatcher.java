@@ -1627,15 +1627,27 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     @Override
     public CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(Duration timeout) {
-        List<CompletableFuture<Optional<JobDetails>>> individualOptionalJobDetails =
-                queryJobMastersForInformation(
-                        jobManagerRunner -> jobManagerRunner.requestJobDetails(timeout));
-
-        CompletableFuture<Collection<Optional<JobDetails>>> optionalCombinedJobDetails =
-                FutureUtils.combineAll(individualOptionalJobDetails);
+        // A job whose JobMaster cannot answer must fail the whole request rather than be
+        // silently left out: clients treat absence from this list as the job being gone.
+        final List<CompletableFuture<JobDetails>> individualJobDetails =
+                new ArrayList<>(jobManagerRunnerRegistry.size());
+        for (JobManagerRunner jobManagerRunner : jobManagerRunnerRegistry.getJobManagerRunners()) {
+            individualJobDetails.add(
+                    jobManagerRunner
+                            .requestJobDetails(timeout)
+                            .exceptionally(
+                                    throwable -> {
+                                        throw new CompletionException(
+                                                new FlinkException(
+                                                        String.format(
+                                                                "Could not retrieve the details of job %s.",
+                                                                jobManagerRunner.getJobID()),
+                                                        throwable));
+                                    }));
+        }
 
         CompletableFuture<Collection<JobDetails>> combinedJobDetails =
-                optionalCombinedJobDetails.thenApply(this::flattenOptionalCollection);
+                FutureUtils.combineAll(individualJobDetails);
 
         final Collection<JobDetails> completedJobDetails = getCompletedJobDetails();
 

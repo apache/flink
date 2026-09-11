@@ -1407,6 +1407,57 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 Stream.of(jobId, secondJobID).sorted().collect(Collectors.toList()));
     }
 
+    /**
+     * A JobMaster that fails or times out on {@code requestJobDetails} must not cause its running
+     * job to be silently omitted from an otherwise successful response: clients (such as the
+     * Kubernetes operator) treat absence from this list as "job not found".
+     */
+    @Test
+    public void testRequestMultipleJobDetails_doesNotSilentlyOmitJobWhoseJobMasterQueryFails()
+            throws Exception {
+        final JobID secondJobID = new JobID();
+        JobGraph secondJobGraph = JobGraphTestUtils.streamingJobGraph();
+        secondJobGraph.setJobID(secondJobID);
+        secondJobGraph.setApplicationId(applicationId);
+        final JobManagerRunner unresponsiveJobManagerRunner =
+                TestingJobManagerRunner.newBuilder()
+                        .setJobId(secondJobID)
+                        .setJobDetailsFutureFunction(
+                                () ->
+                                        FutureUtils.completedExceptionally(
+                                                new TimeoutException(
+                                                        "JobMaster did not answer in time")))
+                        .build();
+        final JobManagerRunnerFactory jobManagerRunnerFactory =
+                new QueuedJobManagerRunnerFactory(
+                        runningJobManagerRunnerWithJobStatus(JobStatus.RUNNING, jobId, 10L),
+                        unresponsiveJobManagerRunner);
+
+        DispatcherGateway dispatcherGateway =
+                createDispatcherAndStartJobs(
+                        jobManagerRunnerFactory, Arrays.asList(jobGraph, secondJobGraph));
+
+        final CompletableFuture<MultipleJobsDetails> multipleJobsDetailsFuture =
+                dispatcherGateway.requestMultipleJobDetails(TIMEOUT);
+
+        final MultipleJobsDetails multipleJobsDetails;
+        try {
+            multipleJobsDetails = multipleJobsDetailsFuture.get();
+        } catch (ExecutionException e) {
+            // Failing the whole request is acceptable, but it must fail for the right reason:
+            // an exception naming the job whose JobMaster could not be queried.
+            assertThat(e)
+                    .hasStackTraceContaining("Could not retrieve the details of job")
+                    .hasStackTraceContaining(secondJobID.toString());
+            return;
+        }
+
+        assertThat(multipleJobsDetails.getJobs())
+                .extracting(JobDetails::getJobId)
+                .as("a successful response must list every registered running job")
+                .containsExactlyInAnyOrder(jobId, secondJobID);
+    }
+
     @Test
     public void testRequestMultipleJobDetails_isSerializable() throws Exception {
         final JobManagerRunnerFactory blockingJobMaster =
