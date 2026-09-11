@@ -888,7 +888,8 @@ public final class BuiltInFunctionDefinitions {
                                     DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()),
                                     true),
                             StaticArgument.scalar(
-                                    "produces_full_deletes", DataTypes.BOOLEAN(), true))
+                                    "produces_full_deletes", DataTypes.BOOLEAN(), true),
+                            StaticArgument.scalar("include_op_column", DataTypes.BOOLEAN(), true))
                     .inputTypeStrategy(TO_CHANGELOG_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                     .runtimeClass(
