@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
 
@@ -41,6 +42,8 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
     /** Optional failure message. */
     @Nullable private final String failureMsg;
 
+    @Nullable private final CheckpointFailureReason failureReason;
+
     /**
      * Creates a tracker for a failed checkpoint.
      *
@@ -58,7 +61,9 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
      * @param unalignedCheckpoint Whether the checkpoint is unaligned.
      * @param failureTimestamp Timestamp when this checkpoint failed.
      * @param latestAcknowledgedSubtask The latest acknowledged subtask stats or <code>null</code>.
-     * @param cause Cause of the checkpoint failure or <code>null</code>.
+     * @param cause Cause of the checkpoint failure or <code>null</code>. If a {@link
+     *     CheckpointException} is found in its cause chain, that exception's {@link
+     *     CheckpointFailureReason} is captured.
      */
     FailedCheckpointStats(
             long checkpointId,
@@ -92,6 +97,10 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
         checkArgument(numAcknowledgedSubtasks >= 0, "Negative number of ACKs");
         this.failureTimestamp = failureTimestamp;
         this.failureMsg = cause != null ? cause.getMessage() : null;
+        this.failureReason =
+                ExceptionUtils.findThrowable(cause, CheckpointException.class)
+                        .map(CheckpointException::getCheckpointFailureReason)
+                        .orElse(null);
     }
 
     @Override
@@ -122,5 +131,15 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
     @Nullable
     public String getFailureMessage() {
         return failureMsg;
+    }
+
+    /**
+     * Returns the structured failure reason captured from a {@link CheckpointException} in the
+     * cause chain, or <code>null</code> if the cause was unknown or contained no {@code
+     * CheckpointException}.
+     */
+    @Nullable
+    public CheckpointFailureReason getFailureReason() {
+        return failureReason;
     }
 }

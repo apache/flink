@@ -1827,8 +1827,9 @@ public class AdaptiveScheduler
         return new CheckpointStatsListener() {
 
             @Override
-            public void onFailedCheckpoint() {
-                runIfSupported(CheckpointStatsListener::onFailedCheckpoint, "onFailedCheckpoint");
+            public void onFailedCheckpoint(@Nullable CheckpointFailureReason reason) {
+                runIfSupported(
+                        listener -> listener.onFailedCheckpoint(reason), "onFailedCheckpoint");
             }
 
             @Override
