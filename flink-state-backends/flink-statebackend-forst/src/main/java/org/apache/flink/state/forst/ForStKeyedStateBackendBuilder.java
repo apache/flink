@@ -43,6 +43,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.forst.datatransfer.ForStStateDataTransfer;
+import org.apache.flink.state.forst.restore.ForStFullRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStHeapTimersFullRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStIncrementalRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStNoneRestoreOperation;
@@ -424,8 +425,21 @@ public class ForStKeyedStateBackendBuilder<K>
                     cancelStreamRegistry);
         }
 
-        // TODO: Support Restoring
-        throw new UnsupportedOperationException("Not support restoring yet for ForStStateBackend");
+        return new ForStFullRestoreOperation<>(
+                keyGroupRange,
+                userCodeClassLoader,
+                kvStateInformation,
+                keySerializerProvider,
+                instanceForStPath,
+                optionsContainer.getDbOptions(),
+                columnFamilyOptionsFactory,
+                nativeMetricOptions,
+                metricGroup,
+                restoreStateHandles,
+                ttlCompactFiltersManager,
+                writeBatchSize,
+                optionsContainer.getWriteBufferManagerCapacity(),
+                cancelStreamRegistry);
     }
 
     private ForStSnapshotStrategyBase<K, ?> initializeSnapshotStrategy(
