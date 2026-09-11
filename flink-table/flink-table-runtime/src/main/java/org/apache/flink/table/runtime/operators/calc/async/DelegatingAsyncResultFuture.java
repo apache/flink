@@ -22,8 +22,11 @@ import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.runtime.operators.metrics.UdfMetrics;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -47,10 +50,26 @@ public class DelegatingAsyncResultFuture implements BiConsumer<Object, Throwable
     private int asyncIndex = -1;
     private RowKind rowKind;
 
+    // Null unless UDF metrics are enabled. The sample decision and start-time are taken at dispatch
+    // (createAsyncFuture, task thread); the histogram/counter are updated at completion (accept,
+    // callback thread). The two updated metrics are internally thread-safe; sample/startNanos are
+    // published to the callback via the future's completion happens-before edge.
+    @Nullable private final UdfMetrics udfMetrics;
+    private boolean sample;
+    private long startNanos;
+
     public DelegatingAsyncResultFuture(
             ResultFuture<Object> delegatedResultFuture, int totalResultSize) {
+        this(delegatedResultFuture, totalResultSize, null);
+    }
+
+    public DelegatingAsyncResultFuture(
+            ResultFuture<Object> delegatedResultFuture,
+            int totalResultSize,
+            @Nullable UdfMetrics udfMetrics) {
         this.delegatedResultFuture = delegatedResultFuture;
         this.totalResultSize = totalResultSize;
+        this.udfMetrics = udfMetrics;
     }
 
     public synchronized void setRowKind(RowKind rowKind) {
@@ -73,12 +92,26 @@ public class DelegatingAsyncResultFuture implements BiConsumer<Object, Throwable
         Preconditions.checkState(this.asyncIndex >= 0);
         future = new CompletableFuture<>();
         this.converter = converter;
+        // Sample decision taken on the task thread; the sampler counter is never touched
+        // off-thread.
+        if (udfMetrics != null) {
+            sample = udfMetrics.shouldSample();
+            startNanos = sample ? System.nanoTime() : 0L;
+        }
         future.whenComplete(this);
         return future;
     }
 
     @Override
     public void accept(Object o, Throwable throwable) {
+        if (udfMetrics != null) {
+            if (throwable != null) {
+                udfMetrics.markException();
+            }
+            if (sample) {
+                udfMetrics.update(System.nanoTime() - startNanos);
+            }
+        }
         if (throwable != null) {
             delegatedResultFuture.completeExceptionally(throwable);
         } else {
