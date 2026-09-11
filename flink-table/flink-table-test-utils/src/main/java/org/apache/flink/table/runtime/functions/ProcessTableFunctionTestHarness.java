@@ -29,6 +29,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
+import org.apache.flink.table.functions.ChangelogFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ProcessTableFunction;
@@ -152,6 +153,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
     @Nullable private final Class<?> rowtimeConversionClass;
 
+    private final ChangelogMode outputChangelogMode;
+
     @Nullable private InvocationContext currentInvocation;
 
     private ProcessTableFunctionTestHarness(
@@ -165,7 +168,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             DataType ptfOutputType,
             TestHarnessStateManager stateManager,
             TestHarnessTimerManager timerManager,
-            @Nullable String onTimeColumnName)
+            @Nullable String onTimeColumnName,
+            ChangelogMode outputChangelogMode)
             throws Exception {
         this.function = function;
         this.functionContext = functionContext;
@@ -199,6 +203,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         this.stateManager = stateManager;
         this.timerManager = timerManager;
         this.onTimeColumnName = onTimeColumnName;
+        this.outputChangelogMode = outputChangelogMode;
         this.functionOutput = new ArrayList<>();
         this.output = new ArrayList<>();
         this.collector = new HarnessCollector();
@@ -564,13 +569,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                 argName, tableArgNames));
             }
             TableArgumentInfo tableArg = (TableArgumentInfo) argInfo;
-            int[] partitionIndices = getPartitionColumnIndices(tableArg);
             int timeColumnIndex =
                     onTimeColumnName != null
                             ? getFieldNames(tableArg.dataType).indexOf(onTimeColumnName)
                             : -1;
-            return new TestHarnessTableSemantics(
-                    tableArg.dataType, partitionIndices, timeColumnIndex);
+            return buildTableSemantics(tableArg, timeColumnIndex);
         }
 
         @Override
@@ -596,7 +599,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
         @Override
         public ChangelogMode getChangelogMode() {
-            return ChangelogMode.insertOnly();
+            return outputChangelogMode;
         }
     }
 
@@ -693,8 +696,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     ArgumentInfo.filterTableArguments(arguments).stream()
                             .anyMatch(
                                     t ->
-                                            t.isSetSemantic
-                                                    && t.prependStrategy
+                                            t.isSetSemantic()
+                                                    && t.prependStrategy()
                                                             != OutputPrependStrategy.ALL_COLUMNS);
             if (!enabled) {
                 throw new TableRuntimeException(
@@ -744,22 +747,54 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         if (arg.partitionColumnNames == null || arg.partitionColumnNames.length == 0) {
             return new int[0];
         }
+        return resolveColumnNamesToIndices(arg, arg.partitionColumnNames, "Partition");
+    }
+
+    private static int[] resolveColumnNamesToIndices(
+            TableArgumentInfo arg, String[] columnNames, String kind) {
         List<String> fieldNames = getFieldNames(arg.dataType);
-        int[] indices = new int[arg.partitionColumnNames.length];
-        for (int i = 0; i < arg.partitionColumnNames.length; i++) {
-            String colName = arg.partitionColumnNames[i];
+        int[] indices = new int[columnNames.length];
+        for (int i = 0; i < columnNames.length; i++) {
+            String colName = columnNames[i];
             int index = fieldNames.indexOf(colName);
             if (index < 0) {
                 throw new IllegalStateException(
-                        "Partition column '"
+                        kind
+                                + " column '"
                                 + colName
-                                + "' not found in table argument. "
+                                + "' not found in table argument '"
+                                + arg.name
+                                + "'. "
                                 + "Available fields: "
                                 + fieldNames);
             }
             indices[i] = index;
         }
         return indices;
+    }
+
+    static TestHarnessTableSemantics buildTableSemantics(
+            TableArgumentInfo tableArg, int timeColumnIndex) {
+        int[] partitionIndices = getPartitionColumnIndices(tableArg);
+        ChangelogMode mode = tableArg.effectiveChangelogMode();
+        List<int[]> upsertKeyIndices = new ArrayList<>();
+        for (String[] candidate : tableArg.upsertKeys) {
+            upsertKeyIndices.add(resolveColumnNamesToIndices(tableArg, candidate, "Upsert key"));
+        }
+
+        return new TestHarnessTableSemantics(
+                tableArg.dataType, partitionIndices, upsertKeyIndices, timeColumnIndex, mode);
+    }
+
+    static TestHarnessTableSemantics buildTableSemanticsForInference(
+            TableArgumentInfo tableArg, int timeColumnIndex) {
+        int[] partitionIndices = getPartitionColumnIndices(tableArg);
+        return new TestHarnessTableSemantics(
+                tableArg.dataType,
+                partitionIndices,
+                Collections.emptyList(),
+                timeColumnIndex,
+                null);
     }
 
     @Nullable
@@ -800,6 +835,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     }
 
     private void invokeEval(TableArgumentInfo activeTableArg, Row activeRow) throws Exception {
+        activeRow = prepareInputRow(activeTableArg, activeRow);
+
         TableArgumentConverters converters = argumentConverters.get(activeTableArg.name);
 
         RowData rowData = (RowData) converters.toNamedRow.toInternal(activeRow);
@@ -859,6 +896,82 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         return Row.of(keyValues);
     }
 
+    /**
+     * Applies the changelog-mode rules a row must satisfy as it crosses the input boundary: the row
+     * kind is validated against the argument's consumed mode, then a key-only delete is reshaped to
+     * carry only its key columns. Both steps belong to the same boundary and must run in this
+     * order.
+     */
+    private Row prepareInputRow(TableArgumentInfo tableArg, Row row) {
+        validateInputRowKind(tableArg, row.getKind());
+        return stripNonKeyFieldsForKeyOnlyDelete(tableArg, row);
+    }
+
+    private void validateInputRowKind(TableArgumentInfo tableArg, RowKind rowKind) {
+        if (rowKind == RowKind.INSERT) {
+            return;
+        }
+
+        if (!tableArg.is(StaticArgumentTrait.SUPPORT_UPDATES)) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Row kind %s is not permitted on table argument '%s'. "
+                                    + "This argument does not declare SUPPORT_UPDATES.",
+                            rowKind, tableArg.name));
+        }
+
+        ChangelogMode mode = tableArg.effectiveChangelogMode();
+        if (!mode.contains(rowKind)) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Row kind %s is not permitted on table argument '%s'. "
+                                    + "Expected consumed changelog mode: %s",
+                            rowKind, tableArg.name, mode));
+        }
+    }
+
+    private Row stripNonKeyFieldsForKeyOnlyDelete(TableArgumentInfo tableArg, Row row) {
+        if (row.getKind() != RowKind.DELETE) {
+            return row;
+        }
+
+        ChangelogMode mode = tableArg.effectiveChangelogMode();
+        if (!mode.keyOnlyDeletes()) {
+            return row;
+        }
+
+        // A key-only delete carries only the columns the stream is co-partitioned by, so only the
+        // partition columns survive here.
+        String[] keyColumns = tableArg.partitionColumnNames;
+        if (keyColumns == null || keyColumns.length == 0) {
+            return row;
+        }
+
+        Set<Integer> keyIndices =
+                Arrays.stream(resolveColumnNamesToIndices(tableArg, keyColumns, "Partition key"))
+                        .boxed()
+                        .collect(Collectors.toSet());
+
+        // A freshly constructed Row initializes all fields to null, so only the key columns are
+        // copied back; every other field is already stripped.
+        Row result = new Row(row.getKind(), row.getArity());
+        for (int i = 0; i < row.getArity(); i++) {
+            if (keyIndices.contains(i)) {
+                result.setField(i, row.getField(i));
+            }
+        }
+        return result;
+    }
+
+    private void validateOutputRowKind(RowKind rowKind) {
+        if (!outputChangelogMode.contains(rowKind)) {
+            throw new TableRuntimeException(
+                    String.format(
+                            "Invalid row kind received: %s. Expected produced changelog mode: %s",
+                            rowKind, outputChangelogMode));
+        }
+    }
+
     /** Collector implementation that stores output in the harness. */
     private class HarnessCollector implements Collector<OUT> {
 
@@ -866,6 +979,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         @SuppressWarnings("unchecked")
         public void collect(OUT record) {
             Row ptfRow = toPtfOutputRow(record);
+
+            validateOutputRowKind(ptfRow.getKind());
 
             functionOutput.add(outputKind == OutputKind.ROW ? (OUT) ptfRow : record);
 
@@ -913,7 +1028,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             if (ctx.isEvalInvocation()) {
                 ArgumentInfo argInfo = argumentsByName.get(ctx.tableArgumentName);
                 if (argInfo instanceof TableArgumentInfo) {
-                    return ((TableArgumentInfo) argInfo).prependStrategy;
+                    return ((TableArgumentInfo) argInfo).prependStrategy();
                 }
             }
             return OutputPrependStrategy.NONE;
@@ -943,7 +1058,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             for (ArgumentInfo arg : arguments) {
                 if (arg instanceof TableArgumentInfo) {
                     TableArgumentInfo tableArg = (TableArgumentInfo) arg;
-                    if (tableArg.isSetSemantic && tableArg.partitionColumnNames != null) {
+                    if (tableArg.isPartitioned()) {
                         totalPartitionKeyCount += tableArg.partitionColumnNames.length;
                     }
                 }
@@ -958,7 +1073,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             for (ArgumentInfo arg : arguments) {
                 if (arg instanceof TableArgumentInfo) {
                     TableArgumentInfo tableArg = (TableArgumentInfo) arg;
-                    if (tableArg.isSetSemantic && tableArg.partitionColumnNames != null) {
+                    if (tableArg.isPartitioned()) {
                         for (int i = 0; i < tableArg.partitionColumnNames.length; i++) {
                             result.setField(resultIndex++, partitionKey.getField(i));
                         }
@@ -1006,7 +1121,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     }
 
     /** Extracts field names from RowType or StructuredType. */
-    private static List<String> getFieldNames(DataType dataType) {
+    static List<String> getFieldNames(DataType dataType) {
         LogicalType logicalType = dataType.getLogicalType();
         if (logicalType instanceof RowType) {
             return ((RowType) logicalType)
@@ -1048,11 +1163,15 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         private final String name;
         @Nullable private final AbstractDataType<?> type;
         @Nullable private final String[] partitionColumns;
+        @Nullable private final ChangelogMode changelogMode;
+        private final List<String[]> upsertKeys;
 
         private TableArgument(Builder builder) {
             this.name = builder.name;
             this.type = builder.type;
             this.partitionColumns = builder.partitionColumns;
+            this.changelogMode = builder.changelogMode;
+            this.upsertKeys = builder.upsertKeys;
         }
 
         public static Builder forName(String argumentName) {
@@ -1064,6 +1183,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             private final String name;
             @Nullable private AbstractDataType<?> type;
             @Nullable private String[] partitionColumns;
+            @Nullable private ChangelogMode changelogMode;
+            private final List<String[]> upsertKeys = new ArrayList<>();
 
             private Builder(String argumentName) {
                 this.name = checkNotNull(argumentName, "argumentName must not be null");
@@ -1098,6 +1219,42 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 return this;
             }
 
+            /**
+             * Configures the changelog mode this table argument's input carries, as reported by
+             * {@link TableSemantics#changelogMode()}.
+             *
+             * <p>Required for an argument that declares {@code ArgumentTrait.SUPPORT_UPDATES}. A
+             * non-updating argument always reports {@link ChangelogMode#insertOnly()}, so
+             * configuring one has no effect.
+             *
+             * @param mode the changelog mode this argument's input carries
+             */
+            public Builder changelogMode(ChangelogMode mode) {
+                this.changelogMode = checkNotNull(mode, "mode must not be null");
+                return this;
+            }
+
+            /**
+             * Declares a candidate upsert key for this table argument, i.e. a set of columns that
+             * uniquely identifies a row in the argument's changelog.
+             *
+             * <p>Call multiple times to declare multiple candidate keys; each call adds one more
+             * candidate. This mirrors {@link TableSemantics#upsertKeyColumns()}, which reports a
+             * list of candidate keys derived from the input's metadata.
+             *
+             * <p>Required when using upsert input modes ({@link ChangelogMode#upsert(boolean)})
+             * with a {@code SET_SEMANTIC_TABLE} argument: one of the declared candidates must match
+             * the argument's partition columns.
+             *
+             * @param columnNames the columns forming one candidate upsert key
+             */
+            public Builder upsertKey(String... columnNames) {
+                checkNotNull(columnNames, "columnNames must not be null");
+                checkArgument(columnNames.length > 0, "Must specify at least one column");
+                this.upsertKeys.add(columnNames);
+                return this;
+            }
+
             public TableArgument build() {
                 return new TableArgument(this);
             }
@@ -1117,6 +1274,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         private final Map<String, TableArgumentConfiguration> tableArgs = new HashMap<>();
         private final Map<String, PartitionConfiguration> partitionConfigs = new HashMap<>();
         private final Map<String, StateArgumentConfiguration> stateArgs = new HashMap<>();
+        private final Map<String, ChangelogMode> tableArgumentChangelogModes = new HashMap<>();
+        private final Map<String, List<String[]>> tableArgumentUpsertKeys = new HashMap<>();
         @Nullable private String onTimeColumnName = null;
 
         private Builder(Class<? extends ProcessTableFunction<OUT>> functionClass) {
@@ -1149,6 +1308,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                 partitionConfigs.put(
                         tableArgument.name,
                         new PartitionConfiguration(tableArgument.partitionColumns));
+            }
+            if (tableArgument.changelogMode != null) {
+                tableArgumentChangelogModes.put(tableArgument.name, tableArgument.changelogMode);
+            }
+            if (!tableArgument.upsertKeys.isEmpty()) {
+                tableArgumentUpsertKeys.put(tableArgument.name, tableArgument.upsertKeys);
             }
             return this;
         }
@@ -1243,6 +1408,17 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             validatePartitionConsistency(arguments);
             validateInitialStateKeys(arguments);
 
+            // Reject unknown argument names before resolving the output mode; the resolver's
+            // per-argument lookups silently ignore them.
+            List<TableArgumentInfo> tableArgInfos = ArgumentInfo.filterTableArguments(arguments);
+            PtfChangelogModeValidator changelogValidator =
+                    new PtfChangelogModeValidator(
+                            tableArgInfos,
+                            tableArgumentChangelogModes,
+                            tableArgumentUpsertKeys,
+                            onTimeColumnName);
+            changelogValidator.validateConfiguration();
+
             Map<String, TableArgumentConverters> argumentConverters = new HashMap<>();
             Map<String, StateConverter> stateConverters = new HashMap<>();
             createConverters(arguments, argumentConverters, stateConverters, classLoader);
@@ -1265,7 +1441,6 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             // Extract table arguments for output type derivation
             // SystemTypeInference needs table semantics for pass-through column deduplication
-            List<TableArgumentInfo> tableArgInfos = ArgumentInfo.filterTableArguments(arguments);
 
             // The system inference yields the full operator output row (partition keys,
             // pass-through columns, and rowtime); harnessOutputConverter stamps those field names.
@@ -1286,24 +1461,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     deriveOutputType(
                             function, dataTypeFactory, baseTypeInference, arguments, tableArgInfos);
 
-            // Validate onTimeColumn configuration
-            if (onTimeColumnName != null) {
-                boolean foundInAnyTable =
-                        tableArgInfos.stream()
-                                .anyMatch(
-                                        t -> getFieldNames(t.dataType).contains(onTimeColumnName));
-                checkArgument(
-                        foundInAnyTable,
-                        "withOnTimeColumn references column '%s' which does not exist in any "
-                                + "table argument. Available table arguments and their columns: %s",
-                        onTimeColumnName,
-                        tableArgInfos.stream()
-                                .collect(
-                                        Collectors.toMap(
-                                                t -> t.name, t -> getFieldNames(t.dataType))));
-            }
-
             TestHarnessTimerManager timerManager = new TestHarnessTimerManager();
+
+            ChangelogMode effectiveOutputChangelogMode =
+                    resolveOutputChangelogMode(function, arguments);
+            changelogValidator.validateResolvedOutputMode(effectiveOutputChangelogMode);
 
             return new ProcessTableFunctionTestHarness<>(
                     function,
@@ -1316,7 +1478,23 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     ptfOutputType,
                     stateManager,
                     timerManager,
-                    onTimeColumnName);
+                    onTimeColumnName,
+                    effectiveOutputChangelogMode);
+        }
+
+        private ChangelogMode resolveOutputChangelogMode(
+                ProcessTableFunction<OUT> function, List<ArgumentInfo> arguments) {
+            if (function instanceof ChangelogFunction) {
+                List<ArgumentInfo> tableAndScalarArguments =
+                        arguments.stream()
+                                .filter(arg -> !(arg instanceof StateArgumentInfo))
+                                .collect(Collectors.toList());
+                return new PtfChangelogModeResolver(
+                                (ChangelogFunction) function, tableAndScalarArguments)
+                        .resolve();
+            } else {
+                return ChangelogMode.insertOnly();
+            }
         }
 
         /**
@@ -1506,7 +1684,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             for (ArgumentInfo arg : arguments) {
                 if (arg instanceof TableArgumentInfo) {
                     TableArgumentInfo tableArg = (TableArgumentInfo) arg;
-                    if (tableArg.isSetSemantic && tableArg.partitionColumnNames != null) {
+                    if (tableArg.isPartitioned()) {
                         partitionedTables.add(tableArg);
                     }
                 }
@@ -1571,7 +1749,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     arguments.stream()
                             .filter(arg -> arg instanceof TableArgumentInfo)
                             .map(arg -> (TableArgumentInfo) arg)
-                            .filter(t -> t.isSetSemantic && t.partitionColumnNames != null)
+                            .filter(t -> t.isPartitioned())
                             .findFirst();
 
             if (partitionedTable.isEmpty()) {
@@ -1652,7 +1830,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     arguments.stream()
                             .filter(arg -> arg instanceof TableArgumentInfo)
                             .map(arg -> (TableArgumentInfo) arg)
-                            .filter(t -> t.isSetSemantic && t.partitionColumnNames != null)
+                            .filter(t -> t.isPartitioned())
                             .findFirst();
 
             if (partitionedTable.isEmpty()) {
@@ -1737,9 +1915,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             Map<Integer, TableSemantics> tableSemanticsMap = new HashMap<>();
             for (int i = 0; i < tableArgs.size(); i++) {
                 TableArgumentInfo tArg = tableArgs.get(i);
-                int[] partitionIndices = getPartitionColumnIndices(tArg);
-                tableSemanticsMap.put(
-                        i, new TestHarnessTableSemantics(tArg.dataType, partitionIndices));
+                tableSemanticsMap.put(i, buildTableSemanticsForInference(tArg, -1));
             }
 
             TestHarnessCallContext callContext = new TestHarnessCallContext();
@@ -1896,16 +2072,18 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         extractAndValidatePartitionColumns(name, dataType, hasOptionalPartitionBy);
             }
 
-            boolean hasPassColumnsThrough =
-                    staticArg.getTraits().contains(StaticArgumentTrait.PASS_COLUMNS_THROUGH);
-
             if (primaryTrait == ArgumentTrait.SCALAR) {
                 ScalarArgumentConfiguration config = scalarArgs.get(name);
                 Object value = config != null ? config.value : null;
                 return new ScalarArgumentInfo(name, dataType, value);
             } else {
                 return new TableArgumentInfo(
-                        name, dataType, primaryTrait, partitionColumnNames, hasPassColumnsThrough);
+                        name,
+                        dataType,
+                        staticArg.getTraits(),
+                        partitionColumnNames,
+                        tableArgumentChangelogModes.get(name),
+                        tableArgumentUpsertKeys.get(name));
             }
         }
 
@@ -2066,7 +2244,6 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
                     TableArgumentInfo tableArg = tableArgsByName.get(argName);
                     if (tableArg != null) {
-                        int[] partitionIndices = getPartitionColumnIndices(tableArg);
                         int timeColumnIndex = -1;
                         if (onTimeColumnName != null) {
                             int idx = getFieldNames(tableArg.dataType).indexOf(onTimeColumnName);
@@ -2075,9 +2252,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                             }
                         }
                         tableSemanticsMap.put(
-                                i,
-                                new TestHarnessTableSemantics(
-                                        tableArg.dataType, partitionIndices, timeColumnIndex));
+                                i, buildTableSemanticsForInference(tableArg, timeColumnIndex));
                     }
                 }
             }
@@ -2156,7 +2331,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
      * <p>Represents validated argument information combining PTF signature, type inference results,
      * and builder configuration.
      */
-    private abstract static class ArgumentInfo {
+    abstract static class ArgumentInfo {
         final String name;
         final DataType dataType;
 
@@ -2197,32 +2372,56 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         }
     }
 
-    /** Table argument with partitioning and output prepending strategy. */
-    private static class TableArgumentInfo extends ArgumentInfo {
+    /** Resolved metadata for a table argument. */
+    static class TableArgumentInfo extends ArgumentInfo {
         final String[] partitionColumnNames;
-        final boolean isSetSemantic;
-        final OutputPrependStrategy prependStrategy;
+        final Set<StaticArgumentTrait> traits;
+        @Nullable final ChangelogMode changelogMode;
+        final List<String[]> upsertKeys;
 
         TableArgumentInfo(
                 String name,
                 DataType dataType,
-                ArgumentTrait primaryTrait,
+                Set<StaticArgumentTrait> traits,
                 String[] partitionColumnNames,
-                boolean hasPassColumnsThrough) {
+                @Nullable ChangelogMode changelogMode,
+                @Nullable List<String[]> upsertKeys) {
             super(name, dataType);
             this.partitionColumnNames = partitionColumnNames;
-            this.isSetSemantic = (primaryTrait == ArgumentTrait.SET_SEMANTIC_TABLE);
-            this.prependStrategy =
-                    hasPassColumnsThrough
-                            ? OutputPrependStrategy.ALL_COLUMNS
-                            : (this.isSetSemantic && partitionColumnNames != null)
-                                    ? OutputPrependStrategy.PARTITION_KEYS
-                                    : OutputPrependStrategy.NONE;
+            this.traits = traits;
+            this.changelogMode = changelogMode;
+            this.upsertKeys = upsertKeys != null ? upsertKeys : Collections.emptyList();
+        }
+
+        boolean is(StaticArgumentTrait trait) {
+            return traits.contains(trait);
+        }
+
+        ChangelogMode effectiveChangelogMode() {
+            return changelogMode != null ? changelogMode : ChangelogMode.insertOnly();
+        }
+
+        boolean isSetSemantic() {
+            return is(StaticArgumentTrait.SET_SEMANTIC_TABLE);
+        }
+
+        boolean isPartitioned() {
+            return isSetSemantic() && partitionColumnNames != null;
+        }
+
+        OutputPrependStrategy prependStrategy() {
+            if (is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+                return OutputPrependStrategy.ALL_COLUMNS;
+            } else if (isPartitioned()) {
+                return OutputPrependStrategy.PARTITION_KEYS;
+            } else {
+                return OutputPrependStrategy.NONE;
+            }
         }
     }
 
     /** Scalar (constant) argument. */
-    private static class ScalarArgumentInfo extends ArgumentInfo {
+    static class ScalarArgumentInfo extends ArgumentInfo {
         final Object value;
 
         ScalarArgumentInfo(String name, DataType dataType, Object value) {
