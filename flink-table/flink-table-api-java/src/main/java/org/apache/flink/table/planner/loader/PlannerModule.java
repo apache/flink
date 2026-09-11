@@ -19,9 +19,11 @@
 package org.apache.flink.table.planner.loader;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.classloading.ComponentClassLoader;
 import org.apache.flink.core.classloading.SubmoduleClassLoader;
 import org.apache.flink.table.api.TableException;
@@ -101,8 +103,7 @@ public class PlannerModule {
         try {
             final ClassLoader flinkClassLoader = PlannerModule.class.getClassLoader();
 
-            final Path tmpDirectory =
-                    Paths.get(ConfigurationUtils.parseTempDirectories(new Configuration())[0]);
+            final Path tmpDirectory = resolveTmpDirectory(GlobalConfiguration.loadConfiguration());
             Files.createDirectories(FileUtils.getTargetPathIfContainsSymbolicPath(tmpDirectory));
             final Path tempFile =
                     Files.createFile(
@@ -134,6 +135,11 @@ public class PlannerModule {
             throw new TableException(
                     "Could not initialize the table planner components loader.", e);
         }
+    }
+
+    @VisibleForTesting
+    static Path resolveTmpDirectory(Configuration configuration) {
+        return Paths.get(ConfigurationUtils.parseTempDirectories(configuration)[0]);
     }
 
     public URLClassLoader getSubmoduleClassLoader() {
