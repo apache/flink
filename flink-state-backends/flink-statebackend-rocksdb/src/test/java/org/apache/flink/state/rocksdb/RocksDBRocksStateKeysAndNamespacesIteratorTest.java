@@ -27,24 +27,26 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.state.rocksdb.iterator.RocksStateKeysAndNamespaceIterator;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.ColumnFamilyHandle;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the RocksDBRocksStateKeysAndNamespacesIterator. */
-public class RocksDBRocksStateKeysAndNamespacesIteratorTest {
+class RocksDBRocksStateKeysAndNamespacesIteratorTest {
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir private Path tmp;
 
     @Test
-    public void testIterator() throws Exception {
+    void testIterator() throws Exception {
 
         // test for keyGroupPrefixBytes == 1 && ambiguousKeyPossible == false
         testIteratorHelper(IntSerializer.INSTANCE, 128, i -> i);
@@ -119,13 +121,11 @@ public class RocksDBRocksStateKeysAndNamespacesIteratorTest {
                     fetchedKeys.add((Tuple2<Integer, String>) entry);
                 }
 
-                fetchedKeys.sort(Comparator.comparingInt(a -> a.f0));
-                Assert.assertEquals(1000, fetchedKeys.size());
-
-                for (int i = 0; i < 1000; ++i) {
-                    Assert.assertEquals(i, fetchedKeys.get(i).f0.intValue());
-                    Assert.assertEquals(namespace, fetchedKeys.get(i).f1);
-                }
+                assertThat(fetchedKeys)
+                        .containsExactlyInAnyOrderElementsOf(
+                                IntStream.range(0, 1000)
+                                        .mapToObj(i -> Tuple2.of(i, namespace))
+                                        .collect(Collectors.toList()));
             }
         }
     }

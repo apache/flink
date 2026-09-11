@@ -20,45 +20,37 @@ package org.apache.flink.state.rocksdb;
 
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link EmbeddedRocksDBStateBackend} on initialization. */
-public class RocksDBInitITCase {
-
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+class RocksDBInitITCase {
 
     /**
      * This test checks that the RocksDB native code loader still responds to resetting the init
      * flag.
      */
     @Test
-    public void testResetInitFlag() throws Exception {
+    void testResetInitFlag() throws Exception {
         EmbeddedRocksDBStateBackend.resetRocksDBLoadedFlag();
     }
 
     @Test
-    public void testTempLibFolderDeletedOnFail() throws Exception {
-        File tempFolder = temporaryFolder.newFolder();
-        try {
-            EmbeddedRocksDBStateBackend.ensureRocksDBIsLoaded(
-                    tempFolder.getAbsolutePath(),
-                    () -> {
-                        throw new ExpectedTestException();
-                    });
-            fail("Not throwing expected exception.");
-        } catch (IOException ignored) {
-            // ignored
-        }
-        File[] files = tempFolder.listFiles();
-        Assert.assertNotNull(files);
-        Assert.assertEquals(0, files.length);
+    void testTempLibFolderDeletedOnFail(@TempDir File tempFolder) {
+        assertThatThrownBy(
+                        () ->
+                                EmbeddedRocksDBStateBackend.ensureRocksDBIsLoaded(
+                                        tempFolder.getAbsolutePath(),
+                                        () -> {
+                                            throw new ExpectedTestException();
+                                        }))
+                .isInstanceOf(IOException.class);
+        assertThat(tempFolder).isEmptyDirectory();
     }
 }

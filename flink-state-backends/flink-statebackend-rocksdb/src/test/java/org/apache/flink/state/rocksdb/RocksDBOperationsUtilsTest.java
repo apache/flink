@@ -20,10 +20,9 @@ package org.apache.flink.state.rocksdb;
 
 import org.apache.flink.util.OperatingSystem;
 
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.NativeLibraryLoader;
@@ -32,28 +31,24 @@ import org.rocksdb.RocksDB;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for the {@link RocksDBOperationUtils}. */
-public class RocksDBOperationsUtilsTest {
+class RocksDBOperationsUtilsTest {
 
-    @ClassRule public static final TemporaryFolder TMP_DIR = new TemporaryFolder();
-
-    @BeforeClass
-    public static void loadRocksLibrary() throws Exception {
-        NativeLibraryLoader.getInstance().loadLibrary(TMP_DIR.newFolder().getAbsolutePath());
+    @BeforeAll
+    static void loadRocksLibrary(@TempDir Path libDir) throws Exception {
+        NativeLibraryLoader.getInstance().loadLibrary(libDir.toFile().getAbsolutePath());
     }
 
     @Test
-    public void testPathExceptionOnWindows() throws Exception {
-        assumeTrue(OperatingSystem.isWindows());
+    void testPathExceptionOnWindows(@TempDir File folder) throws Exception {
+        assumeThat(OperatingSystem.isWindows()).isTrue();
 
-        final File folder = TMP_DIR.newFolder();
         final File rocksDir =
                 new File(folder, getLongString(247 - folder.getAbsolutePath().length()));
 
@@ -74,43 +69,46 @@ public class RocksDBOperationsUtilsTest {
             // do not provoke a test failure if this passes, because some setups may actually
             // support long paths, in which case: great!
         } catch (IOException e) {
-            assertThat(
-                    e.getMessage(),
-                    containsString("longer than the directory path length limit for Windows"));
+            assertThat(e.getMessage())
+                    .contains("longer than the directory path length limit for Windows");
         }
     }
 
     @Test
-    public void testSanityCheckArenaBlockSize() {
+    void testSanityCheckArenaBlockSize() {
         long testWriteBufferSize = 56 * 1024 * 1024L;
         long testDefaultArenaSize =
                 RocksDBMemoryControllerUtils.calculateRocksDBDefaultArenaBlockSize(
                         testWriteBufferSize);
         long testWriteBufferCapacityBoundary = testDefaultArenaSize * 8 / 7;
         assertThat(
-                "The sanity check should pass with default arena block size",
-                RocksDBOperationUtils.sanityCheckArenaBlockSize(
-                        testWriteBufferSize, 0, testWriteBufferCapacityBoundary),
-                is(true));
+                        RocksDBOperationUtils.sanityCheckArenaBlockSize(
+                                testWriteBufferSize, 0, testWriteBufferCapacityBoundary))
+                .as("The sanity check should pass with default arena block size")
+                .isTrue();
         assertThat(
-                "The sanity check should pass with default arena block size given as argument",
-                RocksDBOperationUtils.sanityCheckArenaBlockSize(
-                        testWriteBufferSize, testDefaultArenaSize, testWriteBufferCapacityBoundary),
-                is(true));
+                        RocksDBOperationUtils.sanityCheckArenaBlockSize(
+                                testWriteBufferSize,
+                                testDefaultArenaSize,
+                                testWriteBufferCapacityBoundary))
+                .as("The sanity check should pass with default arena block size given as argument")
+                .isTrue();
         assertThat(
-                "The sanity check should pass when the configured arena block size is smaller than the boundary.",
-                RocksDBOperationUtils.sanityCheckArenaBlockSize(
-                        testWriteBufferSize,
-                        testDefaultArenaSize - 1,
-                        testWriteBufferCapacityBoundary),
-                is(true));
+                        RocksDBOperationUtils.sanityCheckArenaBlockSize(
+                                testWriteBufferSize,
+                                testDefaultArenaSize - 1,
+                                testWriteBufferCapacityBoundary))
+                .as(
+                        "The sanity check should pass when the configured arena block size is smaller than the boundary.")
+                .isTrue();
         assertThat(
-                "The sanity check should fail when the configured arena block size is higher than the boundary.",
-                RocksDBOperationUtils.sanityCheckArenaBlockSize(
-                        testWriteBufferSize,
-                        testDefaultArenaSize + 1,
-                        testWriteBufferCapacityBoundary),
-                is(false));
+                        RocksDBOperationUtils.sanityCheckArenaBlockSize(
+                                testWriteBufferSize,
+                                testDefaultArenaSize + 1,
+                                testWriteBufferCapacityBoundary))
+                .as(
+                        "The sanity check should fail when the configured arena block size is higher than the boundary.")
+                .isFalse();
     }
 
     private static String getLongString(int numChars) {

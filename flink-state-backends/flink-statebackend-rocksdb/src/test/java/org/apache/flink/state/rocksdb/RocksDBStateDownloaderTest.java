@@ -27,20 +27,16 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -57,20 +53,20 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test class for {@link RocksDBStateDownloader}. */
-public class RocksDBStateDownloaderTest extends TestLogger {
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+class RocksDBStateDownloaderTest {
+    @TempDir private Path temporaryFolder;
 
     @Test
-    public void testWaitForDownloadIfInterrupted()
+    void testWaitForDownloadIfInterrupted()
             throws IOException, InterruptedException, ExecutionException {
         StateHandleDownloadSpec spec =
                 new StateHandleDownloadSpec(
@@ -86,7 +82,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                                 emptyList(),
                                 new ByteStreamStateHandle("meta", new byte[] {1, 2, 3, 4}),
                                 5L),
-                        temporaryFolder.newFolder().toPath().resolve("dst"));
+                        TempDirUtils.newFolder(temporaryFolder).toPath().resolve("dst"));
         CompletableFuture<Void> downloaderFuture = new CompletableFuture<>();
         BlockingExecutorService executorService = new BlockingExecutorService();
         Thread downloader = createDownloader(executorService, spec, downloaderFuture);
@@ -94,9 +90,9 @@ public class RocksDBStateDownloaderTest extends TestLogger {
         for (int attempt = 0; attempt < 5; attempt++) {
             downloader.interrupt();
             Thread.sleep(50);
-            Assert.assertTrue(
-                    "downloader should ignore interrupts while download is in progress",
-                    downloader.isAlive());
+            assertThat(downloader.isAlive())
+                    .as("downloader should ignore interrupts while download is in progress")
+                    .isTrue();
         }
         executorService.unblock();
         downloaderFuture.get();
@@ -132,7 +128,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
 
     /** Test that the exception arose in the thread pool will rethrow to the main thread. */
     @Test
-    public void testMultiThreadRestoreThreadPoolExceptionRethrow() {
+    void testMultiThreadRestoreThreadPoolExceptionRethrow() throws Exception {
         SpecifiedException expectedCause =
                 new SpecifiedException("throw exception while multi thread restore.");
         StreamStateHandle stateHandle = new ThrowingStateHandle(expectedCause);
@@ -150,21 +146,23 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                         stateHandle);
 
         try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
-            rocksDBStateDownloader.transferAllStateDataToDirectory(
-                    Collections.singletonList(
-                            new StateHandleDownloadSpec(
-                                    incrementalKeyedStateHandle,
-                                    temporaryFolder.newFolder().toPath())),
-                    new CloseableRegistry());
-            fail();
-        } catch (Exception e) {
-            assertEquals(expectedCause, e.getCause());
+            assertThatThrownBy(
+                            () ->
+                                    rocksDBStateDownloader.transferAllStateDataToDirectory(
+                                            Collections.singletonList(
+                                                    new StateHandleDownloadSpec(
+                                                            incrementalKeyedStateHandle,
+                                                            TempDirUtils.newFolder(temporaryFolder)
+                                                                    .toPath())),
+                                            new CloseableRegistry()))
+                    .cause()
+                    .isSameAs(expectedCause);
         }
     }
 
     /** Tests that download files with multi-thread correctly. */
     @Test
-    public void testMultiThreadRestoreCorrectly() throws Exception {
+    void testMultiThreadRestoreCorrectly() throws Exception {
         int numRemoteHandles = 3;
         int numSubHandles = 6;
         byte[][][] contents = createContents(numRemoteHandles, numSubHandles);
@@ -172,7 +170,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
         for (int i = 0; i < numRemoteHandles; ++i) {
             downloadRequests.add(
                     createDownloadRequestForContent(
-                            temporaryFolder.newFolder().toPath(), contents[i], i));
+                            TempDirUtils.newFolder(temporaryFolder).toPath(), contents[i], i));
         }
 
         try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(4)) {
@@ -183,7 +181,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
         for (int i = 0; i < numRemoteHandles; ++i) {
             StateHandleDownloadSpec downloadRequest = downloadRequests.get(i);
             Path dstPath = downloadRequest.getDownloadDestination();
-            Assert.assertTrue(dstPath.toFile().exists());
+            assertThat(dstPath).exists();
             for (int j = 0; j < numSubHandles; ++j) {
                 assertStateContentEqual(
                         contents[i][j], dstPath.resolve(String.format("sharedState-%d-%d", i, j)));
@@ -193,7 +191,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
 
     /** Tests cleanup on download failures. */
     @Test
-    public void testMultiThreadCleanupOnFailure() throws Exception {
+    void testMultiThreadCleanupOnFailure() throws Exception {
         int numRemoteHandles = 3;
         int numSubHandles = 6;
         byte[][][] contents = createContents(numRemoteHandles, numSubHandles);
@@ -201,7 +199,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
         for (int i = 0; i < numRemoteHandles; ++i) {
             downloadRequests.add(
                     createDownloadRequestForContent(
-                            temporaryFolder.newFolder().toPath(), contents[i], i));
+                            TempDirUtils.newFolder(temporaryFolder).toPath(), contents[i], i));
         }
 
         IncrementalRemoteKeyedStateHandle stateHandle =
@@ -217,18 +215,19 @@ public class RocksDBStateDownloaderTest extends TestLogger {
 
         CloseableRegistry closeableRegistry = new CloseableRegistry();
         try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
-            rocksDBStateDownloader.transferAllStateDataToDirectory(
-                    downloadRequests, closeableRegistry);
-            fail("Exception is expected");
-        } catch (IOException ignore) {
+            assertThatThrownBy(
+                            () ->
+                                    rocksDBStateDownloader.transferAllStateDataToDirectory(
+                                            downloadRequests, closeableRegistry))
+                    .isInstanceOf(IOException.class);
         }
 
         // Check that all download directories have been deleted
         for (StateHandleDownloadSpec downloadRequest : downloadRequests) {
-            Assert.assertFalse(downloadRequest.getDownloadDestination().toFile().exists());
+            assertThat(downloadRequest.getDownloadDestination()).doesNotExist();
         }
         // The passed in closable registry should not be closed by us on failure.
-        Assert.assertFalse(closeableRegistry.isClosed());
+        assertThat(closeableRegistry.isClosed()).isFalse();
     }
 
     /**
@@ -236,7 +235,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
      * without being wrapped in a merged "N downloads failed" message.
      */
     @Test
-    public void testSingleDownloadFailureSurfacedDirectly() throws Exception {
+    void testSingleDownloadFailureSurfacedDirectly() throws Exception {
         IOException rootCause = new IOException("file not found on remote storage");
         StreamStateHandle failingHandle = new ThrowingStateHandle(rootCause);
 
@@ -250,17 +249,19 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                         failingHandle);
 
         try (RocksDBStateDownloader downloader = new RocksDBStateDownloader(1)) {
-            downloader.transferAllStateDataToDirectory(
-                    singletonList(
-                            new StateHandleDownloadSpec(
-                                    stateHandle, temporaryFolder.newFolder().toPath())),
-                    new CloseableRegistry());
-            fail("Expected IOException");
-        } catch (IOException e) {
-            assertEquals(rootCause, e.getCause());
-            Assert.assertFalse(
-                    "Single failure should not produce a merged message, got: " + e.getMessage(),
-                    e.getMessage() != null && e.getMessage().contains("downloads failed"));
+            assertThatThrownBy(
+                            () ->
+                                    downloader.transferAllStateDataToDirectory(
+                                            singletonList(
+                                                    new StateHandleDownloadSpec(
+                                                            stateHandle,
+                                                            TempDirUtils.newFolder(temporaryFolder)
+                                                                    .toPath())),
+                                            new CloseableRegistry()))
+                    .isInstanceOf(IOException.class)
+                    .satisfies(e -> assertThat(e.getCause()).isSameAs(rootCause))
+                    .as("Single failure should not produce a merged message")
+                    .hasMessageNotContaining("downloads failed");
         }
     }
 
@@ -272,7 +273,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
      * the real cause (e.g. FileNotFoundException for a missing state file) was lost.
      */
     @Test
-    public void testRootCauseVisibleAmongCascadeFailures() throws Exception {
+    void testRootCauseVisibleAmongCascadeFailures() throws Exception {
         int numRemoteHandles = 3;
         int numSubHandles = 6;
         byte[][][] contents = createContents(numRemoteHandles, numSubHandles);
@@ -280,7 +281,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
         for (int i = 0; i < numRemoteHandles; ++i) {
             downloadRequests.add(
                     createDownloadRequestForContent(
-                            temporaryFolder.newFolder().toPath(), contents[i], i));
+                            TempDirUtils.newFolder(temporaryFolder).toPath(), contents[i], i));
         }
 
         IOException rootCause = new IOException("state file missing from remote storage");
@@ -290,24 +291,21 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                 .getSharedState()
                 .add(HandleAndLocalPath.of(new ThrowingStateHandle(rootCause), "error-handle"));
 
+        Predicate<Throwable> hasRootCauseMessage =
+                t -> rootCause.getMessage().equals(t.getMessage());
+
         try (RocksDBStateDownloader downloader = new RocksDBStateDownloader(5)) {
-            downloader.transferAllStateDataToDirectory(downloadRequests, new CloseableRegistry());
-            fail("Expected IOException");
-        } catch (IOException e) {
-            boolean rootCauseVisible =
-                    (e.getCause() != null
-                                    && rootCause.getMessage().equals(e.getCause().getMessage()))
-                            || (e.getMessage() != null
-                                    && e.getMessage().contains(rootCause.getMessage()))
-                            || ExceptionUtils.findThrowable(
-                                            e, t -> rootCause.getMessage().equals(t.getMessage()))
-                                    .isPresent();
-            Assert.assertTrue(
-                    "Root cause '"
-                            + rootCause.getMessage()
-                            + "' should be visible in exception, got: "
-                            + e,
-                    rootCauseVisible);
+            assertThatThrownBy(
+                            () ->
+                                    downloader.transferAllStateDataToDirectory(
+                                            downloadRequests, new CloseableRegistry()))
+                    .isInstanceOf(IOException.class)
+                    .as("Root cause '%s' should be visible in exception", rootCause.getMessage())
+                    .satisfiesAnyOf(
+                            e -> assertThat(e).hasMessageContaining(rootCause.getMessage()),
+                            e ->
+                                    assertThat(ExceptionUtils.findThrowable(e, hasRootCauseMessage))
+                                            .isPresent());
         }
     }
 
@@ -317,7 +315,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
      * their failure point before any registry closure, so each failure is captured independently.
      */
     @Test
-    public void testMultipleDistinctFailuresMergedInMessage() throws Exception {
+    void testMultipleDistinctFailuresMergedInMessage() throws Exception {
         int n = 3;
         CyclicBarrier barrier = new CyclicBarrier(n);
         IOException causeA = new IOException("error-A: bucket not accessible");
@@ -339,29 +337,29 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                         handles.get(0).getHandle());
 
         try (RocksDBStateDownloader downloader = new RocksDBStateDownloader(n)) {
-            downloader.transferAllStateDataToDirectory(
-                    singletonList(
-                            new StateHandleDownloadSpec(
-                                    stateHandle, temporaryFolder.newFolder().toPath())),
-                    new CloseableRegistry());
-            fail("Expected IOException");
-        } catch (IOException e) {
-            Assert.assertTrue(
-                    "Expected merged error message, got: " + e.getMessage(),
-                    e.getMessage() != null
-                            && e.getMessage().contains("downloads failed with distinct errors"));
-            Assert.assertTrue(
-                    "Expected causeA in message", e.getMessage().contains(causeA.getMessage()));
-            Assert.assertTrue(
-                    "Expected causeB in message", e.getMessage().contains(causeB.getMessage()));
-            Assert.assertTrue(
-                    "Expected causeC in message", e.getMessage().contains(causeC.getMessage()));
+            assertThatThrownBy(
+                            () ->
+                                    downloader.transferAllStateDataToDirectory(
+                                            singletonList(
+                                                    new StateHandleDownloadSpec(
+                                                            stateHandle,
+                                                            TempDirUtils.newFolder(temporaryFolder)
+                                                                    .toPath())),
+                                            new CloseableRegistry()))
+                    .isInstanceOf(IOException.class)
+                    .as("Expected merged error message")
+                    .hasMessageContaining("downloads failed with distinct errors")
+                    .as("Expected causeA in message")
+                    .hasMessageContaining(causeA.getMessage())
+                    .as("Expected causeB in message")
+                    .hasMessageContaining(causeB.getMessage())
+                    .as("Expected causeC in message")
+                    .hasMessageContaining(causeC.getMessage());
         }
     }
 
-    private void assertStateContentEqual(byte[] expected, Path path) throws IOException {
-        byte[] actual = Files.readAllBytes(Paths.get(path.toUri()));
-        assertArrayEquals(expected, actual);
+    private void assertStateContentEqual(byte[] expected, Path path) {
+        assertThat(path).hasBinaryContent(expected);
     }
 
     /**

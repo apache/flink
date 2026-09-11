@@ -22,15 +22,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.execution.CancelTaskException;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.WriteOptions;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,17 +38,13 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.state.rocksdb.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests to guard {@link RocksDBWriteBatchWrapper}. */
-public class RocksDBWriteBatchWrapperTest {
+class RocksDBWriteBatchWrapperTest {
 
-    @Rule public TemporaryFolder folder = new TemporaryFolder();
-
-    @Test(expected = CancelTaskException.class)
-    public void testAsyncCancellation() throws Exception {
+    @Test
+    void testAsyncCancellation(@TempDir File folder) {
         final CompletableFuture<Void> writeStartedFuture = new CompletableFuture<>();
         final CompletableFuture<Void> cancellationRequestedFuture = new CompletableFuture<>();
         final CloseableRegistry registry = new CloseableRegistry();
@@ -69,56 +64,68 @@ public class RocksDBWriteBatchWrapperTest {
         final int cancellationCheckInterval = 1;
         long batchSizeBytes = WRITE_BATCH_SIZE.defaultValue().getBytes();
 
-        try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
-                WriteOptions options = new WriteOptions().setDisableWAL(true);
-                ColumnFamilyHandle handle =
-                        db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
-                RocksDBWriteBatchWrapper writeBatchWrapper =
-                        new RocksDBWriteBatchWrapper(
-                                db,
-                                options,
-                                capacity,
-                                batchSizeBytes,
-                                cancellationCheckInterval,
-                                batchSizeBytes)) {
-            registry.registerCloseable(writeBatchWrapper.getCancelCloseable());
-            // After the `writeStartedFuture` completes, the registry will start to close.
-            writeStartedFuture.complete(null);
+        assertThatThrownBy(
+                        () -> {
+                            try (RocksDB db = RocksDB.open(folder.getAbsolutePath());
+                                    WriteOptions options = new WriteOptions().setDisableWAL(true);
+                                    ColumnFamilyHandle handle =
+                                            db.createColumnFamily(
+                                                    new ColumnFamilyDescriptor("test".getBytes()));
+                                    RocksDBWriteBatchWrapper writeBatchWrapper =
+                                            new RocksDBWriteBatchWrapper(
+                                                    db,
+                                                    options,
+                                                    capacity,
+                                                    batchSizeBytes,
+                                                    cancellationCheckInterval,
+                                                    batchSizeBytes)) {
+                                registry.registerCloseable(writeBatchWrapper.getCancelCloseable());
+                                // After the `writeStartedFuture` completes, the registry will start
+                                // to close.
+                                writeStartedFuture.complete(null);
 
-            // In the infinite loop, we want to verify that the `put` method will check cancellation
-            // state on every `batch.count() % cancellationCheckInterval == 0`. We set
-            // cancellationCheckInterval to 1, So, we expect it will throw CancelTaskException
-            // no later than batch count becoming 2 in this test case.
-            //noinspection InfiniteLoopStatement
-            for (int i = 0; ; i++) {
-                try {
-                    writeBatchWrapper.put(
-                            handle, ("key:" + i).getBytes(), ("value:" + i).getBytes());
-                } catch (Exception e) {
-                    cancellationRequestedFuture.join(); // shouldn't have any errors
-                    throw e;
-                }
-                // make sure that cancellation is triggered earlier than periodic flush
-                // but allow some delay of cancellation propagation
-                assertThat(i).isLessThan(cancellationCheckInterval * 2);
-                if (i == 0) {
-                    // make sure the registry is closed at least after the first run, so that we
-                    // can verify the cancellation check is validating correctly.
-                    cancellationRequestedFuture.join();
-                }
-            }
-        }
+                                // In the infinite loop, we want to verify that the `put` method
+                                // will check cancellation state on every `batch.count() %
+                                // cancellationCheckInterval == 0`. We set cancellationCheckInterval
+                                // to 1, So, we expect it will throw CancelTaskException no later
+                                // than batch count becoming 2 in this test case.
+                                //noinspection InfiniteLoopStatement
+                                for (int i = 0; ; i++) {
+                                    try {
+                                        writeBatchWrapper.put(
+                                                handle,
+                                                ("key:" + i).getBytes(),
+                                                ("value:" + i).getBytes());
+                                    } catch (Exception e) {
+                                        // shouldn't have any errors
+                                        cancellationRequestedFuture.join();
+                                        throw e;
+                                    }
+                                    // make sure that cancellation is triggered earlier than
+                                    // periodic flush but allow some delay of cancellation
+                                    // propagation
+                                    assertThat(i).isLessThan(cancellationCheckInterval * 2);
+                                    if (i == 0) {
+                                        // make sure the registry is closed at least after the first
+                                        // run, so that we can verify the cancellation check is
+                                        // validating correctly.
+                                        cancellationRequestedFuture.join();
+                                    }
+                                }
+                            }
+                        })
+                .isInstanceOf(CancelTaskException.class);
     }
 
     @Test
-    public void basicTest() throws Exception {
+    void basicTest(@TempDir File folder) throws Exception {
 
         List<Tuple2<byte[], byte[]>> data = new ArrayList<>(10000);
         for (int i = 0; i < 10000; ++i) {
             data.add(new Tuple2<>(("key:" + i).getBytes(), ("value:" + i).getBytes()));
         }
 
-        try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+        try (RocksDB db = RocksDB.open(folder.getAbsolutePath());
                 WriteOptions options = new WriteOptions().setDisableWAL(true);
                 ColumnFamilyHandle handle =
                         db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
@@ -134,7 +141,7 @@ public class RocksDBWriteBatchWrapperTest {
 
             // valid result
             for (Tuple2<byte[], byte[]> item : data) {
-                Assert.assertArrayEquals(item.f1, db.get(handle, item.f0));
+                assertThat(db.get(handle, item.f0)).isEqualTo(item.f1);
             }
         }
     }
@@ -144,8 +151,8 @@ public class RocksDBWriteBatchWrapperTest {
      * preconfigured value.
      */
     @Test
-    public void testWriteBatchWrapperFlushAfterMemorySizeExceed() throws Exception {
-        try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+    void testWriteBatchWrapperFlushAfterMemorySizeExceed(@TempDir File folder) throws Exception {
+        try (RocksDB db = RocksDB.open(folder.getAbsolutePath());
                 WriteOptions options = new WriteOptions().setDisableWAL(true);
                 ColumnFamilyHandle handle =
                         db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
@@ -159,12 +166,12 @@ public class RocksDBWriteBatchWrapperTest {
             // format is [handleType|kvType|keyLen|key|valueLen|value]
             // more information please ref write_batch.cc in RocksDB
             writeBatchWrapper.put(handle, dummy, dummy);
-            assertEquals(initBatchSize + 16, writeBatchWrapper.getDataSize());
+            assertThat(writeBatchWrapper.getDataSize()).isEqualTo(initBatchSize + 16);
             writeBatchWrapper.put(handle, dummy, dummy);
-            assertEquals(initBatchSize + 32, writeBatchWrapper.getDataSize());
+            assertThat(writeBatchWrapper.getDataSize()).isEqualTo(initBatchSize + 32);
             writeBatchWrapper.put(handle, dummy, dummy);
             // will flush all, then an empty write batch
-            assertEquals(initBatchSize, writeBatchWrapper.getDataSize());
+            assertThat(writeBatchWrapper.getDataSize()).isEqualTo(initBatchSize);
         }
     }
 
@@ -173,8 +180,8 @@ public class RocksDBWriteBatchWrapperTest {
      * preconfigured value.
      */
     @Test
-    public void testWriteBatchWrapperFlushAfterCountExceed() throws Exception {
-        try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+    void testWriteBatchWrapperFlushAfterCountExceed(@TempDir File folder) throws Exception {
+        try (RocksDB db = RocksDB.open(folder.getAbsolutePath());
                 WriteOptions options = new WriteOptions().setDisableWAL(true);
                 ColumnFamilyHandle handle =
                         db.createColumnFamily(new ColumnFamilyDescriptor("test".getBytes()));
@@ -186,10 +193,10 @@ public class RocksDBWriteBatchWrapperTest {
             for (int i = 1; i < 100; ++i) {
                 writeBatchWrapper.put(handle, dummy, dummy);
                 // each kv consumes 8 bytes
-                assertEquals(initBatchSize + 8 * i, writeBatchWrapper.getDataSize());
+                assertThat(writeBatchWrapper.getDataSize()).isEqualTo(initBatchSize + 8 * i);
             }
             writeBatchWrapper.put(handle, dummy, dummy);
-            assertEquals(initBatchSize, writeBatchWrapper.getDataSize());
+            assertThat(writeBatchWrapper.getDataSize()).isEqualTo(initBatchSize);
         }
     }
 
@@ -198,16 +205,16 @@ public class RocksDBWriteBatchWrapperTest {
      * WAL and closes them correctly.
      */
     @Test
-    public void testDefaultWriteOptionsHaveDisabledWAL() throws Exception {
+    void testDefaultWriteOptionsHaveDisabledWAL(@TempDir File folder) throws Exception {
         WriteOptions options;
-        try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+        try (RocksDB db = RocksDB.open(folder.getAbsolutePath());
                 RocksDBWriteBatchWrapper writeBatchWrapper =
                         new RocksDBWriteBatchWrapper(db, null, 200, 50)) {
             options = writeBatchWrapper.getOptions();
-            assertTrue(options.isOwningHandle());
-            assertTrue(options.disableWAL());
+            assertThat(options.isOwningHandle()).isTrue();
+            assertThat(options.disableWAL()).isTrue();
         }
-        assertFalse(options.isOwningHandle());
+        assertThat(options.isOwningHandle()).isFalse();
     }
 
     /**
@@ -215,16 +222,16 @@ public class RocksDBWriteBatchWrapperTest {
      * not close them.
      */
     @Test
-    public void testNotClosingPassedInWriteOption() throws Exception {
+    void testNotClosingPassedInWriteOption(@TempDir File folder) throws Exception {
         try (WriteOptions passInOption = new WriteOptions().setDisableWAL(false)) {
-            try (RocksDB db = RocksDB.open(folder.newFolder().getAbsolutePath());
+            try (RocksDB db = RocksDB.open(folder.getAbsolutePath());
                     RocksDBWriteBatchWrapper writeBatchWrapper =
                             new RocksDBWriteBatchWrapper(db, passInOption, 200, 50)) {
                 WriteOptions options = writeBatchWrapper.getOptions();
-                assertTrue(options.isOwningHandle());
-                assertFalse(options.disableWAL());
+                assertThat(options.isOwningHandle()).isTrue();
+                assertThat(options.disableWAL()).isFalse();
             }
-            assertTrue(passInOption.isOwningHandle());
+            assertThat(passInOption.isOwningHandle()).isTrue();
         }
     }
 }

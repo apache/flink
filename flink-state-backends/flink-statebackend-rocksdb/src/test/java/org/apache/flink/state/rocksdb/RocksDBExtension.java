@@ -18,13 +18,13 @@
 
 package org.apache.flink.state.rocksdb;
 
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
@@ -39,7 +39,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -55,7 +56,7 @@ public class RocksDBExtension implements BeforeEachCallback, AfterEachCallback {
     private final boolean enableStatistics;
 
     /** Temporary folder that provides the working directory for the RocksDB instance. */
-    private TemporaryFolder temporaryFolder;
+    private Path temporaryFolder;
 
     /** The options for the RocksDB instance. */
     private DBOptions dbOptions;
@@ -169,9 +170,8 @@ public class RocksDBExtension implements BeforeEachCallback, AfterEachCallback {
     }
 
     public void before() throws Exception {
-        this.temporaryFolder = new TemporaryFolder();
-        this.temporaryFolder.create();
-        final File rocksFolder = temporaryFolder.newFolder();
+        this.temporaryFolder = Files.createTempDirectory("rocksdb-extension");
+        final Path rocksFolder = Files.createDirectory(temporaryFolder.resolve("db"));
         this.dbOptions =
                 optionsFactory
                         .createDBOptions(
@@ -195,7 +195,7 @@ public class RocksDBExtension implements BeforeEachCallback, AfterEachCallback {
         this.rocksDB =
                 RocksDB.open(
                         dbOptions,
-                        rocksFolder.getAbsolutePath(),
+                        rocksFolder.toAbsolutePath().toString(),
                         Collections.singletonList(
                                 new ColumnFamilyDescriptor(
                                         "default".getBytes(), columnFamilyOptions)),
@@ -215,7 +215,7 @@ public class RocksDBExtension implements BeforeEachCallback, AfterEachCallback {
         IOUtils.closeQuietly(this.columnFamilyOptions);
         IOUtils.closeQuietly(this.dbOptions);
         handlesToClose.forEach(IOUtils::closeQuietly);
-        temporaryFolder.delete();
+        FileUtils.deleteDirectoryQuietly(temporaryFolder.toFile());
     }
 
     @Override
