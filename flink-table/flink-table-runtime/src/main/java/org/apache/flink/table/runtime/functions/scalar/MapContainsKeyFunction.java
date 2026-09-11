@@ -76,6 +76,7 @@ public class MapContainsKeyFunction extends BuiltInScalarFunction {
                     return true;
                 }
             }
+            return false;
         }
         for (int pos = 0; pos < size; pos++) {
             final Object key = keyElementGetter.getElementOrNull(keys, pos);
