@@ -53,6 +53,47 @@ public class DoubleAccumulatorTest {
         assertThat(dataSkew.getValue()).isEqualTo(0.0);
     }
 
+    @Test
+    public void testPercentile() {
+        // Sample: 10, 20, ..., 100 (N=10). commons-math3 LEGACY interpolation uses
+        // pos = percentile * (N + 1) / 100:
+        //   p50 -> pos = 5.5  -> 50 + 0.5 * (60 - 50) = 55
+        //   p90 -> pos = 9.9  -> 90 + 0.9 * (100 - 90) = 99
+        //   p99 -> pos = 10.89 -> pos >= N, clamped to max = 100
+        assertThat(percentileOf(DoubleAccumulator.DoublePercentileFactory.p50()).getValue())
+                .isCloseTo(55.0, within(0.001));
+        assertThat(percentileOf(DoubleAccumulator.DoublePercentileFactory.p90()).getValue())
+                .isCloseTo(99.0, within(0.001));
+        assertThat(percentileOf(DoubleAccumulator.DoublePercentileFactory.p99()).getValue())
+                .isCloseTo(100.0, within(0.001));
+    }
+
+    @Test
+    public void testPercentileOnSingleValueList() {
+        DoubleAccumulator.DoublePercentile percentile =
+                DoubleAccumulator.DoublePercentileFactory.p90().get(42.0);
+        assertThat(percentile.getValue()).isEqualTo(42.0);
+    }
+
+    @Test
+    public void testPercentileName() {
+        assertThat(DoubleAccumulator.DoublePercentileFactory.p50().get(1.0).getName())
+                .isEqualTo("p50");
+        assertThat(DoubleAccumulator.DoublePercentileFactory.p90().get(1.0).getName())
+                .isEqualTo("p90");
+        assertThat(DoubleAccumulator.DoublePercentileFactory.p99().get(1.0).getName())
+                .isEqualTo("p99");
+    }
+
+    private static DoubleAccumulator.DoublePercentile percentileOf(
+            DoubleAccumulator.DoublePercentileFactory factory) {
+        DoubleAccumulator.DoublePercentile percentile = factory.get(10.0);
+        for (double value : new double[] {20, 30, 40, 50, 60, 70, 80, 90, 100}) {
+            percentile.add(value);
+        }
+        return percentile;
+    }
+
     private static Stream<Arguments> dataSkewTests() {
         // Data set, followed by the expected data skew percentage
         return Stream.of(
