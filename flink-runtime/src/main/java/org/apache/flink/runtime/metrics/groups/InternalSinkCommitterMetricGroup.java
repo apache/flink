@@ -44,12 +44,14 @@ public class InternalSinkCommitterMetricGroup extends ProxyMetricGroup<MetricGro
     InternalSinkCommitterMetricGroup(
             MetricGroup parentMetricGroup, OperatorIOMetricGroup operatorIOMetricGroup) {
         super(parentMetricGroup);
-        numCommittablesTotal = parentMetricGroup.counter(MetricNames.TOTAL_COMMITTABLES);
-        numCommittablesFailure = parentMetricGroup.counter(MetricNames.FAILED_COMMITTABLES);
-        numCommittablesRetry = parentMetricGroup.counter(MetricNames.RETRIED_COMMITTABLES);
-        numCommitatblesSuccess = parentMetricGroup.counter(MetricNames.SUCCESSFUL_COMMITTABLES);
+        numCommittablesTotal = parentMetricGroup.monotonicCounter(MetricNames.TOTAL_COMMITTABLES);
+        numCommittablesFailure =
+                parentMetricGroup.monotonicCounter(MetricNames.FAILED_COMMITTABLES);
+        numCommittablesRetry = parentMetricGroup.monotonicCounter(MetricNames.RETRIED_COMMITTABLES);
+        numCommitatblesSuccess =
+                parentMetricGroup.monotonicCounter(MetricNames.SUCCESSFUL_COMMITTABLES);
         numCommitatblesAlreadyCommitted =
-                parentMetricGroup.counter(MetricNames.ALREADY_COMMITTED_COMMITTABLES);
+                parentMetricGroup.monotonicCounter(MetricNames.ALREADY_COMMITTED_COMMITTABLES);
 
         this.operatorIOMetricGroup = operatorIOMetricGroup;
     }

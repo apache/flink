@@ -56,7 +56,7 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
             OperatorIOMetricGroup operatorIOMetricGroup,
             Clock clock) {
         super(parentMetricGroup);
-        numRecordsInErrors = parentMetricGroup.counter(MetricNames.NUM_RECORDS_IN_ERRORS);
+        numRecordsInErrors = parentMetricGroup.monotonicCounter(MetricNames.NUM_RECORDS_IN_ERRORS);
         this.operatorIOMetricGroup = operatorIOMetricGroup;
         this.clock = clock;
         parentMetricGroup.gauge(MetricNames.SOURCE_IDLE_TIME, this::getIdleTime);

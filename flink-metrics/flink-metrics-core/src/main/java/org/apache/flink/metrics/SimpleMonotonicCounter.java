@@ -16,45 +16,46 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.util;
+package org.apache.flink.metrics;
 
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.UpDownCounter;
+import org.apache.flink.annotation.Internal;
 
-/** A dummy {@link Counter} implementation. */
-public class TestCounter implements UpDownCounter {
-    private long countValue;
+/**
+ * A simple low-overhead {@link MonotonicCounter} that is not thread-safe.
+ *
+ * <p>It behaves like {@link SimpleCounter} for {@link #inc()} / {@link #inc(long)} / {@link
+ * #getCount()}, and rejects {@link #dec()} / {@link #dec(long)} per the {@link MonotonicCounter}
+ * contract.
+ */
+@Internal
+public class SimpleMonotonicCounter implements MonotonicCounter {
 
-    public TestCounter() {
-        this.countValue = 0;
-    }
+    /** the current count. */
+    private long count;
 
-    public TestCounter(long countValue) {
-        this.countValue = countValue;
-    }
-
+    /** Increment the current count by 1. */
     @Override
     public void inc() {
-        countValue++;
+        count++;
     }
 
+    /**
+     * Increment the current count by the given value.
+     *
+     * @param n value to increment the current count by
+     */
     @Override
     public void inc(long n) {
-        countValue += n;
+        count += n;
     }
 
-    @Override
-    public void dec() {
-        countValue--;
-    }
-
-    @Override
-    public void dec(long n) {
-        countValue -= n;
-    }
-
+    /**
+     * Returns the current count.
+     *
+     * @return current count
+     */
     @Override
     public long getCount() {
-        return countValue;
+        return count;
     }
 }

@@ -22,9 +22,9 @@ package org.apache.flink.runtime.scheduler.adaptivebatch;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.UpDownCounter;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -80,7 +80,7 @@ public class DefaultSpeculativeExecutionHandler
 
     private long numSlowExecutionVertices;
 
-    private final Counter numEffectiveSpeculativeExecutionsCounter;
+    private final UpDownCounter numEffectiveSpeculativeExecutionsCounter;
 
     private final Function<ExecutionVertexID, ExecutionVertex> executionVertexRetriever;
 

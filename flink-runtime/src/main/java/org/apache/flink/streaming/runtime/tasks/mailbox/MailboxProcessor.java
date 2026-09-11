@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
@@ -126,7 +126,7 @@ public class MailboxProcessor implements Closeable {
                 mailbox,
                 actionExecutor,
                 new MailboxMetricsController(
-                        new DescriptiveStatisticsHistogram(10), new SimpleCounter()));
+                        new DescriptiveStatisticsHistogram(10), new SimpleMonotonicCounter()));
     }
 
     public MailboxProcessor(

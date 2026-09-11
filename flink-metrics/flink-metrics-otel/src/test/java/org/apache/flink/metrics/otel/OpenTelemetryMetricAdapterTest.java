@@ -59,7 +59,7 @@ public class OpenTelemetryMetricAdapterTest {
     public void testCounter() {
         Optional<MetricData> metricData =
                 OpenTelemetryMetricAdapter.convertCounter(
-                        METADATA, 50L, 3L, new MetricMetadata("foo.bar.count", VARIABLES));
+                        METADATA, 50L, 3L, new MetricMetadata("foo.bar.count", VARIABLES), true);
 
         assertThat(metricData.isPresent()).isTrue();
         assertThat(metricData.get().getName()).isEqualTo("foo.bar.count");
@@ -75,6 +75,31 @@ public class OpenTelemetryMetricAdapterTest {
         assertThat(metricData.get().getLongGaugeData()).isEqualTo(ImmutableGaugeData.empty());
         assertThat(metricData.get().getDoubleGaugeData()).isEqualTo(ImmutableGaugeData.empty());
         assertThat(metricData.get().getHistogramData()).isEqualTo(ImmutableHistogramData.empty());
+    }
+
+    @Test
+    public void testMonotonicCounterDropsNegativeDelta() {
+        // A monotonic counter should never decrease; a negative delta is treated as an
+        // anomaly (e.g. an unexpected reset) and dropped.
+        Optional<MetricData> metricData =
+                OpenTelemetryMetricAdapter.convertCounter(
+                        METADATA, 3L, 50L, new MetricMetadata("foo.bar.count", VARIABLES), true);
+
+        assertThat(metricData).isEmpty();
+    }
+
+    @Test
+    public void testNonMonotonicCounterKeepsNegativeDelta() {
+        // A non-monotonic counter may legitimately decrease, so a negative delta is reported
+        // and the resulting sum is marked non-monotonic.
+        Optional<MetricData> metricData =
+                OpenTelemetryMetricAdapter.convertCounter(
+                        METADATA, 3L, 50L, new MetricMetadata("foo.bar.count", VARIABLES), false);
+
+        assertThat(metricData.isPresent()).isTrue();
+        assertThat(metricData.get().getLongSumData().isMonotonic()).isEqualTo(false);
+        LongPointData data = metricData.get().getLongSumData().getPoints().iterator().next();
+        assertThat(data.getValue()).isEqualTo(-47L);
     }
 
     @Test
