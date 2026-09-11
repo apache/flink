@@ -285,13 +285,11 @@ arithmetic:
   - sql: UUID_V4()
     table: uuidV4()
     description: |
-      Returns a random RFC 9562 version 4 UUID value. The UUID is generated using a
-      cryptographically strong pseudo random number generator.
+      返回一个符合 RFC 9562 的版本 4 随机 UUID 值。该 UUID 使用密码学安全的伪随机数生成器生成。
   - sql: UUID_V7()
     table: uuidV7()
     description: |
-      Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current
-      timestamp and a random component.
+      返回一个符合 RFC 9562 的、按时间排序的版本 7 UUID 值，由当前时间戳和随机分量生成。
   - sql: BIN(INT)
     table: INT.bin()
     description: |

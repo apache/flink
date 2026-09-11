@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.functions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.UuidType;
 
+import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.UUID;
 
@@ -34,26 +35,13 @@ public final class UuidGenerationUtils {
 
     private UuidGenerationUtils() {}
 
-    /**
-     * Generates a random RFC 9562 version 4 {@code UUID}.
-     *
-     * <p>Fills the bytes directly rather than via {@link UUID#randomUUID()}. The internal
-     * representation is already a {@code byte[]}, so this avoids an extra round-trip through a
-     * {@link UUID} object.
-     */
+    /** Generates a random RFC 9562 version 4 {@code UUID}. */
     public static byte[] generateV4() {
-        final byte[] bytes = new byte[UuidType.BYTE_LENGTH];
-        SECURE_RANDOM.nextBytes(bytes);
-
-        // set the version to 4
-        bytes[6] &= 0x0F;
-        bytes[6] |= 0x40;
-
-        // set the variant to IETF
-        bytes[8] &= 0x3F;
-        bytes[8] |= (byte) 0x80;
-
-        return bytes;
+        final UUID uuid = UUID.randomUUID();
+        final ByteBuffer buffer = ByteBuffer.allocate(UuidType.BYTE_LENGTH);
+        buffer.putLong(uuid.getMostSignificantBits());
+        buffer.putLong(uuid.getLeastSignificantBits());
+        return buffer.array();
     }
 
     /**

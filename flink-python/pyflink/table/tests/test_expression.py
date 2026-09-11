@@ -30,7 +30,7 @@ from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date
                                        rand, rand_integer, atan2, negative, concat, concat_ws, uuid,
                                        null_of, log, if_then_else, with_columns, call,
                                        to_timestamp_ltz, from_unixtime, to_date, to_timestamp,
-                                       convert_tz, unix_timestamp)
+                                       convert_tz, unix_timestamp, uuid_v4, uuid_v7)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -375,6 +375,8 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('concat(a, b, c)', str(concat(expr1, expr2, expr3)))
         self.assertEqual("concat_ws(', ', b, c)", str(concat_ws(', ', expr2, expr3)))
         self.assertEqual('uuid()', str(uuid()))
+        self.assertEqual('UUID_V4()', str(uuid_v4()))
+        self.assertEqual('UUID_V7()', str(uuid_v7()))
         self.assertEqual('null', str(null_of(DataTypes.BIGINT())))
         self.assertEqual('log(a)', str(log(expr1)))
         self.assertEqual('ifThenElse(a, b, c)', str(if_then_else(expr1, expr2, expr3)))
