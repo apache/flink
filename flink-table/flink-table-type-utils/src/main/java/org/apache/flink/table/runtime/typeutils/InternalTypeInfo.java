@@ -194,7 +194,19 @@ public final class InternalTypeInfo<T> extends TypeInformation<T> implements Dat
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public TypeSerializer<T> createSerializer(SerializerConfig config) {
+        if (config != null
+                && config.isStateSchemaEvolutionEnabled()
+                && typeSerializer instanceof RowDataSerializer) {
+            // The cached instance is shared by every use of this type information, so the opt-in
+            // is recorded on a copy rather than in place. The copy goes to every caller, not only
+            // to state registration, so with the option on this method stops handing out the
+            // shared instance for row types; callers compare serializers by equality, which
+            // neither evolution flag affects.
+            return (TypeSerializer<T>)
+                    ((RowDataSerializer) typeSerializer).withSchemaEvolutionAllowed();
+        }
         return typeSerializer;
     }
 
