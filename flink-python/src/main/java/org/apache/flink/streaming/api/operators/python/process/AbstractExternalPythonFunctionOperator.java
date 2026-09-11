@@ -27,6 +27,7 @@ import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
 import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
@@ -55,19 +56,35 @@ public abstract class AbstractExternalPythonFunctionOperator<OUT>
         super.open();
         this.pythonFunctionRunner = createPythonFunctionRunner();
         this.pythonFunctionRunner.open(config);
-        this.flushThreadPool = Executors.newSingleThreadExecutor();
+        this.flushThreadPool =
+                Executors.newSingleThreadExecutor(
+                        new ExecutorThreadFactory("beam-python-bundle-flush"));
     }
 
     @Override
     public void close() throws Exception {
+        final PythonFunctionRunner functionRunner = pythonFunctionRunner;
+        final ExecutorService currentFlushThreadPool = flushThreadPool;
+        final boolean canceling =
+                getContainingTask().isCanceled() || getContainingTask().isFailing();
         try {
-            if (pythonFunctionRunner != null) {
-                pythonFunctionRunner.close();
+            if (canceling && currentFlushThreadPool != null) {
+                currentFlushThreadPool.shutdownNow();
+            }
+
+            if (functionRunner != null) {
+                if (canceling) {
+                    functionRunner.cancel();
+                } else {
+                    functionRunner.close();
+                }
                 pythonFunctionRunner = null;
             }
 
-            if (flushThreadPool != null) {
-                flushThreadPool.shutdown();
+            if (currentFlushThreadPool != null) {
+                if (!canceling) {
+                    currentFlushThreadPool.shutdown();
+                }
                 flushThreadPool = null;
             }
         } finally {
@@ -78,24 +95,25 @@ public abstract class AbstractExternalPythonFunctionOperator<OUT>
     @Override
     protected void invokeFinishBundle() throws Exception {
         if (elementCount > 0) {
+            final PythonFunctionRunner functionRunner = pythonFunctionRunner;
             AtomicBoolean flushThreadFinish = new AtomicBoolean(false);
             AtomicReference<Throwable> exceptionReference = new AtomicReference<>();
             flushThreadPool.submit(
                     () -> {
                         try {
-                            pythonFunctionRunner.flush();
+                            functionRunner.flush();
                         } catch (Throwable e) {
                             exceptionReference.set(e);
                         } finally {
                             flushThreadFinish.set(true);
                             // interrupt the progress of takeResult to avoid the main thread is
                             // blocked forever.
-                            ((BeamPythonFunctionRunner) pythonFunctionRunner).notifyNoMoreResults();
+                            ((BeamPythonFunctionRunner) functionRunner).notifyNoMoreResults();
                         }
                     });
             Tuple3<String, byte[], Integer> resultTuple;
             while (!flushThreadFinish.get()) {
-                resultTuple = pythonFunctionRunner.takeResult();
+                resultTuple = functionRunner.takeResult();
                 if (resultTuple.f2 != 0) {
                     emitResult(resultTuple);
                     emitResults();
