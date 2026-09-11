@@ -1713,6 +1713,26 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(explicit(DataTypes.CHAR(36).notNull()))
                     .build();
 
+    public static final BuiltInFunctionDefinition UUID_V4 =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("UUID_V4")
+                    .kind(SCALAR)
+                    .notDeterministic()
+                    .inputTypeStrategy(NO_ARGS)
+                    .outputTypeStrategy(explicit(DataTypes.UUID().notNull()))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.UuidV4Function")
+                    .build();
+
+    public static final BuiltInFunctionDefinition UUID_V7 =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("UUID_V7")
+                    .kind(SCALAR)
+                    .notDeterministic()
+                    .inputTypeStrategy(NO_ARGS)
+                    .outputTypeStrategy(explicit(DataTypes.UUID().notNull()))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.UuidV7Function")
+                    .build();
+
     public static final BuiltInFunctionDefinition LTRIM =
             BuiltInFunctionDefinition.newBuilder()
                     .name("ltrim")
