@@ -35,12 +35,14 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.state.api.filter.SavepointKeyFilter;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
+import org.apache.flink.state.api.functions.WindowKeyedStateReaderFunction;
 import org.apache.flink.state.api.input.BroadcastStateInputFormat;
 import org.apache.flink.state.api.input.KeyedStateInputFormat;
 import org.apache.flink.state.api.input.ListStateInputFormat;
 import org.apache.flink.state.api.input.SourceBuilder;
 import org.apache.flink.state.api.input.UnionStateInputFormat;
 import org.apache.flink.state.api.input.operator.KeyedStateReaderOperator;
+import org.apache.flink.state.api.input.operator.WindowKeyedStateReaderOperator;
 import org.apache.flink.state.api.runtime.MutableConfig;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadataV2;
@@ -55,6 +57,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Comparator;
+import java.util.List;
 
 /** The entry point for reading state from a Flink savepoint. */
 @PublicEvolving
@@ -438,6 +441,51 @@ public class SavepointReader {
                         stateBackend,
                         MutableConfig.of(env.getConfiguration()),
                         new KeyedStateReaderOperator<>(function, keyTypeInfo),
+                        env.getConfig(),
+                        keyFilter);
+
+        return SourceBuilder.fromFormat(env, inputFormat, outTypeInfo);
+    }
+
+    /**
+     * Read state registered under an arbitrary namespace (e.g. a window operator's window-scoped
+     * state) from an operator in a {@code Savepoint}.
+     *
+     * @param identifier The identifier of the operator.
+     * @param function The {@link WindowKeyedStateReaderFunction} that is called for each (key,
+     *     namespace) pair in state.
+     * @param keyTypeInfo The type information of the key in state.
+     * @param namespaceSerializer The serializer of the namespace under which the state is
+     *     registered (e.g. a window serializer).
+     * @param stateNames The names of the namespaced states to read (key, namespace) pairs from.
+     * @param outTypeInfo The type information of the output of the transform reader function.
+     * @param keyFilter Optional filter on the state key. When present, input splits whose key
+     *     groups cannot contain any matching key are skipped, and within each split only matching
+     *     keys are iterated.
+     * @param <K> The type of the key in state.
+     * @param <OUT> The output type of the transform function.
+     * @return A {@code DataStream} of objects read from namespaced keyed state.
+     * @throws IOException If the savepoint does not contain operator state with the given uid.
+     */
+    @Experimental
+    public <K, OUT> DataStream<OUT> readWindowKeyedState(
+            OperatorIdentifier identifier,
+            WindowKeyedStateReaderFunction<K, OUT> function,
+            TypeInformation<K> keyTypeInfo,
+            TypeSerializer<Object> namespaceSerializer,
+            List<String> stateNames,
+            TypeInformation<OUT> outTypeInfo,
+            @Nullable SavepointKeyFilter<K> keyFilter)
+            throws IOException {
+
+        OperatorState operatorState = metadata.getOperatorState(identifier);
+        KeyedStateInputFormat<K, Object, OUT> inputFormat =
+                new KeyedStateInputFormat<>(
+                        operatorState,
+                        stateBackend,
+                        MutableConfig.of(env.getConfiguration()),
+                        new WindowKeyedStateReaderOperator<>(
+                                function, keyTypeInfo, namespaceSerializer, stateNames),
                         env.getConfig(),
                         keyFilter);
 

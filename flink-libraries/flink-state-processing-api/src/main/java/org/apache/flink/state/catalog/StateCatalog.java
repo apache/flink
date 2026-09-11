@@ -111,6 +111,8 @@ public class StateCatalog extends AbstractCatalog {
     public static final String OPERATOR_ID_PREFIX = "id_";
     public static final String OPERATOR_TABLE_SUFFIX = "_keyed";
     public static final String FLAT_STATE_TABLE_SUFFIX = "_keyed_flat";
+    public static final String WINDOW_TABLE_SUFFIX = "_windowed";
+    public static final String FLAT_WINDOW_TABLE_SUFFIX = "_windowed_flat";
 
     private static final CatalogDatabase EMPTY_DATABASE =
             new CatalogDatabaseImpl(Collections.emptyMap(), "");
@@ -296,6 +298,29 @@ public class StateCatalog extends AbstractCatalog {
                                 StateTableUtils.getKeyedStateSchema(
                                         metadata, resolved.operatorIdentifier);
                         return StateTableUtils.getFlattenedStateCatalogTable(
+                                metadata,
+                                schemaInfo,
+                                resolved.stateName,
+                                snapshotPath.get(),
+                                resolved.operatorIdentifier);
+                    }
+                case WINDOWED:
+                    {
+                        KeyedStateSchemaInfo schemaInfo =
+                                StateTableUtils.getWindowKeyedStateSchema(
+                                        metadata, resolved.operatorIdentifier);
+                        return StateTableUtils.getWindowStateCatalogTable(
+                                metadata,
+                                schemaInfo,
+                                snapshotPath.get(),
+                                resolved.operatorIdentifier);
+                    }
+                case WINDOWED_FLAT:
+                    {
+                        KeyedStateSchemaInfo schemaInfo =
+                                StateTableUtils.getWindowKeyedStateSchema(
+                                        metadata, resolved.operatorIdentifier);
+                        return StateTableUtils.getFlattenedWindowStateCatalogTable(
                                 metadata,
                                 schemaInfo,
                                 resolved.stateName,
@@ -597,7 +622,8 @@ public class StateCatalog extends AbstractCatalog {
 
     /**
      * Table name for a {@code kind} of operator state, optionally scoped to one flattened/non-keyed
-     * state (see {@link #OPERATOR_TABLE_SUFFIX}/{@link #FLAT_STATE_TABLE_SUFFIX}).
+     * state (see {@link #OPERATOR_TABLE_SUFFIX}/{@link #FLAT_STATE_TABLE_SUFFIX}/{@link
+     * #WINDOW_TABLE_SUFFIX}/{@link #FLAT_WINDOW_TABLE_SUFFIX}).
      *
      * <p>{@code stateName} must be {@code null} for {@link StateReaderMode#KEYED}/{@link
      * StateReaderMode#WINDOWED} (the general keyed/namespaced table, one per operator) and non-null
@@ -608,7 +634,9 @@ public class StateCatalog extends AbstractCatalog {
     private static final Map<StateReaderMode, String> TABLE_SUFFIXES =
             Map.of(
                     StateReaderMode.KEYED, OPERATOR_TABLE_SUFFIX,
-                    StateReaderMode.KEYED_FLAT, FLAT_STATE_TABLE_SUFFIX);
+                    StateReaderMode.KEYED_FLAT, FLAT_STATE_TABLE_SUFFIX,
+                    StateReaderMode.WINDOWED, WINDOW_TABLE_SUFFIX,
+                    StateReaderMode.WINDOWED_FLAT, FLAT_WINDOW_TABLE_SUFFIX);
 
     static String tableName(
             OperatorIdentifier opId, StateReaderMode kind, @Nullable String stateName) {
@@ -673,8 +701,9 @@ public class StateCatalog extends AbstractCatalog {
     }
 
     /**
-     * Enumerates every table that {@code opId} contributes: the general keyed table (if any plain
-     * per-key state is registered), plus one flattened table per LIST/MAP keyed state.
+     * Enumerates every table that {@code opId} contributes: the general keyed/window table (if any
+     * plain per-key/namespaced state is registered), plus one flattened table per LIST/MAP keyed or
+     * window state.
      *
      * <p>Shared by {@link #listTables} (which collects names for every candidate) and {@link
      * #resolveTable} (which matches candidates against a target name), so that adding a new state
@@ -693,6 +722,20 @@ public class StateCatalog extends AbstractCatalog {
                 if (stateType == StateType.LIST || stateType == StateType.MAP) {
                     candidates.add(
                             new ResolvedTable(opId, StateReaderMode.KEYED_FLAT, entry.getKey()));
+                }
+            }
+        }
+
+        KeyedStateSchemaInfo windowSchemaInfo =
+                StateTableUtils.getWindowKeyedStateSchema(metadata, opId);
+        if (!windowSchemaInfo.stateSchemas.isEmpty()) {
+            candidates.add(new ResolvedTable(opId, StateReaderMode.WINDOWED));
+            for (Map.Entry<String, KeyedStateSchemaInfo.StateEntryInfo> entry :
+                    windowSchemaInfo.stateSchemas.entrySet()) {
+                StateType stateType = entry.getValue().stateType;
+                if (stateType == StateType.LIST || stateType == StateType.MAP) {
+                    candidates.add(
+                            new ResolvedTable(opId, StateReaderMode.WINDOWED_FLAT, entry.getKey()));
                 }
             }
         }
