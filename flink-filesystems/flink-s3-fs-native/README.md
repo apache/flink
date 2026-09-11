@@ -6,6 +6,12 @@ This module provides a native S3 filesystem implementation for Apache Flink usin
 
 The Native S3 FileSystem is a direct implementation of Flink's FileSystem interface using AWS SDK v2, without Hadoop dependencies. It provides exactly-once semantics for checkpointing and file sinks through S3 multipart uploads.
 
+### Cleaning Up Unfinished Uploads
+
+Flink keeps unfinished S3 uploads that may be needed to restore a job from a checkpoint or savepoint. These uploads can remain after a job stops if it is never restored.
+
+To clean up unused uploads, configure an S3 lifecycle rule for incomplete multipart uploads. Choose a retention period long enough for uploads to finish and for jobs to recover, including any planned downtime. S3 measures this period from when an upload starts. Cleaning up uploads too soon can prevent recovery from older checkpoints or savepoints. This rule does not remove other temporary files. See the [S3-specific FileSink guidance](../../docs/content/docs/connectors/datastream/filesystem.md#s3-specific).
+
 ## Supported URI Schemes
 
 This module supports both `s3://` and `s3a://` URI schemes:

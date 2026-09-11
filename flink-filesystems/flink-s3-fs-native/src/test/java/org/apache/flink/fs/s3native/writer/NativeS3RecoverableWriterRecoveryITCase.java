@@ -26,14 +26,20 @@ import org.apache.flink.fs.s3native.NativeS3FileSystemFactory;
 import org.apache.flink.fs.s3native.SeaweedFsNativeS3TestContainer;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import software.amazon.awssdk.services.s3.model.MultipartUpload;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -77,6 +83,7 @@ class NativeS3RecoverableWriterRecoveryITCase {
     private String bucket;
     private String key;
     private SeaweedFsNativeS3Operations s3;
+    private final List<NativeS3Recoverable> recoverables = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -90,7 +97,28 @@ class NativeS3RecoverableWriterRecoveryITCase {
     }
 
     private NativeS3RecoverableWriter writer() {
-        return NativeS3RecoverableWriter.writer(s3, tmp.toString(), MIN_PART_SIZE, 1);
+        return writer(s3);
+    }
+
+    private NativeS3RecoverableWriter writer(NativeS3ObjectOperations operations) {
+        return NativeS3RecoverableWriter.writer(operations, tmp.toString(), MIN_PART_SIZE, 1);
+    }
+
+    @AfterEach
+    void cleanUpRemoteState() throws IOException {
+        for (MultipartUpload upload :
+                getContainer()
+                        .getClient()
+                        .listMultipartUploads(request -> request.bucket(bucket))
+                        .uploads()) {
+            if (key.equals(upload.key())) {
+                s3.abortMultiPartUpload(key, upload.uploadId());
+            }
+        }
+        for (NativeS3Recoverable recoverable : recoverables) {
+            writer().cleanupRecoverableState(recoverable);
+        }
+        s3.removeObject(key);
     }
 
     private Path targetPath() {
@@ -109,8 +137,13 @@ class NativeS3RecoverableWriterRecoveryITCase {
         final RecoverableFsDataOutputStream out = writer1.open(targetPath());
         out.write(bytes('A', PART), 0, PART);
         final NativeS3Recoverable r = (NativeS3Recoverable) out.persist();
+        recoverables.add(r);
         assertThat(r.incompleteObjectName()).as("no tail => no side object").isNull();
         assertThat(s3.listKeys(incompletePrefix(r.uploadId()))).isEmpty();
+
+        out.close();
+        assertThat(countLocalFilesIn(tmp)).isZero();
+        assertUploadAvailable(r);
 
         final NativeS3RecoverableWriter writer2 = writer();
         final RecoverableFsDataOutputStream resumed = writer2.recover(r);
@@ -130,9 +163,14 @@ class NativeS3RecoverableWriterRecoveryITCase {
         out.write(bytes('A', PART), 0, PART);
         out.write(bytes('E', 5), 0, 5);
         final NativeS3Recoverable r = (NativeS3Recoverable) out.persist();
+        recoverables.add(r);
         assertThat(r.incompleteObjectName()).as("tail written => side object expected").isNotNull();
         assertThat(s3.listKeys(incompletePrefix(r.uploadId())))
                 .containsExactly(r.incompleteObjectName());
+
+        out.close();
+        assertThat(countLocalFilesIn(tmp)).isZero();
+        assertUploadAvailable(r);
 
         final NativeS3RecoverableWriter writer2 = writer();
         final RecoverableFsDataOutputStream resumed = writer2.recover(r);
@@ -141,6 +179,127 @@ class NativeS3RecoverableWriterRecoveryITCase {
 
         assertContentEquals(
                 s3.readObject(key), concat(bytes('A', PART), bytes('E', 5), bytes('C', 10)));
+    }
+
+    @Test
+    void recoverAfterDisposingRecoveredStream() throws Exception {
+        final NativeS3Recoverable recoverable;
+        try (RecoverableFsDataOutputStream out = writer().open(targetPath())) {
+            out.write(bytes('A', PART));
+            out.write(bytes('B', 3));
+            recoverable = persistAndTrack(out);
+        }
+
+        writer().recover(recoverable).close();
+
+        assertThat(countLocalFilesIn(tmp)).isZero();
+        assertUploadAvailable(recoverable);
+        try (RecoverableFsDataOutputStream recovered = writer().recover(recoverable)) {
+            recovered.write(bytes('C', 10));
+            recovered.closeForCommit().commit();
+        }
+        assertContentEquals(
+                s3.readObject(key), concat(bytes('A', PART), bytes('B', 3), bytes('C', 10)));
+    }
+
+    @Test
+    void unpersistedUploadIsAbortedOnCloseForCommitFailure() throws Exception {
+        final AtomicBoolean failUpload = new AtomicBoolean();
+        try (RecoverableFsDataOutputStream out =
+                writer(failingUploadOperations(failUpload)).open(targetPath())) {
+            out.write(bytes('A', PART));
+            final MultipartUpload upload =
+                    getContainer()
+                            .getClient()
+                            .listMultipartUploads(request -> request.bucket(bucket))
+                            .uploads()
+                            .stream()
+                            .filter(candidate -> key.equals(candidate.key()))
+                            .findFirst()
+                            .orElseThrow(
+                                    () ->
+                                            new AssertionError(
+                                                    "The upload must exist before cleanup"));
+            assertUploadAvailable(upload.uploadId());
+            out.write(bytes('B', 7));
+
+            failUpload.set(true);
+            assertThatThrownBy(out::closeForCommit)
+                    .isInstanceOf(IOException.class)
+                    .hasMessageContaining("injected final-part upload failure");
+
+            assertThat(
+                            getContainer()
+                                    .getClient()
+                                    .listMultipartUploads(request -> request.bucket(bucket))
+                                    .uploads())
+                    .extracting(MultipartUpload::key)
+                    .doesNotContain(key);
+            assertThat(countLocalFilesIn(tmp)).isZero();
+        }
+    }
+
+    @Test
+    void recoverAfterCloseForCommitFailure() throws Exception {
+        final AtomicBoolean failUpload = new AtomicBoolean();
+        final NativeS3Recoverable recoverable;
+        try (RecoverableFsDataOutputStream out =
+                writer(failingUploadOperations(failUpload)).open(targetPath())) {
+            out.write(bytes('A', PART));
+            out.write(bytes('B', 3));
+            recoverable = persistAndTrack(out);
+            out.write(bytes('X', 7));
+            failUpload.set(true);
+
+            assertThatThrownBy(out::closeForCommit)
+                    .isInstanceOf(IOException.class)
+                    .hasMessageContaining("injected final-part upload failure");
+        }
+
+        assertThat(countLocalFilesIn(tmp)).isZero();
+        assertUploadAvailable(recoverable);
+        try (RecoverableFsDataOutputStream recovered = writer().recover(recoverable)) {
+            recovered.write(bytes('C', 10));
+            recovered.closeForCommit().commit();
+        }
+        assertContentEquals(
+                s3.readObject(key), concat(bytes('A', PART), bytes('B', 3), bytes('C', 10)));
+    }
+
+    private NativeS3ObjectOperations failingUploadOperations(AtomicBoolean failUpload) {
+        return new NativeS3ObjectOperations(getContainer().getClient(), bucket) {
+            @Override
+            public UploadPartResult uploadPart(
+                    String objectKey, String uploadId, int partNumber, File inputFile, long length)
+                    throws IOException {
+                if (failUpload.get()) {
+                    throw new IOException("injected final-part upload failure");
+                }
+                return super.uploadPart(objectKey, uploadId, partNumber, inputFile, length);
+            }
+        };
+    }
+
+    private NativeS3Recoverable persistAndTrack(RecoverableFsDataOutputStream out)
+            throws IOException {
+        final NativeS3Recoverable recoverable = (NativeS3Recoverable) out.persist();
+        recoverables.add(recoverable);
+        return recoverable;
+    }
+
+    private void assertUploadAvailable(NativeS3Recoverable recoverable) {
+        assertUploadAvailable(recoverable.uploadId());
+    }
+
+    private void assertUploadAvailable(String uploadId) {
+        assertThat(
+                        getContainer()
+                                .getClient()
+                                .listParts(
+                                        request ->
+                                                request.bucket(bucket).key(key).uploadId(uploadId))
+                                .parts())
+                .hasSize(1);
     }
 
     @Test
@@ -174,7 +333,7 @@ class NativeS3RecoverableWriterRecoveryITCase {
         final RecoverableFsDataOutputStream out = writer1.open(targetPath());
         out.write(bytes('A', PART), 0, PART);
         out.write(bytes('E', 5), 0, 5);
-        return (NativeS3Recoverable) out.persist();
+        return persistAndTrack(out);
     }
 
     /**
