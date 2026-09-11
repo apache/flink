@@ -212,10 +212,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         this.taskExecutorGatewayFutures = CollectionUtil.newHashMapWithExpectedSize(8);
         this.blocklistHandler =
                 blocklistHandlerFactory.create(
-                        new ResourceManagerBlocklistContext(),
-                        this::getNodeIdOfTaskManager,
-                        getMainThreadExecutor(),
-                        log);
+                        new ResourceManagerBlocklistContext(), this::getNodeIdOfTaskManager, log);
 
         this.jobManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
         this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
@@ -271,6 +268,8 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
             jobLeaderIdService.start(new JobLeaderIdActionsImpl());
 
             registerMetrics();
+
+            blocklistHandler.start(getMainThreadExecutor());
 
             startHeartbeatServices();
 
