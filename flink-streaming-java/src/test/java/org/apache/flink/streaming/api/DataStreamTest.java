@@ -90,6 +90,7 @@ import javax.annotation.Nullable;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -834,6 +835,31 @@ class DataStreamTest {
                                 .getStreamNode(sink.getTransformation().getId())
                                 .getPreferredResources())
                 .isEqualTo(preferredResource7);
+    }
+
+    @Test
+    void testMapWithExplicitUuidType() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        // A lambda would bypass the input validation exercised by this test.
+        final MapFunction<UUID, String> mapper =
+                new MapFunction<UUID, String>() {
+                    @Override
+                    public String map(UUID value) {
+                        return value.toString();
+                    }
+                };
+
+        final DataStream<String> stream = env.fromData(Types.UUID, new UUID(0L, 0L)).map(mapper);
+
+        assertThat(stream.getType()).isEqualTo(Types.STRING);
+    }
+
+    @Test
+    void testUuidIsNotAutomaticallyExtracted() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        assertThat(env.fromData(new UUID(0L, 0L)).getType())
+                .isEqualTo(new GenericTypeInfo<>(UUID.class));
     }
 
     @Test
