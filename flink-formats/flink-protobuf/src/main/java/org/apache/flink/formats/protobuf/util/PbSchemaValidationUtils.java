@@ -100,7 +100,11 @@ public class PbSchemaValidationUtils {
                 // simple type
                 validateSimpleType(fd, logicalType.getTypeRoot());
             } else {
-                // message type
+                // message type - may be RowType (normal) or VarBinaryType (recursive, as bytes)
+                if (logicalType.getTypeRoot() == LogicalTypeRoot.VARBINARY) {
+                    // Recursive message type represented as raw bytes - valid mapping
+                    return;
+                }
                 if (!(logicalType instanceof RowType)) {
                     throw new ValidationException(
                             "Unexpected LogicalType: " + logicalType + ". It should be RowType");
@@ -131,6 +135,10 @@ public class PbSchemaValidationUtils {
                 if (fd.getJavaType() == JavaType.MESSAGE) {
                     // array message type
                     LogicalType elementType = arrayType.getElementType();
+                    if (elementType.getTypeRoot() == LogicalTypeRoot.VARBINARY) {
+                        // Recursive message type as raw bytes - valid
+                        return;
+                    }
                     if (!(elementType instanceof RowType)) {
                         throw new ValidationException(
                                 "Unexpected logicalType: "
