@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime.batch.sql;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.data.GenericRowData;
@@ -41,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,6 +64,8 @@ class UpdateTableITCase extends BatchTestBase {
     @TestTemplate
     void testUpdate() throws Exception {
         String dataId = registerData();
+        ObjectIdentifier tableId = ObjectIdentifier.of("default_catalog", "default_database", "t");
+        TestUpdateDeleteTableFactory.clearCapturedTargetColumns(tableId);
         tEnv().executeSql(
                         String.format(
                                 "CREATE TABLE t ("
@@ -77,6 +81,14 @@ class UpdateTableITCase extends BatchTestBase {
         assertThat(rows.toString())
                 .isEqualTo("[+I[0, b_0, 0.0], +I[1, uaa, 4.0], +I[2, uaa, 16.0]]");
 
+        // Sink receives the full row, so both targetColumns paths should be [a,b,c].
+        Optional<int[][]> captured =
+                TestUpdateDeleteTableFactory.getCapturedUpdateTargetColumns(tableId);
+        assertThat(captured).isPresent();
+        assertThat(captured.get()).isEqualTo(new int[][] {{0}, {1}, {2}});
+        int[][] applied = TestUpdateDeleteTableFactory.getCapturedAppliedTargetColumns(tableId);
+        assertThat(applied).isEqualTo(new int[][] {{0}, {1}, {2}});
+
         tEnv().executeSql("UPDATE t SET b = 'uab' WHERE a > (SELECT count(1) FROM t WHERE a > 1)")
                 .await();
         rows = toSortedResults(tEnv().executeSql("SELECT * FROM t"));
@@ -87,6 +99,8 @@ class UpdateTableITCase extends BatchTestBase {
     @TestTemplate
     void testPartialUpdate() throws Exception {
         String dataId = registerData();
+        ObjectIdentifier tableId = ObjectIdentifier.of("default_catalog", "default_database", "t");
+        TestUpdateDeleteTableFactory.clearCapturedTargetColumns(tableId);
         tEnv().executeSql(
                         String.format(
                                 "CREATE TABLE t ("
@@ -102,6 +116,14 @@ class UpdateTableITCase extends BatchTestBase {
         List<String> rows = toSortedResults(tEnv().executeSql("SELECT * FROM t"));
         assertThat(rows.toString())
                 .isEqualTo("[+I[0, b_0, 0.0], +I[1, uaa, 2.0], +I[2, uaa, 4.0]]");
+
+        // Sink-required columns [a,b] should drive both targetColumns paths.
+        Optional<int[][]> captured =
+                TestUpdateDeleteTableFactory.getCapturedUpdateTargetColumns(tableId);
+        assertThat(captured).isPresent();
+        assertThat(captured.get()).isEqualTo(new int[][] {{0}, {1}});
+        int[][] applied = TestUpdateDeleteTableFactory.getCapturedAppliedTargetColumns(tableId);
+        assertThat(applied).isEqualTo(new int[][] {{0}, {1}});
 
         // test partial update with requiring partial primary keys
         dataId = registerData();
@@ -122,6 +144,36 @@ class UpdateTableITCase extends BatchTestBase {
         rows = toSortedResults(tEnv().executeSql("SELECT * FROM t1"));
         assertThat(rows.toString())
                 .isEqualTo("[+I[0, b_0, 0.0], +I[1, uaa, 2.0], +I[2, uaa, 4.0]]");
+    }
+
+    @TestTemplate
+    void testUpdateColumnDisjointFromRequired() throws Exception {
+        // The planner must merge updated columns into required columns for targetColumns.
+        String dataId = registerData();
+        ObjectIdentifier tableId = ObjectIdentifier.of("default_catalog", "default_database", "t");
+        TestUpdateDeleteTableFactory.clearCapturedTargetColumns(tableId);
+        tEnv().executeSql(
+                        String.format(
+                                "CREATE TABLE t ("
+                                        + " a int PRIMARY KEY NOT ENFORCED,"
+                                        + " b string not null,"
+                                        + " c double not null) WITH"
+                                        + " ('connector' = 'test-update-delete', "
+                                        + "'data-id' = '%s',"
+                                        + " 'required-columns-for-update' = 'a', "
+                                        + " 'update-mode' = '%s')",
+                                dataId, updateMode));
+        tEnv().executeSql("UPDATE t SET b = 'uaa' WHERE a >= 1").await();
+        List<String> rows = toSortedResults(tEnv().executeSql("SELECT * FROM t"));
+        assertThat(rows.toString())
+                .isEqualTo("[+I[0, b_0, 0.0], +I[1, uaa, 2.0], +I[2, uaa, 4.0]]");
+
+        Optional<int[][]> captured =
+                TestUpdateDeleteTableFactory.getCapturedUpdateTargetColumns(tableId);
+        assertThat(captured).isPresent();
+        assertThat(captured.get()).isEqualTo(new int[][] {{0}, {1}});
+        int[][] applied = TestUpdateDeleteTableFactory.getCapturedAppliedTargetColumns(tableId);
+        assertThat(applied).isEqualTo(new int[][] {{0}, {1}});
     }
 
     @TestTemplate
