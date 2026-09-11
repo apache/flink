@@ -75,6 +75,7 @@ class VariantToPrimitiveCastRule extends AbstractNullAwareCodeGeneratorCastRule<
             case TIME_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+            case UUID:
                 return true;
             default:
                 return false;
@@ -200,6 +201,10 @@ class VariantToPrimitiveCastRule extends AbstractNullAwareCodeGeneratorCastRule<
                                 "toTimestampLtz",
                                 inputTerm,
                                 LogicalTypeChecks.getPrecision(targetLogicalType)));
+                break;
+            case UUID:
+                writer.assignStmt(
+                        returnVariable, staticCall(VariantCastUtils.class, "toUuid", inputTerm));
                 break;
             default:
                 throw new IllegalArgumentException(
