@@ -21,6 +21,7 @@ package org.apache.flink.formats.avro.utils;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
+import org.apache.flink.formats.avro.SchemaCoder;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
@@ -42,6 +43,7 @@ import org.apache.avro.specific.SpecificRecord;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -55,6 +57,8 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Utilities for creating Avro Schemas. */
 public final class AvroTestUtils {
@@ -396,5 +400,26 @@ public final class AvroTestUtils {
         } else {
             return EncoderFactory.get().binaryEncoder(outputStream, null);
         }
+    }
+
+    public static SchemaCoder.SchemaCoderProvider fixedRoundRobinSchemaCoderProvider(
+            Schema... schemas) {
+        return fixedRoundRobinSchemaCoderProvider(Arrays.asList(schemas));
+    }
+
+    public static SchemaCoder.SchemaCoderProvider fixedRoundRobinSchemaCoderProvider(
+            List<Schema> schemas) {
+        return () -> {
+            AtomicInteger index = new AtomicInteger(0);
+            return new SchemaCoder() {
+                @Override
+                public Schema readSchema(InputStream in) {
+                    return schemas.get(index.getAndIncrement() % schemas.size());
+                }
+
+                @Override
+                public void writeSchema(Schema schema, OutputStream out) throws IOException {}
+            };
+        };
     }
 }
