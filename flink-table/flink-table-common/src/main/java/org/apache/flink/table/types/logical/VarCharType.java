@@ -135,12 +135,16 @@ public final class VarCharType extends LogicalType {
 
     @Override
     public boolean supportsInputConversion(Class<?> clazz) {
-        return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+        // enum classes are bridged to their string representation
+        return INPUT_OUTPUT_CONVERSION.contains(clazz.getName())
+                || Enum.class.isAssignableFrom(clazz);
     }
 
     @Override
     public boolean supportsOutputConversion(Class<?> clazz) {
-        return INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+        // enum classes are bridged to their string representation
+        return INPUT_OUTPUT_CONVERSION.contains(clazz.getName())
+                || Enum.class.isAssignableFrom(clazz);
     }
 
     @Override
