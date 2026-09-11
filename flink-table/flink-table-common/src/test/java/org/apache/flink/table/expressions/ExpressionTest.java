@@ -30,6 +30,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Time;
@@ -245,14 +246,18 @@ class ExpressionTest {
                 .isEqualTo(instant.minusMillis(100));
     }
 
-    @Test
-    void testUuidValueLiteralExtraction() {
-        final UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
-        assertThat(
-                        new ValueLiteralExpression(uuid)
-                                .getValueAs(UUID.class)
-                                .orElseThrow(AssertionError::new))
-                .isEqualTo(uuid);
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("uuidValueLiteralTestCases")
+    void testUuidValueLiteralExtraction(
+            String caseName, ValueLiteralExpression literal, UUID uuid) {
+        assertThat(literal.getValueAs(UUID.class).orElseThrow(AssertionError::new)).isEqualTo(uuid);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("uuidValueLiteralTestCases")
+    void testUuidAsSerializableString(String caseName, ValueLiteralExpression literal, UUID uuid) {
+        assertThat(literal.asSerializableString(DefaultSqlFactory.INSTANCE))
+                .isEqualTo(String.format("UUID '%s'", uuid));
     }
 
     @Test
@@ -341,6 +346,25 @@ class ExpressionTest {
                                                 DataTypes.INT())),
                                 DataTypes.BOOLEAN())),
                 DataTypes.BOOLEAN());
+    }
+
+    private static byte[] uuidToBytes(UUID uuid) {
+        return ByteBuffer.allocate(16)
+                .putLong(uuid.getMostSignificantBits())
+                .putLong(uuid.getLeastSignificantBits())
+                .array();
+    }
+
+    private static Stream<Arguments> uuidValueLiteralTestCases() {
+        final UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        return Stream.of(
+                Arguments.of("UUID value", new ValueLiteralExpression(uuid), uuid),
+                Arguments.of(
+                        "UUID bridged to byte[]",
+                        new ValueLiteralExpression(
+                                uuidToBytes(uuid),
+                                DataTypes.UUID().notNull().bridgedTo(byte[].class)),
+                        uuid));
     }
 
     private static Stream<Arguments> timestampLtzPrecisionTestCases() {
