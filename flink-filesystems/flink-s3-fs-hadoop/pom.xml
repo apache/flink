@@ -84,12 +84,43 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- S3 base -->
+		<!--
+			This plugin builds on Hadoop's s3a connector (hadoop-aws), which migrated
+			to AWS SDK v2 (`software.amazon.awssdk:*`) in the Hadoop 3.4.x line. The
+			v2 modules we actually bundle are declared explicitly further down.
+
+			The shared `flink-s3-fs-base` parent still pulls AWS SDK v1
+			(`com.amazonaws:*`) transitively because the sibling `flink-s3-fs-presto`
+			plugin remains on v1, since we are using AWS SDK V2 with 3.4.x, we don't 
+			need AWS SDK V1 (`com.amazonaws:*`)
+		-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-s3-fs-base</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-s3</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-kms</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-dynamodb</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-sts</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -284,12 +315,25 @@ under the License.
 									</excludes>
 								</filter>
 								<filter>
-									<artifact>com.amazonaws:aws-java-sdk-s3</artifact>
-									<!-- Make sure we are using the overridden XmlResponsesSaxParser of flink-s3-fs-base.
-										Filter must be removed as soon as XmlResponsesSaxParser of this module is
-										dropped, for example when discontinuing support for Java 8. -->
+									<artifact>org.apache.flink:flink-s3-fs-base</artifact>
+									<!-- Exclude XmlResponsesSaxParser from flink-s3-fs-base as it is AWS SDK v1 code.
+										We do not need this for SDK v2. This is only needed by Presto. -->
 									<excludes>
 										<exclude>com/amazonaws/services/s3/model/transform/XmlResponsesSaxParser**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<!-- analyticsaccelerator-s3 (transitive of hadoop-aws 3.4.x) ships
+									     LICENSE, NOTICE, and THIRD-PARTY-NOTICES at the jar root. The
+									     license checker rejects root-level license files; the
+									     THIRD-PARTY-NOTICES also references GPL/LGPL terms that the
+									     checker flags. Attribution is consolidated in this module's
+									     META-INF/NOTICE. -->
+									<artifact>software.amazon.s3.analyticsaccelerator:analyticsaccelerator-s3</artifact>
+									<excludes>
+										<exclude>LICENSE</exclude>
+										<exclude>NOTICE</exclude>
+										<exclude>THIRD-PARTY-NOTICES</exclude>
 									</excludes>
 								</filter>
 							</filters>

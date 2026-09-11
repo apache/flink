@@ -20,18 +20,18 @@ package org.apache.flink.fs.s3.common.token;
 
 import org.apache.flink.util.InstantiationUtil;
 
-import com.amazonaws.SdkClientException;
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.BasicSessionCredentials;
+import org.apache.hadoop.fs.s3a.auth.NoAwsCredentialsException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link DynamicTemporaryAWSCredentialsProvider}. */
-class DynamicTemporaryAWSCredentialsProviderTest {
+/** Tests for {@link HadoopDynamicTemporaryAWSCredentialsProvider}. */
+class HadoopDynamicTemporaryAWSCredentialsProviderTest {
 
     private static final String ACCESS_KEY_ID = "testAccessKeyId";
     private static final String SECRET_ACCESS_KEY = "testSecretAccessKey";
@@ -50,28 +50,27 @@ class DynamicTemporaryAWSCredentialsProviderTest {
 
     @Test
     void nameMustMatchClassName() {
-        // NAME is a string literal so that referencing it never class-loads this provider (it
-        // implements an SDK v1 interface absent from the flink-s3-fs-hadoop jar); this pins the
-        // literal to the actual class name, which users reference from
+        // NAME is a string literal so that referencing it (e.g. when registering the provider in
+        // the Hadoop configuration) never class-loads this provider outside this plugin; this pins
+        // the literal to the actual class name, which users reference from
         // fs.s3a.aws.credentials.provider.
-        assertThat(DynamicTemporaryAWSCredentialsProvider.NAME)
-                .isEqualTo(DynamicTemporaryAWSCredentialsProvider.class.getName());
+        assertThat(HadoopDynamicTemporaryAWSCredentialsProvider.NAME)
+                .isEqualTo(HadoopDynamicTemporaryAWSCredentialsProvider.class.getName());
     }
 
     @Test
-    void getCredentialsShouldThrowSdkV1ExceptionWhenNoCredentials() {
-        DynamicTemporaryAWSCredentialsProvider provider =
-                new DynamicTemporaryAWSCredentialsProvider();
+    void resolveCredentialsShouldThrowNoAwsCredentialsExceptionWhenNoCredentials() {
+        HadoopDynamicTemporaryAWSCredentialsProvider provider =
+                new HadoopDynamicTemporaryAWSCredentialsProvider();
 
-        // Must be the SDK v1 exception: Hadoop's NoAwsCredentialsException is based on the AWS SDK
-        // v2 exception hierarchy since Hadoop 3.4 and cannot be loaded in the presto plugin.
-        assertThatThrownBy(provider::getCredentials).isInstanceOf(SdkClientException.class);
+        assertThatThrownBy(provider::resolveCredentials)
+                .isInstanceOf(NoAwsCredentialsException.class);
     }
 
     @Test
-    void getCredentialsShouldReturnSessionCredentialsWhenProvided() throws Exception {
-        DynamicTemporaryAWSCredentialsProvider provider =
-                new DynamicTemporaryAWSCredentialsProvider();
+    void resolveCredentialsShouldReturnSessionCredentialsWhenProvided() throws Exception {
+        HadoopDynamicTemporaryAWSCredentialsProvider provider =
+                new HadoopDynamicTemporaryAWSCredentialsProvider();
         S3SessionCredentials credentials =
                 new S3SessionCredentials(
                         ACCESS_KEY_ID, SECRET_ACCESS_KEY, SESSION_TOKEN, EXPIRATION_EPOCH_MILLI);
@@ -79,17 +78,17 @@ class DynamicTemporaryAWSCredentialsProviderTest {
                 new AbstractS3DelegationTokenReceiver() {
                     @Override
                     public String serviceName() {
-                        return "s3";
+                        return "s3-hadoop";
                     }
                 };
 
         receiver.onNewTokensObtained(InstantiationUtil.serializeObject(credentials));
 
-        AWSCredentials v1Credentials = provider.getCredentials();
-        assertThat(v1Credentials).isInstanceOf(BasicSessionCredentials.class);
-        BasicSessionCredentials sessionCredentials = (BasicSessionCredentials) v1Credentials;
-        assertThat(sessionCredentials.getAWSAccessKeyId()).isEqualTo(ACCESS_KEY_ID);
-        assertThat(sessionCredentials.getAWSSecretKey()).isEqualTo(SECRET_ACCESS_KEY);
-        assertThat(sessionCredentials.getSessionToken()).isEqualTo(SESSION_TOKEN);
+        AwsCredentials resolved = provider.resolveCredentials();
+        assertThat(resolved).isInstanceOf(AwsSessionCredentials.class);
+        AwsSessionCredentials sessionCredentials = (AwsSessionCredentials) resolved;
+        assertThat(sessionCredentials.accessKeyId()).isEqualTo(ACCESS_KEY_ID);
+        assertThat(sessionCredentials.secretAccessKey()).isEqualTo(SECRET_ACCESS_KEY);
+        assertThat(sessionCredentials.sessionToken()).isEqualTo(SESSION_TOKEN);
     }
 }

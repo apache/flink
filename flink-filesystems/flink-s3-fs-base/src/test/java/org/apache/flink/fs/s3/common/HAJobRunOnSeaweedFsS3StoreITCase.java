@@ -99,6 +99,12 @@ public abstract class HAJobRunOnSeaweedFsS3StoreITCase extends AbstractHAJobRunI
 
         getSeaweedFsContainer().setS3ConfigOptions(config);
 
+        // S3A on Hadoop 3.4 keeps zero-byte directory markers by default
+        // (fs.s3a.directory.marker.retention=keep); pin the pre-3.4 "delete" policy so the raw
+        // listings below contain only actual result-store entries. The Presto subclass maps this
+        // key to presto.s3.directory.marker.retention, which PrestoS3FileSystem ignores.
+        config.setString("s3.directory.marker.retention", "delete");
+
         // JobResultStore configuration
         config.set(JobResultStoreOptions.DELETE_ON_COMMIT, Boolean.FALSE);
         config.set(
