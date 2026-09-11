@@ -206,6 +206,14 @@ WatermarkStrategy \
 {{< /tab >}}
 {{< /tabs >}}
 
+Note that idleness is only evaluated when watermarks are emitted periodically:
+the idle timeout countdown starts at the first periodic watermark emission that
+saw no records since the previous one, and the input switches to idle at the
+first periodic emission after strictly more than the configured timeout has
+elapsed since then. An input is therefore marked idle no earlier than the idle
+timeout after its last record and, in the worst case, up to the idle timeout
+plus three times the `pipeline.auto-watermark-interval` after it.
+
 ## Watermark alignment
 
 In the previous paragraph we discussed a situation when splits/partitions/shards or sources are idle
