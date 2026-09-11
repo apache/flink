@@ -1701,14 +1701,8 @@ public class ProcessTableFunctionTestPrograms {
                                             "`out` STRING")
                                     .addOption("sink-changelog-mode-enforced", "I,UA,D")
                                     .addOption("sink.supports-delete-by-key", "true")
-                                    .consumedValues(
-                                            "+I[Bob, score 5 in city London]",
-                                            "+I[Alice, score 2 in city Zurich]",
-                                            "+U[Bob, score 3 in city London]",
-                                            "+U[Bob, score 3 in city Berlin]",
-                                            "-D[Bob, null]",
-                                            "+I[Bob, score 2 in city Berlin]",
-                                            "-D[Alice, null]")
+                                    .consumedValues("+I[Bob, score 2 in city Berlin]")
+                                    .testMaterializedData()
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT `name`, `out` FROM f("
