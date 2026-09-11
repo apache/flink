@@ -161,6 +161,7 @@ public class TtlAwareSerializerUpgradeTest
         DataOutputSerializer migratedOut = new DataOutputSerializer(INITIAL_OUTPUT_BUFFER_SIZE);
         writer.migrateValueFromPriorSerializer(
                 reader,
+                reader.getOriginalTypeSerializer().snapshotConfiguration(),
                 () -> reader.deserialize(originalDataInput),
                 migratedOut,
                 TtlTimeProvider.DEFAULT);
