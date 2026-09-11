@@ -21,11 +21,13 @@ package org.apache.flink.table.data.columnar;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.data.binary.TypedSetters;
 import org.apache.flink.table.data.columnar.vector.ArrayColumnVector;
 import org.apache.flink.table.data.columnar.vector.BooleanColumnVector;
@@ -145,6 +147,13 @@ public final class ColumnarArrayData implements ArrayData, TypedSetters {
             return Arrays.copyOfRange(
                     byteArray.data, byteArray.offset, byteArray.offset + byteArray.len);
         }
+    }
+
+    @Override
+    public GeographyData getGeography(int pos) {
+        BytesColumnVector.Bytes byteArray = getByteArray(pos);
+        return BinaryGeographyData.fromTrustedBytes(
+                byteArray.data, byteArray.offset, byteArray.len);
     }
 
     @Override
