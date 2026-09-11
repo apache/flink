@@ -626,13 +626,21 @@ class CommonExecSinkITCase {
 
                                 @Override
                                 public void notifyNoMoreSplits() {
-                                    // Gates completion for every reader, including the split
-                                    // holder, so pollNext only finishes once this signal arrives.
+                                    // Signals that all coordinator events have been delivered,
+                                    // gating both emission and completion in pollNext below.
                                     noMoreSplits = true;
                                 }
 
                                 @Override
                                 public InputStatus pollNext(ReaderOutput<RowData> out) {
+                                    // Wait for the NoMoreSplitsEvent before emitting. Otherwise a
+                                    // downstream failure (e.g. the NOT NULL enforcer) can fail the
+                                    // task while that event is still in flight, so it reaches an
+                                    // already-FAILED task as a lost OperatorEvent whose failover
+                                    // masks the real cause under NoRestartBackoffTimeStrategy.
+                                    if (!noMoreSplits) {
+                                        return InputStatus.NOTHING_AVAILABLE;
+                                    }
                                     if (hasSplit && !emitted) {
                                         rows.forEach(
                                                 r ->
@@ -640,15 +648,7 @@ class CommonExecSinkITCase {
                                                                 (RowData) converter.toInternal(r)));
                                         emitted = true;
                                     }
-                                    // Finish only after the NoMoreSplitsEvent has arrived.
-                                    // Returning END_OF_INPUT earlier lets the task reach FINISHED
-                                    // before the coordinator delivers that event, which surfaces as
-                                    // a lost OperatorEvent and fails the job under
-                                    // NoRestartBackoffTimeStrategy.
-                                    if (noMoreSplits) {
-                                        return InputStatus.END_OF_INPUT;
-                                    }
-                                    return InputStatus.NOTHING_AVAILABLE;
+                                    return InputStatus.END_OF_INPUT;
                                 }
                             };
                         }
