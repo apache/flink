@@ -35,5 +35,11 @@ public enum TimestampFormat {
      * "yyyy-MM-ddTHH:mm:ss.s{precision}" format, TIMESTAMP_WITH_LOCAL_TIMEZONE in
      * "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" and output in the same format.
      */
-    ISO_8601
+    ISO_8601,
+
+    /**
+     * Options to specify TIMESTAMP with explicit timezone offset format. It will parse TIMESTAMP in
+     * "yyyy-MM-ddTHH:mm:ss.s{precision}±HH:mm" format and output in the same format.
+     */
+    ISO_8601_WITH_OFFSET
 }
