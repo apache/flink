@@ -104,4 +104,34 @@ class SocketStreamIteratorTest {
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("test");
     }
+
+    @Test
+    void testNotifyOfErrorBeforeConnection() throws Exception {
+        final SocketStreamIterator<Long> iterator =
+                new SocketStreamIterator<>(LongSerializer.INSTANCE);
+
+        iterator.notifyOfError(new Exception("early error"));
+
+        assertThatThrownBy(iterator::hasNext)
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("early error");
+
+        iterator.close();
+    }
+
+    @Test
+    void testNotifyOfErrorMultipleTimes() throws Exception {
+        final SocketStreamIterator<Long> iterator =
+                new SocketStreamIterator<>(LongSerializer.INSTANCE);
+
+        iterator.notifyOfError(new Exception("first error"));
+        iterator.notifyOfError(new Exception("second error"));
+
+        assertThatThrownBy(iterator::hasNext)
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("first error")
+                .hasMessageNotContaining("second error");
+
+        iterator.close();
+    }
 }
