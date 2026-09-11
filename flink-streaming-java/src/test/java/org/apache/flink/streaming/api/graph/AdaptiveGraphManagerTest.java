@@ -197,6 +197,30 @@ public class AdaptiveGraphManagerTest extends JobGraphGeneratorTestBase {
     }
 
     @Test
+    void testMixedUidAndNonUidSourceIdsMatchStreamingGenerator() {
+        final JobGraph adaptiveJobGraph =
+                generateJobGraphInLazilyMode(createMixedUidAndNonUidUnionStreamGraph());
+        final JobGraph streamingJobGraph =
+                StreamingJobGraphGenerator.createJobGraph(
+                        createMixedUidAndNonUidUnionStreamGraph());
+
+        assertThat(getJobVertex(adaptiveJobGraph, "Source: non-uid-source").getID())
+                .isEqualTo(getJobVertex(streamingJobGraph, "Source: non-uid-source").getID());
+    }
+
+    @Test
+    void testNonUidReconnectKeepsUnionDeclarationOrder() {
+        assertThat(getSinkInputSourceNames(createReverseDeclarationUnionJobGraph(false)))
+                .containsExactly("Source: source-b", "Source: source-a");
+    }
+
+    @Test
+    void testUidHashReconnectKeepsUnionDeclarationOrder() {
+        assertThat(getSinkInputSourceNames(createReverseDeclarationUnionJobGraph(true)))
+                .containsExactly("Source: source-b", "Source: source-a");
+    }
+
+    @Test
     void testSourceChain() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setMaxParallelism(100);
@@ -265,6 +289,73 @@ public class AdaptiveGraphManagerTest extends JobGraphGeneratorTestBase {
         streamGraph2.setDynamic(true);
         JobGraph jobGraph2 = StreamingJobGraphGenerator.createJobGraph(streamGraph2);
         assertThat(isJobGraphEquivalent(jobGraph1, jobGraph2)).isTrue();
+    }
+
+    private static StreamGraph createMixedUidAndNonUidUnionStreamGraph() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+        env.disableOperatorChaining();
+
+        final DataStream<Integer> nonUidSource = env.fromData(1).name("non-uid-source");
+        final DataStream<Integer> firstUidSource =
+                env.fromData(2).name("uid-source-a").uid("uid-source-a");
+        final DataStream<Integer> secondUidSource =
+                env.fromData(3).name("uid-source-b").uid("uid-source-b");
+
+        nonUidSource
+                .union(firstUidSource, secondUidSource)
+                .sinkTo(new DiscardingSink<>())
+                .name("sink")
+                .uid("sink");
+
+        return env.getStreamGraph();
+    }
+
+    private static JobGraph createReverseDeclarationUnionJobGraph(boolean withUidHashes) {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
+        env.disableOperatorChaining();
+
+        final DataStream<Integer> sourceA =
+                createUnionSource(
+                        env,
+                        "source-a",
+                        1,
+                        withUidHashes ? "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" : null);
+        final DataStream<Integer> sourceB =
+                createUnionSource(
+                        env,
+                        "source-b",
+                        2,
+                        withUidHashes ? "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" : null);
+
+        sourceB.union(sourceA).sinkTo(new DiscardingSink<>()).name("sink").uid("sink");
+
+        return generateJobGraphInLazilyMode(env.getStreamGraph());
+    }
+
+    private static DataStream<Integer> createUnionSource(
+            StreamExecutionEnvironment env, String name, int value, String uidHash) {
+        if (uidHash == null) {
+            return env.fromData(value).name(name);
+        }
+        return env.fromData(value).name(name).setUidHash(uidHash);
+    }
+
+    private static List<String> getSinkInputSourceNames(JobGraph jobGraph) {
+        final JobVertex sink =
+                jobGraph.getVerticesSortedTopologicallyFromSources().stream()
+                        .filter(jobVertex -> jobVertex.getInputs().size() > 1)
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError("Expected a multi-input sink"));
+        return sink.getInputs().stream()
+                .map(edge -> edge.getSource().getProducer().getName())
+                .collect(Collectors.toList());
+    }
+
+    private static JobVertex getJobVertex(JobGraph jobGraph, String name) {
+        return jobGraph.getVerticesSortedTopologicallyFromSources().stream()
+                .filter(jobVertex -> jobVertex.getName().equals(name))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Expected job vertex " + name));
     }
 
     private static JobGraph generateJobGraphInLazilyMode(StreamGraph streamGraph) {
