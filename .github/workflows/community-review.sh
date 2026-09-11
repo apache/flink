@@ -59,8 +59,16 @@ main() {
             node {
               number
               isDraft
+              author {
+                login
+              }
               baseRef {
                 name
+              }
+              labels(first: 20) {
+                nodes {
+                  name
+                }
               }
               timelineItems(first: 100, itemTypes: [PULL_REQUEST_REVIEW]) {
                 nodes {
@@ -159,10 +167,16 @@ process_each_pr() {
 
     printf "\n(%s/%s) PR %s - " "$counter" "$prCount" "$pr_number"
 
-    # Add target branch as label 
-    local target_branch=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.baseRef.name' <<< "$pullRequests")  
-    process_target_branch_label "$token" "$pr_number" "$target_branch"
-    
+    # Labels already on the PR, as a space separated string
+    local existing_labels=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | [.node.labels.nodes[].name] | join(" ")' <<< "$pullRequests")
+
+    # Add target branch as label
+    local target_branch=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.baseRef.name' <<< "$pullRequests")
+    process_target_branch_label "$token" "$pr_number" "$target_branch" "$existing_labels"
+
+    # PR author - used to exclude the author's own reviews from the community-review tally
+    local pr_author=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.author.login' <<< "$pullRequests")
+
     # Add review orientated labels
     local has_timeline_items=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | (.node.timelineItems.nodes | type != "array" or length > 0)' <<< "$pullRequests")
     # Only process reviews if there are timeline items
@@ -173,12 +187,13 @@ process_each_pr() {
        else
          all_reviews="$(get_all_reviews_for_pr "$token" "$pr_number")"
        fi
-       # leave only the latest reviews per reviewer in a comma separated form
-       pr_reviewers="$(jq  '. | sort_by([.author.login, .createdAt]) | reverse | unique_by(.author.login) | .[] | [.author.login, .state, .createdAt] | join(",")' <<< "$all_reviews")"
+       # leave only the latest reviews per reviewer in a comma separated form, keeping the
+       # time of their first review so co-authored reviews can be recognised later on
+       pr_reviewers="$(jq  '. as $all_reviews | sort_by([.author.login, .createdAt]) | reverse | unique_by(.author.login) | .[] | .author.login as $login | [$login, .state, .createdAt, ([$all_reviews[] | select(.author.login == $login) | .createdAt] | min)] | join(",")' <<< "$all_reviews")"
 
        printf "Reviews %s Reviewers %s\n" "$(JSONArrayLength "$all_reviews")" "$(wc -l <<< "$pr_reviewers" | xargs)"
 
-       process_pr_reviews "$token" "$pr_number" "$pr_reviewers" || exit
+       process_pr_reviews "$token" "$pr_number" "$pr_reviewers" "$pr_author" "$existing_labels" || exit
     fi
     ((counter++))
   done <<< "$prNumbersAndPaging" || exit
@@ -190,11 +205,13 @@ process_each_pr() {
 #   $1 - GitHub API token for authentication
 #   $2 - PR number
 #   $3 - Target branch name
+#   $4 - Labels already on the PR
 # =============================================================================
 process_target_branch_label() {
   local token="${1?missing token}"
   local pr_number="${2?missing pr number}"
   local target_branch="${3?missing target branch}"
+  local existing_labels="${4-}"
 
   local file_name=$PR_CACHE_FILENAME
 
@@ -215,10 +232,7 @@ process_target_branch_label() {
     
     # Ensure the target branch label exists before trying to add it to the PR
     ensure_label_exists "$token" "$target_branch_label"
-    
-    # Get existing labels
-    local existing_labels=$(call_github_get_labels_api "$pr_number")
-    
+
     # Add target branch label if it doesn't exist on the PR
     if [[ ! "$existing_labels" =~ (^|[[:space:]])"$target_branch_label"($|[[:space:]]) ]]; then
       call_github_mutate_label_api "$token" "$target_branch_label" "POST" "$pr_number" || exit
@@ -243,41 +257,63 @@ process_target_branch_label() {
 # 'community-reviewed' is set.
 # If one of the labels is set the other is unset.
 #
+# Reviews written by someone who worked on the PR do not count towards the community
+# review tally - neither the author's own reviews, nor those of a co-author. A request
+# for changes is still honoured, whoever it came from.
+#
 # Arguments:
 #   $1 - GitHub API token for authentication
 #   $2 - PR number
 #   $3 - PR reviews
+#   $4 - PR author login (excluded from the review tally)
+#   $5 - Labels already on the PR
 # =============================================================================
 process_pr_reviews() {
   local token="${1?missing token}"
   local pr_number="${2?missing pr number}"
   local pr_reviews="${3?missing pr reviews}"
+  local pr_author="${4?missing pr author}"
+  local existing_labels="${5-}"
 
   local communityApproves=0
   local requestForChanges=0
   local committerApproves=0
   local communityReviews=0
   local push_permission
+  local pr_coauthors
   # replace spaces with new lines so the loop will work
   pr_reviews=$(echo "$pr_reviews" | tr ' ' '\n')
   # remove unnecessary double quotes
   pr_reviews="${pr_reviews//\"/}"
 
-  while IFS=, read -r user state time
+  while IFS=, read -r user state time first_review_time
   do
-    printf "%-15s | %-20s | %-20s - checking user permissions..." "$user" "$state" "$time"
-    push_permission=$(call_github_get_user_push_permission "$token" "$user") || exit
-    printf "%s\n" "$push_permission"
-
-    #see if the user has read role
-    if [[ "$push_permission" == "true" ]]; then
-      if [[ "$state" == "APPROVED" ]]; then
-        ((++committerApproves))
-      fi
+    # A PR author commenting on their own PR is not a community review
+    if [[ "$user" == "$pr_author" ]]; then
+      printf "%-15s | %-20s | %-20s - skipping PR author self-review\n" "$user" "$state" "$time"
     else
-      ((++communityReviews))
-      if [[ "$state" == "APPROVED" ]]; then
-        ((++communityApproves))
+      printf "%-15s | %-20s | %-20s - checking user permissions..." "$user" "$state" "$time"
+      push_permission=$(call_github_get_user_push_permission "$token" "$user") || exit
+      printf "%s\n" "$push_permission"
+
+      #see if the user has read role
+      if [[ "$push_permission" == "true" ]]; then
+        if [[ "$state" == "APPROVED" ]]; then
+          ((++committerApproves))
+        fi
+      else
+        # only worth paying for the co-author lookup once a review would otherwise be counted
+        if [[ -z "${pr_coauthors+set}" ]]; then
+          pr_coauthors="$(get_pr_coauthors "$token" "$pr_number")" || exit
+        fi
+        if is_coauthor_before_review "$user" "$first_review_time" "${pr_coauthors-}"; then
+          printf "%-15s | %-20s | %-20s - skipping PR co-author self-review\n" "$user" "$state" "$time"
+        else
+          ((++communityReviews))
+          if [[ "$state" == "APPROVED" ]]; then
+            ((++communityApproves))
+          fi
+        fi
       fi
     fi
 
@@ -289,7 +325,6 @@ process_pr_reviews() {
 
   local label_to_post=
   local label_to_delete=
-  local existing_labels
   if [[ $communityApproves -ge 2 && $requestForChanges -eq 0 && $committerApproves -eq 0 ]]; then
     label_to_post=$LGTM_LABEL
     label_to_delete=$COMMUNITY_REVIEW_LABEL
@@ -299,8 +334,6 @@ process_pr_reviews() {
   fi
 
   if [[ -n "$label_to_post" ]]; then
-    existing_labels=$(call_github_get_labels_api "$pr_number")
-
     if [[ ! "$existing_labels" =~ (^|[[:space:]])"$label_to_post"($|[[:space:]]) ]]; then
       call_github_mutate_label_api "$token" "$label_to_post" "POST" "$pr_number" || exit
     fi
@@ -387,6 +420,88 @@ get_all_reviews_for_pr() {
     all_reviews_for_pr=$(echo -e "${all_reviews_for_pr}" "$cutdownRestResponse" | jq '.[]' | jq -s)
   done
   echo "$all_reviews_for_pr"
+}
+
+# =============================================================================
+# Get the co-authors of a pr, as a 'login,date' line per co-author, where date is
+# the earliest commit on the pr they authored. Co-authors that do not resolve to a
+# GitHub user are left out, as they can never match a reviewer.
+#
+# The date matters because GitHub records a reviewer as co-author as soon as the pr
+# author commits one of their suggestions - see is_coauthor_before_review.
+#
+# Arguments:
+#   $1 - GitHub API token for authentication
+#   $2 - PR number
+# =============================================================================
+get_pr_coauthors() {
+  local token="${1?missing token}"
+  local pr_number="${2?missing pr number}"
+
+  # a single page of commits covers every Flink pr, so there is nothing to page through
+  local GET_COAUTHORS_TEMPLATE='{
+  "query":
+    "query {
+      repository(owner: \"<<REPO_OWNER>>\" name: \"<<REPO_NAME>>\") {
+        pullRequest(number: <<PR_NUMBER>>) {
+          commits(first: 100) {
+            nodes {
+              commit {
+                authoredDate
+                authors(first: 10) {
+                  nodes {
+                    user {
+                      login
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }"
+  }'
+
+  local payload
+  payload=$(echo "$GET_COAUTHORS_TEMPLATE" | tr -d '\n')  # the query should be a one-liner, without newlines
+  payload="$(replace_template_value "$payload" "REPO_OWNER" "${REPO_OWNER}")"
+  payload="$(replace_template_value "$payload" "REPO_NAME" "${REPO_NAME}")"
+  payload="$(replace_template_value "$payload" "PR_NUMBER" "${pr_number}")"
+
+  local restResponse
+  restResponse="$(call_github_graphql_api "$token" "$payload")"
+  check_github_graphql_response "$restResponse"
+
+  jq -r '[.data.repository.pullRequest.commits.nodes[] | .commit as $commit | $commit.authors.nodes[] | select(.user != null) | {login: .user.login, date: $commit.authoredDate}] | group_by(.login) | .[] | [.[0].login, (map(.date) | min)] | join(",")' <<< "$restResponse"
+}
+
+# =============================================================================
+# Check whether a reviewer had already co-authored the pr by the time they first
+# reviewed it, in which case their review is not a community review.
+#
+# A reviewer who only became a co-author later on was credited by GitHub when the pr
+# author committed one of their suggestions. That co-authorship is a product of the
+# review itself, so the review still counts.
+#
+# Arguments:
+#   $1 - reviewer login
+#   $2 - time of the reviewer's first review
+#   $3 - pr co-authors, as returned by get_pr_coauthors
+# =============================================================================
+is_coauthor_before_review() {
+  local user="${1?missing user}"
+  local first_review_time="${2?missing first review time}"
+  local pr_coauthors="${3-}"
+
+  local coauthor
+  local authored_date
+  while IFS=, read -r coauthor authored_date; do
+    if [[ "$coauthor" == "$user" ]] && [[ "$authored_date" < "$first_review_time" ]]; then
+      return 0
+    fi
+  done <<< "$pr_coauthors"
+  return 1
 }
 
 # ======================================
@@ -490,23 +605,6 @@ replace_template_value() {
 JSONArrayLength() {
   local jsonArray=${1?missing array}
   echo "${jsonArray}" | jq 'length'
-}
-
-# =============================================================================
-# Retrieves existing label names on a Flink PR
-# Arguments:
-#   $1 - pr number to fetch labels from
-# =============================================================================
-call_github_get_labels_api() {
-  local prNumber="${1?missing pr number}"
-
-  local labels
-  labels=$(curl --fail --no-progress-meter -s \
-    -H 'Content-Type: application/json' \
-    "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/$prNumber/labels")
-
-  # extract label names as a space separated string
-  jq -r '.[].name' <<< "$labels" | tr '\n' ' '
 }
 
 # =============================================================================
