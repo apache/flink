@@ -26,6 +26,7 @@ import java.util.Objects;
 /** Default implementation of {@link TypeDatasetFacet}. */
 @PublicEvolving
 public class DefaultTypeDatasetFacet implements TypeDatasetFacet {
+    private static final long serialVersionUID = 1L;
 
     public static final String TYPE_FACET_NAME = "type";
 

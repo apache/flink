@@ -26,6 +26,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 /** Implementation of LineageEdge. */
 @Internal
 public class DefaultLineageEdge implements LineageEdge {
+    private static final long serialVersionUID = 1L;
     @JsonProperty private SourceLineageVertex sourceLineageVertex;
     @JsonProperty private LineageVertex sinkVertex;
 

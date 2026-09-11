@@ -22,12 +22,14 @@ package org.apache.flink.streaming.api.lineage;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.Boundedness;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 /** Default implementation for {@link SourceLineageVertex}. */
 @Internal
-public class DefaultSourceLineageVertex implements SourceLineageVertex {
+public class DefaultSourceLineageVertex implements SourceLineageVertex, Serializable {
+    private static final long serialVersionUID = 1L;
     private Boundedness boundedness;
     private List<LineageDataset> lineageDatasets;
 
