@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.jupiter.api.Test;
@@ -49,8 +50,10 @@ class StreamSourceOperatorWatermarksTest {
         testHarness.invoke();
         testHarness.waitForTaskCompletion();
 
-        assertThat(testHarness.getOutput()).hasSize(1);
-        assertThat(testHarness.getOutput().peek()).isEqualTo(Watermark.MAX_WATERMARK);
+        // Source tasks emit FINISHED status before MAX_WATERMARK when completing with drain
+        assertThat(testHarness.getOutput()).hasSize(2);
+        assertThat(testHarness.getOutput().poll()).isEqualTo(WatermarkStatus.FINISHED);
+        assertThat(testHarness.getOutput().poll()).isEqualTo(Watermark.MAX_WATERMARK);
     }
 
     @Test
@@ -65,6 +68,9 @@ class StreamSourceOperatorWatermarksTest {
 
         // sent by source function
         assertThat(testHarness.getOutput().poll()).isEqualTo(Watermark.MAX_WATERMARK);
+
+        // Source tasks emit FINISHED status when completing with drain
+        assertThat(testHarness.getOutput().poll()).isEqualTo(WatermarkStatus.FINISHED);
 
         // sent by framework
         assertThat(testHarness.getOutput().poll()).isEqualTo(Watermark.MAX_WATERMARK);

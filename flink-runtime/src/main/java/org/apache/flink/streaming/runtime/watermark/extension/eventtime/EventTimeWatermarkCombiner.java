@@ -94,6 +94,18 @@ public class EventTimeWatermarkCombiner extends StatusWatermarkValve implements 
 
         @Override
         public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            // The event time extension carries status as a boolean idle flag, so it can express
+            // IDLE and ACTIVE but not FINISHED. Mapping FINISHED through isIdle() would report it
+            // as active, which is the very state that lets a finished input's MAX_WATERMARK
+            // dominate the aggregated minimum. combineWatermark above only ever feeds IDLE or
+            // ACTIVE into the valve, so this is unreachable today; fail loudly rather than
+            // silently downgrade if a FINISHED path is ever added.
+            if (watermarkStatus.isFinished()) {
+                throw new UnsupportedOperationException(
+                        "FINISHED watermark status cannot be represented by "
+                                + "EventTimeExtension.IDLE_STATUS_WATERMARK_DECLARATION, "
+                                + "which is a boolean idle flag.");
+            }
             watermarkEmitter.accept(
                     EventTimeExtension.IDLE_STATUS_WATERMARK_DECLARATION.newWatermark(
                             watermarkStatus.isIdle()));

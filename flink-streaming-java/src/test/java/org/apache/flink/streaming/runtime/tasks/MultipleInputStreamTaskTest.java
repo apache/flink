@@ -61,8 +61,9 @@ import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriterWithAvailabilityHelper;
-import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -176,7 +177,10 @@ class MultipleInputStreamTaskTest {
             testHarness.endInput();
             testHarness.waitForTaskCompletion();
 
-            assertThat(testHarness.getOutput()).containsExactlyInAnyOrderElementsOf(expectedOutput);
+            // Filter out WatermarkStatus (e.g., FINISHED watermark status when task finishes),
+            // which is a task lifecycle signal, not part of the feature being tested.
+            assertThat(TestHarnessUtil.filterOutWatermarkStatus(testHarness.getOutput()))
+                    .containsExactlyInAnyOrderElementsOf(expectedOutput);
         }
     }
 
@@ -392,7 +396,10 @@ class MultipleInputStreamTaskTest {
                     1);
 
             testHarness.waitForTaskCompletion();
-            assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
+            // Filter out WatermarkStatus (e.g., FINISHED watermark status when task finishes),
+            // which is a task lifecycle signal, not part of the feature being tested.
+            assertThat(TestHarnessUtil.filterOutWatermarkStatus(testHarness.getOutput()))
+                    .containsExactlyElementsOf(expectedOutput);
         }
     }
 
@@ -999,7 +1006,10 @@ class MultipleInputStreamTaskTest {
         try {
             for (int i = 0; i < partitionWriters.length; ++i) {
                 partitionWriters[i] =
-                        PartitionTestUtils.createPartition(ResultPartitionType.PIPELINED_BOUNDED);
+                        new ResultPartitionBuilder()
+                                .setResultPartitionType(ResultPartitionType.PIPELINED_BOUNDED)
+                                .setNetworkBufferPool(new NetworkBufferPool(10, 128))
+                                .build();
                 partitionWriters[i].setup();
             }
 
@@ -1067,9 +1077,10 @@ class MultipleInputStreamTaskTest {
                 assertThat(testHarness.getTaskStateManager().getReportedCheckpointId())
                         .isEqualTo(6);
 
-                // Each result partition should have emitted 3 barriers and 1 EndOfUserRecordsEvent.
+                // Each result partition should have emitted 3 barriers, 1 WatermarkStatus.FINISHED
+                // and 1 EndOfUserRecordsEvent.
                 for (ResultPartition resultPartition : partitionWriters) {
-                    assertThat(resultPartition.getNumberOfQueuedBuffers()).isEqualTo(4);
+                    assertThat(resultPartition.getNumberOfQueuedBuffers()).isEqualTo(5);
                 }
             }
         } finally {
@@ -1108,7 +1119,10 @@ class MultipleInputStreamTaskTest {
             testHarness.processElement(Watermark.MAX_WATERMARK, 2);
             testHarness.waitForTaskCompletion();
             assertThat(testHarness.getOutput())
-                    .containsExactly(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
+                    .containsExactly(
+                            Watermark.MAX_WATERMARK,
+                            WatermarkStatus.FINISHED,
+                            new EndOfData(StopMode.DRAIN));
         }
     }
 
