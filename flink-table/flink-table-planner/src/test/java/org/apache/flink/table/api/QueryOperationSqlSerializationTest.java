@@ -21,6 +21,7 @@ package org.apache.flink.table.api;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.CollectModifyOperation;
@@ -45,6 +46,7 @@ import java.util.Map;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -144,6 +146,62 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
     }
 
     @Test
+    void testComputedGroupingExpressionCanBeSelected() {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+        final Expression key = $("a").isGreater(10);
+
+        final Table result = env.from("s").groupBy(key).select(key, $("a").count().as("n"));
+
+        assertGeneratedSqlCanBeParsed(env, result);
+    }
+
+    @Test
+    void testStructurallyEquivalentComputedGroupingExpressionCanBeSelected() {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+
+        final Table result =
+                env.from("s")
+                        .groupBy($("a").isGreater(10))
+                        .select($("a").isGreater(10).as("flag"), $("a").count().as("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames()).containsExactly("flag", "n");
+        assertGeneratedSqlCanBeParsed(env, result);
+    }
+
+    @Test
+    void testComputedGroupingExpressionCanBeSelectedAfterAggregate() {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+        final Expression key = $("a").isGreater(10);
+
+        final Table result =
+                env.from("s").groupBy(key).aggregate($("a").count().as("n")).select(key, $("n"));
+
+        assertGeneratedSqlCanBeParsed(env, result);
+    }
+
+    @Test
+    void testColumnFunctionGroupingKeepsExpandedFields() {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+
+        final Table result =
+                env.from("s")
+                        .groupBy(withColumns(1, 2))
+                        .select(withColumns(1, 2), $("a").count().as("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames()).containsExactly("a", "b", "n");
+        assertGeneratedSqlCanBeParsed(env, result);
+    }
+
+    @Test
+    void testNonGroupingExpressionStillCannotBeSelected() {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+
+        assertThatThrownBy(() -> env.from("s").groupBy($("a").isGreater(10)).select($("a")))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Cannot resolve field [a]");
+    }
+
+    @Test
     void testProctimePropertyOfEventTimeWindowCannotBeExpressedInWindowingTvfSyntax() {
         final TableEnvironment env =
                 setupEnv(QueryOperationTestPrograms.WINDOW_AGGREGATE_ROWTIME_QUERY_OPERATION);
@@ -162,6 +220,12 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 .hasMessageContaining(
                         "The processing-time property of the event-time group window 'w' cannot be "
                                 + "expressed in windowing-TVF syntax.");
+    }
+
+    private static void assertGeneratedSqlCanBeParsed(TableEnvironment env, Table table) {
+        final String generatedSql =
+                table.getQueryOperation().asSerializableString(new InlineFunctionSqlFactory());
+        assertThatCode(() -> env.sqlQuery(generatedSql)).doesNotThrowAnyException();
     }
 
     private static TableEnvironment setupEnv(TableTestProgram program) {
