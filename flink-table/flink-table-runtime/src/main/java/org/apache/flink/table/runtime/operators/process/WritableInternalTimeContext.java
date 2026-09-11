@@ -35,13 +35,13 @@ import java.util.Map;
 
 /** Internal {@link TimeContext} for PTFs with set semantics. */
 @Internal
-class WritableInternalTimeContext extends ReadableInternalTimeContext {
+public class WritableInternalTimeContext extends ReadableInternalTimeContext {
 
     private final MapState<StringData, Long> namedTimersMapState;
     private final InternalTimerService<StringData> namedTimerService;
     private final InternalTimerService<VoidNamespace> unnamedTimerService;
 
-    WritableInternalTimeContext(
+    public WritableInternalTimeContext(
             MapState<StringData, Long> namedTimersMapState,
             InternalTimerService<StringData> namedTimerService,
             InternalTimerService<VoidNamespace> unnamedTimerService) {

@@ -40,6 +40,8 @@ Classes to define user-defined functions:
       Base interface for user-defined scalar function.
     - :class:`TableFunction`
       Base interface for user-defined table function.
+    - :class:`ProcessTableFunction`
+      Base interface for user-defined process table function.
     - :class:`AggregateFunction`
       Base interface for user-defined aggregate function.
     - :class:`TableAggregateFunction`
@@ -124,8 +126,8 @@ from pyflink.table.result_kind import ResultKind
 from pyflink.table.schema import Schema
 from pyflink.table.sql_dialect import SqlDialect
 from pyflink.table.statement_set import StatementSet
-from pyflink.table.table import GroupWindowedTable, GroupedTable, OverWindowedTable, Table, \
-    WindowGroupedTable
+from pyflink.table.table import GroupWindowedTable, GroupedTable, OverWindowedTable, \
+    PartitionedTable, Table, WindowGroupedTable
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import TableDescriptor, FormatDescriptor
 from pyflink.table.table_environment import (TableEnvironment, StreamTableEnvironment)
@@ -134,7 +136,8 @@ from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes, UserDefinedType, Row, RowKind
 from pyflink.table.udf import FunctionContext, ScalarFunction, TableFunction, AggregateFunction, \
-    TableAggregateFunction, AsyncScalarFunction
+    TableAggregateFunction, AsyncScalarFunction, ProcessTableFunction, \
+    ProcessTableFunctionArgument, ProcessTableFunctionArgumentTrait, ProcessTableFunctionState
 
 __all__ = [
     'TableEnvironment',
@@ -147,8 +150,13 @@ __all__ = [
     'GroupWindowedTable',
     'OverWindowedTable',
     'WindowGroupedTable',
+    'PartitionedTable',
     'ScalarFunction',
     'TableFunction',
+    'ProcessTableFunction',
+    'ProcessTableFunctionArgument',
+    'ProcessTableFunctionArgumentTrait',
+    'ProcessTableFunctionState',
     'AggregateFunction',
     'TableAggregateFunction',
     'AsyncScalarFunction',
