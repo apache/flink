@@ -43,6 +43,7 @@ public class RankBatchRestoreTest extends BatchRestoreTestBase {
                 // RankTestPrograms.RANK_TEST_RETRACT_STRATEGY,
                 RankTestPrograms.RANK_TEST_UPDATE_FAST_STRATEGY,
                 RankTestPrograms.RANK_N_TEST,
-                RankTestPrograms.RANK_2_TEST);
+                RankTestPrograms.RANK_2_TEST,
+                RankTestPrograms.ROW_NUMBER_TOP_N);
     }
 }
