@@ -19,10 +19,8 @@
 package org.apache.flink.connector.datagen.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -53,13 +51,12 @@ public abstract class DataGenVisitorBase extends LogicalTypeDefaultVisitor<DataG
 
     @Override
     public DataGeneratorContainer visit(DateType dateType) {
-        return DataGeneratorContainer.of(
-                TimeGenerator.of(() -> (int) LocalDate.now().toEpochDay()));
+        return DataGeneratorContainer.of(timeGenerator(() -> (int) LocalDate.now().toEpochDay()));
     }
 
     @Override
     public DataGeneratorContainer visit(TimeType timeType) {
-        return DataGeneratorContainer.of(TimeGenerator.of(() -> LocalTime.now().get(MILLI_OF_DAY)));
+        return DataGeneratorContainer.of(timeGenerator(() -> LocalTime.now().get(MILLI_OF_DAY)));
     }
 
     @Override
@@ -69,25 +66,7 @@ public abstract class DataGenVisitorBase extends LogicalTypeDefaultVisitor<DataG
 
     private interface SerializableSupplier<T> extends Supplier<T>, Serializable {}
 
-    private abstract static class TimeGenerator<T> implements DataGenerator<T> {
-
-        public static <T> TimeGenerator<T> of(SerializableSupplier<T> supplier) {
-            return new TimeGenerator<T>() {
-                @Override
-                public T next() {
-                    return supplier.get();
-                }
-            };
-        }
-
-        @Override
-        public void open(
-                String name, FunctionInitializationContext context, RuntimeContext runtimeContext)
-                throws Exception {}
-
-        @Override
-        public boolean hasNext() {
-            return true;
-        }
+    private static <T> GeneratorFunction<Long, T> timeGenerator(SerializableSupplier<T> supplier) {
+        return value -> supplier.get();
     }
 }

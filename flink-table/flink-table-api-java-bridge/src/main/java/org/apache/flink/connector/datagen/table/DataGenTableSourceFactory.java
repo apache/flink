@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
@@ -86,7 +86,9 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
         context.getCatalogTable().getOptions().forEach(options::setString);
 
         DataType rowDataType = context.getPhysicalRowDataType();
-        DataGenerator<?>[] fieldGenerators = new DataGenerator[DataType.getFieldCount(rowDataType)];
+        @SuppressWarnings({"unchecked"})
+        GeneratorFunction<Long, ?>[] fieldGenerators =
+                new GeneratorFunction[DataType.getFieldCount(rowDataType)];
         Set<ConfigOption<?>> optionalOptions = new HashSet<>();
 
         List<String> fieldNames = DataType.getFieldNames(rowDataType);
