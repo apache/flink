@@ -33,6 +33,7 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingResourceCleanerFactory;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -510,12 +511,17 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
     private void terminateJobWithState(
             TestingJobManagerRunner takeCreatedJobManagerRunner, JobStatus state) {
+        final ArchivedExecutionGraphBuilder archivedExecutionGraphBuilder =
+                new ArchivedExecutionGraphBuilder().setJobID(jobId).setState(state);
+
+        if (state == JobStatus.FAILED) {
+            archivedExecutionGraphBuilder.setFailureCause(
+                    new ErrorInfo(
+                            new FlinkException("Test job failure"), System.currentTimeMillis()));
+        }
+
         takeCreatedJobManagerRunner.completeResultFuture(
-                new ExecutionGraphInfo(
-                        new ArchivedExecutionGraphBuilder()
-                                .setJobID(jobId)
-                                .setState(state)
-                                .build()));
+                new ExecutionGraphInfo(archivedExecutionGraphBuilder.build()));
     }
 
     private void assertThatNoCleanupWasTriggered() {
