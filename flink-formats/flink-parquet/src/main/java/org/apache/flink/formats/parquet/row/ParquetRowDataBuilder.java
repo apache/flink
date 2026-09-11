@@ -42,6 +42,8 @@ import static org.apache.parquet.hadoop.ParquetOutputFormat.MAX_PADDING_BYTES;
 import static org.apache.parquet.hadoop.ParquetOutputFormat.getBlockSize;
 import static org.apache.parquet.hadoop.ParquetOutputFormat.getDictionaryPageSize;
 import static org.apache.parquet.hadoop.ParquetOutputFormat.getEnableDictionary;
+import static org.apache.parquet.hadoop.ParquetOutputFormat.getMaxRowCountForPageSizeCheck;
+import static org.apache.parquet.hadoop.ParquetOutputFormat.getMinRowCountForPageSizeCheck;
 import static org.apache.parquet.hadoop.ParquetOutputFormat.getPageSize;
 import static org.apache.parquet.hadoop.ParquetOutputFormat.getValidation;
 import static org.apache.parquet.hadoop.ParquetOutputFormat.getWriterVersion;
@@ -143,6 +145,8 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<RowData, Parque
                     .withDictionaryEncoding(getEnableDictionary(conf))
                     .withValidation(getValidation(conf))
                     .withWriterVersion(getWriterVersion(conf))
+                    .withMinRowCountForPageSizeCheck(getMinRowCountForPageSizeCheck(conf))
+                    .withMaxRowCountForPageSizeCheck(getMaxRowCountForPageSizeCheck(conf))
                     .withConf(conf)
                     .build();
         }
