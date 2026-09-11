@@ -30,6 +30,8 @@ import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 
+import javax.annotation.Nullable;
+
 import static org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE;
 import static org.apache.flink.python.util.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
 
@@ -55,9 +57,30 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
             RowType udfOutputType,
             GeneratedProjection udfInputGeneratedProjection,
             GeneratedProjection forwardedFieldGeneratedProjection) {
+        this(
+                config,
+                scalarFunctions,
+                null,
+                inputType,
+                udfInputType,
+                udfOutputType,
+                udfInputGeneratedProjection,
+                forwardedFieldGeneratedProjection);
+    }
+
+    public ArrowPythonScalarFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            @Nullable int[] udfOutputIndices,
+            RowType inputType,
+            RowType udfInputType,
+            RowType udfOutputType,
+            GeneratedProjection udfInputGeneratedProjection,
+            GeneratedProjection forwardedFieldGeneratedProjection) {
         super(
                 config,
                 scalarFunctions,
+                udfOutputIndices,
                 inputType,
                 udfInputType,
                 udfOutputType,

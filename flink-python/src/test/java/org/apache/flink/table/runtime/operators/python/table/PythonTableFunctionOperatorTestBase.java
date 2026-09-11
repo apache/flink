@@ -23,7 +23,9 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.functions.python.InputRef;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -210,7 +212,7 @@ abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
                         config,
                         new PythonFunctionInfo(
                                 PythonScalarFunctionOperatorTestBase.DummyPythonFunction.INSTANCE,
-                                new Integer[] {0}),
+                                new PythonFunctionInput[] {new InputRef(0)}),
                         inputType,
                         outputType,
                         new int[] {2},
