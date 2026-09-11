@@ -69,6 +69,44 @@ The scalar functions take zero, one or more values as the input and return a sin
 
 {{< sql_functions "collection" >}}
 
+### Geography Functions
+
+The v1 geography surface is intentionally small and focuses on schema declaration plus portable WKT
+and WKB boundaries.
+
+| Function | Description |
+|:---------|:------------|
+| `ST_GEOGFROMTEXT(wkt)` | Parses 2D WKT text into a `GEOGRAPHY` value. Returns `NULL` for `NULL` input. |
+| `ST_GEOGFROMWKB(wkb)` | Parses ISO/OGC WKB bytes into a `GEOGRAPHY` value. Returns `NULL` for `NULL` input. |
+| `ST_ASTEXT(geography)` | Serializes a `GEOGRAPHY` value to WKT text. Returns `NULL` for `NULL` input. |
+| `ST_ASWKB(geography)` | Returns the raw WKB bytes stored in a `GEOGRAPHY` value. Returns `NULL` for `NULL` input. |
+
+Example:
+
+```sql
+SELECT
+  ST_ASTEXT(ST_GEOGFROMTEXT('POINT (1 2)')),
+  ST_ASWKB(ST_GEOGFROMTEXT('POINT (1 2)')),
+  ST_ASTEXT(
+    ST_GEOGFROMWKB(
+      ST_ASWKB(ST_GEOGFROMTEXT('LINESTRING (0 0, 1 1)'))));
+```
+
+Notes:
+
+- `GEOGRAPHY` coordinates are validated as 2D CRS84 longitude/latitude values. Longitudes must be in `[-180, 180]`; latitudes must be in `[-90, 90]`.
+- `ST_ASWKB` returns the raw WKB bytes stored in the value. `ST_GEOGFROMWKB` followed by `ST_ASWKB` therefore preserves user-provided bytes after validation.
+- Values created from `ST_GEOGFROMTEXT` are stored as 2D WKB without SRID metadata.
+- PyFlink uses `bytes` for WKB boundaries, so no extra Python geospatial dependency is required for round-trip handling.
+
+#### Current Limitations And Follow-up Work
+
+- Spatial predicates and measurements such as `ST_INTERSECTS`, `ST_WITHIN`, `ST_LENGTH`, and `ST_DISTANCE` are not part of v1 yet.
+- `GEOMETRY`, typed geography literals, and a broader geography function set remain follow-up work.
+- Unsupported connector mappings fail explicitly instead of silently degrading `GEOGRAPHY` to `VARBINARY`; broader mappings for Iceberg, Avro, JDBC, Debezium, and additional external systems remain follow-up work.
+- Spatial pruning, spatial joins, and related optimizer/runtime work are intentionally deferred.
+- Published-version savepoint restore tests remain a follow-up because `GEOGRAPHY` does not yet have a released serializer baseline. Current coverage is limited to local SQL/runtime validation plus serializer versioning tests.
+
 ### JSON Functions
 
 JSON functions make use of JSON path expressions as described in ISO/IEC TR 19075-6 of the SQL
@@ -312,3 +350,8 @@ table.select(
 {{< /tabs >}}
 
 {{< top >}}
+
+
+
+
+

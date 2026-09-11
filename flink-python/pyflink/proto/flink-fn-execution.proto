@@ -233,6 +233,7 @@ message Schema {
     LOCAL_ZONED_TIMESTAMP = 19;
     ZONED_TIMESTAMP = 20;
     NULL = 21;
+    GEOGRAPHY = 22;
   }
 
   message MapInfo {

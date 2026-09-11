@@ -189,6 +189,33 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-code-splitter</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr4-runtime</artifactId>
+			<version>4.7</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr4-runtime</artifactId>
+			<version>4.7</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>io.airlift</groupId>
+			<artifactId>aircompressor</artifactId>
+			<version>0.27</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- ArchUnit test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -233,6 +260,12 @@ under the License.
 			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jsonpath</artifactId>
+			<version>${flink.shaded.jsonpath.version}-${flink.shaded.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -520,3 +553,6 @@ under the License.
 		</plugins>
 	</build>
 </project>
+
+
+

@@ -22,7 +22,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -38,6 +40,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link PythonTypeUtils}. */
 class PythonTypeUtilsTest {
+
+    private static final byte[] POINT_WKB =
+            new byte[] {
+                1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xF0, 0x3F, 0, 0, 0, 0, 0, 0, 0, 0x40
+            };
 
     @Test
     void testLogicalTypetoInternalSerializer() {
@@ -73,6 +80,29 @@ class PythonTypeUtilsTest {
         Object externalData = converter.toExternal(data, 0);
         assertThat(externalData).isInstanceOf(Long.class);
         assertThat(externalData).isEqualTo(10L);
+    }
+
+    @Test
+    void testGeographyLogicalTypeToProtoType() {
+        FlinkFnApi.Schema.FieldType protoType = PythonTypeUtils.toProtoType(new GeographyType());
+
+        assertThat(protoType.getTypeName()).isEqualTo(FlinkFnApi.Schema.TypeName.GEOGRAPHY);
+        assertThat(protoType.getNullable()).isTrue();
+    }
+
+    @Test
+    void testGeographyLogicalTypeToDataConverter() {
+        PythonTypeUtils.DataConverter converter =
+                PythonTypeUtils.toDataConverter(new GeographyType());
+
+        GenericRowData data = new GenericRowData(1);
+        data.setField(0, GeographyData.fromBytes(POINT_WKB));
+
+        byte[] externalData = (byte[]) converter.toExternal(data, 0);
+        assertThat(externalData).isEqualTo(POINT_WKB);
+
+        GeographyData internalData = (GeographyData) converter.toInternal(externalData);
+        assertThat(internalData.toBytes()).isEqualTo(POINT_WKB);
     }
 
     @Test
