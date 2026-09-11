@@ -22,7 +22,7 @@ import org.apache.flink.runtime.state.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 
 /** {@link PriorityQueueStateChangeLoggerImpl} test. */
-public class PriorityQueueStateChangeLoggerImplTest extends StateChangeLoggerTestBase<Void> {
+class PriorityQueueStateChangeLoggerImplTest extends StateChangeLoggerTestBase<Void> {
 
     @Override
     protected StateChangeLogger<String, Void> getLogger(
