@@ -36,15 +36,16 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 
 /** Implementation of ARRAY_SORT function. */
 @Internal
 public class ArraySortFunction extends BuiltInScalarFunction {
 
     private final ArrayData.ElementGetter elementGetter;
-    private final SpecializedFunction.ExpressionEvaluator greaterEvaluator;
+    private final SpecializedFunction.ExpressionEvaluator compareEvaluator;
 
-    private transient MethodHandle greaterHandle;
+    private transient MethodHandle compareHandle;
 
     public ArraySortFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.ARRAY_SORT, context);
@@ -54,17 +55,20 @@ public class ArraySortFunction extends BuiltInScalarFunction {
                         .toInternal();
         elementGetter =
                 ArrayData.createElementGetter(elementDataType.toInternal().getLogicalType());
-        greaterEvaluator =
+        compareEvaluator =
                 context.createEvaluator(
-                        $("element1").isGreater($("element2")),
-                        DataTypes.BOOLEAN(),
+                        unresolvedCall(
+                                BuiltInFunctionDefinitions.INTERNAL_COMPARE,
+                                $("element1"),
+                                $("element2")),
+                        DataTypes.INT().notNull(),
                         DataTypes.FIELD("element1", elementDataType.notNull().toInternal()),
                         DataTypes.FIELD("element2", elementDataType.notNull().toInternal()));
     }
 
     @Override
     public void open(FunctionContext context) throws Exception {
-        greaterHandle = greaterEvaluator.open(context);
+        compareHandle = compareEvaluator.open(context);
     }
 
     public @Nullable ArrayData eval(ArrayData array) {
@@ -109,8 +113,8 @@ public class ArraySortFunction extends BuiltInScalarFunction {
         @Override
         public int compare(Object o1, Object o2) {
             try {
-                boolean isGreater = (boolean) greaterHandle.invoke(o1, o2);
-                return isAscending ? (isGreater ? 1 : -1) : (isGreater ? -1 : 1);
+                int cmp = (int) compareHandle.invoke(o1, o2);
+                return isAscending ? cmp : -cmp;
             } catch (Throwable e) {
                 throw new RuntimeException(e);
             }
@@ -119,6 +123,6 @@ public class ArraySortFunction extends BuiltInScalarFunction {
 
     @Override
     public void close() throws Exception {
-        greaterEvaluator.close();
+        compareEvaluator.close();
     }
 }
