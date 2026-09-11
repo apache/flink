@@ -36,6 +36,7 @@ public class CalcRestoreTest extends RestoreTestBase {
     public List<TableTestProgram> programs() {
         return Arrays.asList(
                 CalcTestPrograms.SIMPLE_CALC,
+                CalcTestPrograms.CALC_PARTIAL_DELETE_WITH_EXPRESSION_AND_FILTER,
                 CalcTestPrograms.CALC_FILTER,
                 CalcTestPrograms.CALC_FILTER_PUSHDOWN,
                 CalcTestPrograms.CALC_PROJECT_PUSHDOWN,

@@ -1433,7 +1433,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
         // if the condition is applied on the upsert key, we can emit whatever the requiredTrait
         // is, because we will filter all records based on the condition that applies to that key
-        case calc: StreamPhysicalCalcBase =>
+        case calc: StreamPhysicalCalc =>
           if (
             requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
             isNonUpsertKeyCondition(calc)
@@ -1441,6 +1441,21 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             None
           } else {
             // otherwise, forward DeleteKind requirement
+            visitChildren(rel, requiredTrait) match {
+              case None => None
+              case Some(children) =>
+                val childTrait = children.head.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
+                createNewNode(rel, Some(children), childTrait)
+            }
+          }
+
+        // Unlike StreamPhysicalCalc, other Calc nodes do not skip evaluating non-key expressions
+        // for a delete-by-key tombstone. We are conservative by default and never forward
+        // DELETE_BY_KEY.
+        case _: StreamPhysicalCalcBase =>
+          if (requiredTrait == DeleteKindTrait.DELETE_BY_KEY) {
+            None
+          } else {
             visitChildren(rel, requiredTrait) match {
               case None => None
               case Some(children) =>

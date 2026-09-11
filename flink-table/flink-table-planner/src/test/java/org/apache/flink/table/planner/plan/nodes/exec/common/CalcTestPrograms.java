@@ -29,6 +29,7 @@ import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantBuilder;
 
@@ -60,6 +61,45 @@ public class CalcTestPrograms {
                                     .consumedAfterRestore(Row.of(422L, 42.1))
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT a + 1, b FROM t")
+                    .build();
+
+    public static final TableTestProgram CALC_PARTIAL_DELETE_WITH_EXPRESSION_AND_FILTER =
+            TableTestProgram.of(
+                            "calc-partial-delete-with-expression-and-filter",
+                            "validates that a calc forwarding partial deletes skips evaluating a"
+                                    + " non-key row constructor expression for a delete-by-key row"
+                                    + " after being restored from a compiled plan, with a key-safe"
+                                    + " filter present")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema(
+                                            "id INT PRIMARY KEY NOT ENFORCED",
+                                            "arr ARRAY<INT> NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
+                                    .producedBeforeRestore(
+                                            // Filtered out by the WHERE clause below
+                                            Row.ofKind(RowKind.INSERT, 0, new Integer[] {99}),
+                                            Row.ofKind(RowKind.INSERT, 1, new Integer[] {1, 2}),
+                                            Row.ofKind(RowKind.INSERT, 2, new Integer[] {3}))
+                                    .producedAfterRestore(
+                                            // Delete by key: NOT NULL array column is null
+                                            Row.ofKind(RowKind.DELETE, 1, null),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER, 2, new Integer[] {3, 4}))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "id INT PRIMARY KEY NOT ENFORCED",
+                                            "r ROW<a INT, b ARRAY<INT>> NOT NULL")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "true")
+                                    .consumedBeforeRestore(
+                                            "+I[1, +I[1, [1, 2]]]", "+I[2, +I[2, [3]]]")
+                                    .consumedAfterRestore("-D[1, null]", "+U[2, +I[2, [3, 4]]]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT id, ROW(id, arr) FROM source_t WHERE id > 0")
                     .build();
 
     public static final TableTestProgram CALC_PROJECT_PUSHDOWN =
