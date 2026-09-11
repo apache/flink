@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.SensitiveConnection;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
+import org.apache.flink.table.operations.ddl.DropConnectionOperation;
 
 import org.junit.jupiter.api.Test;
 
@@ -120,5 +121,52 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
         assertThatThrownBy(() -> parse("CREATE CONNECTION my_conn WITH ()"))
                 .isInstanceOf(SqlValidateException.class)
                 .hasMessageContaining("Connection property list can not be empty.");
+    }
+
+    @Test
+    void testDropConnection() {
+        Operation operation = parse("DROP CONNECTION my_conn");
+        assertThat(operation).isInstanceOf(DropConnectionOperation.class);
+        DropConnectionOperation op = (DropConnectionOperation) operation;
+
+        assertThat(op.getConnectionIdentifier())
+                .isEqualTo(ObjectIdentifier.of("builtin", "default", "my_conn"));
+        assertThat(op.isIfExists()).isFalse();
+        assertThat(op.isTemporary()).isFalse();
+        assertThat(op.isSystemConnection()).isFalse();
+    }
+
+    @Test
+    void testDropConnectionIfExists() {
+        Operation operation = parse("DROP CONNECTION IF EXISTS my_conn");
+        DropConnectionOperation op = (DropConnectionOperation) operation;
+        assertThat(op.isIfExists()).isTrue();
+        assertThat(op.isTemporary()).isFalse();
+        assertThat(op.isSystemConnection()).isFalse();
+    }
+
+    @Test
+    void testDropTemporaryConnection() {
+        Operation operation = parse("DROP TEMPORARY CONNECTION my_conn");
+        DropConnectionOperation op = (DropConnectionOperation) operation;
+        assertThat(op.isIfExists()).isFalse();
+        assertThat(op.isTemporary()).isTrue();
+        assertThat(op.isSystemConnection()).isFalse();
+    }
+
+    @Test
+    void testDropTemporarySystemConnection() {
+        Operation operation = parse("DROP TEMPORARY SYSTEM CONNECTION my_conn");
+        DropConnectionOperation op = (DropConnectionOperation) operation;
+        assertThat(op.isTemporary()).isTrue();
+        assertThat(op.isSystemConnection()).isTrue();
+    }
+
+    @Test
+    void testDropConnectionWithFullyQualifiedName() {
+        Operation operation = parse("DROP CONNECTION cat1.db1.my_conn");
+        DropConnectionOperation op = (DropConnectionOperation) operation;
+        assertThat(op.getConnectionIdentifier())
+                .isEqualTo(ObjectIdentifier.of("cat1", "db1", "my_conn"));
     }
 }
