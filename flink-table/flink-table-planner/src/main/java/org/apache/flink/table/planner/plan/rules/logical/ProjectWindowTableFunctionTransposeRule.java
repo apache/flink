@@ -111,11 +111,14 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
                         scan.getRowType().getFieldCount(), scanInputFieldCount, toPushFields);
 
         // 3. create new window table function scan
+        // the original time attribute column is shifted to a new position on the pushed-down input
+        int newTimeColumnIndex = mapping.get(windowingStrategy.getTimeAttributeIndex());
         LogicalTableFunctionScan newScan =
                 createNewTableFunctionScan(
                         relBuilder,
                         scan,
                         windowingStrategy.getTimeAttributeType(),
+                        newTimeColumnIndex,
                         newScanInput,
                         mapping,
                         toPushFields);
@@ -155,6 +158,7 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
             RelBuilder relBuilder,
             LogicalTableFunctionScan oldScan,
             LogicalType timeAttributeType,
+            int timeColumnIndex,
             RelNode newInput,
             Map<Integer, Integer> mapping,
             ImmutableBitSet toPushFields) {
@@ -165,7 +169,8 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
                 SqlWindowTableFunction.inferRowType(
                         typeFactory,
                         newInput.getRowType(),
-                        typeFactory.createFieldTypeFromLogicalType(timeAttributeType));
+                        typeFactory.createFieldTypeFromLogicalType(timeAttributeType),
+                        timeColumnIndex);
         RexNode newCall =
                 rewriteWindowCall(
                         (RexCall) oldScan.getCall(),

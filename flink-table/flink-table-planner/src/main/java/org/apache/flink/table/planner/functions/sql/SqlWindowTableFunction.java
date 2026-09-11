@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.functions.sql;
 
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
@@ -137,18 +138,44 @@ public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTabl
         final RelDataTypeField timeAttributeField = inputRowType.getField(timeField, false, false);
         assert timeAttributeField != null;
         return inferRowType(
-                callBinding.getTypeFactory(), inputRowType, timeAttributeField.getType());
+                callBinding.getTypeFactory(),
+                inputRowType,
+                timeAttributeField.getType(),
+                timeAttributeField.getIndex());
     }
 
+    /**
+     * Infers the row type of a window TVF call.
+     *
+     * <p>The output is the row type of the input table plus the {@code window_start}, {@code
+     * window_end} and {@code window_time} columns. Following FLIP-145, the original rowtime
+     * attribute column (the one referenced by the time descriptor at {@code timeColumnIndex}) is
+     * materialized to a regular timestamp, so that {@code window_time} becomes the only rowtime
+     * attribute after applying the window TVF (see FLINK-39899). Processing-time descriptor columns
+     * are kept as-is.
+     */
     public static RelDataType inferRowType(
             RelDataTypeFactory typeFactory,
             RelDataType inputRowType,
-            RelDataType timeAttributeType) {
-        return typeFactory
-                .builder()
-                .kind(inputRowType.getStructKind())
-                .addAll(inputRowType.getFieldList())
-                .add("window_start", SqlTypeName.TIMESTAMP, 3)
+            RelDataType timeAttributeType,
+            int timeColumnIndex) {
+        final RelDataTypeFactory.Builder builder =
+                typeFactory.builder().kind(inputRowType.getStructKind());
+        final List<RelDataTypeField> inputFields = inputRowType.getFieldList();
+        for (int i = 0; i < inputFields.size(); i++) {
+            final RelDataTypeField field = inputFields.get(i);
+            if (i == timeColumnIndex && FlinkTypeFactory.isRowtimeIndicatorType(field.getType())) {
+                // materialize the original rowtime attribute to a regular timestamp
+                builder.add(
+                        field.getName(),
+                        typeFactory.createTypeWithNullability(
+                                ((TimeIndicatorRelDataType) field.getType()).originalType(),
+                                field.getType().isNullable()));
+            } else {
+                builder.add(field);
+            }
+        }
+        return builder.add("window_start", SqlTypeName.TIMESTAMP, 3)
                 .add("window_end", SqlTypeName.TIMESTAMP, 3)
                 .add("window_time", typeFactory.createTypeWithNullability(timeAttributeType, false))
                 .build();
