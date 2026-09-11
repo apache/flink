@@ -26,6 +26,7 @@ from py4j.protocol import Py4JJavaError
 from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame
 from pyflink.dataframe.udf import _DataFrameUDFWrapper
+from pyflink.java_gateway import get_gateway
 from pyflink.table import Table, TableEnvironment
 from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import is_instance_of
@@ -268,9 +269,9 @@ def _register_views(
 ) -> List[str]:
     """
     Register explicit and auto-collected DataFrames as temporary views and return the
-    registered names. Registration is all-or-nothing: if an explicit binding is
-    rejected, the views registered before it are dropped again before raising. The
-    explicit bindings have already been type-checked and share ``t_env`` (see
+    registered names. Registration is all-or-nothing: if anything raises, the views
+    registered so far are dropped again before re-raising. The explicit bindings have
+    already been type-checked and share ``t_env`` (see
     :func:`_resolve_table_environment`).
     """
     temporary_tables = set(t_env.list_temporary_tables())
@@ -291,30 +292,31 @@ def _register_views(
                 )
             t_env.create_temporary_view(name, value.to_table())
             registered.append(name)
+
+        # Auto-bound candidates are not expected to raise: problems are reported as
+        # warnings. Anything unexpected still rolls back the registered views.
+        for name, value in auto.items():
+            if name in explicit:
+                # Explicit bindings take precedence on name collisions.
+                continue
+            if not _is_simple_sql_identifier(t_env, name):
+                _warn_skipped(name, "it is not a valid SQL identifier")
+                continue
+            if value._table._t_env is not t_env:
+                _warn_skipped(name, "it belongs to a different TableEnvironment")
+                continue
+            if name in all_tables:
+                _warn_skipped(name, "a table or view with this name already exists")
+                continue
+            try:
+                t_env.create_temporary_view(name, value.to_table())
+            except Exception as e:
+                _warn_skipped(name, f"registration failed: {e}")
+                continue
+            registered.append(name)
     except Exception:
         _drop_views(t_env, registered)
         raise
-
-    # Auto-bound candidates never raise: problems are reported as warnings.
-    for name, value in auto.items():
-        if name in explicit:
-            # Explicit bindings take precedence on name collisions.
-            continue
-        if not _is_simple_sql_identifier(t_env, name):
-            _warn_skipped(name, "it is not a valid SQL identifier")
-            continue
-        if value._table._t_env is not t_env:
-            _warn_skipped(name, "it belongs to a different TableEnvironment")
-            continue
-        if name in all_tables:
-            _warn_skipped(name, "a table or view with this name already exists")
-            continue
-        try:
-            t_env.create_temporary_view(name, value.to_table())
-        except Exception as e:
-            _warn_skipped(name, f"registration failed: {e}")
-            continue
-        registered.append(name)
     return registered
 
 
@@ -325,8 +327,8 @@ def _register_functions(
 ) -> List[str]:
     """
     Register explicit and auto-collected UDFs as temporary system functions and return
-    the registered names. Registration is all-or-nothing: if an explicit binding is
-    rejected, the functions registered before it are dropped again before raising.
+    the registered names. Registration is all-or-nothing: if anything raises, the
+    functions registered so far are dropped again before re-raising.
 
     System functions are looked up by bare name independently of the current catalog
     and database, which matches how a Python name is referenced in the query. Function
@@ -337,14 +339,13 @@ def _register_functions(
     """
     if not explicit and not auto:
         return []
-    # list_user_defined_functions() covers temporary and permanent functions alike;
-    # the permanent ones are those the current catalog lists for the current database.
-    user_defined = {f.lower() for f in t_env.list_user_defined_functions()}
-    temporary_functions = user_defined - _permanent_functions(t_env)
     # Explicit bindings take precedence on name collisions, so only the remaining
     # auto-bound candidates need the built-in function names. list_functions() covers
     # those as well, but is comparatively expensive, so skip it when nothing needs it.
-    auto_candidates = {name: value for name, value in auto.items() if name not in explicit}
+    explicit_names = {name.lower() for name in explicit}
+    auto_candidates = {
+        name: value for name, value in auto.items() if name.lower() not in explicit_names
+    }
     all_functions: Set[str] = set()
     if auto_candidates:
         all_functions = {f.lower() for f in t_env.list_functions()}
@@ -356,56 +357,51 @@ def _register_functions(
                 raise ValueError(
                     f"cannot bind '{name}': it is not a valid SQL identifier"
                 )
-            if name.lower() in temporary_functions:
+            if _has_temporary_function(t_env, name):
                 raise ValueError(
                     f"cannot bind '{name}': a temporary function with this name "
                     "already exists"
                 )
             t_env.create_temporary_system_function(name, value._table_udf_wrapper)
             registered.append(name)
-            temporary_functions.add(name.lower())
+
+        # Auto-bound candidates are not expected to raise: problems are reported as
+        # warnings. Anything unexpected still rolls back the registered functions.
+        for name, value in auto_candidates.items():
+            if not _is_simple_sql_identifier(t_env, name):
+                _warn_skipped(name, "it is not a valid SQL identifier")
+                continue
+            if name.lower() in all_functions or _has_temporary_function(t_env, name):
+                _warn_skipped(name, "a function with this name already exists")
+                continue
+            try:
+                t_env.create_temporary_system_function(name, value._table_udf_wrapper)
+            except Exception as e:
+                _warn_skipped(name, f"registration failed: {e}")
+                continue
+            registered.append(name)
     except Exception:
         _drop_functions(t_env, registered)
         raise
-
-    # Auto-bound candidates never raise: problems are reported as warnings.
-    for name, value in auto_candidates.items():
-        if not _is_simple_sql_identifier(t_env, name):
-            _warn_skipped(name, "it is not a valid SQL identifier")
-            continue
-        if name.lower() in all_functions or name.lower() in temporary_functions:
-            _warn_skipped(name, "a function with this name already exists")
-            continue
-        try:
-            t_env.create_temporary_system_function(name, value._table_udf_wrapper)
-        except Exception as e:
-            _warn_skipped(name, f"registration failed: {e}")
-            continue
-        registered.append(name)
-        temporary_functions.add(name.lower())
     return registered
 
 
-def _permanent_functions(t_env: TableEnvironment) -> Set[str]:
+def _has_temporary_function(t_env: TableEnvironment, name: str) -> bool:
     """
-    Lower-cased names of the permanent functions in the current catalog and database,
-    i.e. the user-defined functions that a temporary system function may shadow.
+    Whether a temporary system function or a temporary catalog function in the current
+    catalog and database is registered under ``name``. The environment's function
+    listings merge temporary and permanent functions, so a temporary function that
+    shares its name with a permanent one cannot be told apart from them; the function
+    catalog keeps them separate.
     """
-    catalog = t_env.get_catalog(t_env.get_current_catalog())
-    if catalog is None:
-        return set()
-    try:
-        names = catalog.list_functions(t_env.get_current_database())
-    except Py4JJavaError as e:
-        # A dropped current database lists no functions; this mirrors the environment,
-        # whose own function listing ignores a missing database as well.
-        if not is_instance_of(
-            e.java_exception,
-            "org.apache.flink.table.catalog.exceptions.DatabaseNotExistException",
-        ):
-            raise
-        return set()
-    return {name.lower() for name in names}
+    function_catalog = t_env._j_tenv.getPlanner().getFlinkContext().getFunctionCatalog()
+    if function_catalog.hasTemporarySystemFunction(name.lower()):
+        return True
+    gateway = get_gateway()
+    identifier = gateway.jvm.org.apache.flink.table.catalog.ObjectIdentifier.of(
+        t_env.get_current_catalog(), t_env.get_current_database(), name
+    )
+    return function_catalog.hasTemporaryCatalogFunction(identifier)
 
 
 def _warn_skipped(name: str, reason: str) -> None:

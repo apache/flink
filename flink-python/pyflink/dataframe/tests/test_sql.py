@@ -17,6 +17,7 @@
 ################################################################################
 
 import unittest
+import warnings
 
 from py4j.protocol import Py4JJavaError
 
@@ -514,6 +515,76 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
                 auto_bind=False,
                 taken=pf.udf(lambda value: value + 1, return_dtype=int),
             )
+
+    def test_explicit_udf_binding_collision_with_temporary_function_shadowing_permanent_raises(
+        self,
+    ):
+        # A temporary function with the same name as a permanent one is not visible
+        # in the environment's merged function listings; it must still block the binding.
+        self.t_env.create_java_function(
+            "taken", "org.apache.flink.table.utils.TestingFunctions$RichFunc0"
+        )
+        self.addCleanup(self.t_env.drop_function, "taken")
+        self.t_env.create_temporary_system_function(
+            "taken", table_udf(lambda i: i + 100, result_type=DataTypes.BIGINT())
+        )
+        self.addCleanup(self.t_env.drop_temporary_system_function, "taken")
+
+        with self.assertRaisesRegex(
+            ValueError, "'taken'.*temporary function.*already exists"
+        ):
+            pf.sql(
+                "SELECT 1",
+                auto_bind=False,
+                taken=pf.udf(lambda value: value + 1, return_dtype=int),
+            )
+
+    def test_explicit_udf_binding_collision_with_temporary_catalog_function_shadowing_permanent_raises(  # noqa: E501
+        self,
+    ):
+        self.t_env.create_java_function(
+            "taken", "org.apache.flink.table.utils.TestingFunctions$RichFunc0"
+        )
+        self.addCleanup(self.t_env.drop_function, "taken")
+        self.t_env.create_temporary_function(
+            "taken", table_udf(lambda i: i + 100, result_type=DataTypes.BIGINT())
+        )
+        self.addCleanup(self.t_env.drop_temporary_function, "taken")
+
+        with self.assertRaisesRegex(
+            ValueError, "'taken'.*temporary function.*already exists"
+        ):
+            pf.sql(
+                "SELECT 1",
+                auto_bind=False,
+                taken=pf.udf(lambda value: value + 1, return_dtype=int),
+            )
+
+    def test_auto_bound_registrations_are_rolled_back_when_auto_bind_raises(self):
+        # With warnings turned into errors, the skipped auto-bound candidate raises
+        # after earlier candidates were already registered; nothing must be left behind.
+        df = pf.from_dict({"a": [-1]})  # noqa: F841
+        add_one = pf.udf(lambda value: value + 1, return_dtype=int)  # noqa: F841
+        abs = pf.udf(lambda value: value + 100, return_dtype=int)  # noqa: F841
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            with self.assertRaisesRegex(UserWarning, "skipped 'abs'"):
+                pf.sql("SELECT add_one(a), abs(a) FROM df")
+
+        self.assertNotIn("df", self.t_env.list_temporary_views())
+        self.assertNotIn("add_one", self.t_env.list_user_defined_functions())
+
+    def test_explicit_udf_binding_precedence_over_auto_bind_is_case_insensitive(self):
+        df = pf.from_dict({"a": [1]})  # noqa: F841
+        add_one = pf.udf(lambda value: value + 1, return_dtype=int)  # noqa: F841
+        override = pf.udf(lambda value: value + 100, return_dtype=int)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            result = pf.sql("SELECT ADD_ONE(a) FROM df", ADD_ONE=override)
+
+        self.assertEqual(result.collect(), [Row(101)])
 
     def test_explicit_udf_bindings_are_rolled_back_when_a_later_one_fails(self):
         self.t_env.create_temporary_system_function(
