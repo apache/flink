@@ -29,6 +29,7 @@ import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KubernetesStepDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.MountSecretsDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.PersistentVolumeClaimMountDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.TerminationGracePeriodDecorator;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.util.Preconditions;
@@ -42,6 +43,7 @@ import java.util.List;
 
 import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED;
 import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED;
+import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.TASK_MANAGER_TERMINATION_GRACE_PERIOD;
 
 /** Utility class for constructing the TaskManager Pod on the JobManager. */
 public class KubernetesTaskManagerFactory {
@@ -58,7 +60,10 @@ public class KubernetesTaskManagerFactory {
                                 new MountSecretsDecorator(kubernetesTaskManagerParameters),
                                 new PersistentVolumeClaimMountDecorator(
                                         kubernetesTaskManagerParameters),
-                                new CmdTaskManagerDecorator(kubernetesTaskManagerParameters)));
+                                new CmdTaskManagerDecorator(kubernetesTaskManagerParameters),
+                                new TerminationGracePeriodDecorator(
+                                        kubernetesTaskManagerParameters,
+                                        TASK_MANAGER_TERMINATION_GRACE_PERIOD)));
 
         Configuration configuration = kubernetesTaskManagerParameters.getFlinkConfiguration();
         if (configuration.get(KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED)) {
