@@ -51,8 +51,7 @@ public class JobManagerLogUrlHandler
         extends AbstractRestHandler<
                 RestfulGateway, EmptyRequestBody, LogUrlResponse, JobMessageParameters>
         implements JsonArchivist {
-    public static final String JOB_MANAGER_LOG_URL_FORMAT =
-            "http://%s:%s/node/containerlogs/%s/%s";
+    public static final String JOB_MANAGER_LOG_URL_FORMAT = "http://%s:%s/node/containerlogs/%s/%s";
 
     private final Configuration config;
 

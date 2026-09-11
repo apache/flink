@@ -20,8 +20,8 @@ package org.apache.flink.runtime.rest.util;
 
 /**
  * Helper utility class to retrieve the YARN container environment context. This relies on the
- * standard environment variables that YARN's NodeManager exports into every launched container,
- * so it intentionally avoids adding a dependency on the YARN client libraries.
+ * standard environment variables that YARN's NodeManager exports into every launched container, so
+ * it intentionally avoids adding a dependency on the YARN client libraries.
  */
 public class EnvironmentInfoUtils {
 

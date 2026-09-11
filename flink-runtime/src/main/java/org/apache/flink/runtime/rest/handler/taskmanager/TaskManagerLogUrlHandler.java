@@ -226,8 +226,7 @@ public class TaskManagerLogUrlHandler
 
     /**
      * Generates a URL that will link to the location of the task manager logs. The format of the
-     * URL will be:
-     * CONTAINER-NM-HOST:CONTAINER-NM-HTTP-PORT/node/containerlogs/CONTAINER-ID/USER/
+     * URL will be: CONTAINER-NM-HOST:CONTAINER-NM-HTTP-PORT/node/containerlogs/CONTAINER-ID/USER/
      */
     @VisibleForTesting
     public LogUrlResponse createTaskManagerUrl(
