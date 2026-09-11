@@ -27,6 +27,49 @@ concurrency:
 
 permissions: read-all
 
+env:
+  # Branches whose nightly snapshots are published by this pipeline (binaries
+  # to S3, jars to repository.apache.org). Branches not listed here will build
+  # snapshots, and keep them as build artifacts of the workflow run only.
+  # This allows the migration from Azure Pipelines to GitHub Actions to happen
+  # one release branch at a time, without both pipelines publishing over each
+  # other: add a branch here once its snapshots are no longer published by
+  # the Azure pipeline, or while it is in the shadow phase described under
+  # SHADOW_SNAPSHOT_BRANCHES below.
+  #
+  # Each branch runs its own copy of this workflow, so a branch not listed
+  # here is never at risk of a scheduled run publishing its snapshots. This
+  # guard instead protects against a manual workflow_dispatch of this
+  # workflow on a branch that isn't meant to publish yet.
+  #
+  # Adding a branch here needs a matching change to that branch's copy of
+  # tools/azure-pipelines/build-apache-repo.yml, ideally in the same commit.
+  # Remove the "cron_snapshot_deployment" build-nightly-dist.yml template from
+  # the "cron_build" stage in tools/azure-pipelines/build-apache-repo.yml
+  # so that the Azure pipeline stops publishing snapshots for the branch.
+  # Removing that template will stop snapshots being published by AZP
+  #
+  # No branches are published by this pipeline yet, pending agreement on the
+  # dev mailing list to start the migration. 
+  # Example: '["master"]'
+  PUBLISH_SNAPSHOT_BRANCHES: '[]'
+
+  # Branches in the shadow phase, where this pipeline and the Azure pipeline both
+  # publish the same branch so that their output can be compared. Binaries for
+  # these branches are uploaded to a GHA-specific prefix in the S3 bucket instead
+  # of the bucket root, so that the two pipelines don't overwrite each other.
+  # (Snapshot jars in Maven don't need an equivalent, as they are timestamped.)
+  #
+  # A branch belongs here only while it is *also* still being published by the
+  # Azure pipeline. Remove it from this list in the same commit that removes the
+  # branch's "cron_snapshot_deployment" template from build-apache-repo.yml, so
+  # that it starts publishing to the bucket root as the Azure pipeline stops.
+  # Leaving a branch here after AZP has stopped means nothing is publishing its
+  # snapshots to the location that consumers read from.
+  #
+  # Example: '["master"]'
+  SHADOW_SNAPSHOT_BRANCHES: '[]'
+
 jobs:
   pre-compile-checks:
     name: "Pre-compile Checks"
@@ -91,6 +134,138 @@ jobs:
 
       - name: "Build docs and check for broken links"
         run: ./tools/ci/docs.sh
+
+  snapshot_binary:
+    name: "Snapshot Binary Release"
+    runs-on: ubuntu-24.04
+    container:
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
+      options: --init --privileged
+    env:
+      MOUNTED_WORKING_DIR: /__w/flink/flink
+      CONTAINER_LOCAL_WORKING_DIR: /root/flink
+      MAVEN_REPO_FOLDER: /root/.m2/repository
+      MAVEN_ARGS: -Dmaven.repo.local=/root/.m2/repository
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: "Initialize job"
+        uses: "./.github/actions/job_init"
+        with:
+          # In order for other repository's(e.g. flink-docker, flink-benchmarks) CI to 
+          # cover all supported jdks, keep it to the minimum supported version.
+          # Upgrade this only when we drop support for this jdk version.
+          jdk_version: 11
+          maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
+          source_directory: ${{ env.MOUNTED_WORKING_DIR }}
+          target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+      - name: "Build snapshot binary release"
+        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+        shell: bash
+        run: |
+          # errexit needs to be disabled explicitly here because maven-utils.sh handles the error if a mirror is not available
+          set +o errexit
+          source ./tools/ci/maven-utils.sh
+          set -o errexit
+          run_mvn -version
+          export MVN="run_mvn"
+          export RELEASE_VERSION=$(MVN_RUN_VERBOSE=false run_mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "Determined RELEASE_VERSION as '$RELEASE_VERSION'"
+          cd tools
+          MVN_RUN_VERBOSE=true SKIP_GPG=true SKIP_PYTHON_WHEELS=true ./releasing/create_binary_release.sh
+          echo "Created files:"
+          find ./releasing/release
+          cd ..
+      # Uploaded for every branch so that the binaries can be inspected and
+      # compared against the ones the Azure pipeline produces.
+      - name: "Upload snapshot binary release as build artifact"
+        uses: actions/upload-artifact@v7
+        with:
+          name: snapshot-binary-release-${{ github.run_number }}
+          path: /root/flink/tools/releasing/release
+          if-no-files-found: error
+          retention-days: 5
+      - name: "Upload artifacts to S3"
+        if: ${{ contains(fromJSON(env.PUBLISH_SNAPSHOT_BRANCHES), github.ref_name) }}
+        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+        shell: bash
+        run: |
+          if [[ -z "${ARTIFACTS_S3_BUCKET}" || -z "${AWS_ACCESS_KEY_ID}" || -z "${AWS_SECRET_ACCESS_KEY}" ]]; then
+            echo "::warning::Skipping S3 upload: ARTIFACTS_S3_BUCKET/ARTIFACTS_AWS_ACCESS_KEY_ID/ARTIFACTS_AWS_SECRET_ACCESS_KEY secrets are not set up yet"
+            exit 0
+          fi
+          source ./tools/ci/deploy_nightly_to_s3.sh
+          # branches in the shadow phase upload to a GHA-specific prefix, so that
+          # they don't overwrite the builds AZP is still uploading
+          upload_to_s3 ./tools/releasing/release "${S3_PREFIX}"
+        env:
+          S3_PREFIX: ${{ contains(fromJSON(env.SHADOW_SNAPSHOT_BRANCHES), github.ref_name) && 'gha-trial/' || '' }}
+          ARTIFACTS_S3_BUCKET: ${{ secrets.ARTIFACTS_S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.ARTIFACTS_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ARTIFACTS_AWS_SECRET_ACCESS_KEY }}
+
+  snapshot_maven:
+    name: "Snapshot Maven Deploy"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    container:
+      image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy
+      options: --init --privileged
+    env:
+      MOUNTED_WORKING_DIR: /__w/flink/flink
+      CONTAINER_LOCAL_WORKING_DIR: /root/flink
+      MAVEN_REPO_FOLDER: /root/.m2/repository
+      MAVEN_ARGS: -Dmaven.repo.local=/root/.m2/repository
+      STAGING_JARS_DIR: /root/staging-jars
+      STAGING_JARS_TARBALL: /root/staging-jars.tar.gz
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: "Initialize job"
+        uses: "./.github/actions/job_init"
+        with:
+          # In order for other repository's(e.g. flink-docker, flink-benchmarks) CI to 
+          # cover all supported jdks, keep it to the minimum supported version.
+          # Upgrade this only when we drop support for this jdk version.
+          jdk_version: 11
+          maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
+          source_directory: ${{ env.MOUNTED_WORKING_DIR }}
+          target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+      - name: "Deploy Maven snapshot"
+        working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+        shell: bash
+        run: |
+          # errexit needs to be disabled explicitly here because maven-utils.sh handles the error if a mirror is not available
+          set +o errexit
+          source ./tools/ci/maven-utils.sh
+          set -o errexit
+          run_mvn -version
+
+          cd tools
+          ./releasing/deploy_nightly_maven_snapshot.sh
+        env:
+          MAVEN_DEPLOY_USER: ${{ secrets.MAVEN_DEPLOY_USER }}
+          MAVEN_DEPLOY_PASS: ${{ secrets.MAVEN_DEPLOY_PASS }}
+          PUBLISH_SNAPSHOTS: ${{ contains(fromJSON(env.PUBLISH_SNAPSHOT_BRANCHES), github.ref_name) }}
+      - name: "Archive locally deployed snapshot jars"
+        if: ${{ !contains(fromJSON(env.PUBLISH_SNAPSHOT_BRANCHES), github.ref_name) }}
+        shell: bash
+        run: |
+          du -sh "${STAGING_JARS_DIR}"
+          tar --create --gzip --file "${STAGING_JARS_TARBALL}" -C "${STAGING_JARS_DIR}" .
+          ls -lh "${STAGING_JARS_TARBALL}"
+      - name: "Upload snapshot jars as build artifact"
+        if: ${{ !contains(fromJSON(env.PUBLISH_SNAPSHOT_BRANCHES), github.ref_name) }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: snapshot-maven-jars-${{ github.run_number }}
+          path: ${{ env.STAGING_JARS_TARBALL }}
+          if-no-files-found: error
+          retention-days: 5
 
   build_python_wheels:
     name: "Build Python Wheels on ${{ matrix.os_name }}"
