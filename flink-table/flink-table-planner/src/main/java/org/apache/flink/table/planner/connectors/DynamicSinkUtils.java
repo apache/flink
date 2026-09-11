@@ -106,6 +106,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -552,6 +553,7 @@ public final class DynamicSinkUtils {
                         tableModify,
                         contextResolvedTable,
                         updateInfo,
+                        updatedColumns,
                         tableDebugName,
                         dataTypeFactory,
                         typeFactory);
@@ -562,6 +564,20 @@ public final class DynamicSinkUtils {
                         context,
                         updateRelNodeAndRequireIndices.f1));
         return updateRelNodeAndRequireIndices.f0;
+    }
+
+    /** Append updated columns that are missing from the sink-declared required columns. */
+    private static List<Column> mergeRequiredAndUpdatedColumns(
+            List<Column> requiredColumns, List<Column> updatedColumns) {
+        Set<String> existingNames =
+                requiredColumns.stream().map(Column::getName).collect(Collectors.toSet());
+        List<Column> merged = new ArrayList<>(requiredColumns);
+        for (Column updated : updatedColumns) {
+            if (!existingNames.contains(updated.getName())) {
+                merged.add(updated);
+            }
+        }
+        return merged;
     }
 
     private static List<Column> getUpdatedColumns(
@@ -739,13 +755,17 @@ public final class DynamicSinkUtils {
             LogicalTableModify tableModify,
             ContextResolvedTable contextResolvedTable,
             SupportsRowLevelUpdate.RowLevelUpdateInfo rowLevelUpdateInfo,
+            List<Column> updatedColumns,
             String tableDebugName,
             DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory) {
         // get the required columns
         ResolvedSchema resolvedSchema = contextResolvedTable.getResolvedSchema();
         Optional<List<Column>> optionalColumns = rowLevelUpdateInfo.requiredColumns();
-        List<Column> requiredColumns = optionalColumns.orElse(resolvedSchema.getColumns());
+        List<Column> requiredColumns =
+                optionalColumns
+                        .map(cols -> mergeRequiredAndUpdatedColumns(cols, updatedColumns))
+                        .orElse(resolvedSchema.getColumns());
         // get the root table scan which we may need rewrite it
         LogicalTableScan tableScan = getSourceTableScan(tableModify);
         Tuple2<List<Integer>, List<MetadataColumn>> colsIndexAndExtraMetaCols =
