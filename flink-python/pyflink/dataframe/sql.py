@@ -19,7 +19,7 @@
 import inspect
 import logging
 import warnings
-from typing import Any, Dict, Iterable, List, Set, Union
+from typing import Any, Callable, Dict, Iterable, List, Set, Union
 
 from py4j.protocol import Py4JJavaError
 
@@ -28,6 +28,7 @@ from pyflink.dataframe.dataframe import DataFrame
 from pyflink.dataframe.udf import _DataFrameUDFWrapper
 from pyflink.java_gateway import get_gateway
 from pyflink.table import Table, TableEnvironment
+from pyflink.table.expression import Expression
 from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import is_instance_of
 
@@ -35,9 +36,10 @@ __all__ = ["sql"]
 
 _LOG = logging.getLogger(__name__)
 
-_Binding = Union[DataFrame, _DataFrameUDFWrapper]
-# TODO: This is only needed for python<=3.9. Once we drop support for it
-#       we can check with isinstance(<obj>, _Binding) instead of having to do this.
+# UDFs are annotated with the declared return type of :func:`pyflink.dataframe.udf`
+# so that its result type-checks as a binding; at runtime a binding must be an actual
+# UDF object, which is what _BINDABLE_TYPES enforces.
+_Binding = Union[DataFrame, Callable[..., Expression]]
 _BINDABLE_TYPES = (DataFrame, _DataFrameUDFWrapper)
 
 
