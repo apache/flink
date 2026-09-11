@@ -24,8 +24,11 @@ import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.types.AbstractDataType;
 
 import java.util.function.Function;
@@ -85,6 +88,16 @@ public class TableApiTestStep implements TestStep {
                     }
 
                     @Override
+                    public Table createTable(QueryOperation operation) {
+                        return ((TableEnvironmentImpl) env).createTable(operation);
+                    }
+
+                    @Override
+                    public OperationTreeBuilder getOperationTreeBuilder() {
+                        return ((TableEnvironmentImpl) env).getOperationTreeBuilder();
+                    }
+
+                    @Override
                     public Model fromModel(String modelPath) {
                         return env.fromModel(modelPath);
                     }
@@ -136,6 +149,12 @@ public class TableApiTestStep implements TestStep {
 
         /** See {@link TableEnvironment#sqlQuery(String)}. */
         Table sqlQuery(String query);
+
+        /** See {@link TableEnvironmentImpl#createTable(QueryOperation)}. */
+        Table createTable(QueryOperation operation);
+
+        /** See {@link TableEnvironmentImpl#getOperationTreeBuilder()}. */
+        OperationTreeBuilder getOperationTreeBuilder();
 
         /** See {@link TableEnvironment#fromModel(String)}. */
         Model fromModel(String modelPath);

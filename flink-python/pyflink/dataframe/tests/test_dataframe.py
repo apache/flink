@@ -16,19 +16,25 @@
 # limitations under the License.
 ################################################################################
 
-import inspect
 import array
 import decimal
+import inspect
+import os
+import pandas as pd
+import pyarrow as pa
 import unittest
-from py4j.protocol import Py4JJavaError
 from datetime import date, datetime, time, timedelta, timezone
+from py4j.protocol import Py4JJavaError
 from typing import NamedTuple
 from unittest.mock import Mock, patch
 
-import pandas as pd
-import pyarrow as pa
 import pyflink.dataframe as pf
 from pyflink.common import Row
+from pyflink.dataframe.dataframe import (
+    _resolve_window_time_column,
+    _to_interval_expression,
+)
+from pyflink.dataframe.datatype import DataType
 from pyflink.table import (
     DataTypes as TableDataTypes,
     EnvironmentSettings,
@@ -1567,6 +1573,147 @@ class DataFrameUniqueTests(PyFlinkDataFrameUTTestCase):
         )
 
 
+class DataFrameWindowUnitTests(PyFlinkDataFrameUTTestCase):
+    _WINDOW_SCHEMA_COLUMN_NAMES = [
+        "id",
+        "amount",
+        "ts",
+        "window_start",
+        "window_end",
+        "window_time",
+    ]
+
+    def _window_schema_column_data_types(self):
+        source_types = list(
+            self.dataframe._table.get_resolved_schema().get_column_data_types()
+        )
+        time_column_type = source_types[2]
+        return source_types + [
+            TableDataTypes.TIMESTAMP(3).not_null(),
+            TableDataTypes.TIMESTAMP(3).not_null(),
+            time_column_type.not_null(),
+        ]
+
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [{"id": 1, "amount": 10, "ts": datetime(2020, 1, 1)}],
+            watermark=("ts", "ts - INTERVAL '1' SECOND"),
+        )
+
+    def test_timedelta_becomes_java_value_literal(self):
+        serialized = _to_interval_expression(
+            timedelta(minutes=10)
+        ).asSerializableString()
+
+        self.assertIn("INTERVAL", serialized)
+        self.assertIn("00:10:00", serialized)
+
+    def test_sub_millisecond_precision_is_truncated_not_rounded(self):
+        truncated = _to_interval_expression(
+            timedelta(milliseconds=1, microseconds=500)
+        ).asSerializableString()
+        whole = _to_interval_expression(
+            timedelta(milliseconds=1)
+        ).asSerializableString()
+
+        self.assertEqual(truncated, whole)
+
+    def test_sub_millisecond_timedelta_truncates_to_zero(self):
+        serialized = _to_interval_expression(
+            timedelta(microseconds=500)
+        ).asSerializableString()
+
+        zero = _to_interval_expression(timedelta(0)).asSerializableString()
+
+        self.assertEqual(serialized, zero)
+
+    def test_expression_is_unwrapped_to_j_expr(self):
+        expr = pf.lit(10).minutes
+
+        self.assertIs(_to_interval_expression(expr), expr._j_expr)
+
+    def test_rejects_unsupported_type(self):
+        with self.assertRaisesRegex(TypeError, "must be a datetime.timedelta or Expression"):
+            _to_interval_expression("INTERVAL '10' MINUTE")
+
+    def test_accepts_string_column(self):
+        resolved = _resolve_window_time_column("ts")
+
+        self.assertIsInstance(resolved, Expression)
+        self.assertEqual(str(resolved), "ts")
+
+    def test_accepts_column_expression(self):
+        column = pf.col("ts")
+
+        self.assertIs(_resolve_window_time_column(column), column)
+
+    def test_rejects_wrong_type(self):
+        with self.assertRaisesRegex(TypeError, "on must be a column name or expression"):
+            _resolve_window_time_column(10)
+
+    def test_tumble_appends_window_columns_timedelta(self):
+        self.assert_dataframe_schema(
+            self.dataframe.tumble(on="ts", size=timedelta(minutes=10)),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+    def test_tumble_appends_window_columns_expression(self):
+        self.assert_dataframe_schema(
+            self.dataframe.tumble(on="ts", size=pf.lit(10).minutes),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+        )
+
+    def test_hop_appends_window_columns(self):
+        self.assert_dataframe_schema(
+            self.dataframe.hop(
+                on="ts",
+                slide=timedelta(minutes=5),
+                size=timedelta(minutes=10),
+            ),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+    def test_cumulate_appends_window_columns(self):
+        self.assert_dataframe_schema(
+            self.dataframe.cumulate(
+                on="ts",
+                step=timedelta(minutes=2),
+                size=timedelta(minutes=10),
+            ),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+    def test_session_appends_window_columns(self):
+        self.assert_dataframe_schema(
+            self.dataframe.session(on="ts", gap=timedelta(minutes=10)),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+            expected_column_data_types=self._window_schema_column_data_types(),
+        )
+
+    def test_session_with_partition_by_appends_window_columns(self):
+        self.assert_dataframe_schema(
+            self.dataframe.session(
+                on="ts",
+                gap=timedelta(minutes=10),
+                partition_by=["id", pf.col("amount")],
+            ),
+            self._WINDOW_SCHEMA_COLUMN_NAMES,
+        )
+
+    def test_session_partition_by_rejects_unsupported_type(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            "^partition_by must be a column name, expression, or a list of them$",
+        ):
+            self.dataframe.session(
+                on="ts", gap=timedelta(minutes=10), partition_by=[10]
+            )
+
+
 class DataFrameTopNTests(PyFlinkDataFrameUTTestCase):
     def setUp(self):
         super().setUp()
@@ -1597,6 +1744,13 @@ class DataFrameTopNTests(PyFlinkDataFrameUTTestCase):
     def test_unknown_partition_column(self):
         with self.assertRaisesRegex(ValueError, "partition_by column 'nope' does not exist"):
             self.df.top_n(2, partition_by="nope", order_by="amount")
+
+    def test_rejects_non_string_partition_by(self):
+        with self.assertRaises(TypeError) as error:
+            self.df.top_n(2, partition_by=[1], order_by="amount")
+        self.assertEqual(
+            str(error.exception), "partition_by must be a string or a list of strings"
+        )
 
     def test_sql_global_has_no_partition_by(self):
         df = pf.from_records([{"id": 1, "name": "a", "score": 10}])
@@ -2174,6 +2328,137 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
             result.collect(),
             [Row("engineering", 30, 2), Row("sales", 5, 1)],
         )
+
+
+class DataFrameWindowITTests(PyFlinkStreamDataFrameTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.t_env.get_config().set("table.exec.resource.default-parallelism", "1")
+
+    def _rowtime_source(self):
+        return self._rowtime_source_from_rows(
+            "events.csv", ["1,10,0", "1,20,60000", "1,40,600000"]
+        )
+
+    def _multi_key_rowtime_source(self):
+        return self._rowtime_source_from_rows(
+            "multi_key_events.csv", ["1,10,0", "2,20,60000", "1,40,600000"]
+        )
+
+    def _rowtime_source_from_rows(self, filename, rows):
+        input_path = os.path.join(self.tempdir, filename)
+        with open(input_path, "w", encoding="utf-8") as events:
+            events.write("\n".join(rows) + "\n")
+        return pf.read_generic(
+            "filesystem",
+            schema={
+                "id": DataType.int64(),
+                "amount": DataType.int64(),
+                "ts_millis": DataType.int64(),
+            },
+            options={"path": input_path, "format": "csv"},
+            computed_columns={"event_time": "TO_TIMESTAMP_LTZ(ts_millis, 3)"},
+            watermark=("event_time", "event_time - INTERVAL '1' SECOND"),
+        )
+
+    def _proctime_source(self):
+        input_path = os.path.join(self.tempdir, "proctime_events.csv")
+        with open(input_path, "w", encoding="utf-8") as events:
+            events.write("1,10\n")
+            events.write("1,20\n")
+            events.write("1,40\n")
+        return pf.read_generic(
+            "filesystem",
+            schema={
+                "id": DataType.int64(),
+                "amount": DataType.int64(),
+            },
+            options={"path": input_path, "format": "csv"},
+            computed_columns={"proc_time": "PROCTIME()"},
+        )
+
+    def test_tumble_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .tumble(on="event_time", size=timedelta(minutes=10))
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+
+        self.assertEqual(sorted(row[-1] for row in windowed.collect()), [30, 40])
+
+    def test_hop_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .hop(
+                on="event_time",
+                slide=timedelta(minutes=5),
+                size=timedelta(minutes=10),
+            )
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+
+        self.assertEqual(sorted(row[-1] for row in windowed.collect()), [30, 30, 40, 40])
+
+    def test_cumulate_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .cumulate(
+                on="event_time",
+                step=timedelta(minutes=5),
+                size=timedelta(minutes=10),
+            )
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+
+        self.assertEqual(sorted(row[-1] for row in windowed.collect()), [30, 30, 40, 40])
+
+    def test_session_window_aggregation(self):
+        windowed = (
+            self._rowtime_source()
+            .session(on="event_time", gap=timedelta(minutes=5))
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+        rows = self._materialize(windowed, key=["window_start", "window_end", "id"])
+
+        self.assertEqual(sorted(row[-1] for row in rows), [30, 40])
+
+    def test_session_partition_by_computes_per_key_sessions(self):
+        partitioned = (
+            self._multi_key_rowtime_source()
+            .session(
+                on="event_time",
+                gap=timedelta(seconds=90),
+                partition_by="id",
+            )
+            .group_by("window_start", "window_end", "id")
+            .agg(pf.col("amount").sum.alias("total"))
+        )
+
+        partitioned_rows = self._materialize(
+            partitioned, key=["window_start", "window_end", "id"]
+        )
+
+        self.assertEqual(sorted(row[-1] for row in partitioned_rows), [10, 20, 40])
+
+    def test_tumble_processing_time_assigns_aligned_windows(self):
+        rows = (
+            self._proctime_source()
+            .tumble(on="proc_time", size=timedelta(minutes=10))
+            .select("window_start", "window_end")
+            .collect()
+        )
+
+        self.assertEqual(len(rows), 3)
+        for start, end in rows:
+            self.assertEqual(end - start, timedelta(minutes=10))
+            self.assertEqual(
+                (start.minute % 10, start.second, start.microsecond), (0, 0, 0)
+            )
 
 
 if __name__ == "__main__":
