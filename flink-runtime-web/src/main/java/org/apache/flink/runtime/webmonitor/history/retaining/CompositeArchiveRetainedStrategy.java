@@ -80,6 +80,11 @@ public class CompositeArchiveRetainedStrategy implements ArchiveRetainedStrategy
         }
         return strategies.stream().allMatch(s -> s.shouldRetain(file, fileOrderedIndex));
     }
+
+    @Override
+    public boolean isExpiredByTtl(FileStatus file) {
+        return strategies.stream().anyMatch(s -> s.isExpiredByTtl(file));
+    }
 }
 
 /** The time to live based retained strategy. */
@@ -98,10 +103,15 @@ class TimeToLiveArchiveRetainedStrategy implements ArchiveRetainedStrategy {
 
     @Override
     public boolean shouldRetain(FileStatus file, int fileOrderedIndex) {
+        return !isExpiredByTtl(file);
+    }
+
+    @Override
+    public boolean isExpiredByTtl(FileStatus file) {
         if (ttlThreshold == null) {
-            return true;
+            return false;
         }
-        return Instant.now().toEpochMilli() - file.getModificationTime() < ttlThreshold.toMillis();
+        return Instant.now().toEpochMilli() - file.getModificationTime() >= ttlThreshold.toMillis();
     }
 }
 
