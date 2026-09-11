@@ -44,6 +44,7 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -162,11 +163,17 @@ public class LocalFileSystem extends FileSystem {
             return null;
         }
         results = new FileStatus[names.length];
-        for (int i = 0; i < names.length; i++) {
-            results[i] = getFileStatus(new Path(f, names[i]));
+        int resultCount = 0;
+        for (String name : names) {
+            try {
+                results[resultCount] = getFileStatus(new Path(f, name));
+                resultCount++;
+            } catch (FileNotFoundException ignored) {
+                // The directory contents may change after the entries have been listed.
+            }
         }
 
-        return results;
+        return resultCount == results.length ? results : Arrays.copyOf(results, resultCount);
     }
 
     @Override
