@@ -53,7 +53,7 @@ import java.util.Objects;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Test for {@link OpenAIChatModelFunction}. */
+/** Test for {@link OpenAIAsyncChatModelFunction}. */
 public class OpenAIChatModelTest {
     private static final String MODEL_NAME = "m";
 

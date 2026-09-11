@@ -23,7 +23,6 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.factories.ModelProviderFactory;
-import org.apache.flink.table.functions.AsyncPredictFunction;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import com.openai.models.ResponseFormatJsonObject;
@@ -32,92 +31,75 @@ import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionCreateParams.ResponseFormat;
 
+import javax.annotation.Nullable;
+
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/** {@link AsyncPredictFunction} for OpenAI chat completion task. */
-public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
+/**
+ * Per-task state and SDK plumbing for OpenAI chat-completion requests, shared between the async and
+ * sync chat model functions. Owns chat-specific configuration (system prompt and the remaining
+ * tuning options) and the SDK request/response translation.
+ */
+class OpenAIChatTask implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public static final String ENDPOINT_SUFFIX = "chat/completions";
+    static final String ENDPOINT_SUFFIX = "chat/completions";
 
-    public static final String STOP_SEPARATOR = ",";
+    static final String STOP_SEPARATOR = ",";
 
-    private final String model;
+    private final OpenAIModelCommons commons;
     private final String systemPrompt;
     private final Configuration config;
     private final int outputColumnIndex;
 
-    public OpenAIChatModelFunction(
-            ModelProviderFactory.Context factoryContext, ReadableConfig config) {
-        super(factoryContext, config);
-        model = config.get(OpenAIOptions.MODEL);
-        systemPrompt = config.get(OpenAIOptions.SYSTEM_PROMPT);
+    OpenAIChatTask(
+            ModelProviderFactory.Context factoryContext,
+            ReadableConfig config,
+            OpenAIModelCommons commons) {
+        this.commons = commons;
+        this.systemPrompt = config.get(OpenAIOptions.SYSTEM_PROMPT);
         this.config = Configuration.fromMap(config.toMap());
-        validateSingleColumnSchema(
+        OpenAIModelCommons.validateSingleColumnSchema(
                 factoryContext.getCatalogModel().getResolvedOutputSchema(),
                 new VarCharType(VarCharType.MAX_LENGTH),
                 "output");
-        this.outputColumnIndex = getOutputColumnIndex();
+        this.outputColumnIndex = commons.resolvePhysicalOutputColumnIndex();
     }
 
-    private int getOutputColumnIndex() {
-        for (int i = 0; i < this.outputColumnNames.size(); i++) {
-            String columnName = this.outputColumnNames.get(i);
-            if (ErrorMessageMetadata.get(columnName) == null) {
-                // Prior checks have guaranteed that there is one and only one physical output
-                // column.
-                return i;
-            }
-        }
-        throw new IllegalArgumentException(
-                "There should be one and only one physical output column. Actual columns: "
-                        + this.outputColumnNames);
-    }
-
-    @Override
-    protected String getEndpointSuffix() {
-        return ENDPOINT_SUFFIX;
-    }
-
-    @Override
-    public CompletableFuture<Collection<RowData>> asyncPredictInternal(String input) {
+    ChatCompletionCreateParams buildParams(String input) {
         ChatCompletionCreateParams.Builder builder =
                 ChatCompletionCreateParams.builder()
                         .addSystemMessage(systemPrompt)
                         .addUserMessage(input)
-                        .model(model);
-        this.config.getOptional(OpenAIOptions.TEMPERATURE).ifPresent(builder::temperature);
-        this.config.getOptional(OpenAIOptions.TOP_P).ifPresent(builder::topP);
-        this.config
-                .getOptional(OpenAIOptions.STOP)
+                        .model(commons.model);
+        config.getOptional(OpenAIOptions.TEMPERATURE).ifPresent(builder::temperature);
+        config.getOptional(OpenAIOptions.TOP_P).ifPresent(builder::topP);
+        config.getOptional(OpenAIOptions.STOP)
                 .ifPresent(x -> builder.stopOfStrings(Arrays.asList(x.split(STOP_SEPARATOR))));
-        this.config.getOptional(OpenAIOptions.MAX_TOKENS).ifPresent(builder::maxTokens);
-        this.config.getOptional(OpenAIOptions.PRESENCE_PENALTY).ifPresent(builder::presencePenalty);
-        this.config.getOptional(OpenAIOptions.N).ifPresent(builder::n);
-        this.config.getOptional(OpenAIOptions.SEED).ifPresent(builder::seed);
-        this.config
-                .getOptional(OpenAIOptions.RESPONSE_FORMAT)
+        config.getOptional(OpenAIOptions.MAX_TOKENS).ifPresent(builder::maxTokens);
+        config.getOptional(OpenAIOptions.PRESENCE_PENALTY).ifPresent(builder::presencePenalty);
+        config.getOptional(OpenAIOptions.N).ifPresent(builder::n);
+        config.getOptional(OpenAIOptions.SEED).ifPresent(builder::seed);
+        config.getOptional(OpenAIOptions.RESPONSE_FORMAT)
                 .ifPresent(x -> builder.responseFormat(x.getResponseFormat()));
-
-        return client.chat().completions().create(builder.build()).handle(this::convertToRowData);
+        return builder.build();
     }
 
-    private Collection<RowData> convertToRowData(
-            ChatCompletion chatCompletion, Throwable throwable) {
+    Collection<RowData> convertToRowData(
+            @Nullable ChatCompletion chatCompletion, @Nullable Throwable throwable) {
         if (throwable != null) {
-            return handleErrorsAndRespond(throwable);
+            return commons.handleErrorsAndRespond(throwable);
         }
-
         return chatCompletion.choices().stream()
                 .map(
                         choice -> {
                             GenericRowData rowData =
-                                    new GenericRowData(this.outputColumnNames.size());
+                                    new GenericRowData(commons.outputColumnNames.size());
                             rowData.setField(
-                                    this.outputColumnIndex,
+                                    outputColumnIndex,
                                     BinaryStringData.fromString(
                                             choice.message().content().orElse("")));
                             return rowData;
@@ -126,7 +108,7 @@ public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
     }
 
     /**
-     * The response format for Chat model function. It's an Enum representation for {@link
+     * The response format for chat model functions. It's an Enum representation for {@link
      * ResponseFormat}.
      */
     public enum ChatModelResponseFormat {
