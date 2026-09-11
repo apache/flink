@@ -76,14 +76,14 @@ public class MapContainsKeyFunction extends BuiltInScalarFunction {
                     return true;
                 }
             }
-        } else {
-            for (int pos = 0; pos < size; pos++) {
-                final Object key = keyElementGetter.getElementOrNull(keys, pos);
-                if (key != null && isEqual(key, needle)) {
-                    return true;
-                }
+        }
+        for (int pos = 0; pos < size; pos++) {
+            final Object key = keyElementGetter.getElementOrNull(keys, pos);
+            if (key != null && isEqual(key, needle)) {
+                return true;
             }
         }
+
         return false;
     }
 
