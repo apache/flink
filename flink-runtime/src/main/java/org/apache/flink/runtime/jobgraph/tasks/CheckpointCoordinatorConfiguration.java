@@ -76,6 +76,12 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     private final boolean pauseSourcesUntilFirstCheckpoint;
 
+    private final boolean regionalCheckpointEnabled;
+
+    private final double regionalMaxFailureRatio;
+
+    private final int regionalMaxConsecutiveFailures;
+
     /**
      * @deprecated use {@link #builder()}.
      */
@@ -105,7 +111,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 checkpointIdOfIgnoredInFlightData,
                 false,
                 false,
-                false);
+                false,
+                false,
+                0.3,
+                2);
     }
 
     private CheckpointCoordinatorConfiguration(
@@ -122,7 +131,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             long checkpointIdOfIgnoredInFlightData,
             boolean enableCheckpointsAfterTasksFinish,
             boolean recoverOutputOnDownstreamTask,
-            boolean pauseSourcesUntilFirstCheckpoint) {
+            boolean pauseSourcesUntilFirstCheckpoint,
+            boolean regionalCheckpointEnabled,
+            double regionalMaxFailureRatio,
+            int regionalMaxConsecutiveFailures) {
 
         if (checkpointIntervalDuringBacklog < MINIMAL_CHECKPOINT_TIME) {
             // interval of max value means disable periodic checkpoint
@@ -164,6 +176,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         this.enableCheckpointsAfterTasksFinish = enableCheckpointsAfterTasksFinish;
         this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
         this.pauseSourcesUntilFirstCheckpoint = pauseSourcesUntilFirstCheckpoint;
+        this.regionalCheckpointEnabled = regionalCheckpointEnabled;
+        this.regionalMaxFailureRatio = regionalMaxFailureRatio;
+        this.regionalMaxConsecutiveFailures = regionalMaxConsecutiveFailures;
     }
 
     public long getCheckpointInterval() {
@@ -222,6 +237,18 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         return recoverOutputOnDownstreamTask;
     }
 
+    public boolean isRegionalCheckpointEnabled() {
+        return regionalCheckpointEnabled;
+    }
+
+    public double getRegionalMaxFailureRatio() {
+        return regionalMaxFailureRatio;
+    }
+
+    public int getRegionalMaxConsecutiveFailures() {
+        return regionalMaxConsecutiveFailures;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -242,7 +269,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 && tolerableCheckpointFailureNumber == that.tolerableCheckpointFailureNumber
                 && checkpointIdOfIgnoredInFlightData == that.checkpointIdOfIgnoredInFlightData
                 && enableCheckpointsAfterTasksFinish == that.enableCheckpointsAfterTasksFinish
-                && recoverOutputOnDownstreamTask == that.recoverOutputOnDownstreamTask;
+                && recoverOutputOnDownstreamTask == that.recoverOutputOnDownstreamTask
+                && regionalCheckpointEnabled == that.regionalCheckpointEnabled
+                && Double.compare(regionalMaxFailureRatio, that.regionalMaxFailureRatio) == 0
+                && regionalMaxConsecutiveFailures == that.regionalMaxConsecutiveFailures;
     }
 
     @Override
@@ -259,7 +289,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 tolerableCheckpointFailureNumber,
                 checkpointIdOfIgnoredInFlightData,
                 enableCheckpointsAfterTasksFinish,
-                recoverOutputOnDownstreamTask);
+                recoverOutputOnDownstreamTask,
+                regionalCheckpointEnabled,
+                regionalMaxFailureRatio,
+                regionalMaxConsecutiveFailures);
     }
 
     @Override
@@ -289,6 +322,12 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 + enableCheckpointsAfterTasksFinish
                 + ", recoverOutputOnDownstreamTask="
                 + recoverOutputOnDownstreamTask
+                + ", regionalCheckpointEnabled="
+                + regionalCheckpointEnabled
+                + ", regionalMaxFailureRatio="
+                + regionalMaxFailureRatio
+                + ", regionalMaxConsecutiveFailures="
+                + regionalMaxConsecutiveFailures
                 + '}';
     }
 
@@ -332,6 +371,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         private boolean enableCheckpointsAfterTasksFinish;
         private boolean recoverOutputOnDownstreamTask;
         private boolean pauseSourcesUntilFirstCheckpoint;
+        private boolean regionalCheckpointEnabled = false;
+        private double regionalMaxFailureRatio = 0.3;
+        private int regionalMaxConsecutiveFailures = 2;
 
         public CheckpointCoordinatorConfiguration build() {
             return new CheckpointCoordinatorConfiguration(
@@ -348,7 +390,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                     checkpointIdOfIgnoredInFlightData,
                     enableCheckpointsAfterTasksFinish,
                     recoverOutputOnDownstreamTask,
-                    pauseSourcesUntilFirstCheckpoint);
+                    pauseSourcesUntilFirstCheckpoint,
+                    regionalCheckpointEnabled,
+                    regionalMaxFailureRatio,
+                    regionalMaxConsecutiveFailures);
         }
 
         public CheckpointCoordinatorConfigurationBuilder setCheckpointInterval(
@@ -431,6 +476,24 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         public CheckpointCoordinatorConfigurationBuilder setRecoverOutputOnDownstreamTask(
                 boolean recoverOutputOnDownstreamTask) {
             this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setRegionalCheckpointEnabled(
+                boolean regionalCheckpointEnabled) {
+            this.regionalCheckpointEnabled = regionalCheckpointEnabled;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setRegionalMaxFailureRatio(
+                double regionalMaxFailureRatio) {
+            this.regionalMaxFailureRatio = regionalMaxFailureRatio;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setRegionalMaxConsecutiveFailures(
+                int regionalMaxConsecutiveFailures) {
+            this.regionalMaxConsecutiveFailures = regionalMaxConsecutiveFailures;
             return this;
         }
     }

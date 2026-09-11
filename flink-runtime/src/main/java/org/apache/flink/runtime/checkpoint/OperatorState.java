@@ -150,6 +150,18 @@ public class OperatorState implements CompositeStateHandle {
         this.coordinatorState = coordinatorState;
     }
 
+    /**
+     * Overwrites the coordinator state, replacing any previously set value.
+     *
+     * <p>Unlike {@link #setCoordinatorState}, this does not require the current value to be {@code
+     * null}. It is used by regional checkpoint fallback, where the coordinator state recovered from
+     * the historical checkpoint must replace any coordinator state that was already collected
+     * during the failed regional checkpoint attempt.
+     */
+    public void overwriteCoordinatorState(@Nullable ByteStreamStateHandle coordinatorState) {
+        this.coordinatorState = coordinatorState;
+    }
+
     @Nullable
     public ByteStreamStateHandle getCoordinatorState() {
         return coordinatorState;

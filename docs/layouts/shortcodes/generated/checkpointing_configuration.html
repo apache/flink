@@ -141,6 +141,24 @@
             <td>The maximum number of completed checkpoints to retain.</td>
         </tr>
         <tr>
+            <td><h5>execution.checkpointing.region.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Global switch for Regional Checkpoint. When enabled, partial region failures during checkpoint will not abort the entire checkpoint. Historical state will be used for failed regions.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.region.max-consecutive-failures</h5></td>
+            <td style="word-wrap: break-word;">2</td>
+            <td>Integer</td>
+            <td>Maximum number of consecutive checkpoints that may reference historical checkpoint state.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.region.max-failure-ratio</h5></td>
+            <td style="word-wrap: break-word;">0.3</td>
+            <td>Double</td>
+            <td>Maximum ratio of regions that may fail within a single checkpoint and still allow commit.</td>
+        </tr>
+        <tr>
             <td><h5>execution.checkpointing.savepoint-dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
