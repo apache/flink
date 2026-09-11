@@ -121,6 +121,9 @@ public final class SpecificTypeStrategies {
     public static final TypeStrategy INTERNAL_REPLICATE_ROWS =
             new InternalReplicateRowsTypeStrategy();
 
+    /** See {@link ToTimestampTypeStrategy}. */
+    public static final TypeStrategy TO_TIMESTAMP = new ToTimestampTypeStrategy();
+
     /** See {@link ToTimestampLtzTypeStrategy}. */
     public static final TypeStrategy TO_TIMESTAMP_LTZ = new ToTimestampLtzTypeStrategy();
 

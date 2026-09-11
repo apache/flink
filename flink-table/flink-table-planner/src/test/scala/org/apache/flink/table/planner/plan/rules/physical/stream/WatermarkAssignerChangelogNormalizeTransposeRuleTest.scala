@@ -49,7 +49,7 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
                      |  currency_no STRING,
                      |  rate  BIGINT,
                      |  c STRING,
-                     |  currency_time as to_timestamp(c),
+                     |  currency_time as TO_TIMESTAMP(c),
                      |  WATERMARK FOR currency_time AS currency_time - interval '5' SECOND,
                      |  PRIMARY KEY(currency) NOT ENFORCED
                      |) WITH (
@@ -66,7 +66,7 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
                      | currency_no STRING,
                      | rate BIGINT,
                      | c STRING,
-                     | currency_time as to_timestamp(c),
+                     | currency_time as TO_TIMESTAMP(c),
                      | WATERMARK FOR currency_time AS currency_time - interval '5' SECOND,
                      | PRIMARY KEY(currency) NOT ENFORCED
                      |) WITH (
