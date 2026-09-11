@@ -26,7 +26,10 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.List;
 import java.util.Optional;
@@ -66,6 +69,30 @@ public final class SpecificTypeStrategies {
 
     /** Type strategy specific for array element. */
     public static final TypeStrategy ARRAY_ELEMENT = new ArrayElementTypeStrategy();
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#ARRAY_FLATTEN}. */
+    public static final TypeStrategy ARRAY_FLATTEN =
+            callContext -> {
+                // Input type is ARRAY<ARRAY<T>>
+                final LogicalType inputType =
+                        callContext.getArgumentDataTypes().get(0).getLogicalType();
+
+                if (!(inputType instanceof ArrayType)
+                        || !(((ArrayType) inputType).getElementType() instanceof ArrayType)) {
+                    return callContext.fail(
+                            true, "ARRAY_FLATTEN expects an argument of type ARRAY<ARRAY<T>>.");
+                }
+
+                final ArrayType outerArrayType = (ArrayType) inputType;
+                final ArrayType innerArrayType = (ArrayType) outerArrayType.getElementType();
+
+                // Output type is ARRAY<T> where T is the element type of the inner array
+                return Optional.of(
+                        DataTypes.ARRAY(
+                                        TypeConversions.fromLogicalToDataType(
+                                                innerArrayType.getElementType()))
+                                .nullable());
+            };
 
     public static final TypeStrategy ITEM_AT = new ItemAtTypeStrategy();
 

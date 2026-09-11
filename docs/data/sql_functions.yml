@@ -898,6 +898,9 @@ collection:
   - sql: ARRAY_CONCAT(array1, ...)
     table: array1.arrayConcat(...)
     description: Returns an array that is the result of concatenating at least one array. This array contains all the elements in the first array, followed by all the elements in the second array, and so forth, up to the Nth array. If any input array is NULL, the function returns NULL.
+  - sql: ARRAY_FLATTEN(array)
+    table: array.arrayFlatten()
+    description: Returns an array that is the result of flattening a nested array by one level. The function takes an ARRAY<ARRAY<T>> and returns an ARRAY<T> by concatenating all inner arrays. NULL inner arrays are skipped, but NULL elements within inner arrays are preserved. If the input array itself is NULL, the function returns NULL.
   - sql: ARRAY_EXCEPT(array1, array2)
     table: arrayOne.arrayExcept(arrayTwo)
     description: Returns an ARRAY that contains the elements from array1 that are not in array2, without duplicates. If no elements remain after excluding the elements in array2 from array1, the function returns an empty ARRAY. If one or both arguments are NULL, the function returns NULL. The order of the elements from array1 is kept.

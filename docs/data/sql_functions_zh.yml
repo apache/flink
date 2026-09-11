@@ -1031,6 +1031,9 @@ collection:
   - sql: ARRAY_CONCAT(array1, ...)
     table: array1.arrayConcat(...)
     description: 返回一个数组，该数组是连接至少一个数组的结果。该数组包含第一个数组中的所有元素，然后是第二个数组中的所有元素，依此类推，直到第 N 个数组。如果任何输入数组为 NULL，则函数返回 NULL。
+  - sql: ARRAY_FLATTEN(array)
+    table: array.arrayFlatten()
+    description: 返回一个数组，该数组是将嵌套数组展平一层的结果。该函数接受一个 ARRAY<ARRAY<T>> 类型的输入，通过连接所有内层数组返回一个 ARRAY<T> 类型的结果。NULL 内层数组会被跳过，但内层数组中的 NULL 元素会被保留。如果输入数组本身为 NULL，则函数返回 NULL。
   - sql: ARRAY_EXCEPT(array1, array2)
     table: arrayOne.arrayExcept(arrayTwo)
     description: Returns an ARRAY that contains the elements from array1 that are not in array2, without duplicates. If no elements remain after excluding the elements in array2 from array1, the function returns an empty ARRAY. If one or both arguments are NULL, the function returns NULL. The order of the elements from array1 is kept.
