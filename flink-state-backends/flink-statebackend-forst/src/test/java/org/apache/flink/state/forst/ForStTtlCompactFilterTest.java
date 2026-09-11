@@ -21,6 +21,7 @@ package org.apache.flink.state.forst;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.v2.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.v2.internal.InternalListState;
+import org.apache.flink.runtime.state.v2.internal.InternalMapState;
 import org.apache.flink.runtime.state.v2.internal.InternalValueState;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
@@ -179,6 +181,41 @@ class ForStTtlCompactFilterTest {
     void testExpiredFixedLengthListElementsAreRemovedByCompaction() throws Exception {
         testExpiredListElementsAreRemovedByCompaction(
                 "ttl-list-state-fixed", LongSerializer.INSTANCE, 1L, 2L, 3L);
+    }
+
+    /**
+     * Map entries carry their own TTL timestamp behind the null flag of the serialized user value;
+     * the filter is configured in map mode for that layout.
+     */
+    @Test
+    void testExpiredMapEntriesAreRemovedByCompaction() throws Exception {
+        MapStateDescriptor<String, String> descriptor =
+                new MapStateDescriptor<>(
+                        "ttl-map-state", StringSerializer.INSTANCE, StringSerializer.INSTANCE);
+        descriptor.enableTimeToLive(ttlConfig());
+
+        InternalMapState<String, VoidNamespace, String, String> state =
+                keyedBackend.createState(
+                        VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor);
+
+        currentTime.set(0L);
+        setCurrentContext("k1");
+        state.put("uk1", "v1");
+        state.put("uk2", "v2");
+        drain();
+
+        currentTime.set(TTL.toMillis() + 1);
+        setCurrentContext("k1");
+        state.put("uk3", "v3");
+        drain();
+
+        keyedBackend.compactState(descriptor);
+
+        setCurrentContext("k1");
+        assertThat(state.get("uk1")).as("expired entry uk1 should be removed").isNull();
+        assertThat(state.get("uk2")).as("expired entry uk2 should be removed").isNull();
+        assertThat(state.get("uk3")).isEqualTo("v3");
+        drain();
     }
 
     private <E> void testExpiredListElementsAreRemovedByCompaction(
