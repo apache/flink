@@ -33,9 +33,12 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.IndexedRecord;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.lang.reflect.Array;
@@ -74,12 +77,75 @@ public class AvroToRowDataConverters {
 
     public static AvroToRowDataConverter createRowConverter(
             RowType rowType, boolean legacyTimestampMapping) {
-        final AvroToRowDataConverter[] fieldConverters =
-                rowType.getFields().stream()
-                        .map(RowType.RowField::getType)
-                        .map(type -> createNullableConverter(type, legacyTimestampMapping))
-                        .toArray(AvroToRowDataConverter[]::new);
+        return createRowConverterInternal(
+                rowType, legacyTimestampMapping, null, FieldMatching.INDEX);
+    }
+
+    /**
+     * Creates a runtime converter that maps Avro records onto the given row type using the given
+     * field matching strategy.
+     *
+     * <p>Prefer {@link #createRowConverter(Schema, RowType, FieldMatching)} where the reader schema
+     * is known: passing it lets a field mismatch be reported when the converter is created rather
+     * than when the first record arrives.
+     */
+    public static AvroToRowDataConverter createRowConverter(
+            RowType rowType, FieldMatching fieldMatching) {
+        return createRowConverterInternal(rowType, true, null, fieldMatching);
+    }
+
+    /**
+     * Creates a runtime converter that maps records of the given reader schema onto the given row
+     * type using the given field matching strategy.
+     */
+    public static AvroToRowDataConverter createRowConverter(
+            Schema readerSchema, RowType rowType, FieldMatching fieldMatching) {
+        return createRowConverter(readerSchema, rowType, true, fieldMatching);
+    }
+
+    /**
+     * Creates a runtime converter that maps records of the given reader schema onto the given row
+     * type using the given field matching strategy.
+     */
+    public static AvroToRowDataConverter createRowConverter(
+            Schema readerSchema,
+            RowType rowType,
+            boolean legacyTimestampMapping,
+            FieldMatching fieldMatching) {
+        return createRowConverterInternal(
+                rowType, legacyTimestampMapping, readerSchema, fieldMatching);
+    }
+
+    private static AvroToRowDataConverter createRowConverterInternal(
+            RowType rowType,
+            boolean legacyTimestampMapping,
+            @Nullable Schema schema,
+            FieldMatching fieldMatching) {
         final int arity = rowType.getFieldCount();
+        final Schema recordSchema = asRecordSchema(schema);
+
+        // Resolving here is not what the runtime converter uses - the reader schema instance seen
+        // at runtime is a different one, because the schema travels to the task as a string. It
+        // serves two other purposes: reporting a field mismatch while the job is still being
+        // assembled, and telling each nested converter which Avro field it is going to read.
+        final AvroFieldMatcher.Plan plan =
+                fieldMatching == FieldMatching.NAME && recordSchema != null
+                        ? AvroFieldMatcher.forDeserialization(rowType, recordSchema)
+                        : null;
+
+        final AvroToRowDataConverter[] fieldConverters = new AvroToRowDataConverter[arity];
+        for (int i = 0; i < arity; i++) {
+            fieldConverters[i] =
+                    createNullableConverter(
+                            rowType.getTypeAt(i),
+                            legacyTimestampMapping,
+                            avroFieldSchema(recordSchema, plan, i),
+                            fieldMatching);
+        }
+
+        if (fieldMatching == FieldMatching.NAME) {
+            return new NameMatchingRowConverter(rowType, fieldConverters);
+        }
 
         return avroObject -> {
             IndexedRecord record = (IndexedRecord) avroObject;
@@ -93,10 +159,65 @@ public class AvroToRowDataConverters {
         };
     }
 
+    /**
+     * Reads Avro record fields into the row field of the same name, so that the two may declare
+     * their fields in a different order. See {@link AvroFieldMatcher} for the matching rules.
+     */
+    private static final class NameMatchingRowConverter implements AvroToRowDataConverter {
+
+        private static final long serialVersionUID = 1L;
+
+        private final RowType rowType;
+        private final AvroToRowDataConverter[] fieldConverters;
+
+        /**
+         * The pairing resolved for the schema seen last. Records of a stream all share one reader
+         * schema instance, so this is effectively resolved once. The plan is immutable and safely
+         * publishable, hence no synchronization: the worst a racy read can cost is one redundant
+         * resolution.
+         */
+        private transient AvroFieldMatcher.Plan plan;
+
+        private NameMatchingRowConverter(
+                RowType rowType, AvroToRowDataConverter[] fieldConverters) {
+            this.rowType = rowType;
+            this.fieldConverters = fieldConverters;
+        }
+
+        @Override
+        public Object convert(Object avroObject) {
+            final IndexedRecord record = (IndexedRecord) avroObject;
+            final Schema recordSchema = record.getSchema();
+
+            AvroFieldMatcher.Plan currentPlan = plan;
+            if (currentPlan == null || !currentPlan.appliesTo(recordSchema)) {
+                currentPlan = AvroFieldMatcher.forDeserialization(rowType, recordSchema);
+                plan = currentPlan;
+            }
+
+            final GenericRowData row = new GenericRowData(fieldConverters.length);
+            for (int i = 0; i < fieldConverters.length; ++i) {
+                final int avroPos = currentPlan.avroPositionOf(i);
+                // A column the record has no field for stays null; the plan already refused the
+                // case where that would violate a NOT NULL column.
+                if (avroPos != AvroFieldMatcher.UNMATCHED) {
+                    // avro always deserialize successfully even though the type isn't matched
+                    // so no need to throw exception about which field can't be deserialized
+                    row.setField(i, fieldConverters[i].convert(record.get(avroPos)));
+                }
+            }
+            return row;
+        }
+    }
+
     /** Creates a runtime converter which is null safe. */
     private static AvroToRowDataConverter createNullableConverter(
-            LogicalType type, boolean legacyTimestampMapping) {
-        final AvroToRowDataConverter converter = createConverter(type, legacyTimestampMapping);
+            LogicalType type,
+            boolean legacyTimestampMapping,
+            @Nullable Schema schema,
+            FieldMatching fieldMatching) {
+        final AvroToRowDataConverter converter =
+                createConverter(type, legacyTimestampMapping, schema, fieldMatching);
         return avroObject -> {
             if (avroObject == null) {
                 return null;
@@ -107,7 +228,10 @@ public class AvroToRowDataConverters {
 
     /** Creates a runtime converter which assuming input object is not null. */
     private static AvroToRowDataConverter createConverter(
-            LogicalType type, boolean legacyTimestampMapping) {
+            LogicalType type,
+            boolean legacyTimestampMapping,
+            @Nullable Schema schema,
+            FieldMatching fieldMatching) {
         switch (type.getTypeRoot()) {
             case NULL:
                 return avroObject -> null;
@@ -144,12 +268,18 @@ public class AvroToRowDataConverters {
             case DECIMAL:
                 return createDecimalConverter((DecimalType) type);
             case ARRAY:
-                return createArrayConverter((ArrayType) type, legacyTimestampMapping);
+                return createArrayConverter(
+                        (ArrayType) type,
+                        legacyTimestampMapping,
+                        elementSchemaOf(schema),
+                        fieldMatching);
             case ROW:
-                return createRowConverter((RowType) type);
+                return createRowConverterInternal(
+                        (RowType) type, legacyTimestampMapping, schema, fieldMatching);
             case MAP:
             case MULTISET:
-                return createMapConverter(type, legacyTimestampMapping);
+                return createMapConverter(
+                        type, legacyTimestampMapping, valueSchemaOf(schema), fieldMatching);
             case RAW:
             default:
                 throw new UnsupportedOperationException("Unsupported type: " + type);
@@ -175,9 +305,16 @@ public class AvroToRowDataConverters {
     }
 
     private static AvroToRowDataConverter createArrayConverter(
-            ArrayType arrayType, boolean legacyTimestampMapping) {
+            ArrayType arrayType,
+            boolean legacyTimestampMapping,
+            @Nullable Schema elementSchema,
+            FieldMatching fieldMatching) {
         final AvroToRowDataConverter elementConverter =
-                createNullableConverter(arrayType.getElementType(), legacyTimestampMapping);
+                createNullableConverter(
+                        arrayType.getElementType(),
+                        legacyTimestampMapping,
+                        elementSchema,
+                        fieldMatching);
         final Class<?> elementClass =
                 LogicalTypeUtils.toInternalConversionClass(arrayType.getElementType());
 
@@ -193,11 +330,22 @@ public class AvroToRowDataConverters {
     }
 
     private static AvroToRowDataConverter createMapConverter(
-            LogicalType type, boolean legacyTimestampMapping) {
+            LogicalType type,
+            boolean legacyTimestampMapping,
+            @Nullable Schema valueSchema,
+            FieldMatching fieldMatching) {
         final AvroToRowDataConverter keyConverter =
-                createConverter(DataTypes.STRING().getLogicalType(), legacyTimestampMapping);
+                createConverter(
+                        DataTypes.STRING().getLogicalType(),
+                        legacyTimestampMapping,
+                        null,
+                        fieldMatching);
         final AvroToRowDataConverter valueConverter =
-                createNullableConverter(extractValueTypeToAvroMap(type), legacyTimestampMapping);
+                createNullableConverter(
+                        extractValueTypeToAvroMap(type),
+                        legacyTimestampMapping,
+                        valueSchema,
+                        fieldMatching);
 
         return avroObject -> {
             final Map<?, ?> map = (Map<?, ?>) avroObject;
@@ -209,6 +357,68 @@ public class AvroToRowDataConverters {
             }
             return new GenericMapData(result);
         };
+    }
+
+    // -------------------------------------------------------------------------------------
+    // Reader schema navigation
+    //
+    // The reader schema is optional throughout: it is only used to validate eagerly and to hand
+    // each nested converter its own schema. Wherever a schema cannot be narrowed down to a single
+    // Avro type - a true multi-type union, say - navigation yields null and the converters fall
+    // back to resolving from the record they are handed at runtime.
+    // -------------------------------------------------------------------------------------
+
+    private static @Nullable Schema avroFieldSchema(
+            @Nullable Schema recordSchema,
+            @Nullable AvroFieldMatcher.Plan plan,
+            int rowFieldIndex) {
+        if (recordSchema == null) {
+            return null;
+        }
+        final int position = plan == null ? rowFieldIndex : plan.avroPositionOf(rowFieldIndex);
+        final List<Schema.Field> fields = recordSchema.getFields();
+        if (position == AvroFieldMatcher.UNMATCHED || position >= fields.size()) {
+            return null;
+        }
+        return fields.get(position).schema();
+    }
+
+    private static @Nullable Schema asRecordSchema(@Nullable Schema schema) {
+        final Schema resolved = unwrapNullableUnion(schema);
+        return resolved != null && resolved.getType() == Schema.Type.RECORD ? resolved : null;
+    }
+
+    private static @Nullable Schema elementSchemaOf(@Nullable Schema schema) {
+        final Schema resolved = unwrapNullableUnion(schema);
+        return resolved != null && resolved.getType() == Schema.Type.ARRAY
+                ? resolved.getElementType()
+                : null;
+    }
+
+    private static @Nullable Schema valueSchemaOf(@Nullable Schema schema) {
+        final Schema resolved = unwrapNullableUnion(schema);
+        return resolved != null && resolved.getType() == Schema.Type.MAP
+                ? resolved.getValueType()
+                : null;
+    }
+
+    private static @Nullable Schema unwrapNullableUnion(@Nullable Schema schema) {
+        if (schema == null || schema.getType() != Schema.Type.UNION) {
+            return schema;
+        }
+        Schema resolved = null;
+        for (Schema branch : schema.getTypes()) {
+            if (branch.getType() == Schema.Type.NULL) {
+                continue;
+            }
+            if (resolved != null) {
+                // More than one non-null branch: the reader schema of a field cannot be pinned
+                // down statically, so give up rather than guess.
+                return null;
+            }
+            resolved = branch;
+        }
+        return resolved;
     }
 
     private static TimestampData convertToTimestamp(Object object) {
