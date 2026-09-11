@@ -290,6 +290,7 @@ class LogicalTypeCastsTest {
                 Arguments.of(new VariantType(), new CharType(), false, true),
                 Arguments.of(new VariantType(), VarCharType.STRING_TYPE, false, true),
                 Arguments.of(new VariantType(), new TimeType(), false, true),
+                Arguments.of(new VariantType(), new UuidType(), false, true),
                 // variant identity cast is implicit
                 Arguments.of(new VariantType(), new VariantType(), true, true),
                 // A variant imposes a schema on a constructed target, explicit only, recursing on
@@ -386,11 +387,11 @@ class LogicalTypeCastsTest {
                 Arguments.of(new BinaryType(10), new UuidType(), false, false),
                 // UUID identity cast is implicit
                 Arguments.of(new UuidType(), new UuidType(), true, true),
-                // numeric and VARIANT are not castable to or from UUID
+                // numeric is not castable to or from UUID
                 Arguments.of(new UuidType(), new IntType(), false, false),
                 Arguments.of(new IntType(), new UuidType(), false, false),
-                Arguments.of(new UuidType(), new VariantType(), false, false),
-                Arguments.of(new VariantType(), new UuidType(), false, false));
+                // a UUID does not cast to VARIANT
+                Arguments.of(new UuidType(), new VariantType(), false, false));
     }
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Implicit: {2}, Explicit: {3}]")

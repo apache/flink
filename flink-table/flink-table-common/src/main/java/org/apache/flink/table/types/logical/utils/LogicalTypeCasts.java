@@ -410,7 +410,11 @@ public final class LogicalTypeCasts {
         // A UUID can be parsed from a character string and reinterpreted from its 16-byte encoding.
         // The reverse direction (UUID to CHAR/VARCHAR and to BINARY(16)/BYTES) is declared on the
         // respective target types.
-        castTo(UUID).implicitFrom(UUID).explicitFromFamily(CHARACTER_STRING, BINARY_STRING).build();
+        castTo(UUID)
+                .implicitFrom(UUID)
+                .explicitFromFamily(CHARACTER_STRING, BINARY_STRING)
+                .explicitFrom(VARIANT)
+                .build();
     }
 
     /**
