@@ -229,8 +229,9 @@ class BufferBundleTest {
         // +--------------------------+----------------------------+----------------------------+
         // |   Before the last        |       Last record          |          Result            |
         // |--------------------------|----------------------------|----------------------------|
-        // |    +I/+U                 |        +U/+I               |    Only keep the last      |
-        // |                          |                            |       (+U/+I) record       |
+        // |    +I                    |        +U                  |    Keep +U as +I           |
+        // |    +I/+U                 |        +I                  |    Only keep the last (+I) |
+        // |    +U                    |        +U                  |    Only keep the last (+U) |
         // +--------------------------+----------------------------+----------------------------+
         List<RowData> records =
                 Stream.of(
@@ -272,7 +273,7 @@ class BufferBundleTest {
 
         List<RowData> expected =
                 Stream.of(
-                                updateAfterRecord(
+                                insertRecord(
                                         "Ord#1",
                                         "LineOrd#1",
                                         "7 Bellevue Drive, Pottstown, PL 19464"),
@@ -474,8 +475,9 @@ class BufferBundleTest {
         // +--------------------------+----------------------------+----------------------------+
         // |   Before the last        |       Last record          |          Result            |
         // |--------------------------|----------------------------|----------------------------|
-        // |         +I/+U            |        +U/+I               |    Only keep the last      |
-        // |                          |                            |       (+U/+I) record       |
+        // |         +I               |        +U                  |    Keep +U as +I           |
+        // |         +I/+U            |        +I                  |    Only keep the last (+I) |
+        // |         +U               |        +U                  |    Only keep the last (+U) |
         // |--------------------------|----------------------------|----------------------------|
         // |         +I/+U            |        -U/-D               |       Clear both           |
         // |--------------------------|----------------------------|----------------------------|
@@ -600,7 +602,7 @@ class BufferBundleTest {
         addRecordsToBuffer(records);
         List<RowData> result =
                 Stream.of(
-                                updateAfterRecord(
+                                insertRecord(
                                         "Ord#1",
                                         "LineOrd#1",
                                         "7 Bellevue Drive, Pottstown, PL 19464"),
