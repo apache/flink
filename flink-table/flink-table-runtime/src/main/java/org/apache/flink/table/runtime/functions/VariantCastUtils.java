@@ -32,6 +32,7 @@ import org.apache.flink.types.variant.Variant;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.TimeZone;
@@ -282,6 +283,7 @@ public final class VariantCastUtils {
         if (variant.getType() == Variant.Type.UUID) {
             final UUID uuid = variant.getUuid();
             final ByteBuffer buffer = ByteBuffer.allocate(UuidType.BYTE_LENGTH);
+            buffer.order(ByteOrder.BIG_ENDIAN);
             buffer.putLong(uuid.getMostSignificantBits());
             buffer.putLong(uuid.getLeastSignificantBits());
             return buffer.array();
