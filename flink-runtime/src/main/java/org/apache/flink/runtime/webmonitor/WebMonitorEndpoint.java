@@ -924,9 +924,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         jobManagerJobConfigurationHandler.getMessageHeaders(),
                         jobManagerJobConfigurationHandler));
 
-        if (clusterConfiguration.contains(
+        if (clusterConfiguration.get(
                 HistoryServerOptions
-                        .HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS)) {
+                        .HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS,
+                false)) {
             JobManagerLogUrlHandler jobManagerLogUrlHandler =
                     new JobManagerLogUrlHandler(
                             leaderRetriever,
