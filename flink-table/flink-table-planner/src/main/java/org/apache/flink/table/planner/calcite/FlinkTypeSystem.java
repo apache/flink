@@ -49,15 +49,12 @@ public class FlinkTypeSystem extends RelDataTypeSystemImpl {
     private FlinkTypeSystem() {}
 
     @Override
-    public int getMaxNumericPrecision() {
-        // set the maximum precision of a NUMERIC or DECIMAL type to DecimalType.MAX_PRECISION.
-        return DecimalType.MAX_PRECISION;
-    }
-
-    @Override
-    public int getMaxNumericScale() {
+    public int getMaxScale(SqlTypeName typeName) {
         // the max scale can't be greater than precision
-        return DecimalType.MAX_PRECISION;
+        if (typeName == DECIMAL) {
+            return DecimalType.MAX_PRECISION;
+        }
+        return super.getMaxScale(typeName);
     }
 
     @Override
@@ -81,6 +78,10 @@ public class FlinkTypeSystem extends RelDataTypeSystemImpl {
     @Override
     public int getMaxPrecision(SqlTypeName typeName) {
         switch (typeName) {
+            case DECIMAL:
+                // set the maximum precision of a NUMERIC or DECIMAL type to
+                // DecimalType.MAX_PRECISION.
+                return DecimalType.MAX_PRECISION;
             case VARCHAR:
             case CHAR:
             case VARBINARY:
