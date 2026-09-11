@@ -652,34 +652,41 @@ public class CliFrontendParser {
     }
 
     public static SavepointRestoreSettings createSavepointRestoreSettings(CommandLine commandLine) {
+        final Boolean allowNonRestoredState =
+                commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt())
+                        ? Boolean.TRUE
+                        : null;
+        // Null exactly when neither --claimMode nor --restoreMode was passed, so it also answers
+        // "was a claim mode explicitly requested?". Keeping an unset value null means an explicit
+        // "--claimMode NO_CLAIM" stays distinguishable from no override at all.
+        final RecoveryClaimMode recoveryClaimMode = parseRecoveryClaimMode(commandLine);
+
         if (commandLine.hasOption(SAVEPOINT_PATH_OPTION.getOpt())) {
             final String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
-            final Boolean allowNonRestoredState =
-                    commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt())
-                            ? Boolean.TRUE
-                            : null;
-            final RecoveryClaimMode recoveryClaimMode;
-            if (commandLine.hasOption(SAVEPOINT_CLAIM_MODE)) {
-                recoveryClaimMode =
-                        ConfigurationUtils.convertValue(
-                                commandLine.getOptionValue(SAVEPOINT_CLAIM_MODE),
-                                RecoveryClaimMode.class);
-            } else if (commandLine.hasOption(SAVEPOINT_RESTORE_MODE)) {
-                recoveryClaimMode =
-                        ConfigurationUtils.convertValue(
-                                commandLine.getOptionValue(SAVEPOINT_RESTORE_MODE),
-                                RecoveryClaimMode.class);
-                System.out.printf(
-                        "The option '%s' is deprecated. Please use '%s' instead.%n",
-                        SAVEPOINT_RESTORE_MODE.getLongOpt(), SAVEPOINT_CLAIM_MODE.getLongOpt());
-            } else {
-                recoveryClaimMode = null;
-            }
             return SavepointRestoreSettings.forPath(
                     savepointPath, allowNonRestoredState, recoveryClaimMode);
+        } else if (recoveryClaimMode != null) {
+            return SavepointRestoreSettings.forRecoveryClaimMode(
+                    allowNonRestoredState, recoveryClaimMode);
         } else {
             return SavepointRestoreSettings.none();
         }
+    }
+
+    @Nullable
+    private static RecoveryClaimMode parseRecoveryClaimMode(CommandLine commandLine) {
+        if (commandLine.hasOption(SAVEPOINT_CLAIM_MODE)) {
+            return ConfigurationUtils.convertValue(
+                    commandLine.getOptionValue(SAVEPOINT_CLAIM_MODE), RecoveryClaimMode.class);
+        }
+        if (commandLine.hasOption(SAVEPOINT_RESTORE_MODE)) {
+            System.out.printf(
+                    "The option '%s' is deprecated. Please use '%s' instead.%n",
+                    SAVEPOINT_RESTORE_MODE.getLongOpt(), SAVEPOINT_CLAIM_MODE.getLongOpt());
+            return ConfigurationUtils.convertValue(
+                    commandLine.getOptionValue(SAVEPOINT_RESTORE_MODE), RecoveryClaimMode.class);
+        }
+        return null;
     }
 
     // --------------------------------------------------------------------------------------------
