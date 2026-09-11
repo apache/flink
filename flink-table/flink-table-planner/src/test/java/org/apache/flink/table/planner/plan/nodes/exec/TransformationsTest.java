@@ -26,7 +26,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
+import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -40,11 +42,14 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.table.planner.factories.TableFactoryHarness.ScanSourceBase;
 import org.apache.flink.table.planner.lineage.TableSourceLineageVertex;
 import org.apache.flink.table.planner.utils.JsonTestUtils;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -54,6 +59,7 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
@@ -156,6 +162,52 @@ class TransformationsTest {
         testUidGeneration(c -> c.set(TABLE_EXEC_UID_GENERATION, PLAN_ONLY), true, false);
         testUidGeneration(c -> c.set(TABLE_EXEC_UID_GENERATION, ALWAYS), true, true);
         testUidGeneration(c -> c.set(TABLE_EXEC_UID_GENERATION, DISABLED), false, false);
+    }
+
+    @Test
+    void testSourcePartitionerUsesProjectedPrimaryKeyFields() {
+        final StreamTableEnvironment env =
+                StreamTableEnvironment.create(
+                        StreamExecutionEnvironment.getExecutionEnvironment(),
+                        EnvironmentSettings.newInstance().inStreamingMode().build());
+
+        env.executeSql(
+                "CREATE TABLE upsert_src (\n"
+                        + "  user_id STRING,\n"
+                        + "  user_name STRING,\n"
+                        + "  email STRING,\n"
+                        + "  balance DECIMAL(18, 2),\n"
+                        + "  balance2 AS balance * 2,\n"
+                        + "  PRIMARY KEY (user_name, user_id) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'bounded' = 'true',\n"
+                        + "  'runtime-source' = 'DataStream',\n"
+                        + "  'disable-lookup' = 'true',\n"
+                        + "  'scan.parallelism' = '5',\n"
+                        + "  'changelog-mode' = 'UA,D'\n"
+                        + ")");
+
+        final PartitionTransformation<?> partitionTransform =
+                getSinglePartitionTransformation(
+                        env, env.sqlQuery("SELECT email, user_name, user_id FROM upsert_src"));
+
+        final RowDataKeySelector keySelector = getPartitionKeySelector(partitionTransform);
+        final RowData row =
+                GenericRowData.of(
+                        StringData.fromString("alice@example.com"),
+                        StringData.fromString("alice"),
+                        StringData.fromString("42"));
+
+        final RowData key;
+        try {
+            key = keySelector.getKey(row);
+        } catch (Exception e) {
+            throw new AssertionError("Failed to extract partition key from projected row.", e);
+        }
+
+        assertThat(key.getString(0).toString()).isEqualTo("alice");
+        assertThat(key.getString(1).toString()).isEqualTo("42");
     }
 
     @Test
@@ -494,6 +546,37 @@ class TransformationsTest {
         }
         assertThat(transform).isInstanceOf(LegacySourceTransformation.class);
         return (LegacySourceTransformation<?>) transform;
+    }
+
+    private static PartitionTransformation<?> getSinglePartitionTransformation(
+            StreamTableEnvironment env, Table table) {
+        final List<PartitionTransformation<?>> partitionTransforms =
+                env
+                        .toChangelogStream(table)
+                        .getTransformation()
+                        .getTransitivePredecessors()
+                        .stream()
+                        .filter(PartitionTransformation.class::isInstance)
+                        .map(t -> (PartitionTransformation<?>) t)
+                        .collect(Collectors.toList());
+        assertThat(partitionTransforms).hasSize(1);
+        return partitionTransforms.get(0);
+    }
+
+    private static RowDataKeySelector getPartitionKeySelector(
+            PartitionTransformation<?> partitionTransformation) {
+        assertThat(partitionTransformation.getPartitioner())
+                .isInstanceOf(KeyGroupStreamPartitioner.class);
+
+        try {
+            final Field keySelectorField =
+                    KeyGroupStreamPartitioner.class.getDeclaredField("keySelector");
+            keySelectorField.setAccessible(true);
+            return (RowDataKeySelector)
+                    keySelectorField.get(partitionTransformation.getPartitioner());
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("Failed to inspect source partitioner key selector.", e);
+        }
     }
 
     private static void assertBoundedness(Boundedness boundedness, Transformation<?> transform) {
