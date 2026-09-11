@@ -88,6 +88,7 @@ import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointingStatis
 import org.apache.flink.runtime.rest.handler.job.checkpoints.TaskCheckpointStatisticDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.coordination.ClientCoordinationHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.AggregatingJobsMetricsHandler;
+import org.apache.flink.runtime.rest.handler.job.metrics.AggregatingSubtasksMetricsBatchHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.AggregatingSubtasksMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.AggregatingTaskManagersMetricsHandler;
 import org.apache.flink.runtime.rest.handler.job.metrics.JobManagerMetricsHandler;
@@ -598,6 +599,16 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 new AggregatingSubtasksMetricsHandler(
                         leaderRetriever, timeout, responseHeaders, executor, metricFetcher);
 
+        final AggregatingSubtasksMetricsBatchHandler.NamesHandler
+                aggregatingSubtasksMetricsNamesHandler =
+                        new AggregatingSubtasksMetricsBatchHandler.NamesHandler(
+                                leaderRetriever, timeout, responseHeaders, executor, metricFetcher);
+
+        final AggregatingSubtasksMetricsBatchHandler.ValuesHandler
+                aggregatingSubtasksMetricsValuesHandler =
+                        new AggregatingSubtasksMetricsBatchHandler.ValuesHandler(
+                                leaderRetriever, timeout, responseHeaders, executor, metricFetcher);
+
         final JobVertexTaskManagersHandler jobVertexTaskManagersHandler =
                 new JobVertexTaskManagersHandler(
                         leaderRetriever,
@@ -892,6 +903,14 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 Tuple2.of(
                         aggregatingSubtasksMetricsHandler.getMessageHeaders(),
                         aggregatingSubtasksMetricsHandler));
+        handlers.add(
+                Tuple2.of(
+                        aggregatingSubtasksMetricsNamesHandler.getMessageHeaders(),
+                        aggregatingSubtasksMetricsNamesHandler));
+        handlers.add(
+                Tuple2.of(
+                        aggregatingSubtasksMetricsValuesHandler.getMessageHeaders(),
+                        aggregatingSubtasksMetricsValuesHandler));
         handlers.add(
                 Tuple2.of(
                         jobExecutionResultHandler.getMessageHeaders(), jobExecutionResultHandler));
