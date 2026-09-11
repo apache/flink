@@ -98,6 +98,23 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
             long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning)
             throws Exception;
 
+    /**
+     * Notified on the task side when a regional checkpoint has completed but this task's region
+     * fell back to a historical checkpoint. Triggers cleanup of stale local state from the failed
+     * checkpoint attempt and propagates the notification to operators in the chain.
+     *
+     * @param checkpointId The completed regional checkpoint id.
+     * @param fallbackCheckpointId The historical checkpoint id this task fell back to.
+     * @param operatorChain The chain of operators executed by the task.
+     * @param isRunning Whether the task is running.
+     */
+    default void notifyRegionalCheckpointFallback(
+            long checkpointId,
+            long fallbackCheckpointId,
+            OperatorChain<?, ?> operatorChain,
+            Supplier<Boolean> isRunning)
+            throws Exception {}
+
     /** Waits for all the pending checkpoints to finish their asynchronous step. */
     void waitForPendingCheckpoints() throws Exception;
 

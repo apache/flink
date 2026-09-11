@@ -90,18 +90,27 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      * Notify the given task about a completed checkpoint and the last subsumed checkpoint id if
      * possible.
      *
+     * <p>When {@code fallbackCheckpointId} is not {@link
+     * org.apache.flink.runtime.checkpoint.CheckpointStoreUtil#INVALID_CHECKPOINT_ID}, this
+     * notification indicates a regional checkpoint completion where this task's region fell back to
+     * the given historical checkpoint.
+     *
      * @param executionAttemptID identifying the task
      * @param jobId identifying the job to which the task belongs
      * @param completedCheckpointId of the completed checkpoint
      * @param completedTimestamp of the completed checkpoint
-     * @param lastSubsumedCheckpointId of the last subsumed checkpoint id,
+     * @param lastSubsumedCheckpointId of the last subsumed checkpoint id
+     * @param fallbackCheckpointId the historical checkpoint id this task fell back to, or {@link
+     *     org.apache.flink.runtime.checkpoint.CheckpointStoreUtil#INVALID_CHECKPOINT_ID} for normal
+     *     completion
      */
     void notifyCheckpointOnComplete(
             ExecutionAttemptID executionAttemptID,
             JobID jobId,
             long completedCheckpointId,
             long completedTimestamp,
-            long lastSubsumedCheckpointId);
+            long lastSubsumedCheckpointId,
+            long fallbackCheckpointId);
 
     /**
      * Notify the given task about a aborted checkpoint.
