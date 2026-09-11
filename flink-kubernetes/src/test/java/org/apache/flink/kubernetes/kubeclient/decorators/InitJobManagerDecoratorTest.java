@@ -149,6 +149,23 @@ class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
     }
 
     @Test
+    void testMainContainerRestPortNameWithCustomConfig() {
+        final String customPortName = "flink-rest";
+        this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_PORT_NAME, customPortName);
+        final InitJobManagerDecorator decorator =
+                new InitJobManagerDecorator(this.kubernetesJobManagerParameters);
+        final Container mainContainer =
+                decorator.decorateFlinkPod(this.baseFlinkPod).getMainContainer();
+
+        assertThat(mainContainer.getPorts())
+                .extracting(ContainerPort::getName)
+                .containsExactly(
+                        customPortName,
+                        Constants.JOB_MANAGER_RPC_PORT_NAME,
+                        Constants.BLOB_SERVER_PORT_NAME);
+    }
+
+    @Test
     void testMainContainerEnv() {
         final List<EnvVar> envVars = this.resultMainContainer.getEnv();
 
