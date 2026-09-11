@@ -37,12 +37,13 @@ from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, D
 from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
     LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType, MapType, \
-    BinaryType, NullType, CharType
+    BinaryType, GeographyType, NullType, CharType
 
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
-           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
-           'DateCoder', 'TimeCoder', 'TimestampCoder', 'LocalZonedTimestampCoder', 'InstantCoder',
-           'GenericArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder',
+           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder',
+           'GeographyCoder', 'CharCoder', 'DateCoder', 'TimeCoder', 'TimestampCoder',
+           'LocalZonedTimestampCoder', 'InstantCoder', 'GenericArrayCoder',
+           'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder',
            'BigDecimalCoder', 'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder',
            'PickleCoder', 'CloudPickleCoder', 'DataViewFilterCoder']
 
@@ -134,6 +135,8 @@ class LengthPrefixBaseCoder(ABC):
             return BinaryType(field_type.binary_info.length, field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.VARBINARY:
             return VarBinaryType(field_type.var_binary_info.length, field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.GEOGRAPHY:
+            return GeographyType(field_type.nullable)
         elif field_type.type_name == flink_fn_execution_pb2.Schema.DECIMAL:
             return DecimalType(field_type.decimal_info.precision,
                                field_type.decimal_info.scale,
@@ -476,6 +479,15 @@ class BinaryCoder(FieldCoder):
         return coder_impl.BinaryCoderImpl()
 
 
+class GeographyCoder(FieldCoder):
+    """
+    Coder for GEOGRAPHY values represented as WKB bytes.
+    """
+
+    def get_impl(self):
+        return coder_impl.GeographyCoderImpl()
+
+
 class CharCoder(FieldCoder):
     """
     Coder for Character String.
@@ -673,6 +685,7 @@ def from_proto(field_type):
         type_name.DOUBLE: DoubleCoder(),
         type_name.BINARY: BinaryCoder(),
         type_name.VARBINARY: BinaryCoder(),
+        type_name.GEOGRAPHY: GeographyCoder(),
         type_name.CHAR: CharCoder(),
         type_name.VARCHAR: CharCoder(),
         type_name.DATE: DateCoder(),

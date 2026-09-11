@@ -585,6 +585,25 @@ cdef class BinaryCoderImpl(FieldCoderImpl):
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return in_stream.read_bytes()
 
+
+cdef class GeographyCoderImpl(FieldCoderImpl):
+    """
+    A coder compatible with GeographyTypeSerializer's versioned WKB format.
+    """
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        out_stream.write_byte(1)
+        out_stream.write_bytes(value, len(value))
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t size):
+        cdef long format_version = in_stream.read_byte()
+        if format_version != 1:
+            raise ValueError(
+                "Unsupported GEOGRAPHY serializer format version %d. Expected 1."
+                % format_version)
+        return in_stream.read_bytes()
+
+
 cdef class CharCoderImpl(FieldCoderImpl):
     """
     A coder for a str value.

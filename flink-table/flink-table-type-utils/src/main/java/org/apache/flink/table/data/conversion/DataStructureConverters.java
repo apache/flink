@@ -22,11 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RawValueData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryGeographyData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -197,6 +199,8 @@ public final class DataStructureConverters {
         putConverter(LogicalTypeRoot.RAW, RawValueData.class, identity());
         putConverter(LogicalTypeRoot.UUID, UUID.class, constructor(UuidUuidConverter::new));
         putConverter(LogicalTypeRoot.UUID, byte[].class, identity());
+        putConverter(LogicalTypeRoot.GEOGRAPHY, GeographyData.class, identity());
+        putConverter(LogicalTypeRoot.GEOGRAPHY, BinaryGeographyData.class, identity());
     }
 
     /** Returns a converter for the given {@link DataType}. */
