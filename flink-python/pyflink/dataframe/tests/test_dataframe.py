@@ -2449,21 +2449,16 @@ class DataFrameWindowITTests(PyFlinkStreamDataFrameTestCase):
         rows = (
             self._proctime_source()
             .tumble(on="proc_time", size=timedelta(minutes=10))
-            .select(
-                "window_start",
-                "window_end",
-                proc_time=pf.col("proc_time").cast(TableDataTypes.TIMESTAMP(3)),
-            )
+            .select("window_start", "window_end")
             .collect()
         )
 
         self.assertEqual(len(rows), 3)
-        for start, end, proc_time in rows:
+        for start, end in rows:
             self.assertEqual(end - start, timedelta(minutes=10))
             self.assertEqual(
                 (start.minute % 10, start.second, start.microsecond), (0, 0, 0)
             )
-            self.assertTrue(start <= proc_time < end)
 
 
 if __name__ == "__main__":

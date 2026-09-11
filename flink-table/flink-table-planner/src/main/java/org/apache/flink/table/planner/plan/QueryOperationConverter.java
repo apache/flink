@@ -616,14 +616,14 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
             final String timeColumn = windowOp.getTimeColumn();
             final RelDataType timeAttributeType =
-                    inputRowType.getField(timeColumn, false, false).getType();
+                    inputRowType.getField(timeColumn, true, false).getType();
             final RelDataType outputRowType =
                     SqlWindowTableFunction.inferRowType(
                             relBuilder.getTypeFactory(), inputRowType, timeAttributeType);
 
             final int[] partitionIndices =
                     windowOp.getPartitionKeys().stream()
-                            .mapToInt(name -> inputRowType.getField(name, false, false).getIndex())
+                            .mapToInt(name -> inputRowType.getField(name, true, false).getIndex())
                             .toArray();
 
             final SqlFunction operator = windowOperator(windowOp.getWindowKind());

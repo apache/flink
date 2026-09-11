@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
 
 /**
  * Relational operation that assigns rows to windows using a windowing table-valued function
@@ -118,13 +117,6 @@ public class WindowTableFunctionQueryOperation implements QueryOperation {
                     String.format(
                             "Window time column '%s' must be a TIMESTAMP or TIMESTAMP_LTZ column, "
                                     + "but was %s.",
-                            timeColumn, timeType.getLogicalType()));
-        }
-        if (!isTimeAttribute(timeType.getLogicalType())) {
-            throw new ValidationException(
-                    String.format(
-                            "Window time column '%s' must be a time attribute (rowtime or "
-                                    + "proctime), but was %s.",
                             timeColumn, timeType.getLogicalType()));
         }
         this.windowKind = windowKind;

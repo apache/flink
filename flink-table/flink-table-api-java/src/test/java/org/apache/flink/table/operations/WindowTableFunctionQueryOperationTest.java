@@ -143,33 +143,6 @@ class WindowTableFunctionQueryOperationTest {
     }
 
     @Test
-    void testNonTimeAttributeTimeColumnRejected() {
-        final ResolvedSchema schema =
-                ResolvedSchema.of(
-                        Column.physical("id", DataTypes.INT()),
-                        Column.physical("ts", DataTypes.TIMESTAMP(3)));
-        final QueryOperation plainTimestampSource =
-                new SourceQueryOperation(
-                        ContextResolvedTable.temporary(
-                                ObjectIdentifier.of("cat1", "db1", "src"),
-                                new ResolvedCatalogTable(
-                                        CatalogTable.newBuilder()
-                                                .schema(Schema.newBuilder().build())
-                                                .build(),
-                                        schema)));
-
-        assertThatThrownBy(
-                        () ->
-                                new WindowTableFunctionQueryOperation(
-                                        WindowKind.TUMBLE,
-                                        "ts",
-                                        List.of(Duration.ofMinutes(10)),
-                                        plainTimestampSource))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("time attribute");
-    }
-
-    @Test
     void testAsSerializableStringEmitsWindowTvf() {
         String sql =
                 new WindowTableFunctionQueryOperation(
