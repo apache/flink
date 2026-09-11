@@ -200,6 +200,14 @@ Format Options
       <td>Boolean</td>
       <td>Optional flag to treat empty string values as null (disabled by default). Only affects deserialization.</td>
     </tr>
+    <tr>
+      <td><h5>csv.ignore-first-line</h5></td>
+      <td>optional</td>
+      <td>no</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Optional flag to skip the first CSV record of each input file (false by default). Only supported by the filesystem connector. Only affects deserialization.</td>
+    </tr>
     </tbody>
 </table>
 
