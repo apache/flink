@@ -86,6 +86,7 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges, OnDest
   public readonly sortAlignmentDurationFn = createSortFn(item => item.alignment?.duration);
   public readonly sortStartDelayFn = createSortFn(item => item.start_delay);
   public readonly sortUnalignedCpFn = createSortFn(item => item.unaligned_checkpoint);
+  public readonly sortRefCheckpointIdFn = createSortFn(item => item.ref_checkpoint_id ?? -1);
 
   private destroy$ = new Subject<void>();
 

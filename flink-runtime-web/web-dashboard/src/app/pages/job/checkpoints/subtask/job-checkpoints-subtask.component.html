@@ -156,6 +156,7 @@
         <th [nzSortFn]="sortAlignmentDurationFn"><strong>Alignment Duration</strong></th>
         <th [nzSortFn]="sortStartDelayFn"><strong>Start Delay</strong></th>
         <th [nzSortFn]="sortUnalignedCpFn"><strong>Unaligned Checkpoint</strong></th>
+        <th [nzSortFn]="sortRefCheckpointIdFn"><strong>Ref Checkpoint ID</strong></th>
         <ng-container
           *ngIf="table.data && table.data[0] && table.data[0]['status'] === 'pending_or_failed'"
         >
@@ -184,9 +185,10 @@
           <td>{{ subTask['alignment']['duration'] | humanizeDuration }}</td>
           <td>{{ subTask['start_delay'] | humanizeDuration }}</td>
           <td>{{ subTask['unaligned_checkpoint'] }}</td>
+          <td>{{ subTask['ref_checkpoint_id'] ?? '-' }}</td>
         </ng-container>
         <ng-container *ngIf="subTask['status'] === 'pending_or_failed'">
-          <td colspan="10">n/a</td>
+          <td colspan="11">n/a</td>
           <td>
             <a
               *ngIf="mapOfSubtask.get(subTask['index'])"

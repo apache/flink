@@ -401,6 +401,16 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
                                                 .UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM))
                         .setPauseSourcesUntilFirstCheckpoint(
                                 cfg.isPauseSourcesUntilFirstCheckpoint())
+                        .setRegionalCheckpointEnabled(
+                                jobConfiguration.get(
+                                        CheckpointingOptions.REGIONAL_CHECKPOINT_ENABLED))
+                        .setRegionalMaxFailureRatio(
+                                jobConfiguration.get(
+                                        CheckpointingOptions.REGIONAL_CHECKPOINT_MAX_FAILURE_RATIO))
+                        .setRegionalMaxConsecutiveFailures(
+                                jobConfiguration.get(
+                                        CheckpointingOptions
+                                                .REGIONAL_CHECKPOINT_MAX_CONSECUTIVE_FAILURES))
                         .build(),
                 serializedStateBackend,
                 getJobConfiguration()

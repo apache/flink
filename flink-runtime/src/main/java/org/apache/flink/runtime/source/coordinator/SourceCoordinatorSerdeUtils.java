@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 /** A serialization util class for the {@link SourceCoordinator}. */
 public class SourceCoordinatorSerdeUtils {
@@ -39,6 +41,20 @@ public class SourceCoordinatorSerdeUtils {
 
     /** The current source coordinator serde version. */
     private static final int CURRENT_VERSION = VERSION_1;
+
+    /**
+     * Magic number marking the assignment-tracker snapshot format that also persists the
+     * per-checkpoint assignment history ({@code assignmentsByCheckpointId}).
+     *
+     * <p>The legacy format produced by {@link #serializeAssignments} starts with the (non-negative)
+     * split serializer version, so a negative magic unambiguously distinguishes the new format from
+     * a legacy snapshot, allowing {@link #deserializeAssignmentTracker} to remain backwards
+     * compatible with state written before regional checkpoint support was added.
+     */
+    private static final int ASSIGNMENT_TRACKER_MAGIC = -1;
+
+    /** The current version of the assignment-tracker snapshot format. */
+    private static final int ASSIGNMENT_TRACKER_VERSION = 1;
 
     /** Private constructor for utility class. */
     private SourceCoordinatorSerdeUtils() {}
@@ -115,6 +131,106 @@ public class SourceCoordinatorSerdeUtils {
             }
 
             return assignments;
+        }
+    }
+
+    /**
+     * Serializes the full state of a {@link SplitAssignmentTracker}, including both the
+     * uncheckpointed assignments and the per-checkpoint assignment history ({@code
+     * assignmentsByCheckpointId}).
+     *
+     * <p>The latter is required by regional checkpoint to precisely roll back the splits assigned
+     * after a given checkpoint, so it must survive coordinator (JM) restarts rather than living
+     * only in memory.
+     */
+    static <SplitT> byte[] serializeAssignmentTracker(
+            Map<Integer, LinkedHashSet<SplitT>> uncheckpointedAssignments,
+            SortedMap<Long, Map<Integer, LinkedHashSet<SplitT>>> assignmentsByCheckpointId,
+            SimpleVersionedSerializer<SplitT> splitSerializer)
+            throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream out = new DataOutputViewStreamWrapper(baos)) {
+            out.writeInt(ASSIGNMENT_TRACKER_MAGIC);
+            out.writeInt(ASSIGNMENT_TRACKER_VERSION);
+
+            // Uncheckpointed assignments.
+            byte[] uncheckpointed =
+                    serializeAssignments(uncheckpointedAssignments, splitSerializer);
+            out.writeInt(uncheckpointed.length);
+            out.write(uncheckpointed);
+
+            // Per-checkpoint assignment history.
+            out.writeInt(assignmentsByCheckpointId.size());
+            for (Map.Entry<Long, Map<Integer, LinkedHashSet<SplitT>>> entry :
+                    assignmentsByCheckpointId.entrySet()) {
+                out.writeLong(entry.getKey());
+                byte[] assignments = serializeAssignments(entry.getValue(), splitSerializer);
+                out.writeInt(assignments.length);
+                out.write(assignments);
+            }
+
+            out.flush();
+            return baos.toByteArray();
+        }
+    }
+
+    /**
+     * Deserializes the state written by {@link #serializeAssignmentTracker}, populating both the
+     * uncheckpointed assignments and the per-checkpoint history.
+     *
+     * <p>Remains backwards compatible with the legacy format (which only contained the
+     * uncheckpointed assignments): when the leading int is not {@link #ASSIGNMENT_TRACKER_MAGIC}
+     * the whole payload is interpreted as a legacy {@link #serializeAssignments} blob and the
+     * history is left empty.
+     */
+    static <SplitT> AssignmentTrackerState<SplitT> deserializeAssignmentTracker(
+            byte[] data, SimpleVersionedSerializer<SplitT> splitSerializer) throws IOException {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+                DataInputStream in = new DataInputViewStreamWrapper(bais)) {
+            int magic = in.readInt();
+            if (magic != ASSIGNMENT_TRACKER_MAGIC) {
+                // Legacy format: the whole blob is a plain serializeAssignments() payload.
+                return new AssignmentTrackerState<>(
+                        deserializeAssignments(data, splitSerializer), new TreeMap<>());
+            }
+
+            int version = in.readInt();
+            if (version > ASSIGNMENT_TRACKER_VERSION) {
+                throw new IOException(
+                        "Unsupported split assignment tracker serde version " + version);
+            }
+
+            int uncheckpointedLength = in.readInt();
+            byte[] uncheckpointedBytes = readBytes(in, uncheckpointedLength);
+            Map<Integer, LinkedHashSet<SplitT>> uncheckpointedAssignments =
+                    deserializeAssignments(uncheckpointedBytes, splitSerializer);
+
+            int numCheckpoints = in.readInt();
+            SortedMap<Long, Map<Integer, LinkedHashSet<SplitT>>> assignmentsByCheckpointId =
+                    new TreeMap<>();
+            for (int i = 0; i < numCheckpoints; i++) {
+                long checkpointId = in.readLong();
+                int length = in.readInt();
+                byte[] assignmentBytes = readBytes(in, length);
+                assignmentsByCheckpointId.put(
+                        checkpointId, deserializeAssignments(assignmentBytes, splitSerializer));
+            }
+
+            return new AssignmentTrackerState<>(
+                    uncheckpointedAssignments, assignmentsByCheckpointId);
+        }
+    }
+
+    /** Holder for the deserialized state of a {@link SplitAssignmentTracker}. */
+    static final class AssignmentTrackerState<SplitT> {
+        final Map<Integer, LinkedHashSet<SplitT>> uncheckpointedAssignments;
+        final SortedMap<Long, Map<Integer, LinkedHashSet<SplitT>>> assignmentsByCheckpointId;
+
+        AssignmentTrackerState(
+                Map<Integer, LinkedHashSet<SplitT>> uncheckpointedAssignments,
+                SortedMap<Long, Map<Integer, LinkedHashSet<SplitT>>> assignmentsByCheckpointId) {
+            this.uncheckpointedAssignments = uncheckpointedAssignments;
+            this.assignmentsByCheckpointId = assignmentsByCheckpointId;
         }
     }
 }

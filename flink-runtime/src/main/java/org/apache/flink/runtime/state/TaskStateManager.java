@@ -128,4 +128,13 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
 
     @Nullable
     FileMergingSnapshotManager getFileMergingSnapshotManager();
+
+    /**
+     * Prune (discard) any local state held for the given checkpoint id. Called when a regional
+     * checkpoint completes but this task's region fell back to a historical checkpoint, so the
+     * stale local state from the failed attempt must not be reused on recovery.
+     *
+     * @param checkpointId the id of the failed checkpoint whose local state should be pruned
+     */
+    default void pruneStateForCheckpoint(long checkpointId) {}
 }

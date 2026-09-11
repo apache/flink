@@ -87,6 +87,10 @@ public class FinishedOperatorChain<OUT, OP extends StreamOperator<OUT>>
     public void notifyCheckpointAborted(long checkpointId) throws Exception {}
 
     @Override
+    public void notifyRegionalCheckpointFallback(long checkpointId, long fallbackCheckpointId)
+            throws Exception {}
+
+    @Override
     public void notifyCheckpointSubsumed(long checkpointId) throws Exception {}
 
     @Override

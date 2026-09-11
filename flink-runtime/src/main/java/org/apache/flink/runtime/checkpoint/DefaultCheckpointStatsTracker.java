@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TraceOptions;
 import org.apache.flink.events.EventBuilder;
 import org.apache.flink.events.Events;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -159,6 +160,9 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
 
     private final JobManagerJobMetricGroup metricGroup;
 
+    /** Counter for completed regional checkpoints. */
+    private final Counter regionalCheckpointCount;
+
     private Optional<JobInitializationMetricsBuilder> jobInitializationMetricsBuilder =
             Optional.empty();
     @Nullable private final CheckpointStatsListener checkpointStatsListener;
@@ -209,6 +213,7 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
         this.metricGroup = metricGroup;
         this.checkpointSpanDetailLevel = checkpointSpanDetailLevel;
         this.checkpointStatsListener = checkpointStatsListener;
+        this.regionalCheckpointCount = metricGroup.counter(NUMBER_OF_REGIONAL_CHECKPOINTS_METRIC);
 
         // Latest snapshot is empty
         latestSnapshot =
@@ -535,6 +540,11 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
     }
 
     @Override
+    public void reportRegionalCheckpointCompleted() {
+        regionalCheckpointCount.inc();
+    }
+
+    @Override
     public PendingCheckpointStats getPendingCheckpointStats(long checkpointId) {
         statsReadWriteLock.lock();
         try {
@@ -685,6 +695,9 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
     @VisibleForTesting
     static final String LATEST_CHECKPOINT_COMPLETED_TIMESTAMP = "lastCheckpointCompletedTimestamp";
 
+    @VisibleForTesting
+    static final String NUMBER_OF_REGIONAL_CHECKPOINTS_METRIC = "regional_checkpoint_count";
+
     /**
      * Register the exposed metrics.
      *
@@ -725,6 +738,8 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
         metricGroup.gauge(
                 LATEST_CHECKPOINT_COMPLETED_TIMESTAMP,
                 new LatestCheckpointCompletedTimestampGauge());
+        // Note: regional_checkpoint_count is registered as a Counter in the constructor,
+        // not as a Gauge here, per FLIP-600 metric naming requirements.
     }
 
     private class CheckpointsCounter implements Gauge<Long> {

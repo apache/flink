@@ -58,6 +58,7 @@
         <th><strong>Checkpointed Data Size</strong></th>
         <th><strong>Full Checkpoint Data Size</strong></th>
         <th><strong>Processed (persisted) in-flight data</strong></th>
+        <th><strong>Oldest Ref Checkpoint</strong></th>
       </tr>
     </thead>
     <tbody *ngIf="checkPointDetail">
@@ -96,9 +97,12 @@
               checkPointDetail['tasks'][vertex.id]['persisted_data'] | humanizeBytes
             }})
           </td>
+          <td>
+            {{ checkPointDetail['tasks'][vertex.id]['oldest_ref_checkpoint_id'] ?? '-' }}
+          </td>
         </tr>
         <tr [nzExpand]="vertex.expand">
-          <td colspan="8" *ngIf="vertex.expand" class="collapse-td">
+          <td colspan="9" *ngIf="vertex.expand" class="collapse-td">
             <flink-job-checkpoints-subtask
               [checkPointId]="checkPoint.id"
               [vertex]="vertex"

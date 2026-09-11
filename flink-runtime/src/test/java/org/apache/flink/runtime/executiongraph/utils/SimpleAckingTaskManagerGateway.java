@@ -132,7 +132,8 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
             JobID jobId,
             long completedCheckpointId,
             long completedTimestamp,
-            long lastSubsumedCheckpointId) {}
+            long lastSubsumedCheckpointId,
+            long fallbackCheckpointId) {}
 
     @Override
     public void notifyCheckpointAborted(
