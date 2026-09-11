@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.application.SingleJobApplication;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingResourceCleanerFactory;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -93,6 +95,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests the resource cleanup by the {@link Dispatcher}. */
@@ -494,18 +497,31 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.SUSPENDED);
     }
 
+    private void failJobAndApplication(TestingJobManagerRunner takeCreatedJobManagerRunner) {
+        terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.FAILED);
+        application.jobStatusChanges(
+                takeCreatedJobManagerRunner.getJobID(),
+                JobStatus.FAILED,
+                System.currentTimeMillis());
+    }
+
     private void cancelJob(TestingJobManagerRunner takeCreatedJobManagerRunner) {
         terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.CANCELED);
     }
 
     private void terminateJobWithState(
             TestingJobManagerRunner takeCreatedJobManagerRunner, JobStatus state) {
+        final ArchivedExecutionGraphBuilder archivedExecutionGraphBuilder =
+                new ArchivedExecutionGraphBuilder().setJobID(jobId).setState(state);
+
+        if (state == JobStatus.FAILED) {
+            archivedExecutionGraphBuilder.setFailureCause(
+                    new ErrorInfo(
+                            new FlinkException("Test job failure"), System.currentTimeMillis()));
+        }
+
         takeCreatedJobManagerRunner.completeResultFuture(
-                new ExecutionGraphInfo(
-                        new ArchivedExecutionGraphBuilder()
-                                .setJobID(jobId)
-                                .setState(state)
-                                .build()));
+                new ExecutionGraphInfo(archivedExecutionGraphBuilder.build()));
     }
 
     private void assertThatNoCleanupWasTriggered() {
@@ -734,6 +750,72 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         dispatcher.getJobTerminationFuture(jobId, Duration.ofHours(1)).join();
 
         assertFalse(isArchived.get());
+    }
+
+    @Test
+    public void testNotArchivingFinishedJobToHistoryServerWhenOnlyFailedJobsConfigured()
+            throws Exception {
+
+        final AtomicBoolean isArchived = new AtomicBoolean(false);
+
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.ARCHIVE_ON_FAILED_JOBS_ONLY, true);
+
+        final TestingDispatcher.Builder testingDispatcherBuilder =
+                createTestingDispatcherBuilder()
+                        .setConfiguration(configuration)
+                        .setHistoryServerArchivist(
+                                TestingHistoryServerArchivist.builder()
+                                        .setArchiveExecutionGraphFunction(
+                                                (executionGraphInfo, applicationId) -> {
+                                                    isArchived.set(true);
+                                                    return CompletableFuture.completedFuture(
+                                                            Acknowledge.get());
+                                                })
+                                        .build());
+
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                startDispatcherAndSubmitApplication(testingDispatcherBuilder, 0);
+
+        finishJobAndApplication(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
+
+        assertGlobalCleanupTriggered(jobId);
+        dispatcher.getJobTerminationFuture(jobId, Duration.ofHours(1)).join();
+
+        assertFalse(isArchived.get());
+    }
+
+    @Test
+    public void testArchivingFailedJobToHistoryServerWhenOnlyFailedJobsConfigured()
+            throws Exception {
+
+        final AtomicBoolean isArchived = new AtomicBoolean(false);
+
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.ARCHIVE_ON_FAILED_JOBS_ONLY, true);
+
+        final TestingDispatcher.Builder testingDispatcherBuilder =
+                createTestingDispatcherBuilder()
+                        .setConfiguration(configuration)
+                        .setHistoryServerArchivist(
+                                TestingHistoryServerArchivist.builder()
+                                        .setArchiveExecutionGraphFunction(
+                                                (executionGraphInfo, applicationId) -> {
+                                                    isArchived.set(true);
+                                                    return CompletableFuture.completedFuture(
+                                                            Acknowledge.get());
+                                                })
+                                        .build());
+
+        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
+                startDispatcherAndSubmitApplication(testingDispatcherBuilder, 0);
+
+        failJobAndApplication(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
+
+        assertGlobalCleanupTriggered(jobId);
+        dispatcher.getJobTerminationFuture(jobId, Duration.ofHours(1)).join();
+
+        assertTrue(isArchived.get());
     }
 
     private static final class BlockingJobManagerRunnerFactory
