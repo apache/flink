@@ -35,6 +35,8 @@ When reading (deserializing) a record with this format the Avro writer schema is
 
 When writing (serializing) a record with this format the Avro schema is inferred from the table schema and used to retrieve a schema id to be encoded with the data. The lookup is performed with in the configured Confluent Schema Registry under the [subject](https://docs.confluent.io/current/schema-registry/index.html#schemas-subjects-and-topics) given in `avro-confluent.subject`.
 
+By default, the schema is automatically registered under the subject if it is not present yet (`'avro-confluent.auto.register.schemas' = 'true'`). Schema registration only happens when writing (serializing) data; reading always fetches the writer schema by the id encoded in each record. Automatic registration can be disabled (`'avro-confluent.auto.register.schemas' = 'false'`), for example when schemas are managed outside of Flink and write access to the Schema Registry is restricted. In that case a schema identical to the one used by the format must already be registered under the subject, otherwise the job fails with a "Schema not found" error. Since Flink infers the Avro schema from the table schema (using the record name `org.apache.flink.avro.generated.record`), it is recommended to provide the expected schema explicitly via `avro-confluent.schema` when schemas are managed externally. Note that the Schema Registry client caches failed lookups; registering a missing schema only takes effect after the cache entry expires or the job is restarted.
+
 The Avro Schema Registry format can only be used in conjunction with the [Apache Kafka SQL connector]({{< ref "docs/connectors/table/kafka" >}}) or the [Upsert Kafka SQL Connector]({{< ref "docs/connectors/table/upsert-kafka" >}}).
 
 Dependencies
@@ -190,6 +192,14 @@ Format Options
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Specify what format to use, here should be <code>'avro-confluent'</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.auto.register.schemas</h5></td>
+            <td>optional</td>
+            <td>yes</td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to automatically register the schema in the Confluent Schema Registry during serialization. When set to <code>false</code>, an identical schema must have been registered under the subject outside of Flink before it can be used; only its id is looked up and the job fails if it cannot be found. Schema registration only happens when writing data; reading always looks up the schema by the id embedded in each record.</td>
         </tr>
         <tr>
             <td><h5>avro-confluent.basic-auth.credentials-source</h5></td>
