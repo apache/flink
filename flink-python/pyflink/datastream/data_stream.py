@@ -18,7 +18,7 @@
 import typing
 import uuid
 from enum import Enum
-from typing import Callable, Union, List, cast, Optional, overload
+from typing import Callable, Generic, Iterable, Iterator, List, cast, Optional, overload, TypeVar, Union
 
 from pyflink.util.java_utils import get_j_env_configuration
 
@@ -65,8 +65,12 @@ __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams',
 
 WINDOW_STATE_NAME = 'window-contents'
 
+# TypeVar for generic DataStream typing support (FLINK-37912)
+T = TypeVar('T')
+OUT = TypeVar('OUT')
+KEY = TypeVar('KEY')
 
-class DataStream(object):
+class DataStream(Generic[T]):
     """
     A DataStream represents a stream of elements of the same type. A DataStream can be transformed
     into another DataStream by applying a transformation as for example:
@@ -271,8 +275,8 @@ class DataStream(object):
         self._j_data_stream.setDescription(description)
         return self
 
-    def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
-            -> 'DataStream':
+    def map(self, func: Union[Callable[[T], OUT], 'MapFunction[T, OUT]'], output_type: TypeInformation = None) \
+            -> 'DataStream[OUT]':
         """
         Applies a Map transformation on a DataStream. The transformation calls a MapFunction for
         each element of the DataStream. Each MapFunction call returns exactly one element.
@@ -314,8 +318,8 @@ class DataStream(object):
             .name("Map")
 
     def flat_map(self,
-                 func: Union[Callable, FlatMapFunction],
-                 output_type: TypeInformation = None) -> 'DataStream':
+                 func: Union[Callable[[T], Iterable[OUT]], FlatMapFunction[T, OUT]],
+                 output_type: TypeInformation = None) -> 'DataStream[OUT]':
         """
         Applies a FlatMap transformation on a DataStream. The transformation calls a FlatMapFunction
         for each element of the DataStream. Each FlatMapFunction call can return any number of
@@ -356,8 +360,8 @@ class DataStream(object):
             .name("FlatMap")
 
     def key_by(self,
-               key_selector: Union[Callable, KeySelector],
-               key_type: TypeInformation = None) -> 'KeyedStream':
+               key_selector: Union[Callable[[T], KEY], KeySelector[T, KEY]],
+               key_type: TypeInformation = None) -> 'KeyedStream[T, KEY]':
         """
         Creates a new KeyedStream that uses the provided key for partitioning its operator states.
 
@@ -413,7 +417,7 @@ class DataStream(object):
             self)
         return key_stream
 
-    def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
+    def filter(self, func: Union[Callable[[T], bool], 'FilterFunction[T]']) -> 'DataStream[T]':
         """
         Applies a Filter transformation on a DataStream. The transformation calls a FilterFunction
         for each element of the DataStream and retains only those element for which the function
@@ -1090,7 +1094,7 @@ class DataStreamSink(object):
         return self
 
 
-class KeyedStream(DataStream):
+class KeyedStream(DataStream[T]):
     """
     A KeyedStream represents a DataStream on which operator state is partitioned by key using a
     provided KeySelector. Typical operations supported by a DataStream are also possible on a
@@ -1111,8 +1115,8 @@ class KeyedStream(DataStream):
         self._original_data_type_info = original_data_type_info
         self._origin_stream = origin_stream
 
-    def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
-            -> 'DataStream':
+    def map(self, func: Union[Callable[[T], OUT], 'MapFunction[T, OUT]'], output_type: TypeInformation = None) \
+            -> 'DataStream[OUT]':
         """
         Applies a Map transformation on a KeyedStream. The transformation calls a MapFunction for
         each element of the DataStream. Each MapFunction call returns exactly one element.
@@ -1154,8 +1158,8 @@ class KeyedStream(DataStream):
             .name("Map")  # type: ignore
 
     def flat_map(self,
-                 func: Union[Callable, FlatMapFunction],
-                 output_type: TypeInformation = None) -> 'DataStream':
+                 func: Union[Callable[[T], Iterable[OUT]], 'FlatMapFunction[T, OUT]'],
+                 output_type: TypeInformation = None) -> 'DataStream[OUT]':
         """
         Applies a FlatMap transformation on a KeyedStream. The transformation calls a
         FlatMapFunction for each element of the DataStream. Each FlatMapFunction call can return
@@ -1195,7 +1199,7 @@ class KeyedStream(DataStream):
         return self.process(FlatMapKeyedProcessFunctionAdapter(func), output_type) \
             .name("FlatMap")
 
-    def reduce(self, func: Union[Callable, ReduceFunction]) -> 'DataStream':
+    def reduce(self, func: Union[Callable[[T, T], T], 'ReduceFunction[T]']) -> 'DataStream[T]':
         """
         Applies a reduce transformation on the grouped data stream grouped on by the given
         key position. The `ReduceFunction` will receive input values based on the key value.
@@ -1280,7 +1284,7 @@ class KeyedStream(DataStream):
         return self.process(ReduceProcessKeyedProcessFunctionAdapter(func), output_type) \
             .name("Reduce")
 
-    def filter(self, func: Union[Callable, FilterFunction]) -> 'DataStream':
+    def filter(self, func: Union[Callable[[T], bool], 'FilterFunction[T]']) -> 'DataStream[T]':
         if not isinstance(func, FilterFunction) and not callable(func):
             raise TypeError("The input must be a FilterFunction or a callable function")
 
@@ -1610,12 +1614,12 @@ class KeyedStream(DataStream):
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         return self._values().add_sink(sink_func)
 
-    def key_by(self, key_selector: Union[Callable, KeySelector],
-               key_type: TypeInformation = None) -> 'KeyedStream':
+    def key_by(self, key_selector: Union[Callable[[T], KEY], 'KeySelector[T, KEY]'],
+                key_type: TypeInformation = None) -> 'KeyedStream[T, KEY]':
         return self._origin_stream.key_by(key_selector, key_type)
 
     def process(self, func: KeyedProcessFunction,  # type: ignore
-                output_type: TypeInformation = None) -> 'DataStream':
+                output_type: TypeInformation = None) -> 'DataStream[Any]':
         """
         Applies the given ProcessFunction on the input stream, thereby creating a transformed output
         stream.
@@ -1920,7 +1924,9 @@ class WindowedStream(object):
 
             >>> ds.key_by(lambda x: x[1]) \\
             ...     .window(TumblingEventTimeWindows.of(Time.seconds(5))) \\
-            ...     .reduce(lambda a, b: a[0] + b[0], b[1])
+# UPDATED
+def key_by(self, key_selector: Union[Callable[[T], KEY], 'KeySelector[T, KEY]'],
+           key_type: TypeInformation = None) -> 'KeyedStream[T, KEY]':            ...     .reduce(lambda a, b: a[0] + b[0], b[1])
 
         :param reduce_function: The reduce function.
         :param window_function: The window function.
