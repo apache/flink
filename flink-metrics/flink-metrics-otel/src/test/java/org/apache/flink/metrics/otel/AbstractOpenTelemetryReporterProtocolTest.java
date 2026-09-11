@@ -53,28 +53,28 @@ public abstract class AbstractOpenTelemetryReporterProtocolTest<T> extends OpenT
     @Test
     public void testExplicitGrpcProtocol() throws Exception {
         MetricConfig config = createConfig("gRPC");
-        setupAndReport(config);
+        setupReporter(config);
         assertReported();
     }
 
     @Test
     public void testHttpProtocol() throws Exception {
         MetricConfig config = createConfig("HTTP");
-        setupAndReport(config);
+        setupReporter(config);
         assertReported();
     }
 
     @Test
     public void testHttpProtocolWithLowerCase() throws Exception {
         MetricConfig config = createConfig("http");
-        setupAndReport(config);
+        setupReporter(config);
         assertReported();
     }
 
     @Test
     public void testGrpcProtocolWithLowerCase() throws Exception {
         MetricConfig config = createConfig("grpc");
-        setupAndReport(config);
+        setupReporter(config);
         assertReported();
     }
 
@@ -84,7 +84,7 @@ public abstract class AbstractOpenTelemetryReporterProtocolTest<T> extends OpenT
         config.setProperty(
                 OpenTelemetryReporterOptions.EXPORTER_COMPRESSION.key(),
                 OpenTelemetryReporterOptions.COMPRESSION_GZIP);
-        setupAndReport(config);
+        setupReporter(config);
         assertReported();
     }
 
@@ -94,7 +94,7 @@ public abstract class AbstractOpenTelemetryReporterProtocolTest<T> extends OpenT
         config.setProperty(
                 OpenTelemetryReporterOptions.EXPORTER_COMPRESSION.key(),
                 OpenTelemetryReporterOptions.COMPRESSION_GZIP);
-        setupAndReport(config);
+        setupReporter(config);
         assertReported();
     }
 
@@ -102,7 +102,7 @@ public abstract class AbstractOpenTelemetryReporterProtocolTest<T> extends OpenT
     public void testInvalidCompressionMethodThrows() {
         MetricConfig config = createConfig("grpc");
         config.setProperty(OpenTelemetryReporterOptions.EXPORTER_COMPRESSION.key(), "invalid");
-        assertThatThrownBy(() -> setupAndReport(config))
+        assertThatThrownBy(() -> setupReporter(config))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported compression method");
     }
@@ -124,7 +124,11 @@ public abstract class AbstractOpenTelemetryReporterProtocolTest<T> extends OpenT
 
     protected abstract void closeReporter(T reporter);
 
-    protected abstract void setupAndReport(MetricConfig config);
+    /**
+     * Opens the reporter and registers the data to be exported; {@link #assertReported()} verifies
+     * the export.
+     */
+    protected abstract void setupReporter(MetricConfig config);
 
     protected abstract void assertReported() throws Exception;
 }
