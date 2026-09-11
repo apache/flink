@@ -1864,6 +1864,12 @@ class CastRulesTest {
                                 Variant.newBuilder()
                                         .of(Instant.parse("2021-09-24T12:34:56.123456789Z")),
                                 fromString("2021-09-24 14:34:56.123456789"))
+                        // a UUID renders in its canonical lower-case 8-4-4-4-12 form, the same as
+                        // a regular UUID to string cast
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(UUID.fromString(UUID_STRING)),
+                                fromString(UUID_STRING))
                         // a binary value is read as UTF-8, like a regular BINARY to string cast
                         .fromCase(
                                 VARIANT(),
@@ -2033,6 +2039,13 @@ class CastRulesTest {
                         // the raw bytes stay reachable when the character string cast rejects
                         // them, which is what makes this the way to inspect such a value
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(INVALID_UTF8), INVALID_UTF8)
+                        .fail(VARIANT(), VARIANT_BUILDER.of("foo"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(UUID())
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(UUID.fromString(UUID_STRING)),
+                                UUID_BYTES)
                         .fail(VARIANT(), VARIANT_BUILDER.of("foo"), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(DATE())
                         .fromCase(

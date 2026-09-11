@@ -47,6 +47,7 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.apache.flink.table.api.DataTypes.UUID;
 import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -135,6 +136,7 @@ class CastRuleProviderTest {
         assertThat(CastRuleProvider.exists(VARIANT, TIMESTAMP_LTZ().getLogicalType())).isTrue();
         assertThat(CastRuleProvider.exists(VARIANT, TIME().getLogicalType())).isTrue();
         assertThat(CastRuleProvider.exists(VARIANT, BYTES().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, UUID().getLogicalType())).isTrue();
         assertThat(CastRuleProvider.canFail(VARIANT, INT)).isTrue();
 
         // INTERVAL has no VARIANT counterpart, so it is not a castable target

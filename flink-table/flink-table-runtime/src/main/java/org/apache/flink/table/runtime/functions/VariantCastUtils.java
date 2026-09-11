@@ -25,14 +25,18 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.binary.StringUtf8Utils;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.variant.Variant;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.TimeZone;
+import java.util.UUID;
 
 /**
  * Runtime helpers for casting a {@code VARIANT} value to a SQL type.
@@ -272,6 +276,22 @@ public final class VariantCastUtils {
     }
 
     /**
+     * Reads a UUID variant as the target {@code UUID}, encoded as the canonical 16-byte big-endian
+     * representation.
+     */
+    public static byte[] toUuid(Variant variant) {
+        if (variant.getType() == Variant.Type.UUID) {
+            final UUID uuid = variant.getUuid();
+            final ByteBuffer buffer = ByteBuffer.allocate(UuidType.BYTE_LENGTH);
+            buffer.order(ByteOrder.BIG_ENDIAN);
+            buffer.putLong(uuid.getMostSignificantBits());
+            buffer.putLong(uuid.getLeastSignificantBits());
+            return buffer.array();
+        }
+        throw unsupportedKind(variant, "UUID");
+    }
+
+    /**
      * Reads a binary variant as the target binary type. {@code BINARY} is fixed width, so a shorter
      * value is padded with zero bytes, and either target truncates a value longer than {@code
      * targetLength}. This matches a regular cast into the same type.
@@ -432,6 +452,9 @@ public final class VariantCastUtils {
                                 TimestampData.fromInstant(variant.getInstant()),
                                 sessionZone,
                                 TIMESTAMP_NANOS_PRECISION);
+                break;
+            case UUID:
+                value = variant.getUuid().toString();
                 break;
             case NULL:
                 // Only reachable for a NOT NULL target. A nullable target maps a null-valued
