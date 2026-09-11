@@ -18,7 +18,6 @@
 
 package org.apache.flink.fs.s3native.writer;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
@@ -36,7 +35,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Recoverable writer for S3 using multipart uploads for exactly-once semantics. */
-@Experimental
 public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3RecoverableWriter.class);
