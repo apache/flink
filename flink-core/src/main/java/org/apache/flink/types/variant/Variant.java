@@ -38,6 +38,9 @@ import java.util.UUID;
 @PublicEvolving
 public interface Variant extends Serializable {
 
+    /** Pinned so interface changes don't alter the UID and break restore of VARIANT state. */
+    long serialVersionUID = 1L;
+
     /** Returns true if the variant is a primitive typed value, such as INT, DOUBLE, STRING, etc. */
     boolean isPrimitive();
 
