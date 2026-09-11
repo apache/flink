@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkException;
@@ -181,6 +182,13 @@ public class SourceStreamTask<
 
     @Override
     protected void advanceToEndOfEventTime() throws Exception {
+        // Downstream outputs drop watermarks while the announced status is IDLE, so re-activate
+        // first to ensure the final MAX_WATERMARK is delivered. A redundant ACTIVE status is
+        // deduplicated downstream. Tasks deployed as finished never ran the source, so their
+        // output was never idle and rejects status events.
+        if (!operatorChain.isTaskDeployedAsFinished()) {
+            operatorChain.getMainOperatorOutput().emitWatermarkStatus(WatermarkStatus.ACTIVE);
+        }
         operatorChain.getMainOperatorOutput().emitWatermark(Watermark.MAX_WATERMARK);
     }
 
