@@ -258,6 +258,80 @@ class TableEnvironmentTest {
         assertThat(tEnv.listModels()).containsExactly("M1", "M2");
     }
 
+    @Test
+    void testFromWithDynamicOptions() {
+        tEnv.createTable("T", TEST_DESCRIPTOR);
+
+        final Table table = tEnv.from("T", Map.of("b", "Override"));
+
+        assertThat(table.getQueryOperation())
+                .asInstanceOf(type(SourceQueryOperation.class))
+                .extracting(SourceQueryOperation::getContextResolvedTable)
+                .satisfies(
+                        crt -> {
+                            assertThat(crt.getResolvedTable().getOptions())
+                                    .contains(entry("a", "Test"), entry("b", "Override"));
+                        });
+    }
+
+    @Test
+    void testFromWithDynamicOptionsOverridesExisting() {
+        tEnv.createTable("T", TEST_DESCRIPTOR);
+
+        final Table table = tEnv.from("T", Map.of("a", "Overridden"));
+
+        assertThat(table.getQueryOperation())
+                .asInstanceOf(type(SourceQueryOperation.class))
+                .extracting(SourceQueryOperation::getContextResolvedTable)
+                .satisfies(
+                        crt -> {
+                            assertThat(crt.getResolvedTable().getOptions())
+                                    .containsEntry("a", "Overridden");
+                        });
+    }
+
+    @Test
+    void testFromWithEmptyDynamicOptions() {
+        tEnv.createTable("T", TEST_DESCRIPTOR);
+
+        final Table table = tEnv.from("T", Map.of());
+
+        assertThat(table.getQueryOperation())
+                .asInstanceOf(type(SourceQueryOperation.class))
+                .extracting(SourceQueryOperation::getContextResolvedTable)
+                .satisfies(
+                        crt -> {
+                            assertThat(crt.getResolvedTable().getOptions())
+                                    .containsEntry("a", "Test");
+                        });
+    }
+
+    @Test
+    void testFromWithDynamicOptionsOnViewThrows() {
+        tEnv.createTable("T", TEST_DESCRIPTOR);
+        tEnv.createView("V", tEnv.from("T"));
+
+        assertThatThrownBy(() -> tEnv.from("V", Map.of("key", "value")))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void testFromWithDynamicOptionsDisabledThrows() {
+        tEnv.getConfig().set("table.dynamic-table-options.enabled", "false");
+        tEnv.createTable("T", TEST_DESCRIPTOR);
+
+        assertThatThrownBy(() -> tEnv.from("T", Map.of("key", "value")))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Dynamic table options are disabled");
+    }
+
+    @Test
+    void testFromWithDynamicOptionsTableNotFound() {
+        assertThatThrownBy(() -> tEnv.from("NonExistent", Map.of("key", "value")))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("was not found");
+    }
+
     private static void assertCreateTableFromDescriptor(
             TableEnvironmentMock tEnv, Schema schema, boolean ignoreIfExists)
             throws org.apache.flink.table.catalog.exceptions.TableNotExistException {
