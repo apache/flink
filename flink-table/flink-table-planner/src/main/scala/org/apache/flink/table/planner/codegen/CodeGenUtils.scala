@@ -600,7 +600,7 @@ object CodeGenUtils {
         s"$rowTerm.setNullAt($indexTerm)"
       }
 
-      if (fieldType.isNullable) {
+      if (fieldType.isNullable || !fieldExpr.isProvenNotNull) {
         s"""
            |${fieldExpr.code}
            |if (${fieldExpr.nullTerm}) {

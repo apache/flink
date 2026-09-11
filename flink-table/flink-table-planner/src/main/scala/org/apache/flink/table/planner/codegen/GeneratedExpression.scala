@@ -56,6 +56,9 @@ case class GeneratedExpression(
    */
   def literal: Boolean = literalValue.isDefined
 
+  /** Whether this expression is statically proven never to be null at runtime. */
+  def isProvenNotNull: Boolean = nullTerm == GeneratedExpression.NEVER_NULL
+
   /**
    * Copy result term to target term if the reference is changed. Note: We must ensure that the
    * target can only be copied out, so that its object is definitely a brand new reference, not the
