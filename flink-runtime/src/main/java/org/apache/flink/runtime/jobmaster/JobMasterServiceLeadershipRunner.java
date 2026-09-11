@@ -39,6 +39,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.time.Duration;
@@ -62,11 +63,12 @@ import java.util.function.Supplier;
  * <p>All leadership operations are serialized. This means that granting the leadership has to
  * complete before the leadership can be revoked and vice versa.
  *
- * <p>The {@link #resultFuture} can be completed with the following values: * *
+ * <p>The {@link #resultFuture} can be completed with the following values:
  *
  * <ul>
  *   <li>{@link JobManagerRunnerResult} to signal an initialization failure of the {@link
- *       JobMasterService} or the completion of a job
+ *       JobMasterService}, the completion of a job, or a globally terminal result observed before
+ *       leadership revocation could be forwarded
  *   <li>{@link Exception} to signal an unexpected failure
  * </ul>
  */
@@ -108,6 +110,19 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     @GuardedBy("lock")
     private boolean hasCurrentLeaderBeenCancelled = false;
 
+    @GuardedBy("lock")
+    private UUID currentJobMasterServiceProcessLeaderId = null;
+
+    /**
+     * Caches a globally terminal result the moment it is observed, to close the race between such a
+     * result and a leadership revocation that strips the forwarded result (see FLINK-39704). The
+     * cache is populated by {@link #cacheGloballyTerminalResultIfCurrentProcess}, drained by either
+     * {@link #grantLeadership} (on re-grant) or {@link #completeResultFutureAfterClose} (on close),
+     * and cleared by {@link #onJobCompletion} when forwarding succeeds normally.
+     */
+    @GuardedBy("lock")
+    private JobManagerRunnerResult pendingTerminalResult = null;
+
     public JobMasterServiceLeadershipRunner(
             JobMasterServiceProcessFactory jobMasterServiceProcessFactory,
             LeaderElection leaderElection,
@@ -137,12 +152,11 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                     new FlinkException(
                             "JobMasterServiceLeadershipRunner is closed. Therefore, the corresponding JobMaster will never acquire the leadership."));
 
-            resultFuture.complete(
-                    JobManagerRunnerResult.forSuccess(
-                            createExecutionGraphInfoWithJobStatus(JobStatus.SUSPENDED)));
-
             processTerminationFuture = jobMasterServiceProcess.closeAsync();
         }
+
+        processTerminationFuture.whenComplete(
+                (ignored, throwable) -> completeResultFutureAfterClose());
 
         final CompletableFuture<Void> serviceTerminationFuture =
                 FutureUtils.runAfterwards(
@@ -251,19 +265,80 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
         sequentialOperation =
                 sequentialOperation.thenCompose(
                         unused ->
-                                jobResultStore
-                                        .hasJobResultEntryAsync(getJobID())
-                                        .thenCompose(
-                                                hasJobResult -> {
-                                                    if (hasJobResult) {
-                                                        return handleJobAlreadyDoneIfValidLeader(
-                                                                leaderSessionId);
-                                                    } else {
-                                                        return createNewJobMasterServiceProcessIfValidLeader(
-                                                                leaderSessionId);
-                                                    }
-                                                }));
+                                handleCachedGloballyTerminalJobOrStartNewProcessAsync(
+                                        leaderSessionId));
         handleAsyncOperationError(sequentialOperation, "Could not start the job manager.");
+    }
+
+    private CompletableFuture<Void> handleCachedGloballyTerminalJobOrStartNewProcessAsync(
+            UUID leaderSessionId) {
+        final JobManagerRunnerResult cachedTerminalResult;
+        synchronized (lock) {
+            if (!isRunning()) {
+                return FutureUtils.completedVoidFuture();
+            }
+            cachedTerminalResult = takePendingTerminalResult();
+            if (cachedTerminalResult != null) {
+                state = State.JOB_COMPLETED;
+                // resetting leader ID to handle concurrent
+                // cacheGloballyTerminalResultIfCurrentProcess call from updating the
+                // JobManagerResult
+                currentJobMasterServiceProcessLeaderId = null;
+            }
+        }
+
+        if (cachedTerminalResult != null) {
+            LOG.info(
+                    "Flushing previously observed globally terminal result for job {} on re-grant; not starting a new {}. Job state: {}.",
+                    getJobID(),
+                    JobMasterServiceProcess.class.getSimpleName(),
+                    cachedTerminalResult
+                            .getExecutionGraphInfo()
+                            .getArchivedExecutionGraph()
+                            .getState());
+            resultFuture.complete(cachedTerminalResult);
+            return FutureUtils.completedVoidFuture();
+        }
+
+        return jobResultStore
+                .hasJobResultEntryAsync(getJobID())
+                .thenCompose(
+                        hasJobResult ->
+                                hasJobResult
+                                        ? handleJobAlreadyDoneIfValidLeader(leaderSessionId)
+                                        : createNewJobMasterServiceProcessIfValidLeader(
+                                                leaderSessionId));
+    }
+
+    @GuardedBy("lock")
+    @Nullable
+    private JobManagerRunnerResult takePendingTerminalResult() {
+        final JobManagerRunnerResult terminalResult = pendingTerminalResult;
+        pendingTerminalResult = null;
+        return terminalResult;
+    }
+
+    private void completeResultFutureAfterClose() {
+        JobManagerRunnerResult closeResult;
+        synchronized (lock) {
+            closeResult = takePendingTerminalResult();
+            if (closeResult == null) {
+                closeResult =
+                        JobManagerRunnerResult.forSuccess(
+                                createExecutionGraphInfoWithJobStatus(JobStatus.SUSPENDED));
+            }
+            // resetting leader ID to handle concurrent cacheGloballyTerminalResultIfCurrentProcess
+            // call from updating the JobManagerResult
+            currentJobMasterServiceProcessLeaderId = null;
+        }
+
+        if (isGloballyTerminalResult(closeResult)) {
+            LOG.info(
+                    "Flushing globally terminal result for job {} during close. Job state: {}.",
+                    getJobID(),
+                    closeResult.getExecutionGraphInfo().getArchivedExecutionGraph().getState());
+        }
+        resultFuture.complete(closeResult);
     }
 
     private CompletableFuture<Void> handleJobAlreadyDoneIfValidLeader(UUID leaderSessionId) {
@@ -316,6 +391,9 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     @GuardedBy("lock")
     private void createNewJobMasterServiceProcess(UUID leaderSessionId) {
         Preconditions.checkState(jobMasterServiceProcess.closeAsync().isDone());
+        Preconditions.checkState(
+                pendingTerminalResult == null,
+                "No new JobMasterServiceProcess should be created while a terminal result is pending.");
 
         LOG.info(
                 "{} for job {} was granted leadership with leader id {}. Creating new {}.",
@@ -324,6 +402,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                 leaderSessionId,
                 JobMasterServiceProcess.class.getSimpleName());
 
+        currentJobMasterServiceProcessLeaderId = leaderSessionId;
         jobMasterServiceProcess = jobMasterServiceProcessFactory.create(leaderSessionId);
 
         forwardIfValidLeader(
@@ -355,17 +434,52 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     private void forwardResultFuture(
             UUID leaderSessionId, CompletableFuture<JobManagerRunnerResult> resultFuture) {
         resultFuture.whenComplete(
-                (jobManagerRunnerResult, throwable) ->
-                        runIfValidLeader(
-                                leaderSessionId,
-                                () -> onJobCompletion(jobManagerRunnerResult, throwable),
-                                "result future forwarding"));
+                (jobManagerRunnerResult, throwable) -> {
+                    // The JobManagerResult needs to be cached for the current process even if the
+                    // leadership was lost
+                    cacheGloballyTerminalResultIfCurrentProcess(
+                            leaderSessionId, jobManagerRunnerResult);
+                    runIfValidLeader(
+                            leaderSessionId,
+                            () -> onJobCompletion(jobManagerRunnerResult, throwable),
+                            "result future forwarding");
+                });
+    }
+
+    private void cacheGloballyTerminalResultIfCurrentProcess(
+            UUID leaderSessionId, JobManagerRunnerResult jobManagerRunnerResult) {
+        synchronized (lock) {
+            if (resultFuture.isDone()) {
+                return;
+            }
+            if (leaderSessionId.equals(currentJobMasterServiceProcessLeaderId)
+                    // initialization failures should still result in the job being suspended;
+                    // caching it would trigger a job startup retry after failover
+                    && isGloballyTerminalResult(jobManagerRunnerResult)) {
+                LOG.debug(
+                        "Caching globally terminal job result for job {} in case leadership is lost before forwarding.",
+                        getJobID());
+                pendingTerminalResult = jobManagerRunnerResult;
+            }
+        }
+    }
+
+    private boolean isGloballyTerminalResult(JobManagerRunnerResult jobManagerRunnerResult) {
+        return jobManagerRunnerResult != null
+                && jobManagerRunnerResult.isSuccess()
+                && jobManagerRunnerResult
+                        .getExecutionGraphInfo()
+                        .getArchivedExecutionGraph()
+                        .getState()
+                        .isGloballyTerminalState();
     }
 
     @GuardedBy("lock")
     private void onJobCompletion(
             JobManagerRunnerResult jobManagerRunnerResult, Throwable throwable) {
         state = State.JOB_COMPLETED;
+        currentJobMasterServiceProcessLeaderId = null;
+        pendingTerminalResult = null;
 
         LOG.debug("Completing the result for job {}.", getJobID());
 
@@ -423,6 +537,10 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
         hasCurrentLeaderBeenCancelled = false;
 
+        // Intentionally NOT clearing currentJobMasterServiceProcessLeaderId here: a globally
+        // terminal result from the closing process can still complete its resultFuture during
+        // closeAsync, and the forwarding callback needs the matching leader id to cache it
+        // (see FLINK-39704).
         return jobMasterServiceProcess.closeAsync();
     }
 

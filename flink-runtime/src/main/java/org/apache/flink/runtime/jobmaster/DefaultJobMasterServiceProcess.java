@@ -25,7 +25,6 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -154,18 +153,32 @@ public class DefaultJobMasterServiceProcess
                         jobId,
                         leaderSessionId);
 
-                resultFuture.completeExceptionally(new JobNotFinishedException(jobId));
                 jobMasterGatewayFuture.completeExceptionally(
                         new FlinkException("Process has been closed."));
 
                 jobMasterServiceFuture.whenComplete(
                         (jobMasterService, throwable) -> {
                             if (throwable != null) {
-                                // JobMasterService creation has failed. Nothing to stop then :-)
+                                resultFuture.completeExceptionally(
+                                        new JobNotFinishedException(jobId));
                                 terminationFuture.complete(null);
                             } else {
-                                FutureUtils.forward(
-                                        jobMasterService.closeAsync(), terminationFuture);
+                                // Defer JobNotFinishedException until after the JobMasterService
+                                // has fully closed, so any in-flight terminal completion from the
+                                // scheduler (jobReachedGloballyTerminalState) can win the race and
+                                // be observed by the runner. See FLINK-39704.
+                                jobMasterService
+                                        .closeAsync()
+                                        .whenComplete(
+                                                (unused, t) -> {
+                                                    resultFuture.completeExceptionally(
+                                                            new JobNotFinishedException(jobId));
+                                                    if (t != null) {
+                                                        terminationFuture.completeExceptionally(t);
+                                                    } else {
+                                                        terminationFuture.complete(null);
+                                                    }
+                                                });
                             }
                         });
 
