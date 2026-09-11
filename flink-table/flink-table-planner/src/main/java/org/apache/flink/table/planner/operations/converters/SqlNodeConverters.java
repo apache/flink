@@ -141,6 +141,7 @@ public class SqlNodeConverters {
 
     private static void registerConnectionConverters() {
         register(new SqlCreateConnectionConverter());
+        register(new SqlAlterConnectionRenameConverter());
     }
 
     private static void registerMaterializedTableConverters() {
