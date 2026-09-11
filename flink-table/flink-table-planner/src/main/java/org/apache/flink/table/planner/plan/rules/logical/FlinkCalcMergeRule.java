@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalc;
 import org.apache.flink.table.planner.plan.utils.FlinkRelUtil;
 
@@ -52,6 +53,8 @@ public class FlinkCalcMergeRule extends RelRule<FlinkCalcMergeRule.FlinkCalcMerg
     public static final FlinkCalcMergeRule INSTANCE = FlinkCalcMergeRuleConfig.DEFAULT.toRule();
     public static final FlinkCalcMergeRule STREAM_PHYSICAL_INSTANCE =
             FlinkCalcMergeRuleConfig.STREAM_PHYSICAL.toRule();
+    public static final FlinkCalcMergeRule BATCH_PHYSICAL_INSTANCE =
+            FlinkCalcMergeRuleConfig.BATCH_PHYSICAL.toRule();
 
     protected FlinkCalcMergeRule(FlinkCalcMergeRuleConfig config) {
         super(config);
@@ -108,6 +111,19 @@ public class FlinkCalcMergeRule extends RelRule<FlinkCalcMergeRule.FlinkCalcMerg
                                                 .inputs(
                                                         b1 ->
                                                                 b1.operand(StreamPhysicalCalc.class)
+                                                                        .anyInputs()))
+                        .withRelBuilderFactory(RelFactories.LOGICAL_BUILDER)
+                        .withDescription("FlinkCalcMergeRule");
+
+        FlinkCalcMergeRule.FlinkCalcMergeRuleConfig BATCH_PHYSICAL =
+                ImmutableFlinkCalcMergeRule.FlinkCalcMergeRuleConfig.builder()
+                        .build()
+                        .withOperandSupplier(
+                                b0 ->
+                                        b0.operand(BatchPhysicalCalc.class)
+                                                .inputs(
+                                                        b1 ->
+                                                                b1.operand(BatchPhysicalCalc.class)
                                                                         .anyInputs()))
                         .withRelBuilderFactory(RelFactories.LOGICAL_BUILDER)
                         .withDescription("FlinkCalcMergeRule");
