@@ -1048,6 +1048,108 @@ class DataFrameGetItemTests(PyFlinkDataFrameUTTestCase):
             self.dataframe[42]
 
 
+class DataFrameGetAttrTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.dataframe = pf.from_records(
+            [(1, "Alice"), (2, "Bob")], schema=["id", "name"]
+        )
+
+    def test_getattr_returns_column_expression(self):
+        self.assertIsInstance(self.dataframe.name, Expression)
+        self.assertEqual(str(self.dataframe.name), str(self.dataframe["name"]))
+        self.assert_dataframe_schema(
+            self.dataframe.select(self.dataframe.name), ["name"]
+        )
+
+    def test_getattr_composes_with_filter_and_select(self):
+        result = self.dataframe.filter(lambda df: df.id > 1).select(
+            self.dataframe.name, (self.dataframe.id + 1).alias("next_id")
+        )
+        self.assert_dataframe_schema(result, ["name", "next_id"])
+
+    def test_missing_column_raises_attribute_error(self):
+        with self.assertRaisesRegex(AttributeError, "missing"):
+            self.dataframe.missing
+        self.assertFalse(hasattr(self.dataframe, "missing"))
+        default = object()
+        self.assertIs(getattr(self.dataframe, "missing", default), default)
+        self.assertTrue(hasattr(self.dataframe, "name"))
+
+    def test_existing_attributes_take_precedence_over_columns(self):
+        names = ["select", "filter", "columns", "schema", "_table", "__class__"]
+        dataframe = pf.from_records([tuple(range(len(names)))], schema=names)
+        self.assertIs(dataframe.select.__func__, pf.DataFrame.select)
+        self.assertIs(dataframe.filter.__func__, pf.DataFrame.filter)
+        self.assertEqual(dataframe.columns, names)
+        self.assertIsInstance(dataframe.schema, TableSchema)
+        self.assertIs(dataframe._table, dataframe.to_table())
+        self.assertIs(dataframe.__class__, pf.DataFrame)
+        for name in names:
+            with self.subTest(name=name):
+                self.assert_dataframe_schema(dataframe.select(dataframe[name]), [name])
+
+    def test_instance_attributes_take_precedence_over_columns(self):
+        marker = object()
+        self.dataframe.name = marker
+        self.assertIs(self.dataframe.name, marker)
+        self.assertIsInstance(self.dataframe["name"], Expression)
+
+    def test_invalid_identifiers_and_keywords_are_not_attributes(self):
+        for name in ("first name", "first-name", "1name", "class", "None"):
+            with self.subTest(name=name):
+                dataframe = pf.from_records([(1,)], schema=[name])
+                with self.assertRaises(AttributeError):
+                    getattr(dataframe, name)
+                self.assertIsInstance(dataframe[name], Expression)
+
+    def test_valid_identifiers_include_unicode_and_underscores(self):
+        for name in ("_name", "name_2", "\u540d\u5b57", "match"):
+            with self.subTest(name=name):
+                dataframe = pf.from_records([(1,)], schema=[name])
+                self.assert_dataframe_schema(dataframe.select(getattr(dataframe, name)), [name])
+
+    def test_getattr_uses_the_transformed_schema(self):
+        renamed = self.dataframe.rename_columns({"name": "label"})
+        self.assertIsInstance(renamed.label, Expression)
+        self.assertFalse(hasattr(renamed, "name"))
+        projected = self.dataframe.select("id")
+        self.assertFalse(hasattr(projected, "name"))
+        self.assertIsInstance(self.dataframe.name, Expression)
+
+
+class DataFrameGetAttrValidationTests(unittest.TestCase):
+    def test_invalid_names_do_not_resolve_schema(self):
+        table = Mock()
+        for name in ("", "first name", "class"):
+            with self.subTest(name=name):
+                with self.assertRaises(AttributeError):
+                    getattr(pf.DataFrame(table), name)
+        table.get_resolved_schema.assert_not_called()
+
+    def test_uninitialized_dataframe_does_not_recurse(self):
+        dataframe = object.__new__(pf.DataFrame)
+        for name in ("_table", "name", "__setstate__"):
+            with self.subTest(name=name):
+                with self.assertRaises(AttributeError):
+                    getattr(dataframe, name)
+
+    def test_column_access_does_not_execute_a_job(self):
+        table = Mock()
+        table.get_resolved_schema.return_value.get_column_names.return_value = ["name"]
+        expression = object()
+        with patch("pyflink.dataframe.dataframe.table_col", return_value=expression) as col:
+            self.assertIs(pf.DataFrame(table).name, expression)
+            col.assert_called_once_with("name")
+        table.execute.assert_not_called()
+
+    def test_schema_errors_are_not_hidden(self):
+        table = Mock()
+        table.get_resolved_schema.side_effect = RuntimeError("schema unavailable")
+        with self.assertRaisesRegex(RuntimeError, "schema unavailable"):
+            pf.DataFrame(table).name
+
+
 class DataFrameLiteralTests(PyFlinkDataFrameUTTestCase):
     def setUp(self):
         super().setUp()
@@ -2220,6 +2322,15 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
         previous_environment = pf.get_table_environment()
         self.addCleanup(pf.set_table_environment, previous_environment)
         self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+
+    def test_attribute_column_access_executes(self):
+        dataframe = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1, 'Alice'), (2, 'Bob')) AS T(id, name)"
+        ))
+        result = dataframe.filter(lambda df: df.id > 1).select(
+            dataframe.name, (dataframe.id + 10).alias("next_id")
+        )
+        self.assertEqual(result.collect(), [Row("Bob", 12)])
 
     def _ordered_dataframe(self):
         table = self.t_env.sql_query(
