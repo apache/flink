@@ -40,6 +40,7 @@ import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.expressions.SqlFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.commons.lang3.StringUtils;
@@ -116,8 +117,17 @@ public class ShowCreateUtil {
                                         false,
                                         false));
         extractComment(connection).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        final Map<String, String> connectionOptions =
+                withoutConnectionInternalOptions(connection.getOptions());
         extractFormattedOptions(
-                        withoutConnectionInternalOptions(connection.getOptions()),
+                        connectionOptions.isEmpty()
+                                        && connection
+                                                .getOptions()
+                                                .containsKey(CONNECTION_SECRET_REFERENCE_KEY)
+                                ? Map.of(
+                                        FactoryUtil.CONNECTION_TYPE.key(),
+                                        FactoryUtil.CONNECTION_TYPE.defaultValue())
+                                : connectionOptions,
                         PRINT_INDENT,
                         additionalSensitiveKeys)
                 .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));

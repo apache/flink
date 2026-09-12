@@ -108,6 +108,31 @@ class CreateConnectionITCase extends BatchTestBase {
                 .doesNotContain(CONNECTION_SECRET_REFERENCE_KEY);
     }
 
+    @Test
+    void testShowCreateSecretOnlyTemporaryConnection() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'super-secret')");
+
+        List<Row> rows = collectRows("SHOW CREATE CONNECTION my_conn");
+
+        assertThat(rows).hasSize(1);
+        String showCreate = (String) rows.get(0).getField(0);
+        assertThat(showCreate)
+                .contains("CREATE TEMPORARY CONNECTION")
+                .contains("WITH (\n  'type' = 'default'\n)\n")
+                .doesNotContain("password")
+                .doesNotContain("super-secret")
+                .doesNotContain(CONNECTION_SECRET_REFERENCE_KEY);
+
+        catalogManager().dropTemporaryConnection(connectionIdentifier("my_conn"), false);
+        tEnv().executeSql(showCreate);
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn")))
+                .hasValueSatisfying(
+                        connection ->
+                                assertThat(connection.getOptions())
+                                        .containsOnly(entry("type", "default")));
+    }
+
     private List<Row> collectRows(String sql) {
         TableResult result = tEnv().executeSql(sql);
         return CollectionUtil.iteratorToList(result.collect());
