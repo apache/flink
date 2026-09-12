@@ -17,6 +17,7 @@
 ################################################################################
 
 import datetime
+import keyword
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1069,6 +1070,46 @@ class DataFrame:
         if isinstance(key, Expression):
             return self.filter(key)
         raise TypeError("key must be a string, list, tuple, or Expression")
+
+    @PublicEvolving()
+    def __getattr__(self, name: str) -> Expression:
+        """
+        Return a column expression for an attribute name.
+
+        The name must be a valid Python identifier, must not be a Python keyword, and must
+        identify an existing column. Existing DataFrame attributes take precedence over columns.
+        Use ``df["column name"]`` for names that cannot be accessed as attributes, or
+        ``df["select"]`` for columns that conflict with existing attributes.
+
+        This method resolves the schema without executing a Flink job.
+
+        :param name: Name of the referenced column.
+        :return: An expression referencing the column.
+        :raises AttributeError: If the name is invalid or the column does not exist.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"id": 1, "name": "Alice"}])
+            >>> selected = df.select(df.name)
+            >>> filtered = df.filter(df.id > 0)
+
+        .. versionadded:: 2.4.0
+        """
+        if not name.isidentifier() or keyword.iskeyword(name):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+        # Avoid re-entering __getattr__ if the underlying table has not been initialized.
+        try:
+            table = object.__getattribute__(self, "_table")
+        except AttributeError:
+            raise AttributeError(
+                f"'{type(self).__name__}' object has no attribute '{name}'"
+            ) from None
+
+        if name not in table.get_resolved_schema().get_column_names():
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        return table_col(name)
 
     # ======================== Composition ========================
 
