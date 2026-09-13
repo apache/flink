@@ -40,6 +40,7 @@ import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.expressions.SqlFactory;
+import org.apache.flink.table.factories.DefaultConnectionFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.utils.EncodingUtils;
 
@@ -66,8 +67,6 @@ public class ShowCreateUtil {
     private static final DateTimeFormatter TIMESTAMP_FORMATTER =
             DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
     private static final String PRINT_INDENT = "  ";
-    // Internal secret-store metadata must not be emitted in recreated connection SQL.
-    private static final String CONNECTION_SECRET_REFERENCE_KEY = "__flink.encrypted-secret-key__";
 
     private ShowCreateUtil() {}
 
@@ -123,7 +122,9 @@ public class ShowCreateUtil {
                         connectionOptions.isEmpty()
                                         && connection
                                                 .getOptions()
-                                                .containsKey(CONNECTION_SECRET_REFERENCE_KEY)
+                                                .containsKey(
+                                                        DefaultConnectionFactory
+                                                                .SECRET_REFERENCE_KEY)
                                 ? Map.of(
                                         FactoryUtil.CONNECTION_TYPE.key(),
                                         FactoryUtil.CONNECTION_TYPE.defaultValue())
@@ -394,7 +395,10 @@ public class ShowCreateUtil {
     private static Map<String, String> withoutConnectionInternalOptions(
             Map<String, String> options) {
         return options.entrySet().stream()
-                .filter(entry -> !CONNECTION_SECRET_REFERENCE_KEY.equals(entry.getKey()))
+                .filter(
+                        entry ->
+                                !DefaultConnectionFactory.SECRET_REFERENCE_KEY.equals(
+                                        entry.getKey()))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 

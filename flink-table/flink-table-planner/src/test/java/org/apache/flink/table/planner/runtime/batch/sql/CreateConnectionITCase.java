@@ -23,6 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.factories.DefaultConnectionFactory;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -37,8 +38,6 @@ import static org.assertj.core.api.Assertions.entry;
 
 /** IT case for CREATE CONNECTION statement. */
 class CreateConnectionITCase extends BatchTestBase {
-
-    private static final String CONNECTION_SECRET_REFERENCE_KEY = "__flink.encrypted-secret-key__";
 
     @Test
     void testCreateTemporaryConnection() {
@@ -90,7 +89,10 @@ class CreateConnectionITCase extends BatchTestBase {
                 .hasValueSatisfying(
                         connection ->
                                 assertThat(connection.getOptions())
-                                        .containsKeys("k", "type", CONNECTION_SECRET_REFERENCE_KEY)
+                                        .containsKeys(
+                                                "k",
+                                                "type",
+                                                DefaultConnectionFactory.SECRET_REFERENCE_KEY)
                                         .doesNotContainKey("password"));
 
         List<Row> rows = collectRows("SHOW CREATE CONNECTION my_conn");
@@ -105,7 +107,7 @@ class CreateConnectionITCase extends BatchTestBase {
                 .contains("'type' = 'default'")
                 .doesNotContain("super-secret")
                 .doesNotContain("password")
-                .doesNotContain(CONNECTION_SECRET_REFERENCE_KEY);
+                .doesNotContain(DefaultConnectionFactory.SECRET_REFERENCE_KEY);
     }
 
     @Test
@@ -121,7 +123,7 @@ class CreateConnectionITCase extends BatchTestBase {
                 .contains("WITH (\n  'type' = 'default'\n)\n")
                 .doesNotContain("password")
                 .doesNotContain("super-secret")
-                .doesNotContain(CONNECTION_SECRET_REFERENCE_KEY);
+                .doesNotContain(DefaultConnectionFactory.SECRET_REFERENCE_KEY);
 
         catalogManager().dropTemporaryConnection(connectionIdentifier("my_conn"), false);
         tEnv().executeSql(showCreate);

@@ -45,6 +45,7 @@ import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.factories.DefaultConnectionFactory;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -251,7 +252,7 @@ class ShowCreateUtilTest {
                         + ")\n");
 
         final Map<String, String> sensitiveOptions = new HashMap<>();
-        sensitiveOptions.put("__flink.encrypted-secret-key__", "secret-id");
+        sensitiveOptions.put(DefaultConnectionFactory.SECRET_REFERENCE_KEY, "secret-id");
         sensitiveOptions.put("endpoint", "service");
         sensitiveOptions.put("my.custom.cred", "supersecret");
         sensitiveOptions.put("password", "topsecret");
