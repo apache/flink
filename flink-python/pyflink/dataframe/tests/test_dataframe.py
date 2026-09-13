@@ -249,6 +249,89 @@ class DataFrameSlicingTests(unittest.TestCase):
         self.table.execute.assert_not_called()
 
 
+class DataFrameSetOperationTests(PyFlinkDataFrameUTTestCase):
+    METHODS = ("union", "union_all", "intersect", "intersect_all", "minus", "minus_all")
+
+    def setUp(self):
+        super().setUp()
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        pf.set_table_environment(self.t_env)
+
+    def test_set_operations_are_lazy_and_preserve_inputs(self):
+        left = pf.from_table(self.t_env.sql_query("SELECT 1 AS id"))
+        right = pf.from_table(self.t_env.sql_query("SELECT 2 AS id"))
+        left_table, right_table = left.to_table(), right.to_table()
+
+        with patch.object(type(left_table), "execute") as execute:
+            for method in self.METHODS:
+                with self.subTest(method=method):
+                    result = getattr(left, method)(right)
+                    self.assertIsInstance(result, pf.DataFrame)
+                    self.assertIsNot(result, left)
+                    self.assertIsNot(result, right)
+                    self.assertIs(result.to_table()._t_env, self.t_env)
+                    self.assertIs(left.to_table(), left_table)
+                    self.assertIs(right.to_table(), right_table)
+            execute.assert_not_called()
+
+    def test_set_operations_match_columns_by_position(self):
+        left = pf.from_table(self.t_env.sql_query("SELECT 1 AS id, 'a' AS name"))
+        right = pf.from_table(
+            self.t_env.sql_query("SELECT 2 AS other_id, 'b' AS other_name")
+        )
+
+        for method in self.METHODS:
+            with self.subTest(method=method):
+                result = getattr(left, method)(right)
+                self.assert_dataframe_schema(
+                    result, ["id", "name"],
+                    [TableDataTypes.INT().not_null(), TableDataTypes.CHAR(1).not_null()],
+                )
+
+    def test_set_operations_reject_non_dataframe_arguments(self):
+        dataframe = pf.from_table(self.t_env.sql_query("SELECT 1 AS id"))
+
+        for method in self.METHODS:
+            for other in (None, 1, "id", [], dataframe.to_table()):
+                with self.subTest(method=method, other=other):
+                    with self.assertRaisesRegex(TypeError, "other must be a DataFrame"):
+                        getattr(dataframe, method)(other)
+
+    def test_set_operations_reject_incompatible_schemas(self):
+        left = pf.from_table(self.t_env.sql_query("SELECT 1 AS id"))
+        others = [
+            pf.from_table(self.t_env.sql_query("SELECT 1 AS id, 2 AS extra")),
+            pf.from_table(self.t_env.sql_query("SELECT ROW(1) AS id")),
+        ]
+
+        for method in self.METHODS:
+            for other in others:
+                with self.subTest(method=method, columns=other.columns):
+                    with self.assertRaisesRegex(Py4JJavaError, "ValidationException"):
+                        getattr(left, method)(other)
+
+    def test_set_operations_reject_different_table_environments(self):
+        left = pf.from_table(self.t_env.sql_query("SELECT 1 AS id"))
+        other_environment = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        right = pf.from_table(other_environment.sql_query("SELECT 2 AS id"))
+
+        for method in self.METHODS:
+            with self.subTest(method=method):
+                with self.assertRaisesRegex(Py4JJavaError, "same TableEnvironment"):
+                    getattr(left, method)(right)
+
+    def test_set_operations_preserve_streaming_restrictions(self):
+        streaming_environment = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
+        left = pf.from_table(streaming_environment.sql_query("SELECT 1 AS id"))
+        right = pf.from_table(streaming_environment.sql_query("SELECT 2 AS id"))
+
+        self.assert_dataframe_schema(left.union_all(right), ["id"])
+        for method in ("union", "intersect", "intersect_all", "minus", "minus_all"):
+            with self.subTest(method=method):
+                with self.assertRaisesRegex(Py4JJavaError, "currently not supported"):
+                    getattr(left, method)(right)
+
+
 class DataFrameSortingTests(PyFlinkDataFrameUTTestCase):
     def setUp(self):
         super().setUp()
@@ -2327,6 +2410,136 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
         self.assertCountEqual(
             result.collect(),
             [Row("engineering", 30, 2), Row("sales", 5, 1)],
+        )
+
+
+class DataFrameSetOperationITTests(PyFlinkITTestCase):
+    def setUp(self):
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+
+    def test_set_operations_with_duplicate_and_null_rows(self):
+        left = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1, 'a'), (1, 'a'), (1, 'a'), (2, 'b'), "
+            "(3, 'c'), (3, 'c'), (CAST(NULL AS INT), 'n'), "
+            "(CAST(NULL AS INT), 'n'), (1, 'x')) AS T(id, name)"
+        ))
+        right = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1, 'a'), (1, 'a'), (2, 'b'), (2, 'b'), "
+            "(4, 'd'), (CAST(NULL AS INT), 'n')) AS T(other_id, other_name)"
+        ))
+        expected = {
+            "union": [Row(1, "a"), Row(2, "b"), Row(3, "c"), Row(4, "d"),
+                      Row(None, "n"), Row(1, "x")],
+            "union_all": ([Row(1, "a")] * 5 + [Row(2, "b")] * 3 + [Row(3, "c")] * 2
+                          + [Row(4, "d")] + [Row(None, "n")] * 3 + [Row(1, "x")]),
+            "intersect": [Row(1, "a"), Row(2, "b"), Row(None, "n")],
+            "intersect_all": [Row(1, "a"), Row(1, "a"), Row(2, "b"), Row(None, "n")],
+            "minus": [Row(3, "c"), Row(1, "x")],
+            "minus_all": [Row(1, "a"), Row(3, "c"), Row(3, "c"), Row(None, "n"), Row(1, "x")],
+        }
+
+        for method, rows in expected.items():
+            with self.subTest(method=method):
+                self.assertCountEqual(getattr(left, method)(right).collect(), rows)
+
+    def test_set_operations_with_empty_inputs(self):
+        dataframe = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1), (1)) AS T(id)"
+        ))
+        empty = dataframe.filter(pf.lit(False))
+        expected = {
+            "union": ([Row(1)], [Row(1)]),
+            "union_all": ([Row(1), Row(1)], [Row(1), Row(1)]),
+            "intersect": ([], []),
+            "intersect_all": ([], []),
+            "minus": ([Row(1)], []),
+            "minus_all": ([Row(1), Row(1)], []),
+        }
+
+        for method, (right_empty, left_empty) in expected.items():
+            with self.subTest(method=method, empty="right"):
+                self.assertCountEqual(getattr(dataframe, method)(empty).collect(), right_empty)
+            with self.subTest(method=method, empty="left"):
+                self.assertCountEqual(getattr(empty, method)(dataframe).collect(), left_empty)
+
+    def test_set_operations_compose_with_other_transformations(self):
+        left = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1, 'a'), (2, 'b'), (2, 'b'), (3, 'c')) AS T(id, name)"
+        ))
+        right = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (2, 'b'), (4, 'd')) AS T(id, name)"
+        ))
+        expected = {
+            "union": [Row("b"), Row("c"), Row("d")],
+            "union_all": [Row("b"), Row("b"), Row("b"), Row("c"), Row("d")],
+            "intersect": [Row("b")],
+            "intersect_all": [Row("b")],
+            "minus": [Row("c")],
+            "minus_all": [Row("b"), Row("c")],
+        }
+
+        for method, rows in expected.items():
+            with self.subTest(method=method):
+                result = getattr(left, method)(right).filter(pf.col("id") > 1).select("name")
+                self.assertCountEqual(result.collect(), rows)
+
+    def test_union_operations_execute_with_type_coercion(self):
+        left = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1), (2), (2), (3)) AS T(id)"
+        ))
+        right = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (CAST(2 AS BIGINT)), (CAST(2147483648 AS BIGINT))) "
+            "AS T(other_id)"
+        ))
+        expected = {
+            "union": [Row(1), Row(2), Row(3), Row(2147483648)],
+            "union_all": [Row(1), Row(2), Row(2), Row(2), Row(3), Row(2147483648)],
+        }
+
+        for method, rows in expected.items():
+            with self.subTest(method=method):
+                result = getattr(left, method)(right)
+                self.assertEqual(
+                    result.to_table().get_resolved_schema().get_column_data_types(),
+                    [TableDataTypes.BIGINT().not_null()],
+                )
+                self.assertCountEqual(result.collect(), rows)
+
+    def test_set_operations_execute_after_explicit_cast(self):
+        left = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (1), (2), (2), (3)) AS T(id)"
+        )).select(id=pf.col("id").cast(TableDataTypes.BIGINT()))
+        right = pf.from_table(self.t_env.sql_query(
+            "SELECT * FROM (VALUES (CAST(2 AS BIGINT)), (CAST(2147483648 AS BIGINT))) "
+            "AS T(other_id)"
+        ))
+        expected = {
+            "union": [Row(1), Row(2), Row(3), Row(2147483648)],
+            "union_all": [Row(1), Row(2), Row(2), Row(2), Row(3), Row(2147483648)],
+            "intersect": [Row(2)],
+            "intersect_all": [Row(2)],
+            "minus": [Row(1), Row(3)],
+            "minus_all": [Row(1), Row(2), Row(3)],
+        }
+
+        for method, rows in expected.items():
+            with self.subTest(method=method):
+                result = getattr(left, method)(right)
+                self.assertEqual(
+                    result.to_table().get_resolved_schema().get_column_data_types(),
+                    [TableDataTypes.BIGINT().not_null()],
+                )
+                self.assertCountEqual(result.collect(), rows)
+
+
+class DataFrameSetOperationStreamITTests(PyFlinkStreamDataFrameTestCase):
+    def test_union_all_retains_duplicates(self):
+        left = pf.from_records([(1,), (2,), (2,)], schema=["id"])
+        right = pf.from_records([(2,), (3,)], schema=["id"])
+
+        self.assertCountEqual(
+            left.union_all(right).collect(),
+            [Row(1), Row(2), Row(2), Row(2), Row(3)],
         )
 
 
