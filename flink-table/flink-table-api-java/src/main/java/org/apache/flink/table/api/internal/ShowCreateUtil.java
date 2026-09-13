@@ -23,6 +23,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.CatalogConnection;
 import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
@@ -39,6 +40,8 @@ import org.apache.flink.table.catalog.StartMode;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.expressions.SqlFactory;
+import org.apache.flink.table.factories.DefaultConnectionFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.commons.lang3.StringUtils;
@@ -96,6 +99,40 @@ public class ShowCreateUtil {
                                                         "%s)%s",
                                                         System.lineSeparator(),
                                                         System.lineSeparator())));
+        return sb.toString();
+    }
+
+    public static String buildShowCreateConnectionRow(
+            CatalogConnection connection,
+            ObjectIdentifier connectionIdentifier,
+            boolean isTemporary,
+            List<String> additionalSensitiveKeys) {
+        StringBuilder sb =
+                new StringBuilder()
+                        .append(
+                                buildCreateFormattedPrefix(
+                                        "CONNECTION",
+                                        isTemporary,
+                                        connectionIdentifier,
+                                        false,
+                                        false));
+        extractComment(connection).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        final Map<String, String> connectionOptions =
+                withoutConnectionInternalOptions(connection.getOptions());
+        extractFormattedOptions(
+                        connectionOptions.isEmpty()
+                                        && connection
+                                                .getOptions()
+                                                .containsKey(
+                                                        DefaultConnectionFactory
+                                                                .SECRET_REFERENCE_KEY)
+                                ? Map.of(
+                                        FactoryUtil.CONNECTION_TYPE.key(),
+                                        FactoryUtil.CONNECTION_TYPE.defaultValue())
+                                : connectionOptions,
+                        PRINT_INDENT,
+                        additionalSensitiveKeys)
+                .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
         return sb.toString();
     }
 
@@ -404,6 +441,22 @@ public class ShowCreateUtil {
         return StringUtils.isEmpty(model.getComment())
                 ? Optional.empty()
                 : Optional.of(model.getComment());
+    }
+
+    static Optional<String> extractComment(CatalogConnection connection) {
+        return StringUtils.isEmpty(connection.getComment())
+                ? Optional.empty()
+                : Optional.of(connection.getComment());
+    }
+
+    private static Map<String, String> withoutConnectionInternalOptions(
+            Map<String, String> options) {
+        return options.entrySet().stream()
+                .filter(
+                        entry ->
+                                !DefaultConnectionFactory.SECRET_REFERENCE_KEY.equals(
+                                        entry.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     static Optional<String> extractFormattedDistributedInfo(ResolvedCatalogTable catalogTable) {

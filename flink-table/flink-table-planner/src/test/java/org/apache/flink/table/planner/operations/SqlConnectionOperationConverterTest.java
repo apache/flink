@@ -20,9 +20,11 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.SqlParserException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.SensitiveConnection;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowCreateConnectionOperation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
 
 import org.junit.jupiter.api.Test;
@@ -120,5 +122,51 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
         assertThatThrownBy(() -> parse("CREATE CONNECTION my_conn WITH ()"))
                 .isInstanceOf(SqlValidateException.class)
                 .hasMessageContaining("Connection property list can not be empty.");
+    }
+
+    @Test
+    void testShowCreateConnection() {
+        createTemporaryConnection("my_conn");
+
+        Operation operation = parse("SHOW CREATE CONNECTION my_conn");
+        assertThat(operation).isInstanceOf(ShowCreateConnectionOperation.class);
+        ShowCreateConnectionOperation op = (ShowCreateConnectionOperation) operation;
+
+        assertThat(op.getConnectionIdentifier())
+                .isEqualTo(ObjectIdentifier.of("builtin", "default", "my_conn"));
+        assertThat(op.getConnection().getOptions()).containsEntry("k", "v");
+        assertThat(op.getConnection().getOptions()).doesNotContainKey("password");
+        assertThat(op.isTemporary()).isTrue();
+    }
+
+    @Test
+    void testShowCreateConnectionWithFullyQualifiedName() {
+        createTemporaryConnection("my_conn");
+
+        Operation operation = parse("SHOW CREATE CONNECTION `builtin`.`default`.`my_conn`");
+        ShowCreateConnectionOperation op = (ShowCreateConnectionOperation) operation;
+
+        assertThat(op.getConnectionIdentifier())
+                .isEqualTo(ObjectIdentifier.of("builtin", "default", "my_conn"));
+    }
+
+    @Test
+    void testShowCreateConnectionMissingConnectionRejected() {
+        assertThatThrownBy(() -> parse("SHOW CREATE CONNECTION missing_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Could not execute SHOW CREATE CONNECTION. Connection with identifier");
+    }
+
+    private void createTemporaryConnection(String connectionName) {
+        catalogManager.createTemporaryConnection(
+                SensitiveConnection.of(
+                        Map.of("type", "default", "k", "v", "password", "super-secret"),
+                        "hi there"),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        connectionName),
+                false);
     }
 }
