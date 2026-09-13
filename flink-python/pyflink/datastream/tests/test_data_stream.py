@@ -1255,6 +1255,36 @@ class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTe
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("python.execution-mode", "thread")
 
+    def test_gateway_access_is_rejected(self):
+        self.addCleanup(self.env.set_parallelism, self.env.get_parallelism())
+        self.env.set_parallelism(1)
+
+        class GatewayAccessFunction(MapFunction):
+            def open(self, runtime_context: RuntimeContext):
+                from pemja import findClass
+
+                self.j_integer = findClass('java.lang.Integer')
+
+            def map(self, value):
+                from unittest import TestCase
+                from unittest.mock import patch
+
+                from pyflink.java_gateway import get_gateway, launch_gateway
+
+                with patch('pyflink.java_gateway.launch_gateway_server_process',
+                           side_effect=AssertionError('Gateway subprocess launched')):
+                    for gateway_function in [get_gateway, launch_gateway]:
+                        with TestCase().assertRaisesRegex(RuntimeError, r'pemja\.findClass'):
+                            gateway_function()
+
+                return self.j_integer.parseInt(value)
+
+        (self.env.from_collection(['1', '2'], type_info=Types.STRING())
+         .map(GatewayAccessFunction(), output_type=Types.INT())
+         .add_sink(self.test_sink))
+        self.env.execute('test_gateway_access_is_rejected')
+        self.assert_equals_sorted(['1', '2'], self.test_sink.get_results())
+
     def test_state_ttl_without_gateway(self):
         self.addCleanup(self.env.set_parallelism, self.env.get_parallelism())
         self.env.set_parallelism(1)
