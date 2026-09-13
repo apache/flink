@@ -70,6 +70,21 @@ Transformations
     DataFrame.head
     DataFrame.__getitem__
 
+Set Operations
+--------------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.union
+    DataFrame.union_all
+    DataFrame.intersect
+    DataFrame.intersect_all
+    DataFrame.minus
+    DataFrame.minus_all
+
 Aggregations
 ------------
 
