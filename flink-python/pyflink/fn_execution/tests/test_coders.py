@@ -35,6 +35,45 @@ from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
+class ArrowSchemaTests(unittest.TestCase):
+    def test_pandas_collection_schema_and_round_trip(self):
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+        from pyflink.table.utils import arrow_to_pandas, pandas_to_arrow
+
+        names = ["values", "lookup", "record"]
+        types = [
+            DataTypes.ARRAY(DataTypes.INT().not_null()),
+            DataTypes.MAP(DataTypes.STRING(), DataTypes.ARRAY(DataTypes.INT()).not_null()),
+            DataTypes.ROW([DataTypes.FIELD("values", DataTypes.ARRAY(DataTypes.INT().not_null()))])]
+        schema = create_arrow_schema(names, types)
+        self.assertEqual(schema.field("values").type.value_field.name, "item")
+        self.assertFalse(schema.field("values").type.value_field.nullable)
+        self.assertFalse(schema.field("lookup").type.key_field.nullable)
+        self.assertFalse(schema.field("lookup").type.item_field.nullable)
+        self.assertTrue(schema.field("lookup").type.item_type.value_field.nullable)
+        self.assertFalse(schema.field("record").type[0].type.value_field.nullable)
+
+        # Correcting schema metadata must not add null checks to the pandas conversion path.
+        columns = [pd.Series([[1, 2], [], None, [None]]),
+                   pd.Series([[('a', [1])], [], None, [('b', None)]]),
+                   pd.DataFrame({"values": [[3], [], None, [None]]})]
+        batch = pandas_to_arrow(schema, pytz.UTC, types, columns)
+        with pa.BufferOutputStream() as output:
+            with pa.ipc.new_stream(output, schema) as writer:
+                writer.write_batch(batch)
+            decoded = pa.ipc.open_stream(output.getvalue()).read_next_batch()
+        expected = [
+            {"values": [1, 2], "lookup": [('a', [1])], "record": {"values": [3]}},
+            {"values": [], "lookup": [], "record": {"values": []}},
+            {"values": None, "lookup": None, "record": {"values": None}},
+            {"values": [None], "lookup": [('b', None)], "record": {"values": [None]}}]
+        self.assertEqual(decoded.to_pylist(), expected)
+        restored = arrow_to_pandas(pytz.UTC, types, [decoded])
+        self.assertEqual(pandas_to_arrow(schema, pytz.UTC, types, restored).to_pylist(), expected)
+
+
 class ArrowCodersTests(unittest.TestCase):
     from pyflink.fn_execution import coder_impl_slow as implementation
 

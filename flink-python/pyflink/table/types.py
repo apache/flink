@@ -2344,12 +2344,16 @@ def to_arrow_type(data_type: DataType):
         else:
             return pa.timestamp('ns')
     elif isinstance(data_type, MapType):
-        return pa.map_(to_arrow_type(data_type.key_type), to_arrow_type(data_type.value_type))
+        return pa.map_(
+            pa.field("key", to_arrow_type(data_type.key_type), nullable=False),
+            pa.field("value", to_arrow_type(data_type.value_type),
+                     nullable=data_type.value_type._nullable))
     elif isinstance(data_type, ArrayType):
         if type(data_type.element_type) in [LocalZonedTimestampType, RowType]:
             raise ValueError("%s is not supported to be used as the element type of ArrayType." %
                              data_type.element_type)
-        return pa.list_(to_arrow_type(data_type.element_type))
+        return pa.list_(pa.field("item", to_arrow_type(data_type.element_type),
+                                 nullable=data_type.element_type._nullable))
     elif isinstance(data_type, RowType):
         for field in data_type:
             if type(field.data_type) in [LocalZonedTimestampType, RowType]:
