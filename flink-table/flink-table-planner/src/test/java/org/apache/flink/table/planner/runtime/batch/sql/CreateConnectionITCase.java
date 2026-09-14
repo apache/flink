@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime.batch.sql;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.catalog.CatalogConnection;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.factories.DefaultConnectionFactory;
@@ -31,6 +32,7 @@ import org.apache.flink.util.CollectionUtil;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -77,6 +79,30 @@ class CreateConnectionITCase extends BatchTestBase {
         assertThatThrownBy(() -> tEnv().executeSql("CREATE CONNECTION my_conn WITH ('k' = 'v')"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("WritableSecretStore must be configured");
+    }
+
+    @Test
+    void testShowCreatePermanentConnection() throws Exception {
+        ObjectIdentifier identifier = connectionIdentifier("my_conn");
+        catalogManager()
+                .getCatalog(catalogManager().getCurrentCatalog())
+                .orElseThrow()
+                .createConnection(
+                        identifier.toObjectPath(),
+                        CatalogConnection.of(Map.of("k", "v", "type", "default"), "hi there"),
+                        false);
+
+        List<Row> rows = collectRows("SHOW CREATE CONNECTION my_conn");
+
+        assertThat(rows).hasSize(1);
+        String showCreate = (String) rows.get(0).getField(0);
+        assertThat(showCreate)
+                .contains("CREATE CONNECTION")
+                .doesNotContain("CREATE TEMPORARY CONNECTION")
+                .contains("`my_conn`")
+                .contains("COMMENT 'hi there'")
+                .contains("'k' = 'v'")
+                .contains("'type' = 'default'");
     }
 
     @Test
