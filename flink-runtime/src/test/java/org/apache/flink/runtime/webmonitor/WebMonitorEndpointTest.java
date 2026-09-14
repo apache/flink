@@ -104,7 +104,8 @@ class WebMonitorEndpointTest {
     void usesGeneratedLogUrlHandlersWhenCustomHandlersAreExplicitlyDisabled() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(
-                HistoryServerOptions.HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS,
+                HistoryServerOptions
+                        .HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS,
                 false);
 
         final Tuple2<RestHandlerSpecification, ?> jobManagerLogUrlHandler =
@@ -120,7 +121,8 @@ class WebMonitorEndpointTest {
     void usesCustomLogUrlHandlersWhenEnabled() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(
-                HistoryServerOptions.HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS,
+                HistoryServerOptions
+                        .HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS,
                 true);
 
         final Tuple2<RestHandlerSpecification, ?> jobManagerLogUrlHandler =
