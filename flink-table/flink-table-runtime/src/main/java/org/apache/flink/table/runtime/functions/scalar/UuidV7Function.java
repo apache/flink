@@ -19,19 +19,49 @@
 package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
-import org.apache.flink.table.runtime.functions.UuidGenerationUtils;
+import org.apache.flink.table.types.logical.UuidType;
+
+import java.security.SecureRandom;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#UUID_V7}. */
 @Internal
 public class UuidV7Function extends BuiltInScalarFunction {
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     public UuidV7Function(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.UUID_V7, context);
     }
 
     public byte[] eval() {
-        return UuidGenerationUtils.generateV7();
+        return generate();
+    }
+
+    @VisibleForTesting
+    static byte[] generate() {
+        final long timestamp = System.currentTimeMillis();
+        final byte[] bytes = new byte[UuidType.BYTE_LENGTH];
+        SECURE_RANDOM.nextBytes(bytes);
+
+        // embed the timestamp into the first 6 bytes
+        bytes[0] = (byte) (timestamp >>> 40);
+        bytes[1] = (byte) (timestamp >>> 32);
+        bytes[2] = (byte) (timestamp >>> 24);
+        bytes[3] = (byte) (timestamp >>> 16);
+        bytes[4] = (byte) (timestamp >>> 8);
+        bytes[5] = (byte) timestamp;
+
+        // set the version to 7
+        bytes[6] &= 0x0F;
+        bytes[6] |= 0x70;
+
+        // set the variant to IETF
+        bytes[8] &= 0x3F;
+        bytes[8] |= (byte) 0x80;
+
+        return bytes;
     }
 }

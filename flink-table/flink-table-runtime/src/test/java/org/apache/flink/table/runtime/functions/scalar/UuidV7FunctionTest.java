@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions;
+package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.table.types.logical.UuidType;
 
@@ -26,37 +26,25 @@ import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Test for {@link UuidGenerationUtils}. */
-class UuidGenerationUtilsTest {
+/** Test for {@link UuidV7Function#generate()}. */
+class UuidV7FunctionTest {
 
     @Test
-    void testGenerateV4Length() {
-        assertThat(UuidGenerationUtils.generateV4()).hasSize(UuidType.BYTE_LENGTH);
+    void testGenerateLength() {
+        assertThat(UuidV7Function.generate()).hasSize(UuidType.BYTE_LENGTH);
     }
 
     @Test
-    void testGenerateV4VersionAndVariant() {
-        byte[] bytes = UuidGenerationUtils.generateV4();
-        assertThat(bytes[6] & 0xF0).as("version nibble").isEqualTo(0x40);
-        assertThat(bytes[8] & 0xC0).as("variant bits").isEqualTo(0x80);
-    }
-
-    @Test
-    void testGenerateV7Length() {
-        assertThat(UuidGenerationUtils.generateV7()).hasSize(UuidType.BYTE_LENGTH);
-    }
-
-    @Test
-    void testGenerateV7VersionAndVariant() {
-        byte[] bytes = UuidGenerationUtils.generateV7();
+    void testGenerateVersionAndVariant() {
+        byte[] bytes = UuidV7Function.generate();
         assertThat(bytes[6] & 0xF0).as("version nibble").isEqualTo(0x70);
         assertThat(bytes[8] & 0xC0).as("variant bits").isEqualTo(0x80);
     }
 
     @Test
-    void testGenerateV7Timestamp() {
+    void testGenerateTimestamp() {
         long now = System.currentTimeMillis();
-        byte[] bytes = UuidGenerationUtils.generateV7();
+        byte[] bytes = UuidV7Function.generate();
         long timestamp = extractTimestamp(bytes);
 
         // The tolerance absorbs scheduling gaps and small clock corrections.

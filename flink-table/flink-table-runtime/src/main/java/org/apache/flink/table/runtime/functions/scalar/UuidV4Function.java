@@ -21,7 +21,10 @@ package org.apache.flink.table.runtime.functions.scalar;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
-import org.apache.flink.table.runtime.functions.UuidGenerationUtils;
+import org.apache.flink.table.types.logical.UuidType;
+
+import java.nio.ByteBuffer;
+import java.util.UUID;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#UUID_V4}. */
 @Internal
@@ -32,6 +35,10 @@ public class UuidV4Function extends BuiltInScalarFunction {
     }
 
     public byte[] eval() {
-        return UuidGenerationUtils.generateV4();
+        final UUID uuid = UUID.randomUUID();
+        final ByteBuffer buffer = ByteBuffer.allocate(UuidType.BYTE_LENGTH);
+        buffer.putLong(uuid.getMostSignificantBits());
+        buffer.putLong(uuid.getLeastSignificantBits());
+        return buffer.array();
     }
 }
