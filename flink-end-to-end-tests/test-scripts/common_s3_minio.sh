@@ -48,7 +48,7 @@ function s3_start {
     -P \
     --mount type=bind,source="$TEST_INFRA_DIR",target=/data \
     -e "MINIO_ACCESS_KEY=$AWS_ACCESS_KEY_ID" -e "MINIO_SECRET_KEY=$AWS_SECRET_ACCESS_KEY" -e "MINIO_DOMAIN=localhost" \
-    minio/minio \
+    quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z \
     server \
     /data)
   while [[ "$(docker inspect -f {{.State.Running}} "$MINIO_CONTAINER_ID")" -ne "true" ]]; do
