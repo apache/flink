@@ -86,7 +86,7 @@ public class ShowCreateUtil {
         extractFormattedColumns(model.getResolvedOutputSchema())
                 .ifPresent(
                         c -> sb.append(String.format("OUTPUT (%s)%s", c, System.lineSeparator())));
-        extractComment(model)
+        extractComment(model.getComment())
                 .ifPresent(c -> sb.append(formatComment(c)).append(System.lineSeparator()));
         extractFormattedOptions(model.getOptions(), PRINT_INDENT, additionalSensitiveKeys)
                 .ifPresent(
@@ -115,7 +115,8 @@ public class ShowCreateUtil {
                                         connectionIdentifier,
                                         false,
                                         false));
-        extractComment(connection).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        extractComment(connection.getComment())
+                .ifPresent(c -> sb.append(formatComment(c)).append("\n"));
         final Map<String, String> connectionOptions =
                 withoutConnectionInternalOptions(connection.getOptions());
         extractFormattedOptions(
@@ -153,7 +154,7 @@ public class ShowCreateUtil {
         extractFormattedPrimaryKey(table, PRINT_INDENT)
                 .ifPresent(pk -> sb.append(",\n").append(pk));
         sb.append("\n)\n");
-        extractComment(table).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        extractComment(table.getComment()).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
         extractFormattedDistributedInfo((ResolvedCatalogTable) table)
                 .ifPresent(d -> sb.append(d).append("\n"));
         extractFormattedPartitionedInfo((ResolvedCatalogTable) table)
@@ -213,7 +214,7 @@ public class ShowCreateUtil {
         extractFormattedPrimaryKey(table, PRINT_INDENT)
                 .ifPresent(pk -> sb.append(",\n").append(pk));
         sb.append("\n)\n");
-        extractComment(table).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        extractComment(table.getComment()).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
         table.getDistribution()
                 .map(TableDistribution::toString)
                 .ifPresent(d -> sb.append(d).append("\n"));
@@ -250,7 +251,7 @@ public class ShowCreateUtil {
                                 buildCreateFormattedPrefix(
                                         "VIEW", isTemporary, viewIdentifier, false, true));
         sb.append(extractFormattedColumnNames(view, PRINT_INDENT)).append("\n)\n");
-        extractComment(view).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        extractComment(view.getComment()).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
         sb.append("AS ").append(((CatalogView) origin).getExpandedQuery()).append("\n");
 
         return sb.toString();
@@ -374,22 +375,8 @@ public class ShowCreateUtil {
         return String.format("PARTITIONED BY (%s)\n", partitionedByColumns);
     }
 
-    static Optional<String> extractComment(ResolvedCatalogBaseTable<?> table) {
-        return StringUtils.isEmpty(table.getComment())
-                ? Optional.empty()
-                : Optional.of(table.getComment());
-    }
-
-    static Optional<String> extractComment(ResolvedCatalogModel model) {
-        return StringUtils.isEmpty(model.getComment())
-                ? Optional.empty()
-                : Optional.of(model.getComment());
-    }
-
-    static Optional<String> extractComment(CatalogConnection connection) {
-        return StringUtils.isEmpty(connection.getComment())
-                ? Optional.empty()
-                : Optional.of(connection.getComment());
+    private static Optional<String> extractComment(String comment) {
+        return StringUtils.isEmpty(comment) ? Optional.empty() : Optional.of(comment);
     }
 
     private static Map<String, String> withoutConnectionInternalOptions(
