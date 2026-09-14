@@ -245,9 +245,6 @@ public enum ProtoUtils {
         builder.setIsArrowUdf(
                 pythonFunctionInfo.getPythonFunction().getPythonFunctionKind()
                         == PythonFunctionKind.ARROW);
-        if (pythonFunctionInfo.getOutputType() != null) {
-            builder.setOutputType(toProtoType(pythonFunctionInfo.getOutputType()));
-        }
         return builder.build();
     }
 

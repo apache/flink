@@ -67,7 +67,6 @@ message UserDefinedFunction {
 
   // Whether the scalar UDF consumes and returns Arrow arrays directly
   bool is_arrow_udf = 6;
-  Schema.FieldType output_type = 7;
 }
 
 // Async execution configuration for async functions

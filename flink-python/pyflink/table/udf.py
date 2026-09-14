@@ -842,20 +842,6 @@ def udf(f: Union[Callable, ScalarFunction, AsyncScalarFunction, Type] = None,
             ...         return f"value_for_{key}"
             >>> async_lookup = udf(AsyncLookup(), result_type=DataTypes.STRING())
 
-    Arrow vectorized scalar functions use ``func_type="arrow"`` and operate
-    directly on Arrow arrays, without converting to pandas::
-
-        >>> import pyarrow.compute as pc
-        >>> @udf(result_type=DataTypes.STRING(), func_type="arrow")
-        ... def uppercase(values):
-        ...     return pc.utf8_upper(values)
-
-    Arrow column arguments are ``pyarrow.Array`` values (``StructArray`` for
-    ROW columns); literal arguments remain Python scalars. Supply at least one
-    column-valued argument and return an ``Array`` or ``ChunkedArray`` with the
-    same row count and declared logical result type. Results are validated
-    without implicit element-type casts. Async Arrow functions are not supported.
-
     :param f: lambda function, user-defined function, or async function.
     :param input_types: optional, the input data types.
     :param result_type: the result data type.

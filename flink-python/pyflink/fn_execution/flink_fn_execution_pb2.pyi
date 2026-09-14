@@ -45,22 +45,20 @@ class Input(_message.Message):
     def __init__(self, udf: _Optional[_Union[UserDefinedFunction, _Mapping]] = ..., inputOffset: _Optional[int] = ..., inputConstant: _Optional[bytes] = ..., refIndex: _Optional[int] = ...) -> None: ...
 
 class UserDefinedFunction(_message.Message):
-    __slots__ = ("payload", "inputs", "window_index", "takes_row_as_input", "is_pandas_udf", "is_arrow_udf", "output_type")
+    __slots__ = ("payload", "inputs", "window_index", "takes_row_as_input", "is_pandas_udf", "is_arrow_udf")
     PAYLOAD_FIELD_NUMBER: _ClassVar[int]
     INPUTS_FIELD_NUMBER: _ClassVar[int]
     WINDOW_INDEX_FIELD_NUMBER: _ClassVar[int]
     TAKES_ROW_AS_INPUT_FIELD_NUMBER: _ClassVar[int]
     IS_PANDAS_UDF_FIELD_NUMBER: _ClassVar[int]
     IS_ARROW_UDF_FIELD_NUMBER: _ClassVar[int]
-    OUTPUT_TYPE_FIELD_NUMBER: _ClassVar[int]
     payload: bytes
     inputs: _containers.RepeatedCompositeFieldContainer[Input]
     window_index: int
     takes_row_as_input: bool
     is_pandas_udf: bool
     is_arrow_udf: bool
-    output_type: Schema.FieldType
-    def __init__(self, payload: _Optional[bytes] = ..., inputs: _Optional[_Iterable[_Union[Input, _Mapping]]] = ..., window_index: _Optional[int] = ..., takes_row_as_input: bool = ..., is_pandas_udf: bool = ..., is_arrow_udf: bool = ..., output_type: _Optional[_Union[Schema.FieldType, _Mapping]] = ...) -> None: ...
+    def __init__(self, payload: _Optional[bytes] = ..., inputs: _Optional[_Iterable[_Union[Input, _Mapping]]] = ..., window_index: _Optional[int] = ..., takes_row_as_input: bool = ..., is_pandas_udf: bool = ..., is_arrow_udf: bool = ...) -> None: ...
 
 class AsyncOptions(_message.Message):
     __slots__ = ("max_concurrent_operations", "timeout_ms", "retry_enabled", "retry_max_attempts", "retry_delay_ms")

@@ -30,7 +30,7 @@ import org.apache.flink.table.types.DataType;
 import org.junit.jupiter.api.Test;
 
 /** Plans compositions of scalar UDFs with different Python argument representations. */
-class PythonArrowCalcTest extends TableTestBase {
+class PythonCalcSplitFunctionKindRuleTest extends TableTestBase {
 
     @Test
     void testStreamingComposition() {

@@ -161,17 +161,8 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
     else:
         variable_dict[func_name] = user_defined_func.eval
     if user_defined_function_proto.is_arrow_udf:
-        from pyflink.fn_execution.coders import LengthPrefixBaseCoder
-        from pyflink.fn_execution.utils.arrow_utils import check_arrow_udf_result, to_arrow_schema
-        from pyflink.table.types import RowField, RowType
-        result_type = None
-        arrow_type = None
-        if user_defined_function_proto.HasField('output_type'):
-            result_type = LengthPrefixBaseCoder._to_data_type(
-                user_defined_function_proto.output_type)
-            arrow_type = to_arrow_schema(RowType([RowField('result', result_type)]))[0].type
-        variable_dict[func_name] = partial(check_arrow_udf_result, variable_dict[func_name],
-                                           result_type=result_type, arrow_type=arrow_type)
+        from pyflink.fn_execution.utils.arrow_utils import check_arrow_udf_result
+        variable_dict[func_name] = partial(check_arrow_udf_result, variable_dict[func_name])
     user_defined_funcs.append(user_defined_func)
 
     func_args, input_variable_dict, input_funcs = _extract_input(user_defined_function_proto.inputs)

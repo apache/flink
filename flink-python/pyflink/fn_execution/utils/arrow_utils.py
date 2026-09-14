@@ -19,25 +19,6 @@
 """Arrow-native scalar UDF result contracts shared by the Python and compiled coders."""
 
 
-def to_arrow_schema(row_type):
-    import pyarrow as pa
-    from pyflink.table.types import ArrayType, MapType, RowType, to_arrow_type
-
-    def field(name, data_type):
-        if isinstance(data_type, RowType):
-            arrow_type = pa.struct([field(f.name, f.data_type) for f in data_type.fields])
-        elif isinstance(data_type, ArrayType):
-            arrow_type = pa.list_(field("element", data_type.element_type))
-        elif isinstance(data_type, MapType):
-            arrow_type = pa.map_(field("key", data_type.key_type).with_nullable(False),
-                                 field("value", data_type.value_type))
-        else:
-            arrow_type = to_arrow_type(data_type)
-        return pa.field(name, arrow_type, nullable=data_type._nullable)
-
-    return pa.schema([field(f.name, f.data_type) for f in row_type.fields])
-
-
 def validate_arrow_batch(batch, schema, field_types):
     import pyarrow as pa
 
@@ -89,7 +70,7 @@ def _validate_array(column, expected_type, data_type, path):
         wrong_type()
 
 
-def check_arrow_udf_result(func, *args, result_type=None, arrow_type=None):
+def check_arrow_udf_result(func, *args):
     import pyarrow as pa
 
     result = func(*args)
@@ -102,15 +83,10 @@ def check_arrow_udf_result(func, *args, result_type=None, arrow_type=None):
         if isinstance(arg, (pa.Array, pa.ChunkedArray)) and len(result) != len(arg):
             raise ValueError(
                 f"Arrow UDF '{name}' returned {len(result)} rows, expected {len(arg)}.")
-    if result_type is not None:
-        chunks = result.chunks if isinstance(result, pa.ChunkedArray) else [result]
-        # An empty ChunkedArray still has an element type that must match the declaration.
-        for chunk in chunks or [pa.array([], type=result.type)]:
-            _validate_array(chunk, arrow_type, result_type, name)
     return result
 
 
-def create_arrow_batch(results, row_count):
+def create_record_batch(results, row_count):
     import pyarrow as pa
 
     columns = []

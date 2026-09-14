@@ -36,8 +36,8 @@ from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, D
     ExternalTypeInfo
 from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
-    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType, MapType, \
-    BinaryType, NullType, CharType
+    LocalZonedTimestampType, RowType, RowField, create_arrow_schema, TimestampType, ArrayType, \
+    MapType, BinaryType, NullType, CharType
 
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
@@ -89,31 +89,22 @@ class LengthPrefixBaseCoder(ABC):
             row_type = cls._to_row_type(schema_proto)
             batch_format = coder_info_descriptor_proto.arrow_type.BatchFormat.Name(
                 coder_info_descriptor_proto.arrow_type.batch_format)
-            if batch_format == "ARROW":
-                from pyflink.fn_execution.utils.arrow_utils import to_arrow_schema
-                schema = to_arrow_schema(row_type)
-            else:
-                schema = cls._to_arrow_schema(row_type)
+            schema = create_arrow_schema(row_type.field_names(), row_type.field_types(),
+                                         allow_nested=batch_format == "ARROW")
             return ArrowCoder(schema, row_type, timezone, batch_format)
         elif coder_info_descriptor_proto.HasField('over_window_arrow_type'):
             timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
             schema_proto = coder_info_descriptor_proto.over_window_arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
             return OverWindowArrowCoder(
-                cls._to_arrow_schema(row_type), row_type, timezone)
+                create_arrow_schema(row_type.field_names(), row_type.field_types()),
+                row_type, timezone)
         elif coder_info_descriptor_proto.HasField('raw_type'):
             type_info_proto = coder_info_descriptor_proto.raw_type.type_info
             field_coder = from_type_info_proto(type_info_proto)
             return field_coder
         else:
             raise ValueError("Unexpected coder type %s" % coder_info_descriptor_proto)
-
-    @classmethod
-    def _to_arrow_schema(cls, row_type):
-        import pyarrow as pa
-
-        return pa.schema([pa.field(n, to_arrow_type(t), t._nullable)
-                          for n, t in zip(row_type.field_names(), row_type.field_types())])
 
     @classmethod
     def _to_data_type(cls, field_type):

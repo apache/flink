@@ -157,8 +157,8 @@ class ScalarFunctionOperation(BaseOperation):
             func_strs.append(func_str)
 
         if is_arrow:
-            from pyflink.fn_execution.utils.arrow_utils import create_arrow_batch
-            variable_dict['create_arrow_batch'] = create_arrow_batch
+            from pyflink.fn_execution.utils.arrow_utils import create_record_batch
+            variable_dict['create_record_batch'] = create_record_batch
 
         output_indices = list(serialized_fn.output_indices)
         # Result references require sequential evaluation. A non-empty output_indices does too:
@@ -170,7 +170,8 @@ class ScalarFunctionOperation(BaseOperation):
             # Keep original lambda-based approach for backward compatibility
             scalar_functions = ','.join(func_strs)
             if is_arrow:
-                func_str = f'lambda value: create_arrow_batch([{scalar_functions}], value.num_rows)'
+                func_str = (f'lambda value: create_record_batch('
+                            f'[{scalar_functions}], value.num_rows)')
             elif self._one_result_optimization:
                 func_str = 'lambda value: %s' % scalar_functions
             else:
@@ -196,7 +197,7 @@ class ScalarFunctionOperation(BaseOperation):
             code_lines.append('    results[%d] = %s' % (i, fn))
         if is_arrow:
             outputs = ','.join('results[%d]' % i for i in output_indices)
-            code_lines.append(f'    return create_arrow_batch([{outputs}], value.num_rows)')
+            code_lines.append(f'    return create_record_batch([{outputs}], value.num_rows)')
         elif self._one_result_optimization:
             code_lines.append('    return results[%d]' % output_indices[0])
         else:

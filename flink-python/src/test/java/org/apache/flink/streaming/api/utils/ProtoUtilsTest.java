@@ -21,8 +21,18 @@ package org.apache.flink.streaming.api.utils;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.util.ProtoUtils;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.table.functions.python.InputRef;
+import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.table.functions.python.PythonScalarFunction;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Duration;
 
@@ -33,6 +43,47 @@ import static org.assertj.core.api.Assertions.assertThat;
  * protobuf objects.
  */
 class ProtoUtilsTest {
+    @Test
+    void testArrowCoderBatchFormat() {
+        final RowType rowType = RowType.of(DataTypes.INT().getLogicalType());
+        assertThat(FlinkFnApi.CoderInfoDescriptor.ArrowType.getDefaultInstance().getBatchFormat())
+                .isEqualTo(FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat.PANDAS);
+        assertThat(
+                        ProtoUtils.createArrowTypeCoderInfoDescriptorProto(
+                                        rowType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false)
+                                .getArrowType()
+                                .getBatchFormat())
+                .isEqualTo(FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat.PANDAS);
+        assertThat(
+                        ProtoUtils.createArrowTypeCoderInfoDescriptorProto(
+                                        rowType,
+                                        FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE,
+                                        false,
+                                        FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat.ARROW)
+                                .getArrowType()
+                                .getBatchFormat())
+                .isEqualTo(FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat.ARROW);
+    }
+
+    @ParameterizedTest
+    @EnumSource(PythonFunctionKind.class)
+    void testScalarFunctionKind(PythonFunctionKind kind) {
+        final PythonScalarFunction function =
+                new PythonScalarFunction(
+                        "identity",
+                        new byte[0],
+                        kind,
+                        true,
+                        false,
+                        new PythonEnv(PythonEnv.ExecType.PROCESS));
+        final FlinkFnApi.UserDefinedFunction proto =
+                ProtoUtils.createUserDefinedFunctionProto(
+                        new PythonFunctionInfo(
+                                function, new PythonFunctionInput[] {new InputRef(0)}));
+        assertThat(proto.getIsArrowUdf()).isEqualTo(kind == PythonFunctionKind.ARROW);
+        assertThat(proto.getIsPandasUdf()).isEqualTo(kind == PythonFunctionKind.PANDAS);
+    }
+
     @Test
     void testParseStateTtlConfigFromProto() {
         FlinkFnApi.StateDescriptor.StateTTLConfig.CleanupStrategies cleanupStrategiesProto =

@@ -36,6 +36,26 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class ArrowSchemaTests(unittest.TestCase):
+    def test_nested_types_require_arrow_mode(self):
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        for data_type, error, expected in (
+            (DataTypes.ARRAY(DataTypes.ROW([DataTypes.FIELD("v", DataTypes.INT())])), ValueError,
+             pa.list_(pa.field("item", pa.struct([pa.field("v", pa.int32())])))),
+            (DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(3)), ValueError, pa.list_(pa.timestamp('ms'))),
+            (DataTypes.ROW([DataTypes.FIELD("r", DataTypes.ROW([
+                DataTypes.FIELD("v", DataTypes.INT())]))]), TypeError,
+             pa.struct([pa.field("r", pa.struct([pa.field("v", pa.int32())]))])),
+            (DataTypes.ROW([DataTypes.FIELD("t", DataTypes.TIMESTAMP_LTZ(3))]), TypeError,
+             pa.struct([pa.field("t", pa.timestamp('ms'))])),
+        ):
+            with self.subTest(data_type=data_type):
+                with self.assertRaises(error):
+                    create_arrow_schema(["value"], [data_type])
+                schema = create_arrow_schema(["value"], [data_type], allow_nested=True)
+                self.assertEqual(schema.field("value").type, expected)
+
     def test_pandas_collection_schema_and_round_trip(self):
         import pandas as pd
         from pyflink.table import DataTypes
@@ -73,13 +93,6 @@ class ArrowSchemaTests(unittest.TestCase):
         restored = arrow_to_pandas(pytz.UTC, types, [decoded])
         self.assertEqual(pandas_to_arrow(schema, pytz.UTC, types, restored).to_pylist(), expected)
 
-
-class ArrowCodersTests(unittest.TestCase):
-    from pyflink.fn_execution import coder_impl_slow as implementation
-
-    def arrow_coder(self, schema, row_type):
-        return self.implementation.ArrowCoderImpl(schema, row_type, pytz.UTC, "ARROW")
-
     def test_arrow_descriptor_preserves_pandas_default(self):
         from pyflink.fn_execution import flink_fn_execution_pb2 as proto
         from pyflink.fn_execution.coders import LengthPrefixBaseCoder
@@ -100,6 +113,13 @@ class ArrowCodersTests(unittest.TestCase):
             batch = pa.record_batch([pa.array(["a", None])], names=["name"])
             self.assertEqual(arrow_coder.decode(arrow_coder.encode(batch)), batch)
 
+
+class ArrowCodersTests(unittest.TestCase):
+    from pyflink.fn_execution import coder_impl_slow as implementation
+
+    def arrow_coder(self, schema, row_type):
+        return self.implementation.ArrowCoderImpl(schema, row_type, pytz.UTC, "ARROW")
+
     def test_arrow_nested_nullability(self):
         from pyflink.table import DataTypes
         from pyflink.table.types import to_arrow_type
@@ -119,7 +139,7 @@ class ArrowCodersTests(unittest.TestCase):
     def test_struct_map_and_temporal_results(self):
         import datetime
         from pyflink.table import DataTypes
-        from pyflink.fn_execution.utils.arrow_utils import to_arrow_schema
+        from pyflink.table.types import create_arrow_schema
 
         row_type = DataTypes.ROW([
             DataTypes.FIELD("record", DataTypes.ROW([
@@ -129,7 +149,8 @@ class ArrowCodersTests(unittest.TestCase):
                 DataTypes.STRING().not_null(), DataTypes.INT().not_null())),
             DataTypes.FIELD("amount", DataTypes.DECIMAL(6, 2)),
             DataTypes.FIELD("time", DataTypes.TIMESTAMP(3))])
-        schema = to_arrow_schema(row_type)
+        schema = create_arrow_schema(row_type.field_names(), row_type.field_types(),
+                                     allow_nested=True)
         coder = self.arrow_coder(schema, row_type)
         rows = [
             {"record": {"inner": {"value": 7}}, "lookup": [("a", 1)],

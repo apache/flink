@@ -410,6 +410,18 @@ def udf(
         ... def inferred_pandas_add_one(values: pd.Series) -> pd.Series:
         ...     return values + 1
 
+    Synchronous Arrow UDFs operate on ``pyarrow.Array`` columns and return an
+    ``Array`` or ``ChunkedArray``. They require ``return_dtype``. Select
+    ``func_type="arrow"`` explicitly, or infer it from an Arrow container
+    annotation on an unbound parameter or the return value::
+
+        >>> import pyarrow as pa
+        >>> import pyarrow.compute as pc
+
+        >>> @pf.udf(return_dtype=pf.DataType.string())
+        ... def normalize_name(names: pa.Array) -> pa.Array:
+        ...     return pc.utf8_upper(names)
+
     A declared UDF is called with DataFrame expressions or Python literals to
     produce a single-column expression::
 
@@ -419,30 +431,6 @@ def udf(
         ...     next_value=add_one(pf.col("value")),
         ...     incremented=increment(pf.col("value"), 2),
         ... )
-
-    Arrow UDFs operate directly on Arrow columns and require ``return_dtype``.
-    Select ``func_type="arrow"`` explicitly or annotate an unbound parameter or
-    the return value with ``pyarrow.Array`` or ``pyarrow.ChunkedArray``::
-
-        >>> import pyarrow as pa
-        >>> import pyarrow.compute as pc
-        >>> @pf.udf(return_dtype=pf.DataType.string())
-        ... def normalize_name(names: pa.Array) -> pa.Array:
-        ...     return pc.utf8_upper(names)
-        >>> result = df.with_column("normalized_name", normalize_name(pf.col("name")))
-
-    Column arguments arrive as Arrow arrays, including ``StructArray`` for
-    ``ROW`` columns. Literal arguments remain Python scalars. At least one
-    column-valued argument is required. Return an ``Array`` or ``ChunkedArray``
-    with the declared element type and the same number of rows as the input
-    batch. Nested types and nullability are validated without implicit element
-    casts. Intermediate results in composed Arrow calls may remain chunked.
-    Scalar values, lists, Arrow tables, and record batches are not scalar UDF
-    results. Arrow mode supports synchronous functions only.
-
-    Explicit ``func_type`` overrides annotations. Without it, a declaration
-    containing both pandas and Arrow container hints is ambiguous and raises
-    an error directing the caller to select a mode explicitly.
 
     :param func: Function, callable object, scalar UDF instance, or zero-argument
                  callable/scalar-UDF class.
@@ -454,7 +442,8 @@ def udf(
     :param name: Non-empty function identity used by the Table planner.
     :param func_type: ``"general"``, ``"pandas"``, or ``"arrow"``. If omitted,
                       unbound container annotations select pandas or Arrow mode;
-                      otherwise general mode is used.
+                      otherwise general mode is used. Mixed pandas and Arrow hints
+                      require an explicit mode.
     :return: A callable that accepts DataFrame expressions or Python literals and
              returns an :class:`~pyflink.table.expression.Expression`, or a decorator
              producing such a callable when ``func`` is omitted.

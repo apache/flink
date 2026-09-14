@@ -17,15 +17,21 @@
 ################################################################################
 import datetime
 import os
+import pickle
 import unittest
 import uuid
 
+import cloudpickle
+import pyarrow as pa
+import pyarrow.compute as pc
 import pytz
 
 from pyflink.common import Row
+from pyflink.fn_execution import flink_fn_execution_pb2 as proto
+from pyflink.fn_execution.table.operations import ScalarFunctionOperation
 from pyflink.table import DataTypes, expressions as expr
 from pyflink.table.expressions import call
-from pyflink.table.udf import ScalarFunction, udf, FunctionContext
+from pyflink.table.udf import DelegatingScalarFunction, ScalarFunction, udf, FunctionContext
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBatchTableTestCase
@@ -33,6 +39,74 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
 
 def generate_random_table_name():
     return "Table{0}".format(str(uuid.uuid1()).replace("-", "_"))
+
+
+class ArrowScalarOperationTests(unittest.TestCase):
+    def operation(self, func, inputs):
+        function = proto.UserDefinedFunction(
+            payload=cloudpickle.dumps(DelegatingScalarFunction(func)),
+            is_arrow_udf=True, inputs=inputs)
+        operation = ScalarFunctionOperation(proto.UserDefinedFunctions(udfs=[function]))
+        operation.open()
+        self.addCleanup(operation.close)
+        return operation
+
+    def test_literals_columns_and_chunked_results(self):
+        def add(offset, left, right):
+            if not isinstance(offset, int) or not isinstance(left, pa.Array) \
+                    or not isinstance(right, pa.Array):
+                raise TypeError("Expected a scalar literal followed by two Arrow arrays.")
+            values = pc.add(pc.add(left, right), offset)
+            return pa.chunked_array([values.slice(0, 1), values.slice(1)])
+
+        operation = self.operation(add, [
+            proto.Input(inputConstant=b"\x00" + pickle.dumps(10)),
+            proto.Input(inputOffset=0), proto.Input(inputOffset=1)])
+        result = operation.process_element(pa.record_batch(
+            [pa.array([1, None, 3]), pa.array([4, 5, 6])], names=["a", "b"]))
+        self.assertEqual(result.column(0).to_pylist(), [15, None, 19])
+
+    def test_invalid_scalar_results(self):
+        batch = pa.record_batch([pa.array([1, 2, 3])], names=["value"])
+        for result, error, message in (
+            ([1, 2, 3], TypeError, "Array or pyarrow.ChunkedArray"),
+            (None, TypeError, "NoneType"),
+            (pa.scalar(1), TypeError, "Scalar"),
+            (batch, TypeError, "RecordBatch"),
+            (pa.Table.from_batches([batch]), TypeError, "Table"),
+            (pa.array([1]), ValueError, "returned 1 rows, expected 3"),
+            (pa.chunked_array([[1], [2]]), ValueError, "returned 2 rows, expected 3"),
+        ):
+            with self.subTest(result=result):
+                operation = self.operation(lambda values: result, [proto.Input(inputOffset=0)])
+                with self.assertRaisesRegex(error, message):
+                    operation.process_element(batch)
+
+    def test_invalid_intermediate_result_is_not_consumed(self):
+        inner = proto.UserDefinedFunction(
+            payload=cloudpickle.dumps(DelegatingScalarFunction(lambda values: values.slice(0, 1))),
+            is_arrow_udf=True, inputs=[proto.Input(inputOffset=0)])
+        # The outer result has the correct batch length, but must not hide the invalid inner result.
+        operation = self.operation(lambda values: pa.array([1, 2, 3]), [proto.Input(udf=inner)])
+        with self.assertRaisesRegex(ValueError, "returned 1 rows, expected 3"):
+            operation.process_element(pa.record_batch([pa.array([1, 2, 3])], names=["value"]))
+
+    def test_arrow_scalar_operation(self):
+        class Uppercase(ScalarFunction):
+            def eval(self, values):
+                return pc.utf8_upper(values)
+
+        function = proto.UserDefinedFunction(
+            payload=cloudpickle.dumps(Uppercase()), is_arrow_udf=True,
+            inputs=[proto.Input(inputOffset=0)])
+        operation = ScalarFunctionOperation(
+            proto.UserDefinedFunctions(udfs=[function]), one_arg_optimization=True)
+        operation.open()
+        self.addCleanup(operation.close)
+        result = operation.process_element(pa.record_batch(
+            [pa.array(["alice", None, "Bob"])], names=["name"]))
+        self.assertIsInstance(result, pa.RecordBatch)
+        self.assertEqual(result.column(0).to_pylist(), ["ALICE", None, "BOB"])
 
 
 class UserDefinedFunctionTests(object):
