@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.rocksdb;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -69,6 +70,9 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         implements InternalMapState<K, N, UK, UV> {
 
     private static final Logger LOG = LoggerFactory.getLogger(RocksDBMapState.class);
+
+    /** Maximum number of entries cached by a map state iterator. */
+    @VisibleForTesting static final int ITERATOR_CACHE_SIZE = 128;
 
     /** Serializer for the keys and values. */
     private TypeSerializer<UK> userKeySerializer;
@@ -562,8 +566,6 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
     /** An auxiliary utility to scan all entries under the given key. */
     private abstract class RocksDBMapIterator<T> implements Iterator<T> {
 
-        private static final int CACHE_SIZE_LIMIT = 128;
-
         /** The db where data resides. */
         private final RocksDB db;
 
@@ -675,8 +677,12 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
                 /*
                  * If the entry pointing to the current position is not removed, it will be the first entry in the
                  * new iterating. Skip it to avoid redundant access in such cases.
+                 *
+                 * Removing the current entry through MapState does not update its cached 'deleted' flag.
+                 * A resumed seek can therefore return an invalid iterator even if 'deleted' is false.
+                 * RocksDB requires a valid iterator before calling next().
                  */
-                if (currentEntry != null && !currentEntry.deleted) {
+                if (currentEntry != null && !currentEntry.deleted && iterator.isValid()) {
                     iterator.next();
                 }
 
@@ -687,7 +693,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
                         break;
                     }
 
-                    if (cacheEntries.size() >= CACHE_SIZE_LIMIT) {
+                    if (cacheEntries.size() >= ITERATOR_CACHE_SIZE) {
                         break;
                     }
 

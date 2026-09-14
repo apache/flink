@@ -94,6 +94,7 @@ public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
 
     @Override
     public void next() {
+        assert isValid() : "Iterator must be valid before calling next()";
         iterator.next();
     }
 
