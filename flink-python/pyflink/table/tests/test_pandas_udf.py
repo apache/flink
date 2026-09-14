@@ -349,6 +349,56 @@ class PandasUDFITTests(object):
         with self.assertRaisesRegex(Py4JJavaError, expected_regex=msg):
             t.select(result_type_not_series(t.a)).to_pandas()
 
+    def test_nested_pandas_udf_reuse(self):
+        # Nested Pandas UDF calls go through the same flattening as general Python UDFs: a
+        # sub-expression shared between the projected calls is evaluated once and the projected
+        # results are picked from the evaluated list by output_indices. The Arrow operator has its
+        # own row batching, so this pins the whole path down for Pandas UDFs as well.
+        @udf(result_type=DataTypes.BIGINT(), func_type="pandas")
+        def plus_one(i):
+            return i + 1
+
+        @udf(result_type=DataTypes.BIGINT(), func_type="pandas")
+        def times_ten(i):
+            return i * 10
+
+        @udf(result_type=DataTypes.BIGINT(), func_type="pandas", deterministic=False)
+        def nondet_plus_one(i):
+            return i + 1
+
+        self.t_env.create_temporary_system_function("plus_one", plus_one)
+        self.t_env.create_temporary_system_function("times_ten", times_ten)
+        self.t_env.create_temporary_system_function("nondet_plus_one", nondet_plus_one)
+        t = self.t_env.from_elements([(1,), (2,), (3,)], ['a'])
+        self.t_env.create_temporary_view("PandasNested", t)
+
+        cases = [
+            # shared inner call, projected first and last
+            ("SELECT plus_one(a), times_ten(plus_one(a)) FROM PandasNested",
+             [[2, 20], [3, 30], [4, 40]]),
+            ("SELECT times_ten(plus_one(a)), plus_one(a) FROM PandasNested",
+             [[20, 2], [30, 3], [40, 4]]),
+            # shared innermost call three levels down
+            ("SELECT plus_one(a), times_ten(times_ten(plus_one(a))) FROM PandasNested",
+             [[2, 200], [3, 300], [4, 400]]),
+            # one projected column, yet the list is flattened and the result is not results[0]
+            ("SELECT times_ten(plus_one(a)) + plus_one(a) FROM PandasNested",
+             [[22], [33], [44]]),
+            # nothing shared, the tree stays nested
+            ("SELECT times_ten(plus_one(a)) FROM PandasNested",
+             [[20], [30], [40]]),
+            # a non-deterministic call is evaluated once per occurrence but its deterministic
+            # child is still shared; the values only show that the results are correct
+            ("SELECT nondet_plus_one(a), times_ten(nondet_plus_one(a)) FROM PandasNested",
+             [[2, 20], [3, 30], [4, 40]]),
+            ("SELECT plus_one(a), times_ten(nondet_plus_one(plus_one(a))) FROM PandasNested",
+             [[2, 30], [3, 40], [4, 50]]),
+        ]
+        for sql, expected in cases:
+            actual = sorted(
+                [list(r) for r in self.t_env.sql_query(sql).execute().collect()])
+            self.assertEqual(actual, expected, sql)
+
     def test_data_types(self):
         import pandas as pd
 

@@ -87,6 +87,7 @@ class PythonCalcNestedCseInvariantTest extends TableTestBase {
                 "nonDet1", new NonDeterministicPythonScalarFunction("nonDet1"));
         util.addTemporarySystemFunction(
                 "nonDet2", new NonDeterministicPythonScalarFunction("nonDet2"));
+        util.addTemporarySystemFunction("zeroDet", new PythonScalarFunction("zeroDet"));
     }
 
     /** The projection of the single PythonCalc of a query, together with its CSE result. */
@@ -259,6 +260,8 @@ class PythonCalcNestedCseInvariantTest extends TableTestBase {
                 .as("the operator output must have one column per projected call")
                 .isEqualTo(outputIndices.length);
         for (int i = 0; i < outputIndices.length; i++) {
+            // structural equality, not identity: deduplication keeps the first occurrence, which
+            // may be a nested one when it is visited before the projected one in post-order
             assertThat(calls.get(outputIndices[i]))
                     .as("output index %d must point at the projected call", i)
                     .isEqualTo(analysis.topLevelCalls.get(i));
@@ -620,5 +623,41 @@ class PythonCalcNestedCseInvariantTest extends TableTestBase {
     @Test
     void testZeroArgumentNonDeterministicCallProjectedBeforeItsNestedOccurrence() {
         check("SELECT nonDet1(), pyFunc2(nonDet1(), c) FROM MyTable", 2);
+    }
+
+    @Test
+    void testZeroArgumentDeterministicCallIsShared() {
+        // the deterministic counterpart: the same RexCall object for both occurrences is fine
+        // here, and the two must converge on one entry like any other shared call
+        checkShared("SELECT zeroDet(), pyFunc2(zeroDet(), c) FROM MyTable", 2, "zeroDet");
+        checkShared("SELECT pyFunc2(zeroDet(), c), zeroDet() FROM MyTable", 2, "zeroDet");
+    }
+
+    @Test
+    void testSingleProjectionSharingBetweenItsOwnOperands() {
+        // Only one column is projected, yet the list has two entries and the projected result is
+        // the last one. This is the shape the one-result fast path of the operators must handle:
+        // the output is results[output_indices[0]], not results[0].
+        Analysis analysis = analyze("SELECT pyFunc3(pyFunc1(a, b), pyFunc1(a, b)) FROM MyTable");
+        checkShared("SELECT pyFunc3(pyFunc1(a, b), pyFunc1(a, b)) FROM MyTable", 2, "pyFunc1");
+        assertThat(analysis.result.getOutputIndices()).containsExactly(1);
+    }
+
+    @Test
+    void testSameNonDeterministicCallTwiceInOneProjection() {
+        // two occurrences below the same parent, nothing deterministic to share: no flattening,
+        // and the parent evaluates both inline as two separate calls
+        check("SELECT pyFunc3(nonDet1(a, b), nonDet1(a, b)) FROM MyTable", 1);
+        // with a shared deterministic call it is flattened, and each nonDet1 keeps its own entry
+        Analysis analysis =
+                analyze(
+                        "SELECT pyFunc1(a, b), pyFunc3(nonDet1(pyFunc1(a, b), b), nonDet1(pyFunc1(a, b), b)) FROM MyTable");
+        checkShared(
+                "SELECT pyFunc1(a, b), pyFunc3(nonDet1(pyFunc1(a, b), b), nonDet1(pyFunc1(a, b), b)) FROM MyTable",
+                4,
+                "pyFunc1");
+        int[] refs = analysis.result.getOperandRefs(3);
+        assertThat(refs).as("pyFunc3 reads two different nonDet1 entries").hasSize(2);
+        assertThat(refs[0]).isNotEqualTo(refs[1]);
     }
 }
