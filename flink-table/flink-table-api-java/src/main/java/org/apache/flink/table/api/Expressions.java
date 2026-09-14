@@ -840,6 +840,8 @@ public final class Expressions {
     /**
      * Returns a random RFC 9562 version 4 (pseudo randomly generated) {@code UUID} value.
      *
+     * <p>Compared to {@link #uuid()}, this function returns a value of the {@code UUID} data type.
+     *
      * @see <a href="https://www.rfc-editor.org/rfc/rfc9562.html">RFC 9562</a>
      */
     public static ApiExpression uuidV4() {
@@ -849,6 +851,8 @@ public final class Expressions {
     /**
      * Returns a time-ordered RFC 9562 version 7 {@code UUID} value, generated from the current
      * timestamp and a random component.
+     *
+     * <p>Compared to {@link #uuid()}, this function returns a value of the {@code UUID} data type.
      *
      * @see <a href="https://www.rfc-editor.org/rfc/rfc9562.html">RFC 9562</a>
      */

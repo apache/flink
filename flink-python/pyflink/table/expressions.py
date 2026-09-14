@@ -778,6 +778,8 @@ def uuid_v4() -> Expression:
     """
     Returns a random RFC 9562 version 4 (pseudo randomly generated) UUID value. The UUID is
     generated using a cryptographically strong pseudo random number generator.
+
+    Compared to uuid(), this function returns a value of the UUID data type.
     """
     return _leaf_op("uuidV4")
 
@@ -787,6 +789,8 @@ def uuid_v7() -> Expression:
     """
     Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current timestamp
     and a random component.
+
+    Compared to uuid(), this function returns a value of the UUID data type.
     """
     return _leaf_op("uuidV7")
 
