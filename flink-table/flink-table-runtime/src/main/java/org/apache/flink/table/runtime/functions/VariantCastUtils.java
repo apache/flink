@@ -25,6 +25,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.binary.StringUtf8Utils;
+import org.apache.flink.table.types.logical.utils.UuidUtils;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.variant.Variant;
 
@@ -277,7 +278,7 @@ public final class VariantCastUtils {
      */
     public static byte[] toUuid(Variant variant) {
         if (variant.getType() == Variant.Type.UUID) {
-            return UuidCastUtils.toUuidBytes(variant.getUuid());
+            return UuidUtils.toBytes(variant.getUuid());
         }
         throw unsupportedKind(variant, "UUID");
     }

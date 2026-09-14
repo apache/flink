@@ -168,6 +168,7 @@ class CastRulesTest {
     private static final Bitmap DEFAULT_BITMAP = Bitmap.fromArray(new int[] {0, 1, 2});
 
     private static final String UUID_STRING = "550e8400-e29b-41d4-a716-446655440000";
+    private static final UUID UUID_VALUE = UUID.fromString(UUID_STRING);
     private static final byte[] UUID_BYTES = uuidBytes(UUID_STRING);
 
     private static byte[] uuidBytes(String uuid) {
@@ -1868,7 +1869,7 @@ class CastRulesTest {
                         // a regular UUID to string cast
                         .fromCase(
                                 VARIANT(),
-                                Variant.newBuilder().of(UUID.fromString(UUID_STRING)),
+                                Variant.newBuilder().of(UUID_VALUE),
                                 fromString(UUID_STRING))
                         // a binary value is read as UTF-8, like a regular BINARY to string cast
                         .fromCase(
@@ -2042,10 +2043,7 @@ class CastRulesTest {
                         .fail(VARIANT(), VARIANT_BUILDER.of("foo"), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(UUID())
                         .fromCase(VARIANT(), null, null)
-                        .fromCase(
-                                VARIANT(),
-                                Variant.newBuilder().of(UUID.fromString(UUID_STRING)),
-                                UUID_BYTES)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(UUID_VALUE), UUID_BYTES)
                         .fail(VARIANT(), VARIANT_BUILDER.of("foo"), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(DATE())
                         .fromCase(

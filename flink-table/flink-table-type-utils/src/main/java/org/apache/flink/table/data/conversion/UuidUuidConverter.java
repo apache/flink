@@ -20,8 +20,8 @@ package org.apache.flink.table.data.conversion;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.UuidType;
+import org.apache.flink.table.types.logical.utils.UuidUtils;
 
-import java.nio.ByteBuffer;
 import java.util.UUID;
 
 /**
@@ -37,17 +37,11 @@ public class UuidUuidConverter implements DataStructureConverter<byte[], UUID> {
 
     @Override
     public byte[] toInternal(UUID external) {
-        return ByteBuffer.allocate(16)
-                .putLong(external.getMostSignificantBits())
-                .putLong(external.getLeastSignificantBits())
-                .array();
+        return UuidUtils.toBytes(external);
     }
 
     @Override
     public UUID toExternal(byte[] internal) {
-        final ByteBuffer buffer = ByteBuffer.wrap(internal);
-        final long mostSignificantBits = buffer.getLong();
-        final long leastSignificantBits = buffer.getLong();
-        return new UUID(mostSignificantBits, leastSignificantBits);
+        return UuidUtils.fromBytes(internal);
     }
 }
