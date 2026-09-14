@@ -26,6 +26,7 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -57,17 +58,17 @@ public class PythonCallDeduplicator {
         // Flatten: collect all Python UDF calls from all projection trees in post-order, so a
         // nested sub-expression is always evaluated before the call referencing it. The root of
         // each tree is the last element of its own sub-list.
-        List<RexCall> allCalls = new ArrayList<>();
+        Flattened flattened = new Flattened();
         int[] rootPositions = new int[pythonRexCalls.size()];
         for (int i = 0; i < pythonRexCalls.size(); i++) {
-            List<RexCall> subtreeCalls = collectAllPythonUdfCalls(pythonRexCalls.get(i));
-            rootPositions[i] = allCalls.size() + subtreeCalls.size() - 1;
-            allCalls.addAll(subtreeCalls);
+            rootPositions[i] = flattened.collect(pythonRexCalls.get(i));
         }
+        List<RexCall> allCalls = flattened.calls;
 
         // Deduplicate the flattened list by structural equivalence, preserving post-order.
         LinkedHashMap<RexCall, Integer> callToIndex = new LinkedHashMap<>();
         List<RexCall> deduplicatedCalls = new ArrayList<>();
+        List<int[]> deduplicatedOperandRefs = new ArrayList<>();
         int[] allToDeduplicated = new int[allCalls.size()];
         for (int i = 0; i < allCalls.size(); i++) {
             RexCall call = allCalls.get(i);
@@ -82,6 +83,7 @@ public class PythonCallDeduplicator {
                 callToIndex.put(call, newPos);
             }
             deduplicatedCalls.add(call);
+            deduplicatedOperandRefs.add(flattened.operandRefs.get(i));
             allToDeduplicated[i] = newPos;
         }
 
@@ -89,7 +91,17 @@ public class PythonCallDeduplicator {
         // only move the nested calls into a sequentially evaluated list without saving any
         // evaluation, so keep the original trees and let the worker nest them as before.
         if (deduplicatedCalls.size() == allCalls.size()) {
-            return new PythonCallCseResult(pythonRexCalls, identity(pythonRexCalls.size()));
+            return PythonCallCseResult.unchanged(pythonRexCalls);
+        }
+
+        // The operand positions recorded while flattening point into the flattened list; rewrite
+        // them to point into the deduplicated list, which is what the worker will evaluate.
+        for (int[] refs : deduplicatedOperandRefs) {
+            for (int k = 0; k < refs.length; k++) {
+                if (refs[k] != PythonCallCseResult.NO_REF) {
+                    refs[k] = allToDeduplicated[refs[k]];
+                }
+            }
         }
 
         // Flattening adds entries for nested sub-expressions, and post-order means a top-level
@@ -101,35 +113,39 @@ public class PythonCallDeduplicator {
         }
 
         return new PythonCallCseResult(
-                Collections.unmodifiableList(deduplicatedCalls), outputIndices);
-    }
-
-    private static int[] identity(int size) {
-        int[] result = new int[size];
-        for (int i = 0; i < size; i++) {
-            result[i] = i;
-        }
-        return result;
+                Collections.unmodifiableList(deduplicatedCalls),
+                Collections.unmodifiableList(deduplicatedOperandRefs),
+                outputIndices);
     }
 
     /**
-     * Recursively collects all Python UDF calls from a call tree in DFS post-order.
+     * The flattened calls of all trees in DFS post-order, together with, for every call, the
+     * position in the same list of each of its Python operands.
      *
-     * <p>Post-order ensures child results are computed before parents that reference them via
-     * refIndex. Every call is collected, including non-deterministic ones: whether a call may be
-     * shared is decided by the deduplication and the reference map, not by leaving it nested. A
-     * call that stayed nested would be evaluated inline, and anything below it that happens to
-     * equal an entry evaluated later could otherwise reference a result that does not exist yet.
+     * <p>Recording the child position at the moment the child is collected ties each operand to the
+     * specific occurrence below it. This is what identifies an occurrence; the {@link RexCall}
+     * object cannot, because Calcite may hand out the very same immutable object for two
+     * occurrences of an expression, as it does for a call without operands.
      */
-    private static List<RexCall> collectAllPythonUdfCalls(RexCall root) {
-        List<RexCall> result = new ArrayList<>();
-        for (RexNode operand : root.getOperands()) {
-            if (operand instanceof RexCall && PythonUtil.isPythonCall((RexCall) operand)) {
-                result.addAll(collectAllPythonUdfCalls((RexCall) operand));
+    private static final class Flattened {
+        private final List<RexCall> calls = new ArrayList<>();
+        private final List<int[]> operandRefs = new ArrayList<>();
+
+        /** Collects the tree below {@code root} in post-order and returns the position of root. */
+        private int collect(RexCall root) {
+            List<RexNode> operands = root.getOperands();
+            int[] refs = new int[operands.size()];
+            Arrays.fill(refs, PythonCallCseResult.NO_REF);
+            for (int k = 0; k < operands.size(); k++) {
+                RexNode operand = operands.get(k);
+                if (operand instanceof RexCall && PythonUtil.isPythonCall((RexCall) operand)) {
+                    refs[k] = collect((RexCall) operand);
+                }
             }
+            calls.add(root);
+            operandRefs.add(refs);
+            return calls.size() - 1;
         }
-        result.add(root);
-        return result;
     }
 
     private PythonCallDeduplicator() {

@@ -173,13 +173,14 @@ class PythonCalcNestedCseInvariantTest extends TableTestBase {
     private static List<PythonFunctionInfo> serialize(PythonCallCseResult result) {
         Map<RexNode, Integer> inputNodes = new LinkedHashMap<>();
         List<PythonFunctionInfo> serialized = new ArrayList<>();
-        for (RexCall call : result.getDeduplicatedCalls()) {
+        List<RexCall> calls = result.getDeduplicatedCalls();
+        for (int i = 0; i < calls.size(); i++) {
             serialized.add(
                     CommonPythonUtil.createPythonFunctionInfo(
-                            call,
+                            calls.get(i),
                             inputNodes,
                             Thread.currentThread().getContextClassLoader(),
-                            result.getRefMap()));
+                            result.getOperandRefs(i)));
         }
         return serialized;
     }
@@ -272,63 +273,75 @@ class PythonCalcNestedCseInvariantTest extends TableTestBase {
         List<PythonFunctionInfo> serialized = serialize(analysis.result);
         assertReferencesPointBackwards(serialized);
         assertNonDeterministicEntriesAreNotShared(analysis.result, serialized);
-        assertNoEntryIsEvaluatedInlineAsWell(analysis.result, serialized);
+        assertOperandsAreAllReferencedOrAllInline(analysis, serialized);
         assertOutputIndicesSelectTheProjection(analysis);
     }
 
     /**
-     * Every Python call in the query is evaluated exactly once: either as an entry of the list, or
-     * inline inside another entry, never both. An entry evaluated inline somewhere else would mean
-     * its own result is computed and then thrown away.
+     * Flattening is all or nothing. Once flattened, every Python call in the query is an entry of
+     * the list, so every Python operand of every entry reads another entry. If nothing was shared
+     * the trees are kept as they are, so no operand reads the list and every Python operand is
+     * evaluated inline, with nothing below it reading the list either. A mix would mean some call
+     * is both an entry and evaluated inline elsewhere, computing a result only to throw it away.
+     *
+     * <p>Whether the list was flattened cannot be told from the list itself ({@code SELECT f(a),
+     * g(f(a))} flattens to exactly its two projected calls), so it is read off the operand refs and
+     * the consistency of everything else with that is asserted.
      */
-    private static void assertNoEntryIsEvaluatedInlineAsWell(
-            PythonCallCseResult result, List<PythonFunctionInfo> serialized) {
-        List<RexCall> calls = result.getDeduplicatedCalls();
-        Map<RexCall, Integer> refMap = result.getRefMap();
-        for (int i = 0; i < calls.size(); i++) {
-            assertInlineChildrenHaveNoEntry(calls.get(i), serialized.get(i), i, refMap);
+    private static void assertOperandsAreAllReferencedOrAllInline(
+            Analysis analysis, List<PythonFunctionInfo> serialized) {
+        PythonCallCseResult result = analysis.result;
+        boolean flattened = false;
+        for (int i = 0; i < serialized.size(); i++) {
+            for (int ref : result.getOperandRefs(i)) {
+                flattened |= ref != PythonCallCseResult.NO_REF;
+            }
+        }
+        for (int i = 0; i < serialized.size(); i++) {
+            RexCall call = result.getDeduplicatedCalls().get(i);
+            int[] refs = result.getOperandRefs(i);
+            List<RexNode> operands = call.getOperands();
+            assertThat(refs).as("entry %d: one ref slot per operand", i).hasSize(operands.size());
+            for (int k = 0; k < operands.size(); k++) {
+                boolean pythonChild =
+                        operands.get(k) instanceof RexCall
+                                && PythonUtil.isPythonCall((RexCall) operands.get(k));
+                PythonFunctionInput input = serialized.get(i).getInputs()[k];
+                if (!pythonChild) {
+                    assertThat(refs[k])
+                            .as(
+                                    "entry %d operand %d is not a Python call and cannot be a ref",
+                                    i, k)
+                            .isEqualTo(PythonCallCseResult.NO_REF);
+                    assertThat(input).isNotInstanceOf(ResultRef.class);
+                    continue;
+                }
+                if (flattened) {
+                    assertThat(refs[k])
+                            .as(
+                                    "entry %d operand %d (%s) must read an entry once flattened",
+                                    i, k, operands.get(k))
+                            .isNotEqualTo(PythonCallCseResult.NO_REF);
+                    assertThat(input).isInstanceOf(ResultRef.class);
+                    assertThat(((ResultRef) input).getIndex()).isEqualTo(refs[k]);
+                } else {
+                    assertThat(refs[k])
+                            .as("entry %d operand %d must be inline when nothing is shared", i, k)
+                            .isEqualTo(PythonCallCseResult.NO_REF);
+                    assertThat(input).isInstanceOf(PythonFunctionInfo.class);
+                    assertNoReferencesBelow((PythonFunctionInfo) input, i);
+                }
+            }
         }
     }
 
-    /**
-     * Walks the RexCall tree and the serialized tree side by side: a child that has an entry must
-     * have been turned into a {@link ResultRef}, and a child evaluated inline must not have one.
-     */
-    private static void assertInlineChildrenHaveNoEntry(
-            RexCall call, PythonFunctionInfo info, int entryIndex, Map<RexCall, Integer> refMap) {
-        List<RexCall> pythonChildren = new ArrayList<>();
-        for (RexNode operand : call.getOperands()) {
-            if (operand instanceof RexCall && PythonUtil.isPythonCall((RexCall) operand)) {
-                pythonChildren.add((RexCall) operand);
-            }
-        }
-        List<PythonFunctionInput> pythonInputs = new ArrayList<>();
+    private static void assertNoReferencesBelow(PythonFunctionInfo info, int entryIndex) {
         for (PythonFunctionInput input : info.getInputs()) {
-            if (input instanceof ResultRef || input instanceof PythonFunctionInfo) {
-                pythonInputs.add(input);
-            }
-        }
-        assertThat(pythonInputs)
-                .as("entry %d: one serialized input per Python child", entryIndex)
-                .hasSameSizeAs(pythonChildren);
-
-        for (int k = 0; k < pythonChildren.size(); k++) {
-            RexCall child = pythonChildren.get(k);
-            PythonFunctionInput input = pythonInputs.get(k);
-            Integer entry = refMap.get(child);
+            assertThat(input)
+                    .as("entry %d is evaluated as one tree and must not read the list", entryIndex)
+                    .isNotInstanceOf(ResultRef.class);
             if (input instanceof PythonFunctionInfo) {
-                assertThat(entry)
-                        .as(
-                                "entry %d evaluates %s inline although results[%s] already holds it",
-                                entryIndex, child, entry)
-                        .isNull();
-                assertInlineChildrenHaveNoEntry(
-                        child, (PythonFunctionInfo) input, entryIndex, refMap);
-            } else {
-                assertThat(entry)
-                        .as("entry %d references %s, which has no entry", entryIndex, child)
-                        .isNotNull()
-                        .isEqualTo(((ResultRef) input).getIndex());
+                assertNoReferencesBelow((PythonFunctionInfo) input, entryIndex);
             }
         }
     }
@@ -352,15 +365,20 @@ class PythonCalcNestedCseInvariantTest extends TableTestBase {
                 .as("%s must be evaluated exactly once in: %s", sharedFunction, sql)
                 .isEqualTo(1);
 
-        // The single evaluation is an entry of the list. Every place the function is still written
-        // as a child that gets serialized, at whatever depth, must read that entry through a
-        // ResultRef. A child that has an entry of its own is serialized as a reference, so nothing
-        // below it is serialized and nothing below it is counted.
-        Map<RexCall, Integer> refMap = analysis.result.getRefMap();
+        // The single evaluation is an entry of the list. Once flattened, every direct Python
+        // operand of every entry is a reference, so each time the function appears as an operand
+        // of some entry, that operand must read the one entry evaluating it.
         long expectedReferences =
                 calls.stream()
-                        .mapToLong(entry -> countReferencedChildren(entry, sharedFunction, refMap))
-                        .sum();
+                        .flatMap(entry -> entry.getOperands().stream())
+                        .filter(
+                                op ->
+                                        op instanceof RexCall
+                                                && ((RexCall) op)
+                                                        .getOperator()
+                                                        .getName()
+                                                        .equals(sharedFunction))
+                        .count();
         long references =
                 serialized.stream()
                         .flatMap(info -> collectReferences(info).stream())
@@ -376,29 +394,6 @@ class PythonCalcNestedCseInvariantTest extends TableTestBase {
                         "every nested occurrence of %s must read the shared result in: %s",
                         sharedFunction, sql)
                 .isEqualTo(expectedReferences);
-    }
-
-    /**
-     * Counts the children of {@code root} that are {@code function} and will be serialized as a
-     * reference, descending only into children that are evaluated inline.
-     */
-    private static int countReferencedChildren(
-            RexCall root, String function, Map<RexCall, Integer> refMap) {
-        int count = 0;
-        for (RexNode operand : root.getOperands()) {
-            if (!(operand instanceof RexCall)) {
-                continue;
-            }
-            RexCall child = (RexCall) operand;
-            if (refMap.containsKey(child)) {
-                if (child.getOperator().getName().equals(function)) {
-                    count++;
-                }
-            } else {
-                count += countReferencedChildren(child, function, refMap);
-            }
-        }
-        return count;
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -612,5 +607,18 @@ class PythonCalcNestedCseInvariantTest extends TableTestBase {
         // the simplest shape of the review case: nonDet1 is itself the projected call
         checkShared("SELECT nonDet1(pyFunc1(a, b), c), pyFunc1(a, b) FROM MyTable", 2, "pyFunc1");
         checkShared("SELECT pyFunc1(a, b), nonDet1(pyFunc1(a, b), c) FROM MyTable", 2, "pyFunc1");
+    }
+
+    @Test
+    void testZeroArgumentNonDeterministicCallNestedBeforeItsProjection() {
+        // A zero-argument call has nothing to rewrite while the program is expanded, so both
+        // occurrences may be the very same RexCall object. They must still be evaluated
+        // separately, and the nested one must not read the projected one.
+        check("SELECT pyFunc2(nonDet1(), c), nonDet1() FROM MyTable", 2);
+    }
+
+    @Test
+    void testZeroArgumentNonDeterministicCallProjectedBeforeItsNestedOccurrence() {
+        check("SELECT nonDet1(), pyFunc2(nonDet1(), c) FROM MyTable", 2);
     }
 }

@@ -155,6 +155,10 @@ public class JavaUserDefinedScalarFunctions {
             return i + j;
         }
 
+        public int eval() {
+            return 0;
+        }
+
         public String eval(String a) {
             return a;
         }
@@ -186,6 +190,10 @@ public class JavaUserDefinedScalarFunctions {
 
         public int eval(Integer i, Integer j) {
             return i + j;
+        }
+
+        public int eval() {
+            return 0;
         }
 
         @Override

@@ -63,7 +63,6 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -151,12 +150,10 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         // computed only once. The projection-level duplicates have already been removed by
         // RemoteCalcProjectionCseRule, so this only concerns nested sub-expressions.
         PythonCallCseResult cseResult = PythonCallDeduplicator.deduplicate(pythonRexCalls);
-        List<RexCall> flattenedPythonRexCalls = cseResult.getDeduplicatedCalls();
-        Map<RexCall, Integer> refMap = cseResult.getRefMap();
         int[] outputIndices = cseResult.getOutputIndices();
 
         Tuple2<int[], PythonFunctionInfo[]> extractResult =
-                extractPythonScalarFunctionInfos(flattenedPythonRexCalls, refMap, classLoader);
+                extractPythonScalarFunctionInfos(cseResult, classLoader);
         int[] pythonUdfInputOffsets = extractResult.f0;
         PythonFunctionInfo[] pythonFunctionInfos = extractResult.f1;
 
@@ -191,7 +188,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                         pythonFunctionInfos,
                         outputIndices,
                         forwardedFields.stream().mapToInt(x -> x).toArray(),
-                        flattenedPythonRexCalls.stream()
+                        cseResult.getDeduplicatedCalls().stream()
                                 .anyMatch(
                                         x ->
                                                 PythonUtil.containsPythonCall(
@@ -207,16 +204,15 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
     }
 
     private Tuple2<int[], PythonFunctionInfo[]> extractPythonScalarFunctionInfos(
-            List<RexCall> rexCalls, Map<RexCall, Integer> refMap, ClassLoader classLoader) {
+            PythonCallCseResult cseResult, ClassLoader classLoader) {
+        List<RexCall> rexCalls = cseResult.getDeduplicatedCalls();
         LinkedHashMap<RexNode, Integer> inputNodes = new LinkedHashMap<>();
-        PythonFunctionInfo[] pythonFunctionInfos =
-                rexCalls.stream()
-                        .map(
-                                x ->
-                                        CommonPythonUtil.createPythonFunctionInfo(
-                                                x, inputNodes, classLoader, refMap))
-                        .collect(Collectors.toList())
-                        .toArray(new PythonFunctionInfo[rexCalls.size()]);
+        PythonFunctionInfo[] pythonFunctionInfos = new PythonFunctionInfo[rexCalls.size()];
+        for (int i = 0; i < rexCalls.size(); i++) {
+            pythonFunctionInfos[i] =
+                    CommonPythonUtil.createPythonFunctionInfo(
+                            rexCalls.get(i), inputNodes, classLoader, cseResult.getOperandRefs(i));
+        }
 
         int[] udfInputOffsets =
                 inputNodes.keySet().stream()

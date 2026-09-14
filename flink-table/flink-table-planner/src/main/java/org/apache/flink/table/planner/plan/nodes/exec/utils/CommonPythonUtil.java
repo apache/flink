@@ -53,7 +53,6 @@ import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.utils.AggregateInfo;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
-import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.dataview.ListViewSpec;
 import org.apache.flink.table.runtime.dataview.MapViewSpec;
@@ -88,7 +87,6 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -129,19 +127,20 @@ public class CommonPythonUtil {
     public static PythonFunctionInfo createPythonFunctionInfo(
             RexCall pythonRexCall, Map<RexNode, Integer> inputNodes, ClassLoader classLoader) {
         return createPythonFunctionInfo(
-                pythonRexCall, inputNodes, classLoader, Collections.emptyMap());
+                pythonRexCall, inputNodes, classLoader, noRefs(pythonRexCall));
     }
 
     /**
-     * Creates a {@link PythonFunctionInfo} with optional refMap for cross-subtree CSE. When a
-     * nested operand is found in the refMap, a {@link ResultRef} is emitted instead of a nested
-     * {@link PythonFunctionInfo}.
+     * Creates a {@link PythonFunctionInfo} for one entry of a CSE-flattened evaluation list. {@code
+     * operandRefs} holds, per operand of {@code pythonRexCall}, the entry whose result that operand
+     * reads, or {@link PythonCallCseResult#NO_REF}; a referenced operand becomes a {@link
+     * ResultRef} instead of a nested {@link PythonFunctionInfo}.
      */
     public static PythonFunctionInfo createPythonFunctionInfo(
             RexCall pythonRexCall,
             Map<RexNode, Integer> inputNodes,
             ClassLoader classLoader,
-            Map<RexCall, Integer> refMap) {
+            int[] operandRefs) {
         SqlOperator operator = pythonRexCall.getOperator();
         try {
             if (operator instanceof ScalarSqlFunction) {
@@ -150,21 +149,21 @@ public class CommonPythonUtil {
                         inputNodes,
                         ((ScalarSqlFunction) operator).scalarFunction(),
                         classLoader,
-                        refMap);
+                        operandRefs);
             } else if (operator instanceof TableSqlFunction) {
                 return createPythonFunctionInfo(
                         pythonRexCall,
                         inputNodes,
                         ((TableSqlFunction) operator).udtf(),
                         classLoader,
-                        refMap);
+                        operandRefs);
             } else if (operator instanceof BridgingSqlFunction) {
                 return createPythonFunctionInfo(
                         pythonRexCall,
                         inputNodes,
                         ((BridgingSqlFunction) operator).getDefinition(),
                         classLoader,
-                        refMap);
+                        operandRefs);
             }
         } catch (InvocationTargetException | IllegalAccessException e) {
             throw new TableException("Method pickleValue accessed failed. ", e);
@@ -451,34 +450,43 @@ public class CommonPythonUtil {
         }
     }
 
+    private static int[] noRefs(RexCall call) {
+        int[] refs = new int[call.getOperands().size()];
+        Arrays.fill(refs, PythonCallCseResult.NO_REF);
+        return refs;
+    }
+
     private static PythonFunctionInfo createPythonFunctionInfo(
             RexCall pythonRexCall,
             Map<RexNode, Integer> inputNodes,
             FunctionDefinition functionDefinition,
             ClassLoader classLoader,
-            Map<RexCall, Integer> refMap)
+            int[] operandRefs)
             throws InvocationTargetException, IllegalAccessException {
+        List<RexNode> operands = pythonRexCall.getOperands();
         ArrayList<PythonFunctionInput> inputs = new ArrayList<>();
-        for (RexNode operand : pythonRexCall.getOperands()) {
+        for (int k = 0; k < operands.size(); k++) {
+            RexNode operand = operands.get(k);
+            if (operandRefs[k] != PythonCallCseResult.NO_REF) {
+                inputs.add(new ResultRef(operandRefs[k]));
+                continue;
+            }
             if (operand instanceof RexCall) {
                 RexCall childPythonRexCall = (RexCall) operand;
-                // CSE: reference pre-computed result instead of creating nested info.
-                if (!refMap.isEmpty() && PythonUtil.isPythonCall(childPythonRexCall)) {
-                    Integer refIndex = refMap.get(childPythonRexCall);
-                    if (refIndex != null) {
-                        inputs.add(new ResultRef(refIndex));
-                        continue;
-                    }
-                }
                 if (childPythonRexCall.getOperator() instanceof SqlCastFunction
                         && childPythonRexCall.getOperands().get(0) instanceof RexInputRef
                         && childPythonRexCall.getOperands().get(0).getType()
                                 instanceof TimeIndicatorRelDataType) {
                     operand = childPythonRexCall.getOperands().get(0);
                 } else {
+                    // an inline child is not an entry of its own, so none of its operands can
+                    // read the evaluated list either
                     PythonFunctionInfo argPythonInfo =
                             createPythonFunctionInfo(
-                                    childPythonRexCall, inputNodes, classLoader, refMap);
+                                    childPythonRexCall,
+                                    inputNodes,
+                                    classLoader,
+                                    noRefs(childPythonRexCall));
                     inputs.add(argPythonInfo);
                     continue;
                 }

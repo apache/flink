@@ -946,7 +946,13 @@ class UserDefinedFunctionTests(object):
             import uuid
             return (s.upper() + "_" + str(uuid.uuid4())[:8]) if s else None
 
+        @udf(result_type=DataTypes.STRING(), deterministic=False)
+        def ZeroNondet():
+            import uuid
+            return "z_" + str(uuid.uuid4())[:8]
+
         self.t_env.create_temporary_system_function("Det", Det)
+        self.t_env.create_temporary_system_function("ZeroNondet", ZeroNondet)
         self.t_env.create_temporary_system_function("Nondet", Nondet)
 
         source_t = self.t_env.from_elements([("hello",)], ['s'])
@@ -998,17 +1004,45 @@ class UserDefinedFunctionTests(object):
                 ),
             ),
             (
-                "Det(s) below Nondet must not read a result computed later",
+                "Det(s) below Nondet reads the shared Det(s) rather than a later slot",
                 "SELECT Det(Nondet(Det(s))), Det(s) FROM SourceTable",
                 lambda vals: (
                     self.assertEqual(len(vals), 2),
-                    # The inner Det(s) is evaluated inline as part of the first column. If it
-                    # referenced the entry of the projected Det(s), which is evaluated afterwards,
-                    # it would read an unset slot and the whole column would silently be None.
+                    # Both Det(s) are one evaluation, so the value below Nondet is vals[1]
+                    # itself. Nondet upper-cases it and appends its own suffix, and the outer
+                    # Det does so again, hence the prefix. Had the inner Det(s) read the entry
+                    # of the projected one instead, that slot would still have been unset and
+                    # the whole column would silently have been None.
                     self.assertIsNotNone(
                         vals[0], f"forward reference produced a null column: {vals}"),
-                    self.assertTrue(vals[0].startswith("HELLO_")),
-                    self.assertTrue(vals[1].startswith("HELLO_")),
+                    self.assertTrue(
+                        vals[0].startswith(vals[1].upper() + "_"),
+                        f"Det(s) was not reused below Nondet: {vals}"),
+                ),
+            ),
+            (
+                "zero-argument Nondet nested before its projection",
+                "SELECT Det(ZeroNondet()), ZeroNondet() FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    # Calcite hands out the very same RexCall object for both ZeroNondet()
+                    # occurrences, so the nested one must not be resolved to the projected one:
+                    # that entry is evaluated later, and reading it would yield None.
+                    self.assertIsNotNone(
+                        vals[0], f"forward reference produced a null column: {vals}"),
+                    self.assertFalse(
+                        vals[0].startswith(vals[1].upper() + "_"),
+                        f"nested ZeroNondet reused the projected result: {vals}"),
+                ),
+            ),
+            (
+                "zero-argument Nondet projected before its nested occurrence",
+                "SELECT ZeroNondet(), Det(ZeroNondet()) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    self.assertFalse(
+                        vals[1].startswith(vals[0].upper() + "_"),
+                        f"nested ZeroNondet reused the projected result: {vals}"),
                 ),
             ),
         ]
