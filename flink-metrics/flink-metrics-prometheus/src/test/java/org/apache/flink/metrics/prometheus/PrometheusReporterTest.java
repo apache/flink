@@ -170,7 +170,9 @@ class PrometheusReporterTest {
         Counter metric1 = new SimpleCounter();
         Counter metric2 = new SimpleCounter();
 
-        final Map<String, String> variables2 = new HashMap<>(metricGroup.getAllVariables());
+        // The variables are copied in iteration order: a metric reusing another's collector has to
+        // carry the same label names in the same order, since the values are bound by position.
+        final Map<String, String> variables2 = new LinkedHashMap<>(metricGroup.getAllVariables());
         final Map.Entry<String, String> entryToModify = variables2.entrySet().iterator().next();
         final String labelValueThatShouldBeRemoved = entryToModify.getValue();
         variables2.put(entryToModify.getKey(), "some_value");
@@ -241,6 +243,52 @@ class PrometheusReporterTest {
         final String response = pollMetrics(reporter.getPort()).body();
 
         assertThat(response).contains(SCOPE_PREFIX + "healthy");
+    }
+
+    /**
+     * Reporting a metric whose variables differ from the first one of that name would publish its
+     * values under that one's label names.
+     */
+    @Test
+    void metricIsNotReportedWhenItsVariablesDifferFromAnEarlierMetricOfTheSameName()
+            throws IOException, InterruptedException {
+        final Counter first = new SimpleCounter();
+        first.inc(1);
+        final Counter second = new SimpleCounter();
+        second.inc(2);
+
+        reporter.notifyOfAddedMetric(first, "m", groupWith("x", "1", "y", "2"));
+        reporter.notifyOfAddedMetric(second, "m", groupWith("x", "1", "z", "9"));
+
+        final String response = pollMetrics(reporter.getPort()).body();
+
+        assertThat(response).contains("y=\"2\"").doesNotContain("y=\"9\"");
+        assertThat(response).doesNotContain("z=");
+    }
+
+    /** The same name with the same variables is the case the shared collector exists for. */
+    @Test
+    void metricIsReportedWhenItsVariablesMatchAnEarlierMetricOfTheSameName()
+            throws IOException, InterruptedException {
+        final Counter first = new SimpleCounter();
+        first.inc(1);
+        final Counter second = new SimpleCounter();
+        second.inc(2);
+
+        reporter.notifyOfAddedMetric(first, "m", groupWith("x", "1", "y", "2"));
+        reporter.notifyOfAddedMetric(second, "m", groupWith("x", "1", "y", "other"));
+
+        final String response = pollMetrics(reporter.getPort()).body();
+
+        assertThat(response).contains("y=\"2\"").contains("y=\"other\"");
+    }
+
+    private static MetricGroup groupWith(String... keysAndValues) {
+        final Map<String, String> variables = new HashMap<>();
+        for (int i = 0; i < keysAndValues.length; i += 2) {
+            variables.put("<" + keysAndValues[i] + ">", keysAndValues[i + 1]);
+        }
+        return TestUtils.createTestMetricGroup(LOGICAL_SCOPE, variables);
     }
 
     @Test
