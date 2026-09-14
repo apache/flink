@@ -48,7 +48,7 @@ public interface RateLimiter<SplitT extends SourceSplit> {
      * correct functioning, the next invocation of this method should only happen after the
      * previously returned future has been completed.
      *
-     * @param numberOfEvents The number of events.
+     * @param numberOfEvents The number of events, which has to be a positive number.
      */
     CompletionStage<Void> acquire(int numberOfEvents);
 
