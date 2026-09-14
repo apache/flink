@@ -159,7 +159,7 @@ object CalcCodeGenerator {
       val resultExpression =
         exprGenerator.generateResultExpression(expressions, outRowType, outRowClass)
 
-      val projectionExpressionCode = resultExpression.code
+      val resultExpressionCode = resultExpression.code
 
       val header = if (retainHeader) {
         s"${resultExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
@@ -169,7 +169,7 @@ object CalcCodeGenerator {
 
       s"""
          |$header
-         |$projectionExpressionCode
+         |$resultExpressionCode
          |${produceOutputCode(resultExpression.resultTerm)}
          |""".stripMargin
     }

@@ -299,7 +299,7 @@ public final class DeletesByKeyPrograms {
     public static final TableTestProgram DELETE_BY_KEY_DELETE_BY_KEY_WITH_EXPRESSION =
             TableTestProgram.of(
                             "delete-by-key-delete-by-key-with-expression",
-                            "NOT NULL constrains have no effect. The row constructor expression"
+                            "NOT NULL constraints have no effect. The row constructor expression"
                                     + "is not evaluated for partial deletion.")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
