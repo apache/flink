@@ -37,8 +37,9 @@
 # Environment:
 #   AWS_CRT_VERSION  Override the auto-resolved aws-crt version (rarely
 #                    needed; use only when the auto-resolver fails).
+#   MVN              Maven executable to invoke. Defaults to "mvn".
 #
-# Requirements: mvn (Apache Maven) on PATH.
+# Requirements: mvn (Apache Maven) on PATH, or MVN set to a Maven executable.
 
 set -euo pipefail
 
@@ -46,9 +47,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 POM_FILE="${MODULE_DIR}/pom.xml"
 OUTPUT_DIR="${1:-${MODULE_DIR}/crt-jars}"
+MVN=${MVN:-mvn}
 
-if ! command -v mvn >/dev/null 2>&1; then
-    echo "ERROR: mvn (Apache Maven) is required but not on PATH." >&2
+if ! command -v "${MVN}" >/dev/null 2>&1; then
+    echo "ERROR: Maven executable '${MVN}' is required but not on PATH." >&2
     exit 1
 fi
 
@@ -95,7 +97,7 @@ resolve_crt_version() {
   </dependencies>
 </project>
 EOF
-    mvn -q -f "${tmp_pom}" dependency:list \
+    "${MVN}" -q -f "${tmp_pom}" dependency:list \
         -DincludeGroupIds=software.amazon.awssdk.crt \
         -DincludeArtifactIds=aws-crt \
         -DexcludeTransitive=false \
@@ -116,7 +118,7 @@ mkdir -p "${OUTPUT_DIR}"
 
 echo "Downloading aws-crt:${CRT_VERSION} into ${OUTPUT_DIR}"
 
-mvn -q dependency:copy \
+"${MVN}" -q dependency:copy \
     -Dartifact="software.amazon.awssdk.crt:aws-crt:${CRT_VERSION}:jar" \
     -DoutputDirectory="${OUTPUT_DIR}" \
     -Dmdep.stripVersion=false
