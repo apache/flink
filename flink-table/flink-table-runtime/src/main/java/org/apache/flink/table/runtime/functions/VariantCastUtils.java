@@ -25,18 +25,14 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.binary.StringUtf8Utils;
-import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.variant.Variant;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.TimeZone;
-import java.util.UUID;
 
 /**
  * Runtime helpers for casting a {@code VARIANT} value to a SQL type.
@@ -281,12 +277,7 @@ public final class VariantCastUtils {
      */
     public static byte[] toUuid(Variant variant) {
         if (variant.getType() == Variant.Type.UUID) {
-            final UUID uuid = variant.getUuid();
-            final ByteBuffer buffer = ByteBuffer.allocate(UuidType.BYTE_LENGTH);
-            buffer.order(ByteOrder.BIG_ENDIAN);
-            buffer.putLong(uuid.getMostSignificantBits());
-            buffer.putLong(uuid.getLeastSignificantBits());
-            return buffer.array();
+            return UuidCastUtils.toUuidBytes(variant.getUuid());
         }
         throw unsupportedKind(variant, "UUID");
     }

@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.types.logical.UuidType;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.UUID;
 
 /**
@@ -44,6 +45,18 @@ public final class UuidCastUtils {
     public static String toStringValue(byte[] uuidBytes) {
         final ByteBuffer buffer = ByteBuffer.wrap(uuidBytes);
         return new UUID(buffer.getLong(), buffer.getLong()).toString();
+    }
+
+    /**
+     * Encodes a {@code UUID} into the canonical 16-byte big-endian representation used to store a
+     * {@code UUID} value.
+     */
+    public static byte[] toUuidBytes(UUID uuid) {
+        final ByteBuffer buffer = ByteBuffer.allocate(UuidType.BYTE_LENGTH);
+        buffer.order(ByteOrder.BIG_ENDIAN);
+        buffer.putLong(uuid.getMostSignificantBits());
+        buffer.putLong(uuid.getLeastSignificantBits());
+        return buffer.array();
     }
 
     /**
