@@ -87,6 +87,33 @@ class CompiledPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
+    void testCompilePlanSqlWithGeographyColumns() {
+        tableEnv.executeSql(
+                "CREATE TABLE GeoSource ("
+                        + "id INT, "
+                        + "location GEOGRAPHY, "
+                        + "required_location GEOGRAPHY NOT NULL"
+                        + ") WITH ("
+                        + "'connector' = 'values', "
+                        + "'bounded' = 'false')");
+        tableEnv.executeSql(
+                "CREATE TABLE GeoSink ("
+                        + "id INT, "
+                        + "location GEOGRAPHY, "
+                        + "required_location GEOGRAPHY NOT NULL"
+                        + ") WITH ("
+                        + "'connector' = 'values', "
+                        + "'table-sink-class' = 'DEFAULT')");
+
+        final CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql("INSERT INTO GeoSink SELECT * FROM GeoSource");
+        final String planJson = compiledPlan.asJsonString();
+
+        assertThat(planJson).contains("\"GEOGRAPHY\"", "\"GEOGRAPHY NOT NULL\"");
+        assertThat(tableEnv.loadPlan(PlanReference.fromJsonString(planJson))).isNotNull();
+    }
+
+    @Test
     void testSourceTableWithHints() {
         CompiledPlan compiledPlan =
                 tableEnv.compilePlanSql(

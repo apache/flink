@@ -193,6 +193,11 @@ public final class GenericRowData implements RowData {
     }
 
     @Override
+    public GeographyData getGeography(int pos) {
+        return (GeographyData) this.fields[pos];
+    }
+
+    @Override
     public ArrayData getArray(int pos) {
         return (ArrayData) this.fields[pos];
     }
