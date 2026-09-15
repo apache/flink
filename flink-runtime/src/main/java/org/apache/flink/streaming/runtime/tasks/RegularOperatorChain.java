@@ -164,6 +164,22 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
     }
 
     @Override
+    public void notifyRegionalCheckpointFallback(long checkpointId, long fallbackCheckpointId)
+            throws Exception {
+        Exception previousException = null;
+        for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
+            try {
+                operatorWrapper
+                        .getStreamOperator()
+                        .notifyRegionalCheckpointFallback(checkpointId, fallbackCheckpointId);
+            } catch (Exception e) {
+                previousException = ExceptionUtils.firstOrSuppressed(e, previousException);
+            }
+        }
+        ExceptionUtils.tryRethrowException(previousException);
+    }
+
+    @Override
     public void notifyCheckpointSubsumed(long checkpointId) throws Exception {
         Exception previousException = null;
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
