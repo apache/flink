@@ -693,12 +693,252 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
                         "AIR"));
     }
 
+    /**
+     * The equivalent SQL is the same as {@link
+     * #testLeftOuterJoinWithDifferentStateRetentionTime()}, but both inputs are upsert tables whose
+     * primary key is the join key and the downstream does not require UPDATE_BEFORE (for example an
+     * upsert sink keyed on {@code line_order_id}). The planner then lets the right input send a
+     * bare UPDATE_AFTER when a line order changes.
+     */
+    @TestTemplate
+    void testLeftOuterJoinInnerSideUpdateAfterThenDeleteRestoresNullPadding() throws Exception {
+        testHarness.processElement1(
+                insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null));
+
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "LineOrd#1",
+                        "AIR"));
+
+        // a bare UPDATE_AFTER replaces AIR with SHIP; there is still exactly one matching row
+        testHarness.processElement2(updateAfterRecord("LineOrd#1", "SHIP"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "LineOrd#1",
+                        "SHIP"));
+
+        // the only matching row is gone, the left row must come back with null padding
+        testHarness.processElement2(deleteRecord("LineOrd#1", "SHIP"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "LineOrd#1",
+                        "SHIP"),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null));
+    }
+
+    /**
+     * Same as {@link #testLeftOuterJoinInnerSideUpdateAfterThenDeleteRestoresNullPadding()} for a
+     * RIGHT OUTER JOIN, i.e. the left input is the inner side that sends the bare UPDATE_AFTER.
+     */
+    @TestTemplate
+    void testRightOuterJoinInnerSideUpdateAfterThenDeleteRestoresNullPadding() throws Exception {
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.INSERT, null, null, null, "LineOrd#1", "AIR"));
+
+        testHarness.processElement1(
+                insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, null, null, null, "LineOrd#1", "AIR"),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "LineOrd#1",
+                        "AIR"));
+
+        testHarness.processElement1(
+                updateAfterRecord(
+                        "Ord#1", "LineOrd#1", "68 Manor Station Street, Honolulu, HI 96815"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "68 Manor Station Street, Honolulu, HI 96815",
+                        "LineOrd#1",
+                        "AIR"));
+
+        testHarness.processElement1(
+                deleteRecord("Ord#1", "LineOrd#1", "68 Manor Station Street, Honolulu, HI 96815"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "68 Manor Station Street, Honolulu, HI 96815",
+                        "LineOrd#1",
+                        "AIR"),
+                rowOfKind(RowKind.INSERT, null, null, null, "LineOrd#1", "AIR"));
+    }
+
+    /**
+     * FULL OUTER JOIN variant of {@link
+     * #testLeftOuterJoinInnerSideUpdateAfterThenDeleteRestoresNullPadding()}: the right input sends
+     * a bare UPDATE_AFTER and is then deleted.
+     */
+    @TestTemplate
+    void testFullOuterJoinRightSideUpdateAfterThenDeleteRestoresNullPadding() throws Exception {
+        testHarness.processElement1(
+                insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null));
+
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "LineOrd#1",
+                        "AIR"));
+
+        testHarness.processElement2(updateAfterRecord("LineOrd#1", "SHIP"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "LineOrd#1",
+                        "SHIP"));
+
+        testHarness.processElement2(deleteRecord("LineOrd#1", "SHIP"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "LineOrd#1",
+                        "SHIP"),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null));
+    }
+
+    /**
+     * Mirror of {@link #testFullOuterJoinRightSideUpdateAfterThenDeleteRestoresNullPadding()}: the
+     * left input sends the bare UPDATE_AFTER and is then deleted.
+     */
+    @TestTemplate
+    void testFullOuterJoinLeftSideUpdateAfterThenDeleteRestoresNullPadding() throws Exception {
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.INSERT, null, null, null, "LineOrd#1", "AIR"));
+
+        testHarness.processElement1(
+                insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, null, null, null, "LineOrd#1", "AIR"),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "LineOrd#1",
+                        "AIR"));
+
+        testHarness.processElement1(
+                updateAfterRecord(
+                        "Ord#1", "LineOrd#1", "68 Manor Station Street, Honolulu, HI 96815"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "68 Manor Station Street, Honolulu, HI 96815",
+                        "LineOrd#1",
+                        "AIR"));
+
+        testHarness.processElement1(
+                deleteRecord("Ord#1", "LineOrd#1", "68 Manor Station Street, Honolulu, HI 96815"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "68 Manor Station Street, Honolulu, HI 96815",
+                        "LineOrd#1",
+                        "AIR"),
+                rowOfKind(RowKind.INSERT, null, null, null, "LineOrd#1", "AIR"));
+    }
+
     private static final Function<String, Boolean[]> JOIN_TYPE_EXTRACTOR =
             (testDisplayName) -> {
                 if (testDisplayName.contains("InnerJoin")) {
                     return new Boolean[] {false, false};
                 } else if (testDisplayName.contains("LeftOuterJoin")) {
                     return new Boolean[] {true, false};
+                } else if (testDisplayName.contains("FullOuterJoin")) {
+                    return new Boolean[] {true, true};
                 } else {
                     return new Boolean[] {false, true};
                 }
