@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.fs.s3native.S3UriUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +67,7 @@ public class NativeS3RecoverableWriter implements RecoverableWriter, AutoCloseab
     @Override
     public RecoverableFsDataOutputStream open(Path path) throws IOException {
         checkNotClosed();
-        String key = NativeS3ObjectOperations.extractKey(path);
+        String key = S3UriUtils.extractKey(path);
         LOG.debug("Opening recoverable stream for key: {}", key);
 
         String uploadId = s3AccessHelper.startMultiPartUpload(key);
