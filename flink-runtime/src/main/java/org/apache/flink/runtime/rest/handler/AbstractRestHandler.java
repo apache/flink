@@ -85,7 +85,7 @@ public abstract class AbstractRestHandler<
             response = FutureUtils.completedExceptionally(e);
         }
 
-        return response.thenAccept(
+        return response.thenCompose(
                 resp ->
                         HandlerUtils.sendResponse(
                                 ctx,
