@@ -142,15 +142,14 @@ object JsonGenerateUtils {
 
     val valueNodeTerm = createNodeTerm(ctx, fieldAccessTerm, fieldType)
 
-    if (fieldType.isNullable) {
-      s"""
-         |$containerTerm.isNullAt($indexTerm) ?
-         |    (${className[JsonNode]}) $nodeFactoryTerm.nullNode() :
-         |    (${className[JsonNode]}) $valueNodeTerm
-         |""".stripMargin
-    } else {
-      valueNodeTerm
-    }
+    // The declared type may be NOT NULL while the runtime container still carries null, e.g. a
+    // delete-by-key tombstone. Always guard on isNullAt so such nulls serialize as JSON null
+    // instead of reading a primitive default.
+    s"""
+       |$containerTerm.isNullAt($indexTerm) ?
+       |    (${className[JsonNode]}) $nodeFactoryTerm.nullNode() :
+       |    (${className[JsonNode]}) $valueNodeTerm
+       |""".stripMargin
   }
 
   /**

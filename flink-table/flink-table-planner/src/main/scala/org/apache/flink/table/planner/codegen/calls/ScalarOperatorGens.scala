@@ -1227,7 +1227,7 @@ object ScalarOperatorGens {
               val tpe = fieldTypes(idx)
               if (element.literal) {
                 ""
-              } else if (tpe.isNullable) {
+              } else if (tpe.isNullable || !element.isProvenNotNull) {
                 s"""
                    |${element.code}
                    |if (${element.nullTerm}) {
@@ -1276,7 +1276,7 @@ object ScalarOperatorGens {
       .map {
         case (element, idx) =>
           val tpe = fieldTypes(idx)
-          if (tpe.isNullable) {
+          if (tpe.isNullable || !element.isProvenNotNull) {
             s"""
                |${element.code}
                |if (${element.nullTerm}) {
@@ -1351,7 +1351,7 @@ object ScalarOperatorGens {
         case (element, idx) =>
           if (element.literal) {
             ""
-          } else if (elementType.isNullable) {
+          } else if (elementType.isNullable || !element.isProvenNotNull) {
             s"""
                |${element.code}
                |if (${element.nullTerm}) {
