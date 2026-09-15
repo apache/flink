@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.codegen.CodeGenException;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.logical.utils.UuidUtils;
 
 import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.rel.type.RelDataType;
@@ -39,7 +40,6 @@ import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 
 import java.math.BigDecimal;
-import java.nio.ByteBuffer;
 import java.time.ZoneOffset;
 
 import static org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime;
@@ -105,11 +105,7 @@ public class RexLiteralUtil {
                 break;
             case UUID:
                 if (value instanceof java.util.UUID) {
-                    final java.util.UUID uuidValue = (java.util.UUID) value;
-                    return ByteBuffer.allocate(16)
-                            .putLong(uuidValue.getMostSignificantBits())
-                            .putLong(uuidValue.getLeastSignificantBits())
-                            .array();
+                    return UuidUtils.toBytes((java.util.UUID) value);
                 }
                 break;
             case DECIMAL:

@@ -21,9 +21,7 @@ package org.apache.flink.table.runtime.functions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.types.logical.UuidType;
-
-import java.nio.ByteBuffer;
-import java.util.UUID;
+import org.apache.flink.table.types.logical.utils.UuidUtils;
 
 /**
  * Runtime helpers for casting to and from a {@code UUID} value.
@@ -42,8 +40,7 @@ public final class UuidCastUtils {
      * the 16-byte big-endian encoding, so this never fails.
      */
     public static String toStringValue(byte[] uuidBytes) {
-        final ByteBuffer buffer = ByteBuffer.wrap(uuidBytes);
-        return new UUID(buffer.getLong(), buffer.getLong()).toString();
+        return UuidUtils.fromBytes(uuidBytes).toString();
     }
 
     /**
