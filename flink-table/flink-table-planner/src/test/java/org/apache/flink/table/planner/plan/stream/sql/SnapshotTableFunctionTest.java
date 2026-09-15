@@ -78,7 +78,6 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                                 "SELECT o.order_id, o.amount, r.rate "
                                         + "FROM Orders AS o, LATERAL SNAPSHOT("
                                         + "input => TABLE Rates, on_time => DESCRIPTOR(rate_time), "
-                                        + "load_completed_condition => 'user_time', "
                                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                                         + ") AS r "
                                         + "WHERE o.currency = r.currency");
@@ -95,7 +94,6 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                                 + "SELECT o.order_id, o.amount, r.rate "
                                 + "FROM Orders AS o, LATERAL SNAPSHOT("
                                 + "input => TABLE Rates, on_time => DESCRIPTOR(rate_time), "
-                                + "load_completed_condition => 'user_time', "
                                 + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                                 + ") AS r "
                                 + "WHERE o.currency = r.currency");
@@ -112,7 +110,6 @@ public class SnapshotTableFunctionTest extends TableTestBase {
                                 "SELECT o.order_id, o.amount, r.rate "
                                         + "FROM Orders AS o, LATERAL SNAPSHOT("
                                         + "input => TABLE RatesView, on_time => DESCRIPTOR(rate_time), "
-                                        + "load_completed_condition => 'user_time', "
                                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                                         + ") AS r "
                                         + "WHERE o.currency = r.currency");

@@ -26,8 +26,8 @@ import org.apache.flink.types.Row;
 /**
  * {@link TableTestProgram} definitions for testing {@link StreamExecLateralSnapshotJoin}.
  *
- * <p>The programs cover a savepoint taken in each of the operator's two phases; the {@code
- * 'user_time'} gate is at {@code 00:00:03} in both.
+ * <p>The programs cover a savepoint taken in each of the operator's two phases; the
+ * load_completed_time gate is at {@code 00:00:03} in both.
  *
  * <ul>
  *   <li>{@link #LATERAL_SNAPSHOT_JOIN_PHASE_LOAD}: the transition to JOIN is not triggered before
@@ -97,7 +97,6 @@ public class LateralSnapshotJoinTestPrograms {
     private static final String SNAPSHOT_BUILD =
             "LATERAL SNAPSHOT("
                     + "input => TABLE b, on_time => DESCRIPTOR(bts), "
-                    + "load_completed_condition => 'user_time', "
                     + "load_completed_time => CAST(TIMESTAMP '2020-01-01 00:00:03' AS TIMESTAMP_LTZ(3))"
                     + ") AS s ON probe.pk = s.bk";
 

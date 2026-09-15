@@ -73,7 +73,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         util.verifyRelPlan(
                 "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
-                        + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                         + ") AS s "
                         + "ON probe.pk = s.bk");
@@ -84,7 +83,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         util.verifyRelPlan(
                 "SELECT * FROM probe LEFT JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
-                        + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                         + ") AS s "
                         + "ON probe.pk = s.bk");
@@ -95,7 +93,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         util.verifyRelPlan(
                 "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
-                        + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                         + ") AS s "
                         + "ON probe.pk = s.bk AND probe.pv = s.bv");
@@ -106,7 +103,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         util.verifyRelPlan(
                 "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
-                        + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                         + ") AS s "
                         + "ON probe.pk = s.bk AND probe.pv > s.bv");
@@ -117,7 +113,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         util.verifyRelPlan(
                 "SELECT probe.pk, probe.pv, s.bv FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
-                        + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                         + ") AS s "
                         + "ON probe.pk = s.bk");
@@ -165,7 +160,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
         final String sql =
                 "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
-                        + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                         + ") AS s "
                         + "ON probe.pv > s.bv";
