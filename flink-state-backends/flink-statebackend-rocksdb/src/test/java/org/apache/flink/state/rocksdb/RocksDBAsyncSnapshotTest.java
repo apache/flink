@@ -71,20 +71,15 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.assertj.core.api.Assertions;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -101,15 +96,12 @@ import static org.apache.flink.runtime.state.FullSnapshotUtil.FIRST_BIT_IN_BYTE_
 import static org.apache.flink.runtime.state.FullSnapshotUtil.clearMetaDataFollowsFlag;
 import static org.apache.flink.runtime.state.FullSnapshotUtil.hasMetaDataFollowsFlag;
 import static org.apache.flink.runtime.state.FullSnapshotUtil.setMetaDataFollowsFlagInKey;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for asynchronous RocksDB Key/Value state checkpoints. */
 @SuppressWarnings("serial")
-public class RocksDBAsyncSnapshotTest extends TestLogger {
-
-    /** Temporary fold for test. */
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+class RocksDBAsyncSnapshotTest {
 
     /**
      * This ensures that asynchronous state handles are actually materialized asynchronously.
@@ -119,7 +111,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
      * simply lock forever.
      */
     @Test
-    public void testFullyAsyncSnapshot() throws Exception {
+    void testFullyAsyncSnapshot(@TempDir File dbDir) throws Exception {
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
@@ -138,8 +130,6 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                 BasicTypeInfo.STRING_TYPE_INFO);
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
-
-        File dbDir = temporaryFolder.newFolder();
 
         EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
         backend.setDbStoragePath(dbDir.getAbsolutePath());
@@ -181,7 +171,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                         }
 
                         // should be one k/v state
-                        assertTrue(hasManagedKeyedState);
+                        assertThat(hasManagedKeyedState).isTrue();
 
                         // we now know that the checkpoint went through
                         ensureCheckpointLatch.trigger();
@@ -254,12 +244,10 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         ExecutorService threadPool = task.getAsyncOperationsThreadPool();
         threadPool.shutdown();
-        Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
+        assertThat(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS)).isTrue();
 
         testHarness.waitForTaskCompletion();
-        if (errorRef.get() != null) {
-            fail("Unexpected exception during execution.");
-        }
+        assertThat(errorRef.get()).isNull();
     }
 
     /**
@@ -267,7 +255,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
      * block.
      */
     @Test
-    public void testCancelFullyAsyncCheckpoints() throws Exception {
+    void testCancelFullyAsyncCheckpoints(@TempDir File dbDir) throws Exception {
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
                         OneInputStreamTask::new,
@@ -279,8 +267,6 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
         testHarness.configureForKeyedStream(value -> value, BasicTypeInfo.STRING_TYPE_INFO);
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
-
-        File dbDir = temporaryFolder.newFolder();
 
         final EmbeddedRocksDBStateBackend.PriorityQueueStateType timerServicePriorityQueueType =
                 RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue();
@@ -371,30 +357,18 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         ExecutorService threadPool = task.getAsyncOperationsThreadPool();
         threadPool.shutdown();
-        Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
+        assertThat(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS)).isTrue();
 
         Set<BlockingCheckpointOutputStream> createdStreams =
                 blockerCheckpointStreamFactory.getAllCreatedStreams();
 
-        for (BlockingCheckpointOutputStream stream : createdStreams) {
-            Assert.assertTrue(
-                    "Not all of the "
-                            + createdStreams.size()
-                            + " created streams have been closed.",
-                    stream.isClosed());
-        }
+        assertThat(createdStreams)
+                .as("Not all of the %d created streams have been closed.", createdStreams.size())
+                .allMatch(BlockingCheckpointOutputStream::isClosed);
 
-        try {
-            testHarness.waitForTaskCompletion();
-            fail("Operation completed. Cancel failed.");
-        } catch (Exception expected) {
-
-            Throwable cause = expected.getCause();
-
-            if (!(cause instanceof CancelTaskException)) {
-                fail("Unexpected exception: " + expected);
-            }
-        }
+        assertThatThrownBy(
+                        testHarness::waitForTaskCompletion, "Operation completed. Cancel failed.")
+                .hasCauseInstanceOf(CancelTaskException.class);
     }
 
     /**
@@ -402,7 +376,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
      * procedure.
      */
     @Test
-    public void testCleanupOfSnapshotsInFailureCase() throws Exception {
+    void testCleanupOfSnapshotsInFailureCase(@TempDir File dbDir) throws Exception {
         long checkpointId = 1L;
         long timestamp = 42L;
 
@@ -413,7 +387,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
 
-        backend.setDbStoragePath(temporaryFolder.newFolder().toURI().toString());
+        backend.setDbStoragePath(dbDir.toURI().toString());
 
         CheckpointableKeyedStateBackend<Void> keyedStateBackend =
                 backend.createKeyedStateBackend(
@@ -446,14 +420,12 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                             new TestCheckpointStreamFactory(() -> outputStream),
                             CheckpointOptions.forCheckpointWithDefaultLocation());
 
-            try {
-                FutureUtils.runIfNotDoneAndGet(snapshotFuture);
-                fail("Expected an exception to be thrown here.");
-            } catch (ExecutionException e) {
-                Assert.assertEquals(testException, e.getCause());
-            }
+            assertThatThrownBy(() -> FutureUtils.runIfNotDoneAndGet(snapshotFuture))
+                    .isInstanceOf(ExecutionException.class)
+                    .cause()
+                    .isSameAs(testException);
 
-            Assertions.assertThat(outputStream.isCloseCalled()).isEqualTo(true);
+            assertThat(outputStream.isCloseCalled()).isTrue();
         } finally {
             IOUtils.closeQuietly(keyedStateBackend);
             keyedStateBackend.dispose();
@@ -462,23 +434,23 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
     }
 
     @Test
-    public void testConsistentSnapshotSerializationFlagsAndMasks() {
+    void testConsistentSnapshotSerializationFlagsAndMasks() {
 
-        Assert.assertEquals(0xFFFF, END_OF_KEY_GROUP_MARK);
-        Assert.assertEquals(0x80, FIRST_BIT_IN_BYTE_MASK);
+        assertThat(END_OF_KEY_GROUP_MARK).isEqualTo(0xFFFF);
+        assertThat(FIRST_BIT_IN_BYTE_MASK).isEqualTo(0x80);
 
         byte[] expectedKey = new byte[] {42, 42};
         byte[] modKey = expectedKey.clone();
 
-        Assert.assertFalse(hasMetaDataFollowsFlag(modKey));
+        assertThat(hasMetaDataFollowsFlag(modKey)).isFalse();
 
         setMetaDataFollowsFlagInKey(modKey);
-        Assert.assertTrue(hasMetaDataFollowsFlag(modKey));
+        assertThat(hasMetaDataFollowsFlag(modKey)).isTrue();
 
         clearMetaDataFollowsFlag(modKey);
-        Assert.assertFalse(hasMetaDataFollowsFlag(modKey));
+        assertThat(hasMetaDataFollowsFlag(modKey)).isFalse();
 
-        Assert.assertTrue(Arrays.equals(expectedKey, modKey));
+        assertThat(modKey).isEqualTo(expectedKey);
     }
 
     // ------------------------------------------------------------------------
