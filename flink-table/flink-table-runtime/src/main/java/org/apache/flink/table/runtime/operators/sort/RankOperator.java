@@ -26,6 +26,7 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
+import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 
@@ -35,6 +36,7 @@ public class RankOperator extends TableStreamOperator<RowData>
 
     private GeneratedRecordComparator partitionByGenComp;
     private GeneratedRecordComparator orderByGenComp;
+    private final RankType rankType;
     private final long rankStart;
     private final long rankEnd;
     private final boolean outputRankFunColumn;
@@ -52,11 +54,13 @@ public class RankOperator extends TableStreamOperator<RowData>
     public RankOperator(
             GeneratedRecordComparator partitionByGenComp,
             GeneratedRecordComparator orderByGenComp,
+            RankType rankType,
             long rankStart,
             long rankEnd,
             boolean outputRankFunColumn) {
         this.partitionByGenComp = partitionByGenComp;
         this.orderByGenComp = orderByGenComp;
+        this.rankType = rankType;
         this.rankStart = rankStart;
         this.rankEnd = rankEnd;
         this.outputRankFunColumn = outputRankFunColumn;
@@ -102,9 +106,10 @@ public class RankOperator extends TableStreamOperator<RowData>
     }
 
     private void emitInternal(RowData element) {
-        if (rank >= rankStart && rank <= rankEnd) {
+        long rankValue = (rankType == RankType.ROW_NUMBER) ? rowNum : rank;
+        if (rankValue >= rankStart && rankValue <= rankEnd) {
             if (outputRankFunColumn) {
-                rankValueRow.setField(0, rank);
+                rankValueRow.setField(0, rankValue);
                 collector.collect(joinedRow.replace(element, rankValueRow));
             } else {
                 collector.collect(element);
