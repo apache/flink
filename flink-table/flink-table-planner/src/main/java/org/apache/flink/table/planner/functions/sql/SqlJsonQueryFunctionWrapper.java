@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.functions.sql;
 
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.runtime.functions.SqlJsonUtils;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCallBinding;
@@ -89,12 +91,15 @@ public class SqlJsonQueryFunctionWrapper extends SqlJsonQueryFunction {
 
     private static boolean checkOperandsForArrayReturnType(
             boolean throwOnFailure, RelDataType type, SqlCallBinding callBinding) {
-        if (!SqlTypeUtil.isCharacter(type.getComponentType())) {
+        RelDataType elementType = type.getComponentType();
+        if (!SqlTypeUtil.isCharacter(elementType)
+                && !SqlJsonUtils.isSupportedJsonReturningType(
+                        FlinkTypeFactory.toLogicalType(elementType).getTypeRoot())) {
             if (throwOnFailure) {
                 throw new ValidationException(
                         String.format(
                                 "Unsupported array element type '%s' for RETURNING ARRAY in JSON_QUERY().",
-                                type.getComponentType()));
+                                elementType));
             } else {
                 return false;
             }
