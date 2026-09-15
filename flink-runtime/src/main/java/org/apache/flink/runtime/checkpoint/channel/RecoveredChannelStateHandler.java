@@ -592,7 +592,7 @@ class SpillingWithFilteringHandler extends AbstractSpillingHandler {
                         channelInfo.getGateIdx(),
                         oldSubtaskIndex,
                         channelInfo.getInputChannelIdx(),
-                        buffer.retainBuffer(),
+                        buffer,
                         segmentSerializerFor(getMappedChannels(channelInfo).getChannelInfo()));
             }
         } finally {

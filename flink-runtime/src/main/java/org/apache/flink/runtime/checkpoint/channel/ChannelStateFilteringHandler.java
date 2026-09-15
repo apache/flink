@@ -133,7 +133,7 @@ public class ChannelStateFilteringHandler implements Closeable {
                             + ". This gate is not a network input and should not have recovered buffers.");
         }
         gateHandler.filterAndRewrite(
-                oldSubtaskIndex, oldChannelIndex, sourceBuffer, outputSerializer);
+                oldSubtaskIndex, oldChannelIndex, sourceBuffer.retainBuffer(), outputSerializer);
     }
 
     /** Returns {@code true} if any virtual channel has a partial (spanning) record pending. */
