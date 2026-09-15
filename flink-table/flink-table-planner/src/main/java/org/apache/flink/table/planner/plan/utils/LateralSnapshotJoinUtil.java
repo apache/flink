@@ -47,6 +47,19 @@ import java.util.List;
 public final class LateralSnapshotJoinUtil {
 
     /**
+     * Label for {@code FlinkLogicalLateralSnapshotJoin#getLoadCompletedCondition()} when the load
+     * phase completes at the wall-clock time the query was compiled (the default, used when the
+     * user does not provide {@code load_completed_time}).
+     */
+    public static final String LOAD_COMPLETED_CONDITION_COMPILE_TIME = "compile_time";
+
+    /**
+     * Label for {@code FlinkLogicalLateralSnapshotJoin#getLoadCompletedCondition()} when the load
+     * phase completes at a user-provided {@code load_completed_time}.
+     */
+    public static final String LOAD_COMPLETED_CONDITION_USER_TIME = "user_time";
+
+    /**
      * {@code true} when {@code definition} is the {@link BuiltInFunctionDefinitions#SNAPSHOT}
      * built-in.
      */

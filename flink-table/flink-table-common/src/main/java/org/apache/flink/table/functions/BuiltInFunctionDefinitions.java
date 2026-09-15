@@ -964,8 +964,6 @@ public final class BuiltInFunctionDefinitions {
                                             StaticArgumentTrait.REQUIRE_FULL_DELETE)),
                             StaticArgument.scalar("on_time", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
-                                    "load_completed_condition", DataTypes.STRING(), true),
-                            StaticArgument.scalar(
                                     "load_completed_time", DataTypes.TIMESTAMP_LTZ(3), true),
                             StaticArgument.scalar(
                                     "load_completed_idle_timeout",

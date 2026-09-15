@@ -45,15 +45,16 @@ import java.util.stream.IntStream;
  */
 public class LateralSnapshotJoinSemanticTestPrograms {
 
-    /** The {@code 'user_time'} condition reached mid-stream by the build-side flip-trigger row. */
+    /**
+     * The build-side watermark reaches the configured {@code load_completed_time} gate mid-stream
+     * via the flip-trigger row.
+     */
     private static final String MID_FLIP =
-            "load_completed_condition => 'user_time', "
-                    + "load_completed_time => CAST(TIMESTAMP '2020-01-01 00:00:10' AS TIMESTAMP_LTZ(3))";
+            "load_completed_time => CAST(TIMESTAMP '2020-01-01 00:00:10' AS TIMESTAMP_LTZ(3))";
 
     /** A far-future flip condition: the flip happens only at end of all input. */
     private static final String END_FLIP =
-            "load_completed_condition => 'user_time', "
-                    + "load_completed_time => CAST(TIMESTAMP '2100-01-01 00:00:00' AS TIMESTAMP_LTZ(3))";
+            "load_completed_time => CAST(TIMESTAMP '2100-01-01 00:00:00' AS TIMESTAMP_LTZ(3))";
 
     /** Event time of the flip-trigger row; equal to the {@link #MID_FLIP} timestamp. */
     private static final String FLIP_TRIGGER_TS = "00:00:10";
@@ -93,7 +94,6 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                                     + "FROM probe "
                                     + "  JOIN LATERAL TABLE(SNAPSHOT("
                                     + "    input => TABLE b, on_time => DESCRIPTOR(bts), "
-                                    + "    load_completed_condition => 'user_time', "
                                     + "    load_completed_time => CAST(TIMESTAMP '2020-01-01 00:00:10' AS TIMESTAMP_LTZ(3)))) AS s "
                                     + "  ON probe.pk = s.bk")
                     .build();
@@ -258,7 +258,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                                             "+I[a, 100, a, 11]",
                                             "+I[b, 200, b, 20]")
                                     .build())
-                    // No options: 'load_completed_condition' defaults to 'compile_time'.
+                    // No load_completed_time: the load phase defaults to 'compile_time'.
                     .runSql(
                             "INSERT INTO sink SELECT probe.pk, probe.pv, s.bk, s.bv "
                                     + "FROM probe JOIN LATERAL SNAPSHOT("

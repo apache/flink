@@ -121,7 +121,6 @@ public class LateralSnapshotJoinTestPrograms {
                             "INSERT INTO sink SELECT pk, pv, bk, bv FROM probe JOIN LATERAL "
                                     + "SNAPSHOT("
                                     + "input => TABLE b, "
-                                    + "load_completed_condition => 'compile_time', "
                                     + "load_completed_idle_timeout => INTERVAL '10' SECOND, "
                                     + "state_ttl => INTERVAL '1' DAY"
                                     + ") AS s ON probe.pk = s.bk")
