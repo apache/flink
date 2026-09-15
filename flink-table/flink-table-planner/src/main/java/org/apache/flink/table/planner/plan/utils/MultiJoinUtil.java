@@ -70,7 +70,7 @@ public class MultiJoinUtil {
         final RexCall call = (RexCall) condition;
         final SqlKind kind = call.getOperator().getKind();
 
-        if (kind != SqlKind.EQUALS) {
+        if (kind != SqlKind.EQUALS && kind != SqlKind.IS_NOT_DISTINCT_FROM) {
             // Only conjunctions (AND) can contain equality conditions that are valid for multijoin.
             // All other condition types are deferred to the postJoinFilter.
             if (kind == SqlKind.AND) {
