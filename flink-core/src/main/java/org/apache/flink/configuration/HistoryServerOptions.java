@@ -75,6 +75,18 @@ public class HistoryServerOptions {
                                     + " with replacing the special placeholders, `<jobid>`, to the id of job."
                                     + " Only http / https schemes are supported.");
 
+    public static final ConfigOption<Boolean>
+            HISTORY_SERVER_JOBMANAGER_TASKMANAGER_LOG_ENABLE_CUSTOM_HANDLERS =
+                    key("historyserver.yarn.log.enable-custom-url-handlers")
+                            .booleanType()
+                            .noDefaultValue()
+                            .withDescription(
+                                    "Enable custom URL handlers for JobManager and TaskManager logs. The HistoryServer will generate a URL based"
+                                            + " off of these custom TaskManagerLogUrlHandler and JobManagerLogUrlHandler"
+                                            + " all custom logic should be handled in the above classes. When this configuration is set, the"
+                                            + " historyserver.log.jobmanager.url-pattern and historyserver.log.taskmanager.url-pattern configurations"
+                                            + " will be ignored.");
+
     /** The local directory used by the HistoryServer web-frontend. */
     public static final ConfigOption<String> HISTORY_SERVER_WEB_DIR =
             key("historyserver.web.tmpdir")
