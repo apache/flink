@@ -81,6 +81,26 @@ class WindowDeduplicateTest extends TableTestBase {
   }
 
   @Test
+  def testOnWindowTVFOrderByWindowTime(): Unit = {
+    // FLINK-39899: window_time is constant within a window and cannot distinguish the first/last
+    // row, so a top-1 ROW_NUMBER ordered by window_time must NOT be recognized as a window
+    // deduplication; it falls back to WindowRank. Only the original time attribute column
+    // (here 'rowtime') is a valid window-deduplicate order key.
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |SELECT *,
+        |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end
+        |   ORDER BY window_time DESC) as rownum
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |)
+        |WHERE rownum <= 1
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
   def testOnWindowTVFWithValidCondition(): Unit = {
     val sql =
       """
