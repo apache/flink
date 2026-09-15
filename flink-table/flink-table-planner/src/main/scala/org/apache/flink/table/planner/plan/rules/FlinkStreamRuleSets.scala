@@ -324,7 +324,7 @@ object FlinkStreamRuleSets {
     // set operators
     ReplaceIntersectWithSemiJoinRule.INSTANCE,
     RewriteIntersectAllRule.INSTANCE,
-    ReplaceMinusWithAntiJoinRule.INSTANCE,
+    MinusToAntiJoinRule.Config.DEFAULT.withOperandFor(classOf[LogicalMinus]).toRule,
     RewriteMinusAllRule.INSTANCE
   )
 
