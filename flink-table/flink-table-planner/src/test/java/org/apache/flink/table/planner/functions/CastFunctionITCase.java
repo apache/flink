@@ -166,46 +166,52 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     private static List<TestSetSpec> variantPrimitiveCasts() {
         return List.of(
                 TestSetSpec.forExpression("Cast a VARIANT produced by parseJson() to a primitive")
-                        .onFieldsWithData("unused")
-                        .andDataTypes(STRING())
+                        .onFieldsWithData("null")
+                        .andDataTypes(STRING().notNull())
+                        // A non-null VARIANT can contain JSON null.
+                        .testResult(
+                                $("f0").parseJson().cast(INT()),
+                                "CAST(PARSE_JSON(f0) AS INT)",
+                                null,
+                                INT())
                         // An integer converts to any integer target while the value stays in
                         // range, and to FLOAT or DOUBLE which are approximate by definition.
                         .testResult(
                                 lit("42").parseJson().cast(TINYINT()),
                                 "CAST(PARSE_JSON('42') AS TINYINT)",
                                 (byte) 42,
-                                TINYINT().notNull())
+                                TINYINT())
                         .testResult(
                                 lit("42").parseJson().cast(SMALLINT()),
                                 "CAST(PARSE_JSON('42') AS SMALLINT)",
                                 (short) 42,
-                                SMALLINT().notNull())
+                                SMALLINT())
                         .testResult(
                                 lit("42").parseJson().cast(INT()),
                                 "CAST(PARSE_JSON('42') AS INT)",
                                 42,
-                                INT().notNull())
+                                INT())
                         .testResult(
                                 lit("42").parseJson().cast(BIGINT()),
                                 "CAST(PARSE_JSON('42') AS BIGINT)",
                                 42L,
-                                BIGINT().notNull())
+                                BIGINT())
                         .testResult(
                                 lit("42").parseJson().cast(FLOAT()),
                                 "CAST(PARSE_JSON('42') AS FLOAT)",
                                 42.0f,
-                                FLOAT().notNull())
+                                FLOAT())
                         .testResult(
                                 lit("42").parseJson().cast(DOUBLE()),
                                 "CAST(PARSE_JSON('42') AS DOUBLE)",
                                 42.0d,
-                                DOUBLE().notNull())
+                                DOUBLE())
                         // An out-of-range value is rejected rather than wrapped.
                         .testResult(
                                 lit("1000").parseJson().cast(SMALLINT()),
                                 "CAST(PARSE_JSON('1000') AS SMALLINT)",
                                 (short) 1000,
-                                SMALLINT().notNull())
+                                SMALLINT())
                         .testTableApiRuntimeError(
                                 lit("1000").parseJson().cast(TINYINT()), "overflowed")
                         .testSqlRuntimeError("CAST(PARSE_JSON('1000') AS TINYINT)", "overflowed")
@@ -219,7 +225,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 lit("7.0").parseJson().cast(INT()),
                                 "CAST(PARSE_JSON('7.0') AS INT)",
                                 7,
-                                INT().notNull())
+                                INT())
                         // A fractional value is rejected, since converting would drop digits.
                         .testTableApiRuntimeError(
                                 lit("123.456").parseJson().cast(INT()), "lose precision")
@@ -233,7 +239,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 lit("123.456").parseJson().cast(DECIMAL(6, 3)),
                                 "CAST(PARSE_JSON('123.456') AS DECIMAL(6, 3))",
                                 new BigDecimal("123.456"),
-                                DECIMAL(6, 3).notNull())
+                                DECIMAL(6, 3))
                         .testTableApiRuntimeError(
                                 lit("123.456").parseJson().cast(DECIMAL(6, 2)), "lose precision")
                         .testResult(
@@ -253,18 +259,18 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 lit("42").parseJson().cast(DECIMAL(5, 2)),
                                 "CAST(PARSE_JSON('42') AS DECIMAL(5, 2))",
                                 new BigDecimal("42.00"),
-                                DECIMAL(5, 2).notNull())
+                                DECIMAL(5, 2))
                         // A decimal reaches an approximate target, where losing digits is expected.
                         .testResult(
                                 lit("123.456").parseJson().cast(FLOAT()),
                                 "CAST(PARSE_JSON('123.456') AS FLOAT)",
                                 123.456f,
-                                FLOAT().notNull())
+                                FLOAT())
                         .testResult(
                                 lit("123.456").parseJson().cast(DOUBLE()),
                                 "CAST(PARSE_JSON('123.456') AS DOUBLE)",
                                 123.456d,
-                                DOUBLE().notNull())
+                                DOUBLE())
                         // A magnitude the target cannot represent is still rejected.
                         .testTableApiRuntimeError(
                                 lit("1e40").parseJson().cast(FLOAT()), "overflowed")
@@ -277,37 +283,37 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 lit("1e20").parseJson().cast(DOUBLE()),
                                 "CAST(PARSE_JSON('1e20') AS DOUBLE)",
                                 1e20,
-                                DOUBLE().notNull())
+                                DOUBLE())
                         .testResult(
                                 lit("true").parseJson().cast(BOOLEAN()),
                                 "CAST(PARSE_JSON('true') AS BOOLEAN)",
                                 true,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         // CAST returns the raw scalar value (string unquoted)
                         .testResult(
                                 lit("\"foo\"").parseJson().cast(STRING()),
                                 "CAST(PARSE_JSON('\"foo\"') AS STRING)",
                                 "foo",
-                                STRING().notNull())
+                                STRING())
                         .testResult(
                                 lit("123.456").parseJson().cast(STRING()),
                                 "CAST(PARSE_JSON('123.456') AS STRING)",
                                 "123.456",
-                                STRING().notNull())
+                                STRING())
                         // The rendering matches a regular cast of the stored kind, so a boolean
                         // becomes TRUE rather than the JSON true.
                         .testResult(
                                 lit("true").parseJson().cast(STRING()),
                                 "CAST(PARSE_JSON('true') AS STRING)",
                                 "TRUE",
-                                STRING().notNull())
+                                STRING())
                         // An object or array has no scalar form, so it renders like a regular ARRAY
                         // or MAP to string cast, with strings unquoted at every depth.
                         .testResult(
                                 lit("[\"a\", \"b\"]").parseJson().cast(STRING()),
                                 "CAST(PARSE_JSON('[\"a\", \"b\"]') AS STRING)",
                                 "[a, b]",
-                                STRING().notNull())
+                                STRING())
                         .testResult(
                                 lit("[\"a\", \"b\"]").parseJson().tryCast(STRING()),
                                 "TRY_CAST(PARSE_JSON('[\"a\", \"b\"]') AS STRING)",
@@ -317,7 +323,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 lit("{\"a\": 1}").parseJson().cast(STRING()),
                                 "CAST(PARSE_JSON('{\"a\": 1}') AS STRING)",
                                 "{a=1}",
-                                STRING().notNull())
+                                STRING())
                         .testResult(
                                 lit("{\"a\": 1}").parseJson().tryCast(STRING()),
                                 "TRY_CAST(PARSE_JSON('{\"a\": 1}') AS STRING)",
@@ -329,12 +335,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 lit("\"ab\"").parseJson().cast(VARCHAR(3)),
                                 "CAST(PARSE_JSON('\"ab\"') AS VARCHAR(3))",
                                 "ab",
-                                VARCHAR(3).notNull())
+                                VARCHAR(3))
                         .testResult(
                                 lit("\"foobar\"").parseJson().cast(VARCHAR(3)),
                                 "CAST(PARSE_JSON('\"foobar\"') AS VARCHAR(3))",
                                 "foo",
-                                VARCHAR(3).notNull())
+                                VARCHAR(3))
                         .testResult(
                                 lit("\"foobar\"").parseJson().tryCast(VARCHAR(3)),
                                 "TRY_CAST(PARSE_JSON('\"foobar\"') AS VARCHAR(3))",
@@ -344,17 +350,17 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 lit("\"abc\"").parseJson().cast(CHAR(3)),
                                 "CAST(PARSE_JSON('\"abc\"') AS CHAR(3))",
                                 "abc",
-                                CHAR(3).notNull())
+                                CHAR(3))
                         .testResult(
                                 lit("\"abcdef\"").parseJson().cast(CHAR(3)),
                                 "CAST(PARSE_JSON('\"abcdef\"') AS CHAR(3))",
                                 "abc",
-                                CHAR(3).notNull())
+                                CHAR(3))
                         .testResult(
                                 lit("\"ab\"").parseJson().cast(CHAR(5)),
                                 "CAST(PARSE_JSON('\"ab\"') AS CHAR(5))",
                                 "ab   ",
-                                CHAR(5).notNull())
+                                CHAR(5))
                         .testResult(
                                 lit("\"ab\"").parseJson().tryCast(CHAR(5)),
                                 "TRY_CAST(PARSE_JSON('\"ab\"') AS CHAR(5))",
@@ -366,19 +372,19 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 lit("[\"a\", null, 1]").parseJson().cast(STRING()),
                                 "CAST(PARSE_JSON('[\"a\", null, 1]') AS STRING)",
                                 "[a, NULL, 1]",
-                                STRING().notNull())
+                                STRING())
                         .testResult(
                                 lit("{\"k\": [\"a\", \"b\"]}").parseJson().cast(STRING()),
                                 "CAST(PARSE_JSON('{\"k\": [\"a\", \"b\"]}') AS STRING)",
                                 "{k=[a, b]}",
-                                STRING().notNull())
+                                STRING())
                         // A container renders in full and is then trimmed to a bounded target, the
                         // same as any other value longer than the target.
                         .testResult(
                                 lit("[1, 2, 3]").parseJson().cast(VARCHAR(5)),
                                 "CAST(PARSE_JSON('[1, 2, 3]') AS VARCHAR(5))",
                                 "[1, 2",
-                                VARCHAR(5).notNull())
+                                VARCHAR(5))
                         // A variant holding a JSON null casts to SQL NULL, not to the text 'null'.
                         // The length of that text must not be checked against the target either.
                         .testResult(
@@ -407,8 +413,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "TRY_CAST(PARSE_JSON('\"foo\"') AS INT)",
                                 null,
                                 INT())
-                        // A variant that stores a JSON null casts to SQL NULL when the target is
-                        // nullable: a nullable variant source, or TRY_CAST which forces nullable.
+                        // A variant that stores a JSON null casts to SQL NULL.
                         .testResult(
                                 lit("null").tryParseJson().cast(INT()),
                                 "CAST(TRY_PARSE_JSON('null') AS INT)",
@@ -430,43 +435,49 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     private static List<TestSetSpec> variantArrayCasts() {
         return List.of(
                 TestSetSpec.forExpression("Cast a VARIANT produced by parseJson() to an ARRAY")
-                        .onFieldsWithData("unused")
-                        .andDataTypes(STRING())
+                        .onFieldsWithData("null")
+                        .andDataTypes(STRING().notNull())
+                        // A non-null VARIANT can contain JSON null.
+                        .testResult(
+                                $("f0").parseJson().cast(ARRAY(INT().notNull())),
+                                "CAST(PARSE_JSON(f0) AS ARRAY<INT NOT NULL>)",
+                                null,
+                                ARRAY(INT().notNull()))
                         // ARRAY: each element casts by the same VARIANT-to-element rule.
                         .testResult(
                                 lit("[1, 2, 3]").parseJson().cast(ARRAY(INT())),
                                 "CAST(PARSE_JSON('[1, 2, 3]') AS ARRAY<INT>)",
                                 new Integer[] {1, 2, 3},
-                                ARRAY(INT()).notNull())
+                                ARRAY(INT()))
                         // an approximate leaf takes any numeric kind
                         .testResult(
                                 lit("[1, 2, 3]").parseJson().cast(ARRAY(DOUBLE())),
                                 "CAST(PARSE_JSON('[1, 2, 3]') AS ARRAY<DOUBLE>)",
                                 new Double[] {1.0, 2.0, 3.0},
-                                ARRAY(DOUBLE()).notNull())
+                                ARRAY(DOUBLE()))
                         // each element renders to string like the scalar cast
                         .testResult(
                                 lit("[1, 2, 3]").parseJson().cast(ARRAY(STRING())),
                                 "CAST(PARSE_JSON('[1, 2, 3]') AS ARRAY<STRING>)",
                                 new String[] {"1", "2", "3"},
-                                ARRAY(STRING()).notNull())
+                                ARRAY(STRING()))
                         // a heterogeneous array renders every element to string
                         .testResult(
                                 lit("[1, \"a\", 2, \"b\"]").parseJson().cast(ARRAY(STRING())),
                                 "CAST(PARSE_JSON('[1, \"a\", 2, \"b\"]') AS ARRAY<STRING>)",
                                 new String[] {"1", "a", "2", "b"},
-                                ARRAY(STRING()).notNull())
+                                ARRAY(STRING()))
                         .testResult(
                                 lit("[]").parseJson().cast(ARRAY(INT())),
                                 "CAST(PARSE_JSON('[]') AS ARRAY<INT>)",
                                 new Integer[] {},
-                                ARRAY(INT()).notNull())
+                                ARRAY(INT()))
                         // a VARIANT null element maps to SQL NULL for a nullable element type
                         .testResult(
                                 lit("[1, null, 3]").parseJson().cast(ARRAY(INT())),
                                 "CAST(PARSE_JSON('[1, null, 3]') AS ARRAY<INT>)",
                                 new Integer[] {1, null, 3},
-                                ARRAY(INT()).notNull())
+                                ARRAY(INT()))
                         // a VARIANT null element fails a NOT NULL element type
                         .testTableApiRuntimeError(
                                 lit("[1, null, 3]").parseJson().cast(ARRAY(INT().notNull())),
@@ -518,13 +529,13 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                         .cast(ARRAY(INT())),
                                 "CAST(CAST(PARSE_JSON('[1, 2, 3]') AS ARRAY<VARIANT>) AS ARRAY<INT>)",
                                 new Integer[] {1, 2, 3},
-                                ARRAY(INT()).notNull())
+                                ARRAY(INT()))
                         // the recursion composes for a nested array of arrays
                         .testResult(
                                 lit("[[1, 2], [3]]").parseJson().cast(ARRAY(ARRAY(INT()))),
                                 "CAST(PARSE_JSON('[[1, 2], [3]]') AS ARRAY<ARRAY<INT>>)",
                                 new Integer[][] {{1, 2}, {3}},
-                                ARRAY(ARRAY(INT())).notNull())
+                                ARRAY(ARRAY(INT())))
                         // a top-level VARIANT null casts to SQL NULL for a nullable target
                         .testResult(
                                 lit("null").tryParseJson().cast(ARRAY(INT())),
@@ -593,21 +604,27 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                 "{\"user\": {\"id\": 1, \"since\": \"2020-01-01\"}, \"tags\": [\"x\", \"y\"]}";
         return List.of(
                 TestSetSpec.forExpression("Cast a VARIANT produced by parseJson() to a ROW")
-                        .onFieldsWithData("unused")
-                        .andDataTypes(STRING())
+                        .onFieldsWithData("null")
+                        .andDataTypes(STRING().notNull())
+                        // A non-null VARIANT can contain JSON null.
+                        .testResult(
+                                $("f0").parseJson().cast(ROW(FIELD("id", INT().notNull()))),
+                                "CAST(PARSE_JSON(f0) AS ROW<`id` INT NOT NULL>)",
+                                null,
+                                ROW(FIELD("id", INT().notNull())))
                         // ROW: fields match by name, order is free
                         .testResult(
                                 lit(obj).parseJson()
                                         .cast(ROW(FIELD("id", INT()), FIELD("name", STRING()))),
                                 "CAST(PARSE_JSON('" + obj + "') AS ROW<`id` INT, `name` STRING>)",
                                 Row.of(7, "ada"),
-                                ROW(FIELD("id", INT()), FIELD("name", STRING())).notNull())
+                                ROW(FIELD("id", INT()), FIELD("name", STRING())))
                         .testResult(
                                 lit(obj).parseJson()
                                         .cast(ROW(FIELD("name", STRING()), FIELD("id", INT()))),
                                 "CAST(PARSE_JSON('" + obj + "') AS ROW<`name` STRING, `id` INT>)",
                                 Row.of("ada", 7),
-                                ROW(FIELD("name", STRING()), FIELD("id", INT())).notNull())
+                                ROW(FIELD("name", STRING()), FIELD("id", INT())))
                         // a field absent from the object fails the cast
                         .testSqlRuntimeError(
                                 "CAST(PARSE_JSON('"
@@ -624,7 +641,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                         + objNull
                                         + "') AS ROW<`id` INT, `name` STRING>)",
                                 Row.of(7, null),
-                                ROW(FIELD("id", INT()), FIELD("name", STRING())).notNull())
+                                ROW(FIELD("id", INT()), FIELD("name", STRING())))
                         // and fails when that field is NOT NULL
                         .testSqlRuntimeError(
                                 "CAST(PARSE_JSON('"
@@ -637,7 +654,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 lit(obj).parseJson().cast(ROW(FIELD("id", INT()))),
                                 "CAST(PARSE_JSON('" + obj + "') AS ROW<`id` INT>)",
                                 Row.of(7),
-                                ROW(FIELD("id", INT())).notNull())
+                                ROW(FIELD("id", INT())))
                         // an array is not an object
                         .testTableApiRuntimeError(
                                 lit("[1, 2, 3]").parseJson().cast(ROW(FIELD("id", INT()))),
@@ -653,7 +670,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                         + "') AS ROW<`id` VARIANT, `name` VARIANT>)"
                                         + " AS ROW<`id` INT, `name` STRING>)",
                                 Row.of(7, "ada"),
-                                ROW(FIELD("id", INT()), FIELD("name", STRING())).notNull())
+                                ROW(FIELD("id", INT()), FIELD("name", STRING())))
                         // a variant null field is kept as a variant null, so casting it back to a
                         // concrete nullable type yields SQL NULL
                         .testResult(
@@ -666,7 +683,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                         + "') AS ROW<`id` VARIANT, `name` VARIANT>)"
                                         + " AS ROW<`id` INT, `name` STRING>)",
                                 Row.of(7, null),
-                                ROW(FIELD("id", INT()), FIELD("name", STRING())).notNull())
+                                ROW(FIELD("id", INT()), FIELD("name", STRING())))
                         // the recursion composes for nested rows and arrays
                         .testResult(
                                 lit(nested)
@@ -685,13 +702,10 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                         + " `tags` ARRAY<STRING>>)",
                                 Row.of(Row.of(1, "2020-01-01"), new String[] {"x", "y"}),
                                 ROW(
-                                                FIELD(
-                                                        "user",
-                                                        ROW(
-                                                                FIELD("id", INT()),
-                                                                FIELD("since", STRING()))),
-                                                FIELD("tags", ARRAY(STRING())))
-                                        .notNull()));
+                                        FIELD(
+                                                "user",
+                                                ROW(FIELD("id", INT()), FIELD("since", STRING()))),
+                                        FIELD("tags", ARRAY(STRING())))));
     }
 
     private static List<TestSetSpec> variantMapCasts() {
@@ -700,8 +714,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         final String mixed = "{\"a\": 1, \"b\": \"x\"}";
         return List.of(
                 TestSetSpec.forExpression("Cast a VARIANT produced by parseJson() to a MAP")
-                        .onFieldsWithData("unused")
-                        .andDataTypes(STRING())
+                        .onFieldsWithData("null")
+                        .andDataTypes(STRING().notNull())
+                        // A non-null VARIANT can contain JSON null.
+                        .testResult(
+                                $("f0").parseJson().cast(MAP(STRING(), INT().notNull())),
+                                "CAST(PARSE_JSON(f0) AS MAP<STRING, INT NOT NULL>)",
+                                null,
+                                MAP(STRING(), INT().notNull()))
                         // MAP: each field name becomes a key, each value casts to V
                         .testResult(
                                 lit(obj).parseJson().cast(MAP(STRING(), STRING())),
@@ -710,18 +730,18 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                         entry("id", "7"),
                                         entry("name", "ada"),
                                         entry("active", "TRUE")),
-                                MAP(STRING(), STRING()).notNull())
+                                MAP(STRING(), STRING()))
                         .testResult(
                                 lit("{}").parseJson().cast(MAP(STRING(), INT())),
                                 "CAST(PARSE_JSON('{}') AS MAP<STRING, INT>)",
                                 map(),
-                                MAP(STRING(), INT()).notNull())
+                                MAP(STRING(), INT()))
                         // a value present but set to a variant null maps to SQL NULL when nullable
                         .testResult(
                                 lit(objNull).parseJson().cast(MAP(STRING(), STRING())),
                                 "CAST(PARSE_JSON('" + objNull + "') AS MAP<STRING, STRING>)",
                                 map(entry("id", "7"), entry("email", null)),
-                                MAP(STRING(), STRING()).notNull())
+                                MAP(STRING(), STRING()))
                         // and fails when the value type is NOT NULL
                         .testTableApiRuntimeError(
                                 lit(objNull).parseJson().cast(MAP(STRING(), STRING().notNull())),
