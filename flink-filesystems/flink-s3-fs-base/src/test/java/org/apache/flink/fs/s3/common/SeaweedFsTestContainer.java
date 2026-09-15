@@ -28,6 +28,7 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
 import org.testcontainers.utility.Base58;
@@ -79,6 +80,14 @@ class SeaweedFsTestContainer extends GenericContainer<SeaweedFsTestContainer> {
                 new LogMessageWaitStrategy()
                         .withRegEx("(?s).*All enabled components are running and ready to use.*")
                         .withStartupTimeout(Duration.ofMinutes(2)));
+    }
+
+    @Override
+    protected void containerIsStarted(InspectContainerResponse containerInfo) {
+        super.containerIsStarted(containerInfo);
+        Preconditions.checkState(
+                getClient().doesBucketExist(defaultBucketName),
+                "SeaweedFS did not create the requested default bucket.");
     }
 
     private static String randomString(String prefix, int length) {
