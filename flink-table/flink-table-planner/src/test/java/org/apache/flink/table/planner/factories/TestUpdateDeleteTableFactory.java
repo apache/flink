@@ -43,6 +43,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
+import org.apache.flink.table.connector.sink.abilities.SupportsTargetColumnWriting;
 import org.apache.flink.table.connector.sink.abilities.SupportsTruncate;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -76,6 +77,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.data.RowData.createFieldGetter;
@@ -156,10 +158,29 @@ public class TestUpdateDeleteTableFactory
     private static final AtomicInteger idCounter = new AtomicInteger(0);
     private static final Map<String, Collection<RowData>> registeredRowData = new HashMap<>();
 
+    private static final Map<ObjectIdentifier, Optional<int[][]>> capturedUpdateTargetColumns =
+            new HashMap<>();
+
+    private static final Map<ObjectIdentifier, int[][]> capturedAppliedTargetColumns =
+            new HashMap<>();
+
     public static String registerRowData(Collection<RowData> data) {
         String id = String.valueOf(idCounter.incrementAndGet());
         registeredRowData.put(id, data);
         return id;
+    }
+
+    public static Optional<int[][]> getCapturedUpdateTargetColumns(ObjectIdentifier id) {
+        return capturedUpdateTargetColumns.get(id);
+    }
+
+    public static int[][] getCapturedAppliedTargetColumns(ObjectIdentifier id) {
+        return capturedAppliedTargetColumns.get(id);
+    }
+
+    public static void clearCapturedTargetColumns(ObjectIdentifier id) {
+        capturedUpdateTargetColumns.remove(id);
+        capturedAppliedTargetColumns.remove(id);
     }
 
     @Override
@@ -323,7 +344,7 @@ public class TestUpdateDeleteTableFactory
 
     /** A sink that supports row-level update. */
     private static class SupportsRowLevelUpdateSink
-            implements DynamicTableSink, SupportsRowLevelUpdate {
+            implements DynamicTableSink, SupportsRowLevelUpdate, SupportsTargetColumnWriting {
 
         protected final ObjectIdentifier tableIdentifier;
         protected final ResolvedCatalogTable resolvedCatalogTable;
@@ -376,6 +397,7 @@ public class TestUpdateDeleteTableFactory
 
         @Override
         public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+            capturedUpdateTargetColumns.put(tableIdentifier, context.getTargetColumns());
             return new DataStreamSinkProvider() {
 
                 @Override
@@ -418,6 +440,12 @@ public class TestUpdateDeleteTableFactory
         }
 
         @Override
+        public boolean applyTargetColumns(int[][] targetColumns) {
+            capturedAppliedTargetColumns.put(tableIdentifier, targetColumns);
+            return false;
+        }
+
+        @Override
         public RowLevelUpdateInfo applyRowLevelUpdate(
                 List<Column> updatedColumns, @Nullable RowLevelModificationScanContext context) {
             checkScanContext(context, tableIdentifier);
@@ -437,7 +465,9 @@ public class TestUpdateDeleteTableFactory
                                         resolvedCatalogTable.getResolvedSchema());
                     }
                     requiredColumnIndices =
-                            getRequiredColumnIndexes(resolvedCatalogTable, requiredCols);
+                            getRequiredColumnIndexes(
+                                    resolvedCatalogTable,
+                                    mergeRequiredWithUpdatedColumns(requiredCols, updatedColumns));
                     return Optional.ofNullable(requiredCols);
                 }
 
@@ -748,6 +778,22 @@ public class TestUpdateDeleteTableFactory
         public void executeTruncation() {
             registeredRowData.put(dataId, Collections.emptyList());
         }
+    }
+
+    private static List<Column> mergeRequiredWithUpdatedColumns(
+            @Nullable List<Column> requiredColumns, List<Column> updatedColumns) {
+        if (requiredColumns == null) {
+            return null;
+        }
+        Set<String> existingNames =
+                requiredColumns.stream().map(Column::getName).collect(Collectors.toSet());
+        List<Column> merged = new ArrayList<>(requiredColumns);
+        for (Column updated : updatedColumns) {
+            if (!existingNames.contains(updated.getName())) {
+                merged.add(updated);
+            }
+        }
+        return merged;
     }
 
     private static int[] getRequiredColumnIndexes(
