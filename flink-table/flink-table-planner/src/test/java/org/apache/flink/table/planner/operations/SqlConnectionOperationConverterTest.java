@@ -23,11 +23,16 @@ import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.SensitiveConnection;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowConnectionsOperation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -120,5 +125,29 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
         assertThatThrownBy(() -> parse("CREATE CONNECTION my_conn WITH ()"))
                 .isInstanceOf(SqlValidateException.class)
                 .hasMessageContaining("Connection property list can not be empty.");
+    }
+
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForShowConnectionsTest")
+    void testShowConnections(String sql, String expectedDatabaseName, String expectedSummary) {
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowConnectionsOperation.class);
+        ShowConnectionsOperation showConnectionsOperation = (ShowConnectionsOperation) operation;
+        assertThat(showConnectionsOperation.getDatabaseName()).isEqualTo(expectedDatabaseName);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummary);
+    }
+
+    private static Stream<Arguments> inputForShowConnectionsTest() {
+        return Stream.of(
+                Arguments.of("SHOW CONNECTIONS", "default", "SHOW CONNECTIONS"),
+                Arguments.of(
+                        "SHOW CONNECTIONS FROM db1", "db1", "SHOW CONNECTIONS FROM builtin.db1"),
+                Arguments.of("SHOW CONNECTIONS IN cat1.db1", "db1", "SHOW CONNECTIONS IN cat1.db1"),
+                Arguments.of(
+                        "SHOW CONNECTIONS LIKE '%conn%'",
+                        "default", "SHOW CONNECTIONS LIKE '%conn%'"),
+                Arguments.of(
+                        "SHOW CONNECTIONS NOT LIKE 'tmp_%'",
+                        "default", "SHOW CONNECTIONS NOT LIKE 'tmp_%'"));
     }
 }
