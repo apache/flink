@@ -84,11 +84,14 @@ class LengthPrefixBaseCoder(ABC):
             field_names = [f.name for f in schema_proto.fields]
             return RowCoder(field_coders, field_names)
         elif coder_info_descriptor_proto.HasField('arrow_type'):
-            timezone = pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE'])
             schema_proto = coder_info_descriptor_proto.arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
             batch_format = coder_info_descriptor_proto.arrow_type.BatchFormat.Name(
                 coder_info_descriptor_proto.arrow_type.batch_format)
+            # Native Arrow does not use pandas timezone conversion. Some valid JVM zone IDs
+            # are not recognized by pytz, so resolve the timezone only for pandas batches.
+            timezone = (None if batch_format == "ARROW"
+                        else pytz.timezone(os.environ['TABLE_LOCAL_TIME_ZONE']))
             schema = create_arrow_schema(row_type.field_names(), row_type.field_types(),
                                          allow_nested=batch_format == "ARROW")
             return ArrowCoder(schema, row_type, timezone, batch_format)

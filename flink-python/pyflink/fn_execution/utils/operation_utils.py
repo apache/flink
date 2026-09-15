@@ -186,7 +186,9 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
             import pyarrow as pa
 
             variable_dict['create_struct_array'] = pa.StructArray.from_arrays
-            func_str = f"{func_name}(create_struct_array(value.columns, fields=value.schema))"
+            offsets = [arg.inputOffset for arg in user_defined_function_proto.inputs]
+            func_str = (f"{func_name}(create_struct_array([{func_args}], "
+                        f"fields=[value.schema[i] for i in {offsets}]))")
         else:
             # directly use `value` as input argument
             # e.g.

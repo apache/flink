@@ -31,8 +31,9 @@ def validate_arrow_batch(batch, schema, field_types):
     return pa.RecordBatch.from_arrays(batch.columns, schema=schema)
 
 
-def _validate_array(column, expected_type, data_type, path):
+def _validate_array(column, expected_type, data_type, path, parent_validity=None):
     import pyarrow as pa
+    import pyarrow.compute as pc
     from pyflink.table.types import ArrayType, MapType, RowType
 
     def wrong_type():
@@ -40,34 +41,58 @@ def _validate_array(column, expected_type, data_type, path):
             f"Arrow result field '{path}' has type {column.type}, expected {expected_type}.")
 
     if not data_type._nullable and column.null_count:
-        raise ValueError(f"Arrow result field '{path}' is not nullable.")
+        if parent_validity is None or pc.any(
+                pc.and_(parent_validity, column.is_null())).as_py():
+            raise ValueError(f"Arrow result field '{path}' is not nullable.")
     if isinstance(data_type, RowType):
         if not pa.types.is_struct(column.type) or column.type.num_fields != len(data_type.fields):
             wrong_type()
-        # Children hidden by a null parent are not logical values and may contain nulls.
-        visible = column.filter(column.is_valid()) if column.null_count else column
+        validity = _get_validity(column, parent_validity)
         for index, field in enumerate(data_type.fields):
             if column.type[index].name != field.name:
                 wrong_type()
-            _validate_array(visible.field(index), expected_type[index].type,
-                            field.data_type, f"{path}.{field.name}")
+            _validate_array(column.field(index), expected_type[index].type,
+                            field.data_type, f"{path}.{field.name}", validity)
     elif isinstance(data_type, ArrayType):
         if not pa.types.is_list(column.type):
             wrong_type()
-        # flatten respects the slice offsets and excludes values under null lists.
-        _validate_array(column.flatten(), expected_type.value_type,
-                        data_type.element_type, f"{path}[]")
+        start, end = column.offsets[0].as_py(), column.offsets[-1].as_py()
+        _validate_array(column.values.slice(start, end - start), expected_type.value_type,
+                        data_type.element_type, f"{path}[]",
+                        _get_child_validity(column, parent_validity))
     elif isinstance(data_type, MapType):
         if not pa.types.is_map(column.type):
             wrong_type()
-        visible = column.filter(column.is_valid()) if column.null_count else column
-        start, end = visible.offsets[0].as_py(), visible.offsets[-1].as_py()
-        _validate_array(visible.keys.slice(start, end - start), expected_type.key_type,
-                        data_type.key_type.not_null(), f"{path}.key")
-        _validate_array(visible.items.slice(start, end - start), expected_type.item_type,
-                        data_type.value_type, f"{path}.value")
+        validity = _get_child_validity(column, parent_validity)
+        start, end = column.offsets[0].as_py(), column.offsets[-1].as_py()
+        _validate_array(column.keys.slice(start, end - start), expected_type.key_type,
+                        data_type.key_type.not_null(), f"{path}.key", validity)
+        _validate_array(column.items.slice(start, end - start), expected_type.item_type,
+                        data_type.value_type, f"{path}.value", validity)
     elif column.type != expected_type:
         wrong_type()
+
+
+def _get_validity(column, parent_validity):
+    import pyarrow.compute as pc
+
+    # Hidden child nulls are valid; propagate visibility instead of filtering the payload.
+    if column.null_count:
+        validity = column.is_valid()
+        return validity if parent_validity is None else pc.and_(parent_validity, validity)
+    return parent_validity
+
+
+def _get_child_validity(column, parent_validity):
+    import pyarrow as pa
+    import pyarrow.compute as pc
+
+    validity = _get_validity(column, parent_validity)
+    if validity is None:
+        return None
+    # A list view also handles map entries and keeps the original offsets and value buffers.
+    entries = pa.ListArray.from_arrays(column.offsets, column.values)
+    return pc.take(validity, pc.list_parent_indices(entries))
 
 
 def check_arrow_udf_result(func, *args):
@@ -83,6 +108,8 @@ def check_arrow_udf_result(func, *args):
         if isinstance(arg, (pa.Array, pa.ChunkedArray)) and len(result) != len(arg):
             raise ValueError(
                 f"Arrow UDF '{name}' returned {len(result)} rows, expected {len(arg)}.")
+    if isinstance(result, pa.ChunkedArray):
+        result = result.chunk(0) if result.num_chunks == 1 else result.combine_chunks()
     return result
 
 
@@ -93,7 +120,5 @@ def create_record_batch(results, row_count):
     for result in results:
         if len(result) != row_count:
             raise ValueError(f"Arrow UDF returned {len(result)} rows, expected {row_count}.")
-        if isinstance(result, pa.ChunkedArray):
-            result = result.chunk(0) if result.num_chunks == 1 else result.combine_chunks()
         columns.append(result)
     return pa.RecordBatch.from_arrays(columns, names=[f"f{i}" for i in range(len(columns))])

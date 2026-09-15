@@ -120,6 +120,42 @@ class ArrowCodersTests(unittest.TestCase):
     def arrow_coder(self, schema, row_type):
         return self.implementation.ArrowCoderImpl(schema, row_type, pytz.UTC, "ARROW")
 
+    @staticmethod
+    def with_parent_nulls(column, nulls):
+        validity = pa.array([not value for value in nulls]).buffers()[1]
+        if pa.types.is_struct(column.type):
+            buffers = [validity]
+            children = [column.field(index) for index in range(column.type.num_fields)]
+        else:
+            buffers = [validity, column.offsets.buffers()[1]]
+            children = [column.values]
+        return pa.Array.from_buffers(column.type, len(column), buffers, children=children)
+
+    def test_native_arrow_timezone(self):
+        from pyflink.fn_execution import flink_fn_execution_pb2 as proto
+        from pyflink.fn_execution.coders import LengthPrefixBaseCoder
+
+        schema_proto = proto.Schema(fields=[
+            proto.Schema.Field(name="number", type=proto.Schema.FieldType(
+                type_name=proto.Schema.BIGINT, nullable=True)),
+            proto.Schema.Field(name="timestamp", type=proto.Schema.FieldType(
+                type_name=proto.Schema.TIMESTAMP, nullable=True,
+                timestamp_info=proto.Schema.TimestampInfo(precision=3))),
+            proto.Schema.Field(name="local_timestamp", type=proto.Schema.FieldType(
+                type_name=proto.Schema.LOCAL_ZONED_TIMESTAMP, nullable=True,
+                local_zoned_timestamp_info=proto.Schema.LocalZonedTimestampInfo(precision=3)))])
+        descriptor = proto.CoderInfoDescriptor(arrow_type=proto.CoderInfoDescriptor.ArrowType(
+            schema=schema_proto, batch_format=proto.CoderInfoDescriptor.ArrowType.ARROW))
+        batch = pa.record_batch([pa.array([1, None]), pa.array([0, None], type=pa.timestamp('ms')),
+                                 pa.array([0, None], type=pa.timestamp('ms'))],
+                                names=["number", "timestamp", "local_timestamp"])
+        for timezone in ("UTC", "GMT+08:00", "SystemV/PST8PDT"):
+            with self.subTest(timezone=timezone):
+                with mock.patch.dict(os.environ, {"TABLE_LOCAL_TIME_ZONE": timezone}), \
+                        mock.patch('pyflink.fn_execution.coders.coder_impl', self.implementation):
+                    coder = LengthPrefixBaseCoder._to_field_coder(descriptor).get_impl()
+                    self.assertEqual(coder.decode(coder.encode(batch)), batch)
+
     def test_arrow_nested_nullability(self):
         from pyflink.table import DataTypes
         from pyflink.table.types import to_arrow_type
@@ -189,6 +225,77 @@ class ArrowCodersTests(unittest.TestCase):
 
         with self.assertRaisesRegex(TypeError, "name.*string"):
             coder.encode(pa.record_batch([pa.array([1, 2])], names=["name"]))
+
+    def test_sliced_container_nullability(self):
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema, to_arrow_type
+
+        item_type = DataTypes.ROW([DataTypes.FIELD("required", DataTypes.INT().not_null())])
+        items = pa.array([{"required": None}, {"required": 1}, {"required": None},
+                          {"required": None}, None, {"required": None}],
+                         type=to_arrow_type(item_type))
+        nulls = [False, False, True, False, False, False]
+        offsets = pa.array(range(7), type=pa.int32())
+        for data_type, column, first, last in (
+            (DataTypes.ROW([DataTypes.FIELD("value", item_type)]),
+             pa.StructArray.from_arrays([items], names=["value"]),
+             {"value": {"required": 1}}, {"value": None}),
+            (DataTypes.ARRAY(item_type), pa.ListArray.from_arrays(offsets, items),
+             [{"required": 1}], [None]),
+            (DataTypes.MAP(DataTypes.STRING().not_null(), item_type),
+             pa.MapArray.from_arrays(offsets, pa.array(['k'] * 6), items),
+             [('k', {"required": 1})], [('k', None)]),
+        ):
+            with self.subTest(data_type=data_type):
+                column = self.with_parent_nulls(column, nulls)
+                row_type = DataTypes.ROW([DataTypes.FIELD("record", DataTypes.ROW([
+                    DataTypes.FIELD("container", data_type)]))])
+                schema = create_arrow_schema(row_type.field_names(), row_type.field_types(),
+                                             allow_nested=True)
+                outer = self.with_parent_nulls(
+                    pa.StructArray.from_arrays([column], names=["container"]),
+                    [False, False, False, True, False, False])
+                batch = pa.record_batch([outer], names=["record"])
+                coder = self.arrow_coder(schema, row_type)
+                self.assertEqual(coder.decode(coder.encode(batch.slice(1, 4))).to_pylist(), [
+                    {"record": {"container": first}}, {"record": {"container": None}},
+                    {"record": None}, {"record": {"container": last}}])
+                self.assertEqual(coder.decode(coder.encode(batch.slice(0, 0))).num_rows, 0)
+                with self.assertRaisesRegex(ValueError, "required.*not nullable"):
+                    coder.encode(batch.slice(0, 1))
+
+    def test_nullable_container_validation_memory(self):
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        count = 512
+        payload = pa.array([b'x' * 2048] * count)
+        nulls = [index == count // 2 for index in range(count)]
+        offsets = pa.array(range(count + 1), type=pa.int32())
+        for data_type, column in (
+            (DataTypes.ROW([DataTypes.FIELD("payload", DataTypes.BYTES())]),
+             pa.StructArray.from_arrays([payload], names=["payload"])),
+            (DataTypes.ARRAY(DataTypes.BYTES()),
+             pa.ListArray.from_arrays(offsets, payload)),
+            (DataTypes.MAP(DataTypes.STRING().not_null(), DataTypes.BYTES()),
+             pa.MapArray.from_arrays(offsets, pa.array(['k'] * count), payload)),
+        ):
+            with self.subTest(data_type=data_type):
+                column = self.with_parent_nulls(column, nulls)
+                row_type = DataTypes.ROW([DataTypes.FIELD("value", data_type)])
+                schema = create_arrow_schema(["value"], [data_type], allow_nested=True)
+                batch = pa.record_batch([column], names=["value"])
+                coder = self.arrow_coder(schema, row_type)
+                default_pool = pa.default_memory_pool()
+                pool = pa.proxy_memory_pool(default_pool)
+                try:
+                    pa.set_memory_pool(pool)
+                    encoded = coder.encode(batch)
+                finally:
+                    pa.set_memory_pool(default_pool)
+                # Allow masks, indices and IPC metadata, but not a copy of the binary payload.
+                self.assertLess(pool.max_memory(), payload.nbytes // 4)
+                self.assertEqual(coder.decode(encoded).to_pylist(), batch.to_pylist())
 
 
 try:

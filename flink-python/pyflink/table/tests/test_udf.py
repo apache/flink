@@ -87,6 +87,28 @@ class ArrowScalarOperationTests(unittest.TestCase):
                 result = operation.process_element(pa.record_batch([values], names=["value"]))
                 self.assertEqual(result.column(0), values)
 
+    def test_nested_chunked_results(self):
+        values = pa.StructArray.from_arrays([pa.array([0, 1, None, 3])], names=["value"])
+        for chunks in (0, 1, 2):
+            with self.subTest(chunks=chunks):
+                column = values.slice(1, 0 if chunks == 0 else 3)
+
+                def chunk_result(array):
+                    parts = [] if chunks == 0 else [array] if chunks == 1 else [
+                        array.slice(0, 1), array.slice(1)]
+                    return pa.chunked_array(parts, type=array.type)
+
+                inner = proto.UserDefinedFunction(
+                    payload=cloudpickle.dumps(DelegatingScalarFunction(chunk_result)),
+                    is_arrow_udf=True, inputs=[proto.Input(inputOffset=0)])
+                operation = self.operation(lambda row: row.field("value"), [proto.Input(udf=inner)])
+                result = operation.process_element(pa.record_batch([column], names=["record"]))
+                self.assertEqual(result.column(0).to_pylist(), [] if chunks == 0 else [1, None, 3])
+                if chunks == 1:
+                    self.assertEqual(result.column(0).offset, column.field(0).offset)
+                    self.assertEqual([buffer.address for buffer in result.column(0).buffers()],
+                                     [buffer.address for buffer in column.field(0).buffers()])
+
     def test_whole_row_input(self):
         batch = pa.record_batch([pa.array(["alice", None]), pa.array([1, 2])],
                                 names=["name", "count"])
@@ -106,6 +128,18 @@ class ArrowScalarOperationTests(unittest.TestCase):
                 result = operation.process_element(batch)
                 self.assertEqual(result.column(0).to_pylist(),
                                  [{"name": "alice", "count": 2}, {"name": None, "count": 3}])
+
+    def test_whole_row_argument_offsets(self):
+        batch = pa.record_batch([pa.array([0, 1, None, 3]), pa.array([0, 100, 200, 300])],
+                                names=["a", "b"]).slice(1)
+        for offsets in ([0, 0, 1], [1, 0]):
+            with self.subTest(offsets=offsets):
+                operation = self.operation(
+                    lambda row: row.field(1),
+                    [proto.Input(inputOffset=offset) for offset in offsets],
+                    takes_row_as_input=True)
+                result = operation.process_element(batch)
+                self.assertEqual(result.column(0).to_pylist(), [1, None, 3])
 
     def test_invalid_scalar_results(self):
         batch = pa.record_batch([pa.array([1, 2, 3])], names=["value"])
