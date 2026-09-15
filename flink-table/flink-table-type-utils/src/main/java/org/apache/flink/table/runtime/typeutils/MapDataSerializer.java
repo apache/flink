@@ -40,6 +40,9 @@ import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 
+import static org.apache.flink.table.runtime.typeutils.SerializerSchemaCompatibilityUtils.isSerializerCompatibleAfterNullabilityWidening;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.isTypeCompatibleAfterNullabilityWidening;
+
 /** Serializer for {@link MapData}. */
 @Internal
 public class MapDataSerializer extends TypeSerializer<MapData> {
@@ -323,14 +326,18 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
 
             MapDataSerializerSnapshot previousMapDataSerializerSnapshot =
                     (MapDataSerializerSnapshot) oldSerializerSnapshot;
-            if (!keyType.equals(previousMapDataSerializerSnapshot.keyType)
-                    || !valueType.equals(previousMapDataSerializerSnapshot.valueType)
-                    || !keySerializer.equals(previousMapDataSerializerSnapshot.keySerializer)
-                    || !valueSerializer.equals(previousMapDataSerializerSnapshot.valueSerializer)) {
+
+            if (!isTypeCompatibleAfterNullabilityWidening(
+                            keyType, previousMapDataSerializerSnapshot.keyType)
+                    || !isTypeCompatibleAfterNullabilityWidening(
+                            valueType, previousMapDataSerializerSnapshot.valueType)
+                    || !isSerializerCompatibleAfterNullabilityWidening(
+                            keySerializer, previousMapDataSerializerSnapshot.keySerializer)
+                    || !isSerializerCompatibleAfterNullabilityWidening(
+                            valueSerializer, previousMapDataSerializerSnapshot.valueSerializer)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
-            } else {
-                return TypeSerializerSchemaCompatibility.compatibleAsIs();
             }
+            return TypeSerializerSchemaCompatibility.compatibleAsIs();
         }
     }
 }
