@@ -50,6 +50,7 @@ from pyflink.table.expressions import (
     lit as table_lit,
 )
 from pyflink.table.table import Table
+from pyflink.table.types import ArrayType, MapType, MultisetType, RowType
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["DataFrame", "GroupedDataFrame", "col", "lit"]
@@ -710,6 +711,180 @@ class DataFrame:
         table = self._table.flat_map(expression)
         # Table UDTFs expose positional field names, so restore the declared names.
         return DataFrame(table.alias(output_columns[0], *output_columns[1:]))
+
+    @PublicEvolving()
+    def explode(
+        self,
+        column: Union[str, Expression],
+        *,
+        output_column: Optional[Union[str, List[str]]] = None,
+        ignore_empty_and_null: bool = False,
+    ) -> "DataFrame":
+        """
+        Expand an ARRAY, MAP, or MULTISET into rows, preserving duplicate occurrences.
+
+        A referenced input column is replaced in place by the expanded element. For a computed
+        collection expression, all input columns are retained and the expanded element is
+        appended. MAP values yield key and value fields. ROW elements remain a single ROW column;
+        use :attr:`pyflink.table.Expression.flatten` in a subsequent :meth:`select` to expand its
+        fields. Empty and null collections produce a row with null output fields unless
+        ``ignore_empty_and_null`` is true.
+
+        .. warning::
+            Due to FLINK-40658, actual null ROW elements in an ARRAY are not handled correctly
+            and may be silently dropped or cause execution to fail. This limitation is independent
+            of ``ignore_empty_and_null``. A non-null ROW whose fields are all null is not affected.
+
+        :param column: Collection column name or row-wise expression to expand.
+        :param output_column: Output name or list of names. Required for multiple fields;
+            a single field defaults to the selected column name. Names must be unique and must
+            not conflict with retained input columns.
+        :param ignore_empty_and_null: Whether to drop rows with empty or null collections.
+        :return: A new DataFrame with the expanded rows.
+        :raises TypeError: If an argument has an unsupported type or the input is not a collection.
+        :raises ValueError: If the expression is not row-wise, selects multiple columns,
+            or output names are invalid.
+
+        Examples:
+
+        Explode an ARRAY of scalar values::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_dict({"id": [1, 2], "tags": [["a", "b"], []]})
+            >>> result = df.explode(
+            ...     "tags", output_column="tag", ignore_empty_and_null=True)
+
+        Explode an ARRAY of ROW values, then expand the ROW fields explicitly::
+
+            >>> import pyflink.dataframe as pf
+            >>> from typing import NamedTuple
+            >>> class Item(NamedTuple):
+            ...     name: str
+            ...     quantity: int
+            >>> orders = pf.from_records(
+            ...     [(1, [Item("apple", 2)])], schema=["id", "items"])
+            >>> exploded = orders.explode("items", ignore_empty_and_null=True)
+            >>> flattened = exploded.select("id", pf.col("items").flatten)
+            >>> flattened.columns
+            ['id', 'items$name', 'items$quantity']
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(column, (str, Expression)):
+            raise TypeError("column must be a column name or expression")
+        if not isinstance(ignore_empty_and_null, bool):
+            raise TypeError("ignore_empty_and_null must be a boolean")
+        if output_column is not None and not isinstance(output_column, (str, list)):
+            raise TypeError("output_column must be a string or list of strings")
+
+        expression = table_col(column) if isinstance(column, str) else column
+        selected = self._table.select(expression)
+        schema = selected.get_resolved_schema()
+        if len(schema.get_column_names()) != 1:
+            raise ValueError("column must select a single column")
+        projection = selected._j_table.getQueryOperation()
+        # Aggregates insert an intermediate operation whose field indexes refer to its result.
+        if not projection.getChildren().get(0).equals(self._table._j_table.getQueryOperation()):
+            raise ValueError("column must be a row-wise expression, not an aggregation")
+
+        data_type = schema.get_column_data_types()[0]
+        element_row_type = None
+        element_row_type_sql = None
+        if isinstance(data_type, MapType):
+            field_count = 2
+        elif isinstance(data_type, (ArrayType, MultisetType)):
+            element_type = data_type.element_type
+            element_row_type = element_type if isinstance(element_type, RowType) else None
+            if element_row_type is not None:
+                collection_type = schema._j_resolved_schema.getColumnDataTypes().get(0)
+                element_row_type_sql = (
+                    collection_type.getChildren()
+                    .get(0)
+                    .getLogicalType()
+                    .copy(True)
+                    .asSerializableString()
+                )
+            field_count = 1
+        else:
+            raise TypeError("column must have an ARRAY, MAP, or MULTISET type")
+
+        if output_column is None:
+            if field_count != 1:
+                raise ValueError("output_column is required for multiple output fields")
+            output_names = [schema.get_column_names()[0]]
+        else:
+            output_names = [output_column] if isinstance(output_column, str) else output_column
+        if not all(isinstance(name, str) for name in output_names):
+            raise TypeError("output_column must contain only strings")
+        if len(output_names) != field_count:
+            raise ValueError("output_column must contain %d name(s)" % field_count)
+        if any(not name for name in output_names) or len(set(output_names)) != field_count:
+            raise ValueError("output_column names must be non-empty and unique")
+
+        table = self._table
+        columns = list(table.get_resolved_schema().get_column_names())
+        resolved = projection.getProjectList().get(0)
+        # Resolve the input field by index so an alias does not hide the column to remove.
+        if resolved.getClass().getSimpleName() == "FieldReferenceExpression":
+            output_index = resolved.getFieldIndex()
+            collection_name = columns.pop(output_index)
+        else:
+            output_index = len(columns)
+            taken = set(columns) | set(output_names)
+            collection_name = _unique_name("__pf_explode", taken)
+            table = table.add_columns(expression.alias(collection_name))
+        if set(output_names).intersection(columns):
+            raise ValueError("output_column names conflict with retained input columns")
+
+        unnest_output_names = output_names
+        ordinality_name = None
+        if element_row_type is not None:
+            # SQL UNNEST expands ROW fields. Reassemble them below, using ordinality to
+            # distinguish an outer-join placeholder from a real ROW whose fields are all null.
+            taken = set(columns) | set(output_names) | {collection_name}
+            unnest_output_names = []
+            for index in range(len(element_row_type.fields)):
+                name = _unique_name("__pf_explode_field_%d" % index, taken)
+                taken.add(name)
+                unnest_output_names.append(name)
+            if not ignore_empty_and_null:
+                ordinality_name = _unique_name("__pf_explode_ordinality", taken)
+
+        if element_row_type is None:
+            explode_projection = [
+                "expanded." + _quote_identifier(name) for name in unnest_output_names
+            ]
+        else:
+            row_value = "CAST(ROW(%s) AS %s)" % (
+                ", ".join(
+                    "expanded." + _quote_identifier(name) for name in unnest_output_names
+                ),
+                element_row_type_sql,
+            )
+            if ordinality_name is not None:
+                row_value = "CASE WHEN expanded.%s IS NULL THEN CAST(NULL AS %s) ELSE %s END" % (
+                    _quote_identifier(ordinality_name),
+                    element_row_type_sql,
+                    row_value,
+                )
+            explode_projection = [row_value + " AS " + _quote_identifier(output_names[0])]
+
+        projections = ["src." + _quote_identifier(name) for name in columns]
+        projections[output_index:output_index] = explode_projection
+        query = "SELECT %s FROM %s AS src %s UNNEST(src.%s)%s AS expanded(%s)%s" % (
+            ", ".join(projections),
+            _quote_identifier(str(table)),
+            "CROSS JOIN" if ignore_empty_and_null else "LEFT JOIN",
+            _quote_identifier(collection_name),
+            " WITH ORDINALITY" if ordinality_name is not None else "",
+            ", ".join(
+                _quote_identifier(name)
+                for name in unnest_output_names
+                + ([ordinality_name] if ordinality_name is not None else [])
+            ),
+            "" if ignore_empty_and_null else " ON TRUE",
+        )
+        return DataFrame(table._t_env.sql_query(query))
 
     # ======================== Filtering & Ordering ========================
 
