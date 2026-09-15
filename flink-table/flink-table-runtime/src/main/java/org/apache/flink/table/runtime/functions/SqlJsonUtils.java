@@ -939,8 +939,7 @@ public class SqlJsonUtils {
                         if (d == 1.0) {
                             return true;
                         }
-                        throw new JsonConversionException(
-                                "Cannot convert " + raw + " to BOOLEAN");
+                        throw new JsonConversionException("Cannot convert " + raw + " to BOOLEAN");
                     }
                     return (Boolean) raw;
                 case TINYINT:
