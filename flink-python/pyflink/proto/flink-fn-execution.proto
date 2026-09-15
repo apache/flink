@@ -87,6 +87,35 @@ message UserDefinedFunctions {
   UserDefinedDataStreamFunction.RuntimeContext runtime_context = 7;
 }
 
+// A Python user-defined process table function and its explicit runtime contract.
+message UserDefinedProcessTableFunction {
+  message Argument {
+    string name = 1;
+    Schema.FieldType type = 2;
+    bool is_table = 3;
+    repeated string traits = 4;
+  }
+
+  message State {
+    string name = 1;
+    Schema.FieldType type = 2;
+    int64 ttl_millis = 3;
+  }
+
+  bytes payload = 1;
+  repeated Argument arguments = 2;
+  repeated State states = 3;
+  Schema.FieldType key_type = 4;
+  bool has_on_timer = 5;
+  bool metric_enabled = 6;
+  bool profile_enabled = 7;
+  int32 state_cache_size = 8;
+  int32 map_state_read_cache_size = 9;
+  int32 map_state_write_cache_size = 10;
+  repeated JobParameter job_parameters = 11;
+  UserDefinedDataStreamFunction.RuntimeContext runtime_context = 12;
+}
+
 // Used to describe the info of over window in pandas batch over window aggregation
 message OverWindow {
   enum WindowType {

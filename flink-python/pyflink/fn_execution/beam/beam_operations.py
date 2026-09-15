@@ -37,6 +37,7 @@ import pyflink.fn_execution.datastream.operations as datastream_operations
 from pyflink.fn_execution.datastream.process import operations
 import pyflink.fn_execution.table.async_function.operations as async_table_operations
 import pyflink.fn_execution.table.operations as table_operations
+import pyflink.fn_execution.table.process_table_function as process_table_function
 
 # ----------------- UDF --------------------
 
@@ -136,6 +137,15 @@ def create_pandas_over_window_aggregate_function(
 def create_data_stream_keyed_process_function(factory, transform_id, transform_proto, parameter,
                                               consumers):
     urn = parameter.do_fn.urn
+    if urn == process_table_function.PROCESS_TABLE_FUNCTION_URN:
+        payload = proto_utils.parse_Bytes(
+            parameter.do_fn.payload,
+            flink_fn_execution_pb2.UserDefinedProcessTableFunction)
+        operation_cls = beam_operations.StatefulFunctionOperation \
+            if payload.HasField('key_type') else beam_operations.StatelessFunctionOperation
+        return _create_user_defined_function_operation(
+            factory, transform_proto, consumers, payload, operation_cls,
+            process_table_function.ProcessTableFunctionOperation)
     payload = proto_utils.parse_Bytes(
         parameter.do_fn.payload, flink_fn_execution_pb2.UserDefinedDataStreamFunction)
     if urn == datastream_operations.DATA_STREAM_STATELESS_FUNCTION_URN:
@@ -176,11 +186,11 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
     else:
         operator_state_backend = None
 
-    if hasattr(serialized_fn, "key_type"):
+    if hasattr(serialized_fn, "key_type") and serialized_fn.HasField("key_type"):
         # keyed operation, need to create the KeyedStateBackend.
         row_schema = serialized_fn.key_type.row_schema
         key_row_coder = FlattenRowCoder([from_proto(f.type) for f in row_schema.fields])
-        if serialized_fn.HasField('group_window'):
+        if hasattr(serialized_fn, 'group_window') and serialized_fn.HasField('group_window'):
             if serialized_fn.group_window.is_time_window:
                 window_coder = TimeWindowCoder()
             else:

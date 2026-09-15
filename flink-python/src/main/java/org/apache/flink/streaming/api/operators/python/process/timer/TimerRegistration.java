@@ -35,7 +35,7 @@ import java.util.Map;
 
 /** Handles the interaction with the Python worker for registering and deleting timers. */
 @Internal
-public final class TimerRegistration {
+public final class TimerRegistration implements TimerRegistrationHandler {
 
     private final KeyedStateBackend<Row> keyedStateBackend;
     private final InternalTimerService internalTimerService;
@@ -61,6 +61,7 @@ public final class TimerRegistration {
         this.baisWrapper = new DataInputViewStreamWrapper(bais);
     }
 
+    @Override
     public void setTimer(byte[] serializedTimerData) {
         try {
             bais.setBuffer(serializedTimerData, 0, serializedTimerData.length);

@@ -43,7 +43,6 @@ class TableEnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlin
             "registerTable",
             "from",
             "registerFunction",
-            "fromCall",
             "fromModel",
         }
 
