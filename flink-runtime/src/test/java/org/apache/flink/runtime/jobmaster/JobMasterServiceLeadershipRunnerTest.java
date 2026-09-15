@@ -57,8 +57,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import javax.annotation.Nonnull;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -68,6 +68,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -244,17 +245,24 @@ class JobMasterServiceLeadershipRunnerTest {
         assertThat(jobManagerRunnerResult.getInitializationFailure()).isEqualTo(testException);
     }
 
-    @Nonnull
     private ExecutionGraphInfo createFailedExecutionGraphInfo(FlinkException testException) {
+        return createExecutionGraphInfo(JobStatus.FAILED, testException);
+    }
+
+    private ExecutionGraphInfo createExecutionGraphInfo(JobStatus jobStatus, Throwable cause) {
         return new ExecutionGraphInfo(
                 ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                         jobGraph.getJobID(),
                         jobGraph.getName(),
-                        JobStatus.FAILED,
+                        jobStatus,
                         jobGraph.getJobType(),
-                        testException,
+                        cause,
                         null,
                         1L));
+    }
+
+    private JobManagerRunnerResult createGloballyTerminalResult(JobStatus jobStatus) {
+        return JobManagerRunnerResult.forSuccess(createExecutionGraphInfo(jobStatus, null));
     }
 
     @Test
@@ -482,7 +490,7 @@ class JobMasterServiceLeadershipRunnerTest {
     }
 
     @Test
-    void testResultFutureCompletionOfOutdatedLeaderIsIgnored() throws Exception {
+    void testInitializationFailureCompletionOfOutdatedLeaderIsIgnored() throws Exception {
         final CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
         final JobMasterServiceLeadershipRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
@@ -503,8 +511,9 @@ class JobMasterServiceLeadershipRunnerTest {
                 .isNotDone();
 
         resultFuture.complete(
-                JobManagerRunnerResult.forSuccess(
-                        createFailedExecutionGraphInfo(new FlinkException("test exception"))));
+                JobManagerRunnerResult.forInitializationFailure(
+                        createFailedExecutionGraphInfo(new FlinkException("test exception")),
+                        new FlinkException("test exception")));
 
         assertThat(jobManagerRunner.getResultFuture())
                 .as("The runner result should not be completed if the leadership is lost.")
@@ -525,6 +534,199 @@ class JobMasterServiceLeadershipRunnerTest {
                                                     .getState())
                                     .isEqualTo(JobStatus.SUSPENDED);
                         });
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(
+            value = JobStatus.class,
+            names = {"FAILED", "FINISHED", "CANCELED"})
+    void testCloseAsyncCompletesWithGloballyTerminalResultObservedBeforeLeadershipRevoke(
+            JobStatus terminalStatus) throws Exception {
+        final CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
+        final ControlledForwardingCheck check = new ControlledForwardingCheck();
+        final JobMasterServiceLeadershipRunner jobManagerRunner =
+                newJobMasterServiceLeadershipRunnerBuilder()
+                        .setLeaderElection(check.election)
+                        .withSingleJobMasterServiceProcess(
+                                TestingJobMasterServiceProcess.newBuilder()
+                                        .setGetResultFutureSupplier(() -> resultFuture)
+                                        .build())
+                        .build();
+
+        jobManagerRunner.start();
+        try {
+            check.election.isLeader(UUID.randomUUID()).join();
+
+            resultFuture.complete(createGloballyTerminalResult(terminalStatus));
+            assertThat(jobManagerRunner.getResultFuture()).isNotDone();
+
+            check.election.notLeader();
+            jobManagerRunner.closeAsync().get();
+
+            assertRunnerResultHasJobStatus(jobManagerRunner, terminalStatus);
+        } finally {
+            check.release();
+        }
+    }
+
+    @Test
+    void testCloseAsyncFlushesCachedGloballyTerminalResultAfterRevoke() throws Exception {
+        final CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
+        final ControlledForwardingCheck check = new ControlledForwardingCheck();
+        final JobMasterServiceLeadershipRunner jobManagerRunner =
+                newJobMasterServiceLeadershipRunnerBuilder()
+                        .setLeaderElection(check.election)
+                        .withSingleJobMasterServiceProcess(
+                                TestingJobMasterServiceProcess.newBuilder()
+                                        .setGetResultFutureSupplier(() -> resultFuture)
+                                        .build())
+                        .build();
+
+        jobManagerRunner.start();
+        try {
+            check.election.isLeader(UUID.randomUUID()).join();
+
+            check.election.notLeader();
+            resultFuture.complete(createGloballyTerminalResult(JobStatus.FAILED));
+
+            assertThat(jobManagerRunner.getResultFuture()).isNotDone();
+
+            jobManagerRunner.closeAsync().get();
+
+            assertRunnerResultHasJobStatus(jobManagerRunner, JobStatus.FAILED);
+        } finally {
+            check.release();
+        }
+    }
+
+    @Test
+    void testGrantLeadershipFlushesCachedTerminalResultObservedAfterRevoke() throws Exception {
+        final CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
+        final AtomicInteger createdProcesses = new AtomicInteger();
+        final ControlledForwardingCheck check = new ControlledForwardingCheck();
+        final JobMasterServiceLeadershipRunner jobManagerRunner =
+                newJobMasterServiceLeadershipRunnerBuilder()
+                        .setLeaderElection(check.election)
+                        .setJobMasterServiceProcessFactory(
+                                TestingJobMasterServiceProcessFactory.newBuilder()
+                                        .setJobId(jobGraph.getJobID())
+                                        .setJobName(jobGraph.getName())
+                                        .setJobMasterServiceProcessFunction(
+                                                ignored -> {
+                                                    createdProcesses.incrementAndGet();
+                                                    return TestingJobMasterServiceProcess
+                                                            .newBuilder()
+                                                            .setGetResultFutureSupplier(
+                                                                    () -> resultFuture)
+                                                            .build();
+                                                })
+                                        .build())
+                        .build();
+
+        jobManagerRunner.start();
+        try {
+            check.election.isLeader(UUID.randomUUID()).join();
+            assertThat(createdProcesses).hasValue(1);
+
+            check.election.notLeader();
+            resultFuture.complete(createGloballyTerminalResult(JobStatus.FAILED));
+
+            assertThat(jobManagerRunner.getResultFuture()).isNotDone();
+
+            jobManagerRunner.grantLeadership(UUID.randomUUID());
+
+            assertThat(createdProcesses)
+                    .as(
+                            "A re-grant after a cached terminal result must flush it instead of starting a zombie process.")
+                    .hasValue(1);
+
+            assertRunnerResultHasJobStatus(jobManagerRunner, JobStatus.FAILED);
+        } finally {
+            check.release();
+        }
+    }
+
+    @Test
+    void testGloballyTerminalResultFromStaleProcessIsNotCached() throws Exception {
+        final CompletableFuture<JobManagerRunnerResult> staleProcessResultFuture =
+                new CompletableFuture<>();
+        final Queue<CompletableFuture<JobManagerRunnerResult>> processResultFutures =
+                new ArrayDeque<>(
+                        Arrays.asList(staleProcessResultFuture, new CompletableFuture<>()));
+        final JobMasterServiceLeadershipRunner jobManagerRunner =
+                newJobMasterServiceLeadershipRunnerBuilder()
+                        .setJobMasterServiceProcessFactory(
+                                TestingJobMasterServiceProcessFactory.newBuilder()
+                                        .setJobId(jobGraph.getJobID())
+                                        .setJobName(jobGraph.getName())
+                                        .setJobMasterServiceProcessFunction(
+                                                ignored ->
+                                                        TestingJobMasterServiceProcess.newBuilder()
+                                                                .setGetResultFutureSupplier(
+                                                                        processResultFutures::poll)
+                                                                .build())
+                                        .build())
+                        .build();
+
+        jobManagerRunner.start();
+
+        // First leadership term creates the process that later turns stale.
+        leaderElection.isLeader(UUID.randomUUID()).join();
+        leaderElection.notLeader();
+
+        // Second leadership term makes a different process the current one.
+        leaderElection.isLeader(UUID.randomUUID()).join();
+
+        // The stale process from the first term now observes a globally terminal result. Since its
+        // leader session id no longer matches the current process, the result must not be cached.
+        staleProcessResultFuture.complete(createGloballyTerminalResult(JobStatus.FAILED));
+
+        assertThat(jobManagerRunner.getResultFuture()).isNotDone();
+
+        jobManagerRunner.closeAsync().get();
+
+        assertRunnerResultHasJobStatus(jobManagerRunner, JobStatus.SUSPENDED);
+    }
+
+    private static void assertRunnerResultHasJobStatus(
+            JobMasterServiceLeadershipRunner runner, JobStatus expectedStatus) {
+        assertThatFuture(runner.getResultFuture())
+                .eventuallySucceeds()
+                .satisfies(
+                        result ->
+                                assertThat(
+                                                result.getExecutionGraphInfo()
+                                                        .getArchivedExecutionGraph()
+                                                        .getState())
+                                        .isEqualTo(expectedStatus));
+    }
+
+    private static final class ControlledForwardingCheck {
+        final CompletableFuture<Boolean> delayedForwardingCheck = new CompletableFuture<>();
+        final TestingLeaderElection election;
+
+        ControlledForwardingCheck() {
+            final Queue<CompletableFuture<Boolean>> hasLeadershipResults =
+                    new ArrayDeque<>(
+                            Arrays.asList(
+                                    CompletableFuture.completedFuture(true),
+                                    delayedForwardingCheck));
+            this.election =
+                    new TestingLeaderElection() {
+                        @Override
+                        public synchronized CompletableFuture<Boolean> hasLeadershipAsync(
+                                UUID leaderSessionId) {
+                            return hasLeadershipResults.isEmpty()
+                                    ? CompletableFuture.completedFuture(false)
+                                    : hasLeadershipResults.poll();
+                        }
+                    };
+        }
+
+        void release() throws Exception {
+            delayedForwardingCheck.complete(false);
+            election.close();
+        }
     }
 
     @Test
