@@ -18,13 +18,15 @@
 
 from typing import Dict, List, Optional, Tuple, Union
 
+from pyflink.dataframe.catalog import _validate_name
 from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame, _normalize_subset
 from pyflink.dataframe.datatype import DataType
+from pyflink.dataframe.errors import _raise_as_value_error
 from pyflink.table import Schema, TableDescriptor
 from pyflink.util.api_stability_decorators import PublicEvolving
 
-__all__ = ["read_generic", "read_json", "read_parquet"]
+__all__ = ["read_catalog_table", "read_generic", "read_json", "read_parquet"]
 
 
 def _build_filesystem_options(
@@ -408,7 +410,11 @@ def _read(
     descriptor = _build_generic_descriptor(
         connector, options, schema=source_schema, partition_by=partition_by)
     table_environment = get_or_create_table_environment()
-    return DataFrame(table_environment.from_descriptor(descriptor))
+    try:
+        table = table_environment.from_descriptor(descriptor)
+    except Exception as error:
+        _raise_as_value_error(error)
+    return DataFrame(table)
 
 
 @PublicEvolving()
@@ -435,7 +441,8 @@ def read_generic(
     :return: A DataFrame backed by the configured source.
     :raises TypeError: If an argument has an invalid type.
     :raises ValueError: If a connector, schema, option key, computed column, or watermark value is
-        empty, or if a computed column conflicts with a physical column.
+        empty, if a computed column conflicts with a physical column, or if Flink rejects a
+        computed column or watermark expression.
 
     Example::
 
@@ -461,3 +468,40 @@ def read_generic(
         connector, schema=schema, options=options,
         computed_columns=computed_columns, watermark=watermark,
     )
+
+
+@PublicEvolving()
+def read_catalog_table(path: str) -> DataFrame:
+    """
+    Read a table registered in a catalog.
+
+    ``path`` is ``table_name``, ``db_name.table_name``, or ``catalog_name.db_name.table_name``.
+    Missing parts are resolved against the current catalog and database, see
+    :func:`~pyflink.dataframe.use_catalog` and :func:`~pyflink.dataframe.use_database`. Names that
+    are reserved keywords or contain dots must be escaped with backticks.
+
+    :param path: Path of the catalog table.
+    :return: A DataFrame backed by the catalog table.
+    :raises TypeError: If ``path`` is not a string.
+    :raises ValueError: If ``path`` is empty, is not a valid table path, or does not resolve to a
+        table.
+
+    Example::
+
+        >>> import pyflink.dataframe as pf
+        >>> pf.create_catalog("my_catalog", {"type": "generic_in_memory"})
+        >>> orders = pf.read_catalog_table("my_catalog.default.orders")
+        >>> pf.use_catalog("my_catalog")
+        >>> orders = pf.read_catalog_table("default.orders")
+        >>> pf.use_database("default")
+        >>> orders = pf.read_catalog_table("orders")
+
+    .. versionadded:: 2.4.0
+    """
+    _validate_name(path, "path")
+    table_environment = get_or_create_table_environment()
+    try:
+        table = table_environment.from_path(path)
+    except Exception as error:
+        _raise_as_value_error(error)
+    return DataFrame(table)
