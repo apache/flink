@@ -31,6 +31,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -201,6 +202,11 @@ public abstract class LogicalTypeDefaultVisitor<R> implements LogicalTypeVisitor
     @Override
     public R visit(BitmapType bitmapType) {
         return defaultMethod(bitmapType);
+    }
+
+    @Override
+    public R visit(GeographyType geographyType) {
+        return defaultMethod(geographyType);
     }
 
     @Override
