@@ -19,6 +19,7 @@
 package org.apache.flink.fs.s3.common.token;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,16 +33,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AbstractS3DelegationTokenReceiverTest {
 
     private static final String PROVIDER_CLASS_NAME = "TestProvider";
+    private static final String SDK_V2_PROVIDER_CLASS_NAME =
+            "org.apache.flink.fs.s3.common.token.HadoopDynamicTemporaryAWSCredentialsProvider";
     private static final String REGION = "testRegion";
 
     @BeforeEach
     void beforeEach() {
         AbstractS3DelegationTokenReceiver.region = null;
+        AbstractS3DelegationTokenReceiver.credentials = null;
     }
 
     @AfterEach
     void afterEach() {
         AbstractS3DelegationTokenReceiver.region = null;
+        AbstractS3DelegationTokenReceiver.credentials = null;
     }
 
     @Test
@@ -77,6 +82,46 @@ class AbstractS3DelegationTokenReceiverTest {
     }
 
     @Test
+    void updateHadoopConfigShouldSetGivenProviderName() {
+        org.apache.hadoop.conf.Configuration hadoopConfiguration =
+                new org.apache.hadoop.conf.Configuration();
+        hadoopConfiguration.set(PROVIDER_CONFIG_NAME, "");
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(
+                hadoopConfiguration, SDK_V2_PROVIDER_CLASS_NAME);
+        assertThat(hadoopConfiguration.get(PROVIDER_CONFIG_NAME))
+                .isEqualTo(SDK_V2_PROVIDER_CLASS_NAME);
+    }
+
+    @Test
+    void updateHadoopConfigShouldRemapLegacyProviderName() {
+        // A user-configured reference to the SDK v1 provider must be remapped in plugins that
+        // register a different (SDK v2) provider, because the v1 provider class cannot be loaded
+        // there.
+        org.apache.hadoop.conf.Configuration hadoopConfiguration =
+                new org.apache.hadoop.conf.Configuration();
+        hadoopConfiguration.set(
+                PROVIDER_CONFIG_NAME,
+                DynamicTemporaryAWSCredentialsProvider.NAME + "," + PROVIDER_CLASS_NAME);
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(
+                hadoopConfiguration, SDK_V2_PROVIDER_CLASS_NAME);
+        assertThat(hadoopConfiguration.get(PROVIDER_CONFIG_NAME))
+                .isEqualTo(SDK_V2_PROVIDER_CLASS_NAME + "," + PROVIDER_CLASS_NAME);
+    }
+
+    @Test
+    void updateHadoopConfigShouldDropDuplicateAfterRemapping() {
+        org.apache.hadoop.conf.Configuration hadoopConfiguration =
+                new org.apache.hadoop.conf.Configuration();
+        hadoopConfiguration.set(
+                PROVIDER_CONFIG_NAME,
+                SDK_V2_PROVIDER_CLASS_NAME + "," + DynamicTemporaryAWSCredentialsProvider.NAME);
+        AbstractS3DelegationTokenReceiver.updateHadoopConfig(
+                hadoopConfiguration, SDK_V2_PROVIDER_CLASS_NAME);
+        assertThat(hadoopConfiguration.get(PROVIDER_CONFIG_NAME))
+                .isEqualTo(SDK_V2_PROVIDER_CLASS_NAME);
+    }
+
+    @Test
     void updateHadoopConfigShouldNotUpdateRegionWhenNotConfigured() {
         AbstractS3DelegationTokenReceiver receiver = createReceiver();
         receiver.init(new Configuration());
@@ -98,6 +143,22 @@ class AbstractS3DelegationTokenReceiverTest {
                 new org.apache.hadoop.conf.Configuration();
         AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfiguration);
         assertThat(hadoopConfiguration.get("fs.s3a.endpoint.region")).isEqualTo(REGION);
+    }
+
+    @Test
+    void onNewTokensObtainedShouldStoreDeserializedCredentials() throws Exception {
+        AbstractS3DelegationTokenReceiver receiver = createReceiver();
+        S3SessionCredentials credentials =
+                new S3SessionCredentials("accessKeyId", "secretAccessKey", "sessionToken", 42L);
+
+        receiver.onNewTokensObtained(InstantiationUtil.serializeObject(credentials));
+
+        S3SessionCredentials storedCredentials = AbstractS3DelegationTokenReceiver.getCredentials();
+        assertThat(storedCredentials).isNotNull();
+        assertThat(storedCredentials.getAccessKeyId()).isEqualTo("accessKeyId");
+        assertThat(storedCredentials.getSecretAccessKey()).isEqualTo("secretAccessKey");
+        assertThat(storedCredentials.getSessionToken()).isEqualTo("sessionToken");
+        assertThat(storedCredentials.getExpirationEpochMilli()).isEqualTo(42L);
     }
 
     private AbstractS3DelegationTokenReceiver createReceiver() {
