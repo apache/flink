@@ -153,6 +153,7 @@ Format Options
           If the value is set to false, the format will generate null values if the data element does not exist in the binary protobuf message.
           With Flink's current protobuf version (4.32.1), field presence is properly supported for proto3, allowing null handling for non-primitive types.
           Please be aware that setting this to true will cause the deserialization performance to be much slower depending on schema complexity and message size.
+          Note: a recursive message type that declares <code>required</code> fields cannot be serialized when an absent recursive field is read with this set to true. The absent sub-message is materialized as empty bytes, which cannot be parsed back because its required fields are missing, so serialization fails with a runtime error. Use false for such messages, or ensure the recursive field is always present.
       </td>
     </tr>
     <tr>
