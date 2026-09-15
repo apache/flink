@@ -73,6 +73,29 @@ class CreateConnectionITCase extends BatchTestBase {
                 .hasMessageContaining("WritableSecretStore must be configured");
     }
 
+    @Test
+    void testDropTemporaryConnection() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+
+        tEnv().executeSql("DROP TEMPORARY CONNECTION my_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+    }
+
+    @Test
+    void testDropTemporaryConnectionIfExists() {
+        tEnv().executeSql("DROP TEMPORARY CONNECTION IF EXISTS my_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+    }
+
+    @Test
+    void testDropMissingTemporaryConnectionRejected() {
+        assertThatThrownBy(() -> tEnv().executeSql("DROP TEMPORARY CONNECTION my_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Temporary connection with identifier");
+    }
+
     private CatalogManager catalogManager() {
         return ((TableEnvironmentInternal) tEnv()).getCatalogManager();
     }
