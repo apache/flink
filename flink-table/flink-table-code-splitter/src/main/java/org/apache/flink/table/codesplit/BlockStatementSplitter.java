@@ -181,7 +181,13 @@ public class BlockStatementSplitter {
 
         public void visitStatement(StatementContext ctx, String context) {
 
-            if (ctx.getChildCount() == 0 || getNumOfReturnOrJumpStatements(ctx) != 0) {
+            if (ctx.getChildCount() == 0 || getNumOfReturn(ctx) != 0) {
+                return;
+            }
+
+            // Keep jumps with their loop, but allow moving a complete loop with an enclosing block.
+            if ((ctx.WHILE() != null || ctx.FOR() != null)
+                    && getNumOfReturnOrJumpStatements(ctx) != 0) {
                 return;
             }
 
@@ -268,6 +274,12 @@ public class BlockStatementSplitter {
                     && (statement.IF() != null
                             || statement.ELSE() != null
                             || statement.WHILE() != null);
+        }
+
+        private int getNumOfReturn(ParserRuleContext ctx) {
+            ReturnAndJumpCounter counter = new ReturnAndJumpCounter();
+            counter.visit(ctx);
+            return counter.getReturnCounter();
         }
 
         private int getNumOfReturnOrJumpStatements(ParserRuleContext ctx) {
