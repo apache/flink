@@ -272,16 +272,23 @@ class ArrowCodersTests(unittest.TestCase):
         payload = pa.array([b'x' * 2048] * count)
         nulls = [index == count // 2 for index in range(count)]
         offsets = pa.array(range(count + 1), type=pa.int32())
-        for data_type, column in (
+        booleans = pa.array([False] * 65536)
+        boolean_lists = pa.ListArray.from_arrays([0, len(booleans), len(booleans)], booleans)
+        for data_type, column, parent_nulls, memory_limit in (
             (DataTypes.ROW([DataTypes.FIELD("payload", DataTypes.BYTES())]),
-             pa.StructArray.from_arrays([payload], names=["payload"])),
+             pa.StructArray.from_arrays([payload], names=["payload"]),
+             nulls, payload.nbytes // 4),
             (DataTypes.ARRAY(DataTypes.BYTES()),
-             pa.ListArray.from_arrays(offsets, payload)),
+             pa.ListArray.from_arrays(offsets, payload), nulls, payload.nbytes // 4),
             (DataTypes.MAP(DataTypes.STRING().not_null(), DataTypes.BYTES()),
-             pa.MapArray.from_arrays(offsets, pa.array(['k'] * count), payload)),
+             pa.MapArray.from_arrays(offsets, pa.array(['k'] * count), payload),
+             nulls, payload.nbytes // 4),
+            (DataTypes.ARRAY(DataTypes.BOOLEAN()), boolean_lists, [False, True], 4096),
+            (DataTypes.ARRAY(DataTypes.BOOLEAN().not_null()),
+             boolean_lists, [False, True], 4096),
         ):
             with self.subTest(data_type=data_type):
-                column = self.with_parent_nulls(column, nulls)
+                column = self.with_parent_nulls(column, parent_nulls)
                 row_type = DataTypes.ROW([DataTypes.FIELD("value", data_type)])
                 schema = create_arrow_schema(["value"], [data_type], allow_nested=True)
                 batch = pa.record_batch([column], names=["value"])
@@ -293,8 +300,8 @@ class ArrowCodersTests(unittest.TestCase):
                     encoded = coder.encode(batch)
                 finally:
                     pa.set_memory_pool(default_pool)
-                # Allow masks, indices and IPC metadata, but not a copy of the binary payload.
-                self.assertLess(pool.max_memory(), payload.nbytes // 4)
+                # Allow IPC metadata, but not payload copies or element-sized temporary arrays.
+                self.assertLess(pool.max_memory(), memory_limit)
                 self.assertEqual(coder.decode(encoded).to_pylist(), batch.to_pylist())
 
 

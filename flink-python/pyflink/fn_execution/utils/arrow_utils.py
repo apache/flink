@@ -18,6 +18,8 @@
 
 """Arrow-native scalar UDF result contracts shared by the Python and compiled coders."""
 
+from functools import cache
+
 
 def validate_arrow_batch(batch, schema, field_types):
     import pyarrow as pa
@@ -41,13 +43,13 @@ def _validate_array(column, expected_type, data_type, path, parent_validity=None
             f"Arrow result field '{path}' has type {column.type}, expected {expected_type}.")
 
     if not data_type._nullable and column.null_count:
-        if parent_validity is None or pc.any(
-                pc.and_(parent_validity, column.is_null())).as_py():
+        validity = parent_validity() if parent_validity is not None else None
+        if validity is None or pc.any(pc.and_(validity, column.is_null())).as_py():
             raise ValueError(f"Arrow result field '{path}' is not nullable.")
     if isinstance(data_type, RowType):
         if not pa.types.is_struct(column.type) or column.type.num_fields != len(data_type.fields):
             wrong_type()
-        validity = _get_validity(column, parent_validity)
+        validity = cache(lambda: _get_validity(column, parent_validity))
         for index, field in enumerate(data_type.fields):
             if column.type[index].name != field.name:
                 wrong_type()
@@ -59,11 +61,11 @@ def _validate_array(column, expected_type, data_type, path, parent_validity=None
         start, end = column.offsets[0].as_py(), column.offsets[-1].as_py()
         _validate_array(column.values.slice(start, end - start), expected_type.value_type,
                         data_type.element_type, f"{path}[]",
-                        _get_child_validity(column, parent_validity))
+                        cache(lambda: _get_child_validity(column, parent_validity)))
     elif isinstance(data_type, MapType):
         if not pa.types.is_map(column.type):
             wrong_type()
-        validity = _get_child_validity(column, parent_validity)
+        validity = cache(lambda: _get_child_validity(column, parent_validity))
         start, end = column.offsets[0].as_py(), column.offsets[-1].as_py()
         _validate_array(column.keys.slice(start, end - start), expected_type.key_type,
                         data_type.key_type.not_null(), f"{path}.key", validity)
@@ -76,7 +78,8 @@ def _validate_array(column, expected_type, data_type, path, parent_validity=None
 def _get_validity(column, parent_validity):
     import pyarrow.compute as pc
 
-    # Hidden child nulls are valid; propagate visibility instead of filtering the payload.
+    # Resolve ancestor visibility only when a NOT NULL descendant contains physical nulls.
+    parent_validity = parent_validity() if parent_validity is not None else None
     if column.null_count:
         validity = column.is_valid()
         return validity if parent_validity is None else pc.and_(parent_validity, validity)
