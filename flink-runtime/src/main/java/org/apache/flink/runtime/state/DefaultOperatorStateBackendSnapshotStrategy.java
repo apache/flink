@@ -123,6 +123,21 @@ class DefaultOperatorStateBackendSnapshotStrategy
                 syncPartResource.getRegisteredBroadcastStatesDeepCopies();
 
         if (registeredBroadcastStatesDeepCopies.isEmpty()
+                && hasOnlyEmptyOperatorListStates(registeredOperatorStatesDeepCopies)) {
+            if (streamFactory instanceof FsMergingCheckpointStorageLocation) {
+                FsMergingCheckpointStorageLocation location =
+                        (FsMergingCheckpointStorageLocation) streamFactory;
+                return snapshotCloseableRegistry ->
+                        SnapshotResult.of(
+                                EmptyFileMergingOperatorStreamStateHandle.create(
+                                        location.getExclusiveStateHandle(),
+                                        location.getSharedStateHandle()));
+            } else {
+                return snapshotCloseableRegistry -> SnapshotResult.empty();
+            }
+        }
+
+        if (registeredBroadcastStatesDeepCopies.isEmpty()
                 && registeredOperatorStatesDeepCopies.isEmpty()) {
             if (streamFactory instanceof FsMergingCheckpointStorageLocation) {
                 FsMergingCheckpointStorageLocation location =
@@ -234,6 +249,20 @@ class DefaultOperatorStateBackendSnapshotStrategy
                 throw new IOException("Stream was already unregistered.");
             }
         };
+    }
+
+    private boolean hasOnlyEmptyOperatorListStates(
+            Map<String, PartitionableListState<?>> registeredOperatorStatesDeepCopies) {
+        if (registeredOperatorStatesDeepCopies.isEmpty()) {
+            return false;
+        }
+
+        for (PartitionableListState<?> listState : registeredOperatorStatesDeepCopies.values()) {
+            if (listState == null || listState.get().iterator().hasNext()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static class DefaultOperatorStateBackendSnapshotResources implements SnapshotResources {
