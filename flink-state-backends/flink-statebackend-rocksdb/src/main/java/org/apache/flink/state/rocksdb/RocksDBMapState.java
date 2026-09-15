@@ -22,7 +22,9 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -227,6 +229,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
             DataInputDeserializer serializedOldValueInput,
             DataOutputSerializer serializedMigratedValueOutput,
             TypeSerializer<Map<UK, UV>> priorSerializer,
+            @Nullable TypeSerializerSnapshot<Map<UK, UV>> priorSerializerSnapshot,
             TypeSerializer<Map<UK, UV>> newSerializer,
             TtlTimeProvider ttlTimeProvider)
             throws StateMigrationException {
@@ -240,6 +243,23 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         TtlAwareSerializer<UV, ?> newTtlAwareMapValueSerializer =
                 ((TtlAwareSerializer.TtlAwareMapSerializer<UK, UV>) newSerializer)
                         .getValueSerializer();
+        // Descend the persisted snapshot the same way as the serializer, so value migration sees
+        // the schema the map values were written with. A state that carries no persisted
+        // snapshot leaves this null, and the value migration re-derives one instead.
+        TypeSerializerSnapshot<UV> priorMapValueSerializerSnapshot = null;
+        if (priorSerializerSnapshot != null) {
+            // Thrown rather than checked through Preconditions: this method runs once per state
+            // entry, so the message must not be built while the check is passing.
+            if (!(priorSerializerSnapshot instanceof MapSerializerSnapshot)) {
+                throw new IllegalArgumentException(
+                        "The previous serializer snapshot of a map state should be a MapSerializerSnapshot, but was "
+                                + priorSerializerSnapshot.getClass().getName()
+                                + ".");
+            }
+            priorMapValueSerializerSnapshot =
+                    ((MapSerializerSnapshot<UK, UV>) priorSerializerSnapshot)
+                            .getValueSerializerSnapshot();
+        }
 
         try {
             boolean isNull = serializedOldValueInput.readBoolean();
@@ -250,6 +270,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
             } else {
                 newTtlAwareMapValueSerializer.migrateValueFromPriorSerializer(
                         priorTtlAwareMapValueSerializer,
+                        priorMapValueSerializerSnapshot,
                         () -> priorTtlAwareMapValueSerializer.deserialize(serializedOldValueInput),
                         serializedMigratedValueOutput,
                         ttlTimeProvider);
