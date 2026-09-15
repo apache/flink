@@ -243,6 +243,85 @@ class RocksDBPrefixIteratorTest {
     }
 
     @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testResumedSeekDoesNotStopAtExtractedPrefix(boolean totalOrderSeek)
+            throws RocksDBException {
+        final RocksDB db = rocksDBExtension.getRocksDB();
+        try (ColumnFamilyOptions options =
+                        new ColumnFamilyOptions().useFixedLengthPrefixExtractor(2);
+                ColumnFamilyHandle columnFamily =
+                        db.createColumnFamily(new ColumnFamilyDescriptor(bytes(42), options));
+                ReadOptions readOptions =
+                        new ReadOptions()
+                                .setPrefixSameAsStart(true)
+                                .setTotalOrderSeek(totalOrderSeek)) {
+            db.put(columnFamily, bytes(1, 0), bytes());
+            db.put(columnFamily, bytes(1, 1), bytes());
+            db.put(columnFamily, bytes(2, 0), bytes());
+
+            try (RocksIteratorWrapper iterator =
+                    RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
+                            db, columnFamily, readOptions, bytes(1))) {
+                // The map prefix is [1], but the resume key's extracted prefix is [1, 0].
+                assertKeys(iterator, bytes(1, 0), bytes(1, 0), bytes(1, 1));
+            }
+
+            assertThat(readOptions.prefixSameAsStart()).isTrue();
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testInitialSeekDoesNotStopAtExtractedPrefix(boolean totalOrderSeek)
+            throws RocksDBException {
+        final RocksDB db = rocksDBExtension.getRocksDB();
+        // RocksDB enforces prefixSameAsStart regardless of totalOrderSeek, so both are covered.
+        try (ColumnFamilyOptions options = new ColumnFamilyOptions().useCappedPrefixExtractor(2);
+                ColumnFamilyHandle columnFamily =
+                        db.createColumnFamily(new ColumnFamilyDescriptor(bytes(42), options));
+                ReadOptions readOptions =
+                        new ReadOptions()
+                                .setPrefixSameAsStart(true)
+                                .setTotalOrderSeek(totalOrderSeek)) {
+            db.put(columnFamily, bytes(1, 0), bytes());
+            db.put(columnFamily, bytes(1, 1), bytes());
+            db.put(columnFamily, bytes(2, 0), bytes());
+
+            try (RocksIteratorWrapper iterator =
+                    RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
+                            db, columnFamily, readOptions, bytes(1))) {
+                // The bare prefix [1] is its own extracted prefix, which no stored key shares.
+                assertKeys(iterator, bytes(1), bytes(1, 0), bytes(1, 1));
+            }
+
+            assertThat(readOptions.prefixSameAsStart()).isTrue();
+        }
+    }
+
+    @Test
+    void testConfiguredLowerBoundDoesNotClampSeek() throws RocksDBException {
+        final RocksDB db = rocksDBExtension.getRocksDB();
+        try (ColumnFamilyOptions options = new ColumnFamilyOptions();
+                ColumnFamilyHandle columnFamily =
+                        db.createColumnFamily(new ColumnFamilyDescriptor(bytes(42), options));
+                Slice lowerBound = new Slice(bytes(1, 1));
+                ReadOptions readOptions = new ReadOptions().setIterateLowerBound(lowerBound)) {
+            db.put(columnFamily, bytes(1, 0), bytes());
+            db.put(columnFamily, bytes(1, 1), bytes());
+            db.put(columnFamily, bytes(2, 0), bytes());
+
+            try (RocksIteratorWrapper iterator =
+                    RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
+                            db, columnFamily, readOptions, bytes(1))) {
+                // An inherited lower bound would clamp the seek to [1, 1].
+                assertKeys(iterator, bytes(1, 0), bytes(1, 0), bytes(1, 1));
+            }
+
+            assertThat(readOptions.iterateLowerBound().data()).isEqualTo(bytes(1, 1));
+        }
+    }
+
+    @ParameterizedTest
     @MethodSource("prefixBloomRanges")
     void testPrefixBloomFiltersRespectBoundsAndConfiguredTotalOrderSeek(
             byte[] prefix, int extractorLength, boolean filterCompatible, boolean totalOrderSeek)

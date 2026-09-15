@@ -124,11 +124,11 @@ public class RocksDBOperationUtils {
      * before the next map's keys. The prefix only sets the bound; callers still position the
      * iterator with {@code seek}.
      *
-     * <p>The iterator uses a private copy of {@code readOptions} with the upper bound set and
-     * auto-prefix mode enabled. The caller's options are not modified. If the prefix has no
-     * exclusive upper bound (see {@code getPrefixEnd}), the caller's options are used as they are
-     * and the iterator is unbounded: no key outside such a prefix can follow it, so nothing extra
-     * is visited.
+     * <p>The iterator uses a private copy of {@code readOptions} with the upper bound set,
+     * auto-prefix mode enabled, and {@code prefixSameAsStart} and any lower bound cleared. The
+     * caller's options are not modified. If the prefix has no exclusive upper bound (see {@code
+     * getPrefixEnd}), the caller's options are used as they are and the iterator is unbounded: no
+     * key outside such a prefix can follow it, so nothing extra is visited.
      */
     static RocksIteratorWrapper getRocksIteratorBoundedByPrefix(
             RocksDB db,
@@ -148,6 +148,14 @@ public class RocksDBOperationUtils {
             // Auto-prefix mode is needed because, with a prefix extractor configured, the default
             // seek mode honors the upper bound only if it shares the seek key's extracted prefix.
             boundedReadOptions.setAutoPrefixMode(true);
+            // prefix_same_as_start would invalidate the iterator as soon as the extracted prefix
+            // changes. With an extractor longer than the seek prefix that happens inside the map
+            // or key group, or immediately for the initial seek from the bare prefix. Neither
+            // auto_prefix_mode nor total_order_seek disables it, so it is cleared on the copy.
+            boundedReadOptions.setPrefixSameAsStart(false);
+            // The seek key is the lower end of every bounded scan. A configured lower bound above
+            // it would silently skip entries, so the copy carries none.
+            boundedReadOptions.setIterateLowerBound(null);
             return new RocksIteratorWrapper(
                     db.newIterator(columnFamilyHandle, boundedReadOptions),
                     boundedReadOptions,
