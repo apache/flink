@@ -696,6 +696,166 @@ class DataFrame:
             order_expressions.append(expression.desc if is_descending else expression.asc)
         return DataFrame(self._table.order_by(*order_expressions))
 
+    # ======================== Set Operations ========================
+
+    @PublicEvolving()
+    def union(self, other: "DataFrame") -> "DataFrame":
+        """
+        Return rows from either DataFrame, removing duplicate rows (SQL ``UNION``).
+
+        This operation is currently supported only in batch mode.
+
+        Both DataFrames must belong to the same TableEnvironment and have the same number
+        of columns with compatible types at each position. Columns are matched by position,
+        not by name; the result uses this DataFrame's column names.
+
+        :param other: The DataFrame to combine with this DataFrame.
+        :return: A new DataFrame containing the distinct rows from both inputs.
+        :raises TypeError: If ``other`` is not a DataFrame.
+
+        Example::
+
+            >>> result = left.union(right)
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(other, DataFrame):
+            raise TypeError("other must be a DataFrame")
+        return DataFrame(self._table.union(other._table))
+
+    @PublicEvolving()
+    def union_all(self, other: "DataFrame") -> "DataFrame":
+        """
+        Return rows from both DataFrames, retaining all duplicates (SQL ``UNION ALL``).
+
+        Both DataFrames must belong to the same TableEnvironment and have the same number
+        of columns with compatible types at each position. Columns are matched by position,
+        not by name; the result uses this DataFrame's column names.
+
+        :param other: The DataFrame to combine with this DataFrame.
+        :return: A new DataFrame containing all rows from both inputs.
+        :raises TypeError: If ``other`` is not a DataFrame.
+
+        Example::
+
+            >>> result = left.union_all(right)
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(other, DataFrame):
+            raise TypeError("other must be a DataFrame")
+        return DataFrame(self._table.union_all(other._table))
+
+    @PublicEvolving()
+    def intersect(self, other: "DataFrame") -> "DataFrame":
+        """
+        Return rows present in both DataFrames, removing duplicates (SQL ``INTERSECT``).
+
+        This operation is currently supported only in batch mode.
+
+        Both DataFrames must belong to the same TableEnvironment and have the same number
+        of columns with matching types at each position. Columns are matched by position,
+        not by name; the result uses this DataFrame's column names.
+        Cast differing column types explicitly before calling this method.
+
+        :param other: The DataFrame to intersect with this DataFrame.
+        :return: A new DataFrame containing the distinct rows common to both inputs.
+        :raises TypeError: If ``other`` is not a DataFrame.
+
+        Example::
+
+            >>> result = left.intersect(right)
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(other, DataFrame):
+            raise TypeError("other must be a DataFrame")
+        return DataFrame(self._table.intersect(other._table))
+
+    @PublicEvolving()
+    def intersect_all(self, other: "DataFrame") -> "DataFrame":
+        """
+        Return rows present in both DataFrames, retaining duplicates (SQL ``INTERSECT ALL``).
+
+        This operation is currently supported only in batch mode.
+
+        A row occurring ``n`` times in this DataFrame and ``m`` times in ``other`` is returned
+        ``min(n, m)`` times.
+
+        Both DataFrames must belong to the same TableEnvironment and have the same number
+        of columns with matching types at each position. Columns are matched by position,
+        not by name; the result uses this DataFrame's column names.
+        Cast differing column types explicitly before calling this method.
+
+        :param other: The DataFrame to intersect with this DataFrame.
+        :return: A new DataFrame containing the common rows with their shared multiplicities.
+        :raises TypeError: If ``other`` is not a DataFrame.
+
+        Example::
+
+            >>> result = left.intersect_all(right)
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(other, DataFrame):
+            raise TypeError("other must be a DataFrame")
+        return DataFrame(self._table.intersect_all(other._table))
+
+    @PublicEvolving()
+    def minus(self, other: "DataFrame") -> "DataFrame":
+        """
+        Return rows absent from ``other``, removing duplicate rows (SQL ``EXCEPT``).
+
+        This operation is currently supported only in batch mode.
+
+        Both DataFrames must belong to the same TableEnvironment and have the same number
+        of columns with matching types at each position. Columns are matched by position,
+        not by name; the result uses this DataFrame's column names.
+        Cast differing column types explicitly before calling this method.
+
+        :param other: The DataFrame whose rows are excluded from this DataFrame.
+        :return: A new DataFrame containing the distinct rows present only in this DataFrame.
+        :raises TypeError: If ``other`` is not a DataFrame.
+
+        Example::
+
+            >>> result = left.minus(right)
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(other, DataFrame):
+            raise TypeError("other must be a DataFrame")
+        return DataFrame(self._table.minus(other._table))
+
+    @PublicEvolving()
+    def minus_all(self, other: "DataFrame") -> "DataFrame":
+        """
+        Subtract the occurrences of rows in ``other`` from this DataFrame (SQL ``EXCEPT ALL``).
+
+        This operation is currently supported only in batch mode.
+
+        A row occurring ``n`` times in this DataFrame and ``m`` times in ``other`` is returned
+        ``max(n - m, 0)`` times.
+
+        Both DataFrames must belong to the same TableEnvironment and have the same number
+        of columns with matching types at each position. Columns are matched by position,
+        not by name; the result uses this DataFrame's column names.
+        Cast differing column types explicitly before calling this method.
+
+        :param other: The DataFrame whose row occurrences are subtracted.
+        :return: A new DataFrame containing the remaining row occurrences.
+        :raises TypeError: If ``other`` is not a DataFrame.
+
+        Example::
+
+            >>> result = left.minus_all(right)
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(other, DataFrame):
+            raise TypeError("other must be a DataFrame")
+        return DataFrame(self._table.minus_all(other._table))
+
     # ======================== Windowing ========================
 
     @PublicEvolving()
