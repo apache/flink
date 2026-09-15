@@ -20,14 +20,21 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.functions.python.PythonScalarFunction;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JavaTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.types.DataType;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
+
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 
 /** Plans compositions of scalar UDFs with different Python argument representations. */
 class PythonCalcSplitFunctionKindRuleTest extends TableTestBase {
@@ -42,8 +49,51 @@ class PythonCalcSplitFunctionKindRuleTest extends TableTestBase {
         verifyComposition(javaBatchTestUtil());
     }
 
+    @Test
+    void testStreamingMapComposition() {
+        verifyMapComposition(javaStreamTestUtil());
+    }
+
+    @Test
+    void testBatchMapComposition() {
+        verifyMapComposition(javaBatchTestUtil());
+    }
+
     private void verifyComposition(JavaTableTestUtil util) {
         util.addTableSource("T", Schema.newBuilder().column("a", DataTypes.INT()).build());
+        registerFunctions(util, DataTypes.INT(), false);
+        util.verifyExecPlan(
+                "SELECT arrow_udf(a), pandas_udf(a), general_udf(a), "
+                        + "arrow_udf(arrow_udf(a)), arrow_udf(pandas_udf(a)), "
+                        + "pandas_udf(arrow_udf(a)), arrow_udf(general_udf(a)), "
+                        + "general_udf(arrow_udf(a)) FROM T");
+    }
+
+    private void verifyMapComposition(JavaTableTestUtil util) {
+        util.addTableSource("T", Schema.newBuilder().column("a", DataTypes.INT()).build());
+        registerFunctions(util, DataTypes.ROW(DataTypes.FIELD("a", DataTypes.INT())), true);
+        final Table result =
+                util.tableEnv()
+                        .from("T")
+                        .map(call("general_udf", $("a")))
+                        .map(call("arrow_udf", $("a")))
+                        .map(call("arrow_udf", $("a")))
+                        .map(call("pandas_udf", $("a")))
+                        .map(call("pandas_udf", $("a")))
+                        .map(call("arrow_udf", $("a")))
+                        .map(call("general_udf", $("a")));
+        util.verifyRelPlanExpected(
+                result,
+                JavaScalaConversionUtil.toScala(
+                        Arrays.asList(
+                                "PythonCalc(select=[arrow_udf(arrow_udf(a)) AS f0])",
+                                "PythonCalc(select=[pandas_udf(pandas_udf(a)) AS f0])",
+                                "PythonCalc(select=[arrow_udf(a) AS f0])",
+                                "PythonCalc(select=[general_udf(a) AS f0])")));
+    }
+
+    private void registerFunctions(
+            JavaTableTestUtil util, DataType resultType, boolean takesRowAsInput) {
         for (PythonFunctionKind kind : PythonFunctionKind.values()) {
             util.tableEnv()
                     .createTemporarySystemFunction(
@@ -52,16 +102,11 @@ class PythonCalcSplitFunctionKindRuleTest extends TableTestBase {
                                     kind.name(),
                                     new byte[0],
                                     new DataType[] {DataTypes.INT()},
-                                    DataTypes.INT(),
+                                    resultType,
                                     kind,
                                     true,
-                                    false,
+                                    takesRowAsInput,
                                     new PythonEnv(PythonEnv.ExecType.PROCESS)));
         }
-        util.verifyExecPlan(
-                "SELECT arrow_udf(a), pandas_udf(a), general_udf(a), "
-                        + "arrow_udf(arrow_udf(a)), arrow_udf(pandas_udf(a)), "
-                        + "pandas_udf(arrow_udf(a)), arrow_udf(general_udf(a)), "
-                        + "general_udf(arrow_udf(a)) FROM T");
     }
 }

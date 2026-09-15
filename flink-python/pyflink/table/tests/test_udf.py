@@ -42,10 +42,10 @@ def generate_random_table_name():
 
 
 class ArrowScalarOperationTests(unittest.TestCase):
-    def operation(self, func, inputs):
+    def operation(self, func, inputs, takes_row_as_input=False):
         function = proto.UserDefinedFunction(
             payload=cloudpickle.dumps(DelegatingScalarFunction(func)),
-            is_arrow_udf=True, inputs=inputs)
+            is_arrow_udf=True, inputs=inputs, takes_row_as_input=takes_row_as_input)
         operation = ScalarFunctionOperation(proto.UserDefinedFunctions(udfs=[function]))
         operation.open()
         self.addCleanup(operation.close)
@@ -65,6 +65,47 @@ class ArrowScalarOperationTests(unittest.TestCase):
         result = operation.process_element(pa.record_batch(
             [pa.array([1, None, 3]), pa.array([4, 5, 6])], names=["a", "b"]))
         self.assertEqual(result.column(0).to_pylist(), [15, None, 19])
+
+    def test_single_chunk_result_preserves_buffers(self):
+        values = pa.array([0, 1, None, 3]).slice(1, 2)
+        operation = self.operation(lambda column: pa.chunked_array([column]),
+                                   [proto.Input(inputOffset=0)])
+        result = operation.process_element(pa.record_batch([values], names=["value"]))
+        column = result.column(0)
+        self.assertEqual(column.to_pylist(), [1, None])
+        self.assertEqual(column.offset, values.offset)
+        self.assertEqual([buffer.address for buffer in column.buffers()],
+                         [buffer.address for buffer in values.buffers()])
+
+    def test_empty_chunked_results(self):
+        values = pa.array([], type=pa.int64())
+        for chunks in ([], [values]):
+            with self.subTest(chunks=len(chunks)):
+                operation = self.operation(
+                    lambda column: pa.chunked_array(chunks, type=pa.int64()),
+                    [proto.Input(inputOffset=0)])
+                result = operation.process_element(pa.record_batch([values], names=["value"]))
+                self.assertEqual(result.column(0), values)
+
+    def test_whole_row_input(self):
+        batch = pa.record_batch([pa.array(["alice", None]), pa.array([1, 2])],
+                                names=["name", "count"])
+
+        def increment(row):
+            return pa.StructArray.from_arrays(
+                [pc.struct_field(row, "name"), pc.add(pc.struct_field(row, "count"), 1)],
+                names=["name", "count"])
+
+        inputs = [proto.Input(inputOffset=0), proto.Input(inputOffset=1)]
+        identity = proto.UserDefinedFunction(
+            payload=cloudpickle.dumps(DelegatingScalarFunction(lambda row: row)),
+            is_arrow_udf=True, inputs=inputs, takes_row_as_input=True)
+        for arguments in (inputs, [proto.Input(udf=identity)]):
+            with self.subTest(nested=arguments[0].HasField("udf")):
+                operation = self.operation(increment, arguments, takes_row_as_input=True)
+                result = operation.process_element(batch)
+                self.assertEqual(result.column(0).to_pylist(),
+                                 [{"name": "alice", "count": 2}, {"name": None, "count": 3}])
 
     def test_invalid_scalar_results(self):
         batch = pa.record_batch([pa.array([1, 2, 3])], names=["value"])

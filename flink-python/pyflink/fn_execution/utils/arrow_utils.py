@@ -93,5 +93,7 @@ def create_record_batch(results, row_count):
     for result in results:
         if len(result) != row_count:
             raise ValueError(f"Arrow UDF returned {len(result)} rows, expected {row_count}.")
-        columns.append(result.combine_chunks() if isinstance(result, pa.ChunkedArray) else result)
+        if isinstance(result, pa.ChunkedArray):
+            result = result.chunk(0) if result.num_chunks == 1 else result.combine_chunks()
+        columns.append(result)
     return pa.RecordBatch.from_arrays(columns, names=[f"f{i}" for i in range(len(columns))])

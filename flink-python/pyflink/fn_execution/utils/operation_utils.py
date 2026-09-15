@@ -182,6 +182,11 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
             # receives a previously computed intermediate result rather than
             # the original input row. We must use func_args instead of `value`.
             func_str = "%s(%s)" % (func_name, func_args)
+        elif user_defined_function_proto.is_arrow_udf:
+            import pyarrow as pa
+
+            variable_dict['create_struct_array'] = pa.StructArray.from_arrays
+            func_str = f"{func_name}(create_struct_array(value.columns, fields=value.schema))"
         else:
             # directly use `value` as input argument
             # e.g.
