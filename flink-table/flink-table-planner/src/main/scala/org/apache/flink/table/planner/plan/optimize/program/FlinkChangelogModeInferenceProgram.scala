@@ -291,7 +291,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
         val providedTrait = {
           if (
-            insertOnly && RankUtil.outputInsertOnlyInDeduplicate(
+            insertOnly && RankUtil.sortOnTimeAttributeOnly(
+              rank.orderKey,
+              rank.getInput.getRowType) && RankUtil.outputInsertOnlyInDeduplicate(
               tableConfig,
               RankUtil.keepLastDeduplicateRow(rank.orderKey))
           ) {
