@@ -112,6 +112,7 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.MAP_KEY_ARG;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ML_PREDICT_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TO_CHANGELOG_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
@@ -209,6 +210,21 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.MAP_ENTRIES))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.MapEntriesFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition MAP_CONTAINS_KEY =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_CONTAINS_KEY")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    List.of("map", "key"),
+                                    List.of(logical(LogicalTypeRoot.MAP), MAP_KEY_ARG)))
+                    .outputTypeStrategy(
+                            nullableIfArgs(
+                                    ConstantArgumentCount.of(0), explicit(DataTypes.BOOLEAN())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MapContainsKeyFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition MAP_FROM_ARRAYS =

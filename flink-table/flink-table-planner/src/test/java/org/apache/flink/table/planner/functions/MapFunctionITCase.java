@@ -77,6 +77,7 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                         mapValuesTestCases(),
                         mapEntriesTestCases(),
                         mapFromArraysTestCases(),
+                        mapContainsKeyTestCases(),
                         mapFromEntriesTestCases(),
                         mapUnionTestCases())
                 .flatMap(s -> s);
@@ -589,6 +590,108 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                                 DataTypes.INT().notNull(),
                                                 DataTypes.CHAR(1).notNull())
                                         .notNull()));
+    }
+
+    private Stream<TestSetSpec> mapContainsKeyTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.MAP_CONTAINS_KEY, "Invalid input")
+                        .onFieldsWithData(CollectionUtil.map(entry("a", 1)))
+                        .andDataTypes(DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()))
+                        .testTableApiValidationError(
+                                $("f0").mapContainsKey(true),
+                                "Unsupported argument type. Expected type 'STRING' "
+                                        + "but actual type was 'BOOLEAN NOT NULL'.")
+                        .testSqlValidationError(
+                                "MAP_CONTAINS_KEY(f0, TRUE)",
+                                "Unsupported argument type. Expected type 'STRING' "
+                                        + "but actual type was 'BOOLEAN NOT NULL'."),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.MAP_CONTAINS_KEY)
+                        .onFieldsWithData(
+                                CollectionUtil.map(entry("a", 1), entry("b", 2)),
+                                CollectionUtil.map(entry(1, 2), entry(null, 3)),
+                                null,
+                                CollectionUtil.map(entry(new Integer[] {1, 2}, "x")))
+                        .andDataTypes(
+                                DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()),
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.INT()),
+                                DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()),
+                                DataTypes.MAP(DataTypes.ARRAY(DataTypes.INT()), DataTypes.STRING()))
+                        .testResult(
+                                $("f0").mapContainsKey("a"),
+                                "MAP_CONTAINS_KEY(f0, 'a')",
+                                true,
+                                DataTypes.BOOLEAN())
+                        // a miss is FALSE, not NULL
+                        .testResult(
+                                $("f0").mapContainsKey("z"),
+                                "MAP_CONTAINS_KEY(f0, 'z')",
+                                false,
+                                DataTypes.BOOLEAN())
+                        // only a NULL map yields NULL
+                        .testResult(
+                                $("f2").mapContainsKey("a"),
+                                "MAP_CONTAINS_KEY(f2, 'a')",
+                                null,
+                                DataTypes.BOOLEAN())
+                        // a NULL probe finds a NULL key
+                        .testResult(
+                                $("f1").mapContainsKey(nullOf(DataTypes.INT())),
+                                "MAP_CONTAINS_KEY(f1, CAST(NULL AS INT))",
+                                true,
+                                DataTypes.BOOLEAN())
+                        // an absent NULL key is FALSE
+                        .testResult(
+                                $("f0").mapContainsKey(nullOf(DataTypes.STRING())),
+                                "MAP_CONTAINS_KEY(f0, CAST(NULL AS STRING))",
+                                false,
+                                DataTypes.BOOLEAN())
+                        // a miss past a NULL key is FALSE
+                        .testResult(
+                                $("f1").mapContainsKey(9),
+                                "MAP_CONTAINS_KEY(f1, 9)",
+                                false,
+                                DataTypes.BOOLEAN())
+                        // complex keys compare structurally
+                        .testResult(
+                                $("f3").mapContainsKey(array(1, 2)),
+                                "MAP_CONTAINS_KEY(f3, ARRAY[1, 2])",
+                                true,
+                                DataTypes.BOOLEAN())
+                        // there is no VARIANT literal, so the key is built with PARSE_JSON
+                        .testResult(
+                                map(call("PARSE_JSON", "1"), lit(1))
+                                        .mapContainsKey(call("PARSE_JSON", "1")),
+                                "MAP_CONTAINS_KEY(MAP[PARSE_JSON('1'), 1], PARSE_JSON('1'))",
+                                true,
+                                DataTypes.BOOLEAN().notNull()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.MAP_CONTAINS_KEY, "Documented examples")
+                        .onFieldsWithData(1)
+                        .andDataTypes(DataTypes.INT().notNull())
+                        // a NOT NULL map yields a NOT NULL result
+                        .testResult(
+                                map(lit("a"), lit(1), lit("b"), lit(2)).mapContainsKey("a"),
+                                "MAP_CONTAINS_KEY(MAP['a', 1, 'b', 2], 'a')",
+                                true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                map(lit("a"), lit(1), lit("b"), lit(2)).mapContainsKey("z"),
+                                "MAP_CONTAINS_KEY(MAP['a', 1, 'b', 2], 'z')",
+                                false,
+                                DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                map(nullOf(DataTypes.STRING()), lit(1))
+                                        .mapContainsKey(nullOf(DataTypes.STRING())),
+                                "MAP_CONTAINS_KEY(MAP[CAST(NULL AS STRING), 1], CAST(NULL AS STRING))",
+                                true,
+                                DataTypes.BOOLEAN().notNull())
+                        .testResult(
+                                map(lit(1), lit("a"))
+                                        .mapContainsKey(lit(1).cast(DataTypes.TINYINT())),
+                                "MAP_CONTAINS_KEY(MAP[1, 'a'], CAST(1 AS TINYINT))",
+                                true,
+                                DataTypes.BOOLEAN().notNull()));
     }
 
     private Stream<TestSetSpec> mapUnionTestCases() {
