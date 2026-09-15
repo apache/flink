@@ -22,10 +22,12 @@ from unittest.mock import MagicMock, patch
 
 import pyflink.dataframe as pf
 from pyflink.dataframe import DataType
+from pyflink.table import DataTypes
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
     PyFlinkStreamDataFrameTestCase,
 )
+from py4j.protocol import Py4JJavaError
 
 
 class GenericIOTests(PyFlinkDataFrameUTTestCase):
@@ -276,8 +278,189 @@ class GenericIOTests(PyFlinkDataFrameUTTestCase):
                 with self.assertRaisesRegex(error_type, message):
                     dataframe.write_generic(connector, options=options)
 
+    def test_read_generic_translates_flink_errors(self):
+        with self.assertRaises(ValueError) as context:
+            pf.read_generic(
+                "datagen",
+                schema=self._SCHEMA,
+                options={},
+                computed_columns={"bad": "NO_SUCH_FUNCTION(id)"},
+            )
+        self.assertEqual(
+            str(context.exception), "Invalid expression for computed column 'bad'."
+        )
+        self.assertIsInstance(context.exception.__cause__, Py4JJavaError)
+
+    def test_write_generic_translates_flink_errors(self):
+        dataframe = pf.from_records([(1,)], schema=["id"])
+
+        with self.assertRaises(ValueError) as context:
+            dataframe.write_generic("no_such_connector", options={})
+        self.assertIn("no_such_connector", str(context.exception))
+        self.assertIsInstance(context.exception.__cause__, Py4JJavaError)
+
+
+class CatalogTableIOTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        pf.create_catalog("my_catalog", {"type": "generic_in_memory"})
+        self.t_env.execute_sql("CREATE DATABASE my_catalog.my_database")
+        self.t_env.execute_sql(
+            "CREATE TABLE my_catalog.my_database.events ("
+            "  id BIGINT, name STRING"
+            ") WITH ('connector' = 'datagen', 'number-of-rows' = '1')"
+        )
+
+    def test_read_catalog_table_resolves_paths(self):
+        cases = [
+            ("default_catalog", "default_database", "my_catalog.my_database.events"),
+            ("my_catalog", "default", "my_database.events"),
+            ("my_catalog", "my_database", "events"),
+        ]
+
+        for catalog, database, path in cases:
+            with self.subTest(path=path):
+                pf.use_catalog(catalog)
+                pf.use_database(database)
+                with patch.object(
+                    self.t_env, "from_path", wraps=self.t_env.from_path
+                ) as from_path:
+                    dataframe = pf.read_catalog_table(path)
+
+                from_path.assert_called_once_with(path)
+                self.assertIsInstance(dataframe, pf.DataFrame)
+                self.assert_dataframe_schema(
+                    dataframe,
+                    ["id", "name"],
+                    [DataTypes.BIGINT(), DataTypes.STRING()],
+                )
+
+    def test_read_catalog_table_rejects_invalid_path(self):
+        with self.assertRaisesRegex(TypeError, "path must be a string"):
+            pf.read_catalog_table(None)
+        with self.assertRaisesRegex(ValueError, "path must not be empty"):
+            pf.read_catalog_table("")
+
+    def test_read_catalog_table_translates_flink_errors(self):
+        with self.assertRaises(ValueError) as context:
+            pf.read_catalog_table("my_catalog.my_database.missing")
+        self.assertEqual(
+            str(context.exception),
+            "Table `my_catalog`.`my_database`.`missing` was not found.",
+        )
+        self.assertIsInstance(context.exception.__cause__, Py4JJavaError)
+
+        with self.assertRaises(ValueError) as context:
+            pf.read_catalog_table("too.many.path.parts")
+        self.assertEqual(
+            str(context.exception), "Invalid SQL identifier too.many.path.parts."
+        )
+        self.assertIsInstance(context.exception.__cause__, Py4JJavaError)
+
+    def test_write_catalog_table_translates_flink_errors(self):
+        dataframe = pf.from_records([(1, "a")], schema=["id", "name"])
+
+        with self.assertRaises(ValueError) as context:
+            dataframe.write_catalog_table("my_catalog.my_database.missing")
+        self.assertIn(
+            "Cannot find table '`my_catalog`.`my_database`.`missing`'",
+            str(context.exception),
+        )
+
+        self.t_env.execute_sql(
+            "CREATE TABLE my_catalog.my_database.sink (id BIGINT) "
+            "WITH ('connector' = 'blackhole')"
+        )
+        with self.assertRaises(ValueError) as context:
+            dataframe.write_catalog_table("my_catalog.my_database.sink")
+        self.assertIn("Column types of query result and sink", str(context.exception))
+        self.assertIsInstance(context.exception.__cause__, Py4JJavaError)
+
+    def test_write_catalog_table_passes_path_and_overwrite(self):
+        dataframe = pf.from_records([(1, "a")], schema=["id", "name"])
+
+        for overwrite in [False, True]:
+            with self.subTest(overwrite=overwrite):
+                with patch.object(
+                    dataframe._table, "execute_insert", return_value=MagicMock()
+                ) as execute_insert:
+                    result = dataframe.write_catalog_table(
+                        "my_catalog.my_database.events", overwrite=overwrite
+                    )
+
+                self.assertIsNone(result)
+                execute_insert.assert_called_once_with(
+                    "my_catalog.my_database.events", overwrite=overwrite
+                )
+
+    def test_write_catalog_table_waits_for_local_and_minicluster_execution(self):
+        dataframe = pf.from_records([(1,)], schema=["id"])
+
+        for execution_target, waits in [
+            ("local", True),
+            ("minicluster", True),
+            ("remote", False),
+        ]:
+            with self.subTest(execution_target=execution_target):
+                table_result = MagicMock()
+                table_config = MagicMock()
+                table_config.get.return_value = execution_target
+                with patch.object(
+                    dataframe._table,
+                    "execute_insert",
+                    return_value=table_result,
+                ), patch.object(
+                    dataframe._table._t_env,
+                    "get_config",
+                    return_value=table_config,
+                ):
+                    dataframe.write_catalog_table("events")
+
+                if waits:
+                    table_result.wait.assert_called_once_with()
+                else:
+                    table_result.wait.assert_not_called()
+
+    def test_write_catalog_table_rejects_invalid_arguments(self):
+        dataframe = pf.from_records([(1,)], schema=["id"])
+        cases = [
+            (None, False, TypeError, "path must be a string"),
+            ("", False, ValueError, "path must not be empty"),
+            ("events", "yes", TypeError, "overwrite must be a bool"),
+        ]
+
+        for path, overwrite, error_type, message in cases:
+            with self.subTest(path=path, overwrite=overwrite):
+                with self.assertRaisesRegex(error_type, message):
+                    dataframe.write_catalog_table(path, overwrite=overwrite)
+
 
 class GenericIOITTests(PyFlinkStreamDataFrameTestCase):
+    def test_catalog_table_round_trip(self):
+        output_path = os.path.join(self.tempdir, "catalog_output")
+        pf.create_catalog("my_catalog", {"type": "generic_in_memory"})
+        self.addCleanup(pf.use_catalog, pf.get_current_catalog())
+        self.t_env.execute_sql("CREATE DATABASE my_catalog.my_database")
+        self.t_env.execute_sql(
+            "CREATE TABLE my_catalog.my_database.events ("
+            "  id BIGINT, name STRING"
+            ") WITH ("
+            "  'connector' = 'filesystem',"
+            f"  'path' = '{output_path}',"
+            "  'format' = 'csv'"
+            ")"
+        )
+
+        pf.use_catalog("my_catalog")
+        pf.use_database("my_database")
+        source = pf.from_records([(1, "a"), (2, "b"), (3, "c")], schema=["id", "name"])
+        source.write_catalog_table("events")
+
+        result = pf.read_catalog_table("events").collect()
+        self.assertEqual(
+            sorted(tuple(row) for row in result), [(1, "a"), (2, "b"), (3, "c")]
+        )
+
     def test_filesystem_csv_round_trip(self):
         input_path = os.path.join(self.tempdir, "input.csv")
         with open(input_path, "w", encoding="utf-8") as input_file:

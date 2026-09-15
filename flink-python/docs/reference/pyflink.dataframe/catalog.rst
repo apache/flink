@@ -16,21 +16,37 @@
     limitations under the License.
    ################################################################################
 
-==================
-PyFlink DataFrame
-==================
+========
+Catalogs
+========
 
-This page gives an overview of all public PyFlink DataFrame APIs.
+Functions for creating catalogs and navigating catalogs and databases. Setting the current
+catalog and database lets :func:`~pyflink.dataframe.read_catalog_table` and
+:meth:`~pyflink.dataframe.DataFrame.write_catalog_table` reference tables by short paths instead
+of the full ``catalog_name.db_name.table_name``.
 
-.. toctree::
-    :maxdepth: 1
+Catalog Management
+------------------
 
-    dataframe
-    udf
-    creation
-    io
-    catalog
-    sql
-    datatype
-    environment
-    config
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    create_catalog
+    get_catalog
+    use_catalog
+    get_current_catalog
+    list_catalogs
+
+Database Navigation
+-------------------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    use_database
+    get_current_database
+    list_databases
