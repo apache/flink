@@ -84,22 +84,30 @@ public class LookupJoinTestPrograms {
                     .producedAfterRestore(CUSTOMERS_AFTER_DATA)
                     .build();
 
+    static final String[] ORDERS_SCHEMA =
+            new String[] {
+                "order_id INT",
+                "customer_id INT",
+                "total DOUBLE",
+                "order_time STRING",
+                "proc_time AS PROCTIME()"
+            };
+
+    static final Row[] ORDERS_BEFORE_DATA =
+            new Row[] {
+                Row.of(1, 3, 44.44, "2020-10-10 00:00:01"),
+                Row.of(2, 5, 100.02, "2020-10-10 00:00:02"),
+                Row.of(4, 2, 92.61, "2020-10-10 00:00:04"),
+                Row.of(3, 1, 23.89, "2020-10-10 00:00:03"),
+                Row.of(6, 4, 7.65, "2020-10-10 00:00:06"),
+                Row.of(5, 2, 12.78, "2020-10-10 00:00:05")
+            };
+
     static final SourceTestStep ORDERS =
             SourceTestStep.newBuilder("orders_t")
                     .addOption("filterable-fields", "customer_id")
-                    .addSchema(
-                            "order_id INT",
-                            "customer_id INT",
-                            "total DOUBLE",
-                            "order_time STRING",
-                            "proc_time AS PROCTIME()")
-                    .producedBeforeRestore(
-                            Row.of(1, 3, 44.44, "2020-10-10 00:00:01"),
-                            Row.of(2, 5, 100.02, "2020-10-10 00:00:02"),
-                            Row.of(4, 2, 92.61, "2020-10-10 00:00:04"),
-                            Row.of(3, 1, 23.89, "2020-10-10 00:00:03"),
-                            Row.of(6, 4, 7.65, "2020-10-10 00:00:06"),
-                            Row.of(5, 2, 12.78, "2020-10-10 00:00:05"))
+                    .addSchema(ORDERS_SCHEMA)
+                    .producedBeforeRestore(ORDERS_BEFORE_DATA)
                     .producedAfterRestore(
                             Row.of(7, 6, 17.58, "2020-10-10 00:00:07"), // new customer
                             Row.of(9, 1, 143.21, "2020-10-10 00:00:08") // updated zip code
@@ -110,20 +118,9 @@ public class LookupJoinTestPrograms {
             SourceTestStep.newBuilder("orders_cdc_t")
                     .addOption("filterable-fields", "customer_id")
                     .addOption("changelog-mode", "I,UA,UB,D")
-                    .addSchema(
-                            "order_id INT",
-                            "customer_id INT",
-                            "total DOUBLE",
-                            "order_time STRING",
-                            "proc_time AS PROCTIME()")
+                    .addSchema(ORDERS_SCHEMA)
                     .addSchema("PRIMARY KEY (order_id) NOT ENFORCED")
-                    .producedBeforeRestore(
-                            Row.of(1, 3, 44.44, "2020-10-10 00:00:01"),
-                            Row.of(2, 5, 100.02, "2020-10-10 00:00:02"),
-                            Row.of(4, 2, 92.61, "2020-10-10 00:00:04"),
-                            Row.of(3, 1, 23.89, "2020-10-10 00:00:03"),
-                            Row.of(6, 4, 7.65, "2020-10-10 00:00:06"),
-                            Row.of(5, 2, 12.78, "2020-10-10 00:00:05"))
+                    .producedBeforeRestore(ORDERS_BEFORE_DATA)
                     .producedAfterRestore(
                             Row.ofKind(RowKind.DELETE, 3, 1, 23.89, "2020-10-10 00:00:03"),
                             Row.ofKind(RowKind.INSERT, 3, 1, 33.01, "2020-10-10 01:01:06"),
@@ -455,5 +452,98 @@ public class LookupJoinTestPrograms {
                                     + "FROM orders_cdc_t as O "
                                     + "JOIN customers_t FOR SYSTEM_TIME AS OF O.proc_time AS C "
                                     + "ON O.customer_id = C.id")
+                    .build();
+
+    /**
+     * {@link #CUSTOMERS} without the after-restore data, so that it is a plain {@code
+     * SOURCE_WITH_DATA} step usable from a semantic test.
+     */
+    static final SourceTestStep CUSTOMERS_NO_RESTORE =
+            SourceTestStep.newBuilder("customers_t")
+                    .addOption("disable-lookup", "false") // static/lookup table
+                    .addOption("filterable-fields", "age")
+                    .addSchema(CUSTOMERS_SCHEMA)
+                    .producedValues(CUSTOMERS_BEFORE_DATA)
+                    .build();
+
+    /** {@link #ORDERS} without the after-restore data. */
+    static final SourceTestStep ORDERS_NO_RESTORE =
+            SourceTestStep.newBuilder("orders_t")
+                    .addOption("filterable-fields", "customer_id")
+                    .addSchema(ORDERS_SCHEMA)
+                    .producedValues(ORDERS_BEFORE_DATA)
+                    .build();
+
+    private static String filteredLookupJoin(String filter) {
+        return "SELECT "
+                + "O.order_id, "
+                + "O.total, "
+                + "C.id, "
+                + "C.name, "
+                + "C.age, "
+                + "C.city, "
+                + "C.state, "
+                + "C.zipcode "
+                + "FROM orders_t as O "
+                + "JOIN customers_t FOR SYSTEM_TIME AS OF O.proc_time AS C "
+                + "ON O.customer_id = C.id AND "
+                + filter;
+    }
+
+    /**
+     * Both branches select the same columns from the same dim table and differ only in the filter
+     * pushed into it, so the two lookup joins are indistinguishable unless the pushed-down filter
+     * is part of the lookup join's digest. See FLINK-36808.
+     */
+    private static String unionOfTwoFilteredLookupJoins(String firstFilter, String secondFilter) {
+        return "INSERT INTO sink_t "
+                + filteredLookupJoin(firstFilter)
+                + " UNION ALL "
+                + filteredLookupJoin(secondFilter);
+    }
+
+    /**
+     * Only customers older than 30 match, so the second branch contributes nothing. If the two
+     * lookup joins are wrongly merged, the second branch re-emits the first branch's rows and every
+     * row appears twice.
+     */
+    public static final TableTestProgram LOOKUP_JOIN_UNION_DIFFERENT_FILTERS =
+            TableTestProgram.of(
+                            "lookup-join-union-different-filters",
+                            "validates two lookup joins on the same table with different pushed-down filters are not merged")
+                    .setupTableSource(CUSTOMERS_NO_RESTORE)
+                    .setupTableSource(ORDERS_NO_RESTORE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[1, 44.44, 3, Claire, 37, Austin, Texas, 73301]",
+                                            "+I[2, 100.02, 5, Jake, 42, New York City, New York, 10001]",
+                                            "+I[4, 92.61, 2, Alice, 32, San Francisco, California, 95016]",
+                                            "+I[5, 12.78, 2, Alice, 32, San Francisco, California, 95016]")
+                                    .build())
+                    .runSql(unionOfTwoFilteredLookupJoins("C.age > 30", "C.age > 100"))
+                    .build();
+
+    /**
+     * The same query with the branches swapped. Here a wrong merge is silent rather than noisy: the
+     * empty branch is reused for both and the query returns nothing at all.
+     */
+    public static final TableTestProgram LOOKUP_JOIN_UNION_DIFFERENT_FILTERS_REVERSED =
+            TableTestProgram.of(
+                            "lookup-join-union-different-filters-reversed",
+                            "validates the non-matching branch of a union does not swallow the matching one")
+                    .setupTableSource(CUSTOMERS_NO_RESTORE)
+                    .setupTableSource(ORDERS_NO_RESTORE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[1, 44.44, 3, Claire, 37, Austin, Texas, 73301]",
+                                            "+I[2, 100.02, 5, Jake, 42, New York City, New York, 10001]",
+                                            "+I[4, 92.61, 2, Alice, 32, San Francisco, California, 95016]",
+                                            "+I[5, 12.78, 2, Alice, 32, San Francisco, California, 95016]")
+                                    .build())
+                    .runSql(unionOfTwoFilteredLookupJoins("C.age > 100", "C.age > 30"))
                     .build();
 }

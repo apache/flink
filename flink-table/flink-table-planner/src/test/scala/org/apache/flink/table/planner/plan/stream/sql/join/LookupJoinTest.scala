@@ -89,6 +89,19 @@ class LookupJoinTest extends TableTestBase with Serializable {
                     |  'connector' = 'values'
                     |)
                     |""".stripMargin)
+    // 'status' must be listed in 'filterable-fields': the bug under test only appears when the
+    // dim-side predicate is *fully* consumed by the source. If any of it remained, the two lookup
+    // joins would differ in their 'where' item and would never have been merged in the first place.
+    util.addTable("""
+                    |CREATE TABLE LookupTableWithFilterableFields (
+                    |  `id` INT,
+                    |  `name` STRING,
+                    |  `status` STRING
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'filterable-fields' = 'id;status'
+                    |)
+                    |""".stripMargin)
     util.addTable("""
                     |CREATE TABLE AsyncLookupTable (
                     |  `id` INT,
@@ -361,6 +374,52 @@ class LookupJoinTest extends TableTestBase with Serializable {
         |FROM MyTable AS T
         |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         |ON T.a = D.id
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinFilterableTemporalTableWithUnion(): Unit = {
+    // FLINK-36808: both branches push a different filter into the same dim table. The two lookup
+    // joins must stay separate operators; if they are merged, one branch's rows are emitted under
+    // the other branch's literal.
+    val sql =
+      """
+        |SELECT s.a, s.b, s.proctime, d.status
+        |FROM MyTable AS s
+        |JOIN LookupTableWithFilterableFields FOR SYSTEM_TIME AS OF s.proctime AS d
+        |ON s.a = d.id
+        |WHERE d.status = 'OK'
+        |UNION ALL
+        |SELECT s.a, s.b, s.proctime, d.status
+        |FROM MyTable AS s
+        |JOIN LookupTableWithFilterableFields FOR SYSTEM_TIME AS OF s.proctime AS d
+        |ON s.a = d.id
+        |WHERE d.status = 'KO'
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinFilterableTemporalTableWithUnionSameFilter(): Unit = {
+    // Counterpart to testJoinFilterableTemporalTableWithUnion: with the same filter on both sides
+    // the two lookup joins really are equivalent and must still be reused. Guards against a fix
+    // that simply makes every lookup join digest unique.
+    val sql =
+      """
+        |SELECT s.a, s.b, s.proctime, d.status
+        |FROM MyTable AS s
+        |JOIN LookupTableWithFilterableFields FOR SYSTEM_TIME AS OF s.proctime AS d
+        |ON s.a = d.id
+        |WHERE d.status = 'OK'
+        |UNION ALL
+        |SELECT s.a, s.b, s.proctime, d.status
+        |FROM MyTable AS s
+        |JOIN LookupTableWithFilterableFields FOR SYSTEM_TIME AS OF s.proctime AS d
+        |ON s.a = d.id
+        |WHERE d.status = 'OK'
       """.stripMargin
 
     util.verifyExecPlan(sql)
