@@ -1436,7 +1436,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case calc: StreamPhysicalCalc =>
           if (
             requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
-            isNonUpsertKeyCondition(calc)
+            (isNonUpsertKeyCondition(calc) || !hasOutputUpsertKey(calc))
           ) {
             None
           } else {
@@ -1695,6 +1695,19 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       }
       upsertKeyDifferentFromPk
     }
+  }
+
+  /**
+   * Whether this calc's own output still has an upsert key after its projection. A DELETE_BY_KEY
+   * tombstone passed through this calc must still carry a key in its output, otherwise nothing
+   * downstream would know what to delete.
+   *
+   * This method is an extra safety net, in case downstream consumers don't require an upsert key.
+   */
+  private def hasOutputUpsertKey(calc: StreamPhysicalCalcBase): Boolean = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(calc.getCluster.getMetadataQuery)
+    val upsertKeys = fmq.getUpsertKeys(calc)
+    upsertKeys != null && upsertKeys.exists(!_.isEmpty)
   }
 
   private def isNonUpsertKeyCondition(calc: StreamPhysicalCalcBase): Boolean = {
