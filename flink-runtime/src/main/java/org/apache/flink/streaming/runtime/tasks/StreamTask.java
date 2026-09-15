@@ -31,7 +31,7 @@ import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -831,7 +831,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             return streamOperator.getMetricGroup().getIOMetricGroup().getNumRecordsInCounter();
         } catch (Exception e) {
             LOG.warn("An exception occurred during the metrics setup.", e);
-            return new SimpleCounter();
+            return new SimpleMonotonicCounter();
         }
     }
 
