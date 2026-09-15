@@ -42,11 +42,12 @@ def generate_random_table_name():
 
 
 class ArrowScalarOperationTests(unittest.TestCase):
-    def operation(self, func, inputs, takes_row_as_input=False):
+    def operation(self, func, inputs, takes_row_as_input=False, preceding=(), output_indices=()):
         function = proto.UserDefinedFunction(
             payload=cloudpickle.dumps(DelegatingScalarFunction(func)),
             is_arrow_udf=True, inputs=inputs, takes_row_as_input=takes_row_as_input)
-        operation = ScalarFunctionOperation(proto.UserDefinedFunctions(udfs=[function]))
+        operation = ScalarFunctionOperation(proto.UserDefinedFunctions(
+            udfs=[*preceding, function], output_indices=output_indices))
         operation.open()
         self.addCleanup(operation.close)
         return operation
@@ -101,13 +102,26 @@ class ArrowScalarOperationTests(unittest.TestCase):
                 inner = proto.UserDefinedFunction(
                     payload=cloudpickle.dumps(DelegatingScalarFunction(chunk_result)),
                     is_arrow_udf=True, inputs=[proto.Input(inputOffset=0)])
-                operation = self.operation(lambda row: row.field("value"), [proto.Input(udf=inner)])
-                result = operation.process_element(pa.record_batch([column], names=["record"]))
-                self.assertEqual(result.column(0).to_pylist(), [] if chunks == 0 else [1, None, 3])
-                if chunks == 1:
-                    self.assertEqual(result.column(0).offset, column.field(0).offset)
-                    self.assertEqual([buffer.address for buffer in result.column(0).buffers()],
-                                     [buffer.address for buffer in column.field(0).buffers()])
+                for shared in (False, True):
+                    with self.subTest(shared=shared):
+                        operation = self.operation(
+                            lambda row: row.field("value"),
+                            [proto.Input(refIndex=0)] if shared else [proto.Input(udf=inner)],
+                            preceding=[inner] if shared else [],
+                            output_indices=[1, 0, 1] if shared else [])
+                        result = operation.process_element(
+                            pa.record_batch([column], names=["record"]))
+                        self.assertEqual(result.num_columns, 3 if shared else 1)
+                        self.assertEqual(result.column(0).to_pylist(),
+                                         [] if chunks == 0 else [1, None, 3])
+                        if shared:
+                            self.assertEqual(result.column(1), column)
+                            self.assertEqual(result.column(2), result.column(0))
+                        if chunks == 1:
+                            self.assertEqual(result.column(0).offset, column.field(0).offset)
+                            self.assertEqual(
+                                [buffer.address for buffer in result.column(0).buffers()],
+                                [buffer.address for buffer in column.field(0).buffers()])
 
     def test_whole_row_input(self):
         batch = pa.record_batch([pa.array(["alice", None]), pa.array([1, 2])],
@@ -122,10 +136,14 @@ class ArrowScalarOperationTests(unittest.TestCase):
         identity = proto.UserDefinedFunction(
             payload=cloudpickle.dumps(DelegatingScalarFunction(lambda row: row)),
             is_arrow_udf=True, inputs=inputs, takes_row_as_input=True)
-        for arguments in (inputs, [proto.Input(udf=identity)]):
-            with self.subTest(nested=arguments[0].HasField("udf")):
-                operation = self.operation(increment, arguments, takes_row_as_input=True)
+        for arguments in (inputs, [proto.Input(udf=identity)], [proto.Input(refIndex=0)]):
+            with self.subTest(input_kind=arguments[0].WhichOneof("input")):
+                shared = arguments[0].HasField("refIndex")
+                operation = self.operation(
+                    increment, arguments, takes_row_as_input=True,
+                    preceding=[identity] if shared else [], output_indices=[1] if shared else [])
                 result = operation.process_element(batch)
+                self.assertEqual(result.num_columns, 1)
                 self.assertEqual(result.column(0).to_pylist(),
                                  [{"name": "alice", "count": 2}, {"name": None, "count": 3}])
 
