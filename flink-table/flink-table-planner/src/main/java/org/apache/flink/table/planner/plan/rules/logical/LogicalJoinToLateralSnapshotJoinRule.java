@@ -58,8 +58,8 @@ import java.util.List;
  * Rewrites a {@link FlinkLogicalJoin} whose right side is a {@link FlinkLogicalTableFunctionScan}
  * backed by the built-in {@code SNAPSHOT} function into a dedicated {@link
  * FlinkLogicalLateralSnapshotJoin}. The right-side input becomes the actual TABLE argument of the
- * SNAPSHOT call. The SNAPSHOT-specific arguments (load_completed_condition, load_completed_time,
- * load_completed_idle_timeout, state_ttl) are carried as fields on the new node.
+ * SNAPSHOT call. The SNAPSHOT-specific arguments (load_completed_time, load_completed_idle_timeout,
+ * state_ttl) are carried as fields on the new node.
  *
  * <p>By the time this rule fires, Calcite's decorrelator has already converted the original {@code
  * LogicalCorrelate} into a {@code LogicalJoin} (because SNAPSHOT does not actually reference any
@@ -140,13 +140,6 @@ public class LogicalJoinToLateralSnapshotJoinRule
         // All scalar SNAPSHOT arguments must be constant expressions, so we constant-fold each one
         // and reject anything that does not reduce to a literal. The 'input' TABLE argument
         // (index 0) is exempt.
-        final RexLiteral conditionLiteral =
-                foldToLiteral(
-                        rexBuilder,
-                        executor,
-                        operands,
-                        LateralSnapshotTypeStrategy.LOAD_COMPLETED_CONDITION_ARG_INDEX,
-                        LateralSnapshotTypeStrategy.LOAD_COMPLETED_CONDITION_ARG_NAME);
         final RexLiteral loadCompletedTimeLiteral =
                 foldToLiteral(
                         rexBuilder,
@@ -169,37 +162,20 @@ public class LogicalJoinToLateralSnapshotJoinRule
                         LateralSnapshotTypeStrategy.STATE_TTL_ARG_INDEX,
                         LateralSnapshotTypeStrategy.STATE_TTL_ARG_NAME);
 
-        // Resolve load_completed_time according to load_completed_condition. The default
-        // 'compile_time' uses the wall-clock time at planning; 'user_time' uses the user-provided
-        // load_completed_time (which the type strategy guarantees is present for 'user_time').
-        final String condition =
-                conditionLiteral == null ? null : conditionLiteral.getValueAs(String.class);
+        // The presence of load_completed_time determines the load-completion mode: if the user
+        // provided it, the load phase completes at the specified event time ('user_time');
+        // otherwise it completes when the build-side event time exceeds the wall-clock time the
+        // query is compiled ('compile_time').
+        // The effective load completed condition is carried for explain output.
         final Long loadCompletedTime;
-        if (condition == null
-                || LateralSnapshotTypeStrategy.LOAD_COMPLETED_CONDITION_COMPILE_TIME.equals(
-                        condition)) {
-            loadCompletedTime = System.currentTimeMillis();
-        } else if (LateralSnapshotTypeStrategy.LOAD_COMPLETED_CONDITION_USER_TIME.equals(
-                condition)) {
-            loadCompletedTime =
-                    loadCompletedTimeLiteral == null
-                            ? null
-                            : loadCompletedTimeLiteral.getValueAs(Long.class);
-            if (loadCompletedTime == null) {
-                throw new ValidationException(
-                        "SNAPSHOT requires 'load_completed_time' when "
-                                + "'load_completed_condition' is 'user_time'.");
-            }
+        final String loadCompletedCondition;
+        if (loadCompletedTimeLiteral != null) {
+            loadCompletedTime = loadCompletedTimeLiteral.getValueAs(Long.class);
+            loadCompletedCondition = LateralSnapshotJoinUtil.LOAD_COMPLETED_CONDITION_USER_TIME;
         } else {
-            throw new ValidationException(
-                    String.format("Unknown SNAPSHOT 'load_completed_condition': '%s'.", condition));
+            loadCompletedTime = System.currentTimeMillis();
+            loadCompletedCondition = LateralSnapshotJoinUtil.LOAD_COMPLETED_CONDITION_COMPILE_TIME;
         }
-
-        // The effective condition (defaulting to 'compile_time') is carried for explain output.
-        final String loadCompletedCondition =
-                condition == null
-                        ? LateralSnapshotTypeStrategy.LOAD_COMPLETED_CONDITION_COMPILE_TIME
-                        : condition;
         final Long loadCompletedIdleTimeoutMs =
                 intervalMillis(
                         idleTimeoutLiteral,

@@ -33,9 +33,7 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 /**
  * Tests for {@link SpecificInputTypeStrategies#LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY}.
  *
- * <p>Validates the named-argument signature of the {@code SNAPSHOT} table function, including the
- * cross-argument consistency between {@code load_completed_condition} and {@code
- * load_completed_time}.
+ * <p>Validates the named-argument signature of the {@code SNAPSHOT} table function.
  */
 class LateralSnapshotInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
@@ -59,9 +57,7 @@ class LateralSnapshotInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                 // Valid: just the build-side table (on_time is optional at this layer; the
                 // planner rule enforces it for streaming).
                 // ----------------------------------------------------------------------------
-                TestSpec.forStrategy(
-                                "Valid: input only (default condition)",
-                                LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
+                TestSpec.forStrategy("Valid: input only", LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .expectArgumentTypes(TABLE_TYPE),
@@ -76,53 +72,23 @@ class LateralSnapshotInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE),
 
                 // ----------------------------------------------------------------------------
-                // Valid: explicit 'compile_time' condition without load_completed_time.
-                // ----------------------------------------------------------------------------
-                TestSpec.forStrategy(
-                                "Valid: condition='compile_time'",
-                                LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, STRING_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ON_TIME)
-                        .calledWithLiteralAt(2, "compile_time")
-                        .expectArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, STRING_TYPE),
-
-                // ----------------------------------------------------------------------------
-                // Valid: 'user_time' with a TIMESTAMP literal.
-                // ----------------------------------------------------------------------------
-                TestSpec.forStrategy(
-                                "Valid: condition='user_time' + load_completed_time",
-                                LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(
-                                TABLE_TYPE, DESCRIPTOR_TYPE, STRING_TYPE, TIMESTAMP_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ON_TIME)
-                        .calledWithLiteralAt(2, "user_time")
-                        .calledWithLiteralAt(3, LocalDateTime.parse("2026-07-01T00:00:00.001"))
-                        .expectArgumentTypes(
-                                TABLE_TYPE, DESCRIPTOR_TYPE, STRING_TYPE, TIMESTAMP_TYPE),
-
-                // ----------------------------------------------------------------------------
                 // Valid: full named-arg form with idle timeout and TTL.
                 // ----------------------------------------------------------------------------
                 TestSpec.forStrategy("Valid: full args", LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 TABLE_TYPE,
                                 DESCRIPTOR_TYPE,
-                                STRING_TYPE,
                                 TIMESTAMP_TYPE,
                                 INTERVAL_TYPE,
                                 INTERVAL_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithLiteralAt(1, ON_TIME)
-                        .calledWithLiteralAt(2, "user_time")
-                        .calledWithLiteralAt(3, LocalDateTime.parse("2026-07-01T00:00:00.001"))
-                        .calledWithLiteralAt(4, Duration.ofSeconds(10))
-                        .calledWithLiteralAt(5, Duration.ofDays(1))
+                        .calledWithLiteralAt(2, LocalDateTime.parse("2026-07-01T00:00:00.001"))
+                        .calledWithLiteralAt(3, Duration.ofSeconds(10))
+                        .calledWithLiteralAt(4, Duration.ofDays(1))
                         .expectArgumentTypes(
                                 TABLE_TYPE,
                                 DESCRIPTOR_TYPE,
-                                STRING_TYPE,
                                 TIMESTAMP_TYPE,
                                 INTERVAL_TYPE,
                                 INTERVAL_TYPE),
@@ -194,62 +160,6 @@ class LateralSnapshotInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithLiteralAt(1, ColumnList.of("ts", "k"))
                         .expectErrorMessage(
-                                "Argument 'on_time' of SNAPSHOT must reference exactly one column."),
-
-                // ----------------------------------------------------------------------------
-                // Invalid: 'user_time' condition requires load_completed_time.
-                // ----------------------------------------------------------------------------
-                TestSpec.forStrategy(
-                                "Invalid: condition='user_time' without load_completed_time",
-                                LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, STRING_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ON_TIME)
-                        .calledWithLiteralAt(2, "user_time")
-                        .expectErrorMessage(
-                                "SNAPSHOT requires 'load_completed_time' when "
-                                        + "'load_completed_condition' is 'user_time'."),
-
-                // ----------------------------------------------------------------------------
-                // Invalid: load_completed_time requires 'user_time' condition.
-                // ----------------------------------------------------------------------------
-                TestSpec.forStrategy(
-                                "Invalid: load_completed_time without explicit 'user_time'",
-                                LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(
-                                TABLE_TYPE, DESCRIPTOR_TYPE, STRING_TYPE, TIMESTAMP_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ON_TIME)
-                        .calledWithLiteralAt(2, "compile_time")
-                        .calledWithLiteralAt(3, LocalDateTime.parse("2026-07-01T00:00:00.001"))
-                        .expectErrorMessage(
-                                "SNAPSHOT does not accept 'load_completed_time' when "
-                                        + "'load_completed_condition' is not 'user_time'."),
-
-                // ----------------------------------------------------------------------------
-                // Invalid: unknown condition value.
-                // ----------------------------------------------------------------------------
-                TestSpec.forStrategy(
-                                "Invalid: unknown condition value",
-                                LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, STRING_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ON_TIME)
-                        .calledWithLiteralAt(2, "invalid_condition")
-                        .expectErrorMessage(
-                                "Argument 'load_completed_condition' of SNAPSHOT must be one of 'compile_time', 'user_time' but was 'invalid_condition'."),
-
-                // ----------------------------------------------------------------------------
-                // Invalid: load_completed_condition provided as a non-literal expression.
-                // ----------------------------------------------------------------------------
-                TestSpec.forStrategy(
-                                "Invalid: non-literal load_completed_condition",
-                                LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY)
-                        .calledWithArgumentTypes(TABLE_TYPE, DESCRIPTOR_TYPE, STRING_TYPE)
-                        .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
-                        .calledWithLiteralAt(1, ON_TIME)
-                        // Intentionally no literal provided for load_completed_condition
-                        .expectErrorMessage(
-                                "Argument 'load_completed_condition' of SNAPSHOT must be a STRING literal."));
+                                "Argument 'on_time' of SNAPSHOT must reference exactly one column."));
     }
 }
