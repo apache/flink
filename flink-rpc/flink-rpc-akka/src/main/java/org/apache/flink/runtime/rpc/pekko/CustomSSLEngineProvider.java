@@ -24,6 +24,7 @@ import org.apache.pekko.actor.ActorSystem;
 import org.apache.pekko.remote.RemoteTransportException;
 import org.apache.pekko.remote.transport.netty.ConfigSSLEngineProvider;
 
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
@@ -45,6 +46,7 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
     private final List<String> sslCertFingerprints;
     private final String sslKeyStoreType;
     private final String sslTrustStoreType;
+    private final String[] enabledProtocols;
 
     public CustomSSLEngineProvider(ActorSystem system) {
         super(system);
@@ -55,6 +57,21 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
         sslCertFingerprints = securityConfig.getStringList("cert-fingerprints");
         sslKeyStoreType = securityConfig.getString("key-store-type");
         sslTrustStoreType = securityConfig.getString("trust-store-type");
+        enabledProtocols = securityConfig.getStringList("enabled-protocols").toArray(new String[0]);
+    }
+
+    @Override
+    public SSLEngine createServerSSLEngine() {
+        SSLEngine engine = super.createServerSSLEngine();
+        engine.setEnabledProtocols(enabledProtocols);
+        return engine;
+    }
+
+    @Override
+    public SSLEngine createClientSSLEngine() {
+        SSLEngine engine = super.createClientSSLEngine();
+        engine.setEnabledProtocols(enabledProtocols);
+        return engine;
     }
 
     @Override

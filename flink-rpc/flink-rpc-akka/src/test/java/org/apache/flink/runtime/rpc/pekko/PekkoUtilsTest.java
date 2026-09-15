@@ -277,4 +277,48 @@ class PekkoUtilsTest {
         assertThat(securityConfig.getString("key-store-type")).isEqualTo("JKS");
         assertThat(securityConfig.getString("trust-store-type")).isEqualTo("JKS");
     }
+
+    @Test
+    void getConfigSingleSslProtocolUsesItAsContextProtocol() {
+        final Configuration configuration = new Configuration();
+        configuration.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        configuration.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.2");
+
+        final Config config =
+                PekkoUtils.getConfig(configuration, new HostAndPort("localhost", 31337));
+        final Config securityConfig = config.getConfig("pekko.remote.classic.netty.ssl.security");
+
+        assertThat(securityConfig.getString("protocol")).isEqualTo("TLSv1.2");
+        assertThat(securityConfig.getStringList("enabled-protocols")).containsExactly("TLSv1.2");
+    }
+
+    @Test
+    void getConfigCommaSeparatedSslProtocolsUsesHighestAsContextProtocol() {
+        final Configuration configuration = new Configuration();
+        configuration.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        configuration.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.2,TLSv1.3");
+
+        final Config config =
+                PekkoUtils.getConfig(configuration, new HostAndPort("localhost", 31337));
+        final Config securityConfig = config.getConfig("pekko.remote.classic.netty.ssl.security");
+
+        assertThat(securityConfig.getString("protocol")).isEqualTo("TLSv1.3");
+        assertThat(securityConfig.getStringList("enabled-protocols"))
+                .containsExactly("TLSv1.2", "TLSv1.3");
+    }
+
+    @Test
+    void getConfigSslProtocolsHighestIsSelectedRegardlessOfInputOrder() {
+        final Configuration configuration = new Configuration();
+        configuration.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        configuration.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.3,TLSv1.2"); // reversed order
+
+        final Config config =
+                PekkoUtils.getConfig(configuration, new HostAndPort("localhost", 31337));
+        final Config securityConfig = config.getConfig("pekko.remote.classic.netty.ssl.security");
+
+        assertThat(securityConfig.getString("protocol")).isEqualTo("TLSv1.3");
+        assertThat(securityConfig.getStringList("enabled-protocols"))
+                .containsExactly("TLSv1.3", "TLSv1.2");
+    }
 }
