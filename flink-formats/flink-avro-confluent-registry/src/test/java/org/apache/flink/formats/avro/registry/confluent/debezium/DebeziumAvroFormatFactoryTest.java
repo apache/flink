@@ -169,6 +169,31 @@ class DebeziumAvroFormatFactoryTest {
     }
 
     @Test
+    void testSeDeSchemaWithAutoRegisterSchemas() {
+        final Map<String, String> options = getAllOptions();
+        options.put("debezium-avro-confluent.auto.register.schemas", "false");
+
+        final Map<String, String> registryConfigs = getRegistryConfigs();
+        registryConfigs.put("auto.register.schemas", "false");
+
+        DebeziumAvroDeserializationSchema expectedDeser =
+                new DebeziumAvroDeserializationSchema(
+                        ROW_TYPE,
+                        InternalTypeInfo.of(ROW_TYPE),
+                        REGISTRY_URL,
+                        null,
+                        registryConfigs);
+        DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
+
+        DebeziumAvroSerializationSchema expectedSer =
+                new DebeziumAvroSerializationSchema(
+                        ROW_TYPE, REGISTRY_URL, SUBJECT, null, registryConfigs);
+        SerializationSchema<RowData> actualSer = createSerializationSchema(options);
+        assertThat(actualSer).isEqualTo(expectedSer);
+    }
+
+    @Test
     public void testSeDeSchemaWithInvalidSchemaOption() {
         final Map<String, String> options = getAllOptions();
         options.put("debezium-avro-confluent.schema", RECORD_SCHEMA);
