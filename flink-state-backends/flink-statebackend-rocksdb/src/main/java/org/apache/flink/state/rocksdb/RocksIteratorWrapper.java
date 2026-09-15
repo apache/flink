@@ -20,11 +20,14 @@ package org.apache.flink.state.rocksdb;
 
 import org.apache.flink.util.FlinkRuntimeException;
 
+import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.RocksIteratorInterface;
+import org.rocksdb.Slice;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.nio.ByteBuffer;
@@ -48,8 +51,21 @@ public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
 
     private RocksIterator iterator;
 
+    @Nullable private final ReadOptions ownedReadOptions;
+
+    @Nullable private final Slice ownedUpperBound;
+
     public RocksIteratorWrapper(@Nonnull RocksIterator iterator) {
+        this(iterator, null, null);
+    }
+
+    RocksIteratorWrapper(
+            @Nonnull RocksIterator iterator,
+            @Nullable ReadOptions ownedReadOptions,
+            @Nullable Slice ownedUpperBound) {
         this.iterator = iterator;
+        this.ownedReadOptions = ownedReadOptions;
+        this.ownedUpperBound = ownedUpperBound;
     }
 
     @Override
@@ -128,6 +144,12 @@ public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
 
     @Override
     public void close() {
-        iterator.close();
+        // The native iterator keeps a pointer to the upper-bound slice, so the iterator is closed
+        // first and the owned read options and slice afterwards. RocksObject#close() disposes a
+        // native handle only once, which makes closing this wrapper twice safe.
+        try (ownedUpperBound;
+                ownedReadOptions) {
+            iterator.close();
+        }
     }
 }

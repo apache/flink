@@ -282,8 +282,8 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 
         try (RocksIteratorWrapper iterator =
-                RocksDBOperationUtils.getRocksIterator(
-                        backend.db, columnFamily, backend.getReadOptions())) {
+                RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
+                        backend.db, columnFamily, backend.getReadOptions(), prefixBytes)) {
 
             iterator.seek(prefixBytes);
 
@@ -293,16 +293,19 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
 
     @Override
     public void clear() {
+        final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
         try (RocksIteratorWrapper iterator =
-                        RocksDBOperationUtils.getRocksIterator(
-                                backend.db, columnFamily, backend.getReadOptions());
+                        RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
+                                backend.db,
+                                columnFamily,
+                                backend.getReadOptions(),
+                                keyPrefixBytes);
                 RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper =
                         new RocksDBWriteBatchWrapper(
                                 backend.db,
                                 backend.getWriteOptions(),
                                 backend.getWriteBatchSize())) {
 
-            final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
             iterator.seek(keyPrefixBytes);
 
             while (iterator.isValid()) {
@@ -658,8 +661,8 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
             // exception
             // occurred in the below code block.
             try (RocksIteratorWrapper iterator =
-                    RocksDBOperationUtils.getRocksIterator(
-                            db, columnFamily, backend.getReadOptions())) {
+                    RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
+                            db, columnFamily, backend.getReadOptions(), keyPrefixBytes)) {
 
                 /*
                  * The iteration starts from the prefix bytes at the first loading. After #nextEntry() is called,
