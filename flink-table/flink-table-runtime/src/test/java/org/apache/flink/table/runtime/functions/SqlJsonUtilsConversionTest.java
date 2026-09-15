@@ -232,8 +232,7 @@ class SqlJsonUtilsConversionTest {
             Object result = scalarDecimal("99999999999999999999999999999999999999", 38, 0);
             assertThat(result).isInstanceOf(DecimalData.class);
             assertThat(((DecimalData) result).toBigDecimal())
-                    .isEqualByComparingTo(
-                            new BigDecimal("99999999999999999999999999999999999999"));
+                    .isEqualByComparingTo(new BigDecimal("99999999999999999999999999999999999999"));
         }
 
         @Test
@@ -410,8 +409,9 @@ class SqlJsonUtilsConversionTest {
 
         @Test
         void nullElementInNotNullArrayReturnsNull() {
-            assertThat(SqlJsonUtils.convertJsonArray(
-                    new Object[] {1, null, 3}, INTEGER, 0, 0, false, NULL))
+            assertThat(
+                            SqlJsonUtils.convertJsonArray(
+                                    new Object[] {1, null, 3}, INTEGER, 0, 0, false, NULL))
                     .isNull();
         }
 
@@ -450,7 +450,9 @@ class SqlJsonUtilsConversionTest {
 
         @Test
         void typeMismatchReturnsNull() {
-            assertThat(SqlJsonUtils.convertJsonArray(new Object[] {"a", "b"}, INTEGER, 0, 0, true, NULL))
+            assertThat(
+                            SqlJsonUtils.convertJsonArray(
+                                    new Object[] {"a", "b"}, INTEGER, 0, 0, true, NULL))
                     .isNull();
         }
 
@@ -483,7 +485,9 @@ class SqlJsonUtilsConversionTest {
 
         @Test
         void decimalOverflowTriggersOnError() {
-            assertThat(SqlJsonUtils.convertJsonArray(new Object[] {999999}, DECIMAL, 2, 1, true, NULL))
+            assertThat(
+                            SqlJsonUtils.convertJsonArray(
+                                    new Object[] {999999}, DECIMAL, 2, 1, true, NULL))
                     .isNull();
         }
 
@@ -523,6 +527,35 @@ class SqlJsonUtilsConversionTest {
         void decimalArrayRoundingOverflowFailsAtomically() {
             // 999.999 rounds to 1000.00 which overflows DECIMAL(5,2); whole array fails
             assertThat(arrayDecimal(new Object[] {1.5, 999.999}, 5, 2, NULL)).isNull();
+        }
+
+        @Test
+        void booleanStringArrayConverted() {
+            assertThat(array(new Object[] {"yes", "no"}, BOOLEAN).toObjectArray())
+                    .containsExactly(true, false);
+        }
+
+        @Test
+        void invalidBooleanStringArrayReturnsNull() {
+            assertThat(
+                            SqlJsonUtils.convertJsonArray(
+                                    new Object[] {"Y", "n"}, BOOLEAN, 0, 0, true, NULL))
+                    .isNull();
+        }
+
+        @Test
+        void intArrayToBooleanReturnsNull() {
+            // [1, 2, 3]: element 2 is not 0 or 1, so conversion fails atomically
+            assertThat(
+                            SqlJsonUtils.convertJsonArray(
+                                    new Object[] {1, 2, 3}, BOOLEAN, 0, 0, true, NULL))
+                    .isNull();
+        }
+
+        @Test
+        void mixedLongAndIntegerArray() {
+            assertThat(array(new Object[] {1, 9999999999L}, BIGINT).toObjectArray())
+                    .containsExactly(1L, 9999999999L);
         }
     }
 }
