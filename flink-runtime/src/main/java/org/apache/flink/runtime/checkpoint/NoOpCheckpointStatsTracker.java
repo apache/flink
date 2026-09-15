@@ -72,7 +72,8 @@ public enum NoOpCheckpointStatsTracker implements CheckpointStatsTracker {
     public void reportFailedCheckpoint(FailedCheckpointStats failed) {}
 
     @Override
-    public void reportFailedCheckpointsWithoutInProgress() {}
+    public void reportFailedCheckpointsWithoutInProgress(
+            @Nullable CheckpointFailureReason reason) {}
 
     @Override
     public CheckpointStatsSnapshot createSnapshot() {
