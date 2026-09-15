@@ -466,6 +466,40 @@ public class SqlGatewayServiceITCase {
     }
 
     @Test
+    void testCompilePlanInline() throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
+
+        String sourceDdl = "CREATE TABLE src (a INT, b STRING) WITH ('connector' = 'datagen')";
+        String sinkDdl = "CREATE TABLE snk (a INT, b STRING) WITH ('connector' = 'blackhole')";
+        String compileSql = "COMPILE PLAN FOR INSERT INTO snk SELECT * FROM src";
+
+        awaitOperationTermination(
+                service,
+                sessionHandle,
+                service.executeStatement(sessionHandle, sourceDdl, -1, configuration));
+        awaitOperationTermination(
+                service,
+                sessionHandle,
+                service.executeStatement(sessionHandle, sinkDdl, -1, configuration));
+
+        OperationHandle handle =
+                service.executeStatement(sessionHandle, compileSql, -1, configuration);
+        awaitOperationTermination(service, sessionHandle, handle);
+
+        assertThat(service.getOperationResultSchema(sessionHandle, handle))
+                .isEqualTo(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())));
+
+        List<RowData> rows = fetchAllResults(service, sessionHandle, handle);
+        assertThat(rows).hasSize(1);
+
+        String planJson = rows.get(0).getString(0).toString();
+        assertThat(planJson).contains("\"flinkVersion\"");
+        assertThat(planJson).contains("stream-exec-table-source-scan");
+        assertThat(planJson).contains("stream-exec-sink");
+    }
+
+    @Test
     void testShowJobsOperation(@InjectClusterClient RestClusterClient<?> restClusterClient)
             throws Exception {
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
