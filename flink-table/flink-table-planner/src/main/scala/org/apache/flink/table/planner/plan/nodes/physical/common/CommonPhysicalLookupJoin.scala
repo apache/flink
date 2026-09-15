@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.catalog.{ObjectIdentifier, UniqueConstraint}
+import org.apache.flink.table.catalog.UniqueConstraint
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
@@ -187,14 +187,18 @@ abstract class CommonPhysicalLookupJoin(
       case None =>
         resultFieldNames.mkString(", ")
     }
-    val tableIdentifier: ObjectIdentifier = temporalTable match {
-      case t: TableSourceTable => t.contextResolvedTable.getIdentifier
-      case t: LegacyTableSourceTable[_] => t.tableIdentifier
+    // Two lookup joins on the same table with different push-downs are different operators. The
+    // scan gets the spec digests from RelOptTable#getQualifiedName; the lookup join has to add them.
+    val tableDigest: String = temporalTable match {
+      case t: TableSourceTable =>
+        val specDigests = t.getSpecDigests.asScala.toSeq
+        (t.contextResolvedTable.getIdentifier.asSummaryString +: specDigests).mkString(", ")
+      case t: LegacyTableSourceTable[_] => t.tableIdentifier.asSummaryString
     }
 
     super
       .explainTerms(pw)
-      .item("table", tableIdentifier.asSummaryString())
+      .item("table", tableDigest)
       .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
       .item("lookup", lookupKeys)
       .itemIf("where", whereString, whereString.nonEmpty)
