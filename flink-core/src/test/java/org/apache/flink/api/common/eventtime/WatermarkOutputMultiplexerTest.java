@@ -427,21 +427,27 @@ class WatermarkOutputMultiplexerTest {
     }
 
     @Test
-    void testNotEmittingIdleAfterAllSplitsRemoved() {
+    void testEmittingIdleAfterAllSplitsRemoved() {
         final TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
         final WatermarkOutputMultiplexer multiplexer =
                 new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
 
+        // An active output emits a watermark, which marks the combined status as non-idle.
         Watermark emittedWatermark = new Watermark(1);
         final String id = UUID.randomUUID().toString();
         multiplexer.registerNewOutput(id);
         WatermarkOutput immediateOutput = multiplexer.getImmediateOutput(id);
         immediateOutput.emitWatermark(emittedWatermark);
-        multiplexer.unregisterOutput(id);
-
-        multiplexer.onPeriodicEmit();
-        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(emittedWatermark);
         assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
+
+        // Once all outputs are unregistered there is nothing left to track, so the combined status
+        // must fall back to idle instead of staying stuck at the previous non-idle state. The last
+        // watermark must not regress when there are no outputs left.
+        multiplexer.unregisterOutput(id);
+        multiplexer.onPeriodicEmit();
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(emittedWatermark);
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
     }
 
     /**
