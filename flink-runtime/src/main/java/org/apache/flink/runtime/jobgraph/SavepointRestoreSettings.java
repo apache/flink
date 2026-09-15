@@ -235,15 +235,18 @@ public class SavepointRestoreSettings implements Serializable {
 
     public static SavepointRestoreSettings fromConfiguration(final ReadableConfig configuration) {
         final String savepointPath = configuration.get(StateRecoveryOptions.SAVEPOINT_PATH);
-        if (savepointPath == null) {
+        final RecoveryClaimMode recoveryClaimMode =
+                configuration.getOptional(StateRecoveryOptions.RESTORE_MODE).orElse(null);
+        if (savepointPath == null && recoveryClaimMode == null) {
             return SavepointRestoreSettings.none();
         }
         final Boolean allowNonRestored =
                 configuration
                         .getOptional(StateRecoveryOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE)
                         .orElse(null);
-        final RecoveryClaimMode recoveryClaimMode =
-                configuration.getOptional(StateRecoveryOptions.RESTORE_MODE).orElse(null);
-        return SavepointRestoreSettings.forPath(savepointPath, allowNonRestored, recoveryClaimMode);
+        return savepointPath == null
+                ? SavepointRestoreSettings.forRecoveryClaimMode(allowNonRestored, recoveryClaimMode)
+                : SavepointRestoreSettings.forPath(
+                        savepointPath, allowNonRestored, recoveryClaimMode);
     }
 }

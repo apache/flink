@@ -23,6 +23,8 @@ import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -167,7 +169,69 @@ public class SavepointRestoreSettingsTest {
                 SavepointRestoreSettings.fromConfiguration(configuration);
 
         assertThat(settings.restoreSavepoint()).isFalse();
-        assertThat(settings).isEqualTo(SavepointRestoreSettings.none());
+        assertThat(settings)
+                .isEqualTo(
+                        SavepointRestoreSettings.forRecoveryClaimMode(
+                                null, RecoveryClaimMode.CLAIM));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        ",,",
+        ",,false",
+        ",,true",
+        ",NO_CLAIM,",
+        ",NO_CLAIM,false",
+        ",NO_CLAIM,true",
+        ",CLAIM,",
+        ",CLAIM,false",
+        ",CLAIM,true",
+        ",LEGACY,",
+        ",LEGACY,false",
+        ",LEGACY,true",
+        "savepoint,,",
+        "savepoint,CLAIM,false",
+        "savepoint,LEGACY,true"
+    })
+    void testConfigurationRoundTrip(String path, RecoveryClaimMode mode, Boolean allowNonRestored) {
+        Configuration input = new Configuration();
+        if (path != null) {
+            input.set(StateRecoveryOptions.SAVEPOINT_PATH, path);
+        }
+        if (mode != null) {
+            input.set(StateRecoveryOptions.RESTORE_MODE, mode);
+        }
+        if (allowNonRestored != null) {
+            input.set(StateRecoveryOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE, allowNonRestored);
+        }
+
+        Configuration output = new Configuration();
+        SavepointRestoreSettings.toConfiguration(
+                SavepointRestoreSettings.fromConfiguration(input), output);
+
+        if (path == null && mode == null) {
+            assertThat(output.toMap()).isEmpty();
+        } else {
+            assertThat(output.toMap()).isEqualTo(input.toMap());
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource({"NO_CLAIM,", "CLAIM,", "LEGACY,", "CLAIM,NO_CLAIM", "LEGACY,CLAIM"})
+    void testDeprecatedRestoreModeAlias(RecoveryClaimMode alias, RecoveryClaimMode canonical) {
+        Configuration input = new Configuration();
+        input.setString("execution.savepoint-restore-mode", alias.name());
+        if (canonical != null) {
+            input.set(StateRecoveryOptions.RESTORE_MODE, canonical);
+        }
+
+        Configuration output = new Configuration();
+        SavepointRestoreSettings.toConfiguration(
+                SavepointRestoreSettings.fromConfiguration(input), output);
+
+        Configuration expected = new Configuration();
+        expected.set(StateRecoveryOptions.RESTORE_MODE, canonical == null ? alias : canonical);
+        assertThat(output.toMap()).isEqualTo(expected.toMap());
     }
 
     @Test
