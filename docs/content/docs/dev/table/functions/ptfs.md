@@ -1390,37 +1390,10 @@ For efficient and high-performance data processing, it is recommended to design 
 feasible to simplify state management and avoid complexities associated with updating tables.
 {{< /hint >}}
 
-A PTF can consume and/or produce updating tables if it is configured to do so. This section provides a brief overview of
-CDC (Change Data Capture) with PTFs.
-
-### Change Data Capture Basics
-
-Under the hood, tables in Flink's SQL engine are backed by changelogs. These changelogs encode CDC (Change Data Capture)
-information containing *INSERT* (`+I`), *UPDATE_BEFORE* (`-U`), *UPDATE_AFTER* (`+U`), or *DELETE* (`-D`) messages.
-
-The existence of these flags in the changelog constitutes the *Changelog Mode* of a consumer or producer:
-
-**Append Mode `{+I}`**
-- All messages are insert-only.
-- Every insertion message is an immutable fact.
-- Messages can be distributed in an arbitrary fashion across partitions and processors because they are unrelated.
-
-**Upsert Mode `{+I, +U, -D}`**
-- Messages can contain updates leading to an updating table.
-- Updates are related using a key (i.e. the *upsert key*).
-- Every message is either an upsert or delete message for a result under the upsert key.
-- Messages for the same upsert key should land at the same partition and processor.
-- Deletions can contain only values for upsert key columns (i.e. *partial deletes*) or values for
-  all columns (i.e. *full deletes*).
-- The mode is also known as *partial image* in the literature because `-U` messages are missing.
-
-**Retract Mode `{+I, -U, +U, -D}`**
-- Messages can contain updates leading to an updating table.
-- Every insertion or update event is a fact that can be "undone" (i.e. retracted).
-- Updates are related by all columns. In simplified words: The entire row is kind of the key but duplicates are supported.
-  For example: `+I['Bob', 42]` is related to `-D['Bob', 42]` and `+U['Alice', 13]` is related to `-U['Alice', 13]`.
-- Thus, every message is either an insertion (`+`) or its retraction (`-`).
-- The mode is known as *full image* in the literature.
+A PTF can consume and/or produce updating tables if it is configured to do so. See
+[Interpreting Flink's Changelog]({{< ref "docs/concepts/sql-table-concepts/interpreting_changelog" >}}) for how
+changelogs, row kinds, and changelog modes work under the hood. The sections below cover how PTFs specifically
+consume and produce them.
 
 ### Updating Input Tables
 
