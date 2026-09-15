@@ -21,56 +21,57 @@
 from functools import cache
 
 
-def validate_arrow_batch(batch, schema, field_types):
+def validate_arrow_batch(batch, schema):
     import pyarrow as pa
 
     if not isinstance(batch, pa.RecordBatch):
         raise TypeError("Arrow transport expects a pyarrow.RecordBatch.")
     if batch.num_columns != len(schema):
         raise ValueError(f"Arrow result has {batch.num_columns} columns, expected {len(schema)}.")
-    for column, field, data_type in zip(batch.columns, schema, field_types):
-        _validate_array(column, field.type, data_type, field.name)
+    for column, field in zip(batch.columns, schema):
+        _validate_array(column, field, field.name)
     return pa.RecordBatch.from_arrays(batch.columns, schema=schema)
 
 
-def _validate_array(column, expected_type, data_type, path, parent_validity=None):
+def _validate_array(column, field, path, parent_validity=None):
     import pyarrow as pa
     import pyarrow.compute as pc
-    from pyflink.table.types import ArrayType, MapType, RowType
+    expected_type = field.type
 
     def wrong_type():
         raise TypeError(
             f"Arrow result field '{path}' has type {column.type}, expected {expected_type}.")
 
-    if not data_type._nullable and column.null_count:
+    if not field.nullable and column.null_count:
         validity = parent_validity() if parent_validity is not None else None
         if validity is None or pc.any(pc.and_(validity, column.is_null())).as_py():
             raise ValueError(f"Arrow result field '{path}' is not nullable.")
-    if isinstance(data_type, RowType):
-        if not pa.types.is_struct(column.type) or column.type.num_fields != len(data_type.fields):
+    if pa.types.is_struct(expected_type):
+        if (not pa.types.is_struct(column.type)
+                or column.type.num_fields != expected_type.num_fields):
             wrong_type()
         validity = cache(lambda: _get_validity(column, parent_validity))
-        for index, field in enumerate(data_type.fields):
-            if column.type[index].name != field.name:
+        for index, child_field in enumerate(expected_type):
+            if column.type[index].name != child_field.name:
                 wrong_type()
-            _validate_array(column.field(index), expected_type[index].type,
-                            field.data_type, f"{path}.{field.name}", validity)
-    elif isinstance(data_type, ArrayType):
+            _validate_array(column.field(index), child_field,
+                            f"{path}.{child_field.name}", validity)
+    elif pa.types.is_list(expected_type):
         if not pa.types.is_list(column.type):
             wrong_type()
         start, end = column.offsets[0].as_py(), column.offsets[-1].as_py()
-        _validate_array(column.values.slice(start, end - start), expected_type.value_type,
-                        data_type.element_type, f"{path}[]",
+        _validate_array(column.values.slice(start, end - start),
+                        expected_type.value_field, f"{path}[]",
                         cache(lambda: _get_child_validity(column, parent_validity)))
-    elif isinstance(data_type, MapType):
+    elif pa.types.is_map(expected_type):
         if not pa.types.is_map(column.type):
             wrong_type()
         validity = cache(lambda: _get_child_validity(column, parent_validity))
         start, end = column.offsets[0].as_py(), column.offsets[-1].as_py()
-        _validate_array(column.keys.slice(start, end - start), expected_type.key_type,
-                        data_type.key_type.not_null(), f"{path}.key", validity)
-        _validate_array(column.items.slice(start, end - start), expected_type.item_type,
-                        data_type.value_type, f"{path}.value", validity)
+        _validate_array(column.keys.slice(start, end - start), expected_type.key_field,
+                        f"{path}.key", validity)
+        _validate_array(column.items.slice(start, end - start), expected_type.item_field,
+                        f"{path}.value", validity)
     elif column.type != expected_type:
         wrong_type()
 
