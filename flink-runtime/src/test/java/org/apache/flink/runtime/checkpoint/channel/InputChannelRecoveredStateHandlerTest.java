@@ -352,6 +352,27 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
     }
 
     @Test
+    void testPreFilterBufferRecycledWhenFilterAndRewriteThrows() throws Exception {
+        // The empty GateFilterHandler array makes recover()'s dispatcher throw before delegating.
+        // The pre-filter buffer must still be recycled, or close() would free() a segment that is
+        // still wrapped by a live NetworkBuffer.
+        try (SpillingWithFilteringHandler filteringHandler =
+                buildFilteringInputChannelStateHandler()) {
+            RecoveredChannelStateHandler.BufferWithContext<Buffer> bwc =
+                    filteringHandler.getBuffer(channelInfo);
+            // Non-empty buffer so recover() reaches filterAndRewrite.
+            bwc.context.setSize(Long.BYTES);
+            assertThat(filteringHandler.isPreFilterBufferInUse()).isTrue();
+
+            assertThatThrownBy(() -> filteringHandler.recover(channelInfo, 0, bwc))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Invalid gateIndex");
+
+            assertThat(filteringHandler.isPreFilterBufferInUse()).isFalse();
+        }
+    }
+
+    @Test
     void testSpillingHandlerRequiresSpillDirectories() {
         assertThatThrownBy(() -> buildSpillingNoFilteringHandler(null))
                 .isInstanceOf(NullPointerException.class);
