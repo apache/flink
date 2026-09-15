@@ -22,7 +22,6 @@ import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.ModelProviderFactory;
-import org.apache.flink.table.functions.AsyncPredictFunction;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.FloatType;
 
@@ -32,76 +31,57 @@ import com.openai.models.embeddings.EmbeddingCreateParams.EncodingFormat;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/** {@link AsyncPredictFunction} for OpenAI embedding task. */
-public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
+/**
+ * Per-task state and SDK plumbing for OpenAI embedding requests, shared between the async and sync
+ * embedding model functions.
+ */
+class OpenAIEmbeddingTask implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public static final String ENDPOINT_SUFFIX = "embeddings";
+    static final String ENDPOINT_SUFFIX = "embeddings";
 
-    private final String model;
+    private final OpenAIModelCommons commons;
     @Nullable private final Long dimensions;
     private final int outputColumnIndex;
 
-    public OpenAIEmbeddingModelFunction(
-            ModelProviderFactory.Context factoryContext, ReadableConfig config) {
-        super(factoryContext, config);
-        model = config.get(OpenAIOptions.MODEL);
-        dimensions = config.get(OpenAIOptions.DIMENSION);
-
-        validateSingleColumnSchema(
+    OpenAIEmbeddingTask(
+            ModelProviderFactory.Context factoryContext,
+            ReadableConfig config,
+            OpenAIModelCommons commons) {
+        this.commons = commons;
+        this.dimensions = config.get(OpenAIOptions.DIMENSION);
+        OpenAIModelCommons.validateSingleColumnSchema(
                 factoryContext.getCatalogModel().getResolvedOutputSchema(),
                 new ArrayType(new FloatType()),
                 "output");
-        this.outputColumnIndex = getOutputColumnIndex();
+        this.outputColumnIndex = commons.resolvePhysicalOutputColumnIndex();
     }
 
-    private int getOutputColumnIndex() {
-        for (int i = 0; i < this.outputColumnNames.size(); i++) {
-            String columnName = this.outputColumnNames.get(i);
-            if (ErrorMessageMetadata.get(columnName) == null) {
-                // Prior checks have guaranteed that there is one and only one physical output
-                // column.
-                return i;
-            }
-        }
-        throw new IllegalArgumentException(
-                "There should be one and only one physical output column. Actual columns: "
-                        + this.outputColumnNames);
-    }
-
-    @Override
-    protected String getEndpointSuffix() {
-        return ENDPOINT_SUFFIX;
-    }
-
-    @Override
-    public CompletableFuture<Collection<RowData>> asyncPredictInternal(String input) {
-        final EmbeddingCreateParams.Builder builder = EmbeddingCreateParams.builder();
-        builder.model(model);
+    EmbeddingCreateParams buildParams(String input) {
+        EmbeddingCreateParams.Builder builder = EmbeddingCreateParams.builder();
+        builder.model(commons.model);
         builder.input(input);
         builder.encodingFormat(EncodingFormat.FLOAT);
         if (dimensions != null) {
             builder.dimensions(dimensions);
         }
-
-        return client.embeddings().create(builder.build()).handle(this::convertToRowData);
+        return builder.build();
     }
 
-    private Collection<RowData> convertToRowData(
-            CreateEmbeddingResponse response, Throwable throwable) {
+    Collection<RowData> convertToRowData(
+            @Nullable CreateEmbeddingResponse response, @Nullable Throwable throwable) {
         if (throwable != null) {
-            return handleErrorsAndRespond(throwable);
+            return commons.handleErrorsAndRespond(throwable);
         }
-
         return response.data().stream()
                 .map(
                         embedding -> {
                             GenericRowData rowData =
-                                    new GenericRowData(this.outputColumnNames.size());
+                                    new GenericRowData(commons.outputColumnNames.size());
                             rowData.setField(
                                     outputColumnIndex,
                                     new GenericArrayData(

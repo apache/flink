@@ -52,7 +52,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Test for {@link OpenAIEmbeddingModelFunction}. */
+/** Test for {@link OpenAIAsyncEmbeddingModelFunction}. */
 public class OpenAIEmbeddingModelTest {
 
     private static final String MODEL_NAME = "m";
