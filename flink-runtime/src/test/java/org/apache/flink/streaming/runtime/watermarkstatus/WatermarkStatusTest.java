@@ -36,14 +36,22 @@ class WatermarkStatusTest {
     void testEquals() {
         WatermarkStatus idleStatus = new WatermarkStatus(WatermarkStatus.IDLE_STATUS);
         WatermarkStatus activeStatus = new WatermarkStatus(WatermarkStatus.ACTIVE_STATUS);
+        WatermarkStatus finishedStatus = new WatermarkStatus(WatermarkStatus.FINISHED_STATUS);
 
         assertThat(idleStatus).isEqualTo(WatermarkStatus.IDLE);
         assertThat(idleStatus.isIdle()).isTrue();
         assertThat(idleStatus.isActive()).isFalse();
+        assertThat(idleStatus.isFinished()).isFalse();
 
         assertThat(activeStatus).isEqualTo(WatermarkStatus.ACTIVE);
         assertThat(activeStatus.isActive()).isTrue();
         assertThat(activeStatus.isIdle()).isFalse();
+        assertThat(activeStatus.isFinished()).isFalse();
+
+        assertThat(finishedStatus).isEqualTo(WatermarkStatus.FINISHED);
+        assertThat(finishedStatus.isFinished()).isTrue();
+        assertThat(finishedStatus.isActive()).isFalse();
+        assertThat(finishedStatus.isIdle()).isFalse();
     }
 
     @Test

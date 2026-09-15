@@ -341,4 +341,9 @@ public class MultipleInputStreamTask<OUT>
             sourceOutput.emitWatermark(Watermark.MAX_WATERMARK);
         }
     }
+
+    @Override
+    protected void emitFinishedStatus() {
+        emitFinishedStatusToOutputs();
+    }
 }

@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -105,8 +106,9 @@ class SourceTaskTerminationTest {
                             ::isDone);
 
             if (shouldTerminate) {
-                // if we are in TERMINATE mode, we expect the source task
-                // to emit MAX_WM before the SYNC_SAVEPOINT barrier.
+                // if we are in TERMINATE mode, we expect the source task to emit FINISHED
+                // status and then MAX_WM before the SYNC_SAVEPOINT barrier.
+                verifyWatermarkStatus(srcTaskTestHarness.getOutput(), WatermarkStatus.FINISHED);
                 verifyWatermark(srcTaskTestHarness.getOutput(), Watermark.MAX_WATERMARK);
             }
 
@@ -168,6 +170,14 @@ class SourceTaskTerminationTest {
         Object next = output.remove();
         assertThat(next).as("next element is not an event").isInstanceOf(Watermark.class);
         assertThat(next).as("wrong watermark").isEqualTo(expectedWatermark);
+    }
+
+    private void verifyWatermarkStatus(Queue<Object> output, WatermarkStatus expectedStatus) {
+        Object next = output.remove();
+        assertThat(next)
+                .as("next element is not a watermark status")
+                .isInstanceOf(WatermarkStatus.class);
+        assertThat(next).as("wrong watermark status").isEqualTo(expectedStatus);
     }
 
     private void verifyEvent(Queue<Object> output, AbstractEvent expectedEvent) {
