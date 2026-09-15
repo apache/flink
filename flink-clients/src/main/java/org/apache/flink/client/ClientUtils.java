@@ -171,11 +171,18 @@ public enum ClientUtils {
             if (status == JobStatus.FAILED) {
                 JobResult result = jobResultSupplier.get();
                 Optional<SerializedThrowable> throwable = result.getSerializedThrowable();
-                if (throwable.isPresent()) {
-                    Throwable t = throwable.get().deserializeError(userCodeClassloader);
-                    if (t instanceof JobInitializationException) {
-                        throw t;
-                    }
+                // Checked via the safe class-name field, not deserializeError(): this result may
+                // come from a remote JobManager (e.g. when submitting through a shared session
+                // cluster), and JobInitializationException is the one, fixed, Flink-internal
+                // type we ever need to reconstruct here.
+                if (throwable.isPresent()
+                        && JobInitializationException.class
+                                .getName()
+                                .equals(throwable.get().getOriginalErrorClassName())) {
+                    throw new JobInitializationException(
+                            result.getJobId(),
+                            stripOriginalClassNamePrefix(throwable.get()),
+                            throwable.get().getCause());
                 }
             }
         } catch (JobInitializationException initializationException) {
@@ -184,6 +191,22 @@ public enum ClientUtils {
             ExceptionUtils.checkInterrupted(throwable);
             throw new RuntimeException("Error while waiting for job to be initialized", throwable);
         }
+    }
+
+    /**
+     * {@link SerializedThrowable#getMessage()} always returns {@code "<originalClassName>:
+     * <originalMessage>"} (see {@link SerializedThrowable}'s class Javadoc), whereas the original
+     * exception's own {@code getMessage()} did not carry that prefix. Strips it back off so the
+     * reconstructed {@link JobInitializationException} carries the same message the original
+     * exception had.
+     */
+    private static String stripOriginalClassNamePrefix(SerializedThrowable throwable) {
+        String message = throwable.getMessage();
+        String prefix = throwable.getOriginalErrorClassName() + ": ";
+        if (message != null && message.startsWith(prefix)) {
+            return message.substring(prefix.length());
+        }
+        return message;
     }
 
     /**

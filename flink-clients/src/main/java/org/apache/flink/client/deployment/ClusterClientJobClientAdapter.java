@@ -116,6 +116,11 @@ public class ClusterClientJobClientAdapter<ClusterID>
     public CompletableFuture<JobExecutionResult> getJobExecutionResult() {
         checkNotNull(classLoader);
 
+        // This JobClient talks to a RestClusterClient, so the JobResult may come from a remote
+        // JobManager this process does not fully control. Use toSafeJobExecutionResult(), not
+        // toJobExecutionResult(): it builds the failure cause from the response's plain text
+        // fields instead of deserializing it, which is the more robust default whenever the
+        // input's origin can't be fully validated.
         return bridgeClientRequest(
                 clusterClientProvider,
                 (clusterClient ->
@@ -124,7 +129,8 @@ public class ClusterClientJobClientAdapter<ClusterID>
                                 .thenApply(
                                         (jobResult) -> {
                                             try {
-                                                return jobResult.toJobExecutionResult(classLoader);
+                                                return jobResult.toSafeJobExecutionResult(
+                                                        classLoader);
                                             } catch (Throwable t) {
                                                 throw new CompletionException(
                                                         new ProgramInvocationException(
