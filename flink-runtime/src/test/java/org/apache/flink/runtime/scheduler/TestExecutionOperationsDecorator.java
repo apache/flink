@@ -110,6 +110,11 @@ public class TestExecutionOperationsDecorator implements ExecutionOperations {
         canceledExecutions.await(count);
     }
 
+    /** Waits until the given number of executions have been deployed. */
+    public void awaitDeployedExecutions(int count) throws InterruptedException {
+        deployedExecutions.await(count);
+    }
+
     /** Waits until the given number of executions have been failed. */
     public void awaitFailedExecutions(int count) throws InterruptedException {
         failedExecutions.await(count);

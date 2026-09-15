@@ -119,6 +119,8 @@ public class ParquetRowDataWriter {
                 case BINARY:
                 case VARBINARY:
                     return new BinaryWriter();
+                case GEOGRAPHY:
+                    return new GeographyWriter();
                 case DECIMAL:
                     DecimalType decimalType = (DecimalType) t;
                     return createDecimalWriter(decimalType.getPrecision(), decimalType.getScale());
@@ -307,6 +309,23 @@ public class ParquetRowDataWriter {
         }
 
         private void writeBinary(byte[] value) {
+            recordConsumer.addBinary(Binary.fromReusedByteArray(value));
+        }
+    }
+
+    private class GeographyWriter implements FieldWriter {
+
+        @Override
+        public void write(RowData row, int ordinal) {
+            writeGeography(row.getGeography(ordinal).toBytes());
+        }
+
+        @Override
+        public void write(ArrayData arrayData, int ordinal) {
+            writeGeography(arrayData.getGeography(ordinal).toBytes());
+        }
+
+        private void writeGeography(byte[] value) {
             recordConsumer.addBinary(Binary.fromReusedByteArray(value));
         }
     }

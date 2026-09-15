@@ -21,6 +21,7 @@ package org.apache.flink.formats.parquet.row;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.formats.parquet.ParquetBuilder;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
+import org.apache.flink.formats.parquet.utils.GeoParquetMetadataUtil;
 import org.apache.flink.formats.parquet.utils.SerializableConfiguration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
@@ -35,7 +36,7 @@ import org.apache.parquet.io.api.RecordConsumer;
 import org.apache.parquet.schema.MessageType;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.formats.parquet.utils.ParquetSchemaConverter.convertToParquetMessageType;
 import static org.apache.parquet.hadoop.ParquetOutputFormat.MAX_PADDING_BYTES;
@@ -81,7 +82,9 @@ public class ParquetRowDataBuilder extends ParquetWriter.Builder<RowData, Parque
 
         @Override
         public WriteContext init(Configuration configuration) {
-            return new WriteContext(schema, new HashMap<>());
+            final Map<String, String> keyValueMetaData =
+                    GeoParquetMetadataUtil.createGeoParquetKeyValueMetaData(rowType);
+            return new WriteContext(schema, keyValueMetaData);
         }
 
         @Override

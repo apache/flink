@@ -36,6 +36,7 @@ import org.apache.flink.formats.parquet.vector.type.ParquetField;
 import org.apache.flink.formats.parquet.vector.type.ParquetGroupField;
 import org.apache.flink.formats.parquet.vector.type.ParquetPrimitiveField;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.GeographyData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
@@ -169,14 +170,17 @@ public class ParquetSplitReaderUtil {
             case VARCHAR:
             case BINARY:
             case VARBINARY:
+            case GEOGRAPHY:
                 HeapBytesVector bsv = new HeapBytesVector(batchSize);
                 if (value == null) {
                     bsv.fillWithNulls();
                 } else {
                     bsv.fill(
-                            value instanceof byte[]
-                                    ? (byte[]) value
-                                    : value.toString().getBytes(StandardCharsets.UTF_8));
+                            value instanceof GeographyData
+                                    ? ((GeographyData) value).toBytes()
+                                    : value instanceof byte[]
+                                            ? (byte[]) value
+                                            : value.toString().getBytes(StandardCharsets.UTF_8));
                 }
                 return bsv;
             case BOOLEAN:
@@ -344,6 +348,7 @@ public class ParquetSplitReaderUtil {
             case VARCHAR:
             case BINARY:
             case VARBINARY:
+            case GEOGRAPHY:
                 return new BytesColumnReader(
                         descriptors.get(0), pages.getPageReader(descriptors.get(0)));
             case TIMESTAMP_WITHOUT_TIME_ZONE:
@@ -438,6 +443,7 @@ public class ParquetSplitReaderUtil {
             case VARCHAR:
             case BINARY:
             case VARBINARY:
+            case GEOGRAPHY:
                 checkArgument(
                         typeName == PrimitiveType.PrimitiveTypeName.BINARY,
                         "Unexpected type: %s",
