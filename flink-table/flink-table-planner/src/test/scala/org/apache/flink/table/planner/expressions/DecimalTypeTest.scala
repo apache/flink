@@ -234,7 +234,7 @@ class DecimalTypeTest extends ExpressionTestBase {
     testAllApis(
       'f26 * 'f26,
       "f26 * f26",
-      "0.00010000000000000"
+      "0.000100000000000000"
     )
 
     // (76, 20) -> (38, 6), 0.0000006 is rounding to 0.000001
@@ -253,11 +253,11 @@ class DecimalTypeTest extends ExpressionTestBase {
       "NULL"
     )
 
-    // (60,40) => (38,17), scale part is reduced to make more space for integral part
+    // (60,40) => (38,18), scale part is reduced to make more space for integral part
     testAllApis(
       'f30 * 'f30,
       "f30 * f30",
-      "1.00000000000000000"
+      "1.000000000000000000"
     )
   }
 
