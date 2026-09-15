@@ -587,11 +587,15 @@ public class TableImpl implements Table {
                         "Window properties can only be used on windowed tables.");
             }
 
-            return table.createTable(
-                    table.operationTreeBuilder.project(
-                            extracted.getProjections(),
-                            table.operationTreeBuilder.aggregate(
-                                    groupKeys, extracted.getAggregations(), table.operationTree)));
+            List<Expression> groupingExpressions =
+                    table.operationTreeBuilder.expandExpressions(
+                            table.preprocessExpressions(groupKeys), table.operationTree);
+            QueryOperation aggregateOperation =
+                    table.operationTreeBuilder.aggregate(
+                            groupingExpressions, extracted.getAggregations(), table.operationTree);
+
+            return table.projectAfterAggregation(
+                    extracted.getProjections(), groupingExpressions, aggregateOperation);
         }
 
         @Override
@@ -623,11 +627,15 @@ public class TableImpl implements Table {
 
         @Override
         public Table select(Expression... fields) {
-            return table.createTable(
-                    table.operationTreeBuilder.project(
-                            Arrays.asList(fields),
-                            table.operationTreeBuilder.aggregate(
-                                    groupKeys, aggregateFunction, table.operationTree)));
+            List<Expression> groupingExpressions =
+                    table.operationTreeBuilder.expandExpressions(
+                            table.preprocessExpressions(groupKeys), table.operationTree);
+            QueryOperation aggregateOperation =
+                    table.operationTreeBuilder.aggregate(
+                            groupingExpressions, aggregateFunction, table.operationTree);
+
+            return table.projectAfterAggregation(
+                    table.preprocessExpressions(fields), groupingExpressions, aggregateOperation);
         }
     }
 
@@ -948,6 +956,18 @@ public class TableImpl implements Table {
 
     private TableImpl createTable(QueryOperation operation) {
         return new TableImpl(tableEnvironment, operation, operationTreeBuilder, lookupResolver);
+    }
+
+    private Table projectAfterAggregation(
+            List<Expression> projections,
+            List<Expression> groupingExpressions,
+            QueryOperation aggregateOperation) {
+        List<Expression> rewrittenProjections =
+                OperationExpressionsUtils.replaceGroupingExpressions(
+                        projections,
+                        groupingExpressions,
+                        aggregateOperation.getResolvedSchema().getColumnNames());
+        return createTable(operationTreeBuilder.project(rewrittenProjections, aggregateOperation));
     }
 
     private List<Expression> preprocessExpressions(List<Expression> expressions) {
