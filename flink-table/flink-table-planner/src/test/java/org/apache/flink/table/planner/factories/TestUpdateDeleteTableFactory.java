@@ -76,6 +76,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.data.RowData.createFieldGetter;
@@ -437,7 +438,9 @@ public class TestUpdateDeleteTableFactory
                                         resolvedCatalogTable.getResolvedSchema());
                     }
                     requiredColumnIndices =
-                            getRequiredColumnIndexes(resolvedCatalogTable, requiredCols);
+                            getRequiredColumnIndexes(
+                                    resolvedCatalogTable,
+                                    mergeRequiredWithUpdatedColumns(requiredCols, updatedColumns));
                     return Optional.ofNullable(requiredCols);
                 }
 
@@ -748,6 +751,22 @@ public class TestUpdateDeleteTableFactory
         public void executeTruncation() {
             registeredRowData.put(dataId, Collections.emptyList());
         }
+    }
+
+    private static List<Column> mergeRequiredWithUpdatedColumns(
+            @Nullable List<Column> requiredColumns, List<Column> updatedColumns) {
+        if (requiredColumns == null) {
+            return null;
+        }
+        Set<String> existingNames =
+                requiredColumns.stream().map(Column::getName).collect(Collectors.toSet());
+        List<Column> merged = new ArrayList<>(requiredColumns);
+        for (Column updated : updatedColumns) {
+            if (!existingNames.contains(updated.getName())) {
+                merged.add(updated);
+            }
+        }
+        return merged;
     }
 
     private static int[] getRequiredColumnIndexes(
