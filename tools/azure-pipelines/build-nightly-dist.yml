@@ -105,6 +105,9 @@ jobs:
           script: |
             source ./tools/ci/maven-utils.sh
             run_mvn -version
+            # deploy_staging_jars.sh otherwise falls back to the mvn on PATH. Not run_mvn,
+            # since this job builds its own settings file below.
+            export MVN="$MAVEN_WRAPPER"
 
             cd tools
             cat << EOF > deploy-settings.xml
