@@ -23,9 +23,17 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.InternalPriorityQueueTestBase;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.rocksdb.FlushOptions;
+import org.rocksdb.MutableColumnFamilyOptions;
+import org.rocksdb.RocksDB;
+import org.rocksdb.TableProperties;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test of {@link KeyGroupPartitionedPriorityQueue} powered by a {@link
@@ -34,6 +42,74 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest extends InternalPriorityQueueTestBase {
 
     @RegisterExtension public final RocksDBExtension rocksDBExtension = new RocksDBExtension();
+
+    @Test
+    void testQueueInitializationDoesNotScanTombstonesOutsideKeyGroupRange() throws Exception {
+        // Deleted entries of the key group right after the range, as left behind by rescaling.
+        createTombstonesInKeyGroup(128, 512);
+        rocksDBExtension.getReadOptions().setMaxSkippableInternalKeys(8);
+        final InternalPriorityQueue<TestElement> queue =
+                new KeyGroupPartitionedPriorityQueue<>(
+                        KEY_EXTRACTOR_FUNCTION,
+                        TEST_ELEMENT_PRIORITY_COMPARATOR,
+                        newFactory(),
+                        new KeyGroupRange(0, 127),
+                        512);
+
+        assertThat(queue.isEmpty()).isTrue();
+    }
+
+    @Test
+    void testCacheRefillKeepsBoundsOfKeyGroup() throws Exception {
+        final RocksDBCachingPriorityQueueSet<TestElement> queue =
+                newPriorityQueueForKeyGroup(255, 512, 1);
+        final TestElement first = new TestElement(1, 1);
+        final TestElement second = new TestElement(2, 2);
+        queue.add(first);
+        queue.add(second);
+        assertThat(queue.poll()).isEqualTo(first);
+        createTombstonesInKeyGroup(256, 512);
+
+        rocksDBExtension.getReadOptions().setMaxSkippableInternalKeys(8);
+        assertThat(queue.poll()).isEqualTo(second);
+        assertThat(queue.poll()).isNull();
+    }
+
+    private void createTombstonesInKeyGroup(int keyGroupId, int numKeyGroups) throws Exception {
+        final RocksDB db = rocksDBExtension.getRocksDB();
+        db.setOptions(
+                rocksDBExtension.getDefaultColumnFamily(),
+                MutableColumnFamilyOptions.builder().setDisableAutoCompactions(true).build());
+
+        final byte[][] keys = new byte[32][];
+        final DataOutputSerializer output = new DataOutputSerializer(32);
+        for (int i = 0; i < keys.length; i++) {
+            output.clear();
+            CompositeKeySerializationUtils.writeKeyGroup(
+                    keyGroupId,
+                    CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
+                            numKeyGroups),
+                    output);
+            TestElementSerializer.INSTANCE.serialize(new TestElement(i, i), output);
+            keys[i] = output.getCopyOfBuffer();
+            db.put(rocksDBExtension.getDefaultColumnFamily(), keys[i], new byte[0]);
+        }
+
+        try (FlushOptions flushOptions = new FlushOptions().setWaitForFlush(true)) {
+            rocksDBExtension.getBatchWrapper().flush();
+            db.flush(flushOptions);
+            for (byte[] key : keys) {
+                db.delete(rocksDBExtension.getDefaultColumnFamily(), key);
+            }
+            db.flush(flushOptions);
+        }
+
+        assertThat(
+                        db.getPropertiesOfAllTables().values().stream()
+                                .mapToLong(TableProperties::getNumDeletions)
+                                .sum())
+                .isGreaterThanOrEqualTo(keys.length);
+    }
 
     @Override
     protected InternalPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
@@ -54,24 +130,24 @@ class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest extends InternalPrior
                     TestElement, RocksDBCachingPriorityQueueSet<TestElement>>
             newFactory() {
 
-        return (keyGroupId, numKeyGroups, keyExtractorFunction, elementComparator) -> {
-            DataOutputSerializer outputStreamWithPos = new DataOutputSerializer(128);
-            DataInputDeserializer inputStreamWithPos = new DataInputDeserializer();
-            int keyGroupPrefixBytes =
-                    CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(
-                            numKeyGroups);
-            TreeOrderedSetCache orderedSetCache = new TreeOrderedSetCache(32);
-            return new RocksDBCachingPriorityQueueSet<>(
-                    keyGroupId,
-                    keyGroupPrefixBytes,
-                    rocksDBExtension.getRocksDB(),
-                    rocksDBExtension.getReadOptions(),
-                    rocksDBExtension.getDefaultColumnFamily(),
-                    TestElementSerializer.INSTANCE,
-                    outputStreamWithPos,
-                    inputStreamWithPos,
-                    rocksDBExtension.getBatchWrapper(),
-                    orderedSetCache);
-        };
+        return (keyGroupId, numKeyGroups, keyExtractorFunction, elementComparator) ->
+                newPriorityQueueForKeyGroup(keyGroupId, numKeyGroups, 32);
+    }
+
+    private RocksDBCachingPriorityQueueSet<TestElement> newPriorityQueueForKeyGroup(
+            int keyGroupId, int numKeyGroups, int cacheSize) {
+        final int keyGroupPrefixBytes =
+                CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(numKeyGroups);
+        return new RocksDBCachingPriorityQueueSet<>(
+                keyGroupId,
+                keyGroupPrefixBytes,
+                rocksDBExtension.getRocksDB(),
+                rocksDBExtension.getReadOptions(),
+                rocksDBExtension.getDefaultColumnFamily(),
+                TestElementSerializer.INSTANCE,
+                new DataOutputSerializer(128),
+                new DataInputDeserializer(),
+                rocksDBExtension.getBatchWrapper(),
+                new TreeOrderedSetCache(cacheSize));
     }
 }
