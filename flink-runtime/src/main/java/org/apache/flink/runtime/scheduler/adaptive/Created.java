@@ -43,7 +43,7 @@ class Created extends StateWithoutExecutionGraph {
     /** Starts the scheduling by going into the {@link WaitingForResources} state. */
     void startScheduling() {
         recordRescaleForInitialScheduling();
-        context.goToWaitingForResources(null);
+        context.goToWaitingForResources(null, null);
     }
 
     private void recordRescaleForInitialScheduling() {
