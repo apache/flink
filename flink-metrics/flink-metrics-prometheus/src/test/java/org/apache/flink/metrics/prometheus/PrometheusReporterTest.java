@@ -41,12 +41,14 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.ALLOW_LIST;
 import static org.apache.flink.metrics.prometheus.PrometheusReporterFactory.ARG_PORT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Basic test for {@link PrometheusReporter}. */
@@ -168,7 +170,9 @@ class PrometheusReporterTest {
         Counter metric1 = new SimpleCounter();
         Counter metric2 = new SimpleCounter();
 
-        final Map<String, String> variables2 = new HashMap<>(metricGroup.getAllVariables());
+        // The variables are copied in iteration order: a metric reusing another's collector has to
+        // carry the same label names in the same order, since the values are bound by position.
+        final Map<String, String> variables2 = new LinkedHashMap<>(metricGroup.getAllVariables());
         final Map.Entry<String, String> entryToModify = variables2.entrySet().iterator().next();
         final String labelValueThatShouldBeRemoved = entryToModify.getValue();
         variables2.put(entryToModify.getKey(), "some_value");
@@ -181,6 +185,110 @@ class PrometheusReporterTest {
         String response = pollMetrics(reporter.getPort()).body();
 
         assertThat(response).contains("some_value").doesNotContain(labelValueThatShouldBeRemoved);
+    }
+
+    /**
+     * Two variables that differ only in characters the filter replaces become one label name,
+     * twice. Prometheus rejects such a body and abandons the whole scrape.
+     */
+    @Test
+    void metricIsNotReportedWhenTwoVariablesSanitiseToTheSameLabelName()
+            throws IOException, InterruptedException {
+        final Map<String, String> colliding = new LinkedHashMap<>();
+        colliding.put("<a.b>", "v1");
+        colliding.put("<a-b>", "v2");
+
+        reporter.notifyOfAddedMetric(
+                new SimpleCounter(),
+                "colliding",
+                TestUtils.createTestMetricGroup(LOGICAL_SCOPE, colliding));
+
+        final String response = pollMetrics(reporter.getPort()).body();
+
+        assertThat(response).doesNotContain("a_b=\"v1\",a_b=\"v2\"");
+        assertThat(response).doesNotContain(SCOPE_PREFIX + "colliding");
+    }
+
+    @Test
+    void removingARefusedMetricDoesNotThrow() {
+        final Map<String, String> colliding = new LinkedHashMap<>();
+        colliding.put("<a.b>", "v1");
+        colliding.put("<a-b>", "v2");
+        final MetricGroup group = TestUtils.createTestMetricGroup(LOGICAL_SCOPE, colliding);
+        final Counter counter = new SimpleCounter();
+
+        reporter.notifyOfAddedMetric(counter, "colliding", group);
+
+        // The registry removes every metric it added, including the ones we refused.
+        assertThatCode(() -> reporter.notifyOfRemovedMetric(counter, "colliding", group))
+                .doesNotThrowAnyException();
+    }
+
+    /** One unreportable metric must not cost the rest of the process its metrics. */
+    @Test
+    void otherMetricsAreStillReportedAlongsideAnUnreportableOne()
+            throws IOException, InterruptedException {
+        final Map<String, String> colliding = new LinkedHashMap<>();
+        colliding.put("<a.b>", "v1");
+        colliding.put("<a-b>", "v2");
+
+        reporter.notifyOfAddedMetric(
+                new SimpleCounter(),
+                "colliding",
+                TestUtils.createTestMetricGroup(LOGICAL_SCOPE, colliding));
+        final Counter healthy = new SimpleCounter();
+        healthy.inc(3);
+        reporter.notifyOfAddedMetric(healthy, "healthy", metricGroup);
+
+        final String response = pollMetrics(reporter.getPort()).body();
+
+        assertThat(response).contains(SCOPE_PREFIX + "healthy");
+    }
+
+    /**
+     * Reporting a metric whose variables differ from the first one of that name would publish its
+     * values under that one's label names.
+     */
+    @Test
+    void metricIsNotReportedWhenItsVariablesDifferFromAnEarlierMetricOfTheSameName()
+            throws IOException, InterruptedException {
+        final Counter first = new SimpleCounter();
+        first.inc(1);
+        final Counter second = new SimpleCounter();
+        second.inc(2);
+
+        reporter.notifyOfAddedMetric(first, "m", groupWith("x", "1", "y", "2"));
+        reporter.notifyOfAddedMetric(second, "m", groupWith("x", "1", "z", "9"));
+
+        final String response = pollMetrics(reporter.getPort()).body();
+
+        assertThat(response).contains("y=\"2\"").doesNotContain("y=\"9\"");
+        assertThat(response).doesNotContain("z=");
+    }
+
+    /** The same name with the same variables is the case the shared collector exists for. */
+    @Test
+    void metricIsReportedWhenItsVariablesMatchAnEarlierMetricOfTheSameName()
+            throws IOException, InterruptedException {
+        final Counter first = new SimpleCounter();
+        first.inc(1);
+        final Counter second = new SimpleCounter();
+        second.inc(2);
+
+        reporter.notifyOfAddedMetric(first, "m", groupWith("x", "1", "y", "2"));
+        reporter.notifyOfAddedMetric(second, "m", groupWith("x", "1", "y", "other"));
+
+        final String response = pollMetrics(reporter.getPort()).body();
+
+        assertThat(response).contains("y=\"2\"").contains("y=\"other\"");
+    }
+
+    private static MetricGroup groupWith(String... keysAndValues) {
+        final Map<String, String> variables = new HashMap<>();
+        for (int i = 0; i < keysAndValues.length; i += 2) {
+            variables.put("<" + keysAndValues[i] + ">", keysAndValues[i + 1]);
+        }
+        return TestUtils.createTestMetricGroup(LOGICAL_SCOPE, variables);
     }
 
     @Test
