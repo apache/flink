@@ -98,29 +98,35 @@ Flink ships with the [Log4j API bridge](https://logging.apache.org/log4j/log4j-2
 
 If you have custom Log4j 1 properties files or code that relies on Log4j 1, please check out the official Log4j [compatibility](https://logging.apache.org/log4j/2.x/manual/compatibility.html) and [migration](https://logging.apache.org/log4j/2.x/manual/migration.html) guides.
 
-## Configuring Log4j1
+## Configuring Log4j 1 (reload4j) <a name="configuring-log4j1" />
 
-To use Flink with [Log4j 1](https://logging.apache.org/log4j/1.2/) you must ensure that:
-- `org.apache.logging.log4j:log4j-core`, `org.apache.logging.log4j:log4j-slf4j-impl` and `org.apache.logging.log4j:log4j-1.2-api` are not on the classpath,
-- `log4j:log4j`, `org.slf4j:slf4j-log4j12`, `org.apache.logging.log4j:log4j-to-slf4j` and `org.apache.logging.log4j:log4j-api` are on the classpath.
+To use Flink with [reload4j](https://reload4j.qos.ch/) you must ensure that:
+- `org.apache.logging.log4j:log4j-core`, `org.apache.logging.log4j:log4j-slf4j2-impl` and `org.apache.logging.log4j:log4j-1.2-api` are not on the classpath,
+- `ch.qos.reload4j:reload4j`, `org.slf4j:slf4j-reload4j`, `org.apache.logging.log4j:log4j-to-slf4j` and `org.apache.logging.log4j:log4j-api` are on the classpath.
 
 In the IDE this means you have to replace such dependencies defined in your pom, and possibly add exclusions on dependencies that transitively depend on them.
 
 For Flink distributions this means you have to
-- remove the `log4j-core`, `log4j-slf4j-impl` and `log4j-1.2-api` jars from the `lib` directory,
-- add the `log4j`, `slf4j-log4j12` and `log4j-to-slf4j` jars to the `lib` directory,
+- remove the `log4j-core`, `log4j-slf4j2-impl` and `log4j-1.2-api` jars from the `lib` directory,
+- add the `reload4j`, `slf4j-reload4j` and `log4j-to-slf4j` jars to the `lib` directory,
 - replace all log4j properties files in the `conf` directory with Log4j1-compliant versions.
+
+{{< hint warning >}}
+[Reload4j](https://reload4j.qos.ch/) is a maintained fork of Log4j 1.2.17; it keeps the `org.apache.log4j` classes and the Log4j 1 configuration format.
+The original `log4j:log4j` artifact cannot be used, because its SLF4J binding (`org.slf4j:slf4j-log4j12`) exists for SLF4J 1.7 only and is ignored by the SLF4J 2 version Flink ships with.
+Use an `org.slf4j:slf4j-reload4j` version matching Flink's `slf4j-api` (2.x).
+{{< /hint >}}
 
 ## Configuring logback
 
 To use Flink with [logback](https://logback.qos.ch/) you must ensure that:
-- `org.apache.logging.log4j:log4j-slf4j-impl` is not on the classpath,
+- `org.apache.logging.log4j:log4j-slf4j2-impl` is not on the classpath,
 - `ch.qos.logback:logback-core` and `ch.qos.logback:logback-classic` are on the classpath.
 
 In the IDE this means you have to replace such dependencies defined in your pom, and possibly add exclusions on dependencies that transitively depend on them.
 
 For Flink distributions this means you have to
-- remove the `log4j-slf4j-impl` jar from the `lib` directory,
+- remove the `log4j-slf4j2-impl` jar from the `lib` directory,
 - add the `logback-core`, and `logback-classic` jars to the `lib` directory.
 
 The Flink distribution ships with the following logback configuration files in the `conf` directory, which are used automatically if logback is enabled:
@@ -129,7 +135,7 @@ The Flink distribution ships with the following logback configuration files in t
 - `logback.xml`: used for command line interface and Job-/TaskManagers by default
 
 {{< hint warning >}}
-Logback 1.3+ requires SLF4J 2, which is currently not supported.
+Flink uses SLF4J 2, which requires logback 1.3 or later.
 {{< /hint >}}
 
 ## Best practices for developers

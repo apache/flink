@@ -103,7 +103,7 @@ ext {
     javaVersion = '1.8'
     flinkVersion = '{{< version >}}'
     scalaBinaryVersion = '{{< scala_version >}}'
-    slf4jVersion = '1.7.36'
+    slf4jVersion = '2.0.19'
     log4jVersion = '2.26.1'
 }
 sourceCompatibility = javaVersion
@@ -148,7 +148,7 @@ dependencies {
     // connectors. These must be in the flinkShadowJar configuration!
     // --------------------------------------------------------------
     //flinkShadowJar "org.apache.flink:flink-connector-kafka:${flinkVersion}"
-    runtimeOnly "org.apache.logging.log4j:log4j-slf4j-impl:${log4jVersion}"
+    runtimeOnly "org.apache.logging.log4j:log4j-slf4j2-impl:${log4jVersion}"
     runtimeOnly "org.apache.logging.log4j:log4j-api:${log4jVersion}"
     runtimeOnly "org.apache.logging.log4j:log4j-core:${log4jVersion}"
     // Add test dependencies here.

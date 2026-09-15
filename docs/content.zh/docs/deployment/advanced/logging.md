@@ -91,31 +91,39 @@ Flink 附带了 [Log4j API bridge](https://logging.apache.org/log4j/log4j-2.2/lo
 
 <a name="configuring-log4j1"></a>
 
-## 配置 Log4j1
+## 配置 Log4j 1 (reload4j)
 
-要将 Flink 与 [Log4j 1](https://logging.apache.org/log4j/1.2/) 一起使用，必须确保：
-- Classpath 中不存在 `org.apache.logging.log4j:log4j-core`、`org.apache.logging.log4j:log4j-slf4j-impl` 和 `org.apache.logging.log4j:log4j-1.2-api`；
-- 且 Classpath 中存在 `log4j:log4j`、`org.slf4j:slf4j-log4j12`、`org.apache.logging.log4j:log4j-to-slf4j` 和 `org.apache.logging.log4j:log4j-api`。
+要将 Flink 与 [reload4j](https://reload4j.qos.ch/) 一起使用，必须确保：
+- Classpath 中不存在 `org.apache.logging.log4j:log4j-core`、`org.apache.logging.log4j:log4j-slf4j2-impl` 和 `org.apache.logging.log4j:log4j-1.2-api`；
+- 且 Classpath 中存在 `ch.qos.reload4j:reload4j`、`org.slf4j:slf4j-reload4j`、`org.apache.logging.log4j:log4j-to-slf4j` 和 `org.apache.logging.log4j:log4j-api`。
 
-如果在 IDE 中使用 Log4j 1，则必须在 pom 文件中使用上述 Classpath 中应该存在的 jars 依赖项来替换 Classpath 中不应该存在的 jars 依赖项，并尽可能的排除那些传递依赖于 Classpath 中不存在 jars 的依赖项。
+如果在 IDE 中使用 reload4j，则必须在 pom 文件中使用上述 Classpath 中应该存在的 jars 依赖项来替换 Classpath 中不应该存在的 jars 依赖项，并尽可能的排除那些传递依赖于 Classpath 中不存在 jars 的依赖项。
 
 对于 Flink 发行版，这意味着你必须
-- 从 `lib` 目录中移除 `log4j-core`，`log4j-slf4j-impl` 和 `log4j-1.2-api` jars；
-- 往 `lib` 目录中添加 `log4j`，`slf4j-log4j12` 和 `log4j-to-slf4j` jars；
+- 从 `lib` 目录中移除 `log4j-core`，`log4j-slf4j2-impl` 和 `log4j-1.2-api` jars；
+- 往 `lib` 目录中添加 `reload4j`，`slf4j-reload4j` 和 `log4j-to-slf4j` jars；
 - 用适配的 Log4j1 版本替换 `conf` 目录中的所有 log4j 配置文件。
+
+{{< hint warning >}}
+
+[Reload4j](https://reload4j.qos.ch/) 是 Log4j 1.2.17 的一个持续维护的分支，保留了 `org.apache.log4j` 类和 Log4j 1 的配置格式。
+不能使用原来的 `log4j:log4j`，因为它的 SLF4J binding（`org.slf4j:slf4j-log4j12`）只适用于 SLF4J 1.7，Flink 自带的 SLF4J 2 会直接忽略它。
+请使用与 Flink 的 `slf4j-api`（2.x）版本一致的 `org.slf4j:slf4j-reload4j`。
+
+{{< /hint >}}
 
 <a name="configuring-logback"></a>
 
 ## 配置 logback
 
 要将 Flink 与 [logback](https://logback.qos.ch/) 一起使用，必须确保：
-- Classpath 中不存在 `org.apache.logging.log4j:log4j-slf4j-impl`；
+- Classpath 中不存在 `org.apache.logging.log4j:log4j-slf4j2-impl`；
 - Classpath 中存在 `ch.qos.logback:logback-core` 和 `ch.qos.logback:logback-classic`。
 
 如果在 IDE 中使用 logback，则必须在 pom 文件中使用上述 Classpath 中应该存在的 jars 依赖项来替换 Classpath 中不应该存在的 jars 依赖项，并尽可能的排除那些传递依赖于 Classpath 中不存在 jars 的依赖项。
 
 对于 Flink 发行版，这意味着你必须
-- 从 `lib` 目录中移除 `log4j-slf4j-impl`  jars；
+- 从 `lib` 目录中移除 `log4j-slf4j2-impl`  jars；
 - 向 `lib` 目录中添加 `logback-core` 和 `logback-classic` jars。
 
 Flink 发行版在 `conf` 目录中附带了以下 logback 配置文件，如果启用了 logback，则会自动使用这些文件：
@@ -125,7 +133,7 @@ Flink 发行版在 `conf` 目录中附带了以下 logback 配置文件，如果
 
 {{< hint warning >}}
 
-Logback 1.3+ 需要 SLF4J 2，目前不支持。
+Flink 使用 SLF4J 2，因此需要 logback 1.3 或更高版本。
 
 {{< /hint >}}
 
