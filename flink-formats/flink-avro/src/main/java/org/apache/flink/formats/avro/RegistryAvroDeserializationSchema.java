@@ -100,13 +100,128 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
         GenericDatumReader<T> datumReader = getDatumReader();
 
         datumReader.setSchema(writerSchema);
-        datumReader.setExpected(readerSchema);
+
+        // Create a merged expected schema that:
+        // 1. Uses reader schema field structure (correct field order for field projection)
+        // 2. But patches in writer schema types where incompatible (e.g., enum instead of string)
+        // This combined with name-based field access in AvroToRowDataConverters allows both
+        // Debezium-style field projection and enum handling to work correctly.
+        Schema expectedSchema =
+                readerSchema != null ? mergeSchemaTypes(readerSchema, writerSchema) : writerSchema;
+
+        datumReader.setExpected(expectedSchema);
 
         if (getEncoding() == AvroEncoding.JSON) {
             ((JsonDecoder) getDecoder()).configure(getInputStream());
         }
 
         return datumReader.read(null, getDecoder());
+    }
+
+    /**
+     * Merges reader and writer schemas to create a hybrid schema. Uses reader schema structure
+     * (field order) but patches in writer types for incompatible conversions.
+     *
+     * @param reader the reader schema (from Flink DDL)
+     * @param writer the writer schema (from schema registry)
+     * @return merged schema with reader structure but writer types where needed
+     */
+    private Schema mergeSchemaTypes(Schema reader, Schema writer) {
+        // If same type, check for specific incompatibilities
+        if (reader.getType() == writer.getType()) {
+            if (reader.getType() == Schema.Type.RECORD) {
+                return mergeRecordSchemas(reader, writer);
+            }
+            return reader;
+        }
+
+        // Handle union types
+        if (reader.getType() == Schema.Type.UNION) {
+            return mergeUnionSchema(reader, writer);
+        }
+        if (writer.getType() == Schema.Type.UNION) {
+            return mergeUnionSchema(reader, writer);
+        }
+
+        // Type mismatch: prefer writer type if it's enum and reader is string
+        if (writer.getType() == Schema.Type.ENUM && reader.getType() == Schema.Type.STRING) {
+            return writer;
+        }
+
+        return reader;
+    }
+
+    private Schema mergeRecordSchemas(Schema reader, Schema writer) {
+        java.util.List<Schema.Field> mergedFields = new java.util.ArrayList<>();
+
+        for (Schema.Field readerField : reader.getFields()) {
+            Schema.Field writerField = writer.getField(readerField.name());
+
+            if (writerField != null) {
+                // Field exists in both - merge types
+                Schema mergedFieldSchema =
+                        mergeSchemaTypes(readerField.schema(), writerField.schema());
+                mergedFields.add(
+                        new Schema.Field(
+                                readerField.name(),
+                                mergedFieldSchema,
+                                readerField.doc(),
+                                readerField.defaultVal()));
+            } else {
+                // Field only in reader - keep as is
+                mergedFields.add(
+                        new Schema.Field(
+                                readerField.name(),
+                                readerField.schema(),
+                                readerField.doc(),
+                                readerField.defaultVal()));
+            }
+        }
+
+        Schema merged =
+                Schema.createRecord(
+                        reader.getName(), reader.getDoc(), reader.getNamespace(), reader.isError());
+        merged.setFields(mergedFields);
+        return merged;
+    }
+
+    private Schema mergeUnionSchema(Schema reader, Schema writer) {
+        java.util.List<Schema> readerTypes =
+                reader.getType() == Schema.Type.UNION
+                        ? reader.getTypes()
+                        : java.util.Collections.singletonList(reader);
+        java.util.List<Schema> writerTypes =
+                writer.getType() == Schema.Type.UNION
+                        ? writer.getTypes()
+                        : java.util.Collections.singletonList(writer);
+
+        // Find non-null types
+        Schema readerNonNull = null;
+        boolean readerHasNull = false;
+        for (Schema type : readerTypes) {
+            if (type.getType() == Schema.Type.NULL) {
+                readerHasNull = true;
+            } else {
+                readerNonNull = type;
+            }
+        }
+
+        Schema writerNonNull = null;
+        for (Schema type : writerTypes) {
+            if (type.getType() != Schema.Type.NULL) {
+                writerNonNull = type;
+            }
+        }
+
+        if (readerNonNull != null && writerNonNull != null) {
+            Schema mergedNonNull = mergeSchemaTypes(readerNonNull, writerNonNull);
+            if (readerHasNull) {
+                return Schema.createUnion(Schema.create(Schema.Type.NULL), mergedNonNull);
+            }
+            return mergedNonNull;
+        }
+
+        return reader;
     }
 
     @Override
