@@ -73,7 +73,8 @@ class TaskCheckpointStatisticsWithSubtaskDetailsTest
                                 .CheckpointAlignment(2L, 4L, 5L, 3L),
                         42L,
                         true,
-                        false));
+                        false,
+                        null));
 
         return new TaskCheckpointStatisticsWithSubtaskDetails(
                 4L,

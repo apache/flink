@@ -315,6 +315,17 @@ public class TaskStateManagerImpl implements TaskStateManager {
         localStateStore.abortCheckpoint(checkpointId);
     }
 
+    /**
+     * Prunes local state for the given checkpoint id. Called when a regional checkpoint completes
+     * but this task's region fell back to a historical checkpoint, so the stale local state from
+     * the failed attempt must not be reused on recovery. Per FLIP-600 Section 9 "Local Recovery
+     * Cleanup".
+     */
+    @Override
+    public void pruneStateForCheckpoint(long checkpointId) {
+        localStateStore.pruneMatchingCheckpoints(id -> id == checkpointId);
+    }
+
     @Override
     public void close() throws Exception {
         sequentialChannelStateReader.close();
