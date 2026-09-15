@@ -68,6 +68,7 @@ import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.RunnableWithException;
@@ -957,14 +958,29 @@ public class SqlGatewayServiceITCase {
         latch.countDown();
         // Wait the first operation finishes
         awaitOperationTermination(service, sessions.get(0), operations.get(0));
-        // Service is able to submit operation
+        // Service is able to submit operation. The first operation turns terminal before its
+        // thread is back in the pool, so retry until a thread is free.
         CountDownLatch success = new CountDownLatch(1);
-        service.submitOperation(
-                sessionHandle,
+        CommonTestUtils.waitUtil(
                 () -> {
-                    success.countDown();
-                    return getDefaultResultSet();
-                });
+                    try {
+                        service.submitOperation(
+                                sessionHandle,
+                                () -> {
+                                    success.countDown();
+                                    return getDefaultResultSet();
+                                });
+                        return true;
+                    } catch (SqlGatewayException e) {
+                        if (ExceptionUtils.findThrowable(e, RejectedExecutionException.class)
+                                .isPresent()) {
+                            return false;
+                        }
+                        throw e;
+                    }
+                },
+                Duration.ofSeconds(10),
+                "Failed to submit the operation after the pool had a free thread.");
         CommonTestUtils.waitUtil(
                 () -> success.getCount() == 0, Duration.ofSeconds(10), "Should come to end.");
     }
