@@ -19,6 +19,8 @@
 package org.apache.flink.fs.s3native.writer;
 
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
+import org.apache.flink.core.fs.RecoverableWriter;
+import org.apache.flink.core.testutils.CheckedThread;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,14 +31,22 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -68,9 +78,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("injected uploadPart failure");
 
-        assertThat(s3.abortAttempts)
-                .as("closeForCommit must abort the upload on failure")
-                .isEqualTo(1);
+        assertThat(s3.abortAttempts).as("closeForCommit must abort the upload on failure").isOne();
         assertThat(s3.openMultipartUploads)
                 .as("the multipart upload must not leak after a failed commit")
                 .doesNotContainKey(uploadId);
@@ -95,7 +103,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
                                                                 .hasMessageContaining(
                                                                         "injected abort failure")));
 
-        assertThat(s3.abortAttempts).isEqualTo(1);
+        assertThat(s3.abortAttempts).isOne();
     }
 
     @Test
@@ -106,7 +114,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("injected abort failure");
 
-        assertThat(s3.abortAttempts).isEqualTo(1);
+        assertThat(s3.abortAttempts).isOne();
         assertThat(countLocalFilesIn(tmp))
                 .as("local resources are still released even when the abort fails")
                 .isZero();
@@ -117,7 +125,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
     void closeAbortsMultipartUploadOnAbnormalClose() throws Exception {
         stream.close();
 
-        assertThat(s3.abortAttempts).isEqualTo(1);
+        assertThat(s3.abortAttempts).isOne();
         assertThat(s3.openMultipartUploads).doesNotContainKey(uploadId);
         assertThat(countLocalFilesIn(tmp)).isZero();
     }
@@ -131,9 +139,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("injected temp-file delete failure");
 
-        assertThat(s3.abortAttempts)
-                .as("abort is still attempted despite delete failure")
-                .isEqualTo(1);
+        assertThat(s3.abortAttempts).as("abort is still attempted despite delete failure").isOne();
     }
 
     @Test
@@ -261,8 +267,135 @@ class NativeS3RecoverableFsDataOutputStreamTest {
 
         racingStream.close();
 
-        assertThat(s3.abortAttempts).isEqualTo(1);
+        assertThat(s3.abortAttempts).isOne();
         assertThat(countLocalFilesIn(dir)).isZero();
+    }
+
+    @Test
+    void closeAfterFirstPersistFailureAbortsUpload() throws Exception {
+        s3.failPutObject = true;
+        assertThatThrownBy(stream::persist)
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("injected putObject failure");
+
+        stream.close();
+
+        assertThat(s3.abortAttempts).isOne();
+        assertThat(s3.openMultipartUploads).doesNotContainKey(uploadId);
+        assertThat(countLocalFilesIn(tmp)).isZero();
+    }
+
+    @Test
+    void recoverAfterLaterPersistFailure() throws Exception {
+        final RecoverableWriter.ResumeRecoverable recoverable = stream.persist();
+        stream.write(bytes('X', 2));
+        s3.failPutObject = true;
+        assertThatThrownBy(stream::persist)
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("injected putObject failure");
+
+        stream.close();
+
+        assertThat(countLocalFilesIn(tmp)).isZero();
+        assertThat(s3.abortAttempts).isZero();
+        try (RecoverableFsDataOutputStream recovered = writer(s3).recover(recoverable)) {
+            recovered.write(bytes('C', 2));
+            recovered.closeForCommit().commit();
+        }
+        assertThat(s3.committedObjects.get(KEY)).containsExactly("AAAAACC".getBytes(UTF_8));
+    }
+
+    @Test
+    void recoverEmptyStreamAfterDisposingRecoveredStream() throws Exception {
+        stream.close();
+        final FakeNativeS3Operations emptyOperations = new FakeNativeS3Operations();
+        final RecoverableWriter.ResumeRecoverable recoverable;
+        try (RecoverableFsDataOutputStream emptyStream =
+                newStream(emptyOperations, emptyOperations.startMultiPartUpload(KEY))) {
+            recoverable = emptyStream.persist();
+        }
+
+        writer(emptyOperations).recover(recoverable).close();
+
+        assertThat(countLocalFilesIn(tmp)).isZero();
+        assertThat(emptyOperations.abortAttempts).isZero();
+        try (RecoverableFsDataOutputStream recovered =
+                writer(emptyOperations).recover(recoverable)) {
+            recovered.write(bytes('C', 2));
+            recovered.closeForCommit().commit();
+        }
+        assertThat(emptyOperations.committedObjects.get(KEY)).containsExactly(bytes('C', 2));
+    }
+
+    @Test
+    void closeWhilePersistingPreservesRecoverableState() throws Exception {
+        stream.close();
+        final CountDownLatch uploadingTail = new CountDownLatch(1);
+        final CountDownLatch finishUpload = new CountDownLatch(1);
+        final FakeNativeS3Operations blockingOperations =
+                new FakeNativeS3Operations() {
+                    @Override
+                    public PutObjectResult putObject(String key, File file) throws IOException {
+                        uploadingTail.countDown();
+                        try {
+                            assertThat(finishUpload.await(10, TimeUnit.SECONDS)).isTrue();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new IOException(e);
+                        }
+                        return super.putObject(key, file);
+                    }
+                };
+        final NativeS3RecoverableFsDataOutputStream concurrentStream =
+                newStream(blockingOperations, blockingOperations.startMultiPartUpload(KEY));
+        concurrentStream.write(bytes('A', 5));
+        final ExecutorService executor = Executors.newSingleThreadExecutor();
+        final CheckedThread closingThread =
+                new CheckedThread("close-persisted-s3-stream") {
+                    @Override
+                    public void go() throws Exception {
+                        concurrentStream.close();
+                    }
+                };
+        try {
+            final Future<RecoverableWriter.ResumeRecoverable> persisted =
+                    executor.submit(concurrentStream::persist);
+            assertThat(uploadingTail.await(10, TimeUnit.SECONDS)).isTrue();
+            closingThread.start();
+            waitUtil(
+                    () ->
+                            closingThread.getState() == Thread.State.WAITING
+                                    || !closingThread.isAlive(),
+                    Duration.ofSeconds(10),
+                    "close() did not wait for persist()");
+            assertThat(closingThread.getState()).isEqualTo(Thread.State.WAITING);
+            finishUpload.countDown();
+            final RecoverableWriter.ResumeRecoverable recoverable =
+                    persisted.get(10, TimeUnit.SECONDS);
+            closingThread.sync(10_000);
+            assertThat(countLocalFilesIn(tmp)).isZero();
+
+            assertThat(blockingOperations.abortAttempts).isZero();
+            try (RecoverableFsDataOutputStream recovered =
+                    writer(blockingOperations).recover(recoverable)) {
+                recovered.write(bytes('C', 2));
+                recovered.closeForCommit().commit();
+            }
+            assertThat(blockingOperations.committedObjects.get(KEY))
+                    .containsExactly("AAAAACC".getBytes(UTF_8));
+        } finally {
+            finishUpload.countDown();
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+            if (closingThread.getState() != Thread.State.NEW) {
+                closingThread.sync(10_000);
+            }
+            concurrentStream.close();
+        }
+    }
+
+    private NativeS3RecoverableWriter writer(FakeNativeS3Operations operations) {
+        return NativeS3RecoverableWriter.writer(operations, tmp.toString(), MIN_PART_SIZE, 1);
     }
 
     private NativeS3RecoverableFsDataOutputStream newStream(FakeNativeS3Operations ops, String uid)
@@ -308,12 +441,13 @@ class NativeS3RecoverableFsDataOutputStreamTest {
      * failures, so this test can exercise {@link NativeS3RecoverableFsDataOutputStream}'s failure
      * handling without an S3 endpoint.
      */
-    private static final class FakeNativeS3Operations extends NativeS3ObjectOperations {
+    private static class FakeNativeS3Operations extends NativeS3ObjectOperations {
 
         final Map<String, byte[]> committedObjects = new HashMap<>();
         final Map<String, Map<Integer, byte[]>> openMultipartUploads = new HashMap<>();
 
         boolean failUploadPart = false;
+        boolean failPutObject = false;
         boolean failAbortMultiPartUpload = false;
         boolean deletePartFileAfterUpload = false;
         int abortAttempts = 0;
@@ -397,6 +531,25 @@ class NativeS3RecoverableFsDataOutputStreamTest {
                 throw new IOException("injected abort failure for uploadId: " + uploadId);
             }
             openMultipartUploads.remove(uploadId);
+        }
+
+        @Override
+        public PutObjectResult putObject(String key, File inputFile) throws IOException {
+            if (failPutObject) {
+                throw new IOException("injected putObject failure for key: " + key);
+            }
+            committedObjects.put(key, Files.readAllBytes(inputFile.toPath()));
+            return new PutObjectResult("etag-" + key);
+        }
+
+        @Override
+        public long getObject(String key, File target) throws IOException {
+            final byte[] data = committedObjects.get(key);
+            if (data == null) {
+                throw new IOException("missing object: " + key);
+            }
+            Files.write(target.toPath(), data);
+            return data.length;
         }
     }
 }

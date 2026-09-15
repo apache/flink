@@ -78,6 +78,9 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
 
     private volatile boolean closed;
 
+    // Recovered uploads and uploads handed out by persist() may belong to retained snapshots.
+    private boolean uploadMayBeReferenced;
+
     public NativeS3RecoverableFsDataOutputStream(
             NativeS3ObjectOperations s3AccessHelper,
             String key,
@@ -85,7 +88,16 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             String localTmpDir,
             long minPartSize)
             throws IOException {
-        this(s3AccessHelper, key, uploadId, localTmpDir, minPartSize, new ArrayList<>(), 0L, null);
+        this(
+                s3AccessHelper,
+                key,
+                uploadId,
+                localTmpDir,
+                minPartSize,
+                new ArrayList<>(),
+                0L,
+                null,
+                false);
     }
 
     public NativeS3RecoverableFsDataOutputStream(
@@ -98,6 +110,29 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             long numBytesInParts,
             File incompleteTailFile)
             throws IOException {
+        this(
+                s3AccessHelper,
+                key,
+                uploadId,
+                localTmpDir,
+                minPartSize,
+                existingParts,
+                numBytesInParts,
+                incompleteTailFile,
+                true);
+    }
+
+    private NativeS3RecoverableFsDataOutputStream(
+            NativeS3ObjectOperations s3AccessHelper,
+            String key,
+            String uploadId,
+            String localTmpDir,
+            long minPartSize,
+            List<PartETag> existingParts,
+            long numBytesInParts,
+            File incompleteTailFile,
+            boolean uploadMayBeReferenced)
+            throws IOException {
         this.s3AccessHelper = s3AccessHelper;
         this.key = key;
         this.uploadId = uploadId;
@@ -108,6 +143,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         this.nextPartNumber = existingParts.size() + 1;
         this.currentPartSize = 0;
         this.closed = false;
+        this.uploadMayBeReferenced = uploadMayBeReferenced;
 
         if (incompleteTailFile != null) {
             resumeFromIncompleteTail(incompleteTailFile);
@@ -199,7 +235,8 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
 
         // Do not delete the temp file if uploadPart fails: propagate the original exception
         // unmasked and let the cleanup path (close() or the closeForCommit() failure handler)
-        // delete it and abort the upload. nextPartNumber is only advanced on success.
+        // delete it and abort the upload if it is not needed for recovery.
+        // nextPartNumber is only advanced on success.
         NativeS3ObjectOperations.UploadPartResult result =
                 s3AccessHelper.uploadPart(
                         key, uploadId, nextPartNumber, currentTempFile, currentPartSize);
@@ -233,8 +270,8 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                         new NativeS3Recoverable(
                                 key, uploadId, new ArrayList<>(completedParts), numBytesInParts);
             } catch (IOException e) {
-                // The commit failed after the multipart upload had been created and parts may
-                // already have been uploaded. Abort it so it does not leak as an orphan upload.
+                // The failed commit may leave uploaded parts behind. Abort the upload to avoid an
+                // orphan only if it is not needed for recovery.
                 closed = true;
                 try {
                     tryAbortUploadAndReleaseResources();
@@ -267,6 +304,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 incompletePartLength = currentPartSize;
             }
 
+            uploadMayBeReferenced = true;
             return new NativeS3Recoverable(
                     key,
                     uploadId,
@@ -292,7 +330,9 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         }
     }
 
-    /** Aborts the multipart upload and releases local resources on the best effort basis. */
+    /**
+     * Releases local resources and aborts uploads that cannot be referenced by recoverable state.
+     */
     private void tryAbortUploadAndReleaseResources() throws IOException {
         IOException collected = null;
         if (currentOutputStream != null) {
@@ -309,16 +349,18 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 collected = ExceptionUtils.firstOrSuppressed(e, collected);
             }
         }
-        try {
-            s3AccessHelper.abortMultiPartUpload(key, uploadId);
-        } catch (IOException e) {
-            LOG.warn(
-                    "Failed to abort multipart upload (key={}, uploadId={}); it may be left as an "
-                            + "orphan upload in S3. Propagating the failure to the caller.",
-                    key,
-                    uploadId,
-                    e);
-            collected = ExceptionUtils.firstOrSuppressed(e, collected);
+        if (!uploadMayBeReferenced) {
+            try {
+                s3AccessHelper.abortMultiPartUpload(key, uploadId);
+            } catch (IOException e) {
+                LOG.warn(
+                        "Failed to abort multipart upload (key={}, uploadId={}); it may be left as an "
+                                + "orphan upload in S3. Propagating the failure to the caller.",
+                        key,
+                        uploadId,
+                        e);
+                collected = ExceptionUtils.firstOrSuppressed(e, collected);
+            }
         }
         if (collected != null) {
             throw collected;
