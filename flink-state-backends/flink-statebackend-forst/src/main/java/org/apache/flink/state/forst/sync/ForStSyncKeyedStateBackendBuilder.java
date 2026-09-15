@@ -56,6 +56,7 @@ import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStResourceContainer;
 import org.apache.flink.state.forst.ForStStateBackend;
 import org.apache.flink.state.forst.datatransfer.ForStStateDataTransfer;
+import org.apache.flink.state.forst.restore.ForStFullRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStHeapTimersFullRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStIncrementalRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStNoneRestoreOperation;
@@ -575,8 +576,21 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                     cancelStreamRegistry);
         }
 
-        // TODO: Support Restoring
-        throw new UnsupportedOperationException("Not support restoring yet for ForStStateBackend");
+        return new ForStFullRestoreOperation<>(
+                keyGroupRange,
+                userCodeClassLoader,
+                kvStateInformation,
+                keySerializerProvider,
+                instanceForStPath,
+                optionsContainer.getDbOptions(),
+                columnFamilyOptionsFactory,
+                nativeMetricOptions,
+                metricGroup,
+                restoreStateHandles,
+                ttlCompactFiltersManager,
+                writeBatchSize,
+                optionsContainer.getWriteBufferManagerCapacity(),
+                cancelStreamRegistry);
     }
 
     private PriorityQueueSetFactory initPriorityQueueFactory(
