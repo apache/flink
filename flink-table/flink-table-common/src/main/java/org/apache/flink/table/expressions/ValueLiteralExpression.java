@@ -41,6 +41,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -138,6 +139,8 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                 convertedValue = convertToInstant(value, valueClass);
             } else if (clazz == BigDecimal.class) {
                 convertedValue = convertToBigDecimal(value);
+            } else if (clazz == UUID.class) {
+                convertedValue = convertToUuid(value, valueClass);
             }
         }
 
@@ -211,6 +214,15 @@ public final class ValueLiteralExpression implements ResolvedExpression {
     private @Nullable BigDecimal convertToBigDecimal(Object value) {
         if (Number.class.isAssignableFrom(value.getClass())) {
             return new BigDecimal(String.valueOf(value));
+        }
+
+        return null;
+    }
+
+    private @Nullable UUID convertToUuid(Object value, Class<?> valueClass) {
+        if (valueClass == byte[].class) {
+            final ByteBuffer buffer = ByteBuffer.wrap((byte[]) value);
+            return new UUID(buffer.getLong(), buffer.getLong());
         }
 
         return null;
