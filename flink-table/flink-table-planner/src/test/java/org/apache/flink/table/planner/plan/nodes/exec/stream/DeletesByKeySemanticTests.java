@@ -29,11 +29,15 @@ public class DeletesByKeySemanticTests extends SemanticTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_DELETE_BY_KEY,
-                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_FULL_DELETE,
-                DeletesByKeyPrograms.INSERT_SELECT_FULL_DELETE_FULL_DELETE,
-                DeletesByKeyPrograms.INSERT_SELECT_DELETE_BY_KEY_DELETE_BY_KEY_WITH_PROJECTION,
+                DeletesByKeyPrograms.DELETE_BY_KEY_DELETE_BY_KEY,
+                DeletesByKeyPrograms.DELETE_BY_KEY_FULL_DELETE,
+                DeletesByKeyPrograms.FULL_DELETE_FULL_DELETE,
+                DeletesByKeyPrograms.DELETE_BY_KEY_DELETE_BY_KEY_WITH_PROJECTION,
                 DeletesByKeyPrograms.JOIN_INTO_FULL_DELETES,
-                DeletesByKeyPrograms.JOIN_INTO_DELETES_BY_KEY);
+                DeletesByKeyPrograms.JOIN_INTO_DELETES_BY_KEY,
+                DeletesByKeyPrograms.DELETE_BY_KEY_DELETE_BY_KEY_WITH_EXPRESSION,
+                DeletesByKeyPrograms.DELETE_BY_KEY_DELETE_BY_KEY_WITH_EXPRESSION_AND_FILTER,
+                DeletesByKeyPrograms.DELETE_BY_KEY_DELETE_BY_KEY_WITH_DUPLICATE_KEY,
+                DeletesByKeyPrograms.DELETE_BY_KEY_ASYNC_CALC_FALLS_BACK_TO_FULL_DELETE);
     }
 }
