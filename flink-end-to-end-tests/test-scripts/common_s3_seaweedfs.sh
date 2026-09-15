@@ -60,7 +60,7 @@ function s3_start {
   on_exit s3_stop
 
   # mini pre-creates the bucket and reports readiness only once all components are up.
-  while ! docker logs "$SEAWEEDFS_CONTAINER_ID" 2>&1 | grep -q "All enabled components are running and ready to use"; do
+  while ! docker logs "$SEAWEEDFS_CONTAINER_ID" 2>&1 | grep "All enabled components are running and ready to use"; do
     sleep 0.1
   done
   echo "Seaweedfs S3 gateway is up @ $S3_ENDPOINT"
