@@ -48,8 +48,8 @@ msgstr "用户自定义函数是重要的功能，因为它们极大地扩展了
 
 #: ../../user_guide/table/udfs.rst:25
 msgid ""
-"**NOTE:** Python UDF execution requires Python version (3.9, 3.10, 3.11 "
-"or 3.12) with PyFlink installed. It's required on both the client side "
+"**NOTE:** Python UDF execution requires Python version (3.9, 3.10, 3.11, "
+"3.12 or 3.13) with PyFlink installed. It's required on both the client side "
 "and the cluster side."
 msgstr ""
 "**注意:** 要执行 Python 用户自定义函数，客户端和集群端都需要安装 Python 3.9 以上版本"

@@ -203,8 +203,8 @@ function install_uv() {
 
     if [ ! -d "$CURRENT_DIR/.uv/venv" ]; then
         print_function "STEP" "setup uv virtualenv"
-        # Create a Python 3.12 virtual environment as the base environment.
-        $CURRENT_DIR/download/uv venv "$CURRENT_DIR/.uv" --seed --python 3.12
+        # Create a Python 3.13 virtual environment as the base environment.
+        $CURRENT_DIR/download/uv venv "$CURRENT_DIR/.uv" --seed --python 3.13
         print_function "STEP" "setup uv virtualenv... [SUCCESS]"
         # orjson depend on pip >= 20.3
         print_function "STEP" "upgrade pip..."
@@ -378,7 +378,7 @@ function install_environment() {
     fi
 
     # step-2 install python environment which includes
-    # 3.9 3.10 3.11 3.12
+    # 3.9 3.10 3.11 3.12 3.13
     if [ $STEP -lt 2 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
@@ -559,7 +559,7 @@ function check_stage() {
 #########################
 # Tox check
 function tox_check() {
-    LATEST_PYTHON="py312"
+    LATEST_PYTHON="py313"
     print_function "STAGE" "tox checks"
     # Set created py-env in $PATH for tox's creating virtual env
     activate

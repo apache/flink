@@ -62,7 +62,7 @@ jobs:
       displayName: Free up disk space
     - task: UsePythonVersion@0
       inputs:
-        versionSpec: '3.12'
+        versionSpec: '3.13'
     # Install upstream kubectl so we don't use the agent's FIPS-patched build.
     - bash: |
         set -euo pipefail
