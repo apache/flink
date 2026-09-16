@@ -70,8 +70,9 @@ class ArrowSchemaTests(unittest.TestCase):
         schema = create_arrow_schema(names, types)
         self.assertEqual(schema.field("values").type.value_field.name, "item")
         self.assertFalse(schema.field("values").type.value_field.nullable)
-        self.assertFalse(schema.field("lookup").type.key_field.nullable)
-        self.assertFalse(schema.field("lookup").type.item_field.nullable)
+        if hasattr(pa.MapType, 'item_field'):
+            self.assertFalse(schema.field("lookup").type.key_field.nullable)
+            self.assertFalse(schema.field("lookup").type.item_field.nullable)
         self.assertTrue(schema.field("lookup").type.item_type.value_field.nullable)
         self.assertFalse(schema.field("record").type[0].type.value_field.nullable)
 
@@ -89,9 +90,10 @@ class ArrowSchemaTests(unittest.TestCase):
             {"values": [], "lookup": [], "record": {"values": []}},
             {"values": None, "lookup": None, "record": {"values": None}},
             {"values": [None], "lookup": [('b', None)], "record": {"values": [None]}}]
-        self.assertEqual(decoded.to_pylist(), expected)
+        expected = {name: [row[name] for row in expected] for name in names}
+        self.assertEqual(decoded.to_pydict(), expected)
         restored = arrow_to_pandas(pytz.UTC, types, [decoded])
-        self.assertEqual(pandas_to_arrow(schema, pytz.UTC, types, restored).to_pylist(), expected)
+        self.assertEqual(pandas_to_arrow(schema, pytz.UTC, types, restored).to_pydict(), expected)
 
     def test_arrow_descriptor_preserves_pandas_default(self):
         from pyflink.fn_execution import flink_fn_execution_pb2 as proto
@@ -127,8 +129,14 @@ class ArrowCodersTests(unittest.TestCase):
             buffers = [validity]
             children = [column.field(index) for index in range(column.type.num_fields)]
         else:
-            buffers = [validity, column.offsets.buffers()[1]]
-            children = [column.values]
+            buffers = [validity, column.buffers()[1]]
+            if pa.types.is_map(column.type):
+                children = [pa.StructArray.from_arrays(
+                    [column.keys, column.items],
+                    fields=[pa.field("key", column.type.key_type, nullable=False),
+                            pa.field("value", column.type.item_type)])]
+            else:
+                children = [column.values]
         return pa.Array.from_buffers(column.type, len(column), buffers, children=children)
 
     def test_native_arrow_timezone(self):
@@ -194,16 +202,22 @@ class ArrowCodersTests(unittest.TestCase):
             {"record": None, "lookup": None, "amount": None, "time": None},
             {"record": {"inner": None}, "lookup": [],
              "amount": decimal.Decimal("-0.50"), "time": datetime.datetime(2021, 3, 4)}]
-        batch = pa.RecordBatch.from_pylist(rows, schema=schema)
-        self.assertEqual(coder.decode(coder.encode(batch)).to_pylist(), rows)
-        self.assertEqual(coder.decode(coder.encode(batch.slice(1))).to_pylist(), rows[1:])
+        expected = {name: [row[name] for row in rows] for name in schema.names}
+        batch = pa.record_batch([pa.array(expected[field.name], type=field.type)
+                                 for field in schema], schema=schema)
+        self.assertEqual(coder.decode(coder.encode(batch)).to_pydict(), expected)
+        self.assertEqual(coder.decode(coder.encode(batch.slice(1))).to_pydict(),
+                         {name: values[1:] for name, values in expected.items()})
 
         for field, value, message in (
             ("record", {"inner": {"value": None}}, "record.inner.value.*not nullable"),
             ("lookup", [("a", None)], "lookup.value.*not nullable"),
         ):
             with self.subTest(field=field):
-                invalid = pa.RecordBatch.from_pylist([{**rows[0], field: value}], schema=schema)
+                invalid_values = {**rows[0], field: value}
+                invalid = pa.record_batch([
+                    pa.array([invalid_values[child.name]], type=child.type) for child in schema],
+                    schema=schema)
                 with self.assertRaisesRegex(ValueError, message):
                     coder.encode(invalid)
 
@@ -226,14 +240,48 @@ class ArrowCodersTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "name.*string"):
             coder.encode(pa.record_batch([pa.array([1, 2])], names=["name"]))
 
+    def test_pandas_map_round_trip(self):
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD("lookup", DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT()))])
+        schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
+        coder = self.implementation.ArrowCoderImpl(schema, row_type, pytz.UTC)
+        values = pd.Series([[("value", 10)], [("value", 20)], None, []])
+        result = coder.decode(coder.encode([values]))
+        self.assertEqual(result[0].tolist(), [[("value", 10)], [("value", 20)], None, []])
+
+    def test_inferred_struct_nullability(self):
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        row_type = DataTypes.ROW([DataTypes.FIELD("wrapped", DataTypes.ROW([
+            DataTypes.FIELD("v", DataTypes.BIGINT().not_null())]))])
+        schema = create_arrow_schema(row_type.field_names(), row_type.field_types(),
+                                     allow_nested=True)
+        coder = self.arrow_coder(schema, row_type)
+        column = pa.StructArray.from_arrays([pa.array([0, 1, 2])], names=["v"])
+        with_nulls = pa.StructArray.from_arrays([pa.array([None, 1, 2])], names=["v"])
+        for values in (column, column.slice(1), column.slice(1, 0),
+                       with_nulls.slice(1), with_nulls.slice(1, 0)):
+            with self.subTest(offset=values.offset, length=len(values)):
+                result = coder.decode(coder.encode(pa.record_batch([values], names=["wrapped"])))
+                self.assertEqual(result.schema, schema)
+                self.assertEqual(result.column(0).to_pylist(), values.to_pylist())
+        invalid = pa.StructArray.from_arrays([pa.array([None], type=pa.int64())], names=["v"])
+        with self.assertRaisesRegex(ValueError, "wrapped.v.*not nullable"):
+            coder.encode(pa.record_batch([invalid], names=["wrapped"]))
+
     def test_sliced_container_nullability(self):
         from pyflink.table import DataTypes
-        from pyflink.table.types import create_arrow_schema, to_arrow_type
+        from pyflink.table.types import create_arrow_schema
 
         item_type = DataTypes.ROW([DataTypes.FIELD("required", DataTypes.INT().not_null())])
         items = pa.array([{"required": None}, {"required": 1}, {"required": None},
                           {"required": None}, None, {"required": None}],
-                         type=to_arrow_type(item_type))
+                         type=pa.struct([pa.field("required", pa.int32())]))
         nulls = [False, False, True, False, False, False]
         offsets = pa.array(range(7), type=pa.int32())
         for data_type, column, first, last in (
@@ -257,9 +305,9 @@ class ArrowCodersTests(unittest.TestCase):
                     [False, False, False, True, False, False])
                 batch = pa.record_batch([outer], names=["record"])
                 coder = self.arrow_coder(schema, row_type)
-                self.assertEqual(coder.decode(coder.encode(batch.slice(1, 4))).to_pylist(), [
-                    {"record": {"container": first}}, {"record": {"container": None}},
-                    {"record": None}, {"record": {"container": last}}])
+                self.assertEqual(coder.decode(coder.encode(batch.slice(1, 4))).to_pydict(), {
+                    "record": [{"container": first}, {"container": None},
+                               None, {"container": last}]})
                 self.assertEqual(coder.decode(coder.encode(batch.slice(0, 0))).num_rows, 0)
                 with self.assertRaisesRegex(ValueError, "required.*not nullable"):
                     coder.encode(batch.slice(0, 1))
@@ -276,6 +324,9 @@ class ArrowCodersTests(unittest.TestCase):
         boolean_lists = pa.ListArray.from_arrays([0, len(booleans), len(booleans)], booleans)
         for data_type, column, parent_nulls, memory_limit in (
             (DataTypes.ROW([DataTypes.FIELD("payload", DataTypes.BYTES())]),
+             pa.StructArray.from_arrays([payload], names=["payload"]),
+             nulls, payload.nbytes // 4),
+            (DataTypes.ROW([DataTypes.FIELD("payload", DataTypes.BYTES().not_null())]),
              pa.StructArray.from_arrays([payload], names=["payload"]),
              nulls, payload.nbytes // 4),
             (DataTypes.ARRAY(DataTypes.BYTES()),
@@ -302,7 +353,7 @@ class ArrowCodersTests(unittest.TestCase):
                     pa.set_memory_pool(default_pool)
                 # Allow IPC metadata, but not payload copies or element-sized temporary arrays.
                 self.assertLess(pool.max_memory(), memory_limit)
-                self.assertEqual(coder.decode(encoded).to_pylist(), batch.to_pylist())
+                self.assertEqual(coder.decode(encoded).to_pydict(), batch.to_pydict())
 
 
 try:

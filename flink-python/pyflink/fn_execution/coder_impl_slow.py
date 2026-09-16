@@ -293,7 +293,7 @@ class ArrowCoderImpl(FieldCoderImpl):
         self._resettable_io.set_output_stream(out_stream)
         batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
         if self._batch_format == "ARROW":
-            batch = validate_arrow_batch(cols, self._schema)
+            batch = validate_arrow_batch(cols, self._schema, self._field_types)
         else:
             batch = pandas_to_arrow(self._schema, self._timezone, self._field_types, cols)
         batch_writer.write_batch(batch)

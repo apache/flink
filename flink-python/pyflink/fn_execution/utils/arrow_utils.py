@@ -21,19 +21,50 @@
 from functools import cache
 
 
-def validate_arrow_batch(batch, schema):
+def validate_arrow_batch(batch, schema, field_types):
     import pyarrow as pa
 
     if not isinstance(batch, pa.RecordBatch):
         raise TypeError("Arrow transport expects a pyarrow.RecordBatch.")
     if batch.num_columns != len(schema):
         raise ValueError(f"Arrow result has {batch.num_columns} columns, expected {len(schema)}.")
-    for column, field in zip(batch.columns, schema):
-        _validate_array(column, field, field.name)
-    return pa.RecordBatch.from_arrays(batch.columns, schema=schema)
+    # PyArrow 5 cannot express map-value nullability, so retain the logical constraint there.
+    legacy_map_fields = not hasattr(pa.MapType, 'item_field')
+    columns = []
+    for index, (column, field) in enumerate(zip(batch.columns, schema)):
+        _validate_array(column, field, field.name,
+                        data_type=field_types[index] if legacy_map_fields else None)
+        columns.append(_apply_arrow_type(column, field.type))
+    return pa.RecordBatch.from_arrays(columns, schema=schema)
 
 
-def _validate_array(column, field, path, parent_validity=None):
+def _apply_arrow_type(column, expected_type):
+    import pyarrow as pa
+
+    if column.type == expected_type:
+        return column
+    # Old Arrow casts reject valid nullability changes, and views inspect unsliced children.
+    # After validation, rebuild only container metadata while keeping the payload buffers.
+    if pa.types.is_struct(expected_type):
+        return pa.StructArray.from_arrays(
+            [_apply_arrow_type(column.field(index), field.type)
+             for index, field in enumerate(expected_type)],
+            fields=list(expected_type), mask=column.is_null() if column.null_count else None)
+    if pa.types.is_list(expected_type):
+        children = [_apply_arrow_type(column.values, expected_type.value_type)]
+    else:
+        value_field = (expected_type.item_field if hasattr(expected_type, 'item_field')
+                       else pa.field("value", expected_type.item_type))
+        children = [pa.StructArray.from_arrays(
+            [_apply_arrow_type(column.keys, expected_type.key_type),
+             _apply_arrow_type(column.items, expected_type.item_type)],
+            fields=[pa.field("key", expected_type.key_type, nullable=False), value_field])]
+    return pa.Array.from_buffers(
+        expected_type, len(column), column.buffers()[:expected_type.num_buffers],
+        null_count=column.null_count, offset=column.offset, children=children)
+
+
+def _validate_array(column, field, path, parent_validity=None, data_type=None):
     import pyarrow as pa
     import pyarrow.compute as pc
     expected_type = field.type
@@ -55,23 +86,33 @@ def _validate_array(column, field, path, parent_validity=None):
             if column.type[index].name != child_field.name:
                 wrong_type()
             _validate_array(column.field(index), child_field,
-                            f"{path}.{child_field.name}", validity)
+                            f"{path}.{child_field.name}", validity,
+                            data_type.fields[index].data_type if data_type is not None else None)
     elif pa.types.is_list(expected_type):
         if not pa.types.is_list(column.type):
             wrong_type()
         start, end = column.offsets[0].as_py(), column.offsets[-1].as_py()
         _validate_array(column.values.slice(start, end - start),
                         expected_type.value_field, f"{path}[]",
-                        cache(lambda: _get_child_validity(column, parent_validity)))
+                        cache(lambda: _get_child_validity(column, parent_validity)),
+                        data_type.element_type if data_type is not None else None)
     elif pa.types.is_map(expected_type):
         if not pa.types.is_map(column.type):
             wrong_type()
         validity = cache(lambda: _get_child_validity(column, parent_validity))
-        start, end = column.offsets[0].as_py(), column.offsets[-1].as_py()
-        _validate_array(column.keys.slice(start, end - start), expected_type.key_field,
-                        f"{path}.key", validity)
-        _validate_array(column.items.slice(start, end - start), expected_type.item_field,
-                        f"{path}.value", validity)
+        offsets = _get_offsets(column)
+        start, end = offsets[0].as_py(), offsets[-1].as_py()
+        key_field = (expected_type.key_field if data_type is None
+                     else pa.field("key", expected_type.key_type, nullable=False))
+        value_field = (expected_type.item_field if data_type is None
+                       else pa.field("value", expected_type.item_type,
+                                     nullable=data_type.value_type._nullable))
+        _validate_array(column.keys.slice(start, end - start), key_field,
+                        f"{path}.key", validity,
+                        data_type.key_type if data_type is not None else None)
+        _validate_array(column.items.slice(start, end - start), value_field,
+                        f"{path}.value", validity,
+                        data_type.value_type if data_type is not None else None)
     elif column.type != expected_type:
         wrong_type()
 
@@ -95,8 +136,19 @@ def _get_child_validity(column, parent_validity):
     if validity is None:
         return None
     # A list view also handles map entries and keeps the original offsets and value buffers.
-    entries = pa.ListArray.from_arrays(column.offsets, column.values)
+    values = column.keys if pa.types.is_map(column.type) else column.values
+    entries = pa.ListArray.from_arrays(_get_offsets(column), values)
     return pc.take(validity, pc.list_parent_indices(entries))
+
+
+def _get_offsets(column):
+    import pyarrow as pa
+
+    if hasattr(column, 'offsets'):
+        return column.offsets
+    # PyArrow 5 does not expose MapArray.offsets, but uses the same int32 offsets as lists.
+    return pa.Array.from_buffers(pa.int32(), len(column) + 1,
+                                 [None, column.buffers()[1]], offset=column.offset)
 
 
 def check_arrow_udf_result(func, *args):

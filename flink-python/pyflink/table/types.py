@@ -2348,11 +2348,12 @@ def to_arrow_type(data_type: DataType, *, allow_nested=False):
         else:
             return pa.timestamp('ns')
     elif isinstance(data_type, MapType):
-        return pa.map_(
-            pa.field("key", to_arrow_type(data_type.key_type, allow_nested=allow_nested),
-                     nullable=False),
-            pa.field("value", to_arrow_type(data_type.value_type, allow_nested=allow_nested),
-                     nullable=data_type.value_type._nullable))
+        key_type = to_arrow_type(data_type.key_type, allow_nested=allow_nested)
+        value_type = to_arrow_type(data_type.value_type, allow_nested=allow_nested)
+        # PyArrow 5 only accepts data types and always makes map values nullable.
+        if hasattr(pa.MapType, 'item_field'):
+            value_type = pa.field("value", value_type, nullable=data_type.value_type._nullable)
+        return pa.map_(key_type, value_type)
     elif isinstance(data_type, ArrayType):
         if not allow_nested and type(data_type.element_type) in [LocalZonedTimestampType, RowType]:
             raise ValueError("%s is not supported to be used as the element type of ArrayType." %
