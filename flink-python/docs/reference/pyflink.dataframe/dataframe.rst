@@ -94,6 +94,16 @@ Set Operations
     DataFrame.minus
     DataFrame.minus_all
 
+Joins
+-----
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.join
+
 Aggregations
 ------------
 

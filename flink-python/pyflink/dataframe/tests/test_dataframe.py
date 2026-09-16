@@ -49,6 +49,7 @@ from pyflink.testing.test_case_utils import (
     PyFlinkITTestCase,
     PyFlinkStreamDataFrameTestCase,
 )
+from pyflink.util.exceptions import TableException
 
 
 class _Point(NamedTuple):
@@ -1131,6 +1132,413 @@ class DataFrameRenameColumnsTests(PyFlinkDataFrameUTTestCase):
             with self.subTest(name=name):
                 with self.assertRaisesRegex(error, message):
                     invalid_call()
+
+
+class DataFrameJoinTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.left = pf.from_records(
+            [(1, "left")],
+            schema=["id", "left_value"],
+        )
+        self.right = pf.from_records(
+            [(1, "right")],
+            schema=["id", "right_value"],
+        )
+
+    def test_join_on_shared_key_keeps_key_once(self):
+        result = self.left.join(self.right, on="id")
+
+        self.assert_dataframe_schema(
+            result,
+            ["id", "left_value", "right_value"],
+            [
+                TableDataTypes.BIGINT(),
+                TableDataTypes.STRING(),
+                TableDataTypes.STRING(),
+            ],
+        )
+
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (CAST(1 AS BIGINT))) AS T(id)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (CAST(1 AS INT))) AS T(id)"
+            )
+        )
+        self.assert_dataframe_schema(
+            left.join(right, on="id", how="right"),
+            ["id"],
+            [TableDataTypes.INT().not_null()],
+        )
+
+    def test_join_supports_multiple_shared_keys(self):
+        left = pf.from_records(
+            [(1, "A", "left")],
+            schema=["id", "category", "left_value"],
+        )
+        right = pf.from_records(
+            [(1, "A", "right")],
+            schema=["id", "category", "right_value"],
+        )
+
+        result = left.join(right, on=["id", "category"])
+
+        self.assertEqual(
+            result.columns,
+            ["id", "category", "left_value", "right_value"],
+        )
+        self.assertEqual(
+            left.join(right, on=["id", "category"], how="semi").columns,
+            ["id", "category", "left_value"],
+        )
+
+    def test_join_supports_different_and_computed_keys(self):
+        right = self.right.rename_columns({"id": "right_id"})
+
+        named_result = self.left.join(
+            right,
+            left_on="id",
+            right_on="right_id",
+            how="left",
+        )
+        computed_result = self.left.join(
+            right,
+            left_on=pf.col("id") + 1,
+            right_on=pf.col("right_id"),
+        )
+
+        for result in (named_result, computed_result):
+            self.assertEqual(
+                result.columns,
+                ["id", "left_value", "right_id", "right_value"],
+            )
+            self.assertFalse(any(name.startswith("__pf_join") for name in result.columns))
+
+    def test_join_supports_expression_predicate(self):
+        right = pf.from_records(
+            [(1, 0, 2, "right")],
+            schema=["right_id", "min_id", "max_id", "right_value"],
+        )
+
+        result = self.left.join(
+            right,
+            on=(pf.col("id") == pf.col("right_id"))
+            & (pf.col("id") >= pf.col("min_id"))
+            & (pf.col("id") < pf.col("max_id")),
+        )
+
+        self.assertEqual(
+            result.columns,
+            ["id", "left_value", "right_id", "min_id", "max_id", "right_value"],
+        )
+
+    def test_join_supports_non_equi_only_predicate(self):
+        for settings in (
+            EnvironmentSettings.in_batch_mode(),
+            EnvironmentSettings.in_streaming_mode(),
+        ):
+            with self.subTest(streaming=settings.is_streaming_mode()):
+                t_env = TableEnvironment.create(settings)
+                left = pf.from_table(t_env.from_elements([(1,), (2,)], ["id"]))
+                right = pf.from_table(t_env.from_elements([(2,), (3,)], ["right_id"]))
+
+                result = left.join(right, on=pf.col("id") < pf.col("right_id"))
+
+                self.assertEqual(result.columns, ["id", "right_id"])
+                plan = result.to_table().explain()
+                self.assertIn("joinType=[InnerJoin]", plan)
+                if settings.is_streaming_mode():
+                    self.assertIn("distribution=[single]", plan)
+
+    def test_anti_join_uses_native_anti_join(self):
+        for settings in (
+            EnvironmentSettings.in_batch_mode(),
+            EnvironmentSettings.in_streaming_mode(),
+        ):
+            with self.subTest(streaming=settings.is_streaming_mode()):
+                t_env = TableEnvironment.create(settings)
+                left = pf.from_table(t_env.from_elements([(1, "A")], ["id", "left_value"]))
+                right = pf.from_table(t_env.from_elements([(1, "X")], ["id", "right_value"]))
+
+                with patch("pyflink.table.table.Table.execute") as execute:
+                    with patch("pyflink.table.table.Table.explain") as explain:
+                        result = left.join(right, on="id", how="anti")
+                execute.assert_not_called()
+                explain.assert_not_called()
+                plan = result.to_table().explain()
+
+                self.assertEqual(result.columns, left.columns)
+                self.assertIn("joinType=[LeftAntiJoin]", plan)
+                self.assertNotIn("joinType=[LeftOuterJoin]", plan)
+
+    def test_anti_join_uses_native_anti_join_for_values(self):
+        for settings in (
+            EnvironmentSettings.in_batch_mode(),
+            EnvironmentSettings.in_streaming_mode(),
+        ):
+            with self.subTest(streaming=settings.is_streaming_mode()):
+                t_env = TableEnvironment.create(settings)
+                left = pf.from_table(t_env.sql_query("SELECT * FROM (VALUES (1), (2)) T(id)"))
+                right = pf.from_table(t_env.sql_query("SELECT * FROM (VALUES (1), (2)) T(id)"))
+
+                with patch.object(t_env, "sql_query", wraps=t_env.sql_query) as sql_query:
+                    result = left.join(right, on="id", how="anti")
+
+                sql_query.assert_called_once()
+                self.assertIn("WHERE NOT EXISTS", sql_query.call_args[0][0])
+                self.assertEqual(result.columns, left.columns)
+                plan = result.to_table().explain()
+                self.assertIn("joinType=[LeftAntiJoin]", plan)
+                self.assertNotIn("joinType=[LeftOuterJoin]", plan)
+
+    def test_anti_join_propagates_query_errors_and_cleans_up_udfs(self):
+        right = self.right.rename_columns({"id": "right_id"})
+        is_allowed = pf.udf(lambda value: value == "right", return_dtype=bool)
+        predicate = (pf.col("id") == pf.col("right_id")) & is_allowed(pf.col("right_value"))
+        functions_before = set(self.t_env.list_user_defined_functions())
+        errors = (
+            TableException("injected query failure"),
+            RuntimeError("injected unexpected failure"),
+        )
+
+        for error in errors:
+            with self.subTest(error=str(error)):
+                with patch.object(self.t_env, "sql_query", side_effect=error) as sql_query:
+                    with self.assertRaises(type(error)) as raised:
+                        self.left.join(right, on=predicate, how="anti")
+
+                self.assertIs(raised.exception, error)
+                sql_query.assert_called_once()
+                self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+
+    def test_join_with_nested_inline_udfs_preserves_registered_functions(self):
+        right = self.right.rename_columns({"id": "right_id"})
+        normalize = pf.udf(lambda value: value.lower(), return_dtype=str)
+        same_value = pf.udf(lambda left, right: left == right, return_dtype=bool)
+        self.t_env.create_temporary_system_function(
+            "__pf_join_udf", normalize._table_udf_wrapper
+        )
+        functions_before = set(self.t_env.list_user_defined_functions())
+        functions_during_query = []
+        original_sql_query = self.t_env.sql_query
+
+        def capture_functions(query):
+            functions_during_query.append(set(self.t_env.list_user_defined_functions()))
+            return original_sql_query(query)
+
+        match = same_value(normalize(pf.col("left_value")), normalize(pf.col("right_value")))
+        with patch.object(self.t_env, "sql_query", side_effect=capture_functions):
+            result = self.left.join(
+                right, on=(pf.col("id") == pf.col("right_id")) & match & match
+            )
+
+        self.assertEqual(result.columns, ["id", "left_value", "right_id", "right_value"])
+        self.assertEqual(len(functions_during_query), 1)
+        self.assertEqual(len(functions_during_query[0] - functions_before), 2)
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+        registered_result = self.t_env.sql_query("SELECT __pf_join_udf('HELLO')")
+        self.assertEqual(len(registered_result.get_resolved_schema().get_column_names()), 1)
+
+    def test_join_cleans_up_inline_udfs_after_invalid_sql(self):
+        right = self.right.rename_columns({"id": "right_id"})
+        identity = pf.udf(lambda value: value, return_dtype=int)
+        functions_before = set(self.t_env.list_user_defined_functions())
+
+        with patch.object(self.t_env, "sql_query", wraps=self.t_env.sql_query) as sql_query:
+            with self.assertRaises(Py4JJavaError):
+                self.left.join(right, on=identity(pf.col("id")))
+
+        sql_query.assert_called_once()
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+
+    def test_join_cleans_up_partially_registered_inline_udfs(self):
+        right = self.right.rename_columns({"id": "right_id"})
+        normalize = pf.udf(lambda value: value.lower(), return_dtype=str)
+        same_value = pf.udf(lambda left, right: left == right, return_dtype=bool)
+        functions_before = set(self.t_env.list_user_defined_functions())
+        original_register = self.t_env._j_tenv.createTemporarySystemFunction
+        registration_attempts = []
+
+        def fail_second_registration(name, definition):
+            registration_attempts.append(name)
+            if len(registration_attempts) == 2:
+                raise RuntimeError("injected UDF registration failure")
+            return original_register(name, definition)
+
+        with patch.object(
+            self.t_env._j_tenv,
+            "createTemporarySystemFunction",
+            side_effect=fail_second_registration,
+        ):
+            with self.assertRaisesRegex(Py4JJavaError, "injected UDF registration failure"):
+                self.left.join(
+                    right,
+                    on=(pf.col("id") == pf.col("right_id"))
+                    & same_value(normalize(pf.col("left_value")), pf.col("right_value")),
+                )
+
+        self.assertEqual(len(registration_attempts), 2)
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+
+    def test_join_supports_semi_anti_and_cross(self):
+        for how in ("semi", "anti"):
+            with self.subTest(how=how):
+                self.assertEqual(
+                    self.left.join(self.right, on="id", how=how).columns,
+                    ["id", "left_value"],
+                )
+
+        right = self.right.rename_columns({"id": "right_id"})
+        semi = self.left.join(
+            right,
+            on=pf.col("id") < pf.col("right_id"),
+            how="semi",
+        )
+        self.assertEqual(semi.columns, ["id", "left_value"])
+        self.assertIn("joinType=[LeftSemiJoin]", semi.to_table().explain())
+
+        is_right = pf.udf(lambda value: value == "right", return_dtype=bool)
+        functions_before = set(self.t_env.list_user_defined_functions())
+        semi_with_udf = self.left.join(
+            right,
+            on=(pf.col("id") == pf.col("right_id"))
+            & is_right(pf.col("right_value")),
+            how="semi",
+        )
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+        self.assertIn("joinType=[LeftSemiJoin]", semi_with_udf.to_table().explain())
+
+        self.assertEqual(
+            self.left.join(right, how="cross").columns,
+            ["id", "left_value", "right_id", "right_value"],
+        )
+
+    def test_join_outer_alias_matches_full_schema(self):
+        full = self.left.join(self.right, on="id", how="full")
+        outer = self.left.join(self.right, on="id", how="outer")
+
+        self.assertEqual(full.columns, outer.columns)
+        self.assertEqual(
+            full._table.get_resolved_schema(),
+            outer._table.get_resolved_schema(),
+        )
+
+    def test_join_rejects_invalid_argument_combinations(self):
+        invalid_calls = [
+            (
+                "other",
+                lambda: self.left.join(object(), on="id"),
+                TypeError,
+                "other must be",
+            ),
+            (
+                "how_type",
+                lambda: self.left.join(self.right, on="id", how=1),
+                TypeError,
+                "how must be a string",
+            ),
+            (
+                "how_value",
+                lambda: self.left.join(self.right, on="id", how="sideways"),
+                ValueError,
+                "how must be one of",
+            ),
+            (
+                "missing_keys",
+                lambda: self.left.join(self.right),
+                ValueError,
+                "requires on or both",
+            ),
+            (
+                "mixed_keys",
+                lambda: self.left.join(
+                    self.right,
+                    on="id",
+                    left_on="id",
+                    right_on="id",
+                ),
+                ValueError,
+                "on cannot be combined",
+            ),
+            (
+                "missing_right_on",
+                lambda: self.left.join(self.right, left_on="id"),
+                ValueError,
+                "must be provided together",
+            ),
+            (
+                "different_key_counts",
+                lambda: self.left.join(
+                    self.right,
+                    left_on=["id", "left_value"],
+                    right_on=["id"],
+                ),
+                ValueError,
+                "same number of keys",
+            ),
+            (
+                "empty_keys",
+                lambda: self.left.join(self.right, on=[]),
+                ValueError,
+                "on must not be empty",
+            ),
+            (
+                "invalid_key_type",
+                lambda: self.left.join(self.right, on=1),
+                TypeError,
+                "on must be a string",
+            ),
+            (
+                "missing_column",
+                lambda: self.left.join(self.right, on="missing"),
+                ValueError,
+                "on column 'missing' does not exist",
+            ),
+            (
+                "cross_keys",
+                lambda: self.left.join(self.right, on="id", how="cross"),
+                ValueError,
+                "cross join does not accept",
+            ),
+        ]
+        for name, invalid_call, error, message in invalid_calls:
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(error, message):
+                    invalid_call()
+
+    def test_join_rejects_duplicate_non_key_columns(self):
+        right = pf.from_records(
+            [(1, "duplicate")],
+            schema=["right_id", "left_value"],
+        )
+
+        with self.assertRaisesRegex(ValueError, "duplicate non-key columns.*rename_columns"):
+            self.left.join(right, left_on="id", right_on="right_id")
+
+        for how in ("semi", "anti"):
+            with self.subTest(how=how):
+                self.assertEqual(
+                    self.left.join(
+                        right,
+                        left_on="id",
+                        right_on="right_id",
+                        how=how,
+                    ).columns,
+                    ["id", "left_value"],
+                )
+
+    def test_join_rejects_different_table_environments(self):
+        other_environment = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        other = pf.from_table(
+            other_environment.sql_query("SELECT 1 AS id, 'right' AS right_value")
+        )
+
+        with self.assertRaisesRegex(ValueError, "same TableEnvironment"):
+            self.left.join(other, on="id")
 
 
 class DataFramePropertyTests(PyFlinkDataFrameUTTestCase):
@@ -2596,6 +3004,19 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
         )
         return pf.from_table(table)
 
+    def _join_dataframes(self):
+        left = self.t_env.sql_query(
+            "SELECT * FROM (VALUES "
+            "(CAST(1 AS INT), 'L1'), (2, 'L2'), (CAST(NULL AS INT), 'LN')) "
+            "AS T(id, left_value)"
+        )
+        right = self.t_env.sql_query(
+            "SELECT * FROM (VALUES "
+            "(CAST(2 AS INT), 'R2'), (3, 'R3'), (CAST(NULL AS INT), 'RN')) "
+            "AS T(id, right_value)"
+        )
+        return pf.from_table(left), pf.from_table(right)
+
     def test_sort_returns_rows_in_ascending_order(self):
         self.assertEqual(
             self._unsorted_dataframe().sort("id").collect(),
@@ -2682,6 +3103,312 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
         self.assertCountEqual(
             result.collect(),
             [Row("engineering", 30, 2), Row("sales", 5, 1)],
+        )
+
+    def test_join_types_and_null_keys(self):
+        expected = {
+            "inner": [Row(2, "L2", "R2")],
+            "left": [
+                Row(1, "L1", None),
+                Row(2, "L2", "R2"),
+                Row(None, "LN", None),
+            ],
+            "right": [
+                Row(2, "L2", "R2"),
+                Row(3, None, "R3"),
+                Row(None, None, "RN"),
+            ],
+            "full": [
+                Row(1, "L1", None),
+                Row(2, "L2", "R2"),
+                Row(3, None, "R3"),
+                Row(None, "LN", None),
+                Row(None, None, "RN"),
+            ],
+            "outer": [
+                Row(1, "L1", None),
+                Row(2, "L2", "R2"),
+                Row(3, None, "R3"),
+                Row(None, "LN", None),
+                Row(None, None, "RN"),
+            ],
+        }
+
+        for how, expected_rows in expected.items():
+            with self.subTest(how=how):
+                left, right = self._join_dataframes()
+                self.assertCountEqual(
+                    left.join(right, on="id", how=how).collect(),
+                    expected_rows,
+                )
+
+    def test_semi_and_anti_join_preserve_left_multiplicity(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES "
+                "(CAST(1 AS INT), 'A'), (1, 'A'), (1, 'B'), (2, 'C'), (2, 'C'), "
+                "(CAST(NULL AS INT), 'N')) AS T(id, left_value)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES "
+                "(CAST(1 AS INT), 'X'), (1, 'Y'), (CAST(NULL AS INT), 'Z')) "
+                "AS T(id, right_value)"
+            )
+        )
+
+        self.assertCountEqual(
+            left.join(right, on="id", how="semi").collect(),
+            [Row(1, "A"), Row(1, "A"), Row(1, "B")],
+        )
+        self.assertCountEqual(
+            left.join(right, on="id", how="anti").collect(),
+            [Row(2, "C"), Row(2, "C"), Row(None, "N")],
+        )
+
+    def test_anti_join_with_multiple_nullable_keys(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 'A'), (1, 'B'), (1, CAST(NULL AS STRING)), "
+                "(CAST(NULL AS INT), 'A'), (CAST(NULL AS INT), CAST(NULL AS STRING)), "
+                "(2, 'A'), (2, 'A')) "
+                "AS T(id, category)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 'A'), (1, CAST(NULL AS STRING)), "
+                "(CAST(NULL AS INT), 'A'), (CAST(NULL AS INT), CAST(NULL AS STRING))) "
+                "AS T(id, category)"
+            )
+        )
+
+        self.assertCountEqual(
+            left.join(right, on=["id", "category"], how="anti").collect(),
+            [
+                Row(1, "B"),
+                Row(1, None),
+                Row(None, "A"),
+                Row(None, None),
+                Row(2, "A"),
+                Row(2, "A"),
+            ],
+        )
+
+    def test_anti_join_with_empty_inputs(self):
+        left, right = self._join_dataframes()
+        empty_left = left.filter(pf.col("id") < 0)
+        empty_right = right.filter(pf.col("id") < 0)
+
+        self.assertCountEqual(
+            left.join(empty_right, on="id", how="anti").collect(),
+            [Row(1, "L1"), Row(2, "L2"), Row(None, "LN")],
+        )
+        self.assertEqual(empty_left.join(right, on="id", how="anti").collect(), [])
+        self.assertEqual(empty_left.join(empty_right, on="id", how="anti").collect(), [])
+
+    def test_anti_join_with_computed_keys_and_non_equi_predicate(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1), (2), (3), (CAST(NULL AS INT))) AS T(id)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (2), (CAST(NULL AS INT))) AS T(right_id)"
+            )
+        )
+
+        self.assertCountEqual(
+            left.join(
+                right, left_on=pf.col("id") + 1, right_on="right_id", how="anti"
+            ).collect(),
+            [Row(2), Row(3), Row(None)],
+        )
+        self.assertCountEqual(
+            left.join(right, on=pf.col("id") < pf.col("right_id"), how="anti").collect(),
+            [Row(2), Row(3), Row(None)],
+        )
+
+    def test_join_with_different_names_computed_keys_and_expression(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (CAST(1 AS INT), 'L1'), (2, 'L2')) "
+                "AS T(id, left_value)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES "
+                "(CAST(2 AS INT), 1, 3, 'R2'), (3, 2, 4, 'R3')) "
+                "AS T(right_id, min_id, max_id, right_value)"
+            )
+        )
+
+        self.assertCountEqual(
+            left.join(right, left_on=pf.col("id") + 1, right_on="right_id").collect(),
+            [
+                Row(1, "L1", 2, 1, 3, "R2"),
+                Row(2, "L2", 3, 2, 4, "R3"),
+            ],
+        )
+        predicate = (
+            (pf.col("id") + 1 == pf.col("right_id"))
+            & (pf.col("id") >= pf.col("min_id"))
+            & (pf.col("id") < pf.col("max_id"))
+        )
+        self.assertCountEqual(
+            left.join(right, on=predicate).collect(),
+            [
+                Row(1, "L1", 2, 1, 3, "R2"),
+                Row(2, "L2", 3, 2, 4, "R3"),
+            ],
+        )
+        self.assertEqual(left.join(right, on=predicate, how="anti").collect(), [])
+        self.assertCountEqual(
+            left.join(
+                right,
+                left_on=pf.col("id") + 1,
+                right_on="right_id",
+                how="semi",
+            ).collect(),
+            [Row(1, "L1"), Row(2, "L2")],
+        )
+
+    def test_join_with_non_equi_only_predicate(self):
+        left = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES (1), (2), (3)) AS T(id)")
+        )
+        right = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES (2), (3)) AS T(right_id)")
+        )
+        predicate = pf.col("id") < pf.col("right_id")
+
+        self.assertCountEqual(
+            left.join(right, on=predicate).collect(),
+            [Row(1, 2), Row(1, 3), Row(2, 3)],
+        )
+        self.assertCountEqual(
+            left.join(right, on=predicate, how="left").collect(),
+            [Row(1, 2), Row(1, 3), Row(2, 3), Row(3, None)],
+        )
+        self.assertCountEqual(
+            left.join(right, on=predicate, how="semi").collect(),
+            [Row(1), Row(2)],
+        )
+
+    def test_join_with_inline_udf_predicate_after_function_cleanup(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 'A'), (1, 'A'), (2, 'B'), "
+                "(3, CAST(NULL AS STRING)), (CAST(NULL AS INT), 'N')) "
+                "AS T(id, left_value)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 'A'), (1, 'X'), (2, 'X'), "
+                "(3, CAST(NULL AS STRING)), (CAST(NULL AS INT), 'N')) "
+                "AS T(right_id, right_value)"
+            )
+        )
+        same_value = pf.udf(lambda left, right: left == right, return_dtype=bool)
+        functions_before = set(self.t_env.list_user_defined_functions())
+
+        result = left.join(
+            right,
+            on=(pf.col("id") == pf.col("right_id"))
+            & same_value(pf.col("left_value"), pf.col("right_value")),
+        )
+
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+        self.assertCountEqual(
+            result.collect(),
+            [Row(1, "A", 1, "A"), Row(1, "A", 1, "A"), Row(3, None, 3, None)],
+        )
+
+    def test_left_semi_and_anti_join_with_inline_udf_on_right_input(self):
+        left = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES (1), (2)) AS T(id)")
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (1, 'no'), (2, 'yes')) AS T(right_id, flag)"
+            )
+        )
+        is_allowed = pf.udf(lambda value: value == "yes", return_dtype=bool)
+        predicate = (pf.col("id") == pf.col("right_id")) & is_allowed(pf.col("flag"))
+        functions_before = set(self.t_env.list_user_defined_functions())
+
+        outer = left.join(right, on=predicate, how="left")
+        semi = left.join(right, on=predicate, how="semi")
+        anti = left.join(right, on=predicate, how="anti")
+
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+        self.assertTrue(outer.to_table().get_resolved_schema().get_column_data_types()[1]._nullable)
+        self.assertCountEqual(outer.collect(), [Row(1, None, None), Row(2, 2, "yes")])
+        self.assertEqual(semi.collect(), [Row(2)])
+        self.assertEqual(anti.collect(), [Row(1)])
+
+    def test_anti_join_on_table_sources(self):
+        left = pf.from_table(self.t_env.from_elements([(1,), (2,), (3,), (None,)], ["id"]))
+        right = pf.from_table(self.t_env.from_elements([(2,), (None,)], ["right_id"]))
+        cases = (
+            ({"left_on": "id", "right_on": "right_id"}, [Row(1), Row(3), Row(None)]),
+            (
+                {"left_on": pf.col("id") + 1, "right_on": "right_id"},
+                [Row(2), Row(3), Row(None)],
+            ),
+            ({"on": pf.col("id") < pf.col("right_id")}, [Row(2), Row(3), Row(None)]),
+        )
+
+        for keys, expected in cases:
+            with self.subTest(keys=keys):
+                result = left.join(right, how="anti", **keys)
+
+                self.assertIn("joinType=[LeftAntiJoin]", result.to_table().explain())
+                self.assertCountEqual(result.collect(), expected)
+
+    def test_anti_join_on_table_sources_with_inline_udf_after_cleanup(self):
+        left = pf.from_table(
+            self.t_env.from_elements(
+                [(1, "A"), (1, "A"), (2, "B"), (3, "C"), (None, "N")],
+                ["id", "left_value"],
+            )
+        )
+        right = pf.from_table(
+            self.t_env.from_elements(
+                [(1, "no"), (2, "yes"), (2, "yes"), (None, "yes")],
+                ["right_id", "flag"],
+            )
+        )
+        is_allowed = pf.udf(lambda value: value == "yes", return_dtype=bool)
+        functions_before = set(self.t_env.list_user_defined_functions())
+
+        result = left.join(
+            right,
+            on=(pf.col("id") == pf.col("right_id")) & is_allowed(pf.col("flag")),
+            how="anti",
+        )
+
+        self.assertEqual(set(self.t_env.list_user_defined_functions()), functions_before)
+        self.assertIn("joinType=[LeftAntiJoin]", result.to_table().explain())
+        self.assertCountEqual(
+            result.collect(), [Row(1, "A"), Row(1, "A"), Row(3, "C"), Row(None, "N")]
+        )
+
+    def test_cross_join(self):
+        left = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES (1), (2)) AS T(id)")
+        )
+        right = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES ('S'), ('M')) AS T(size_name)")
+        )
+
+        self.assertCountEqual(
+            left.join(right, how="cross").collect(),
+            [Row(1, "S"), Row(1, "M"), Row(2, "S"), Row(2, "M")],
         )
 
 
