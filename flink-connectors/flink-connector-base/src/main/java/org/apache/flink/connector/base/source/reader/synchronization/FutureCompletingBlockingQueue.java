@@ -27,7 +27,8 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
-import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -37,6 +38,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A custom implementation of blocking queue in combination with a {@link CompletableFuture} that is
@@ -68,6 +70,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * <p>The queue supports gracefully waking up producing threads that are blocked due to the queue
  * capacity limits, without interrupting the thread. This is done via the {@link
  * #wakeUpPuttingThread(int)} method.
+ *
+ * <p>The queue keeps a small amount of per-producer state to support this. A producer that is
+ * permanently done with the queue must be handed to {@link #releaseProducer(int)}, the lifecycle
+ * counterpart of {@link #wakeUpPuttingThread(int)}, otherwise that state is retained for the
+ * lifetime of the queue.
  *
  * @param <T> the type of the elements in the queue.
  */
@@ -102,9 +109,15 @@ public class FutureCompletingBlockingQueue<T> {
     @GuardedBy("lock")
     private final Queue<Condition> notFull;
 
-    /** The per-thread conditions and wakeUp flags. */
+    /**
+     * The per-producer conditions and wakeUp flags, keyed by the producer's thread index.
+     *
+     * <p>Entries are created on demand by {@link #conditionAndFlagFor(int)} and removed by {@link
+     * #releaseProducer(int)}, so this map is bounded by the peak number of live or in-flight
+     * producers rather than by the largest producer index ever allocated.
+     */
     @GuardedBy("lock")
-    private ConditionAndFlag[] putConditionAndFlags;
+    private final Map<Integer, ConditionAndFlag> putConditionAndFlags;
 
     public FutureCompletingBlockingQueue() {
         this(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY.defaultValue());
@@ -115,7 +128,7 @@ public class FutureCompletingBlockingQueue<T> {
         this.capacity = capacity;
         this.queue = new ArrayDeque<>(capacity);
         this.lock = new ReentrantLock();
-        this.putConditionAndFlags = new ConditionAndFlag[1];
+        this.putConditionAndFlags = new HashMap<>();
         this.notFull = new ArrayDeque<>();
 
         // initially the queue is empty and thus unavailable
@@ -330,12 +343,55 @@ public class FutureCompletingBlockingQueue<T> {
     public void wakeUpPuttingThread(int threadIndex) {
         lock.lock();
         try {
-            maybeCreateCondition(threadIndex);
-            ConditionAndFlag caf = putConditionAndFlags[threadIndex];
-            if (caf != null) {
-                caf.setWakeUp(true);
-                caf.condition().signal();
+            // Creates the entry when absent, deliberately: the flag has to be sticky, so that a
+            // producer woken before it ever calls put() still observes the request and returns
+            // immediately instead of parking on a full queue.
+            final ConditionAndFlag caf = conditionAndFlagFor(threadIndex);
+            caf.setWakeUp(true);
+            caf.condition().signal();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Releases the per-producer wakeup state held for {@code threadIndex}.
+     *
+     * <p>Call this once the producer with that index is permanently finished with this queue.
+     * Without it the queue retains each condition created by a wakeup request or by a put attempt
+     * made while the queue was full. {@code SplitFetcherManager} hands out a fresh, never-recycled
+     * index per {@code SplitFetcher}, so for a source whose fetchers are short-lived that set
+     * otherwise grows without bound for the lifetime of the JVM.
+     *
+     * <p>The call is idempotent and safe for an index that was never used.
+     *
+     * <p><b>The caller must not be inside {@link #put(int, Object)} for this index.</b> Releasing a
+     * producer that is still running would drop a pending wakeUp flag it has yet to observe, and it
+     * could then park on a full queue after having been told to stop. {@code SplitFetcher}
+     * satisfies this by running its shutdown hook only after its run loop has exited.
+     *
+     * <p>For the same reason this must be the last interaction with the queue for that index: a
+     * later {@link #wakeUpPuttingThread(int)} would recreate the entry, and nothing would remove it
+     * again. {@code SplitFetcher} satisfies this in its normal lifecycle because it clears the
+     * current task before its run loop exits and invokes the shutdown hook afterward.
+     *
+     * @param threadIndex The number identifying the producer thread, as passed to {@link #put(int,
+     *     Object)}.
+     */
+    public void releaseProducer(int threadIndex) {
+        lock.lock();
+        try {
+            final ConditionAndFlag caf = putConditionAndFlags.get(threadIndex);
+            if (caf == null) {
+                return;
             }
+            if (caf.hasWaitingPutter()) {
+                // The condition may already have been removed from notFull after being signalled,
+                // while its putter is still waiting to reacquire the lock. Dropping the entry in
+                // that interval would discard a wakeUp flag the putter has yet to observe.
+                return;
+            }
+            putConditionAndFlags.remove(threadIndex);
         } finally {
             lock.unlock();
         }
@@ -370,15 +426,17 @@ public class FutureCompletingBlockingQueue<T> {
 
     @GuardedBy("lock")
     private void waitOnPut(int fetcherIndex) throws InterruptedException {
-        maybeCreateCondition(fetcherIndex);
-        Condition cond = putConditionAndFlags[fetcherIndex].condition();
-        notFull.add(cond);
+        final ConditionAndFlag caf = conditionAndFlagFor(fetcherIndex);
+        final Condition cond = caf.condition();
+        caf.startWaiting();
         try {
+            notFull.add(cond);
             cond.await();
         } finally {
             // drop the condition once the thread stops waiting, so a later signalNextPutter()
             // does not signal a putter that is no longer waiting
             notFull.remove(cond);
+            caf.stopWaiting();
         }
     }
 
@@ -389,22 +447,24 @@ public class FutureCompletingBlockingQueue<T> {
         }
     }
 
+    /**
+     * Returns the state for {@code threadIndex}, creating it when absent. Only {@link
+     * #wakeUpPuttingThread(int)} and {@link #waitOnPut(int)} call this, so a producer that is never
+     * woken and never blocks costs nothing.
+     */
     @GuardedBy("lock")
-    private void maybeCreateCondition(int threadIndex) {
-        if (putConditionAndFlags.length < threadIndex + 1) {
-            putConditionAndFlags = Arrays.copyOf(putConditionAndFlags, threadIndex + 1);
-        }
-
-        if (putConditionAndFlags[threadIndex] == null) {
-            putConditionAndFlags[threadIndex] = new ConditionAndFlag(lock.newCondition());
-        }
+    private ConditionAndFlag conditionAndFlagFor(int threadIndex) {
+        return putConditionAndFlags.computeIfAbsent(
+                threadIndex, ignored -> new ConditionAndFlag(lock.newCondition()));
     }
 
     @GuardedBy("lock")
     private boolean getAndResetWakeUpFlag(int threadIndex) {
-        maybeCreateCondition(threadIndex);
-        if (putConditionAndFlags[threadIndex].getWakeUp()) {
-            putConditionAndFlags[threadIndex].setWakeUp(false);
+        // Deliberately does not create the state: an absent entry cannot carry a wakeUp flag, and
+        // waitOnPut() creates it a moment later if this producer goes on to block.
+        final ConditionAndFlag caf = putConditionAndFlags.get(threadIndex);
+        if (caf != null && caf.getWakeUp()) {
+            caf.setWakeUp(false);
             return true;
         }
         return false;
@@ -415,6 +475,7 @@ public class FutureCompletingBlockingQueue<T> {
     private static class ConditionAndFlag {
         private final Condition cond;
         private boolean wakeUp;
+        private int waitingPutters;
 
         private ConditionAndFlag(Condition cond) {
             this.cond = cond;
@@ -427,6 +488,19 @@ public class FutureCompletingBlockingQueue<T> {
 
         private boolean getWakeUp() {
             return wakeUp;
+        }
+
+        private void startWaiting() {
+            waitingPutters++;
+        }
+
+        private void stopWaiting() {
+            checkState(waitingPutters > 0, "stopWaiting() without a matching startWaiting()");
+            waitingPutters--;
+        }
+
+        private boolean hasWaitingPutter() {
+            return waitingPutters > 0;
         }
 
         private void setWakeUp(boolean value) {

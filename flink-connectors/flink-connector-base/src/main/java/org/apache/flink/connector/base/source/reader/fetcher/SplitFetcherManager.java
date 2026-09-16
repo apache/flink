@@ -260,6 +260,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
                         errorHandler,
                         () -> {
                             fetchers.remove(fetcherId);
+                            elementsQueue.releaseProducer(fetcherId);
                             fetchersToShutDown.decrementAndGet();
                             // We need this to synchronize status of fetchers to concurrent partners
                             // as
