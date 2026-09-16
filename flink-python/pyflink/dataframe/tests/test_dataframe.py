@@ -1004,6 +1004,240 @@ class DataFrameRenameColumnsTests(PyFlinkDataFrameUTTestCase):
                     invalid_call()
 
 
+class DataFrameJoinTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.left = pf.from_records(
+            [(1, "left")],
+            schema=["id", "left_value"],
+        )
+        self.right = pf.from_records(
+            [(1, "right")],
+            schema=["id", "right_value"],
+        )
+
+    def test_join_on_shared_key_keeps_key_once(self):
+        result = self.left.join(self.right, on="id")
+
+        self.assert_dataframe_schema(
+            result,
+            ["id", "left_value", "right_value"],
+            [
+                TableDataTypes.BIGINT(),
+                TableDataTypes.STRING(),
+                TableDataTypes.STRING(),
+            ],
+        )
+
+    def test_join_supports_multiple_shared_keys(self):
+        left = pf.from_records(
+            [(1, "A", "left")],
+            schema=["id", "category", "left_value"],
+        )
+        right = pf.from_records(
+            [(1, "A", "right")],
+            schema=["id", "category", "right_value"],
+        )
+
+        result = left.join(right, on=["id", "category"])
+
+        self.assertEqual(
+            result.columns,
+            ["id", "category", "left_value", "right_value"],
+        )
+        self.assertEqual(
+            left.join(right, on=["id", "category"], how="semi").columns,
+            ["id", "category", "left_value"],
+        )
+
+    def test_join_supports_different_and_computed_keys(self):
+        right = self.right.rename_columns({"id": "right_id"})
+
+        named_result = self.left.join(
+            right,
+            left_on="id",
+            right_on="right_id",
+            how="left",
+        )
+        computed_result = self.left.join(
+            right,
+            left_on=pf.col("id") + 1,
+            right_on=pf.col("right_id"),
+        )
+
+        for result in (named_result, computed_result):
+            self.assertEqual(
+                result.columns,
+                ["id", "left_value", "right_id", "right_value"],
+            )
+            self.assertFalse(any(name.startswith("__pf_join") for name in result.columns))
+
+    def test_join_supports_expression_predicate(self):
+        right = pf.from_records(
+            [(1, 0, 2, "right")],
+            schema=["right_id", "min_id", "max_id", "right_value"],
+        )
+
+        result = self.left.join(
+            right,
+            on=(pf.col("id") == pf.col("right_id"))
+            & (pf.col("id") >= pf.col("min_id"))
+            & (pf.col("id") < pf.col("max_id")),
+        )
+
+        self.assertEqual(
+            result.columns,
+            ["id", "left_value", "right_id", "min_id", "max_id", "right_value"],
+        )
+
+    def test_join_supports_semi_anti_and_cross(self):
+        for how in ("semi", "anti"):
+            with self.subTest(how=how):
+                self.assertEqual(
+                    self.left.join(self.right, on="id", how=how).columns,
+                    ["id", "left_value"],
+                )
+
+        right = self.right.rename_columns({"id": "right_id"})
+        self.assertEqual(
+            self.left.join(right, how="cross").columns,
+            ["id", "left_value", "right_id", "right_value"],
+        )
+
+    def test_join_outer_alias_matches_full_schema(self):
+        full = self.left.join(self.right, on="id", how="full")
+        outer = self.left.join(self.right, on="id", how="outer")
+
+        self.assertEqual(full.columns, outer.columns)
+        self.assertEqual(
+            full._table.get_resolved_schema(),
+            outer._table.get_resolved_schema(),
+        )
+
+    def test_join_rejects_invalid_argument_combinations(self):
+        invalid_calls = [
+            (
+                "other",
+                lambda: self.left.join(object(), on="id"),
+                TypeError,
+                "other must be",
+            ),
+            (
+                "how_type",
+                lambda: self.left.join(self.right, on="id", how=1),
+                TypeError,
+                "how must be a string",
+            ),
+            (
+                "how_value",
+                lambda: self.left.join(self.right, on="id", how="sideways"),
+                ValueError,
+                "how must be one of",
+            ),
+            (
+                "missing_keys",
+                lambda: self.left.join(self.right),
+                ValueError,
+                "requires on or both",
+            ),
+            (
+                "mixed_keys",
+                lambda: self.left.join(
+                    self.right,
+                    on="id",
+                    left_on="id",
+                    right_on="id",
+                ),
+                ValueError,
+                "on cannot be combined",
+            ),
+            (
+                "missing_right_on",
+                lambda: self.left.join(self.right, left_on="id"),
+                ValueError,
+                "must be provided together",
+            ),
+            (
+                "different_key_counts",
+                lambda: self.left.join(
+                    self.right,
+                    left_on=["id", "left_value"],
+                    right_on=["id"],
+                ),
+                ValueError,
+                "same number of keys",
+            ),
+            (
+                "empty_keys",
+                lambda: self.left.join(self.right, on=[]),
+                ValueError,
+                "on must not be empty",
+            ),
+            (
+                "invalid_key_type",
+                lambda: self.left.join(self.right, on=1),
+                TypeError,
+                "on must be a string",
+            ),
+            (
+                "missing_column",
+                lambda: self.left.join(self.right, on="missing"),
+                ValueError,
+                "on column 'missing' does not exist",
+            ),
+            (
+                "cross_keys",
+                lambda: self.left.join(self.right, on="id", how="cross"),
+                ValueError,
+                "cross join does not accept",
+            ),
+            (
+                "semi_predicate",
+                lambda: self.left.join(
+                    self.right.rename_columns({"id": "right_id"}),
+                    on=pf.col("id") == pf.col("right_id"),
+                    how="semi",
+                ),
+                ValueError,
+                "semi join requires named keys",
+            ),
+        ]
+        for name, invalid_call, error, message in invalid_calls:
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(error, message):
+                    invalid_call()
+
+    def test_join_rejects_duplicate_non_key_columns(self):
+        right = pf.from_records(
+            [(1, "duplicate")],
+            schema=["right_id", "left_value"],
+        )
+
+        with self.assertRaisesRegex(ValueError, "duplicate non-key columns.*rename_columns"):
+            self.left.join(right, left_on="id", right_on="right_id")
+
+        for how in ("semi", "anti"):
+            with self.subTest(how=how):
+                self.assertEqual(
+                    self.left.join(
+                        right,
+                        left_on="id",
+                        right_on="right_id",
+                        how=how,
+                    ).columns,
+                    ["id", "left_value"],
+                )
+
+    def test_join_rejects_different_table_environments(self):
+        other_environment = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        other = pf.from_table(
+            other_environment.sql_query("SELECT 1 AS id, 'right' AS right_value")
+        )
+
+        with self.assertRaisesRegex(ValueError, "same TableEnvironment"):
+            self.left.join(other, on="id")
+
+
 class DataFramePropertyTests(PyFlinkDataFrameUTTestCase):
     def test_schema_exposes_ordered_metadata(self):
         dataframe = pf.from_records(
@@ -2467,6 +2701,19 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
         )
         return pf.from_table(table)
 
+    def _join_dataframes(self):
+        left = self.t_env.sql_query(
+            "SELECT * FROM (VALUES "
+            "(CAST(1 AS INT), 'L1'), (2, 'L2'), (CAST(NULL AS INT), 'LN')) "
+            "AS T(id, left_value)"
+        )
+        right = self.t_env.sql_query(
+            "SELECT * FROM (VALUES "
+            "(CAST(2 AS INT), 'R2'), (3, 'R3'), (CAST(NULL AS INT), 'RN')) "
+            "AS T(id, right_value)"
+        )
+        return pf.from_table(left), pf.from_table(right)
+
     def test_sort_returns_rows_in_ascending_order(self):
         self.assertEqual(
             self._unsorted_dataframe().sort("id").collect(),
@@ -2553,6 +2800,126 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
         self.assertCountEqual(
             result.collect(),
             [Row("engineering", 30, 2), Row("sales", 5, 1)],
+        )
+
+    def test_join_types_and_null_keys(self):
+        expected = {
+            "inner": [Row(2, "L2", "R2")],
+            "left": [
+                Row(1, "L1", None),
+                Row(2, "L2", "R2"),
+                Row(None, "LN", None),
+            ],
+            "right": [
+                Row(2, "L2", "R2"),
+                Row(3, None, "R3"),
+                Row(None, None, "RN"),
+            ],
+            "full": [
+                Row(1, "L1", None),
+                Row(2, "L2", "R2"),
+                Row(3, None, "R3"),
+                Row(None, "LN", None),
+                Row(None, None, "RN"),
+            ],
+            "outer": [
+                Row(1, "L1", None),
+                Row(2, "L2", "R2"),
+                Row(3, None, "R3"),
+                Row(None, "LN", None),
+                Row(None, None, "RN"),
+            ],
+        }
+
+        for how, expected_rows in expected.items():
+            with self.subTest(how=how):
+                left, right = self._join_dataframes()
+                self.assertCountEqual(
+                    left.join(right, on="id", how=how).collect(),
+                    expected_rows,
+                )
+
+    def test_semi_and_anti_join_preserve_left_multiplicity(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES "
+                "(CAST(1 AS INT), 'A'), (1, 'B'), (2, 'C'), "
+                "(CAST(NULL AS INT), 'N')) AS T(id, left_value)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES "
+                "(CAST(1 AS INT), 'X'), (1, 'Y'), (CAST(NULL AS INT), 'Z')) "
+                "AS T(id, right_value)"
+            )
+        )
+
+        self.assertCountEqual(
+            left.join(right, on="id", how="semi").collect(),
+            [Row(1, "A"), Row(1, "B")],
+        )
+        self.assertCountEqual(
+            left.join(right, on="id", how="anti").collect(),
+            [Row(2, "C"), Row(None, "N")],
+        )
+
+    def test_join_with_different_names_computed_keys_and_expression(self):
+        left = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES (CAST(1 AS INT), 'L1'), (2, 'L2')) "
+                "AS T(id, left_value)"
+            )
+        )
+        right = pf.from_table(
+            self.t_env.sql_query(
+                "SELECT * FROM (VALUES "
+                "(CAST(2 AS INT), 1, 3, 'R2'), (3, 2, 4, 'R3')) "
+                "AS T(right_id, min_id, max_id, right_value)"
+            )
+        )
+
+        self.assertCountEqual(
+            left.join(right, left_on=pf.col("id") + 1, right_on="right_id").collect(),
+            [
+                Row(1, "L1", 2, 1, 3, "R2"),
+                Row(2, "L2", 3, 2, 4, "R3"),
+            ],
+        )
+        predicate = (
+            (pf.col("id") + 1 == pf.col("right_id"))
+            & (pf.col("id") >= pf.col("min_id"))
+            & (pf.col("id") < pf.col("max_id"))
+        )
+        self.assertCountEqual(
+            left.join(right, on=predicate).collect(),
+            [
+                Row(1, "L1", 2, 1, 3, "R2"),
+                Row(2, "L2", 3, 2, 4, "R3"),
+            ],
+        )
+        self.assertEqual(left.join(right, on=predicate, how="anti").collect(), [])
+        self.assertCountEqual(
+            left.join(
+                right,
+                left_on=pf.col("id") + 1,
+                right_on="right_id",
+                how="semi",
+            ).collect(),
+            [Row(1, "L1"), Row(2, "L2")],
+        )
+
+    def test_cross_join(self):
+        left = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES (1), (2)) AS T(id)")
+        )
+        right = pf.from_table(
+            self.t_env.sql_query("SELECT * FROM (VALUES ('S'), ('M')) AS T(size_name)")
+        )
+
+        self.assertCountEqual(
+            left.join(right, how="cross").collect(),
+            [Row(1, "S"), Row(1, "M"), Row(2, "S"), Row(2, "M")],
         )
 
 
