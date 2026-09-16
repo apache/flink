@@ -104,6 +104,7 @@ public class JoinSemanticTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema("output STRING")
+                                    .testMaterializedData()
                                     .consumedValues("+I[test_diff]")
                                     .build())
                     .runSql(
