@@ -191,11 +191,7 @@ under the License.
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>okhttp3/internal/publicsuffix/NOTICE</exclude>
-									</excludes>
-								</filter>
-								<filter>
-									<artifact>com.fasterxml.jackson*:*</artifact>
-									<excludes>
+										<!-- Drop stale JPMS descriptors; with Multi-Release set below, the jar would otherwise claim a dependency's module name (FLINK-40145). -->
 										<exclude>META-INF/**/module-info.class</exclude>
 									</excludes>
 								</filter>
