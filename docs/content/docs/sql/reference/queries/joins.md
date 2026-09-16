@@ -367,6 +367,25 @@ The load phase is what distinguishes a `LATERAL SNAPSHOT` join from the [process
 The processing-time temporal join starts joining immediately at query start, so early probe-side rows are joined against whatever build-side data happens to have been loaded so far, producing missing or stale results that depend on the order in which the inputs are read. 
 By first loading the build side, a `LATERAL SNAPSHOT` join avoids this problem.
 
+**Completing the load phase for static or nearly-static build sides**
+
+The event-time gate (build-side watermark reaches `load_completed_time`) works well when the build side keeps producing records and advancing its watermark. 
+Build sides that are *static* (loaded once, then silent) or *nearly static* (infrequent updates) are common for reference data such as currency rates, product catalogs, or feature tables.
+Since watermarks only advance when new records with larger event times arrive, such inputs may take a long time to (or never) produce a watermark that reaches `load_completed_time`.
+This leaves the join **stuck in the load phase indefinitely**: probe-side rows keep buffering, state keeps growing, and no results are ever emitted.
+
+Picking a `load_completed_time` that both sits above the build side's real event times and is guaranteed to be reached by its watermark is difficult and requires insight into the data: set it too low and the join flips before the build side is fully loaded (probe rows are joined against an incomplete build side); set it too high and the join never flips.
+
+If the build-side input is truly static and its source connector supports it, configure the connector to run in **bounded mode**. 
+When the source finishes reading, it advances the watermark to its maximum value, which completes the load phase.
+
+If the build side is not truly static or the connector does not support a bounded mode, set **`load_completed_idle_timeout`**. 
+It is a processing-time (wall-clock) safety net that is independent of event-time progress: the operator flips from load to join once the build-side watermark has not advanced for the configured duration, so it triggers the flip during a genuine stall — exactly the situation a static or idle build side ends up in once it has been fully read.
+Choose the timeout larger than any expected pause in the build side's changes during start-up — if it fires while the backlog is still being read, the join flips against an incomplete build side.
+`load_completed_idle_timeout` is **not set by default**, so you must set it explicitly if your build side may become static or idle during start-up.
+
+If a `LATERAL SNAPSHOT` join produces no output, first check whether it is stuck in the load phase using the metrics below, then set `load_completed_idle_timeout`.
+
 **Syntax**
 
 The build side is wrapped in the `SNAPSHOT` table function, which is called with `LATERAL`. The outer (probe-side) table must be an append-only table. 
@@ -403,6 +422,30 @@ The result is append-only and preserves the probe-side time attributes. A build-
 Because rows are joined against the build-side state that is current at processing time, the result is **not deterministic**. A given probe-side row may be joined with different build-side versions across different runs, depending on the relative timing of the two inputs. Probe and build-side inputs can be configured with watermark alignment to keep the two inputs roughly aligned on event time, so that a probe-side row tends to be joined with build-side changes of a similar event time. This is a best-effort alignment and does not make the result deterministic.
 
 The build-side state grows with the number of distinct build-side keys, and during the load phase the buffered probe-side rows add to the state footprint until the operator transitions to the join phase. Use `state_ttl` to bound the build-side state for keys that are no longer updated or joined. You can reduce the amount of data that is buffered and processed during the load phase by configuring scan start offsets on the build and probe-side inputs, for example with a `scan.startup.*` [dynamic table option hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options).
+
+**Monitoring**
+
+The operator exposes metrics that help you understand which phase the join is in and whether it is making progress. 
+They are reported under the operator's [metric group]({{< ref "docs/ops/metrics" >}}) alongside the standard operator metrics.
+
+| Metric | Type | Description                                                                                                                                                                                                                                                                                             |
+| --- | --- |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `currentPhase` | Gauge | The current phase: `0` = load phase, `1` = join phase. A value stuck at `0` means the load phase has not completed.                                                                                                                                                                                     |
+| `currentBuildSideWatermark` | Gauge | The highest build-side watermark observed (epoch milliseconds). In the load phase the flip happens once this reaches `load_completed_time`. A value that stops advancing below `load_completed_time` is the signature of a static or idle build side that might not complete the load phase on its own. |
+| `currentProbeSideWatermark` | Gauge | The latest probe-side watermark observed (epoch milliseconds). Probe-side watermarks are held back during the load phase and forwarded during the join phase.                                                                                                                                           |
+| `numProbeSideRecordsBuffered` | Gauge | The number of probe-side rows currently buffered. This grows during the load phase and drops to zero shortly after the flip to the join phase.                                                                                                                                                          |
+| `numStateTtlEvictions` | Counter | The number of build-side keys evicted from state by `state_ttl`. Only advances during the join phase.                                                                                                                                                                                                   |
+| `maxJoinFanOut` | Gauge | The largest number of joined rows emitted for a single probe-side row.                                                                                                                                                                                                                                  |
+| `avgJoinFanOut` | Gauge | The average number of joined rows emitted per probe-side row.                                                                                                                                                                                                                                           |
+| `numUnmatchedProbeRecords` | Counter | The number of probe-side rows that found no build-side match. For an `INNER JOIN` these produce no output; for a `LEFT JOIN` they are emitted null-padded.                                                                                                                                              |
+| `numUnmatchedBuildRetractions` | Counter | The number of build-side retractions (`-U`/`-D`) for a row that was not present in state.                                                                                                                                                                                                               |
+
+To diagnose a join that emits no output, check `currentPhase` first. If it is `0` while `numProbeSideRecordsBuffered` keeps growing, the join is stuck in the load phase. 
+Compare `currentBuildSideWatermark` against your `load_completed_time`: if the build-side watermark has stopped advancing below it, the build side has become static or idle and the event-time gate will never be crossed. 
+Set `load_completed_idle_timeout` as described above to let the load phase complete.
+
+On a query restart, the metric values are not restored: counters restart at zero and the watermark and buffer gauges are re-populated as new records and watermarks arrive. 
+The phase, however, is restored from state. 
 
 **Batch mode**
 
