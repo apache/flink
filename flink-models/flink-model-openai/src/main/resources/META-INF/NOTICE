@@ -6,6 +6,7 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
+- com.fasterxml:classmate:1.7.0
 - com.fasterxml.jackson.core:jackson-annotations:2.22
 - com.fasterxml.jackson.core:jackson-core:2.22.2
 - com.fasterxml.jackson.core:jackson-databind:2.22.2
@@ -29,6 +30,10 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.jetbrains.kotlin:kotlin-stdlib-common:1.9.10
 - org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10
 - org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10
+- io.swagger.core.v3:swagger-annotations:2.2.31
+- com.github.victools:jsonschema-generator:4.38.0
+- com.github.victools:jsonschema-module-jackson:4.38.0
+- com.github.victools:jsonschema-module-swagger-2:4.38.0
 
 This project bundles the following dependencies under the MIT (https://opensource.org/licenses/MIT)
 
