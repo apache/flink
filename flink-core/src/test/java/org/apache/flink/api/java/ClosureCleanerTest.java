@@ -30,11 +30,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /** Tests for {@link ClosureCleaner}. */
@@ -136,7 +134,7 @@ class ClosureCleanerTest {
     }
 
     @Test
-    public void testCleanNonSerializableNestedMap() throws Exception {
+    void testCleanNonSerializableNestedMap() {
         MapFunction<Integer, Integer> complexMap =
                 new ComplexMap(
                         new MapFunction<>() {
@@ -147,16 +145,21 @@ class ClosureCleanerTest {
                                 return value + obj.hashCode();
                             }
                         });
-        try {
-            ClosureCleaner.clean(complexMap, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
-            fail("Should have failed with InvalidProgramException exception");
-        } catch (InvalidProgramException e) {
-            final String msg = e.getMessage();
-            // Verify that the error message contains the reference chain
-            final String regex =
-                    ".*ComplexMap -> .*LocalMap -> .*ClosureCleanerTest.* -> .*Object.*";
-            assertThat(e.getMessage()).matches(Pattern.compile(regex));
-        }
+
+        // Verify that the error message contains the reference chain.
+        assertThatThrownBy(
+                        () ->
+                                ClosureCleaner.clean(
+                                        complexMap,
+                                        ExecutionConfig.ClosureCleanerLevel.RECURSIVE,
+                                        true))
+                .isInstanceOf(InvalidProgramException.class)
+                .hasMessageMatching(
+                        "(?s).*Reference path:.*object not serializable \\(class:"
+                            + " java\\.lang\\.Object\\).*field \\(class: .*ClosureCleanerTest.*,"
+                            + " name: obj, type: class java\\.lang\\.Object\\).*field \\(class:"
+                            + " .*LocalMap, name: map4, type: interface .*MapFunction\\).*field"
+                            + " \\(class: .*ComplexMap, name: map4, type: class .*LocalMap\\).*");
     }
 
     @Test

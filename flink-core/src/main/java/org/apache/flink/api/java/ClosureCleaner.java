@@ -37,11 +37,12 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.Set;
-import java.util.Stack;
-import java.util.stream.Collectors;
 
 /**
  * The closure cleaner is a utility that tries to truncate the closure (enclosing instance) of
@@ -73,7 +74,7 @@ public class ClosureCleaner {
                 level,
                 checkSerializable,
                 Collections.newSetFromMap(new IdentityHashMap<>()),
-                new Stack<>());
+                new ArrayDeque<>());
     }
 
     private static void clean(
@@ -81,7 +82,7 @@ public class ClosureCleaner {
             ExecutionConfig.ClosureCleanerLevel level,
             boolean checkSerializable,
             Set<Object> visited,
-            Stack<Class<?>> clsReferences) {
+            Deque<Field> referencePath) {
         if (func == null) {
             return;
         }
@@ -110,7 +111,6 @@ public class ClosureCleaner {
         // be "this$x" depending on the nesting
         boolean closureAccessed = false;
 
-        clsReferences.push(cls);
         for (Field f : cls.getDeclaredFields()) {
             if (f.getName().startsWith("this$")) {
                 // found a closure referencing field - now try to clean
@@ -144,12 +144,17 @@ public class ClosureCleaner {
                         LOG.debug("Dig to clean the {}", fieldObject.getClass().getName());
                     }
 
-                    clean(
-                            fieldObject,
-                            ExecutionConfig.ClosureCleanerLevel.RECURSIVE,
-                            true,
-                            visited,
-                            clsReferences);
+                    referencePath.addLast(f);
+                    try {
+                        clean(
+                                fieldObject,
+                                ExecutionConfig.ClosureCleanerLevel.RECURSIVE,
+                                true,
+                                visited,
+                                referencePath);
+                    } finally {
+                        referencePath.removeLast();
+                    }
                 }
             }
         }
@@ -158,7 +163,7 @@ public class ClosureCleaner {
             try {
                 InstantiationUtil.serializeObject(func);
             } catch (Exception e) {
-                String functionType = getSuperClassOrInterfaceName(func.getClass());
+                final String functionType = getSuperClassOrInterfaceName(func.getClass());
 
                 final StringBuilder msgBuilder =
                         new StringBuilder()
@@ -168,24 +173,24 @@ public class ClosureCleaner {
                                                 : ("The implementation of the "
                                                         + functionType
                                                         + " is not serializable."))
-                                .append(" Referenced via ")
-                                .append(formatClassReferences(clsReferences));
+                                .append(formatReferencePath(referencePath, cls));
                 if (closureAccessed) {
                     msgBuilder.append(
-                            " The implementation accesses fields of its enclosing class, which is "
-                                    + "a common reason for non-serializability. "
-                                    + "A common solution is to make the function a proper (non-inner) class, or "
-                                    + "a static inner class.");
+                            "\n"
+                                + "The implementation accesses fields of its enclosing class, which"
+                                + " is a common reason for non-serializability. A common solution"
+                                + " is to make the function a proper (non-inner) class, or a static"
+                                + " inner class.");
                 } else {
                     msgBuilder.append(
-                            " The object probably contains or references non serializable fields.");
+                            "\n"
+                                + "The object probably contains or references non serializable"
+                                + " fields.");
                 }
 
                 throw new InvalidProgramException(msgBuilder.toString(), e);
             }
         }
-
-        clsReferences.pop();
     }
 
     private static boolean needsRecursion(Field f, Object fo) {
@@ -287,10 +292,25 @@ public class ClosureCleaner {
         }
     }
 
-    private static String formatClassReferences(Stack<Class<?>> clsReferences) {
-        return "["
-                + clsReferences.stream().map(Class::getName).collect(Collectors.joining(" -> "))
-                + "]";
+    private static String formatReferencePath(
+            Deque<Field> referencePath, Class<?> nonSerializableClass) {
+        final StringBuilder path =
+                new StringBuilder("\nReference path:")
+                        .append("\n\t- object not serializable (class: ")
+                        .append(nonSerializableClass.getName())
+                        .append(")");
+        final Iterator<Field> fields = referencePath.descendingIterator();
+        while (fields.hasNext()) {
+            final Field field = fields.next();
+            path.append("\n\t- field (class: ")
+                    .append(field.getDeclaringClass().getName())
+                    .append(", name: ")
+                    .append(field.getName())
+                    .append(", type: ")
+                    .append(field.getType())
+                    .append(")");
+        }
+        return path.toString();
     }
 }
 
