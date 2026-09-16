@@ -55,7 +55,7 @@ dev = [
   "typing-extensions>=4.7.0; python_version >= '3.12'",
 ]
 tox = [
-    "tox==3.14.0"
+    "tox==4.61.4"
 ]
 flake8 = [
     "flake8==7.2.0"
