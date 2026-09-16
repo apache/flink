@@ -20,6 +20,7 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.source.reader.RecordsBySplits;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.mocks.TestingRecordsWithSplitIds;
@@ -28,7 +29,9 @@ import org.apache.flink.connector.base.source.reader.mocks.TestingSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.base.source.reader.synchronization.QueueProbe;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 
 import org.junit.Test;
 
@@ -66,6 +69,56 @@ public class SplitFetcherManagerTest {
         fetcherManager.close(1000L);
         assertThatThrownBy(fetcherManager::checkErrors)
                 .hasRootCauseMessage("Artificial exception on closing the split reader.");
+    }
+
+    /**
+     * Each completed fetcher lifecycle must release its queue state, so monotonically increasing
+     * fetcher ids do not accumulate historical state.
+     */
+    @Test
+    public void testFetcherShutdownReleasesWakeupStateAcrossLifecycles() throws Exception {
+        final String splitId = "testSplit";
+        final SplitFetcherManager<Integer, TestingSourceSplit> fetcherManager =
+                new SingleThreadFetcherManager<>(
+                        () ->
+                                new AwaitingReader<>(
+                                        new IOException("Should not happen"),
+                                        new RecordsBySplits<>(
+                                                Collections.emptyMap(),
+                                                Collections.singleton(splitId))),
+                        new Configuration());
+        final FutureCompletingBlockingQueue<RecordsWithSplitIds<Integer>> queue =
+                fetcherManager.getQueue();
+
+        try {
+            for (int expectedFetcherId = 0; expectedFetcherId < 3; expectedFetcherId++) {
+                fetcherManager.addSplits(
+                        Collections.singletonList(new TestingSourceSplit(splitId)));
+                assertThat(fetcherManager.fetchers).hasSize(1);
+                assertThat(fetcherManager.fetchers.keySet().iterator().next())
+                        .isEqualTo(expectedFetcherId);
+
+                CommonTestUtils.waitUntilCondition(() -> queue.size() == 1);
+                // Give the fetcher wakeup state that its shutdown hook has to release.
+                queue.wakeUpPuttingThread(expectedFetcherId);
+                assertThat(QueueProbe.liveProducerStates(queue)).isOne();
+
+                CommonTestUtils.waitUntilCondition(
+                        () -> {
+                            fetcherManager.maybeShutdownFinishedFetchers();
+                            return fetcherManager.fetchers.isEmpty();
+                        });
+                CommonTestUtils.waitUntilCondition(() -> QueueProbe.liveProducerStates(queue) == 0);
+
+                queue.poll().recycle();
+            }
+        } finally {
+            RecordsWithSplitIds<Integer> batch;
+            while ((batch = queue.poll()) != null) {
+                batch.recycle();
+            }
+            fetcherManager.close(10_000L);
+        }
     }
 
     // the final modifier is important so that '@SafeVarargs' is accepted on Java 8
