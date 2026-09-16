@@ -35,7 +35,11 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZoneId;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -289,6 +293,35 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                 .contains("loadCompletedCondition=[compile_time]")
                 .contains("joinType=[InnerJoin]")
                 .contains("where=[=(pk, bk)]");
+    }
+
+    @Test
+    void testMultipleDefaultCompileTimeSnapshotJoinsShareTheSameLoadCompletedTime() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE b2 ("
+                                + "  bk STRING,"
+                                + "  bv INT,"
+                                + "  bts TIMESTAMP(3),"
+                                + "  WATERMARK FOR bts AS bts"
+                                + ") WITH ('connector' = 'values', 'bounded' = 'false')");
+        // Two LATERAL SNAPSHOT joins in the same query, neither providing load_completed_time:
+        // both must resolve to the same wall-clock compile-time timestamp.
+        final String sql =
+                "SELECT probe.pk, s1.bv, s2.bv FROM probe "
+                        + "JOIN LATERAL SNAPSHOT(input => TABLE b, on_time => DESCRIPTOR(bts)) AS s1 "
+                        + "ON probe.pk = s1.bk "
+                        + "JOIN LATERAL SNAPSHOT(input => TABLE b2, on_time => DESCRIPTOR(bts)) AS s2 "
+                        + "ON probe.pk = s2.bk";
+        final String plan = util.tableEnv().explainSql(sql);
+
+        // assert that both LateralSnapshotJoins use the same loadCompletedTime
+        final Matcher matcher = Pattern.compile("loadCompletedTime=\\[(\\d+)]").matcher(plan);
+        final Set<String> loadCompletedTimes = new HashSet<>();
+        while (matcher.find()) {
+            loadCompletedTimes.add(matcher.group(1));
+        }
+        assertThat(loadCompletedTimes).as("plan:%n%s", plan).hasSize(1);
     }
 
     // ------------------------------------------------------------------------------------------

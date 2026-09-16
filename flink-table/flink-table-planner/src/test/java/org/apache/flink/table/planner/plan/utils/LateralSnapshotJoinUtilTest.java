@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
+import org.apache.flink.table.planner.utils.InternalConfigOptions;
 
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
@@ -28,6 +30,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.BasicSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -157,6 +160,38 @@ class LateralSnapshotJoinUtilTest {
         assertThat(bts.getType().isNullable())
                 .as("materialized rowtime uses indicator nullability, not originalType")
                 .isEqualTo(nullableTimeCol);
+    }
+
+    /**
+     * When the planner has recorded a query-start epoch time (as {@link
+     * org.apache.flink.table.planner.delegation.PlannerBase#beforeTranslation} does before
+     * optimization begins), every SNAPSHOT call in the query must resolve its default {@code
+     * load_completed_time} to that same value.
+     */
+    @Test
+    void testResolveDefaultLoadCompletedTimeUsesQueryStartEpochTimeWhenSet() {
+        final TableConfig tableConfig = TableConfig.getDefault();
+        tableConfig.set(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME, 1_700_000_000_000L);
+
+        assertThat(LateralSnapshotJoinUtil.resolveDefaultLoadCompletedTime(tableConfig))
+                .isEqualTo(1_700_000_000_000L);
+    }
+
+    /**
+     * Outside of query translation (e.g. {@code TableTestUtil#verifyRelPlan} in tests) no
+     * query-start epoch time is recorded; the resolution must still fall back to the wall clock
+     * rather than fail.
+     */
+    @Test
+    void testResolveDefaultLoadCompletedTimeFallsBackToWallClockWhenUnset() {
+        final TableConfig tableConfig = TableConfig.getDefault();
+
+        final long before = System.currentTimeMillis();
+        final long loadCompletedTime =
+                LateralSnapshotJoinUtil.resolveDefaultLoadCompletedTime(tableConfig);
+        final long after = System.currentTimeMillis();
+
+        assertThat(loadCompletedTime).isBetween(before, after);
     }
 
     private RelDataType varchar(boolean nullable) {

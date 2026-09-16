@@ -173,7 +173,9 @@ public class LogicalJoinToLateralSnapshotJoinRule
             loadCompletedTime = loadCompletedTimeLiteral.getValueAs(Long.class);
             loadCompletedCondition = LateralSnapshotJoinUtil.LOAD_COMPLETED_CONDITION_USER_TIME;
         } else {
-            loadCompletedTime = System.currentTimeMillis();
+            loadCompletedTime =
+                    LateralSnapshotJoinUtil.resolveDefaultLoadCompletedTime(
+                            ShortcutUtils.unwrapTableConfig(call));
             loadCompletedCondition = LateralSnapshotJoinUtil.LOAD_COMPLETED_CONDITION_COMPILE_TIME;
         }
         final Long loadCompletedIdleTimeoutMs =
