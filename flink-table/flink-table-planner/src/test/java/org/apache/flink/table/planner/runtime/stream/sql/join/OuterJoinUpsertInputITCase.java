@@ -43,6 +43,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,8 +54,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * must still emit the null-padded row when the only matching row of the inner side is replaced by a
  * bare UPDATE_AFTER and then deleted.
  *
- * <p>The tests use a gated source so that the replacing UPDATE_AFTER always arrives after the
- * joined row reached the sink; the order of the initial INSERTs does not matter.
+ * <p>The replacing UPDATE_AFTER has to arrive after the outer row was counted (if the outer row
+ * arrives later, it is stored with the correct count and the delete behaves). The tests therefore
+ * feed the inner side through a source that waits for the sink before emitting each of its first
+ * two rows, which also makes the raw changelog deterministic.
  */
 @ExtendWith(ParameterizedTestExtension.class)
 public class OuterJoinUpsertInputITCase extends StreamingWithStateTestBase {
@@ -87,8 +90,7 @@ public class OuterJoinUpsertInputITCase extends StreamingWithStateTestBase {
                         Row.ofKind(RowKind.INSERT, 1, "x"),
                         Row.ofKind(RowKind.UPDATE_AFTER, 1, "y"),
                         Row.ofKind(RowKind.DELETE, 1, "y")),
-                1,
-                "+I[1, a, x]");
+                Map.of(0, "+I[1, a, null]", 1, "+I[1, a, x]"));
         tEnv().executeSql(
                         "CREATE TABLE sink (k INT NOT NULL, v STRING, w STRING,"
                                 + " PRIMARY KEY (k) NOT ENFORCED)"
@@ -100,12 +102,17 @@ public class OuterJoinUpsertInputITCase extends StreamingWithStateTestBase {
 
         tEnv().executeSql(sql).await();
 
-        // the right row is gone again, so the left row must be present with null padding
+        // the right row is gone again, so the join must re-emit the left row with null padding
+        assertThat(TestValuesTableFactory.getRawResultsAsStrings(SINK))
+                .containsExactly(
+                        "+I[1, a, null]",
+                        "-D[1, a, null]",
+                        "+I[1, a, x]",
+                        "+I[1, a, y]",
+                        "-D[1, a, y]",
+                        "+I[1, a, null]");
         assertThat(TestValuesTableFactory.getResultsAsStrings(SINK))
                 .containsExactly("+I[1, a, null]");
-        final List<String> changelog = TestValuesTableFactory.getRawResultsAsStrings(SINK);
-        assertThat(changelog.subList(changelog.size() - 2, changelog.size()))
-                .containsExactly("-D[1, a, y]", "+I[1, a, null]");
     }
 
     /**
@@ -137,8 +144,9 @@ public class OuterJoinUpsertInputITCase extends StreamingWithStateTestBase {
                         Row.ofKind(RowKind.INSERT, 1, 1, 1, "c"),
                         Row.ofKind(RowKind.UPDATE_AFTER, 1, 1, 1, "c2"),
                         Row.ofKind(RowKind.DELETE, 1, 1, 1, "c2")),
-                1,
-                "+I[1, 1, 1, 1, 1, a, b, c, d]");
+                Map.of(
+                        0, "+I[1, 1, 1, 1, 1, a, b, null, d]",
+                        1, "+I[1, 1, 1, 1, 1, a, b, c, d]"));
         registerUpsertValuesTable(
                 "D",
                 "k1 INT NOT NULL, k2 INT NOT NULL, d STRING, PRIMARY KEY (k1, k2) NOT ENFORCED",
@@ -163,14 +171,23 @@ public class OuterJoinUpsertInputITCase extends StreamingWithStateTestBase {
 
         tEnv().executeSql(sql).await();
 
-        // C's row is gone again, so A joined with B, null-padded C and D must be present
+        // C's row is gone again, so A joined with B, null-padded C and D must be re-emitted
+        final List<String> changelog = TestValuesTableFactory.getRawResultsAsStrings(SINK);
+        assertThat(changelog.subList(Math.max(0, changelog.size() - 3), changelog.size()))
+                .as("raw changelog: %s", changelog)
+                .containsExactly(
+                        "+I[1, 1, 1, 1, 1, a, b, c2, d]",
+                        "-D[1, 1, 1, 1, 1, a, b, c2, d]",
+                        "+I[1, 1, 1, 1, 1, a, b, null, d]");
         assertThat(TestValuesTableFactory.getResultsAsStrings(SINK))
                 .containsExactly("+I[1, 1, 1, 1, 1, a, b, null, d]");
     }
 
     /**
      * Control: with a sink primary key that the upsert key does not satisfy, the planner keeps
-     * UPDATE_BEFORE and the same input produces the correct result.
+     * UPDATE_BEFORE (a ChangelogNormalize is added in front of each input) and the same input
+     * produces the correct result. This documents the dependency on the changelog mode, it is not a
+     * workaround.
      */
     @TestTemplate
     void testLeftJoinUpsertInputsIntoUpsertSinkWithLargerPk() throws Exception {
@@ -186,8 +203,7 @@ public class OuterJoinUpsertInputITCase extends StreamingWithStateTestBase {
                         Row.ofKind(RowKind.INSERT, 1, "x"),
                         Row.ofKind(RowKind.UPDATE_AFTER, 1, "y"),
                         Row.ofKind(RowKind.DELETE, 1, "y")),
-                1,
-                "+I[1, a, x]");
+                Map.of(0, "+I[1, a, null]", 1, "+I[1, a, x]"));
         tEnv().executeSql(
                         "CREATE TABLE sink (k INT NOT NULL, v STRING NOT NULL, w STRING,"
                                 + " PRIMARY KEY (k, v) NOT ENFORCED)"
@@ -204,6 +220,17 @@ public class OuterJoinUpsertInputITCase extends StreamingWithStateTestBase {
 
         assertThat(TestValuesTableFactory.getResultsAsStrings(SINK))
                 .containsExactly("+I[1, a, null]");
+        assertThat(TestValuesTableFactory.getRawResultsAsStrings(SINK))
+                .containsExactly(
+                        "+I[1, a, null]",
+                        "-D[1, a, null]",
+                        "+I[1, a, x]",
+                        "-U[1, a, x]",
+                        "+I[1, a, null]",
+                        "-D[1, a, null]",
+                        "+I[1, a, y]",
+                        "-D[1, a, y]",
+                        "+I[1, a, null]");
     }
 
     // ------------------------------------------------------------------------------------------
@@ -219,22 +246,19 @@ public class OuterJoinUpsertInputITCase extends StreamingWithStateTestBase {
 
     /**
      * Registers an upsert table backed by a source that emits the given changelog in order and
-     * waits before emitting the row at {@code gateIndex} until the sink has seen {@code
-     * awaitedRow}.
+     * waits before emitting the row at each index in {@code gates} until the sink has seen the
+     * mapped row.
      */
     private void registerGatedUpsertTable(
             String name,
             TypeInformation<Row> type,
             String[] primaryKey,
             List<Row> rows,
-            int gateIndex,
-            String awaitedRow) {
+            Map<Integer, String> gates) {
         final DataStream<Row> stream =
                 env().fromSource(
                                 new DataGeneratorSource<>(
-                                        new GatedChangelog(rows, gateIndex, SINK, awaitedRow),
-                                        rows.size(),
-                                        type),
+                                        new GatedChangelog(rows, gates, SINK), rows.size(), type),
                                 WatermarkStrategy.noWatermarks(),
                                 name);
         final Table table =
@@ -264,24 +288,23 @@ public class OuterJoinUpsertInputITCase extends StreamingWithStateTestBase {
         assertThat(plan).doesNotContain("upsertMaterialize=[true]");
     }
 
-    /** Emits a fixed changelog and blocks before one of its rows until the sink shows a row. */
+    /** Emits a fixed changelog and blocks before some of its rows until the sink shows a row. */
     private static final class GatedChangelog implements GeneratorFunction<Long, Row> {
 
         private final ArrayList<Row> rows;
-        private final int gateIndex;
+        private final Map<Integer, String> gates;
         private final String sinkName;
-        private final String awaitedRow;
 
-        private GatedChangelog(List<Row> rows, int gateIndex, String sinkName, String awaitedRow) {
+        private GatedChangelog(List<Row> rows, Map<Integer, String> gates, String sinkName) {
             this.rows = new ArrayList<>(rows);
-            this.gateIndex = gateIndex;
+            this.gates = gates;
             this.sinkName = sinkName;
-            this.awaitedRow = awaitedRow;
         }
 
         @Override
         public Row map(Long index) throws Exception {
-            if (index == gateIndex) {
+            final String awaitedRow = gates.get(index.intValue());
+            if (awaitedRow != null) {
                 final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(60));
                 while (!TestValuesTableFactory.getRawResultsAsStrings(sinkName)
                         .contains(awaitedRow)) {
