@@ -765,6 +765,76 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
     }
 
     /**
+     * Same as {@link #testLeftOuterJoinInnerSideUpdateAfterThenDeleteRestoresNullPadding()}, but
+     * the row is replaced by a duplicate INSERT instead of an UPDATE_AFTER. Without a
+     * ChangelogNormalize in front of the join (which the planner drops when no UPDATE_BEFORE is
+     * required), a repeated INSERT for the same key reaches the join directly.
+     */
+    @TestTemplate
+    void testLeftOuterJoinInnerSideDuplicateInsertThenDeleteRestoresNullPadding() throws Exception {
+        testHarness.processElement1(
+                insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null));
+
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "LineOrd#1",
+                        "AIR"));
+
+        // the same row again; there is still exactly one matching row
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "LineOrd#1",
+                        "AIR"));
+
+        // the only matching row is gone, the left row must come back with null padding
+        testHarness.processElement2(deleteRecord("LineOrd#1", "AIR"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "LineOrd#1",
+                        "AIR"),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null));
+    }
+
+    /**
      * Same as {@link #testLeftOuterJoinInnerSideUpdateAfterThenDeleteRestoresNullPadding()} for a
      * RIGHT OUTER JOIN, i.e. the left input is the inner side that sends the bare UPDATE_AFTER.
      */
