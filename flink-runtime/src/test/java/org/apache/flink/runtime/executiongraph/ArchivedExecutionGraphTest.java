@@ -41,9 +41,9 @@ import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.runtime.util.stats.StatsSummarySnapshot;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -57,7 +57,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 import static java.util.Arrays.asList;
@@ -66,9 +65,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the {@link ArchivedExecutionGraph}. */
 public class ArchivedExecutionGraphTest {
 
+    /**
+     * Runs the deployment callbacks inline, so they cannot race startScheduling() on another thread
+     * (FLINK-40682).
+     */
     @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorExtension();
+    static final TestExecutorExtension<DirectScheduledExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorExtension<>(DirectScheduledExecutorService::new);
 
     private static ExecutionGraph runtimeGraph;
 
