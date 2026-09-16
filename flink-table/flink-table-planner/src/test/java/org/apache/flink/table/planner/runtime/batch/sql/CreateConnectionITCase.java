@@ -161,6 +161,38 @@ class CreateConnectionITCase extends BatchTestBase {
                                         .containsOnly(entry("type", "default")));
     }
 
+    @Test
+    void testDescribeTemporaryConnection() {
+        tEnv().executeSql(
+                        "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
+                                + "WITH ('type' = 'default', 'k' = 'v', 'password' = 'super-secret')");
+
+        List<Row> rows = collectRows("DESCRIBE CONNECTION my_conn");
+
+        assertThat(rows)
+                .contains(
+                        Row.of("k", "v"), Row.of("type", "default"), Row.of("comment", "hi there"));
+        assertThat(rows.stream().map(Row::toString))
+                .noneMatch(row -> row.contains("super-secret"))
+                .noneMatch(row -> row.contains("password"))
+                .noneMatch(row -> row.contains("__flink.encrypted-secret-key__"));
+    }
+
+    @Test
+    void testDescribeTemporaryConnectionExtended() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+
+        assertThat(collectRows("DESCRIBE CONNECTION EXTENDED my_conn"))
+                .contains(Row.of("temporary", "true"));
+    }
+
+    @Test
+    void testDescribeMissingConnectionRejected() {
+        assertThatThrownBy(() -> tEnv().executeSql("DESCRIBE CONNECTION missing_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Connection with identifier");
+    }
+
     private List<Row> collectRows(String sql) {
         TableResult result = tEnv().executeSql(sql);
         return CollectionUtil.iteratorToList(result.collect());
