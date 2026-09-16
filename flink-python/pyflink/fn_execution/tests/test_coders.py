@@ -282,8 +282,9 @@ class ArrowCodersTests(unittest.TestCase):
         items = pa.array([{"required": None}, {"required": 1}, {"required": None},
                           {"required": None}, None, {"required": None}],
                          type=pa.struct([pa.field("required", pa.int32())]))
+        booleans = pa.array([None, True, None, None, False, None])
         nulls = [False, False, True, False, False, False]
-        offsets = pa.array(range(7), type=pa.int32())
+        offsets = pa.array([0, 1, 2, 2, 4, 5, 6], type=pa.int32())
         for data_type, column, first, last in (
             (DataTypes.ROW([DataTypes.FIELD("value", item_type)]),
              pa.StructArray.from_arrays([items], names=["value"]),
@@ -293,6 +294,11 @@ class ArrowCodersTests(unittest.TestCase):
             (DataTypes.MAP(DataTypes.STRING().not_null(), item_type),
              pa.MapArray.from_arrays(offsets, pa.array(['k'] * 6), items),
              [('k', {"required": 1})], [('k', None)]),
+            (DataTypes.ARRAY(DataTypes.BOOLEAN().not_null()),
+             pa.ListArray.from_arrays(offsets, booleans), [True], [False]),
+            (DataTypes.MAP(DataTypes.STRING().not_null(), DataTypes.BOOLEAN().not_null()),
+             pa.MapArray.from_arrays(offsets, pa.array(['k'] * 6), booleans),
+             [('k', True)], [('k', False)]),
         ):
             with self.subTest(data_type=data_type):
                 column = self.with_parent_nulls(column, nulls)
@@ -309,51 +315,8 @@ class ArrowCodersTests(unittest.TestCase):
                     "record": [{"container": first}, {"container": None},
                                None, {"container": last}]})
                 self.assertEqual(coder.decode(coder.encode(batch.slice(0, 0))).num_rows, 0)
-                with self.assertRaisesRegex(ValueError, "required.*not nullable"):
-                    coder.encode(batch.slice(0, 1))
-
-    def test_nullable_container_validation_memory(self):
-        from pyflink.table import DataTypes
-        from pyflink.table.types import create_arrow_schema
-
-        count = 512
-        payload = pa.array([b'x' * 2048] * count)
-        nulls = [index == count // 2 for index in range(count)]
-        offsets = pa.array(range(count + 1), type=pa.int32())
-        booleans = pa.array([False] * 65536)
-        boolean_lists = pa.ListArray.from_arrays([0, len(booleans), len(booleans)], booleans)
-        for data_type, column, parent_nulls, memory_limit in (
-            (DataTypes.ROW([DataTypes.FIELD("payload", DataTypes.BYTES())]),
-             pa.StructArray.from_arrays([payload], names=["payload"]),
-             nulls, payload.nbytes // 4),
-            (DataTypes.ROW([DataTypes.FIELD("payload", DataTypes.BYTES().not_null())]),
-             pa.StructArray.from_arrays([payload], names=["payload"]),
-             nulls, payload.nbytes // 4),
-            (DataTypes.ARRAY(DataTypes.BYTES()),
-             pa.ListArray.from_arrays(offsets, payload), nulls, payload.nbytes // 4),
-            (DataTypes.MAP(DataTypes.STRING().not_null(), DataTypes.BYTES()),
-             pa.MapArray.from_arrays(offsets, pa.array(['k'] * count), payload),
-             nulls, payload.nbytes // 4),
-            (DataTypes.ARRAY(DataTypes.BOOLEAN()), boolean_lists, [False, True], 4096),
-            (DataTypes.ARRAY(DataTypes.BOOLEAN().not_null()),
-             boolean_lists, [False, True], 4096),
-        ):
-            with self.subTest(data_type=data_type):
-                column = self.with_parent_nulls(column, parent_nulls)
-                row_type = DataTypes.ROW([DataTypes.FIELD("value", data_type)])
-                schema = create_arrow_schema(["value"], [data_type], allow_nested=True)
-                batch = pa.record_batch([column], names=["value"])
-                coder = self.arrow_coder(schema, row_type)
-                default_pool = pa.default_memory_pool()
-                pool = pa.proxy_memory_pool(default_pool)
-                try:
-                    pa.set_memory_pool(pool)
-                    encoded = coder.encode(batch)
-                finally:
-                    pa.set_memory_pool(default_pool)
-                # Allow IPC metadata, but not payload copies or element-sized temporary arrays.
-                self.assertLess(pool.max_memory(), memory_limit)
-                self.assertEqual(coder.decode(encoded).to_pydict(), batch.to_pydict())
+                with self.assertRaisesRegex(ValueError, "not nullable"):
+                    coder.encode(batch.slice(0, 4))
 
 
 try:

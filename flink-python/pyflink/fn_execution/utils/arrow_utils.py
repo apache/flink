@@ -129,16 +129,16 @@ def _get_validity(column, parent_validity):
 
 
 def _get_child_validity(column, parent_validity):
+    import numpy as np
     import pyarrow as pa
-    import pyarrow.compute as pc
 
     validity = _get_validity(column, parent_validity)
     if validity is None:
         return None
-    # A list view also handles map entries and keeps the original offsets and value buffers.
-    values = column.keys if pa.types.is_map(column.type) else column.values
-    entries = pa.ListArray.from_arrays(_get_offsets(column), values)
-    return pc.take(validity, pc.list_parent_indices(entries))
+    # Expand visibility directly instead of allocating an integer parent index for every child.
+    offsets = _get_offsets(column).to_numpy(zero_copy_only=True)
+    visible = validity.to_numpy(zero_copy_only=False)
+    return pa.array(np.repeat(visible, np.diff(offsets)), type=pa.bool_())
 
 
 def _get_offsets(column):
