@@ -159,7 +159,7 @@ under the License.
 							<relocations combine.children="append">
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.model.triton.com.fasterxml.jackson</shadedPattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.com.fasterxml.jackson</shadedPattern>
 								</relocation>
 								<!--
 								Manually relocate multi-release classes to the correct shaded package. This is needed
@@ -168,7 +168,7 @@ under the License.
 								-->
 								<relocation>
 									<pattern>META-INF/versions/(\d+)/com/fasterxml/jackson/</pattern>
-									<shadedPattern>META-INF/versions/$1/org/apache/flink/model/triton/com/fasterxml/jackson/</shadedPattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/model/triton/shaded/com/fasterxml/jackson/</shadedPattern>
 									<rawString>true</rawString>
 								</relocation>
 								<!--
