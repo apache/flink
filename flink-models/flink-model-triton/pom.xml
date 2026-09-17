@@ -177,6 +177,16 @@ under the License.
 								</includes>
 								<excludes>
 									<exclude>com.google.code.findbugs:jsr305</exclude>
+									<!--
+									Contribute no classes to a JVM uber jar: kotlin-stdlib-jdk7 and -jdk8 have been empty
+									since Kotlin 1.8 (their contents moved into kotlin-stdlib), and kotlin-stdlib-common
+									and com.squareup.okio:okio are multiplatform metadata artifacts holding only
+									.kotlin_metadata resources. okio-jvm carries the actual okio code.
+									-->
+									<exclude>org.jetbrains.kotlin:kotlin-stdlib-jdk7</exclude>
+									<exclude>org.jetbrains.kotlin:kotlin-stdlib-jdk8</exclude>
+									<exclude>org.jetbrains.kotlin:kotlin-stdlib-common</exclude>
+									<exclude>com.squareup.okio:okio</exclude>
 								</excludes>
 							</artifactSet>
 							<relocations combine.children="append">
