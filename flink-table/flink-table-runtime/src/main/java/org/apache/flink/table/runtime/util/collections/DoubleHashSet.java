@@ -37,16 +37,16 @@ public class DoubleHashSet extends OptimizableHashSet {
         this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR);
     }
 
-    /** See {@link Double#equals(Object)}. */
+    /** See {@link Double#equals(Object)}, except that both signs of zero are considered equal. */
     public boolean add(final double k) {
-        long longKey = Double.doubleToLongBits(k);
-        if (longKey == 0L) {
+        if (k == 0.0d) {
             if (this.containsZero) {
                 return false;
             }
 
             this.containsZero = true;
         } else {
+            final long longKey = Double.doubleToLongBits(k);
             double[] key = this.key;
             int pos;
             long curr;
@@ -75,12 +75,12 @@ public class DoubleHashSet extends OptimizableHashSet {
         return true;
     }
 
-    /** See {@link Double#equals(Object)}. */
+    /** See {@link Double#equals(Object)}, except that both signs of zero are considered equal. */
     public boolean contains(final double k) {
-        long longKey = Double.doubleToLongBits(k);
-        if (longKey == 0L) {
+        if (k == 0.0d) {
             return this.containsZero;
         } else {
+            final long longKey = Double.doubleToLongBits(k);
             double[] key = this.key;
             long curr;
             int pos;

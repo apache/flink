@@ -37,16 +37,16 @@ public class FloatHashSet extends OptimizableHashSet {
         this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR);
     }
 
-    /** See {@link Float#equals(Object)}. */
+    /** See {@link Float#equals(Object)}, except that both signs of zero are considered equal. */
     public boolean add(final float k) {
-        int intKey = Float.floatToIntBits(k);
-        if (intKey == 0) {
+        if (k == 0.0f) {
             if (this.containsZero) {
                 return false;
             }
 
             this.containsZero = true;
         } else {
+            final int intKey = Float.floatToIntBits(k);
             float[] key = this.key;
             int pos;
             int curr;
@@ -73,12 +73,12 @@ public class FloatHashSet extends OptimizableHashSet {
         return true;
     }
 
-    /** See {@link Float#equals(Object)}. */
+    /** See {@link Float#equals(Object)}, except that both signs of zero are considered equal. */
     public boolean contains(final float k) {
-        int intKey = Float.floatToIntBits(k);
-        if (intKey == 0) {
+        if (k == 0.0f) {
             return this.containsZero;
         } else {
+            final int intKey = Float.floatToIntBits(k);
             float[] key = this.key;
             int curr;
             int pos;
