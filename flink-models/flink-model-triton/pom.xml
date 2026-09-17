@@ -157,33 +157,46 @@ under the License.
 								</excludes>
 							</artifactSet>
 							<relocations combine.children="append">
+								<!--
+								Patterns are Java packages, not Maven groupIds, and carry a trailing dot: the shade
+								plugin matches them as a bare prefix against string constants too, so "kotlin"
+								would also rewrite "kotlinx" and ".kotlin_builtins".
+								-->
 								<relocation>
-									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.model.triton.shaded.com.fasterxml.jackson</shadedPattern>
+									<pattern>com.fasterxml.jackson.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.com.fasterxml.jackson.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>okhttp3.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.okhttp3.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>okio.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.okio.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>kotlin.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.kotlin.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.jetbrains.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.org.jetbrains.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.intellij.</pattern>
+									<shadedPattern>org.apache.flink.model.triton.shaded.org.intellij.</shadedPattern>
 								</relocation>
 								<!--
 								Manually relocate multi-release classes to the correct shaded package. This is needed
 								due to a bug in the Maven Shade plugin, which only relocates the content but not
-								the package structure itself, see https://github.com/apache/maven-shade-plugin/issues/652
+								the package structure itself, see https://github.com/apache/maven-shade-plugin/issues/652.
+								Only listed for the dependencies that actually ship META-INF/versions entries; the
+								check_shaded_artifacts_model CI check fails if a bump adds another one.
 								-->
 								<relocation>
 									<pattern>META-INF/versions/(\d+)/com/fasterxml/jackson/</pattern>
 									<shadedPattern>META-INF/versions/$1/org/apache/flink/model/triton/shaded/com/fasterxml/jackson/</shadedPattern>
 									<rawString>true</rawString>
-								</relocation>
-								<!--
-								Same maven-shade-plugin#652 workaround as the jackson relocation above, extended to every
-								relocated package: keep each dependency's multi-release (META-INF/versions/N) classes aligned
-								with its relocated base classes. No-op for non-multi-release jars.
-								-->
-								<relocation>
-									<pattern>META-INF/versions/(\d+)/com/squareup/</pattern>
-									<shadedPattern>META-INF/versions/$1/org/apache/flink/model/triton/com/squareup/</shadedPattern>
-									<rawString>true</rawString>
-								</relocation>
-								<relocation>
-									<pattern>com.squareup</pattern>
-									<shadedPattern>org.apache.flink.model.triton.com.squareup</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters combine.children="append">
