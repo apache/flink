@@ -230,7 +230,7 @@ Drop temporary system function that has no namespace.
 
 **IF EXISTS**
 
-If the function doesn't exists, nothing happens.
+If the function doesn't exist, nothing happens.
 
 ## DROP MODEL
 
