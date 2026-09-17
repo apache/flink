@@ -36,8 +36,7 @@ from pyflink.datastream.window import CountWindow, TimeWindow, GlobalWindow
 from pyflink.fn_execution.formats.avro import FlinkAvroDecoder, FlinkAvroDatumReader, \
     FlinkAvroBufferWrapper, FlinkAvroEncoder, FlinkAvroDatumWriter
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
-from pyflink.fn_execution.utils.arrow_utils import validate_arrow_batch
+from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas, validate_arrow_batch
 
 ROW_KIND_BIT_SIZE = 2
 

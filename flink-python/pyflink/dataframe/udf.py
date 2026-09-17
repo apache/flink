@@ -410,13 +410,22 @@ def udf(
         ... def inferred_pandas_add_one(values: pd.Series) -> pd.Series:
         ...     return values + 1
 
-    Synchronous Arrow UDFs operate on ``pyarrow.Array`` columns and return an
-    ``Array`` or ``ChunkedArray``. They require ``return_dtype``. Select
-    ``func_type="arrow"`` explicitly, or infer it from an Arrow container
-    annotation on an unbound parameter or the return value::
+    Arrow UDFs always require an explicit logical ``return_dtype`` and support
+    synchronous functions. Each column argument is received as a ``pyarrow.Array``;
+    a ``ROW``-typed column is received as a ``pyarrow.StructArray`` with one child
+    array per field. Results should be returned as a ``pyarrow.Array`` or
+    ``pyarrow.ChunkedArray`` of the declared logical type, with the same number of
+    rows as the input batch. A ``ROW``-typed result uses a ``pyarrow.StructArray``
+    or a chunked array of structs. Arrow mode can be selected explicitly, or
+    inferred from an Arrow container annotation on any unbound parameter or the
+    return value::
 
         >>> import pyarrow as pa
         >>> import pyarrow.compute as pc
+
+        >>> @pf.udf(return_dtype=pf.DataType.int64(), func_type="arrow")
+        ... def arrow_add_one(values):
+        ...     return pc.add(values, 1)
 
         >>> @pf.udf(return_dtype=pf.DataType.string())
         ... def normalize_name(names: pa.Array) -> pa.Array:
@@ -442,8 +451,7 @@ def udf(
     :param name: Non-empty function identity used by the Table planner.
     :param func_type: ``"general"``, ``"pandas"``, or ``"arrow"``. If omitted,
                       unbound container annotations select pandas or Arrow mode;
-                      otherwise general mode is used. Mixed pandas and Arrow hints
-                      require an explicit mode.
+                      otherwise general mode is used.
     :return: A callable that accepts DataFrame expressions or Python literals and
              returns an :class:`~pyflink.table.expression.Expression`, or a decorator
              producing such a callable when ``func`` is omitted.

@@ -157,8 +157,7 @@ class ScalarFunctionOperation(BaseOperation):
             func_strs.append(func_str)
 
         if is_arrow:
-            from pyflink.fn_execution.utils.arrow_utils import create_record_batch
-            variable_dict['create_record_batch'] = create_record_batch
+            variable_dict['create_record_batch'] = operation_utils.create_record_batch
 
         output_indices = list(serialized_fn.output_indices)
         # Result references require sequential evaluation. A non-empty output_indices does too:
