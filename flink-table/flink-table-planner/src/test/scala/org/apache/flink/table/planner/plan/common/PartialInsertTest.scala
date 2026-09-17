@@ -173,6 +173,32 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
   }
 
   @TestTemplate
+  def testPartialInsertWithOrderByOrdinal(): Unit = {
+    // the ordinal refers to the select list of the query, not to the sink's column order
+    val insert =
+      "INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
+        "SELECT e,a,456,123,c,d FROM MyTable ORDER BY 1"
+    if (isBatch) {
+      util.verifyRelPlanInsert(insert)
+    } else {
+      assertThatThrownBy(() => util.verifyRelPlanInsert(insert))
+        .hasMessageContaining(
+          "requires the primary sort key to be a time attribute in ascending order")
+    }
+  }
+
+  @TestTemplate
+  def testPartialInsertWithStaticPartitionColumnInColumnList(): Unit = {
+    assertThatThrownBy(
+      () =>
+        util.verifyRelPlanInsert(
+          "INSERT INTO partitioned_sink PARTITION(`c`='2021') (c,e) " +
+            "SELECT c,e FROM MyTable"))
+      .hasMessageContaining("Target column 'c' is assigned more than once")
+      .isInstanceOf[ValidationException]
+  }
+
+  @TestTemplate
   def testPartialInsertWithPersistedMetadata(): Unit = {
     util.verifyRelPlanInsert(
       "INSERT INTO metadata_sink (a,b,c,d,e,f) " +

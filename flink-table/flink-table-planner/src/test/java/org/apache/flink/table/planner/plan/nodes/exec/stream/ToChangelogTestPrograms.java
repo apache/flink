@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -27,6 +28,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.apache.flink.table.api.Expressions.$;
 
@@ -345,6 +347,65 @@ public class ToChangelogTestPrograms {
                                     + "input => TABLE t PARTITION BY name, "
                                     + "op => DESCRIPTOR(op), "
                                     + "op_mapping => MAP['INSERT,UPDATE_AFTER', 'C', 'DELETE', 'D'])")
+                    .build();
+
+    /**
+     * INSERT INTO with an explicit column list whose source is a set-semantic TO_CHANGELOG call.
+     */
+    public static final TableTestProgram UPSERT_PARTITION_BY_COLUMN_LIST =
+            TableTestProgram.of(
+                            "to-changelog-upsert-partition-by-column-list",
+                            "INSERT INTO with an explicit column list over PARTITION BY on a bucketed upsert table")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("table_a")
+                                    .addSchema(
+                                            "id STRING NOT NULL",
+                                            "payload STRING",
+                                            "event_time TIMESTAMP_LTZ(3) NOT NULL",
+                                            "WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND",
+                                            "PRIMARY KEY (id) NOT ENFORCED")
+                                    .addDistribution(TableDistribution.ofHash(List.of("id"), 6))
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "a",
+                                                    "p1",
+                                                    Instant.ofEpochMilli(1000)),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "b",
+                                                    "p2",
+                                                    Instant.ofEpochMilli(2000)),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    "a",
+                                                    "p3",
+                                                    Instant.ofEpochMilli(3000)),
+                                            Row.ofKind(
+                                                    RowKind.DELETE,
+                                                    "b",
+                                                    "p2",
+                                                    Instant.ofEpochMilli(4000)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("table_b")
+                                    .addSchema(
+                                            "id STRING NOT NULL",
+                                            "payload STRING",
+                                            "event_time TIMESTAMP_LTZ(3) NOT NULL",
+                                            "op STRING NOT NULL")
+                                    .addDistribution(TableDistribution.ofHash(List.of("id"), 6))
+                                    .consumedValues(
+                                            "+I[a, p1, 1970-01-01T00:00:01Z, I]",
+                                            "+I[b, p2, 1970-01-01T00:00:02Z, I]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO table_b (id, payload, event_time, op) "
+                                    + "SELECT id, payload, event_time, op FROM TO_CHANGELOG("
+                                    + "input => TABLE table_a PARTITION BY id, "
+                                    + "op => DESCRIPTOR(op), "
+                                    + "op_mapping => MAP['INSERT', 'I'])")
                     .build();
 
     public static final TableTestProgram UPSERT_PARTITION_BY_KEY_ONLY_DELETES =

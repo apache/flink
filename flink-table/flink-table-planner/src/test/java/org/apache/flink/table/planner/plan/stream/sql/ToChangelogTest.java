@@ -182,4 +182,49 @@ public class ToChangelogTest extends TableTestBase {
                         + "produces_full_deletes => false)",
                 CHANGELOG_MODE);
     }
+
+    private static final String COLUMN_LIST_PTF_CALL =
+            "TO_CHANGELOG("
+                    + "input => TABLE upsert_source PARTITION BY id, "
+                    + "op => DESCRIPTOR(op), "
+                    + "op_mapping => MAP['INSERT', 'I'])";
+
+    private void createColumnListTables() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE upsert_source ("
+                                + "  id STRING NOT NULL,"
+                                + "  payload STRING,"
+                                + "  event_time TIMESTAMP_LTZ(3) NOT NULL,"
+                                + "  PRIMARY KEY (id) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE append_sink ("
+                                + "  id STRING NOT NULL,"
+                                + "  payload STRING,"
+                                + "  event_time TIMESTAMP_LTZ(3) NOT NULL,"
+                                + "  op STRING NOT NULL"
+                                + ") WITH ('connector' = 'values')");
+    }
+
+    @Test
+    void testInsertWithColumnListPartitionBy() {
+        createColumnListTables();
+        util.verifyRelPlanInsert(
+                "INSERT INTO append_sink (id, payload, event_time, op) "
+                        + "SELECT id, payload, event_time, op FROM "
+                        + COLUMN_LIST_PTF_CALL);
+    }
+
+    @Test
+    void testInsertWithColumnListPartitionByStar() {
+        createColumnListTables();
+        util.verifyRelPlanInsert(
+                "INSERT INTO append_sink (id, op, payload, event_time) SELECT * FROM "
+                        + COLUMN_LIST_PTF_CALL);
+    }
 }

@@ -35,6 +35,52 @@ ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0), DEFAULT(), DEFAULT(), D
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInsertWithColumnListPartitionBy">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO append_sink (id, payload, event_time, op) SELECT id, payload, event_time, op FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id, op => DESCRIPTOR(op), op_mapping => MAP['INSERT', 'I'])]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.append_sink], targetColumns=[[0],[1],[2],[3]], fields=[id, payload, event_time, op])
++- LogicalProject(id=[$0], payload=[$2], event_time=[$3], op=[$1])
+   +- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op'), MAP(_UTF-16LE'INSERT', _UTF-16LE'I'), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) op, VARCHAR(2147483647) payload, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) event_time)])
+      +- LogicalProject(id=[$0], payload=[$1], event_time=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.append_sink], targetColumns=[[0],[1],[2],[3]], fields=[id, payload, event_time, op])
++- Calc(select=[id, payload, event_time, op])
+   +- ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op'), MAP(_UTF-16LE'INSERT', _UTF-16LE'I'), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,payload,event_time], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) op, VARCHAR(2147483647) payload, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) event_time)])
+      +- Exchange(distribution=[hash[id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, payload, event_time])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInsertWithColumnListPartitionByStar">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO append_sink (id, op, payload, event_time) SELECT * FROM TO_CHANGELOG(input => TABLE upsert_source PARTITION BY id, op => DESCRIPTOR(op), op_mapping => MAP['INSERT', 'I'])]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.append_sink], targetColumns=[[0],[3],[1],[2]], fields=[id, payload, event_time, op])
++- LogicalProject(id=[$0], payload=[$2], event_time=[$3], op=[$1])
+   +- LogicalTableFunctionScan(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op'), MAP(_UTF-16LE'INSERT', _UTF-16LE'I'), DEFAULT(), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) op, VARCHAR(2147483647) payload, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) event_time)])
+      +- LogicalProject(id=[$0], payload=[$1], event_time=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, upsert_source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.append_sink], targetColumns=[[0],[3],[1],[2]], fields=[id, payload, event_time, op])
++- Calc(select=[id, payload, event_time, op])
+   +- ProcessTableFunction(invocation=[TO_CHANGELOG(TABLE(#0) PARTITION BY($0), DESCRIPTOR(_UTF-16LE'op'), MAP(_UTF-16LE'INSERT', _UTF-16LE'I'), DEFAULT(), DEFAULT(), DEFAULT())], uid=[TO_CHANGELOG], select=[id,op,payload,event_time], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) op, VARCHAR(2147483647) payload, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) event_time)])
+      +- Exchange(distribution=[hash[id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_source]], fields=[id, payload, event_time])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRetractPartitionBy">
     <Resource name="sql">
       <![CDATA[SELECT * FROM TO_CHANGELOG(input => TABLE retract_source PARTITION BY id)]]>
