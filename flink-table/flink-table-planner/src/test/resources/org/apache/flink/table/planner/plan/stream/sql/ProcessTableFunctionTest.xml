@@ -251,8 +251,8 @@ ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1) PARTITI
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.t_no_pk_sink], targetColumns=[[3],[0]], fields=[name, EXPR$1, EXPR$2, out])
-+- LogicalProject(name=[$0], EXPR$1=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$2=[null:BIGINT], out=[$1])
+LogicalSink(table=[default_catalog.default_database.t_no_pk_sink], targetColumns=[[3],[0]], fields=[name, name0, count, mode])
++- LogicalProject(name=[$0], name0=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], count=[null:BIGINT], mode=[$1])
    +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
       +- LogicalProject(name=[$0], score=[$1])
          +- LogicalProject(name=[$0], score=[$1])
@@ -261,8 +261,8 @@ LogicalSink(table=[default_catalog.default_database.t_no_pk_sink], targetColumns
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.t_no_pk_sink], targetColumns=[[3],[0]], fields=[name, EXPR$1, EXPR$2, out])
-+- Calc(select=[name, null:VARCHAR(2147483647) AS EXPR$1, null:BIGINT AS EXPR$2, out])
+Sink(table=[default_catalog.default_database.t_no_pk_sink], targetColumns=[[3],[0]], fields=[name, name0, count, mode])
++- Calc(select=[name, null:VARCHAR(2147483647) AS name0, null:BIGINT AS count, out AS mode])
    +- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], uid=[f], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
       +- Exchange(distribution=[hash[name]])
          +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
@@ -275,8 +275,8 @@ Sink(table=[default_catalog.default_database.t_no_pk_sink], targetColumns=[[3],[
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.t_partitioned_sink], fields=[name, out, EXPR$2])
-+- LogicalProject(name=[$0], out=[$1], EXPR$2=[_UTF-16LE'x':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+LogicalSink(table=[default_catalog.default_database.t_partitioned_sink], fields=[name, out, p])
++- LogicalProject(name=[$0], out=[$1], p=[_UTF-16LE'x':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
    +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
       +- LogicalProject(name=[$0], score=[$1])
          +- LogicalProject(name=[$0], score=[$1])
@@ -285,8 +285,8 @@ LogicalSink(table=[default_catalog.default_database.t_partitioned_sink], fields=
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.t_partitioned_sink], fields=[name, out, EXPR$2])
-+- Calc(select=[name, out, 'x' AS EXPR$2])
+Sink(table=[default_catalog.default_database.t_partitioned_sink], fields=[name, out, p])
++- Calc(select=[name, out, 'x' AS p])
    +- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], uid=[f], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
       +- Exchange(distribution=[hash[name]])
          +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
