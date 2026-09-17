@@ -138,7 +138,7 @@ final class CombinedWatermarkStatus {
             return updated;
         }
 
-        private boolean isIdle() {
+        boolean isIdle() {
             return idle;
         }
 

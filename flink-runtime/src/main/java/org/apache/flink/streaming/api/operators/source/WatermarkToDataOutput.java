@@ -74,6 +74,13 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
     @Override
     public void emitWatermark(Watermark watermark) {
         final long newWatermark = watermark.getTimestamp();
+
+        // Emitting a watermark implicitly marks this output as active, independently of whether
+        // the watermark advances the effective watermark (see WatermarkOutput). Otherwise a source
+        // that resumes with watermarks that are not larger than the max watermark so far would
+        // stay idle downstream.
+        markActive();
+
         if (newWatermark <= maxWatermarkSoFar) {
             return;
         }
@@ -82,8 +89,6 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
         watermarkEmitted.updateCurrentEffectiveWatermark(maxWatermarkSoFar);
 
         try {
-            markActiveInternally();
-
             output.emitWatermark(
                     new org.apache.flink.streaming.api.watermark.Watermark(newWatermark));
         } catch (ExceptionInChainedOperatorException e) {

@@ -73,6 +73,12 @@ public class WatermarkOutputMultiplexer {
     private final CombinedWatermarkStatus combinedWatermarkStatus;
 
     /**
+     * The idle state that was last reported to the {@link #underlyingOutput}, so that a transition
+     * from idle to active can be propagated to it.
+     */
+    private boolean lastReportedIdleState = false;
+
+    /**
      * Creates a new {@link WatermarkOutputMultiplexer} that emits combined updates to the given
      * {@link WatermarkOutput}.
      */
@@ -86,6 +92,10 @@ public class WatermarkOutputMultiplexer {
      * Registers a new multiplexed output, which creates internal states for that output and returns
      * an output ID that can be used to get a deferred or immediate {@link WatermarkOutput} for that
      * output.
+     *
+     * <p>A newly registered output is active, so registering it can re-activate the combined status
+     * if all previously registered outputs were idle. The combined status is therefore updated
+     * right away, instead of waiting for the next watermark or {@link #onPeriodicEmit()}.
      */
     public void registerNewOutput(String id, WatermarkUpdateListener onWatermarkUpdate) {
         final PartialWatermark outputState = new PartialWatermark(onWatermarkUpdate);
@@ -95,6 +105,7 @@ public class WatermarkOutputMultiplexer {
         checkState(previouslyRegistered == null, "Already contains an output for ID %s", id);
 
         combinedWatermarkStatus.add(outputState);
+        updateCombinedWatermark();
     }
 
     /** Registers a new multiplexed output with a no-op listener. */
@@ -153,15 +164,24 @@ public class WatermarkOutputMultiplexer {
      *
      * <p>It also handles scenarios where both emitting a watermark and entering the idle state
      * occur within the same invocation.
+     *
+     * <p>The idle state of the combined status is reported to the {@link #underlyingOutput},
+     * including the transition back to active. Without that transition, the underlying output would
+     * keep dropping watermarks of outputs that resumed without advancing the combined watermark.
      */
     private void updateCombinedWatermark() {
         if (combinedWatermarkStatus.updateCombinedWatermark()) {
             underlyingOutput.emitWatermark(
                     new Watermark(combinedWatermarkStatus.getCombinedWatermark()));
         }
-        if (combinedWatermarkStatus.isIdle()) {
+
+        final boolean isIdle = combinedWatermarkStatus.isIdle();
+        if (isIdle) {
             underlyingOutput.markIdle();
+        } else if (lastReportedIdleState) {
+            underlyingOutput.markActive();
         }
+        lastReportedIdleState = isIdle;
     }
 
     /**
@@ -179,11 +199,14 @@ public class WatermarkOutputMultiplexer {
         @Override
         public void emitWatermark(Watermark watermark) {
             long timestamp = watermark.getTimestamp();
+            final boolean wasIdle = state.isIdle();
             boolean wasUpdated = state.setWatermark(timestamp);
 
             // if it's higher than the max watermark so far we might have to update the
-            // combined watermark
-            if (wasUpdated && timestamp > combinedWatermarkStatus.getCombinedWatermark()) {
+            // combined watermark. A watermark on an output that was idle before can also
+            // re-activate the combined status, which then has to be propagated downstream.
+            if (wasIdle
+                    || (wasUpdated && timestamp > combinedWatermarkStatus.getCombinedWatermark())) {
                 updateCombinedWatermark();
             }
         }

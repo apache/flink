@@ -444,6 +444,99 @@ class WatermarkOutputMultiplexerTest {
         assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
     }
 
+    @Test
+    void whenIdleImmediateOutputsBecomeActiveUnderlyingOutputIsMarkedActive() {
+        TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        WatermarkOutput watermarkOutput1 = createImmediateOutput(multiplexer);
+        WatermarkOutput watermarkOutput2 = createImmediateOutput(multiplexer);
+
+        watermarkOutput1.emitWatermark(new Watermark(5));
+        watermarkOutput2.emitWatermark(new Watermark(2));
+        watermarkOutput1.markIdle();
+        watermarkOutput2.markIdle();
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
+
+        watermarkOutput1.markActive();
+
+        assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
+    }
+
+    @Test
+    void whenIdleImmediateOutputEmitsNonAdvancingWatermarkUnderlyingOutputIsMarkedActive() {
+        TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        WatermarkOutput watermarkOutput1 = createImmediateOutput(multiplexer);
+        WatermarkOutput watermarkOutput2 = createImmediateOutput(multiplexer);
+
+        watermarkOutput1.emitWatermark(new Watermark(5));
+        watermarkOutput2.emitWatermark(new Watermark(2));
+        watermarkOutput1.markIdle();
+        watermarkOutput2.markIdle();
+
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
+
+        // the resumed output does not advance the combined watermark
+        watermarkOutput1.emitWatermark(new Watermark(3));
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
+        assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
+    }
+
+    @Test
+    void whenIdleDeferredOutputResumesUnderlyingOutputIsMarkedActive() {
+        TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        WatermarkOutput watermarkOutput1 = createDeferredOutput(multiplexer);
+        WatermarkOutput watermarkOutput2 = createDeferredOutput(multiplexer);
+
+        watermarkOutput1.emitWatermark(new Watermark(5));
+        watermarkOutput2.emitWatermark(new Watermark(2));
+        watermarkOutput1.markIdle();
+        watermarkOutput2.markIdle();
+
+        multiplexer.onPeriodicEmit();
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
+
+        // the resumed output only has backlog that does not advance the combined watermark
+        watermarkOutput1.emitWatermark(new Watermark(3));
+        multiplexer.onPeriodicEmit();
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
+        assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
+    }
+
+    @Test
+    void whenNewOutputIsRegisteredWhileIdleUnderlyingOutputIsMarkedActive() {
+        TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        WatermarkOutput watermarkOutput = createImmediateOutput(multiplexer);
+        watermarkOutput.emitWatermark(new Watermark(5));
+        watermarkOutput.markIdle();
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
+
+        // a newly registered output is active, so the combined status has to become active again
+        // without waiting for a watermark of the new output or a periodic emit
+        multiplexer.registerNewOutput("new-output");
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
+        assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
+    }
+
     /**
      * Convenience method so we don't have to go through the output ID dance when we only want an
      * immediate output for a given output ID.
