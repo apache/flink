@@ -204,7 +204,7 @@ under the License.
 									<shadedPattern>org.apache.flink.model.openai.com.squareup</shadedPattern>
 								</relocation>
 							</relocations>
-							<filters>
+							<filters combine.children="append">
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
