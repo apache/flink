@@ -86,6 +86,8 @@ This creates a `FileSource.FileSourceBuilder` on which you can configure all the
 
 For the bounded/batch case, the File Source processes all files under the given path(s).
 For the continuous/streaming case, the source periodically checks the paths for new files and will start reading those.
+Input paths can use the glob wildcards `*`, `?`, and character classes in any path segment. For example,
+`hdfs:///data/partition-*/file-*.csv` reads matching CSV files from all matching partition directories.
 
 When you start creating a File Source (via the `FileSource.FileSourceBuilder` created through one of the above-mentioned methods),
 the source is in bounded/batch mode by default. You can call `AbstractFileSource.AbstractFileSourceBuilder.monitorContinuously(Duration)`
@@ -1025,4 +1027,3 @@ being efficient, the `FileSink` also uses the [Multi-part Upload](https://help.a
 feature of OSS(similar with S3).
 
 {{< top >}}
-
