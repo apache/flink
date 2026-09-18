@@ -503,15 +503,31 @@ public class SecurityOptions {
 
     // ------------------------ ssl parameters --------------------------------
 
-    /** SSL protocol version to be supported. */
+    /** SSL protocol version(s) to be supported. */
     @Documentation.Section(Documentation.Sections.SECURITY_SSL)
     public static final ConfigOption<String> SSL_PROTOCOL =
             key("security.ssl.protocol")
                     .stringType()
                     .defaultValue("TLSv1.2")
                     .withDescription(
-                            "The SSL protocol version to be supported for the ssl transport. Note that it doesn’t"
-                                    + " support comma separated list.");
+                            Description.builder()
+                                    .text(
+                                            "The comma separated list of SSL protocol versions to be supported for"
+                                                    + " the ssl transport, e.g. %s. The highest protocol version"
+                                                    + " supported by both communication endpoints is negotiated; if"
+                                                    + " none of the listed protocols has a matching cipher suite (see"
+                                                    + " %s), the connection falls back to a lower listed protocol"
+                                                    + " instead of failing.",
+                                            code("TLSv1.2,TLSv1.3"),
+                                            code("security.ssl.algorithms"))
+                                    .linebreak()
+                                    .text(
+                                            "When %s is set to %s, a non-contiguous list also enables the protocol"
+                                                    + " version(s) in between the lowest and highest listed one,"
+                                                    + " because the underlying engine only supports contiguous"
+                                                    + " protocol ranges.",
+                                            code("security.ssl.provider"), code("OPENSSL"))
+                                    .build());
 
     /**
      * The standard SSL algorithms to be supported.
