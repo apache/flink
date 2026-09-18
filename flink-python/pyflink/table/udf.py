@@ -762,7 +762,7 @@ def _get_python_env():
 
 
 def _create_udf(f, input_types, result_type, func_type, deterministic, name):
-    if func_type == 'arrow':
+    if func_type in ('pandas', 'arrow'):
         target = f
         while isinstance(target, functools.partial):
             target = target.func
@@ -770,7 +770,7 @@ def _create_udf(f, input_types, result_type, func_type, deterministic, name):
             target = target.eval
         if inspect.iscoroutinefunction(target) or inspect.iscoroutinefunction(
                 getattr(target, '__call__', None)):
-            raise ValueError("Async scalar functions do not support arrow func_type.")
+            raise ValueError(f"Async scalar functions do not support {func_type} func_type.")
     if isinstance(f, AsyncScalarFunction) or inspect.iscoroutinefunction(f):
         if func_type in ('pandas', 'arrow'):
             raise ValueError(
