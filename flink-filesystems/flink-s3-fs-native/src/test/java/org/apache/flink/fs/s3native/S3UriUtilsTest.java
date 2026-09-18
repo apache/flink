@@ -163,20 +163,6 @@ class S3UriUtilsTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"file:///tmp/foo", "hdfs://bucket/key", "gs://bucket/key"})
-    void testExtractKeyFromPathRejectsUnsupportedScheme(String uri) {
-        Path path = new Path(uri);
-        assertThatIllegalArgumentException().isThrownBy(() -> S3UriUtils.extractKey(path));
-    }
-
-    @ParameterizedTest
-    @CsvSource({"file:///tmp/foo", "hdfs://bucket/key", "gs://bucket/key"})
-    void testExtractBucketNameFromPathRejectsUnsupportedScheme(String uri) {
-        Path path = new Path(uri);
-        assertThatIllegalArgumentException().isThrownBy(() -> S3UriUtils.extractBucketName(path));
-    }
-
-    @ParameterizedTest
     @CsvSource({"s3://bucket/key", "s3a://bucket/key", "S3://bucket/key", "S3A://bucket/key"})
     void testIsSupportedS3Scheme(String uri) {
         assertThat(S3UriUtils.isSupportedS3Scheme(new Path(uri))).isTrue();

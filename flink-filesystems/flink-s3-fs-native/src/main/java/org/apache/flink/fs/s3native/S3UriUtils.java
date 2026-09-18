@@ -33,13 +33,8 @@ public final class S3UriUtils {
     private static final String S3 = "s3://";
     private static final String S3A = "s3a://";
 
-    /**
-     * Extracts the S3 object key from a Flink {@link Path}.
-     *
-     * @throws IllegalArgumentException if the scheme is not s3:// or s3a://
-     */
+    /** Extracts the S3 object key from a Flink {@link Path}. */
     public static String extractKey(Path path) {
-        checkSupportedS3Scheme(path);
         String pathStr = path.toUri().getPath();
         if (pathStr.startsWith("/")) {
             pathStr = pathStr.substring(1);
@@ -47,13 +42,8 @@ public final class S3UriUtils {
         return pathStr;
     }
 
-    /**
-     * Extracts the S3 bucket name from a Flink {@link Path}.
-     *
-     * @throws IllegalArgumentException if the scheme is not s3:// or s3a://
-     */
+    /** Extracts the S3 bucket name from a Flink {@link Path}. */
     public static String extractBucketName(Path path) {
-        checkSupportedS3Scheme(path);
         return path.toUri().getHost();
     }
 
@@ -90,13 +80,6 @@ public final class S3UriUtils {
     public static boolean isSupportedLocalScheme(Path path) {
         String scheme = path.toUri().getScheme();
         return scheme == null || "file".equalsIgnoreCase(scheme);
-    }
-
-    private static void checkSupportedS3Scheme(Path path) {
-        checkArgument(
-                isSupportedS3Scheme(path),
-                "Unsupported S3 URI scheme (expected s3:// or s3a://): %s",
-                path);
     }
 
     private static String requireSupportedScheme(String s3Uri) {
