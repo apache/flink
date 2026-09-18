@@ -24,6 +24,8 @@ import org.apache.flink.core.fs.Path;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -50,6 +52,22 @@ class NonSplittingRecursiveEnumeratorTest {
 
     // ------------------------------------------------------------------------
 
+    @ParameterizedTest
+    @ValueSource(strings = {"report[2026].csv", "foo*bar", "foo?bar", "bad[.csv"})
+    void testLiteralMetacharactersInFileNames(String fileName) throws Exception {
+        final Path literalPath = new Path("testfs:///dir/" + fileName);
+        testFs =
+                TestingFileSystem.createWithFiles(
+                        "testfs",
+                        literalPath,
+                        new Path("testfs:///dir/report2.csv"),
+                        new Path("testfs:///dir/fooXbar"));
+        testFs.register();
+
+        assertThat(toPaths(createEnumerator().enumerateSplits(new Path[] {literalPath}, 1)))
+                .containsExactly(literalPath);
+    }
+
     @Test
     void testIncludeFilesFromNestedDirectories() throws Exception {
         final Path[] testPaths =
@@ -66,90 +84,6 @@ class NonSplittingRecursiveEnumeratorTest {
                 enumerator.enumerateSplits(new Path[] {new Path("testfs:///dir")}, 1);
 
         assertThat(toPaths(splits)).containsExactlyInAnyOrder(testPaths);
-    }
-
-    @Test
-    void testIncludeFilesMatchingGlobPath() throws Exception {
-        final Path[] testPaths =
-                new Path[] {
-                    new Path("testfs:///dir/partition-1/file-1.txt"),
-                    new Path("testfs:///dir/partition-1/file-2.csv"),
-                    new Path("testfs:///dir/partition-2/file-2.txt"),
-                    new Path("testfs:///dir/archive/partition-3/file-3.txt")
-                };
-        testFs = TestingFileSystem.createWithFiles("testfs", testPaths);
-        testFs.register();
-
-        final NonSplittingRecursiveEnumerator enumerator = createEnumerator();
-        final Collection<FileSourceSplit> splits =
-                enumerator.enumerateSplits(
-                        new Path[] {new Path("testfs:///dir/partition-*/file-*.txt")}, 1);
-
-        assertThat(toPaths(splits)).containsExactlyInAnyOrder(testPaths[0], testPaths[2]);
-    }
-
-    @Test
-    void testRecursivelyEnumerateDirectoryMatchingGlobPath() throws Exception {
-        final Path[] testPaths =
-                new Path[] {
-                    new Path("testfs:///dir/partition-1/file-1.txt"),
-                    new Path("testfs:///dir/partition-1/nested/file-2.txt"),
-                    new Path("testfs:///dir/archive/file-3.txt")
-                };
-        testFs = TestingFileSystem.createWithFiles("testfs", testPaths);
-        testFs.register();
-
-        final NonSplittingRecursiveEnumerator enumerator = createEnumerator();
-        final Collection<FileSourceSplit> splits =
-                enumerator.enumerateSplits(new Path[] {new Path("testfs:///dir/partition-*")}, 1);
-
-        assertThat(toPaths(splits)).containsExactlyInAnyOrder(testPaths[0], testPaths[1]);
-    }
-
-    @Test
-    void testIncludeFilesMatchingGlobCharacterPatterns() throws Exception {
-        final Path[] testPaths =
-                new Path[] {
-                    new Path("testfs:///dir/partition-1/file-a.txt"),
-                    new Path("testfs:///dir/partition-2/file-b.txt"),
-                    new Path("testfs:///dir/partition-10/file-c.txt"),
-                    new Path("testfs:///dir/partition-x/file-d.txt")
-                };
-        testFs = TestingFileSystem.createWithFiles("testfs", testPaths);
-        testFs.register();
-
-        final NonSplittingRecursiveEnumerator enumerator = createEnumerator();
-        final Collection<FileSourceSplit> splits =
-                enumerator.enumerateSplits(
-                        new Path[] {new Path("testfs:///dir/partition-[0-9]/file-?.txt")}, 1);
-
-        assertThat(toPaths(splits)).containsExactlyInAnyOrder(testPaths[0], testPaths[1]);
-    }
-
-    @Test
-    void testGlobPathWithNoMatchesReturnsNoSplits() throws Exception {
-        testFs = TestingFileSystem.createWithFiles("testfs", new Path("testfs:///dir/file.txt"));
-        testFs.register();
-
-        final NonSplittingRecursiveEnumerator enumerator = createEnumerator();
-        final Collection<FileSourceSplit> splits =
-                enumerator.enumerateSplits(
-                        new Path[] {new Path("testfs:///dir/missing-*/file-*.txt")}, 1);
-
-        assertThat(splits).isEmpty();
-    }
-
-    @Test
-    void testGlobPathWithMissingSearchRootReturnsNoSplits() throws Exception {
-        testFs = TestingFileSystem.createWithFiles("testfs", new Path("testfs:///dir/file.txt"));
-        testFs.register();
-
-        final NonSplittingRecursiveEnumerator enumerator = createEnumerator();
-        final Collection<FileSourceSplit> splits =
-                enumerator.enumerateSplits(
-                        new Path[] {new Path("testfs:///missing/partition-*/file-*.txt")}, 1);
-
-        assertThat(splits).isEmpty();
     }
 
     @Test

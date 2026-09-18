@@ -19,7 +19,6 @@
 package org.apache.flink.connector.file.src.enumerate;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.io.GlobFilePathFilter;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FileStatus;
@@ -27,12 +26,10 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.StringUtils;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.function.Predicate;
@@ -45,10 +42,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>The default instantiation of this enumerator filters files with the common hidden file
  * prefixes '.' and '_'. A custom file filter can be specified.
- *
- * <p>Input paths may contain the glob wildcards {@code *}, {@code ?}, and character classes in any
- * path segment. The enumerator starts at the non-glob path prefix and recursively discovers
- * matching files and directories.
  */
 @PublicEvolving
 public class NonSplittingRecursiveEnumerator implements FileEnumerator {
@@ -87,62 +80,11 @@ public class NonSplittingRecursiveEnumerator implements FileEnumerator {
 
         for (Path path : paths) {
             final FileSystem fs = path.getFileSystem();
-            if (isGlobPath(path)) {
-                addSplitsForGlobPath(path, fs, splits);
-            } else {
-                final FileStatus status = fs.getFileStatus(path);
-                addSplitsForPath(status, fs, splits);
-            }
+            final FileStatus status = fs.getFileStatus(path);
+            addSplitsForPath(status, fs, splits);
         }
 
         return splits;
-    }
-
-    private void addSplitsForGlobPath(
-            Path globPath, FileSystem fs, ArrayList<FileSourceSplit> target) throws IOException {
-        final Path qualifiedGlobPath =
-                globPath.toUri().getScheme() == null ? globPath.makeQualified(fs) : globPath;
-        final GlobFilePathFilter globFilter =
-                new GlobFilePathFilter(
-                        Collections.singletonList(qualifiedGlobPath.getPath()),
-                        Collections.emptyList());
-
-        Path searchRoot = qualifiedGlobPath;
-        while (isGlobPath(searchRoot)) {
-            searchRoot = searchRoot.getParent();
-        }
-
-        try {
-            addSplitsForGlobPath(fs.getFileStatus(searchRoot), fs, globFilter, target);
-        } catch (FileNotFoundException ignored) {
-            // A glob with no matches produces no splits.
-        }
-    }
-
-    private void addSplitsForGlobPath(
-            FileStatus fileStatus,
-            FileSystem fs,
-            GlobFilePathFilter globFilter,
-            ArrayList<FileSourceSplit> target)
-            throws IOException {
-        if (!fileFilter.test(fileStatus.getPath())) {
-            return;
-        }
-
-        if (!globFilter.filterPath(fileStatus.getPath())) {
-            addSplitsForPath(fileStatus, fs, target);
-        } else if (fileStatus.isDir()) {
-            for (FileStatus containedStatus : fs.listStatus(fileStatus.getPath())) {
-                addSplitsForGlobPath(containedStatus, fs, globFilter, target);
-            }
-        }
-    }
-
-    private static boolean isGlobPath(Path path) {
-        final String pathString = path.getPath();
-        return pathString.indexOf('*') >= 0
-                || pathString.indexOf('?') >= 0
-                || pathString.indexOf('[') >= 0;
     }
 
     protected void addSplitsForPath(

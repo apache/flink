@@ -65,10 +65,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * continuous/streaming case, the source periodically checks the paths for new files and will start
  * reading those.
  *
- * <p>The default file enumerators support the glob wildcards {@code *}, {@code ?}, and character
- * classes in input paths. For example, {@code hdfs:///data/partition-*}{@code /file-*.csv} selects
- * matching files from all matching partition directories.
- *
  * <p>When you start creating a file source (via the {@link FileSource.FileSourceBuilder} created
  * through one of the above-mentioned methods) the source is by default in bounded/batch mode. Call
  * {@link FileSource.FileSourceBuilder#monitorContinuously(Duration)} to put the source into
