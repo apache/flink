@@ -45,9 +45,6 @@ public class JobIDLoggingUtil {
     /**
      * Asserts that the specified key is present in the log events with the expected values.
      *
-     * <p>Events whose message matches {@code ignoredPatterns} are skipped entirely, including those
-     * that carry a different value for {@code key}.
-     *
      * @param key the key to look for
      * @param expectedValues the expected values of the key
      * @param ext the LoggerAuditingExtension instance
@@ -69,18 +66,18 @@ public class JobIDLoggingUtil {
                 Arrays.stream(ignoredPatterns).map(Pattern::compile).collect(toList());
 
         for (LogEvent e : ext.getEvents()) {
-            final String message = e.getMessage().getFormattedMessage();
-            if (matchesAny(ignorePatterns, message)) {
-                ignoredEvents.add(e);
-                continue;
-            }
-            final ReadOnlyStringMap context = e.getContextData();
+            ReadOnlyStringMap context = e.getContextData();
             if (context.containsKey(key)) {
                 if (expectedValues.contains(context.getValue(key))) {
-                    expected.removeIf(pattern -> pattern.matcher(message).matches());
+                    expected.removeIf(
+                            pattern ->
+                                    pattern.matcher(e.getMessage().getFormattedMessage())
+                                            .matches());
                 } else {
                     eventsWithWrongValue.add(e);
                 }
+            } else if (matchesAny(ignorePatterns, e.getMessage().getFormattedMessage())) {
+                ignoredEvents.add(e);
             } else {
                 eventsWithMissingKey.add(e);
             }

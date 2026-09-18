@@ -22,6 +22,8 @@ import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -40,17 +42,38 @@ class JobIDLoggingUtilTest {
     final LoggerAuditingExtension logging =
             new LoggerAuditingExtension(JobIDLoggingUtilTest.class, Level.DEBUG);
 
-    @Test
-    void ignorePatternsSkipEventsWithADifferentKeyValue() {
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "Freeing inactive slots for job job-b.",
+                "Free slot with allocation id allocation-b.",
+                "Close JobManager connection for job job-b.",
+                "Releasing job resources for job job-b."
+            })
+    void ignoredPatternsDoNotHideWrongJobIds(String message) {
         logWithMdc("job-a", "Received task test-task.");
-        logWithMdc("job-b", "Freeing inactive slots for job job-b.");
+        logWithMdc("job-b", message);
+        assertThatThrownBy(
+                        () ->
+                                JobIDLoggingUtil.assertKeyPresent(
+                                        KEY,
+                                        "job-a",
+                                        logging,
+                                        Collections.singletonList("Received task .*"),
+                                        "Free.*|Close.*|Releasing.*"))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("events with a wrong value");
+    }
 
+    @Test
+    void expectedEventsStillCountWhenAnIgnorePatternMatches() {
+        logWithMdc("job-a", "Received task test-task.");
         JobIDLoggingUtil.assertKeyPresent(
                 KEY,
                 "job-a",
                 logging,
                 Collections.singletonList("Received task .*"),
-                "Freeing inactive slots.*");
+                "Received task .*");
     }
 
     @Test
