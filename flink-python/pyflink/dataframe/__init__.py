@@ -57,6 +57,7 @@ from pyflink.dataframe.datatype import DataType
 from pyflink.dataframe.io import read_generic
 from pyflink.dataframe.sql import sql
 from pyflink.dataframe.udf import udf
+from pyflink.dataframe.udtf import udtf
 
 __all__ = [
     "DataFrame",
@@ -65,6 +66,7 @@ __all__ = [
     "col",
     "lit",
     "udf",
+    "udtf",
     "from_arrow",
     "from_dict",
     "from_pandas",
