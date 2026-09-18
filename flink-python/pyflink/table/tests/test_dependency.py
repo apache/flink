@@ -220,18 +220,30 @@ class StreamDependencyTests(DependencyTests, PyFlinkTestCase):
             udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),
                 DataTypes.BIGINT()))
 
+        def check_inherited_environment(i):
+            # set by the test setup before the gateway JVM starts; the worker only sees it
+            # because it inherits the TaskManager's environment
+            import os
+            assert os.environ["FLINK_TESTING"] == "1"
+            return i
+
+        self.t_env.create_temporary_system_function(
+            "check_inherited_environment",
+            udf(check_inherited_environment, DataTypes.BIGINT(), DataTypes.BIGINT()))
+
         sink_table_ddl = """
-        CREATE TABLE Results(a BIGINT, b BIGINT) WITH ('connector'='test-sink')
+        CREATE TABLE Results(a BIGINT, b BIGINT, c BIGINT) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
         t.select(
             expr.call('check_python_exec', t.a),
-            expr.call('check_pyflink_gateway_disabled', t.a)) \
+            expr.call('check_pyflink_gateway_disabled', t.a),
+            expr.call('check_inherited_environment', t.a)) \
             .execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["+I[1, 1]", "+I[2, 2]", "+I[3, 3]"])
+        self.assert_equals(actual, ["+I[1, 1, 1]", "+I[2, 2, 2]", "+I[3, 3, 3]"])
 
 
 if __name__ == "__main__":
