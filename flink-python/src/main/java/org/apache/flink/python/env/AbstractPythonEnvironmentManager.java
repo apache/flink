@@ -98,6 +98,21 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
     @VisibleForTesting
     public static final String PYFLINK_GATEWAY_DISABLED = "PYFLINK_GATEWAY_DISABLED";
 
+    /** The environment variables this manager sets for the Python worker. */
+    @VisibleForTesting
+    static final List<String> MANAGED_ENVIRONMENT_VARIABLES =
+            Collections.unmodifiableList(
+                    Arrays.asList(
+                            "PYTHONPATH",
+                            "PATH",
+                            "python",
+                            "BOOT_LOG_DIR",
+                            PYFLINK_GATEWAY_DISABLED,
+                            PYTHON_REQUIREMENTS_FILE,
+                            PYTHON_REQUIREMENTS_CACHE,
+                            PYTHON_REQUIREMENTS_INSTALL_DIR,
+                            PYTHON_WORKING_DIR));
+
     public AbstractPythonEnvironmentManager(
             PythonDependencyInfo dependencyInfo,
             String[] tmpDirectories,
@@ -160,6 +175,22 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
     @VisibleForTesting
     public Map<String, String> getPythonEnv() {
         return resource.env;
+    }
+
+    /**
+     * Returns the environment variables to pass on to the Python worker process explicitly, i.e.
+     * the ones set by this manager ({@link #MANAGED_ENVIRONMENT_VARIABLES}). Everything else the
+     * worker needs it inherits from the TaskManager process.
+     */
+    public Map<String, String> getManagedEnvironmentVariables() {
+        final Map<String, String> env = new HashMap<>();
+        for (String name : MANAGED_ENVIRONMENT_VARIABLES) {
+            final String value = resource.env.get(name);
+            if (value != null) {
+                env.put(name, value);
+            }
+        }
+        return env;
     }
 
     /**
