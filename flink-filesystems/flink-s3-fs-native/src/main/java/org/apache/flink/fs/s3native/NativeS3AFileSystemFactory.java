@@ -18,8 +18,6 @@
 
 package org.apache.flink.fs.s3native;
 
-import org.apache.flink.annotation.Experimental;
-
 /**
  * Factory for the native S3 file system registered for the {@code s3a://} scheme.
  *
@@ -29,7 +27,6 @@ import org.apache.flink.annotation.Experimental;
  * <p>All configuration options are the same as for the {@code s3://} scheme. See {@link
  * NativeS3FileSystemFactory} for available options.
  */
-@Experimental
 public class NativeS3AFileSystemFactory extends NativeS3FileSystemFactory {
 
     @Override

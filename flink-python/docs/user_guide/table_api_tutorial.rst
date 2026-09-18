@@ -60,7 +60,7 @@ How To Follow Along
 If you want to follow along, you will require a computer with:
 
 - Java 11
-- Python 3.9, 3.10, 3.11 or 3.12
+- Python 3.9, 3.10, 3.11, 3.12 or 3.13
 
 Using Python Table API requires installing PyFlink, which is available
 on `PyPI <https://pypi.org/project/apache-flink/>`__ and can be easily

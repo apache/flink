@@ -186,6 +186,7 @@ under the License.
 		<checkstyle.version>10.18.2</checkstyle.version>
 		<spotless.skip>false</spotless.skip>
 		<spotless.version>2.46.1</spotless.version>
+		<aosp.version>1.28.0</aosp.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
 		<spotless.delimiter>package</spotless.delimiter>
 		<spotless.license.header>
@@ -1087,6 +1088,7 @@ under the License.
 
 			<properties>
 				<target.java.version>11</target.java.version>
+				<aosp.version>1.24.0</aosp.version>
 			</properties>
 
 			<build>
@@ -1213,6 +1215,7 @@ under the License.
 				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava25,</surefire.excludedGroups.jdk>
 				<!-- Minimum Hadoop version working with jdk 25 according to https://issues.apache.org/jira/browse/HADOOP-19212 -->
 				<flink.hadoop.version>3.4.3</flink.hadoop.version>
+				<aosp.version>1.30.0</aosp.version>
 			</properties>
 
 			<build>
@@ -1223,16 +1226,6 @@ under the License.
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
 								<excludedGroups>${surefire.excludedGroups.github-actions}${surefire.excludedGroups.adaptive-scheduler}${surefire.excludedGroups.jdk}</excludedGroups>
-							</configuration>
-						</plugin>
-						<plugin>
-							<groupId>com.diffplug.spotless</groupId>
-							<artifactId>spotless-maven-plugin</artifactId>
-							<configuration>
-								<!-- Current google format does not run on Java 25.
-									 Don't upgrade it in this profile because it formats code differently.
-									 Re-evaluate once support for Java 11 is dropped. -->
-								<skip>true</skip>
 							</configuration>
 						</plugin>
 					</plugins>
@@ -2215,7 +2208,7 @@ under the License.
 						</upToDateChecking>
 						<java>
 							<googleJavaFormat>
-								<version>1.24.0</version>
+								<version>${aosp.version}</version>
 								<style>AOSP</style>
 							</googleJavaFormat>
 
