@@ -24,9 +24,6 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3native.writer.NativeS3Recoverable.PartETag;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.BufferedOutputStream;
@@ -51,12 +48,15 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@link ReentrantLock} guards the critical sections in {@link #close()}, {@link
  * #closeForCommit()}, and {@link #persist()} to ensure safe cleanup of local resources without
  * corrupting S3 state.
+ *
+ * <p>This stream never aborts its multipart upload. The upload may be referenced by a {@link
+ * NativeS3Recoverable} in a retained checkpoint or savepoint, and the stream cannot know whether
+ * that is the case. Aborting it would make the referencing snapshot unrecoverable. Abandoned
+ * uploads are expected to be removed by an S3 lifecycle rule for incomplete multipart uploads, as
+ * with the Hadoop-based S3 file system.
  */
 @NotThreadSafe
 class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
-
-    private static final Logger LOG =
-            LoggerFactory.getLogger(NativeS3RecoverableFsDataOutputStream.class);
 
     private static final int BUFFER_SIZE = 64 * 1024;
     private final ReentrantLock lock = new ReentrantLock();
@@ -199,7 +199,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
 
         // Do not delete the temp file if uploadPart fails: propagate the original exception
         // unmasked and let the cleanup path (close() or the closeForCommit() failure handler)
-        // delete it and abort the upload. nextPartNumber is only advanced on success.
+        // delete it. nextPartNumber is only advanced on success.
         NativeS3ObjectOperations.UploadPartResult result =
                 s3AccessHelper.uploadPart(
                         key, uploadId, nextPartNumber, currentTempFile, currentPartSize);
@@ -233,11 +233,13 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                         new NativeS3Recoverable(
                                 key, uploadId, new ArrayList<>(completedParts), numBytesInParts);
             } catch (IOException e) {
-                // The commit failed after the multipart upload had been created and parts may
-                // already have been uploaded. Abort it so it does not leak as an orphan upload.
+                // Only local resources are released. The upload is deliberately left open: a
+                // previous persist() may have handed it out in a recoverable that a completed
+                // checkpoint references, and aborting it would break recovery from that
+                // checkpoint. See the class-level Javadoc.
                 closed = true;
                 try {
-                    tryAbortUploadAndReleaseResources();
+                    releaseLocalResources();
                 } catch (IOException cleanup) {
                     e.addSuppressed(cleanup);
                 }
@@ -285,15 +287,18 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         try {
             if (!closed) {
                 closed = true;
-                tryAbortUploadAndReleaseResources();
+                releaseLocalResources();
             }
         } finally {
             unlock();
         }
     }
 
-    /** Aborts the multipart upload and releases local resources on the best effort basis. */
-    private void tryAbortUploadAndReleaseResources() throws IOException {
+    /**
+     * Closes the local buffer and deletes the local temp file. The multipart upload is never
+     * aborted here; see the class-level Javadoc.
+     */
+    private void releaseLocalResources() throws IOException {
         IOException collected = null;
         if (currentOutputStream != null) {
             try {
@@ -308,17 +313,6 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             } catch (IOException e) {
                 collected = ExceptionUtils.firstOrSuppressed(e, collected);
             }
-        }
-        try {
-            s3AccessHelper.abortMultiPartUpload(key, uploadId);
-        } catch (IOException e) {
-            LOG.warn(
-                    "Failed to abort multipart upload (key={}, uploadId={}); it may be left as an "
-                            + "orphan upload in S3. Propagating the failure to the caller.",
-                    key,
-                    uploadId,
-                    e);
-            collected = ExceptionUtils.firstOrSuppressed(e, collected);
         }
         if (collected != null) {
             throw collected;
