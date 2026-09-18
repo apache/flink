@@ -65,7 +65,19 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         def arrow_identity(values: pa.Array) -> pa.ChunkedArray:
             return pa.chunked_array([values])
 
-        def mixed(values: pd.Series) -> pa.Array:
+        def integer_array(values: pa.Int64Array) -> pa.Int64Array:
+            return values
+
+        def list_array(values: pa.ListArray):
+            return values.flatten()
+
+        def struct_array(values: "pa.StructArray"):
+            return values.field("value")
+
+        def concrete_return(values) -> pa.Int64Array:
+            return values
+
+        def mixed(values: pd.Series) -> pa.Int64Array:
             return pa.array(values)
 
         def captured(context: pd.Series, values: pa.Array) -> pa.Array:
@@ -79,7 +91,8 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             def eval(self, values: pa.Array) -> pa.Array:
                 return values
 
-        for func in (arrow_identity, ArrowCallable, ArrowCallable(), ArrowScalar, ArrowScalar(),
+        for func in (arrow_identity, integer_array, list_array, struct_array, concrete_return,
+                     ArrowCallable, ArrowCallable(), ArrowScalar, ArrowScalar(),
                      functools.partial(captured, pd.Series([1]))):
             with self.subTest(func=func):
                 declaration = pf.udf(func, return_dtype=pf.DataType.int64())

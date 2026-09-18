@@ -1051,7 +1051,12 @@ def _detect_func_type(declaration_context: _UDFDeclarationContext) -> str:
             name,
             globalns={**container_globalns, **declaration_context.globalns},
         )
-        modes.update(mode for mode, types in container_types.items() if hint in types)
+        modes.update(
+            mode for mode, types in container_types.items()
+            if hint in types or (
+                mode == "arrow" and isinstance(hint, type) and issubclass(hint, types)
+            )
+        )
     if len(modes) > 1:
         raise ValueError(
             "UDF annotations contain both pandas and Arrow containers; "
