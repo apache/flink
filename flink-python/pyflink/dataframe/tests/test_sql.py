@@ -18,6 +18,7 @@
 
 import unittest
 import warnings
+from typing import Iterator, TypedDict
 
 from py4j.protocol import Py4JJavaError
 
@@ -375,6 +376,99 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
             with self.subTest(query=query):
                 self.assertEqual(pf.sql(query).collect(), [Row(2)])
         self.assertNotIn("addone", self.t_env.list_user_defined_functions())
+
+    def test_udtf_explicit_and_auto_bindings(self):
+        source = pf.from_dict({"text": ["ab", ""]})
+
+        @pf.udtf(return_dtype=str)
+        def chars(text):
+            yield from text
+
+        query = "SELECT ch FROM source, LATERAL TABLE(chars(text)) AS T(ch)"
+        explicit = pf.sql(query, auto_bind=False, source=source, chars=chars)
+        automatic = pf.sql(query)
+        self.assertEqual(explicit.columns, ["ch"])
+        self.assertEqual(explicit.schema.get_field_data_types(), [DataTypes.STRING()])
+        self.assertCountEqual(explicit.union_all(automatic).collect(), [Row("a"), Row("b")] * 2)
+        self.assertNotIn("chars", self.t_env.list_user_defined_functions())
+        self.assertNotIn("source", self.t_env.list_temporary_views())
+
+    def test_udtf_declared_field_names_and_sql_aliases(self):
+        class Token(TypedDict):
+            word: str
+            size: int
+
+        def expand(text) -> Iterator[Token]:
+            yield {"word": text, "size": len(text)}
+
+        source = pf.from_dict({"text": ["ab"]})
+        for return_dtype in (None, "ROW<word STRING, size BIGINT>",
+                             pf.DataType.struct({"word": pf.DataType.string(),
+                                                 "size": pf.DataType.int64()})):
+            with self.subTest(return_dtype=return_dtype):
+                declaration = pf.udtf(expand, return_dtype=return_dtype)
+                named = pf.sql(
+                    "SELECT t.word, t.size FROM src, LATERAL TABLE(expand(text)) AS t",
+                    auto_bind=False, src=source, expand=declaration)
+                aliased = pf.sql(
+                    "SELECT t.w, t.n FROM src, LATERAL TABLE(expand(text)) AS t(w, n)",
+                    auto_bind=False, src=source, expand=declaration)
+                self.assertEqual(named.columns, ["word", "size"])
+                self.assertEqual(aliased.columns, ["w", "n"])
+                self.assertEqual(named.schema.get_field_data_types(),
+                                 [DataTypes.STRING(), DataTypes.BIGINT()])
+                self.assertEqual(named.union_all(aliased).collect(), [Row("ab", 2)] * 2)
+                self.assertNotIn("expand", self.t_env.list_user_defined_functions())
+
+    def test_udtf_sql_preserves_quoted_names_and_nested_types(self):
+        dtype = pf.DataType.struct({
+            "word text": pf.DataType.string().not_null(),
+            "meta": pf.DataType.struct({"size": pf.DataType.int64()}),
+        })
+        expand = pf.udtf(lambda text: {"word text": text, "meta": {"size": len(text)}},
+                         return_dtype=dtype)
+        result = pf.sql(
+            "SELECT t.`word text`, t.meta FROM src, LATERAL TABLE(expand(text)) AS t",
+            auto_bind=False, src=pf.from_dict({"text": ["ab"]}), expand=expand)
+        self.assertEqual(result.columns, ["word text", "meta"])
+        self.assertEqual(result.schema.get_field_data_types(), [
+            DataTypes.STRING().not_null(),
+            DataTypes.ROW([DataTypes.FIELD("size", DataTypes.BIGINT())])])
+        self.assertEqual(result.collect(), [Row("ab", Row(2))])
+
+    def test_udtf_sql_binding_after_flat_map_with_callable_class(self):
+        class Expand:
+            def __call__(self, value):
+                text = value["text"] if isinstance(value, dict) else value
+                yield from text
+
+        chars = pf.udtf(Expand, return_dtype=str)
+        source = pf.from_dict({"text": ["ab"]})
+        mapped = source.flat_map(chars)
+        query = "SELECT ch FROM src, LATERAL TABLE(chars(text)) AS T(ch)"
+        result = pf.sql(query, auto_bind=False, src=source, chars=chars)
+        self.assertCountEqual(mapped.union_all(result).collect(), [Row("a"), Row("b")] * 2)
+
+    def test_udtf_bindings_are_dropped_after_planning_failure(self):
+        source = pf.from_dict({"text": ["ab"]})
+        chars = pf.udtf(lambda text: list(text), return_dtype=str)
+        with self.assertRaises(Py4JJavaError):
+            pf.sql("SELECT * FROM src, LATERAL TABLE(chars(missing)) AS T(ch)",
+                   auto_bind=False, src=source, chars=chars)
+        self.assertNotIn("chars", self.t_env.list_user_defined_functions())
+        self.assertNotIn("src", self.t_env.list_temporary_views())
+
+    def test_udtf_binding_conflict_rolls_back_earlier_registrations(self):
+        self.t_env.create_temporary_system_function(
+            "taken", table_udf(lambda i: i + 100, result_type=DataTypes.BIGINT()))
+        self.addCleanup(self.t_env.drop_temporary_system_function, "taken")
+        chars = pf.udtf(lambda text: list(text), return_dtype=str)
+        with self.assertRaisesRegex(ValueError, "'taken'.*already exists"):
+            pf.sql("SELECT * FROM src", auto_bind=False,
+                   src=pf.from_dict({"text": ["ab"]}), first=chars, taken=chars)
+        self.assertNotIn("first", self.t_env.list_user_defined_functions())
+        self.assertNotIn("src", self.t_env.list_temporary_views())
+        self.assertIn("taken", self.t_env.list_user_defined_functions())
 
     def test_pandas_udfs_are_bindable(self):
         df = pf.from_dict({"a": [1, 2]})  # noqa: F841

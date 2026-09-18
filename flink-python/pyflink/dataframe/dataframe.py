@@ -27,6 +27,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     TypeVar,
     Union,
     overload,
@@ -34,6 +35,8 @@ from typing import (
 
 if TYPE_CHECKING:
     import pandas
+    from pyflink.dataframe.udf import _DataTypeLike
+    from pyflink.dataframe.udtf import _DataFrameUDTFWrapper
     from pyflink.table.table_schema import TableSchema
 
 from pyflink.common import Row
@@ -622,6 +625,91 @@ class DataFrame:
 
     distinct = drop_duplicates
     unique = drop_duplicates
+
+    @PublicEvolving()
+    def flat_map(
+        self,
+        func: Union[Callable[[Dict[str, Any]], Any], Type, "_DataFrameUDTFWrapper"],
+        *,
+        return_dtype: Optional["_DataTypeLike"] = None,
+    ) -> "DataFrame":
+        """
+        Apply a function to each row, emitting zero or more output rows.
+
+        The function receives a dictionary keyed by column name, including when
+        declared with :func:`pyflink.dataframe.udtf`.
+        Output column names come from a ``TypedDict`` or an explicit named struct;
+        scalar outputs use ``f0``. Multi-field outputs require named fields.
+
+        :param func: Row-based callable, a callable class with a zero-argument constructor,
+                     or a declaration created with ``pf.udtf``. Callable classes are
+                     instantiated on workers.
+        :param return_dtype: Emitted row type, inferred from annotations when omitted.
+                             Required if inference is not possible; must be omitted
+                             for a UDTF declaration.
+        :return: A DataFrame containing only the emitted output columns.
+
+        Example::
+
+            >>> from typing import Any, Dict, Iterator, TypedDict
+            >>> import pyflink.dataframe as pf
+            >>> class Token(TypedDict):
+            ...     word: str
+            >>> def split(record: Dict[str, Any]) -> Iterator[Token]:
+            ...     for word in record["text"].split():
+            ...         yield {"word": word}
+            >>> df = pf.from_dict({"text": ["hello world", "flink"]})
+            >>> result = df.flat_map(split)
+            >>> result.columns
+            ['word']
+
+        The decorator is optional for plain callables. Use it to attach reusable
+        metadata, such as the output schema, instead of repeating it in each
+        ``flat_map`` call::
+
+            >>> @pf.udtf(return_dtype="ROW<word STRING>")
+            ... def tokenize(record: Dict[str, Any]):
+            ...     yield from record["text"].split()
+            >>> result = df.flat_map(tokenize)
+            >>> result.columns
+            ['word']
+
+        An explicit output type can be supplied for unannotated callables::
+
+            >>> words = df.flat_map(lambda record: record["text"].split(), return_dtype=str)
+            >>> words.columns
+            ['f0']
+            >>> named = df.flat_map(
+            ...     lambda record: record["text"].split(),
+            ...     return_dtype="ROW<word STRING>")
+            >>> named.columns
+            ['word']
+
+        Callable classes can be passed directly and are instantiated on workers::
+
+            >>> class SplitWords:
+            ...     def __call__(self, record: Dict[str, Any]) -> Iterator[str]:
+            ...         yield from record["text"].split()
+            >>> words = df.flat_map(SplitWords)
+
+        ``TableFunction`` classes are declared with :func:`pyflink.dataframe.udtf`::
+
+            >>> from pyflink.table.udf import TableFunction
+            >>> class SplitWordsFunction(TableFunction):
+            ...     def eval(self, record: Dict[str, Any]) -> Iterator[str]:
+            ...         yield from record["text"].split()
+            >>> words = df.flat_map(pf.udtf(SplitWordsFunction))
+
+        See :func:`pyflink.dataframe.udtf` for more details.
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.udtf import _resolve_flat_map_udtf
+
+        expression, output_columns = _resolve_flat_map_udtf(func, return_dtype, self.columns)
+        table = self._table.flat_map(expression)
+        # Table UDTFs expose positional field names, so restore the declared names.
+        return DataFrame(table.alias(output_columns[0], *output_columns[1:]))
 
     # ======================== Filtering & Ordering ========================
 

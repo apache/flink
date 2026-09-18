@@ -16,9 +16,12 @@
     limitations under the License.
    ################################################################################
 
-=============================
-User-Defined Scalar Functions
-=============================
+======================
+User-Defined Functions
+======================
+
+Scalar Functions
+================
 
 Use :func:`pyflink.dataframe.udf` to apply Python code to one or more DataFrame
 columns. A scalar UDF produces one logical output column and can be used in
@@ -30,6 +33,18 @@ DataFrame scalar UDFs support general synchronous and asynchronous callables,
 and synchronous pandas or Arrow vectorized callables. See :func:`pyflink.dataframe.udf`
 for declaration forms, type inference, execution modes, and examples.
 
+Table Functions
+===============
+
+Use :func:`pyflink.dataframe.udtf` to declare a Python function that emits zero or
+more rows per invocation. A table UDF can be used with
+:meth:`~pyflink.dataframe.DataFrame.flat_map`, which returns only the emitted columns.
+
+DataFrame table UDFs support synchronous functions, callable classes and instances, and
+``TableFunction`` instances or classes. See :func:`pyflink.dataframe.udtf` for
+declaration forms, type inference, lifecycle, and examples, and
+:meth:`~pyflink.dataframe.DataFrame.flat_map` for row input and output semantics.
+
 API Reference
 =============
 
@@ -39,3 +54,4 @@ API Reference
     :toctree: api/
 
     udf
+    udtf

@@ -26,9 +26,11 @@ from py4j.protocol import Py4JJavaError
 from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame
 from pyflink.dataframe.udf import _DataFrameUDFWrapper
+from pyflink.dataframe.udtf import _DataFrameUDTFWrapper
 from pyflink.java_gateway import get_gateway
 from pyflink.table import Table, TableEnvironment
 from pyflink.table.expression import Expression
+from pyflink.table.udf import UserDefinedFunctionWrapper
 from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import is_instance_of
 
@@ -36,11 +38,13 @@ __all__ = ["sql"]
 
 _LOG = logging.getLogger(__name__)
 
-# UDFs are annotated with the declared return type of :func:`pyflink.dataframe.udf`
+# Scalar UDFs use the declared return type of :func:`pyflink.dataframe.udf`
 # so that its result type-checks as a binding; at runtime a binding must be an actual
 # UDF object, which is what _BINDABLE_TYPES enforces.
-_Binding = Union[DataFrame, Callable[..., Expression]]
-_BINDABLE_TYPES = (DataFrame, _DataFrameUDFWrapper)
+_FunctionBinding = Union[_DataFrameUDFWrapper, _DataFrameUDTFWrapper]
+_Binding = Union[DataFrame, Callable[..., Expression], _DataFrameUDTFWrapper]
+_FUNCTION_TYPES = (_DataFrameUDFWrapper, _DataFrameUDTFWrapper)
+_BINDABLE_TYPES = (DataFrame, *_FUNCTION_TYPES)
 
 
 @PublicEvolving()
@@ -51,9 +55,9 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: _Binding) -> DataFram
     The query must be a single statement that returns a result, such as SELECT or
     VALUES (no INSERT / DDL; use :meth:`TableEnvironment.execute_sql` for those).
     The referenced DataFrames are registered as temporary views and the referenced
-    UDFs (created with :func:`~pyflink.dataframe.udf`) as temporary system functions
-    for the duration of the call, and both are dropped afterwards. The result can be
-    further transformed with the DataFrame API.
+    UDFs (created with :func:`~pyflink.dataframe.udf` or :func:`~pyflink.dataframe.udtf`)
+    as temporary system functions for the duration of the call, and both are dropped
+    afterwards. The result can be further transformed with the DataFrame API.
 
     When ``auto_bind`` is ``True`` (the default), the caller's local and global variables
     are scanned for :class:`DataFrame` and UDF objects and each is registered under its
@@ -91,7 +95,8 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: _Binding) -> DataFram
                         auto-bound candidates belong to different TableEnvironments
                         when there are no explicit bindings.
     :raises TypeError: If an explicit binding is neither a :class:`DataFrame` nor a
-                       UDF created with :func:`~pyflink.dataframe.udf`.
+                       UDF created with :func:`~pyflink.dataframe.udf` or
+                       :func:`~pyflink.dataframe.udtf`.
 
     Example::
 
@@ -112,6 +117,11 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: _Binding) -> DataFram
         ...     return value + 1
         >>> pf.sql("SELECT add_one(a) AS a1 FROM df1")
         >>> pf.sql("SELECT inc(a) FROM src", auto_bind=False, src=df1, inc=add_one)
+        >>> # Table UDFs can be used in lateral joins
+        >>> @pf.udtf(return_dtype=str)
+        ... def chars(text):
+        ...     yield from text
+        >>> pf.sql("SELECT ch FROM df1, LATERAL TABLE(chars(b)) AS T(ch)")
         >>> # Mix SQL and the DataFrame API
         >>> pf.sql("SELECT a, b FROM df1").filter(pf.col("a") > 1).to_pandas()
 
@@ -138,7 +148,7 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: _Binding) -> DataFram
         if not isinstance(value, _BINDABLE_TYPES):
             raise TypeError(
                 f"sql() binding '{name}' must be a DataFrame or a UDF created with "
-                f"pyflink.dataframe.udf, got {type(value).__name__}"
+                f"pyflink.dataframe.udf or pyflink.dataframe.udtf, got {type(value).__name__}"
             )
     explicit_frames = _get_dataframes(bindings)
     explicit_udfs = _get_udfs(bindings)
@@ -162,8 +172,8 @@ def _get_dataframes(namespace: Dict[str, Any]) -> Dict[str, DataFrame]:
     return {k: v for k, v in namespace.items() if isinstance(v, DataFrame)}
 
 
-def _get_udfs(namespace: Dict[str, Any]) -> Dict[str, _DataFrameUDFWrapper]:
-    return {k: v for k, v in namespace.items() if isinstance(v, _DataFrameUDFWrapper)}
+def _get_udfs(namespace: Dict[str, Any]) -> Dict[str, _FunctionBinding]:
+    return {k: v for k, v in namespace.items() if isinstance(v, _FUNCTION_TYPES)}
 
 
 def _drop_views(t_env: TableEnvironment, names: List[str]) -> None:
@@ -322,10 +332,16 @@ def _register_views(
     return registered
 
 
+def _get_table_udf_wrapper(value: _FunctionBinding) -> UserDefinedFunctionWrapper:
+    if isinstance(value, _DataFrameUDTFWrapper):
+        return value._create_table_wrapper(preserve_field_names=True)
+    return value._table_udf_wrapper
+
+
 def _register_functions(
     t_env: TableEnvironment,
-    explicit: Dict[str, _DataFrameUDFWrapper],
-    auto: Dict[str, _DataFrameUDFWrapper],
+    explicit: Dict[str, _FunctionBinding],
+    auto: Dict[str, _FunctionBinding],
 ) -> List[str]:
     """
     Register explicit and auto-collected UDFs as temporary system functions and return
@@ -364,7 +380,7 @@ def _register_functions(
                     f"cannot bind '{name}': a temporary function with this name "
                     "already exists"
                 )
-            t_env.create_temporary_system_function(name, value._table_udf_wrapper)
+            t_env.create_temporary_system_function(name, _get_table_udf_wrapper(value))
             registered.append(name)
 
         # Auto-bound candidates are not expected to raise: problems are reported as
@@ -377,7 +393,7 @@ def _register_functions(
                 _warn_skipped(name, "a function with this name already exists")
                 continue
             try:
-                t_env.create_temporary_system_function(name, value._table_udf_wrapper)
+                t_env.create_temporary_system_function(name, _get_table_udf_wrapper(value))
             except Exception as e:
                 _warn_skipped(name, f"registration failed: {e}")
                 continue
