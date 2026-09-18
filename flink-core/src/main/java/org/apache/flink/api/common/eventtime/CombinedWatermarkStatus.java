@@ -46,6 +46,11 @@ final class CombinedWatermarkStatus {
         return idle;
     }
 
+    /** Returns true if there is an output to combine, so that {@link #isIdle()} is meaningful. */
+    public boolean hasOutputs() {
+        return !partialWatermarks.isEmpty();
+    }
+
     public boolean remove(PartialWatermark o) {
         return partialWatermarks.remove(o);
     }

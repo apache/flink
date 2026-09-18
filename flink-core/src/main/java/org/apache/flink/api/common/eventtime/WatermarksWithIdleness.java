@@ -67,7 +67,13 @@ public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
     public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {
         watermarks.onEvent(event, eventTimestamp, output);
         idlenessTimer.activity();
-        isIdleNow = false;
+        if (isIdleNow) {
+            // A record is evidence of activity in its own right. Waiting for the wrapped generator
+            // to produce an advancing watermark instead would leave the output announced as idle
+            // for as long as the resumed input stays behind the watermark it reached before.
+            output.markActive();
+            isIdleNow = false;
+        }
     }
 
     @Override
