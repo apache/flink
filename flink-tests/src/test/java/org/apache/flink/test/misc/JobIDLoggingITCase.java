@@ -172,7 +172,8 @@ class JobIDLoggingITCase {
                 "Operator event.*",
                 "Recovered slot allocation snapshots.*",
                 ".*heartbeat.*",
-                ".*leadership.*");
+                ".*leadership.*",
+                "Freeing inactive slots.*");
 
         assertKeyPresent(
                 MdcUtils.JOB_ID,
