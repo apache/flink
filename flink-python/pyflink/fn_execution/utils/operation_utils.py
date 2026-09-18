@@ -93,6 +93,35 @@ def check_pandas_udf_result(f, *input_args):
     return output
 
 
+def check_arrow_udf_result(func, *args):
+    import pyarrow as pa
+
+    result = func(*args)
+    name = getattr(func, "__qualname__", type(func).__name__)
+    if not isinstance(result, (pa.Array, pa.ChunkedArray)):
+        raise TypeError(
+            f"Arrow UDF '{name}' must return a pyarrow.Array or pyarrow.ChunkedArray, "
+            f"got {type(result).__name__}.")
+    for arg in args:
+        if isinstance(arg, (pa.Array, pa.ChunkedArray)) and len(result) != len(arg):
+            raise ValueError(
+                f"Arrow UDF '{name}' returned {len(result)} rows, expected {len(arg)}.")
+    if isinstance(result, pa.ChunkedArray):
+        result = result.chunk(0) if result.num_chunks == 1 else result.combine_chunks()
+    return result
+
+
+def create_record_batch(results, row_count):
+    import pyarrow as pa
+
+    columns = []
+    for result in results:
+        if len(result) != row_count:
+            raise ValueError(f"Arrow UDF returned {len(result)} rows, expected {row_count}.")
+        columns.append(result)
+    return pa.RecordBatch.from_arrays(columns, names=[f"f{i}" for i in range(len(columns))])
+
+
 def extract_over_window_user_defined_function(user_defined_function_proto):
     window_index = user_defined_function_proto.window_index
     return (*extract_user_defined_function(user_defined_function_proto, True), window_index)
@@ -160,6 +189,8 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
             variable_dict[func_name] = user_defined_func.func
     else:
         variable_dict[func_name] = user_defined_func.eval
+    if user_defined_function_proto.is_arrow_udf:
+        variable_dict[func_name] = partial(check_arrow_udf_result, variable_dict[func_name])
     user_defined_funcs.append(user_defined_func)
 
     func_args, input_variable_dict, input_funcs = _extract_input(user_defined_function_proto.inputs)
@@ -179,6 +210,13 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
             # receives a previously computed intermediate result rather than
             # the original input row. We must use func_args instead of `value`.
             func_str = "%s(%s)" % (func_name, func_args)
+        elif user_defined_function_proto.is_arrow_udf:
+            import pyarrow as pa
+
+            variable_dict['create_struct_array'] = pa.StructArray.from_arrays
+            offsets = [arg.inputOffset for arg in user_defined_function_proto.inputs]
+            func_str = (f"{func_name}(create_struct_array([{func_args}], "
+                        f"fields=[value.schema[i] for i in {offsets}]))")
         else:
             # directly use `value` as input argument
             # e.g.

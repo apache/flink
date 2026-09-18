@@ -61,6 +61,86 @@ def _call_module_alias_function(value):
 
 
 class DataFrameUDFDeclarationTests(unittest.TestCase):
+    def test_arrow_annotation_inference_and_overrides(self):
+        def arrow_identity(values: pa.Array) -> pa.ChunkedArray:
+            return pa.chunked_array([values])
+
+        def integer_array(values: pa.Int64Array) -> pa.Int64Array:
+            return values
+
+        def list_array(values: pa.ListArray):
+            return values.flatten()
+
+        def struct_array(values: "pa.StructArray"):
+            return values.field("value")
+
+        def concrete_return(values) -> pa.Int64Array:
+            return values
+
+        def mixed(values: pd.Series) -> pa.Int64Array:
+            return pa.array(values)
+
+        def captured(context: pd.Series, values: pa.Array) -> pa.Array:
+            return values
+
+        class ArrowCallable:
+            def __call__(self, values: "pa.Array") -> "pa.Array":
+                return values
+
+        class ArrowScalar(ScalarFunction):
+            def eval(self, values: pa.Array) -> pa.Array:
+                return values
+
+        for func in (arrow_identity, integer_array, list_array, struct_array, concrete_return,
+                     ArrowCallable, ArrowCallable(), ArrowScalar, ArrowScalar(),
+                     functools.partial(captured, pd.Series([1]))):
+            with self.subTest(func=func):
+                declaration = pf.udf(func, return_dtype=pf.DataType.int64())
+                self.assertEqual(cast(Any, declaration)._func_type, "arrow")
+
+        for mode in ("general", "pandas", "arrow"):
+            with self.subTest(mode=mode):
+                declaration = pf.udf(mixed, return_dtype=pf.DataType.int64(), func_type=mode)
+                self.assertEqual(cast(Any, declaration)._func_type, mode)
+
+        with self.assertRaisesRegex(ValueError, "pandas.*Arrow.*func_type"):
+            pf.udf(mixed, return_dtype=pf.DataType.int64())
+        with self.assertRaisesRegex(TypeError, "return_dtype is required for arrow"):
+            pf.udf(arrow_identity)
+
+    def test_explicit_arrow_declarations(self):
+        from pyflink.table.udf import udf as table_udf
+
+        def identity(values):
+            return values
+
+        declaration = pf.udf(identity, return_dtype=pf.DataType.string(), func_type="arrow")
+        self.assertEqual(_return_dtype(declaration), pf.DataType.string())
+        table_udf(identity, result_type=TableDataTypes.STRING(), func_type="arrow")
+
+        with self.assertRaisesRegex(TypeError, "return_dtype is required for arrow"):
+            pf.udf(identity, func_type="arrow")
+
+        async def async_identity(values):
+            return values
+
+        class AsyncCallable:
+            async def __call__(self, values):
+                return values
+
+        for declare in (
+            lambda: pf.udf(async_identity, return_dtype=pf.DataType.string(), func_type="arrow"),
+            lambda: table_udf(async_identity, result_type=TableDataTypes.STRING(),
+                              func_type="arrow"),
+            lambda: table_udf(AsyncCallable(), result_type=TableDataTypes.STRING(),
+                              func_type="arrow"),
+            lambda: table_udf(functools.partial(AsyncCallable()),
+                              result_type=TableDataTypes.STRING(), func_type="arrow"),
+        ):
+            with self.subTest(declare=declare):
+                with self.assertRaisesRegex(ValueError, "Async.*arrow"):
+                    declare()
+
     def test_function_declarations_return_types_and_metadata(self):
         class Details(TypedDict):
             label: str
@@ -547,9 +627,9 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 False,
             ),
             (
-                "pyarrow annotations remain general",
+                "inferred arrow",
                 lambda: pf.udf(arrow_add_one, return_dtype=pf.DataType.int64()),
-                "general",
+                "arrow",
                 False,
             ),
             (
@@ -1178,11 +1258,11 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 "name must not be empty",
             ),
             (
-                "arrow func type",
+                "unsupported func type",
                 lambda: pf.udf(
                     missing_return,
                     return_dtype=pf.DataType.int64(),
-                    func_type="arrow",
+                    func_type="unsupported",
                 ),
                 ValueError,
                 "func_type must be one of",
@@ -1480,6 +1560,21 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
 
 
 class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
+    def test_arrow_calls_require_a_column_argument(self):
+        from pyflink.table import ExplainDetail
+
+        @pf.udf(return_dtype=pf.DataType.int64(), func_type="arrow")
+        def identity(*values):
+            return values[0]
+
+        dataframe = pf.from_records([(1,)], schema=["id"])
+        for args in ((), (1,), (pf.lit(1),), (identity(),)):
+            with self.subTest(args=args):
+                with self.assertRaisesRegex(Exception, "at least one column-valued argument"):
+                    result = dataframe.with_columns(
+                        valid=identity(pf.col("id")), invalid=identity(*args))
+                    result.to_table().explain(ExplainDetail.JSON_EXECUTION_PLAN)
+
     def test_with_columns_binds_expressions_and_resolves_output_schema(self):
         @pf.udf(name="render_value")
         def render(value: int, suffix: str) -> str:
@@ -1521,6 +1616,25 @@ class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
 
 class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
     def test_supported_scalar_udfs_in_one_job(self):
+        import pyarrow.compute as pc
+
+        self.env.set_parallelism(1)
+        self.t_env.get_config().set("python.fn-execution.bundle.size", "3")
+        self.t_env.get_config().set("python.fn-execution.arrow.batch.size", "2")
+
+        @pf.udf(return_dtype=pf.DataType.string())
+        def normalize_name(names: pa.Array) -> pa.Array:
+            return pc.utf8_upper(names)
+
+        @pf.udf(return_dtype=pf.DataType.struct({"value": pf.DataType.int64().not_null()}))
+        def describe(values: pa.Array) -> pa.ChunkedArray:
+            result = pa.StructArray.from_arrays([pc.multiply(values, 2)], names=["value"])
+            return pa.chunked_array([result.slice(0, 1), result.slice(1)])
+
+        @pf.udf(return_dtype=pf.DataType.int64())
+        def struct_value(values: pa.Array) -> pa.Array:
+            return pc.struct_field(values, "value")
+
         @dataclass
         class Details:
             doubled: int
@@ -1561,19 +1675,27 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
         opened_scalar_class = pf.udf(OpenedScalarFunction)
 
         result = (
-            pf.from_records([(1,)], schema=["id"])
+            pf.from_records([(1, "alice"), (2, None), (3, "Bob")], schema=["id", "name"])
             .with_columns(async_value=add_two(pf.col("id")))
             .with_columns(
                 pandas_value=add_three(pf.col("id")),
                 details=details(pf.col("id")),
                 deferred_value=deferred(pf.col("id")),
                 scalar_value=opened_scalar_class(pf.col("id")),
+                normalized_name=normalize_name(pf.col("name")),
+                arrow_details=describe(pf.col("id")),
+                arrow_after_pandas=struct_value(describe(add_three(pf.col("id")))),
+                pandas_after_arrow=add_three(struct_value(describe(pf.col("id")))),
             )
         )
 
         self.assertEqual(
-            result.collect(),
-            [Row(1, 3, 4, Row(2, ["1"]), 5, 6)],
+            sorted(result.collect(), key=lambda row: row[0]),
+            [
+                Row(1, "alice", 3, 4, Row(2, ["1"]), 5, 6, "ALICE", Row(2), 8, 5),
+                Row(2, None, 4, 5, Row(4, ["2"]), 6, 7, None, Row(4), 10, 7),
+                Row(3, "Bob", 5, 6, Row(6, ["3"]), 7, 8, "BOB", Row(6), 12, 9),
+            ],
         )
 
 

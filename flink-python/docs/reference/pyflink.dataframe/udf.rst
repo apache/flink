@@ -26,9 +26,9 @@ columns. A scalar UDF produces one logical output column and can be used in
 :meth:`~pyflink.dataframe.DataFrame.with_columns`, and
 :meth:`~pyflink.dataframe.DataFrame.select`.
 
-DataFrame scalar UDFs support synchronous, asynchronous, and pandas-vectorized
-callables. See :func:`pyflink.dataframe.udf` for declaration forms, type
-inference, execution modes, and examples.
+DataFrame scalar UDFs support general synchronous and asynchronous callables,
+and synchronous pandas or Arrow vectorized callables. See :func:`pyflink.dataframe.udf`
+for declaration forms, type inference, execution modes, and examples.
 
 API Reference
 =============
