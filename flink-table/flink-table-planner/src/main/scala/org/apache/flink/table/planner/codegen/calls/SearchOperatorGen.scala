@@ -85,12 +85,21 @@ object SearchOperatorGen {
       val haystack = rangeSet
         .asRanges()
         .asScala
+        .toSeq
         // We need to go through the generateLiteral to normalize the value from calcite
         .map(r => toFlinkInternalValue(r.lowerEndpoint, sargType))
         // The elements are constant, we perform the cast immediately
         .map(CastRuleProvider.cast(toCastContext(ctx), sargType, commonType, _))
+        // The hash sets use boxed equality, whereas SQL equality equates both signs of zero.
+        .flatMap {
+          case value: java.lang.Float if value.floatValue() == 0.0f =>
+            Seq(value, java.lang.Float.valueOf(-value.floatValue()))
+          case value: java.lang.Double if value.doubleValue() == 0.0d =>
+            Seq(value, java.lang.Double.valueOf(-value.doubleValue()))
+          case value => Seq(value)
+        }
         .map(generateLiteral(ctx, _, commonType))
-      val setTerm = ctx.addReusableHashSet(haystack.toSeq, commonType)
+      val setTerm = ctx.addReusableHashSet(haystack, commonType)
       val negation = if (sarg.isComplementedPoints) "!" else ""
 
       val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
