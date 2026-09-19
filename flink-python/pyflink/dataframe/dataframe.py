@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 from pyflink.common import Row
 from pyflink.dataframe.datatype import _INT_MAX, DataType
 from pyflink.java_gateway import get_gateway
-from pyflink.table.expression import Expression
+from pyflink.table.expression import Expression, _get_java_expression
 from pyflink.table.expressions import (
     and_,
     call_sql,
@@ -47,6 +47,7 @@ from pyflink.table.expressions import (
 )
 from pyflink.table.table import Table
 from pyflink.util.api_stability_decorators import PublicEvolving
+from pyflink.util.java_utils import to_jarray
 
 __all__ = ["DataFrame", "GroupedDataFrame", "col", "lit"]
 
@@ -621,6 +622,119 @@ class DataFrame:
 
     distinct = drop_duplicates
     unique = drop_duplicates
+
+    # ======================== Joins ========================
+
+    @PublicEvolving()
+    def join(
+        self,
+        other: "DataFrame",
+        *,
+        on=None,
+        how: str = "inner",
+        left_on=None,
+        right_on=None,
+    ) -> "DataFrame":
+        """
+        Join this DataFrame with another DataFrame.
+
+        Use ``on`` when both sides share the same named join keys, or pass a boolean expression as
+        the complete join predicate. A predicate must contain at least one equality condition
+        between the inputs. Use ``left_on`` and ``right_on`` together when the key names differ.
+        Shared named keys occur once in the result; other duplicate column names must be renamed
+        before joining. ``semi`` and ``anti`` joins return only columns from this DataFrame, while
+        ``cross`` performs a Cartesian product and accepts no join keys. A ``semi`` join requires
+        shared named keys through ``on`` or keys through ``left_on``/``right_on`` instead of a
+        boolean predicate.
+
+        :param other: DataFrame on the right side of the join.
+        :param on: Shared column name, list of shared column names, or a boolean join expression.
+        :param how: Join type: ``"inner"``, ``"left"``, ``"right"``, ``"full"``, ``"outer"``,
+            ``"semi"``, ``"anti"``, or ``"cross"``.
+        :param left_on: Column name, expression, or list of column names from this DataFrame.
+        :param right_on: Column name, expression, or list of column names from ``other``.
+        :return: A new DataFrame containing the join result.
+        :raises TypeError: If an argument has an unsupported type.
+        :raises ValueError: If the join type, keys, schemas, or argument combination is invalid.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> orders = pf.from_records([(1, 10)], schema=["customer_id", "amount"])
+            >>> customers = pf.from_records([(1, "Alice")], schema=["customer_id", "name"])
+            >>> orders.join(customers, on="customer_id")
+            >>> orders.join(
+            ...     customers.rename_columns({"customer_id": "id"}),
+            ...     left_on="customer_id",
+            ...     right_on="id",
+            ...     how="left",
+            ... )
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(other, DataFrame):
+            raise TypeError("other must be a pyflink.dataframe.DataFrame")
+        if self._table._t_env._j_tenv != other._table._t_env._j_tenv:
+            raise ValueError("DataFrames must belong to the same TableEnvironment")
+
+        join_type = _normalize_join_type(how)
+        if join_type == "cross":
+            if on is not None or left_on is not None or right_on is not None:
+                raise ValueError("cross join does not accept on, left_on, or right_on")
+            _validate_join_column_conflicts(self.columns, other.columns, set())
+            return DataFrame(self._table.join(other._table))
+
+        (
+            left_table,
+            right_table,
+            predicate,
+            shared_keys,
+            left_key_names,
+            right_key_names,
+        ) = _prepare_join(
+            self._table,
+            other._table,
+            on,
+            left_on,
+            right_on,
+            validate_column_conflicts=join_type not in ("semi", "anti"),
+        )
+
+        if join_type == "semi":
+            if not left_key_names:
+                raise ValueError(
+                    "semi join requires named keys through on or left_on/right_on"
+                )
+            return DataFrame(
+                _build_semi_join_sql(
+                    left_table,
+                    right_table,
+                    self.columns,
+                    left_key_names,
+                    right_key_names,
+                )
+            )
+        if join_type == "anti":
+            return DataFrame(
+                _build_anti_join_sql(
+                    left_table,
+                    right_table,
+                    predicate,
+                    self.columns,
+                )
+            )
+
+        return DataFrame(
+            _build_regular_join_sql(
+                left_table,
+                right_table,
+                predicate,
+                self.columns,
+                other.columns,
+                shared_keys,
+                join_type,
+            )
+        )
 
     # ======================== Filtering & Ordering ========================
 
@@ -1461,6 +1575,327 @@ class GroupedDataFrame:
 
 
 # ======================== Internal Helpers ========================
+
+
+def _normalize_join_type(how: str) -> str:
+    if not isinstance(how, str):
+        raise TypeError("how must be a string")
+    aliases = {
+        "inner": "inner",
+        "left": "left",
+        "right": "right",
+        "full": "full",
+        "outer": "full",
+        "semi": "semi",
+        "anti": "anti",
+        "cross": "cross",
+    }
+    if how not in aliases:
+        raise ValueError(
+            'how must be one of "inner", "left", "right", "full", "outer", '
+            '"semi", "anti", or "cross"'
+        )
+    return aliases[how]
+
+
+def _normalize_join_keys(value, parameter_name: str) -> List[Union[str, Expression]]:
+    if isinstance(value, (str, Expression)):
+        return [value]
+    if isinstance(value, list):
+        if not value:
+            raise ValueError("%s must not be empty" % parameter_name)
+        if not all(isinstance(key, str) for key in value):
+            raise TypeError(
+                "%s must be a string, an expression, or a list of strings" % parameter_name
+            )
+        if len(set(value)) != len(value):
+            raise ValueError("%s must not contain duplicate column names" % parameter_name)
+        return value
+    raise TypeError(
+        "%s must be a string, an expression, or a list of strings" % parameter_name
+    )
+
+
+def _validate_join_columns(
+    keys: List[Union[str, Expression]], columns: List[str], parameter_name: str
+) -> None:
+    for key in keys:
+        if isinstance(key, str) and key not in columns:
+            raise ValueError(
+                "%s column '%s' does not exist, available columns: %s"
+                % (parameter_name, key, columns)
+            )
+
+
+def _validate_join_column_conflicts(
+    left_columns: List[str], right_columns: List[str], shared_keys: Set[str]
+) -> None:
+    conflicts = sorted((set(left_columns) & set(right_columns)) - shared_keys)
+    if conflicts:
+        raise ValueError(
+            "join() found duplicate non-key columns %s; rename them with rename_columns() "
+            "before joining" % conflicts
+        )
+
+
+def _prepare_join(
+    left_table: Table,
+    right_table: Table,
+    on,
+    left_on,
+    right_on,
+    *,
+    validate_column_conflicts: bool,
+) -> Tuple[Table, Table, Expression, Dict[str, str], List[str], List[str]]:
+    left_columns = list(left_table.get_resolved_schema().get_column_names())
+    right_columns = list(right_table.get_resolved_schema().get_column_names())
+
+    if on is not None:
+        if left_on is not None or right_on is not None:
+            raise ValueError("on cannot be combined with left_on or right_on")
+        if isinstance(on, Expression):
+            if validate_column_conflicts:
+                _validate_join_column_conflicts(left_columns, right_columns, set())
+            return left_table, right_table, on, {}, [], []
+        left_keys = _normalize_join_keys(on, "on")
+        right_keys = list(left_keys)
+        _validate_join_columns(left_keys, left_columns, "on")
+        _validate_join_columns(right_keys, right_columns, "on")
+    else:
+        if left_on is None and right_on is None:
+            raise ValueError("join() requires on or both left_on and right_on")
+        if left_on is None or right_on is None:
+            raise ValueError("left_on and right_on must be provided together")
+        left_keys = _normalize_join_keys(left_on, "left_on")
+        right_keys = _normalize_join_keys(right_on, "right_on")
+        if len(left_keys) != len(right_keys):
+            raise ValueError("left_on and right_on must have the same number of keys")
+        _validate_join_columns(left_keys, left_columns, "left_on")
+        _validate_join_columns(right_keys, right_columns, "right_on")
+
+    shared_names = {
+        left_key
+        for left_key, right_key in zip(left_keys, right_keys)
+        if isinstance(left_key, str)
+        and isinstance(right_key, str)
+        and left_key == right_key
+    }
+    if validate_column_conflicts:
+        _validate_join_column_conflicts(left_columns, right_columns, shared_names)
+
+    taken = set(left_columns) | set(right_columns)
+    shared_keys: Dict[str, str] = {}
+    right_rename_expressions: List[Expression] = []
+    for name in left_columns:
+        if name in shared_names:
+            temporary_name = _unique_name("__pf_join_right_%s" % name, taken)
+            taken.add(temporary_name)
+            shared_keys[name] = temporary_name
+            right_rename_expressions.append(table_col(name).alias(temporary_name))
+    left_key_names: List[str] = []
+    right_key_names: List[str] = []
+    left_computed_keys: List[Expression] = []
+    right_computed_keys: List[Expression] = []
+    for index, (left_key, right_key) in enumerate(zip(left_keys, right_keys)):
+        if isinstance(left_key, str):
+            left_key_names.append(left_key)
+        else:
+            temporary_name = _unique_name("__pf_join_left_key_%d" % index, taken)
+            taken.add(temporary_name)
+            left_key_names.append(temporary_name)
+            left_computed_keys.append(left_key.alias(temporary_name))
+
+        if isinstance(right_key, str):
+            right_key_names.append(shared_keys.get(right_key, right_key))
+        else:
+            temporary_name = _unique_name("__pf_join_right_key_%d" % index, taken)
+            taken.add(temporary_name)
+            right_key_names.append(temporary_name)
+            right_computed_keys.append(right_key.alias(temporary_name))
+
+    if left_computed_keys:
+        left_table = left_table.add_columns(*left_computed_keys)
+    if right_computed_keys:
+        right_table = right_table.add_columns(*right_computed_keys)
+    if right_rename_expressions:
+        right_table = right_table.rename_columns(*right_rename_expressions)
+
+    conditions = [
+        table_col(left_name) == table_col(right_name)
+        for left_name, right_name in zip(left_key_names, right_key_names)
+    ]
+    predicate = conditions[0] if len(conditions) == 1 else and_(*conditions)
+    return (
+        left_table,
+        right_table,
+        predicate,
+        shared_keys,
+        left_key_names,
+        right_key_names,
+    )
+
+
+def _serialize_join_predicate(
+    left_table: Table,
+    right_table: Table,
+    predicate: Expression,
+) -> Tuple[str, str, str]:
+    left_alias, right_alias = "__pf_join_left", "__pf_join_right"
+    operation_tree_builder = (
+        left_table._j_table.getTableEnvironment().getOperationTreeBuilder()
+    )
+    gateway = get_gateway()
+    query_operations = to_jarray(
+        gateway.jvm.org.apache.flink.table.operations.QueryOperation,
+        [
+            left_table._j_table.getQueryOperation(),
+            right_table._j_table.getQueryOperation(),
+        ],
+    )
+    resolved_predicate = operation_tree_builder.resolveExpression(
+        _get_java_expression(predicate), query_operations
+    )
+
+    aliases = gateway.jvm.java.util.HashMap()
+    aliases.put(0, left_alias)
+    aliases.put(1, right_alias)
+    operation_expression_utils = (
+        gateway.jvm.org.apache.flink.table.operations.utils.OperationExpressionsUtils
+    )
+    predicate_sql = operation_expression_utils.scopeReferencesWithAlias(
+        aliases, resolved_predicate
+    ).asSerializableString()
+    return left_alias, right_alias, predicate_sql
+
+
+def _build_regular_join_sql(
+    left_table: Table,
+    right_table: Table,
+    predicate: Expression,
+    left_output_columns: List[str],
+    right_output_columns: List[str],
+    shared_keys: Dict[str, str],
+    join_type: str,
+) -> Table:
+    left_alias, right_alias, predicate_sql = _serialize_join_predicate(
+        left_table, right_table, predicate
+    )
+    left_alias_sql = _quote_identifier(left_alias)
+    right_alias_sql = _quote_identifier(right_alias)
+
+    projections = []
+    for name in left_output_columns:
+        left_field = "%s.%s" % (left_alias_sql, _quote_identifier(name))
+        if name in shared_keys and join_type in ("right", "full"):
+            right_field = "%s.%s" % (
+                right_alias_sql,
+                _quote_identifier(shared_keys[name]),
+            )
+            expression = "COALESCE(%s, %s)" % (left_field, right_field)
+        else:
+            expression = left_field
+        projections.append("%s AS %s" % (expression, _quote_identifier(name)))
+    projections.extend(
+        "%s.%s AS %s"
+        % (right_alias_sql, _quote_identifier(name), _quote_identifier(name))
+        for name in right_output_columns
+        if name not in shared_keys
+    )
+
+    join_keyword = {
+        "inner": "INNER JOIN",
+        "left": "LEFT OUTER JOIN",
+        "right": "RIGHT OUTER JOIN",
+        "full": "FULL OUTER JOIN",
+    }[join_type]
+    query = (
+        "SELECT %s FROM %s AS %s %s %s AS %s ON %s"
+        % (
+            ", ".join(projections),
+            _quote_identifier(str(left_table)),
+            left_alias_sql,
+            join_keyword,
+            _quote_identifier(str(right_table)),
+            right_alias_sql,
+            predicate_sql,
+        )
+    )
+    return left_table._t_env.sql_query(query)
+
+
+def _build_semi_join_sql(
+    left_table: Table,
+    right_table: Table,
+    output_columns: List[str],
+    left_key_names: List[str],
+    right_key_names: List[str],
+) -> Table:
+    left_alias, right_alias = "__pf_join_left", "__pf_join_right"
+    left_alias_sql = _quote_identifier(left_alias)
+    right_alias_sql = _quote_identifier(right_alias)
+    select_list = ", ".join(
+        "%s.%s" % (left_alias_sql, _quote_identifier(name)) for name in output_columns
+    )
+    left_keys = ", ".join(
+        "%s.%s" % (left_alias_sql, _quote_identifier(name))
+        for name in left_key_names
+    )
+    right_keys = ", ".join(
+        "%s.%s" % (right_alias_sql, _quote_identifier(name))
+        for name in right_key_names
+    )
+    if len(left_key_names) > 1:
+        left_keys = "(%s)" % left_keys
+    query = (
+        "SELECT %s FROM %s AS %s WHERE %s IN ("
+        "SELECT %s FROM %s AS %s)"
+        % (
+            select_list,
+            _quote_identifier(str(left_table)),
+            left_alias_sql,
+            left_keys,
+            right_keys,
+            _quote_identifier(str(right_table)),
+            right_alias_sql,
+        )
+    )
+    return left_table._t_env.sql_query(query)
+
+
+def _build_anti_join_sql(
+    left_table: Table,
+    right_table: Table,
+    predicate: Expression,
+    output_columns: List[str],
+) -> Table:
+    left_alias, right_alias, predicate_sql = _serialize_join_predicate(
+        left_table, right_table, predicate
+    )
+    left_alias_sql = _quote_identifier(left_alias)
+    right_alias_sql = _quote_identifier(right_alias)
+    select_list = ", ".join(
+        "%s.%s" % (left_alias_sql, _quote_identifier(name)) for name in output_columns
+    )
+    right_columns = list(right_table.get_resolved_schema().get_column_names())
+    match_marker = _unique_name("__pf_join_match", set(right_columns))
+    match_marker_sql = _quote_identifier(match_marker)
+    query = (
+        "SELECT %s FROM %s AS %s LEFT OUTER JOIN ("
+        "SELECT *, TRUE AS %s FROM %s"
+        ") AS %s ON %s WHERE %s.%s IS NULL"
+        % (
+            select_list,
+            _quote_identifier(str(left_table)),
+            left_alias_sql,
+            match_marker_sql,
+            _quote_identifier(str(right_table)),
+            right_alias_sql,
+            predicate_sql,
+            right_alias_sql,
+            match_marker_sql,
+        )
+    )
+    return left_table._t_env.sql_query(query)
 
 
 def _normalize_subset(
