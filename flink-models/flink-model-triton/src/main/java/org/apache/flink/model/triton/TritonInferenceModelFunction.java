@@ -963,7 +963,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
         // Add inputs
         ArrayNode inputsArray = objectMapper.createArrayNode();
         ObjectNode inputNode = objectMapper.createObjectNode();
-        inputNode.put("name", inputName.toUpperCase());
+        inputNode.put("name", inputName);
 
         // Map Flink type to Triton type
         TritonDataType tritonType = TritonTypeMapper.toTritonDataType(inputType);
@@ -997,7 +997,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
         // Add outputs (request all outputs)
         ArrayNode outputsArray = objectMapper.createArrayNode();
         ObjectNode outputNode = objectMapper.createObjectNode();
-        outputNode.put("name", outputName.toUpperCase());
+        outputNode.put("name", outputName);
         outputsArray.add(outputNode);
         requestNode.set("outputs", outputsArray);
 
