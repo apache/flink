@@ -20,9 +20,11 @@ package org.apache.flink.runtime.checkpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Encapsulates the logic to subsume older checkpoints by {@link CompletedCheckpointStore checkpoint
@@ -49,6 +51,23 @@ class CheckpointSubsumeHelper {
     public static Optional<CompletedCheckpoint> subsume(
             Deque<CompletedCheckpoint> checkpoints, int numRetain, SubsumeAction subsumeAction)
             throws Exception {
+        return subsume(checkpoints, numRetain, subsumeAction, Collections.emptySet());
+    }
+
+    /**
+     * Subsumes older checkpoints, respecting a set of protected checkpoint IDs that must not be
+     * subsumed. Protected checkpoints are those transitively referenced via ref_checkpoint_id by
+     * retained checkpoints (regional checkpoint reference protection).
+     *
+     * @param protectedCheckpointIds checkpoint IDs that must not be subsumed because they are
+     *     transitively referenced by retained checkpoints.
+     */
+    public static Optional<CompletedCheckpoint> subsume(
+            Deque<CompletedCheckpoint> checkpoints,
+            int numRetain,
+            SubsumeAction subsumeAction,
+            Set<Long> protectedCheckpointIds)
+            throws Exception {
         if (checkpoints.isEmpty() || checkpoints.size() <= numRetain) {
             return Optional.empty();
         }
@@ -58,6 +77,11 @@ class CheckpointSubsumeHelper {
         Iterator<CompletedCheckpoint> iterator = checkpoints.iterator();
         while (checkpoints.size() > numRetain && iterator.hasNext()) {
             CompletedCheckpoint next = iterator.next();
+            if (protectedCheckpointIds.contains(next.getCheckpointID())) {
+                // This checkpoint is transitively referenced by a retained checkpoint;
+                // it must not be subsumed.
+                continue;
+            }
             if (canSubsume(next, latest, latestNotSavepoint)) {
                 // always return the subsumed checkpoint with larger checkpoint id.
                 if (!lastSubsumedCheckpoint.isPresent()
