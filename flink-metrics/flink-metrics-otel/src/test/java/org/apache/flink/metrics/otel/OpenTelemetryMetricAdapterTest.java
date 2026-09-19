@@ -33,6 +33,7 @@ import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.MetricDataType;
 import io.opentelemetry.sdk.metrics.data.SummaryPointData;
+import io.opentelemetry.sdk.metrics.data.ValueAtQuantile;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableGaugeData;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableHistogramData;
 import io.opentelemetry.sdk.metrics.internal.data.ImmutableSumData;
@@ -192,6 +193,15 @@ public class OpenTelemetryMetricAdapterTest {
 
         assertThat(summaryPointData.getValues().get(5).getQuantile()).isEqualTo(1);
         assertThat(summaryPointData.getValues().get(5).getValue()).isEqualTo(6);
+
+        // The summary must expose exactly one entry per quantile (min, the configured
+        // HISTOGRAM_QUANTILES and max) with no duplicated quantile 1.0.
+        assertThat(summaryPointData.getValues())
+                .hasSize(OpenTelemetryMetricAdapter.HISTOGRAM_QUANTILES.length + 2);
+        assertThat(summaryPointData.getValues())
+                .extracting(ValueAtQuantile::getQuantile)
+                .doesNotHaveDuplicates()
+                .containsExactly(0d, 0.5d, 0.75d, 0.95d, 0.99d, 1d);
 
         assertThat(asStringMap(summaryPointData.getAttributes())).isEqualTo(VARIABLES);
     }
