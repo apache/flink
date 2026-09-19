@@ -76,6 +76,46 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testInnerJoinFilterCastCanFailBeforeJoin(): Unit = {
+    val taxiOperationData = Seq(
+      row("1", "2022-02-07", 7.38d),
+      row("3", "2022-02-08", 2.38d),
+      row("4", "2022-02-30", 5.38d)
+    )
+    val taxiTimeCodeData = Seq(
+      row("2022-02-07"),
+      row("2022-02-08")
+    )
+    val taxiOperationType = new RowTypeInfo(STRING_TYPE_INFO, STRING_TYPE_INFO, Types.DOUBLE)
+    val taxiTimeCodeType = new RowTypeInfo(STRING_TYPE_INFO)
+    registerCollection(
+      "taxiOperation",
+      taxiOperationData,
+      taxiOperationType,
+      "id, startTime, amount")
+    registerCollection("taxiTimeCode", taxiTimeCodeData, taxiTimeCodeType, "codeTime")
+
+    val sql =
+      """
+        |SELECT *
+        |FROM taxiTimeCode tc
+        |JOIN taxiOperation tto ON tc.codeTime = tto.startTime
+        |WHERE CAST(tto.startTime AS DATE) < DATE '2099-01-01'
+        |""".stripMargin
+
+    assertThatThrownBy(
+      () =>
+        checkResult(
+          sql,
+          Seq(
+            row("2022-02-07", "1", "2022-02-07", 7.38d),
+            row("2022-02-08", "3", "2022-02-08", 2.38d)
+          )))
+      .hasRootCauseInstanceOf(classOf[DateTimeException])
+      .hasStackTraceContaining("2022-02-30")
+  }
+
+  @Test
   def testSimpleSelectAll(): Unit = {
     checkResult("SELECT a, b, c FROM Table3", data3)
   }
