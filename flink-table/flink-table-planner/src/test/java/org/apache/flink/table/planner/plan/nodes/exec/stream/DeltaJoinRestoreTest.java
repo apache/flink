@@ -23,6 +23,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /** Restore tests for {@link StreamExecDeltaJoin}. */
 public class DeltaJoinRestoreTest extends RestoreTestBase {
@@ -44,6 +45,30 @@ public class DeltaJoinRestoreTest extends RestoreTestBase {
                 DeltaJoinTestPrograms.DELTA_JOIN_WITH_CDC_SOURCE_WITHOUT_DELETE,
                 DeltaJoinTestPrograms.DELTA_JOIN_WITH_CALC_ON_CDC_SOURCE_WITHOUT_DELETE,
                 DeltaJoinTestPrograms.DELTA_JOIN_WITH_CACHE_AND_CDC_SOURCE_WITHOUT_DELETE,
-                DeltaJoinTestPrograms.DELTA_JOIN_WITH_CACHE_AND_CALC_ON_CDC_SOURCE_WITHOUT_DELETE);
+                DeltaJoinTestPrograms.DELTA_JOIN_WITH_CACHE_AND_CALC_ON_CDC_SOURCE_WITHOUT_DELETE,
+                DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_JOIN_KEY_EQUALS_INDEX,
+                DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_JOIN_KEY_CONTAINS_INDEX,
+                DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_NON_EQUIV_CONDITION,
+                DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE,
+                DeltaJoinTestPrograms
+                        .CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE_AND_FILTER_PUSHED_DOWN,
+                DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_CACHE,
+                DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_CACHE_AND_CALC_ON_SOURCE);
+    }
+
+    @Override
+    protected Map<Integer, List<TableTestProgram>> programsToIgnore() {
+        // Cascaded delta join programs are only supported starting from version 2
+        return Map.of(
+                1,
+                List.of(
+                        DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_JOIN_KEY_EQUALS_INDEX,
+                        DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_JOIN_KEY_CONTAINS_INDEX,
+                        DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_NON_EQUIV_CONDITION,
+                        DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE,
+                        DeltaJoinTestPrograms
+                                .CASCADED_DELTA_JOIN_WITH_CALC_ON_SOURCE_AND_FILTER_PUSHED_DOWN,
+                        DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_CACHE,
+                        DeltaJoinTestPrograms.CASCADED_DELTA_JOIN_WITH_CACHE_AND_CALC_ON_SOURCE));
     }
 }
