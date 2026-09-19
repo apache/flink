@@ -31,4 +31,19 @@ public interface ArchiveRetainedStrategy {
      * @return The result that indicates whether the file should be retained.
      */
     boolean shouldRetain(FileStatus file, int fileOrderedIndex);
+
+    /**
+     * Judge whether the file is rejected specifically because it has exceeded its configured
+     * time-to-live, as opposed to being rejected by a count-based retention limit.
+     *
+     * <p>This allows callers that want to treat count-limit rejections differently from TTL expiry
+     * (e.g. to only stop archiving locally without affecting TTL-based remote deletion) to
+     * distinguish the two cases.
+     *
+     * @param file the target file to judge.
+     * @return {@code true} if the file is rejected due to TTL expiry.
+     */
+    default boolean isExpiredByTtl(FileStatus file) {
+        return false;
+    }
 }
