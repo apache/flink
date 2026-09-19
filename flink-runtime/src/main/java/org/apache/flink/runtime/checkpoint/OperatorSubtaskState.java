@@ -36,9 +36,12 @@ import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamState
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.OptionalLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -120,6 +123,12 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 
     private final long checkpointedSize;
 
+    /**
+     * The checkpoint ID from which this subtask's state originates. Null if the state was produced
+     * by the current checkpoint (not reused from a previous one).
+     */
+    @Nullable private final Long refCheckpointId;
+
     private OperatorSubtaskState(
             StateObjectCollection<OperatorStateHandle> managedOperatorState,
             StateObjectCollection<OperatorStateHandle> rawOperatorState,
@@ -129,7 +138,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
             StateObjectCollection<InputChannelStateHandle> upstreamOutputBufferState,
             StateObjectCollection<OutputStateHandle> resultSubpartitionState,
             InflightDataRescalingDescriptor inputRescalingDescriptor,
-            InflightDataRescalingDescriptor outputRescalingDescriptor) {
+            InflightDataRescalingDescriptor outputRescalingDescriptor,
+            @Nullable Long refCheckpointId) {
 
         this.managedOperatorState = checkNotNull(managedOperatorState);
         this.rawOperatorState = checkNotNull(rawOperatorState);
@@ -140,6 +150,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         this.resultSubpartitionState = checkNotNull(resultSubpartitionState);
         this.inputRescalingDescriptor = checkNotNull(inputRescalingDescriptor);
         this.outputRescalingDescriptor = checkNotNull(outputRescalingDescriptor);
+        this.refCheckpointId = refCheckpointId;
 
         this.stateSize = streamSubCollections().mapToLong(StateObject::getStateSize).sum();
         this.checkpointedSize =
@@ -172,7 +183,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 StateObjectCollection.empty(),
                 StateObjectCollection.empty(),
                 InflightDataRescalingDescriptor.NO_RESCALE,
-                InflightDataRescalingDescriptor.NO_RESCALE);
+                InflightDataRescalingDescriptor.NO_RESCALE,
+                null);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -211,6 +223,10 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 
     public InflightDataRescalingDescriptor getOutputRescalingDescriptor() {
         return outputRescalingDescriptor;
+    }
+
+    public OptionalLong getRefCheckpointId() {
+        return refCheckpointId == null ? OptionalLong.empty() : OptionalLong.of(refCheckpointId);
     }
 
     public List<StateObject> getDiscardables() {
@@ -376,16 +392,21 @@ public class OperatorSubtaskState implements CompositeStateHandle {
     }
 
     public Builder toBuilder() {
-        return builder()
-                .setManagedKeyedState(managedKeyedState)
-                .setManagedOperatorState(managedOperatorState)
-                .setRawOperatorState(rawOperatorState)
-                .setRawKeyedState(rawKeyedState)
-                .setInputChannelState(inputChannelState)
-                .setUpstreamOutputBufferState(upstreamOutputBufferState)
-                .setResultSubpartitionState(resultSubpartitionState)
-                .setInputRescalingDescriptor(inputRescalingDescriptor)
-                .setOutputRescalingDescriptor(outputRescalingDescriptor);
+        Builder b =
+                builder()
+                        .setManagedKeyedState(managedKeyedState)
+                        .setManagedOperatorState(managedOperatorState)
+                        .setRawOperatorState(rawOperatorState)
+                        .setRawKeyedState(rawKeyedState)
+                        .setInputChannelState(inputChannelState)
+                        .setUpstreamOutputBufferState(upstreamOutputBufferState)
+                        .setResultSubpartitionState(resultSubpartitionState)
+                        .setInputRescalingDescriptor(inputRescalingDescriptor)
+                        .setOutputRescalingDescriptor(outputRescalingDescriptor);
+        if (refCheckpointId != null) {
+            b.setRefCheckpointId(refCheckpointId);
+        }
+        return b;
     }
 
     public static Builder builder() {
@@ -415,6 +436,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 InflightDataRescalingDescriptor.NO_RESCALE;
         private InflightDataRescalingDescriptor outputRescalingDescriptor =
                 InflightDataRescalingDescriptor.NO_RESCALE;
+        @Nullable private Long refCheckpointId;
 
         private Builder() {}
 
@@ -490,6 +512,11 @@ public class OperatorSubtaskState implements CompositeStateHandle {
             return this;
         }
 
+        public Builder setRefCheckpointId(long refCheckpointId) {
+            this.refCheckpointId = refCheckpointId;
+            return this;
+        }
+
         public OperatorSubtaskState build() {
             return new OperatorSubtaskState(
                     managedOperatorState,
@@ -500,7 +527,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                     upstreamOutputBufferState,
                     resultSubpartitionState,
                     inputRescalingDescriptor,
-                    outputRescalingDescriptor);
+                    outputRescalingDescriptor,
+                    refCheckpointId);
         }
     }
 }

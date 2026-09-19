@@ -70,6 +70,70 @@ class SplitAssignmentTrackerTest {
     }
 
     @Test
+    void testSnapshotStateAndRestoreStateWithCheckpointHistory() throws Exception {
+        final long checkpointId1 = 100L;
+        final long checkpointId2 = 101L;
+        SplitAssignmentTracker<MockSourceSplit> tracker = new SplitAssignmentTracker<>();
+
+        // Checkpointed history: ckp100 and ckp101.
+        tracker.recordSplitAssignment(getSplitsAssignment(2, 0));
+        tracker.onCheckpoint(checkpointId1);
+        tracker.recordSplitAssignment(getSplitsAssignment(2, 3));
+        tracker.onCheckpoint(checkpointId2);
+
+        // Plus some uncheckpointed assignments on top.
+        tracker.recordSplitAssignment(getSplitsAssignment(1, 6));
+
+        byte[] snapshotState = tracker.snapshotState(new MockSourceSplitSerializer());
+
+        SplitAssignmentTracker<MockSourceSplit> trackerToRestore = new SplitAssignmentTracker<>();
+        trackerToRestore.restoreState(new MockSourceSplitSerializer(), snapshotState);
+
+        // The per-checkpoint history must survive the round-trip (the core of regional checkpoint
+        // precise rollback support).
+        verifyAssignment(
+                Arrays.asList("0"),
+                trackerToRestore.assignmentsByCheckpointId(checkpointId1).get(0));
+        verifyAssignment(
+                Arrays.asList("1", "2"),
+                trackerToRestore.assignmentsByCheckpointId(checkpointId1).get(1));
+        verifyAssignment(
+                Arrays.asList("3"),
+                trackerToRestore.assignmentsByCheckpointId(checkpointId2).get(0));
+        verifyAssignment(
+                Arrays.asList("4", "5"),
+                trackerToRestore.assignmentsByCheckpointId(checkpointId2).get(1));
+
+        // The uncheckpointed assignments must survive too.
+        verifyAssignment(Arrays.asList("6"), trackerToRestore.uncheckpointedAssignments().get(0));
+
+        // And precise rollback must work after restore: rolling subtask 0 back past ckp100 should
+        // recover the splits assigned in ckp101 and the uncheckpointed ones.
+        List<MockSourceSplit> splitsToPutBack =
+                trackerToRestore.getAndRemoveUncheckpointedAssignment(0, checkpointId1);
+        verifyAssignment(Arrays.asList("3", "6"), splitsToPutBack);
+    }
+
+    @Test
+    void testRestoreFromLegacyFormatLeavesHistoryEmpty() throws Exception {
+        // The legacy snapshot format only contained the uncheckpointed assignments, produced
+        // directly by SourceCoordinatorSerdeUtils.serializeAssignments(...).
+        SplitAssignmentTracker<MockSourceSplit> source = new SplitAssignmentTracker<>();
+        source.recordSplitAssignment(getSplitsAssignment(2, 0));
+        byte[] legacy =
+                SourceCoordinatorSerdeUtils.serializeAssignments(
+                        source.uncheckpointedAssignments(), new MockSourceSplitSerializer());
+
+        SplitAssignmentTracker<MockSourceSplit> trackerToRestore = new SplitAssignmentTracker<>();
+        trackerToRestore.restoreState(new MockSourceSplitSerializer(), legacy);
+
+        verifyAssignment(Arrays.asList("0"), trackerToRestore.uncheckpointedAssignments().get(0));
+        verifyAssignment(
+                Arrays.asList("1", "2"), trackerToRestore.uncheckpointedAssignments().get(1));
+        assertThat(trackerToRestore.assignmentsByCheckpointId()).isEmpty();
+    }
+
+    @Test
     void testOnCheckpoint() throws Exception {
         final long checkpointId = 123L;
         SplitAssignmentTracker<MockSourceSplit> tracker = new SplitAssignmentTracker<>();

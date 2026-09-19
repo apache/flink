@@ -25,7 +25,7 @@ import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializer;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataSerializers;
-import org.apache.flink.runtime.checkpoint.metadata.MetadataV6Serializer;
+import org.apache.flink.runtime.checkpoint.metadata.MetadataV7Serializer;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -124,7 +124,7 @@ public class Checkpoints {
         storeCheckpointMetadata(
                 checkpointMetadata,
                 dos,
-                MetadataV6Serializer.INSTANCE,
+                MetadataV7Serializer.INSTANCE,
                 out.getExclusiveCheckpointDir());
     }
 
@@ -135,7 +135,7 @@ public class Checkpoints {
     public static void storeCheckpointMetadataWithoutExclusiveDir(
             CheckpointMetadata checkpointMetadata, DataOutputStream out) throws IOException {
         storeCheckpointMetadataWithoutExclusiveDir(
-                checkpointMetadata, out, MetadataV6Serializer.INSTANCE);
+                checkpointMetadata, out, MetadataV7Serializer.INSTANCE);
     }
 
     public static void storeCheckpointMetadata(
@@ -144,7 +144,7 @@ public class Checkpoints {
             @Nullable Path exclusiveDir)
             throws IOException {
         storeCheckpointMetadata(
-                checkpointMetadata, out, MetadataV6Serializer.INSTANCE, exclusiveDir);
+                checkpointMetadata, out, MetadataV7Serializer.INSTANCE, exclusiveDir);
     }
 
     public static void storeCheckpointMetadataWithoutExclusiveDir(
