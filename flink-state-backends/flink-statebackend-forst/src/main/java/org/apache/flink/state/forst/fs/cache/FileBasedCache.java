@@ -288,9 +288,11 @@ public final class FileBasedCache extends DoubleListLru<String, FileCacheEntry>
     void newNodeCreated(FileCacheEntry value, DoubleListLru<String, FileCacheEntry>.Node n) {
         value.setTouchFunction(
                 () -> {
-                    // provide synchronized access to the LRU cache.
+                    // Open readers may still touch an entry after it has been removed.
                     synchronized (FileBasedCache.this) {
-                        accessNode(n);
+                        if (!value.checkStatus(FileCacheEntry.EntryStatus.CLOSED)) {
+                            accessNode(n);
+                        }
                     }
                 });
     }
