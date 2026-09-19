@@ -671,8 +671,8 @@ class AvroSchemaConverterTest {
                         },
                         Types.SQL_TIMESTAMP,
                         Types.SQL_TIMESTAMP,
-                        Types.LONG,
-                        Types.LONG);
+                        Types.LOCAL_DATE_TIME,
+                        Types.LOCAL_DATE_TIME);
         final RowTypeInfo timestampsRowTypeInfo = (RowTypeInfo) timestamps;
         assertThat(timestampsRowTypeInfo.schemaEquals(actual)).isTrue();
     }
@@ -686,10 +686,10 @@ class AvroSchemaConverterTest {
                                         "type_timestamp_micros", DataTypes.TIMESTAMP(6).notNull()),
                                 DataTypes.FIELD(
                                         "type_local_timestamp_millis",
-                                        DataTypes.BIGINT().notNull()),
+                                        DataTypes.TIMESTAMP(3).notNull()),
                                 DataTypes.FIELD(
                                         "type_local_timestamp_micros",
-                                        DataTypes.BIGINT().notNull()))
+                                        DataTypes.TIMESTAMP(6).notNull()))
                         .notNull();
 
         assertThat(actual).isEqualTo(timestamps);
