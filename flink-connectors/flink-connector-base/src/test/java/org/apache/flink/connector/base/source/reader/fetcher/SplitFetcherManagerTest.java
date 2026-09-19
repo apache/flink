@@ -32,6 +32,7 @@ import org.apache.flink.connector.base.source.reader.mocks.TestingSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.base.source.reader.synchronization.QueueProbe;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.MdcUtils;
 
@@ -138,6 +139,83 @@ class SplitFetcherManagerTest {
                 "The idle fetcher should have been removed.");
         // Now close the fetcher manager. The fetcher manager closing should not block.
         fetcherManager.close(Long.MAX_VALUE);
+    }
+
+    /**
+     * Each completed fetcher lifecycle must release its queue state, so monotonically increasing
+     * fetcher ids do not accumulate historical state.
+     */
+    @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    void testFetcherShutdownReleasesWakeupStateAcrossLifecycles() throws Exception {
+        final String splitId = "testSplit";
+        final Configuration config = new Configuration();
+        config.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 1);
+
+        final SplitFetcherManager<Integer, TestingSourceSplit> fetcherManager =
+                new SingleThreadFetcherManager<>(
+                        () ->
+                                new AwaitingReader<>(
+                                        new IOException("Should not happen"),
+                                        new RecordsBySplits<>(
+                                                Collections.emptyMap(),
+                                                Collections.singleton(splitId))),
+                        config);
+        final FutureCompletingBlockingQueue<RecordsWithSplitIds<Integer>> queue =
+                fetcherManager.getQueue();
+
+        try {
+            for (int expectedFetcherId = 0; expectedFetcherId < 3; expectedFetcherId++) {
+                fetcherManager.addSplits(
+                        Collections.singletonList(new TestingSourceSplit(splitId)));
+                assertThat(fetcherManager.fetchers).hasSize(1);
+                assertThat(fetcherManager.fetchers.keySet().iterator().next())
+                        .isEqualTo(expectedFetcherId);
+
+                waitUntil(
+                        () -> queue.size() == 1,
+                        Duration.ofSeconds(10),
+                        "The data batch should have filled the element queue.");
+                waitUntil(
+                        () -> {
+                            fetcherManager.maybeShutdownFinishedFetchers();
+                            return fetcherManager.fetchers.isEmpty();
+                        },
+                        Duration.ofSeconds(10),
+                        "The idle fetcher should have been removed.");
+                waitUntil(
+                        () -> QueueProbe.queuedPutters(queue) == 1,
+                        Duration.ofSeconds(10),
+                        "The final synchronization batch should be waiting for queue capacity.");
+
+                assertThat(QueueProbe.liveProducerStates(queue)).isOne();
+                assertThat(QueueProbe.producerStateStorageSize(queue)).isOne();
+
+                final RecordsWithSplitIds<Integer> dataBatch = queue.poll();
+                assertThat(dataBatch).isNotNull();
+                dataBatch.recycle();
+
+                waitUntil(
+                        () -> queue.size() == 1,
+                        Duration.ofSeconds(10),
+                        "The final synchronization batch should have been enqueued.");
+                final RecordsWithSplitIds<Integer> synchronizationBatch = queue.poll();
+                assertThat(synchronizationBatch).isNotNull();
+                synchronizationBatch.recycle();
+
+                waitUntil(
+                        () -> QueueProbe.liveProducerStates(queue) == 0,
+                        Duration.ofSeconds(10),
+                        "The shutdown hook should release the fetcher's queue state.");
+                assertThat(QueueProbe.producerStateStorageSize(queue)).isZero();
+            }
+        } finally {
+            RecordsWithSplitIds<Integer> batch;
+            while ((batch = queue.poll()) != null) {
+                batch.recycle();
+            }
+            fetcherManager.close(10_000L);
+        }
     }
 
     /**

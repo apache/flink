@@ -188,24 +188,29 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
         }
 
         // execute the task outside of lock, so that it can be woken up
-        boolean taskFinished;
+        boolean taskFinished = false;
+        boolean taskRunCompleted = false;
         try {
             taskFinished = task.run();
+            taskRunCompleted = true;
         } catch (Exception e) {
             throw new RuntimeException(
                     String.format(
                             "SplitFetcher thread %d received unexpected exception while polling the records",
                             id),
                     e);
-        }
-
-        // re-acquire lock as all post-processing steps, need it
-        lock.lock();
-        try {
-            this.runningTask = null;
-            processTaskResultUnsafe(task, taskFinished);
         } finally {
-            lock.unlock();
+            // Re-acquire the lock because clearing the current task and processing a successful
+            // result must be atomic with respect to wakeup and shutdown.
+            lock.lock();
+            try {
+                this.runningTask = null;
+                if (taskRunCompleted) {
+                    processTaskResultUnsafe(task, taskFinished);
+                }
+            } finally {
+                lock.unlock();
+            }
         }
         return true;
     }
