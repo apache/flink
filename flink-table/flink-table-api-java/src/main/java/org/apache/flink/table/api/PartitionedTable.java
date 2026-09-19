@@ -171,13 +171,12 @@ public interface PartitionedTable {
     Table process(Class<? extends UserDefinedFunction> function, Object... arguments);
 
     /**
-     * Converts this partitioned dynamic table into an append-only table with an explicit operation
-     * code column using the built-in {@code TO_CHANGELOG} process table function with set
-     * semantics.
+     * Converts this partitioned dynamic table into an append-only table using the built-in {@code
+     * TO_CHANGELOG} process table function with set semantics.
      *
      * <p>Each input row - regardless of its original change operation - is emitted as an
-     * INSERT-only row with a string {@code "op"} column indicating the original operation (INSERT,
-     * UPDATE_AFTER, DELETE, etc.). With set semantics, rows for the same partition key are
+     * INSERT-only row. By default, a string {@code "op"} column indicates the original operation
+     * (INSERT, UPDATE_AFTER, DELETE, etc.). With set semantics, rows for the same partition key are
      * co-located in the same parallel operator instance.
      *
      * <p>For row semantics (each row processed independently), use {@link Table#toChangelog} on the
@@ -211,12 +210,18 @@ public interface PartitionedTable {
      * Table result = table
      *     .partitionBy($("id"))
      *     .toChangelog(lit(false).asArgument("produces_full_deletes"));
+     *
+     * // Omit the operation code column from the output schema.
+     * Table result = table
+     *     .partitionBy($("id"))
+     *     .toChangelog(lit(false).asArgument("include_op_column"));
      * }</pre>
      *
      * @param arguments optional named arguments for {@code op}, {@code op_mapping}, and {@code
-     *     produces_full_deletes}
-     * @return an append-only {@link Table} with output schema {@code [partition_keys, op,
-     *     non_partition_input_columns]}
+     *     produces_full_deletes}, and {@code include_op_column}
+     * @return an append-only {@link Table} with output schema {@code [partition_keys,
+     *     non_partition_input_columns]}, optionally with {@code op} before the non-partition input
+     *     columns
      * @see Table#toChangelog(Expression...)
      */
     Table toChangelog(Expression... arguments);

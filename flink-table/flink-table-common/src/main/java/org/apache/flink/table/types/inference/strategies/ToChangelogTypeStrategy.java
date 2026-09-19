@@ -50,6 +50,7 @@ public final class ToChangelogTypeStrategy {
     public static final int ARG_OP = 1;
     public static final int ARG_OP_MAPPING = 2;
     public static final int ARG_PRODUCES_FULL_DELETES = 3;
+    public static final int ARG_INCLUDE_OP_COLUMN = 4;
 
     private static final Set<String> VALID_ROW_KIND_NAMES =
             Set.of("INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE");
@@ -83,15 +84,16 @@ public final class ToChangelogTypeStrategy {
                                                 new ValidationException(
                                                         "First argument must be a table for TO_CHANGELOG."));
 
-                final String opColumnName =
-                        ChangelogTypeStrategyUtils.resolveOpColumnName(callContext);
                 final boolean producesFullDeletes =
                         callContext
                                 .getArgumentValue(ARG_PRODUCES_FULL_DELETES, Boolean.class)
                                 .orElse(true);
 
+                final boolean includeOpColumn = shouldIncludeOpColumn(callContext);
+
                 final List<Field> outputFields =
-                        buildOutputFields(semantics, opColumnName, producesFullDeletes);
+                        buildOutputFields(
+                                semantics, producesFullDeletes, includeOpColumn, callContext);
 
                 return Optional.of(DataTypes.ROW(outputFields).notNull());
             };
@@ -99,6 +101,17 @@ public final class ToChangelogTypeStrategy {
     // --------------------------------------------------------------------------------------------
     // Helpers
     // --------------------------------------------------------------------------------------------
+
+    /**
+     * Returns whether {@code TO_CHANGELOG} should include the operation column in its output.
+     *
+     * <p>Compiled plans created before this argument was introduced have only four arguments and
+     * retain the default value of {@code true}.
+     */
+    public static boolean shouldIncludeOpColumn(final CallContext callContext) {
+        return callContext.getArgumentDataTypes().size() <= ARG_INCLUDE_OP_COLUMN
+                || callContext.getArgumentValue(ARG_INCLUDE_OP_COLUMN, Boolean.class).orElse(true);
+    }
 
     private static Optional<List<DataType>> validateInputs(
             final CallContext callContext, final boolean throwOnFailure) {
@@ -227,12 +240,16 @@ public final class ToChangelogTypeStrategy {
      */
     private static List<Field> buildOutputFields(
             final TableSemantics semantics,
-            final String opColumnName,
-            final boolean producesFullDeletes) {
+            final boolean producesFullDeletes,
+            final boolean includeOpColumn,
+            final CallContext callContext) {
         final List<Field> inputFields = DataType.getFields(semantics.dataType());
         final int[] outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(semantics);
         final List<Field> outputFields = new ArrayList<>();
-        outputFields.add(DataTypes.FIELD(opColumnName, DataTypes.STRING()));
+        if (includeOpColumn) {
+            final String opColumnName = ChangelogTypeStrategyUtils.resolveOpColumnName(callContext);
+            outputFields.add(DataTypes.FIELD(opColumnName, DataTypes.STRING()));
+        }
         final Set<Integer> preserved =
                 producesFullDeletes
                         ? Collections.emptySet()
