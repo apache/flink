@@ -68,6 +68,7 @@ Transformations
     DataFrame.limit
     DataFrame.offset
     DataFrame.head
+    DataFrame.flat_map
     DataFrame.__getitem__
 
 Set Operations

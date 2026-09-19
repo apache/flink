@@ -33,6 +33,8 @@ from typing import (
 
 if TYPE_CHECKING:
     import pandas
+    from pyflink.dataframe.udf import _DataTypeLike
+    from pyflink.dataframe.udtf import _DataFrameUDTFWrapper
     from pyflink.table.table_schema import TableSchema
 
 from pyflink.common import Row
@@ -133,6 +135,52 @@ class DataFrame:
 
     def __init__(self, table: Table):
         self._table = table
+
+    @PublicEvolving()
+    def flat_map(
+        self,
+        func: Union[Callable[[Dict[str, Any]], Any], "_DataFrameUDTFWrapper"],
+        *,
+        return_dtype: Optional["_DataTypeLike"] = None,
+    ) -> "DataFrame":
+        """
+        Apply a function to each row, emitting zero or more output rows.
+
+        A plain callable receives a dictionary keyed by column name. A declaration
+        created with :func:`pyflink.dataframe.udtf` receives a named Flink ``Row`` instead.
+        The result contains only the emitted columns. This transformation is lazy.
+
+        Output column names come from a ``TypedDict`` return annotation or an explicit
+        named struct. Scalar outputs use ``f0``; unnamed multi-field outputs are rejected.
+        Returning ``None`` emits no rows. Lists and generators emit multiple rows;
+        scalars, tuples, ``Row`` objects, and dictionaries each represent one row.
+
+        Example::
+
+            >>> from typing import Dict, Any, Iterator, TypedDict
+            >>> import pyflink.dataframe as pf
+            >>> class Token(TypedDict):
+            ...     word: str
+            >>> def split(row: Dict[str, Any]) -> Iterator[Token]:
+            ...     for word in row["text"].split():
+            ...         yield {"word": word}
+            >>> df = pf.from_dict({"text": ["hello world", "flink"]})
+            >>> result = df.flat_map(split)
+
+        :param func: Row-based callable or a declaration created with ``pf.udtf``.
+        :param return_dtype: Optional emitted row type. Required when the callable's
+                             return type cannot be inferred; must be omitted for a UDTF
+                             declaration, which already carries its output type.
+        :return: A DataFrame containing only the emitted output columns.
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.udtf import _resolve_flat_map_udtf
+
+        expression, output_columns = _resolve_flat_map_udtf(func, return_dtype, self.columns)
+        table = self._table.flat_map(expression)
+        # Table UDTFs expose positional field names, so restore the declared names.
+        return DataFrame(table.alias(output_columns[0], *output_columns[1:]))
 
     # ======================== Core Operations ========================
 
