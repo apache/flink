@@ -16,14 +16,21 @@
  * limitations under the License.
  */
 
-export * from './status.service';
-export * from './http-context';
-export * from './overview.service';
-export * from './job.service';
-export * from './jar.service';
-export * from './job-manager.service';
-export * from './task-manager.service';
-export * from './metrics.service';
-export * from './config.service';
-export * from './application.service';
-export * from './topn-metrics.service';
+package org.apache.flink.runtime.rest.messages.job.metrics;
+
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+
+import java.util.Collection;
+import java.util.Collections;
+
+/** {@link org.apache.flink.runtime.rest.messages.MessageParameters} for Top N metrics. */
+public class TopNMetricsMessageParameters extends JobMessageParameters {
+
+    public final TopNQueryParameter topNQueryParameter = new TopNQueryParameter();
+
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.singletonList(topNQueryParameter);
+    }
+}
