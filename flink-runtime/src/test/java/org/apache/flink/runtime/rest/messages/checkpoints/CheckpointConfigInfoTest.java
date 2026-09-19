@@ -51,6 +51,9 @@ class CheckpointConfigInfoTest extends RestResponseMarshallingTestBase<Checkpoin
                 true,
                 false,
                 0,
-                null);
+                null,
+                true,
+                0.3,
+                2);
     }
 }
