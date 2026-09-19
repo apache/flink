@@ -50,9 +50,13 @@ class LogicalTypeMergingTest {
         assertThat(LogicalTypeMerging.findMultiplicationDecimalType(30, 10, 30, 10))
                 .hasPrecisionAndScale(38, 6);
         assertThat(LogicalTypeMerging.findMultiplicationDecimalType(30, 20, 30, 20))
-                .hasPrecisionAndScale(38, 17);
+                .hasPrecisionAndScale(38, 18);
         assertThat(LogicalTypeMerging.findMultiplicationDecimalType(38, 2, 38, 3))
                 .hasPrecisionAndScale(38, 5);
+        // DECIMAL(38,18) * INTEGER(10,0): integer part is at most (38-18)+(10-0)=30 digits,
+        // so scale must be at least 38-30=8 to avoid losing integer digits.
+        assertThat(LogicalTypeMerging.findMultiplicationDecimalType(38, 18, 10, 0))
+                .hasPrecisionAndScale(38, 8);
     }
 
     @Test
