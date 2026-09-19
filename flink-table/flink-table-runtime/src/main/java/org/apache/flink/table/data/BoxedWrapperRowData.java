@@ -155,6 +155,11 @@ public class BoxedWrapperRowData implements RowData, TypedSetters {
     }
 
     @Override
+    public GeographyData getGeography(int pos) {
+        return (GeographyData) this.fields[pos];
+    }
+
+    @Override
     public void setNullAt(int pos) {
         this.fields[pos] = null;
     }
