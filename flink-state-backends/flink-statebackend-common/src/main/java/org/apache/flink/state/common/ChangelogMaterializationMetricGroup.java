@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.ThreadSafeSimpleCounter;
+import org.apache.flink.metrics.ThreadSafeSimpleMonotonicCounter;
 import org.apache.flink.runtime.metrics.groups.ProxyMetricGroup;
 
 /** Metrics related to the materialization part of Changelog. */
@@ -52,11 +52,11 @@ public class ChangelogMaterializationMetricGroup extends ProxyMetricGroup<Metric
     public ChangelogMaterializationMetricGroup(MetricGroup parentMetricGroup) {
         super(parentMetricGroup);
         this.startedMaterializationCounter =
-                counter(STARTED_MATERIALIZATION, new ThreadSafeSimpleCounter());
+                counter(STARTED_MATERIALIZATION, new ThreadSafeSimpleMonotonicCounter());
         this.completedMaterializationCounter =
-                counter(COMPLETED_MATERIALIZATION, new ThreadSafeSimpleCounter());
+                counter(COMPLETED_MATERIALIZATION, new ThreadSafeSimpleMonotonicCounter());
         this.failedMaterializationCounter =
-                counter(FAILED_MATERIALIZATION, new ThreadSafeSimpleCounter());
+                counter(FAILED_MATERIALIZATION, new ThreadSafeSimpleMonotonicCounter());
 
         gauge(LAST_DURATION_OF_MATERIALIZATION, () -> lastDuration);
     }

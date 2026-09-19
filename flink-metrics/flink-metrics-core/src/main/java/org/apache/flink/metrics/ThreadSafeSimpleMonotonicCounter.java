@@ -16,45 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.util;
+package org.apache.flink.metrics;
 
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.UpDownCounter;
+import org.apache.flink.annotation.Internal;
 
-/** A dummy {@link Counter} implementation. */
-public class TestCounter implements UpDownCounter {
-    private long countValue;
+import java.util.concurrent.atomic.LongAdder;
 
-    public TestCounter() {
-        this.countValue = 0;
-    }
+/** A simple low-overhead {@link MonotonicCounter} that is thread-safe. */
+@Internal
+public class ThreadSafeSimpleMonotonicCounter implements MonotonicCounter {
 
-    public TestCounter(long countValue) {
-        this.countValue = countValue;
-    }
+    private final LongAdder longAdder = new LongAdder();
 
     @Override
     public void inc() {
-        countValue++;
+        longAdder.increment();
     }
 
     @Override
     public void inc(long n) {
-        countValue += n;
-    }
-
-    @Override
-    public void dec() {
-        countValue--;
-    }
-
-    @Override
-    public void dec(long n) {
-        countValue -= n;
+        longAdder.add(n);
     }
 
     @Override
     public long getCount() {
-        return countValue;
+        return longAdder.longValue();
     }
 }

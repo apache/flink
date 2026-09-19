@@ -21,7 +21,7 @@ package org.apache.flink.connector.file.src.assigners;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.file.src.FileSourceSplit;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.StringUtils;
@@ -64,8 +64,8 @@ public class LocalityAwareSplitAssigner implements FileSplitAssigner {
     /** Unassigned splits for remote assignment. */
     private final LocatableSplitChooser remoteSplitChooser;
 
-    private final SimpleCounter localAssignments;
-    private final SimpleCounter remoteAssignments;
+    private final SimpleMonotonicCounter localAssignments;
+    private final SimpleMonotonicCounter remoteAssignments;
 
     // --------------------------------------------------------------------------------------------
 
@@ -77,8 +77,8 @@ public class LocalityAwareSplitAssigner implements FileSplitAssigner {
 
         // this will be replaced with metrics registration once we can expose the metric group
         // properly to the assigners
-        this.localAssignments = new SimpleCounter();
-        this.remoteAssignments = new SimpleCounter();
+        this.localAssignments = new SimpleMonotonicCounter();
+        this.remoteAssignments = new SimpleMonotonicCounter();
     }
 
     // --------------------------------------------------------------------------------------------
