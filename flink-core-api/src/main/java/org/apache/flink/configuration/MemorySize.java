@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.BYTES;
@@ -55,6 +56,11 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 
     private static final List<MemoryUnit> ORDERED_UNITS =
             Arrays.asList(BYTES, KILO_BYTES, MEGA_BYTES, GIGA_BYTES, TERA_BYTES);
+
+    private static final Pattern MEMORY_SIZE_FORMAT =
+            Pattern.compile(
+                    "\\d+\\s*(?:" + MemoryUnit.getAllUnitsPattern() + ")?",
+                    Pattern.CASE_INSENSITIVE);
 
     // ------------------------------------------------------------------------
 
@@ -229,7 +235,7 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
     // ------------------------------------------------------------------------
 
     /**
-     * Parses the given string as as MemorySize.
+     * Parses the given string as MemorySize.
      *
      * @param text The string to parse
      * @return The parsed MemorySize
@@ -270,6 +276,13 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
         final String trimmed = text.trim();
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("argument is an empty- or whitespace-only string");
+        }
+
+        if (!MEMORY_SIZE_FORMAT.matcher(trimmed).matches()) {
+            throw new IllegalArgumentException(
+                    "Memory size value must be an integer optionally followed by a unit. "
+                            + "Fractional or malformed values are not supported: "
+                            + text);
         }
 
         final int len = trimmed.length();
@@ -386,6 +399,19 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
                     MEGA_BYTES.getUnits(),
                     GIGA_BYTES.getUnits(),
                     TERA_BYTES.getUnits());
+        }
+
+        private static String getAllUnitsPattern() {
+            final StringBuilder pattern = new StringBuilder();
+            for (MemoryUnit memoryUnit : values()) {
+                for (String unit : memoryUnit.getUnits()) {
+                    if (pattern.length() > 0) {
+                        pattern.append('|');
+                    }
+                    pattern.append(Pattern.quote(unit));
+                }
+            }
+            return pattern.toString();
         }
 
         public static boolean hasUnit(String text) {
