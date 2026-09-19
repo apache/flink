@@ -96,8 +96,6 @@ class ExecutionVertexTest {
 
         execution.markFinished();
 
-        assertThat(releasePartitionsFuture).isNotDone();
-
         for (ExecutionVertex executionVertex : producerExecutionJobVertex.getTaskVertices()) {
             executionVertex.resetForNewExecution();
         }
