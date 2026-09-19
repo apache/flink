@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.types.AbstractDataType
 
@@ -147,6 +147,16 @@ class AggregateTest extends TableTestBase {
   @Test
   def testGroupByWithoutWindow(): Unit = {
     util.verifyExecPlan("SELECT COUNT(a) FROM MyTable GROUP BY b")
+  }
+
+  @Test
+  def testGroupByOrdinalPointingAtAggregateFails(): Unit = {
+    // Ordinal 1 resolves to COUNT(*), which is not a legal grouping key.
+    util.tableEnv.getConfig
+      .set(TableConfigOptions.TABLE_GROUP_BY_ORDINAL_ENABLED, Boolean.box(true))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT COUNT(*) FROM MyTable GROUP BY 1"))
+      .withMessageContaining("Aggregate expression is illegal in GROUP BY clause")
   }
 
   @Test
