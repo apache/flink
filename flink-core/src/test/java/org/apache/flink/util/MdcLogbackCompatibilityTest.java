@@ -50,10 +50,9 @@ public class MdcLogbackCompatibilityTest {
     }
 
     /**
-     * The {@link MDC#setContextMap(Map)} method in Logback 1.2 does not accept nulls, unlike Log4j
-     * and Logback 1.3.2. BasicMDCAdapter is used to replicate this behavior for testing without
-     * bundling Logback into flink-core. See https://issues.apache.org/jira/browse/FLINK-36227 for
-     * details.
+     * Restoring an absent (null) MDC context must not fail, regardless of the backend in use.
+     * Historically, {@link MDC#setContextMap(Map)} in Logback 1.2 rejected nulls, unlike Log4j and
+     * Logback 1.3.2 (see https://issues.apache.org/jira/browse/FLINK-36227).
      */
     @Test
     void testContextRestorationWorksWithNullContext() {
@@ -67,13 +66,13 @@ public class MdcLogbackCompatibilityTest {
     }
 
     private MDCAdapter getCurrentMDCAdapter() throws Exception {
-        Field adapterField = MDC.class.getDeclaredField("mdcAdapter");
+        Field adapterField = MDC.class.getDeclaredField("MDC_ADAPTER");
         adapterField.setAccessible(true);
         return (MDCAdapter) adapterField.get(null);
     }
 
     private void setMDCAdapter(MDCAdapter adapter) throws Exception {
-        Field adapterField = MDC.class.getDeclaredField("mdcAdapter");
+        Field adapterField = MDC.class.getDeclaredField("MDC_ADAPTER");
         adapterField.setAccessible(true);
         adapterField.set(null, adapter);
     }
