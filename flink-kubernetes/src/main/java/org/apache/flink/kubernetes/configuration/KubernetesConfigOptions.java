@@ -158,6 +158,15 @@ public class KubernetesConfigOptions {
                             "The limit factor of cpu used by job manager. "
                                     + "The resources limit cpu will be set to cpu * limit-factor.");
 
+    public static final ConfigOption<Double> JOB_MANAGER_MEMORY_REQUEST_FACTOR =
+            key("kubernetes.jobmanager.memory.request-factor")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "The request factor of memory used by job manager. "
+                                    + "The resources request memory will be set to memory * request-factor. "
+                                    + "The value must be greater than 0 and less than or equal to 1.");
+
     public static final ConfigOption<Double> JOB_MANAGER_MEMORY_LIMIT_FACTOR =
             key("kubernetes.jobmanager.memory.limit-factor")
                     .doubleType()
@@ -182,6 +191,15 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             "The limit factor of cpu used by task manager. "
                                     + "The resources limit cpu will be set to cpu * limit-factor.");
+
+    public static final ConfigOption<Double> TASK_MANAGER_MEMORY_REQUEST_FACTOR =
+            key("kubernetes.taskmanager.memory.request-factor")
+                    .doubleType()
+                    .defaultValue(1.0)
+                    .withDescription(
+                            "The request factor of memory used by task manager. "
+                                    + "The resources request memory will be set to memory * request-factor. "
+                                    + "The value must be greater than 0 and less than or equal to 1.");
 
     public static final ConfigOption<Double> TASK_MANAGER_MEMORY_LIMIT_FACTOR =
             key("kubernetes.taskmanager.memory.limit-factor")
