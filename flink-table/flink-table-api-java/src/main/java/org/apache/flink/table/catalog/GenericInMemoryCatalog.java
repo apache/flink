@@ -822,7 +822,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 
     /**
      * Check if the given table is a partitioned table. Note that "false" is returned if the table
-     * doesn't exists.
+     * doesn't exist.
      */
     private boolean isPartitionedTable(ObjectPath tablePath) {
         CatalogBaseTable table = null;

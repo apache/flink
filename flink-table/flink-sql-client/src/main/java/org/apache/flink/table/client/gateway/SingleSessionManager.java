@@ -91,7 +91,7 @@ public class SingleSessionManager implements SessionManager {
     public Session getSession(SessionHandle sessionHandle) throws SqlGatewayException {
         Preconditions.checkArgument(
                 session != null && sessionHandle.equals(session.getSessionHandle()),
-                "The specified session doesn't exists");
+                "The specified session doesn't exist");
         return session;
     }
 
