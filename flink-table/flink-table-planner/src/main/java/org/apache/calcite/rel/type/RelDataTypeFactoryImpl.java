@@ -58,7 +58,6 @@ import static org.apache.calcite.util.ReflectUtil.isStatic;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-39695 (backport of CALCITE-6764): Lines 406 ~ 432
  *   <li>Keep Flink FLOAT precision: Lines 592 ~ 594
  * </ol>
  */

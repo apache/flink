@@ -261,7 +261,7 @@ LogicalProject(ts=[$0], a=[$1], b=[$2], c=[$3], window_start=[$4], window_end=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a, window_start, window_end], orderBy=[b ASC], global=[true], select=[ts, a, b, c, window_start, window_end, window_time, w0$o0])
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=3], partitionBy=[a, window_start, window_end], orderBy=[b ASC], global=[true], select=[ts, a, b, c, window_start, window_end, window_time, rownum])
 +- Exchange(distribution=[forward])
    +- Sort(orderBy=[a ASC, window_start ASC, window_end ASC, b ASC])
       +- Exchange(distribution=[hash[a, window_start, window_end]])
