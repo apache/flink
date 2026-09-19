@@ -72,6 +72,17 @@ class RankTest extends TableTestBase {
   }
 
   @Test
+  def testRowNumberTopNConvertedToRank(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT a, b, c FROM (
+        | SELECT a, b, c, ROW_NUMBER() OVER (PARTITION BY b ORDER BY c DESC) rn FROM MyTable) t
+        |WHERE rn = 1
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
   def testRankWithoutOrderBy(): Unit = {
     val sqlQuery =
       """
