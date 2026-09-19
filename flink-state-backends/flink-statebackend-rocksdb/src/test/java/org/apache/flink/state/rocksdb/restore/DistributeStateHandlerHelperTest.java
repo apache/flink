@@ -32,7 +32,6 @@ import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.types.Either;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -60,7 +59,7 @@ import java.util.function.Function;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test class for {@link DistributeStateHandlerHelper}. */
-public class DistributeStateHandlerHelperTest extends TestLogger {
+class DistributeStateHandlerHelperTest {
 
     private static final int NUM_KEY_GROUPS = 128;
     private static final KeyGroupRange KEY_GROUP_RANGE = new KeyGroupRange(0, NUM_KEY_GROUPS - 1);
@@ -72,7 +71,7 @@ public class DistributeStateHandlerHelperTest extends TestLogger {
 
     /** Test whether sst files are exported when the key group all in range. */
     @Test
-    public void testAutoCompactionIsDisabled() throws Exception {
+    void testAutoCompactionIsDisabled() throws Exception {
         Path rocksDir = tempDir.resolve("rocksdb_dir");
         Path dbPath = rocksDir.resolve("db");
         Path chkDir = rocksDir.resolve("chk");
