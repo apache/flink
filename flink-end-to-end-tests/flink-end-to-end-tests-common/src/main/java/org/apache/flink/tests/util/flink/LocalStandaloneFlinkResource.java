@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -57,6 +58,19 @@ import java.util.stream.Stream;
 public class LocalStandaloneFlinkResource implements FlinkResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneFlinkResource.class);
+
+    /**
+     * Maximum number of retry attempts to wait for the cluster to start. Each attempt waits ~1
+     * second with jitter. Increased to 90 to accommodate SSL initialization overhead on CI
+     * environments.
+     */
+    private static final int CLUSTER_STARTUP_RETRY_ATTEMPTS = 90;
+
+    /** Base sleep duration between retries in milliseconds. */
+    private static final long RETRY_SLEEP_BASE_MS = 1000;
+
+    /** Maximum jitter to add to retry sleep in milliseconds. */
+    private static final long RETRY_SLEEP_JITTER_MS = 200;
 
     private final TemporaryFolder temporaryFolder = new TemporaryFolder();
     private final Path distributionDirectory;
@@ -139,7 +153,9 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
         try (final RestClient restClient =
                 new RestClient(new Configuration(), Executors.directExecutor())) {
-            for (int retryAttempt = 0; retryAttempt < 30; retryAttempt++) {
+            for (int retryAttempt = 0;
+                    retryAttempt < CLUSTER_STARTUP_RETRY_ATTEMPTS;
+                    retryAttempt++) {
                 final CompletableFuture<TaskManagersInfo> localhost =
                         restClient.sendRequest(
                                 "localhost",
@@ -162,15 +178,23 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
                                 numTaskManagers);
                     }
                 } catch (InterruptedException e) {
-                    LOG.info("Waiting for dispatcher REST endpoint to come up...");
+                    LOG.info(
+                            "Waiting for dispatcher REST endpoint to come up... (attempt {}/{})",
+                            retryAttempt + 1,
+                            CLUSTER_STARTUP_RETRY_ATTEMPTS);
                     Thread.currentThread().interrupt();
                 } catch (TimeoutException | ExecutionException e) {
                     // ExecutionExceptions may occur if leader election is still going on
-                    LOG.info("Waiting for dispatcher REST endpoint to come up...");
+                    LOG.info(
+                            "Waiting for dispatcher REST endpoint to come up... (attempt {}/{})",
+                            retryAttempt + 1,
+                            CLUSTER_STARTUP_RETRY_ATTEMPTS);
                 }
 
                 try {
-                    Thread.sleep(1000);
+                    // Sleep with jitter to avoid thundering herd and make retries more robust
+                    long jitter = ThreadLocalRandom.current().nextLong(RETRY_SLEEP_JITTER_MS);
+                    Thread.sleep(RETRY_SLEEP_BASE_MS + jitter);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -181,7 +205,10 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
             throw new RuntimeException(e);
         }
 
-        throw new RuntimeException("Cluster did not start in expected time-frame.");
+        throw new RuntimeException(
+                String.format(
+                        "Dispatcher REST endpoint did not start in time. Waited for %d attempts (~%d seconds).",
+                        CLUSTER_STARTUP_RETRY_ATTEMPTS, CLUSTER_STARTUP_RETRY_ATTEMPTS));
     }
 
     @Override
