@@ -32,13 +32,15 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.IOUtils;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.List;
@@ -46,60 +48,60 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.DummyCheckpointingStorageAccess;
 import static org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.createKeyedBackend;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ChangelogStateBackend} delegating state accesses. */
-@RunWith(Parameterized.class)
-public class ChangelogDelegateStateTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class ChangelogDelegateStateTest {
     private MockEnvironment env;
 
-    @Parameterized.Parameters
+    @Parameters
     public static List<Supplier<AbstractStateBackend>> delegatedStateBackend() {
         return Arrays.asList(HashMapStateBackend::new, EmbeddedRocksDBStateBackend::new);
     }
 
-    @Parameterized.Parameter public Supplier<AbstractStateBackend> backend;
+    @Parameter public Supplier<AbstractStateBackend> backend;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         env = MockEnvironment.builder().build();
         env.setCheckpointStorageAccess(new DummyCheckpointingStorageAccess());
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         IOUtils.closeQuietly(env);
     }
 
-    @Test
-    public void testDelegatingValueState() throws Exception {
+    @TestTemplate
+    void testDelegatingValueState() throws Exception {
         testDelegatingState(
                 new ValueStateDescriptor<>("id", String.class), ChangelogValueState.class);
     }
 
-    @Test
-    public void testDelegatingListState() throws Exception {
+    @TestTemplate
+    void testDelegatingListState() throws Exception {
         testDelegatingState(
                 new ListStateDescriptor<>("id", String.class), ChangelogListState.class);
     }
 
-    @Test
-    public void testDelegatingMapState() throws Exception {
+    @TestTemplate
+    void testDelegatingMapState() throws Exception {
         testDelegatingState(
                 new MapStateDescriptor<>("id", Integer.class, String.class),
                 ChangelogMapState.class);
     }
 
-    @Test
-    public void testDelegatingReducingState() throws Exception {
+    @TestTemplate
+    void testDelegatingReducingState() throws Exception {
         testDelegatingState(
                 new ReducingStateDescriptor<>(
                         "id", (value1, value2) -> value1 + "," + value2, String.class),
                 ChangelogReducingState.class);
     }
 
-    @Test
-    public void testDelegatingAggregatingState() throws Exception {
+    @TestTemplate
+    void testDelegatingAggregatingState() throws Exception {
         testDelegatingState(
                 new AggregatingStateDescriptor<>(
                         "my-state",
@@ -121,15 +123,18 @@ public class ChangelogDelegateStateTest {
                     changelogBackend.getPartitionedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor);
 
-            assertSame(state.getClass(), stateClass);
-            assertSame(
-                    ((AbstractChangelogState<?, ?, ?, ?>) state).getDelegatedState().getClass(),
-                    delegatedBackend
-                            .getPartitionedState(
-                                    VoidNamespace.INSTANCE,
-                                    VoidNamespaceSerializer.INSTANCE,
-                                    descriptor)
-                            .getClass());
+            assertThat(state.getClass()).isSameAs(stateClass);
+            assertThat(
+                            ((AbstractChangelogState<?, ?, ?, ?>) state)
+                                    .getDelegatedState()
+                                    .getClass())
+                    .isSameAs(
+                            delegatedBackend
+                                    .getPartitionedState(
+                                            VoidNamespace.INSTANCE,
+                                            VoidNamespaceSerializer.INSTANCE,
+                                            descriptor)
+                                    .getClass());
         } finally {
             if (delegatedBackend != null) {
                 delegatedBackend.dispose();
