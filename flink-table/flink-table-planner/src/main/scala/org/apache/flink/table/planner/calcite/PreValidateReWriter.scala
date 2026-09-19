@@ -20,15 +20,14 @@ package org.apache.flink.table.planner.calcite
 import org.apache.flink.sql.parser.SqlProperty
 import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.sql.parser.dql.SqlRichExplain
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.planner.calcite.PreValidateReWriter.{appendPartitionAndNullsProjects, notSupported}
+import org.apache.flink.table.planner.calcite.PreValidateReWriter.validateInsertTargets
 import org.apache.flink.table.planner.plan.schema.{CatalogSourceTable, FlinkPreparingTableBase, LegacyCatalogSourceTable}
 
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeField}
 import org.apache.calcite.runtime.{CalciteContextException, Resources}
-import org.apache.calcite.sql.{SqlCall, SqlIdentifier, SqlLiteral, SqlNode, SqlNodeList, SqlTableRef, SqlUtil}
+import org.apache.calcite.sql.{SqlCall, SqlIdentifier, SqlKind, SqlNode, SqlSelect, SqlTableRef, SqlUtil}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.util.SqlBasicVisitor
 import org.apache.calcite.sql.validate.{SqlValidatorException, SqlValidatorTable, SqlValidatorUtil}
@@ -39,8 +38,15 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
- * Implements [[org.apache.calcite.sql.util.SqlVisitor]] interface to do some rewrite work before
- * sql node validation.
+ * Implements [[org.apache.calcite.sql.util.SqlVisitor]] interface to validate the static partitions
+ * and the target column list of an INSERT statement before its source query is validated.
+ *
+ * <p>The reordering of the source columns and the padding of unlisted columns with NULL or with the
+ * static partition values is not applied to the SQL AST here. It is applied to the relational plan
+ * after validation, see [[org.apache.flink.table.planner.operations.converters.PartialInsertUtil]].
+ * Rewriting the source query here required validating it once for the rewrite and once for real,
+ * which left the table arguments of set-semantic process table functions unvalidated (the same
+ * problem FLINK-40039 fixed for CTAS/RTAS).
  */
 class PreValidateReWriter(
     val validator: FlinkCalciteSqlValidator,
@@ -50,51 +56,28 @@ class PreValidateReWriter(
     call match {
       case e: SqlRichExplain =>
         e.getStatement match {
-          case r: RichSqlInsert => rewriteInsert(r)
+          case r: RichSqlInsert => validateInsertTargets(r, validator, typeFactory)
           case _ => // do nothing
         }
-      case r: RichSqlInsert => rewriteInsert(r)
+      case r: RichSqlInsert => validateInsertTargets(r, validator, typeFactory)
       case _ => // do nothing
-    }
-  }
-
-  private def rewriteInsert(r: RichSqlInsert): Unit = {
-    if (r.getStaticPartitions.nonEmpty || r.getTargetColumnList != null) {
-      r.getSource match {
-        case call: SqlCall =>
-          val newSource =
-            appendPartitionAndNullsProjects(r, validator, typeFactory, call, r.getStaticPartitions)
-          r.setOperand(2, newSource)
-        case source => throw new ValidationException(notSupported(source))
-      }
     }
   }
 }
 
 object PreValidateReWriter {
 
-  // ~ Tools ------------------------------------------------------------------
-
-  private def notSupported(source: SqlNode): String = {
-    s"INSERT INTO <table> PARTITION [(COLUMN LIST)] statement only support " +
-      s"SELECT, VALUES, SET_QUERY AND ORDER BY clause for now, '$source' is not supported yet."
-  }
-
   /**
-   * Append the static partitions and unspecified columns to the data source projection list. The
-   * columns are appended to the corresponding positions.
+   * Validates the static partitions and the target column list of an INSERT statement against the
+   * persisted schema of the target table.
    *
-   * <p>If we have a table A with schema (&lt;a&gt;, &lt;b&gt;, &lt;c&gt) whose partition columns
-   * are (&lt;a&gt;, &lt;c&gt;), and got a query <blockquote><pre> insert into A partition(a='11',
-   * c='22') select b from B </pre></blockquote> The query would be rewritten to: <blockquote><pre>
-   * insert into A partition(a='11', c='22') select cast('11' as tpe1), b, cast('22' as tpe2) from B
-   * </pre></blockquote> Where the "tpe1" and "tpe2" are data types of column a and c of target
-   * table A.
-   *
-   * <p>If we have a table A with schema (&lt;a&gt;, &lt;b&gt;, &lt;c&gt), and got a query
-   * <blockquote><pre> insert into A (a, b) select a, b from B </pre></blockquote> The query would
-   * be rewritten to: <blockquote><pre> insert into A select a, b, cast(null as tpeC) from B
-   * </pre></blockquote> Where the "tpeC" is data type of column c for target table A.
+   * <p>For a table A with schema (&lt;a&gt;, &lt;b&gt;, &lt;c&gt;) whose partition columns are
+   * (&lt;a&gt;, &lt;c&gt;) and a query <blockquote><pre> insert into A partition(a='11', c='22')
+   * select b from B </pre></blockquote> or a table A with schema (&lt;a&gt;, &lt;b&gt;, &lt;c&gt;)
+   * and a query <blockquote><pre> insert into A (a, b) select a, b from B </pre></blockquote> every
+   * referenced column must exist in A, no column may be assigned twice, every unlisted column must
+   * be nullable because it is padded with NULL later, and the source must produce exactly one
+   * column per listed target column where this can be decided without validating the source.
    *
    * @param sqlInsert
    *   RichSqlInsert instance
@@ -102,17 +85,15 @@ object PreValidateReWriter {
    *   Validator
    * @param typeFactory
    *   type factory
-   * @param source
-   *   Source to rewrite
-   * @param partitions
-   *   Static partition statements
    */
-  def appendPartitionAndNullsProjects(
+  def validateInsertTargets(
       sqlInsert: RichSqlInsert,
       validator: FlinkCalciteSqlValidator,
-      typeFactory: RelDataTypeFactory,
-      source: SqlCall,
-      partitions: SqlNodeList): SqlCall = {
+      typeFactory: RelDataTypeFactory): Unit = {
+    val partitions = sqlInsert.getStaticPartitions
+    if (partitions.isEmpty && sqlInsert.getTargetColumnList == null) {
+      return
+    }
     val calciteCatalogReader = validator.getCatalogReader.unwrap(classOf[CalciteCatalogReader])
     val names = sqlInsert.getTargetTable match {
       case si: SqlIdentifier => si.names
@@ -122,102 +103,88 @@ object PreValidateReWriter {
     if (table == null) {
       // There is no table exists in current catalog,
       // just skip to let other validation error throw.
-      return source
+      return
     }
 
-    val rewriterUtils = new SqlRewriterUtils(validator)
     val targetRowType = createTargetRowType(typeFactory, table)
-    // validate partition fields first.
-    val assignedFields = new util.LinkedHashMap[Integer, SqlNode]
     val relOptTable = table match {
       case t: RelOptTable => t
       case _ => null
     }
-    for (node <- partitions.getList) {
-      val sqlProperty = node.asInstanceOf[SqlProperty]
-      val id = sqlProperty.getKey
-      validateUnsupportedCompositeColumn(id)
-      val targetField = SqlValidatorUtil.getTargetField(
-        targetRowType,
-        typeFactory,
-        id,
-        calciteCatalogReader,
-        relOptTable)
-      validateField(idx => !assignedFields.contains(idx), id, targetField)
-      val value = sqlProperty.getValue.asInstanceOf[SqlLiteral]
-      assignedFields.put(
-        targetField.getIndex,
-        validator.maybeCast(value, value.createSqlType(typeFactory), targetField.getType))
+    val assignedFields = new util.HashSet[Integer]
+
+    // validate partition fields first.
+    val partitionColumns = partitions.getList.map {
+      node =>
+        val id = node.asInstanceOf[SqlProperty].getKey
+        validateUnsupportedCompositeColumn(id)
+        val targetField = SqlValidatorUtil.getTargetField(
+          targetRowType,
+          typeFactory,
+          id,
+          calciteCatalogReader,
+          relOptTable)
+        validateField(assignedFields.add, id, targetField)
+        targetField
+    }
+
+    if (sqlInsert.getTargetColumnList == null) {
+      return
     }
 
     // validate partial insert columns.
+    val targetColumns = sqlInsert.getTargetColumnList.getList.map {
+      id =>
+        val identifier = id.asInstanceOf[SqlIdentifier]
+        validateUnsupportedCompositeColumn(identifier)
+        val targetField = SqlValidatorUtil.getTargetField(
+          targetRowType,
+          typeFactory,
+          identifier,
+          calciteCatalogReader,
+          relOptTable)
+        validateField(assignedFields.add, identifier, targetField)
+        targetField
+    }
 
-    // the columnList may reorder fields (compare with fields of sink)
-    val targetPosition = new util.ArrayList[Int]()
-
-    if (sqlInsert.getTargetColumnList != null) {
-      val targetFields = new util.HashSet[Integer]
-      val targetColumns =
-        sqlInsert.getTargetColumnList.getList
-          .map(
-            id => {
-              val identifier = id.asInstanceOf[SqlIdentifier]
-              validateUnsupportedCompositeColumn(identifier)
-              val targetField = SqlValidatorUtil.getTargetField(
-                targetRowType,
-                typeFactory,
-                identifier,
-                calciteCatalogReader,
-                relOptTable)
-              validateField(targetFields.add, id.asInstanceOf[SqlIdentifier], targetField)
-              targetField
-            })
-
-      val partitionColumns =
-        partitions.getList
-          .map(
-            property =>
-              SqlValidatorUtil.getTargetField(
-                targetRowType,
-                typeFactory,
-                property.asInstanceOf[SqlProperty].getKey,
-                calciteCatalogReader,
-                relOptTable))
-
-      for (targetField <- targetRowType.getFieldList) {
-        if (!partitionColumns.contains(targetField)) {
-          if (!targetColumns.contains(targetField)) {
-            // padding null
-            val id = new SqlIdentifier(targetField.getName, SqlParserPos.ZERO)
-            if (!targetField.getType.isNullable) {
-              throw newValidationError(id, RESOURCE.columnNotNullable(targetField.getName))
-            }
-            validateField(idx => !assignedFields.contains(idx), id, targetField)
-            assignedFields.put(
-              targetField.getIndex,
-              validator.maybeCast(
-                SqlLiteral.createNull(SqlParserPos.ZERO),
-                typeFactory.createUnknownType(),
-                targetField.getType
-              )
-            )
-          } else {
-            // handle reorder
-            targetPosition.add(targetColumns.indexOf(targetField))
-          }
-
-        }
+    // unlisted columns are padded with NULL after validation, which requires them to be nullable
+    for (targetField <- targetRowType.getFieldList) {
+      if (
+        !partitionColumns.contains(targetField) && !targetColumns.contains(targetField)
+        && !targetField.getType.isNullable
+      ) {
+        val id = new SqlIdentifier(targetField.getName, SqlParserPos.ZERO)
+        throw newValidationError(id, RESOURCE.columnNotNullable(targetField.getName))
       }
     }
 
-    rewriterUtils.rewriteCall(
-      rewriterUtils,
-      validator,
-      source,
-      targetRowType,
-      assignedFields,
-      targetPosition,
-      () => notSupported(source))
+    validateColumnCount(sqlInsert.getSource, targetColumns.size)
+  }
+
+  /**
+   * Checks that the source produces one column per listed target column where this can be decided
+   * without validating the source, i.e. for a SELECT without a star and for VALUES. Other sources
+   * are checked after validation.
+   */
+  private def validateColumnCount(source: SqlNode, expectedCount: Int): Unit = {
+    source match {
+      case select: SqlSelect if !select.getSelectList.exists(isStar) =>
+        if (select.getSelectList.size != expectedCount) {
+          throw newValidationError(select, RESOURCE.columnCountMismatch())
+        }
+      case values: SqlCall if values.getKind == SqlKind.VALUES =>
+        values.getOperandList.foreach {
+          case row: SqlCall if row.getOperandList.size != expectedCount =>
+            throw newValidationError(values, RESOURCE.columnCountMismatch())
+          case _ =>
+        }
+      case _ =>
+    }
+  }
+
+  private def isStar(node: SqlNode): Boolean = node match {
+    case id: SqlIdentifier => id.isStar
+    case _ => false
   }
 
   /**

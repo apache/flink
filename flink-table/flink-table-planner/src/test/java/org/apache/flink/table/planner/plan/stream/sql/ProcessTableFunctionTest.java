@@ -128,6 +128,30 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testInsertWithColumnListSetSemanticTable() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        util.verifyRelPlanInsert(
+                "INSERT INTO t_keyed_sink (`out`, `name`) "
+                        + "SELECT `out`, `name` FROM f(r => TABLE t PARTITION BY name, i => 1)");
+    }
+
+    @Test
+    void testInsertWithColumnListRowSemanticTable() {
+        util.addTemporarySystemFunction("f", RowSemanticTableFunction.class);
+        util.verifyRelPlanInsert(
+                "INSERT INTO t_keyed_sink (`out`) SELECT `out` FROM f(r => TABLE t, i => 1)");
+    }
+
+    @Test
+    void testInsertWithColumnListSetSemanticTableAndPadding() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        // reorders the query columns and pads `name0` and `count` with NULL in one projection
+        util.verifyRelPlanInsert(
+                "INSERT INTO t_no_pk_sink (`mode`, `name`) "
+                        + "SELECT `out`, `name` FROM f(r => TABLE t PARTITION BY name, i => 1)");
+    }
+
+    @Test
     void testFunctionWithMultipleTableArgs() {
         util.addTemporarySystemFunction("f", MultiInputFunction.class);
         util.tableEnv()

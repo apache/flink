@@ -115,6 +115,7 @@ import org.apache.flink.table.operations.utils.LikeType;
 import org.apache.flink.table.operations.utils.ShowLikeOperator;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.operations.converters.PartialInsertUtil;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverters;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.planner.utils.RowLevelModificationContextUtils;
@@ -357,6 +358,10 @@ public class SqlNodeToOperationConversion {
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation) convertValidatedSqlNodeOrFail(insert.getSource());
+        // reorder and pad the query columns for static partitions and/or a target column list
+        query =
+                PartialInsertUtil.alignWithSink(
+                        flinkPlanner, insert, contextResolvedTable.getResolvedSchema(), query);
         // TODO calc target column list to index array, currently only simple SqlIdentifiers are
         // available, this should be updated after FLINK-31301 fixed
         int[][] columnIndices =
