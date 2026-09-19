@@ -27,6 +27,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.state.api.OperatorIdentifier;
 import org.apache.flink.state.api.runtime.SavepointLoader;
+import org.apache.flink.state.api.runtime.SavepointLoader.NonKeyedOperatorStateMetadata;
 import org.apache.flink.state.api.runtime.SavepointLoader.OperatorStateMetadata;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
@@ -149,6 +150,20 @@ final class TableMappingSupport {
                 operatorMetadata.stateSnapshots,
                 serializerConfig,
                 operatorMetadata.keySerializerSnapshot);
+    }
+
+    /**
+     * Preloads the non-keyed (list/union/broadcast) state serializer snapshots of an operator in a
+     * single I/O operation. Shared by {@link OperatorStateTableMapping} and {@link
+     * BroadcastStateTableMapping}.
+     */
+    static NonKeyedOperatorStateMetadata loadNonKeyedOperatorMetadata(
+            String statePath, OperatorIdentifier operatorIdentifier) {
+        try {
+            return SavepointLoader.loadNonKeyedOperatorMetadata(statePath, operatorIdentifier);
+        } catch (Exception e) {
+            throw metadataLoadFailure(statePath, operatorIdentifier, e);
+        }
     }
 
     private static RuntimeException metadataLoadFailure(
