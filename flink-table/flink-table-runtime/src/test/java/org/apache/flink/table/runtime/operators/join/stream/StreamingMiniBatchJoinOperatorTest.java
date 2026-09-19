@@ -1859,6 +1859,128 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
                         .toArray(String[]::new));
     }
 
+    /**
+     * Both inputs are upsert tables whose primary key is the join key and the downstream does not
+     * require UPDATE_BEFORE, so the right input sends a bare UPDATE_AFTER. Every record is its own
+     * bundle here.
+     */
+    @Tag("miniBatchSize=1")
+    @Test
+    void testLeftJoinJoinKeyContainsUniqueKeyUpdateAfterThenDeleteAcrossBundles() throws Exception {
+        testHarness.processElement1(
+                insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null,
+                        null));
+
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null,
+                        null),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"));
+
+        testHarness.processElement2(updateAfterRecord("Ord#X", "LineOrd#1", "SHIP"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "SHIP"));
+
+        // the only matching row is gone, the left row must come back with null padding
+        testHarness.processElement2(deleteRecord("Ord#X", "LineOrd#1", "SHIP"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "SHIP"),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null,
+                        null));
+    }
+
+    /**
+     * Same input as {@link
+     * #testLeftJoinJoinKeyContainsUniqueKeyUpdateAfterThenDeleteAcrossBundles()}, but the bare
+     * UPDATE_AFTER and the DELETE of the right row land in the same bundle. The AIR row is still in
+     * the right state when that bundle is folded.
+     */
+    @Tag("miniBatchSize=2")
+    @Test
+    void testLeftJoinJoinKeyContainsUniqueKeyUpdateAfterThenDeleteWithinBundle() throws Exception {
+        testHarness.processElement1(
+                insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
+        testHarness.processElement2(insertRecord("Ord#X", "LineOrd#1", "AIR"));
+        // the right bundle is replayed first, so the left row directly joins with AIR
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"));
+
+        testHarness.processElement2(updateAfterRecord("Ord#X", "LineOrd#1", "SHIP"));
+        testHarness.processElement2(deleteRecord("Ord#X", "LineOrd#1", "SHIP"));
+        // after this bundle the right side is empty, the left row must come back with null padding
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        "Ord#X",
+                        "LineOrd#1",
+                        "AIR"),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464",
+                        null,
+                        null,
+                        null));
+    }
+
     private final Function<String, JoinInputSideSpec[]> inputSpecExtractor =
             (testDisplayName) -> {
                 if (testDisplayName.contains("JoinKeyContainsUniqueKey")) {
