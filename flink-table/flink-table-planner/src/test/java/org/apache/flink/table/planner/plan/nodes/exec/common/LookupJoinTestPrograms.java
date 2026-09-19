@@ -84,22 +84,30 @@ public class LookupJoinTestPrograms {
                     .producedAfterRestore(CUSTOMERS_AFTER_DATA)
                     .build();
 
+    static final String[] ORDERS_SCHEMA =
+            new String[] {
+                "order_id INT",
+                "customer_id INT",
+                "total DOUBLE",
+                "order_time STRING",
+                "proc_time AS PROCTIME()"
+            };
+
+    static final Row[] ORDERS_BEFORE_DATA =
+            new Row[] {
+                Row.of(1, 3, 44.44, "2020-10-10 00:00:01"),
+                Row.of(2, 5, 100.02, "2020-10-10 00:00:02"),
+                Row.of(4, 2, 92.61, "2020-10-10 00:00:04"),
+                Row.of(3, 1, 23.89, "2020-10-10 00:00:03"),
+                Row.of(6, 4, 7.65, "2020-10-10 00:00:06"),
+                Row.of(5, 2, 12.78, "2020-10-10 00:00:05")
+            };
+
     static final SourceTestStep ORDERS =
             SourceTestStep.newBuilder("orders_t")
                     .addOption("filterable-fields", "customer_id")
-                    .addSchema(
-                            "order_id INT",
-                            "customer_id INT",
-                            "total DOUBLE",
-                            "order_time STRING",
-                            "proc_time AS PROCTIME()")
-                    .producedBeforeRestore(
-                            Row.of(1, 3, 44.44, "2020-10-10 00:00:01"),
-                            Row.of(2, 5, 100.02, "2020-10-10 00:00:02"),
-                            Row.of(4, 2, 92.61, "2020-10-10 00:00:04"),
-                            Row.of(3, 1, 23.89, "2020-10-10 00:00:03"),
-                            Row.of(6, 4, 7.65, "2020-10-10 00:00:06"),
-                            Row.of(5, 2, 12.78, "2020-10-10 00:00:05"))
+                    .addSchema(ORDERS_SCHEMA)
+                    .producedBeforeRestore(ORDERS_BEFORE_DATA)
                     .producedAfterRestore(
                             Row.of(7, 6, 17.58, "2020-10-10 00:00:07"), // new customer
                             Row.of(9, 1, 143.21, "2020-10-10 00:00:08") // updated zip code
@@ -110,20 +118,9 @@ public class LookupJoinTestPrograms {
             SourceTestStep.newBuilder("orders_cdc_t")
                     .addOption("filterable-fields", "customer_id")
                     .addOption("changelog-mode", "I,UA,UB,D")
-                    .addSchema(
-                            "order_id INT",
-                            "customer_id INT",
-                            "total DOUBLE",
-                            "order_time STRING",
-                            "proc_time AS PROCTIME()")
+                    .addSchema(ORDERS_SCHEMA)
                     .addSchema("PRIMARY KEY (order_id) NOT ENFORCED")
-                    .producedBeforeRestore(
-                            Row.of(1, 3, 44.44, "2020-10-10 00:00:01"),
-                            Row.of(2, 5, 100.02, "2020-10-10 00:00:02"),
-                            Row.of(4, 2, 92.61, "2020-10-10 00:00:04"),
-                            Row.of(3, 1, 23.89, "2020-10-10 00:00:03"),
-                            Row.of(6, 4, 7.65, "2020-10-10 00:00:06"),
-                            Row.of(5, 2, 12.78, "2020-10-10 00:00:05"))
+                    .producedBeforeRestore(ORDERS_BEFORE_DATA)
                     .producedAfterRestore(
                             Row.ofKind(RowKind.DELETE, 3, 1, 23.89, "2020-10-10 00:00:03"),
                             Row.ofKind(RowKind.INSERT, 3, 1, 33.01, "2020-10-10 01:01:06"),
