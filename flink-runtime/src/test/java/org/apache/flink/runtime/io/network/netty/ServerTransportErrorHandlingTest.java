@@ -103,7 +103,8 @@ class ServerTransportErrorHandlingTest {
                             new ResultPartitionID(),
                             new ResultSubpartitionIndexSet(0),
                             new InputChannelID(),
-                            Integer.MAX_VALUE));
+                            Integer.MAX_VALUE,
+                            false));
 
             // Wait for the notification
             assertThat(sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS))

@@ -217,9 +217,14 @@ public final class CollectDynamicSink implements DynamicTableSink {
 
         @Override
         public boolean isFirstRowReady() {
-            return (this.rowDataIterator != null && this.rowDataIterator.firstRowProcessed)
-                    || (this.rowIterator != null && this.rowIterator.firstRowProcessed)
-                    || iterator.hasNext();
+            if ((this.rowDataIterator != null && this.rowDataIterator.firstRowProcessed)
+                    || (this.rowIterator != null && this.rowIterator.firstRowProcessed)) {
+                return true;
+            }
+            // hasNext() blocks until the first row is available or the job terminates. Once it
+            // returns we have a definitive answer, so the result is ready to be consumed.
+            iterator.hasNext();
+            return true;
         }
 
         @Override

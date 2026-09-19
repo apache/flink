@@ -33,6 +33,8 @@ public interface QueryOperationVisitor<T> {
 
     T visit(WindowAggregateQueryOperation windowAggregate);
 
+    T visit(WindowTableFunctionQueryOperation windowTableFunction);
+
     T visit(JoinQueryOperation join);
 
     T visit(SetQueryOperation setOperation);

@@ -55,31 +55,30 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 /** Tests reading window state. */
 @SuppressWarnings("unchecked")
-public class WindowReaderTest {
+class WindowReaderTest {
 
     private static final int MAX_PARALLELISM = 128;
 
     private static final String UID = "uid";
 
     @Test
-    public void testReducingWindow() throws Exception {
+    void testReducingWindow() throws Exception {
         WindowOperator<Integer, Integer, ?, Void, ?> operator =
                 getWindowOperator(
                         stream ->
@@ -102,11 +101,11 @@ public class WindowReaderTest {
                         new ExecutionConfig());
 
         List<Integer> list = readState(format);
-        Assert.assertEquals(Arrays.asList(1, 1), list);
+        assertThat(list).containsExactly(1, 1);
     }
 
     @Test
-    public void testSessionWindow() throws Exception {
+    void testSessionWindow() throws Exception {
         WindowOperator<Integer, Integer, ?, Void, ?> operator =
                 getWindowOperator(
                         stream ->
@@ -129,11 +128,11 @@ public class WindowReaderTest {
                         new ExecutionConfig());
 
         List<Integer> list = readState(format);
-        Assert.assertEquals(Collections.singletonList(2), list);
+        assertThat(list).containsExactly(2);
     }
 
     @Test
-    public void testAggregateWindow() throws Exception {
+    void testAggregateWindow() throws Exception {
         WindowOperator<Integer, Integer, ?, Void, ?> operator =
                 getWindowOperator(
                         stream ->
@@ -156,11 +155,11 @@ public class WindowReaderTest {
                         new ExecutionConfig());
 
         List<Integer> list = readState(format);
-        Assert.assertEquals(Arrays.asList(1, 1), list);
+        assertThat(list).containsExactly(1, 1);
     }
 
     @Test
-    public void testProcessReader() throws Exception {
+    void testProcessReader() throws Exception {
         WindowOperator<Integer, Integer, ?, Void, ?> operator =
                 getWindowOperator(
                         stream ->
@@ -182,11 +181,11 @@ public class WindowReaderTest {
                         new ExecutionConfig());
 
         List<Integer> list = readState(format);
-        Assert.assertEquals(Arrays.asList(1, 1), list);
+        assertThat(list).containsExactly(1, 1);
     }
 
     @Test
-    public void testPerPaneAndPerKeyState() throws Exception {
+    void testPerPaneAndPerKeyState() throws Exception {
         WindowOperator<Integer, Integer, ?, Void, ?> operator =
                 getWindowOperator(
                         stream ->
@@ -209,7 +208,7 @@ public class WindowReaderTest {
                         new ExecutionConfig());
 
         List<Tuple2<Integer, Integer>> list = readState(format);
-        Assert.assertEquals(Arrays.asList(Tuple2.of(2, 1), Tuple2.of(2, 1)), list);
+        assertThat(list).containsExactly(Tuple2.of(2, 1), Tuple2.of(2, 1));
     }
 
     private static WindowOperator<Integer, Integer, ?, Void, ?> getWindowOperator(
@@ -257,14 +256,14 @@ public class WindowReaderTest {
             DataStream<T> dataStream) {
         Transformation<T> transformation = dataStream.getTransformation();
         if (!(transformation instanceof OneInputTransformation)) {
-            Assert.fail("This test only supports window operators");
+            fail("This test only supports window operators");
         }
 
         OneInputTransformation<?, ?> oneInput = (OneInputTransformation<?, ?>) transformation;
         StreamOperator<?> operator = oneInput.getOperator();
 
         if (!(operator instanceof WindowOperator)) {
-            Assert.fail("This test only supports window operators");
+            fail("This test only supports window operators");
         }
 
         return (WindowOperator<Integer, Integer, ?, Void, ?>) operator;

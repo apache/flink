@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -306,10 +307,12 @@ public interface TaskExecutorGateway
     /**
      * Requests the thread dump from this TaskManager.
      *
+     * @param mode dump granularity; when {@code null} the cluster default is used.
      * @param timeout timeout for the asynchronous operation
      * @return the {@link ThreadDumpInfo} for this TaskManager.
      */
-    CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Duration timeout);
+    CompletableFuture<ThreadDumpInfo> requestThreadDump(
+            ThreadDumpMode mode, @RpcTimeout Duration timeout);
 
     /**
      * Sends new delegation tokens to this TaskManager.

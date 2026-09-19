@@ -33,12 +33,14 @@ import org.apache.calcite.util.TimestampString;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Period;
+import java.util.UUID;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -193,5 +195,29 @@ class ExpressionConverterTest {
         RexNode rex = converter.visit(valueLiteral(TimePointUnit.MICROSECOND));
         assertThat(((RexLiteral) rex).getValueAs(TimeUnit.class)).isEqualTo(TimeUnit.MICROSECOND);
         assertThat(rex.getType().getSqlTypeName()).isEqualTo(SqlTypeName.SYMBOL);
+    }
+
+    @Test
+    void testUuidLiteral() {
+        UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        RexNode rex = converter.visit(valueLiteral(uuid));
+        assertThat(((RexLiteral) rex).getValueAs(UUID.class)).isEqualTo(uuid);
+        assertThat(rex.getType().getSqlTypeName()).isEqualTo(SqlTypeName.UUID);
+    }
+
+    @Test
+    void testUuidLiteralFromBytes() {
+        UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        byte[] uuidBytes =
+                ByteBuffer.allocate(16)
+                        .putLong(uuid.getMostSignificantBits())
+                        .putLong(uuid.getLeastSignificantBits())
+                        .array();
+        RexNode rex =
+                converter.visit(
+                        valueLiteral(
+                                uuidBytes, DataTypes.UUID().notNull().bridgedTo(byte[].class)));
+        assertThat(((RexLiteral) rex).getValueAs(UUID.class)).isEqualTo(uuid);
+        assertThat(rex.getType().getSqlTypeName()).isEqualTo(SqlTypeName.UUID);
     }
 }

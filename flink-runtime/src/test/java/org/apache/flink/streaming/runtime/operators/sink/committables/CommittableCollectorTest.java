@@ -18,17 +18,22 @@
 
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
-import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CommittableCollectorTest {
-    private static final SinkCommitterMetricGroup METRIC_GROUP =
-            MetricsGroupTestUtils.mockCommitterMetricGroup();
+    private static final MetricsGroupTestUtils.TrackableCommitterMetricGroup METRIC_GROUP =
+            MetricsGroupTestUtils.mockTrackableCommitterMetricGroup();
+
+    @BeforeEach
+    public void setUp() {
+        METRIC_GROUP.resetGaugeCallCount();
+    }
 
     @Test
     void testGetCheckpointCommittablesUpTo() {
@@ -41,5 +46,17 @@ class CommittableCollectorTest {
         committableCollector.addMessage(new CommittableSummary<>(1, 1, 3L, 1, 0));
 
         assertThat(committableCollector.getCheckpointCommittablesUpTo(2)).hasSize(2);
+    }
+
+    @Test
+    void testSetPendingGaugeNotCalledOnCopy() {
+        final CommittableCollector<Integer> committableCollector =
+                CommittableCollector.of(METRIC_GROUP);
+
+        assertThat(METRIC_GROUP.getGaugeCallCount()).isEqualTo(1);
+
+        committableCollector.copy();
+
+        assertThat(METRIC_GROUP.getGaugeCallCount()).isEqualTo(1);
     }
 }

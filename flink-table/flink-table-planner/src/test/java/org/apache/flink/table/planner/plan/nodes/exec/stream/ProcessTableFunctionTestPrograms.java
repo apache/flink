@@ -52,6 +52,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoStateTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoWithDefaultStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowDataRowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
@@ -72,6 +73,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingJoinFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantTableArgFunction;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -926,6 +930,57 @@ public class ProcessTableFunctionTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(columnList1 => NULL, columnList3 => DESCRIPTOR(a, b, c))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_VARIANT =
+            TableTestProgram.of(
+                            "process-variant",
+                            "takes nullable, optional, and not nullable VARIANT arguments")
+                    .setupTemporarySystemFunction("f", VariantFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{null, null, {\"a\":[1,\"b\"]}}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "variant1 => NULL, "
+                                    + "variant3 => PARSE_JSON('{\"a\":[1,\"b\"]}'))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_VARIANT_TABLE_ARG =
+            TableTestProgram.of("process-variant-table-arg", "table argument with a VARIANT column")
+                    .setupTemporarySystemFunction("f", VariantTableArgFunction.class)
+                    .setupSql(
+                            "CREATE VIEW t AS SELECT * FROM "
+                                    + "(VALUES ('Bob', PARSE_JSON('{\"a\":1}')), "
+                                    + "('Alice', PARSE_JSON('[1,\"b\"]'))) AS T(name, v)")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, {\"a\":1}]}]",
+                                            "+I[Alice, {+I[Alice, [1,\"b\"]]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_VARIANT_STATE =
+            TableTestProgram.of("process-variant-state", "state entry with a VARIANT field")
+                    .setupTemporarySystemFunction("f", VariantStateFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {VariantScore(v=null), +I[Bob, 12]}]",
+                                            "+I[Alice, {VariantScore(v=null), +I[Alice, 42]}]",
+                                            "+I[Bob, {VariantScore(v=12), +I[Bob, 99]}]",
+                                            "+I[Bob, {VariantScore(v=99), +I[Bob, 100]}]",
+                                            "+I[Alice, {VariantScore(v=42), +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
                     .build();
 
     public static final TableTestProgram PROCESS_TIME_CONVERSIONS =
@@ -1960,5 +2015,101 @@ public class ProcessTableFunctionTestPrograms {
                     // TIMESTAMP(0) vs. TIMESTAMP(6).
                     // Also in constructed types: ROW (table input) vs. STRUCTURED (expected).
                     .runSql("INSERT INTO sink SELECT * FROM f(p => TABLE v, b => 42)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_MULTI_PARTITION_BY =
+            TableTestProgram.of(
+                            "process-set-from-session-view-with-multi-partition-by",
+                            "set semantic table partitioned by multiple columns, sourced from a view wrapping a SESSION window aggregate")
+                    .setupTemporarySystemFunction("f", SetSemanticTableFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "suite_name STRING",
+                                            "test_name STRING",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                                    .producedValues(
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(0)),
+                                            Row.of("suiteB", "test2", Instant.ofEpochMilli(1)),
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(2)),
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(3)),
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(4)),
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(5)),
+                                            Row.of("suiteA", "test1", Instant.ofEpochMilli(6)))
+                                    .build())
+                    .setupSql(
+                            "CREATE VIEW v AS "
+                                    + "SELECT suite_name, test_name, COUNT(*) AS c "
+                                    + "FROM SESSION(TABLE t PARTITION BY (suite_name, test_name), DESCRIPTOR(ts), INTERVAL '0.002' SECOND) "
+                                    + "GROUP BY suite_name, test_name, window_start, window_end")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "`suite_name` STRING",
+                                            "`test_name` STRING",
+                                            "`out` STRING")
+                                    .consumedValues(
+                                            "+I[suiteB, test2, {+I[suiteB, test2, 1], 1}]",
+                                            "+I[suiteA, test1, {+I[suiteA, test1, 6], 1}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE v PARTITION BY (suite_name, test_name), i => 1)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_MULTI_PARTITION_BY_AND_ORDER_BY =
+            TableTestProgram.of(
+                            "process-order-by-multi-partition-key-and-order-by",
+                            "set semantic table partitioned and ordered by multiple columns, sourced from a view wrapping a SESSION window aggregate")
+                    .setupTemporarySystemFunction("f", SetSemanticTableFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "suite_name STRING",
+                                            "test_name STRING",
+                                            "`group` STRING",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                                    .producedValues(
+                                            // group is only used to force two independent SESSION
+                                            // windows for suiteA/test1 whose window_time ties.
+                                            Row.of("suiteA", "test1", "x", Instant.ofEpochMilli(0)),
+                                            Row.of("suiteB", "test2", "x", Instant.ofEpochMilli(1)),
+                                            Row.of("suiteA", "test1", "x", Instant.ofEpochMilli(2)),
+                                            Row.of("suiteA", "test1", "y", Instant.ofEpochMilli(2)))
+                                    .build())
+                    .setupSql(
+                            "CREATE VIEW v AS "
+                                    + "SELECT suite_name, test_name, window_time, COUNT(*) AS c "
+                                    + "FROM SESSION(TABLE t PARTITION BY (suite_name, test_name, `group`), DESCRIPTOR(ts), INTERVAL '0.002' SECOND) "
+                                    + "GROUP BY suite_name, test_name, `group`, window_start, window_end, window_time")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "`suite_name` STRING",
+                                            "`test_name` STRING",
+                                            "`out` STRING")
+                                    .consumedValues(
+                                            "+I[suiteB, test2, {+I[suiteB, test2, 1970-01-01T00:00:00.002Z, 1], 1}]",
+                                            "+I[suiteA, test1, {+I[suiteA, test1, 1970-01-01T00:00:00.003Z, 2], 1}]",
+                                            "+I[suiteA, test1, {+I[suiteA, test1, 1970-01-01T00:00:00.003Z, 1], 1}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "r => TABLE v PARTITION BY (suite_name, test_name) ORDER BY (window_time ASC, c DESC), i => 1)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_ROW_DATA_CONVERSION_TABLE =
+            TableTestProgram.of(
+                            "process-row-data-conversion",
+                            "table argument with a non-default RowData conversion class")
+                    .setupTemporarySystemFunction("f", RowDataRowSemanticTableFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{Hello Bob!}]", "+I[{Hello Alice!}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(input => TABLE t)")
                     .build();
 }

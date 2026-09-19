@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.InternalKeyContext;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -220,6 +221,17 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                                         .map(Map.Entry::getKey))
                 .collect(Collectors.toSet())
                 .stream();
+    }
+
+    @Override
+    public <N> Stream<Tuple2<K, Integer>> getKeysAndKeyGroups(List<String> states, N namespace) {
+        return getKeys(states, namespace)
+                .map(
+                        key ->
+                                Tuple2.of(
+                                        key,
+                                        KeyGroupRangeAssignment.assignToKeyGroup(
+                                                key, getNumberOfKeyGroups())));
     }
 
     @Override

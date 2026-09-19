@@ -389,7 +389,8 @@ class ExprCodeGenerator(
     val index = rexFieldAccess.getField.getIndex
     val fieldAccessExpr = generateFieldAccess(ctx, refExpr.resultType, refExpr.resultTerm, index)
 
-    val resultType = fieldAccessExpr.resultType
+    // Use the field access' own (planner-derived) type: a field of a nullable parent row is nullable even if declared NOT NULL.
+    val resultType = FlinkTypeFactory.toLogicalType(rexFieldAccess.getType)
 
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val defaultValue = primitiveDefaultValue(resultType)
@@ -410,7 +411,7 @@ class ExprCodeGenerator(
          |}
          |""".stripMargin
 
-    GeneratedExpression(resultTerm, nullTerm, resultCode, fieldAccessExpr.resultType)
+    GeneratedExpression(resultTerm, nullTerm, resultCode, resultType)
   }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
@@ -935,6 +936,12 @@ class ExprCodeGenerator(
           case BuiltInFunctionDefinitions.JSON_STRING =>
             new JsonStringCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
+          case BuiltInFunctionDefinitions.JSON_LENGTH =>
+            JsonCodeGenUtils.generateJsonLength(ctx, resultType, operands)
+
+          case BuiltInFunctionDefinitions.JSON_TYPE =>
+            JsonCodeGenUtils.generateJsonType(ctx, resultType, operands)
+
           case BuiltInFunctionDefinitions.INTERNAL_HASHCODE =>
             new HashCodeCallGen().generate(ctx, operands, resultType)
 
@@ -1026,4 +1033,9 @@ class ExprCodeGenerator(
     ShortcutUtils.isDeterministicThroughProgram(
       node,
       CodeGenUtils.getExprsFromProgramOrNull(rexProgram))
+
+  override def visitNodeAndFieldIndex(
+      nodeAndFieldIndex: RexNodeAndFieldIndex): GeneratedExpression = {
+    throw new CodeGenException("RexNodeAndFieldIndex are not supported yet.")
+  }
 }

@@ -201,7 +201,7 @@ public class ModelFunctionErrorHandlingStrategyTest {
         assertThat(result.get(0).getArity()).isEqualTo(5);
         assertThat((String) result.get(0).getFieldAs(0)).isEqualTo(RETRYABLE_INPUT_DATA);
         assertThat((String) result.get(0).getFieldAs(1))
-                .isEqualTo("com.openai.errors.RateLimitException: 429: null");
+                .isEqualTo("com.openai.errors.RateLimitException: 429: Unknown");
         assertThat(result.get(0).getField(2)).isNull();
         assertThat((Integer) result.get(0).getFieldAs(3)).isEqualTo(429);
         assertThat((Map<String, String[]>) result.get(0).getFieldAs(4))

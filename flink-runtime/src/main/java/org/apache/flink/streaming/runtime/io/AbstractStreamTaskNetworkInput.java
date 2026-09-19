@@ -326,8 +326,7 @@ public abstract class AbstractStreamTaskNetworkInput<
         // terminate the TM
         Exception err = null;
         for (InputChannelInfo channelInfo : new ArrayList<>(recordDeserializers.keySet())) {
-            final boolean hadError =
-                    checkpointedInputGate.getChannel(channelInfo.getInputChannelIdx()).hasError();
+            final boolean hadError = checkpointedInputGate.getChannel(channelInfo).hasError();
             try {
                 releaseDeserializer(channelInfo);
             } catch (Exception e) {

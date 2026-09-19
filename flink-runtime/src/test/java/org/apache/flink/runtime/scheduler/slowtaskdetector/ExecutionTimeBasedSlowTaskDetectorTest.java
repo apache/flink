@@ -22,10 +22,12 @@ package org.apache.flink.runtime.scheduler.slowtaskdetector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SlowTaskDetectorOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.concurrent.NoMainThreadCheckComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.utils.ExecutionUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -91,7 +93,7 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         final ExecutionGraph executionGraph =
                 SchedulerTestingUtils.createScheduler(
                                 jobGraph,
-                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                new NoMainThreadCheckComponentMainThreadExecutor(),
                                 EXECUTOR_RESOURCE.getExecutor())
                         .getExecutionGraph();
 
@@ -433,12 +435,15 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.createScheduler(
                         jobGraph,
-                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        new NoMainThreadCheckComponentMainThreadExecutor(),
                         EXECUTOR_RESOURCE.getExecutor());
 
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
 
         scheduler.startScheduling();
+        for (ExecutionVertex ev : executionGraph.getAllExecutionVertices()) {
+            ExecutionUtils.waitForTaskDeploymentDescriptorsCreation(ev);
+        }
         ExecutionGraphTestUtils.switchAllVerticesToRunning(executionGraph);
 
         return executionGraph;
@@ -450,13 +455,16 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         final SchedulerBase scheduler =
                 new DefaultSchedulerBuilder(
                                 jobGraph,
-                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                new NoMainThreadCheckComponentMainThreadExecutor(),
                                 EXECUTOR_RESOURCE.getExecutor())
                         .buildAdaptiveBatchJobScheduler();
 
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
 
         scheduler.startScheduling();
+        for (ExecutionVertex ev : executionGraph.getAllExecutionVertices()) {
+            ExecutionUtils.waitForTaskDeploymentDescriptorsCreation(ev);
+        }
         ExecutionGraphTestUtils.switchAllVerticesToRunning(executionGraph);
 
         return executionGraph;

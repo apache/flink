@@ -46,6 +46,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -126,6 +127,41 @@ public class SystemTypeInference {
         return !UID_FORMAT.test(uid);
     }
 
+    /**
+     * Rejects the implicit system arguments ({@code on_time}, {@code uid}) for a function that
+     * disables them via {@link TypeInference#disableSystemArguments()}.
+     *
+     * <p>The system arguments are not part of such a function's signature. Enforcing this from
+     * every translation path (SQL operand checking and Table API call resolution) rejects them
+     * consistently, regardless of whether the function is processed by the generic PTF rule or a
+     * dedicated optimizer rule (e.g. ML_PREDICT, LATERAL SNAPSHOT).
+     */
+    public static void checkNoSystemArguments(
+            boolean sysArgsDisabled,
+            Collection<String> suppliedArgumentNames,
+            Collection<String> declaredArgumentNames,
+            String functionName) {
+        if (!sysArgsDisabled) {
+            return;
+        }
+        for (StaticArgument systemArg : PROCESS_TABLE_FUNCTION_SYSTEM_ARGS) {
+            final String systemArgName = systemArg.getName();
+            // A function that disabled the automatic system arguments may still declare an argument
+            // with a reserved name. A supplied argument that matches such a declared name is
+            // handled as an ordinary argument, not a system argument.
+            if (declaredArgumentNames.contains(systemArgName)) {
+                continue;
+            }
+            if (suppliedArgumentNames.contains(systemArgName)) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid function call. The '%s' argument is not supported "
+                                        + "because function '%s' does not use system arguments.",
+                                systemArgName, functionName));
+            }
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private static void checkScalarArgsOnly(List<StaticArgument> defaultArgs) {
@@ -156,7 +192,9 @@ public class SystemTypeInference {
                     "Function requires a static signature that is not overloaded and doesn't contain varargs.");
         }
 
-        checkReservedArgs(declaredArgs);
+        if (!disableSystemArgs) {
+            checkReservedArgs(declaredArgs);
+        }
         checkMultipleTableArgs(declaredArgs);
         checkPassThroughColumns(declaredArgs);
 
@@ -776,7 +814,11 @@ public class SystemTypeInference {
         }
     }
 
-    private static boolean isUnsupportedOnTimeColumn(LogicalType type) {
+    /**
+     * Checks whether a column referenced by an {@code on_time} argument has an unsupported data
+     * type. A supported column is a TIMESTAMP or TIMESTAMP_LTZ column up to precision 3.
+     */
+    public static boolean isUnsupportedOnTimeColumn(LogicalType type) {
         return !LogicalTypeChecks.canBeTimeAttributeType(type)
                 || LogicalTypeChecks.getPrecision(type) > 3;
     }

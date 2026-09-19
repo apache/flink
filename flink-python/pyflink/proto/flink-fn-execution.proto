@@ -39,6 +39,8 @@ message Input {
     UserDefinedFunction udf = 1;
     int32 inputOffset = 2;
     bytes inputConstant = 3;
+    // Reference to a previously computed UDF result (enables cross-subtree CSE).
+    int32 refIndex = 4;
   }
 }
 
@@ -62,6 +64,9 @@ message UserDefinedFunction {
 
   // Whether it's pandas UDF
   bool is_pandas_udf = 5;
+
+  // Whether the scalar UDF consumes and returns Arrow arrays directly
+  bool is_arrow_udf = 6;
 }
 
 // Async execution configuration for async functions
@@ -85,6 +90,11 @@ message UserDefinedFunctions {
   // The runtime context of the user-defined functions, providing task info such as
   // task_name, parallelism, subtask_index, etc.
   UserDefinedDataStreamFunction.RuntimeContext runtime_context = 7;
+  // Positions in `udfs` whose results form the operator output, in output order.
+  // Flattening nested calls for CSE appends intermediate sub-expressions to `udfs`; those are
+  // consumed via Input.refIndex and must not be emitted. Empty means every UDF result is part
+  // of the output, which is the case when no flattening happened.
+  repeated int32 output_indices = 8;
 }
 
 // Used to describe the info of over window in pandas batch over window aggregation
@@ -519,6 +529,11 @@ message CoderInfoDescriptor {
 
   message ArrowType {
     Schema schema = 1;
+    enum BatchFormat {
+      PANDAS = 0;
+      ARROW = 1;
+    }
+    BatchFormat batch_format = 2;
   }
 
   // only used in batch over window

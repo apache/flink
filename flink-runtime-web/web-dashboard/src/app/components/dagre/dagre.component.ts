@@ -391,7 +391,11 @@ export class DagreComponent extends NzGraph {
     this.cd.detectChanges();
   }
 
-  constructor(protected cd: ChangeDetectorRef, protected zone: NgZone, private elementRef: ElementRef) {
+  constructor(
+    protected cd: ChangeDetectorRef,
+    protected zone: NgZone,
+    private elementRef: ElementRef
+  ) {
     super();
   }
 }

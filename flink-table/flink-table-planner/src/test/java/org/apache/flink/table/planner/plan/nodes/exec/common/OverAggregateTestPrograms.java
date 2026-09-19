@@ -25,6 +25,9 @@ import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+
 import static org.apache.flink.table.api.config.TableConfigOptions.LOCAL_TIME_ZONE;
 
 /**
@@ -382,6 +385,66 @@ public class OverAggregateTestPrograms {
                             SOURCE_WITH_OUT_OF_ORDER_RECORDS,
                             BEFORE_RESTORE_DATA_PRECEDING_ROWS_WITH_OUT_OF_ORDER_RECORDS,
                             AFTER_RESTORE_DATA_PRECEDING_ROWS_WITH_OUT_OF_ORDER_RECORDS);
+
+    /**
+     * Regression test for FLINK-25802: RANGE OVER with TIMESTAMP ORDER BY. Uses TIMESTAMP(6) with a
+     * sub-millisecond row to verify that the range comparator uses microsecond precision: row 3 is
+     * 10s+600µs after row 1, so row 1 falls just outside row 3's 10-second window (count=2, not 3).
+     */
+    public static final TableTestProgram OVER_AGGREGATE_RANGE_TIMESTAMP =
+            TableTestProgram.of(
+                            "over-aggregate-batch-range-timestamp",
+                            "RANGE OVER with TIMESTAMP(6) ORDER BY")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("timestamp_range_source")
+                                    .addSchema("ts TIMESTAMP(6)", "val INT")
+                                    .producedValues(
+                                            Row.of(LocalDateTime.of(2021, 1, 1, 0, 0, 0, 0), 1),
+                                            Row.of(LocalDateTime.of(2021, 1, 1, 0, 0, 5, 0), 2),
+                                            Row.of(
+                                                    LocalDateTime.of(2021, 1, 1, 0, 0, 10, 600_000),
+                                                    3))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("timestamp_range_sink")
+                                    .addSchema("val INT", "cnt BIGINT")
+                                    .consumedValues(Row.of(1, 1L), Row.of(2, 2L), Row.of(3, 2L))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO timestamp_range_sink"
+                                    + " SELECT val, COUNT(val) OVER (ORDER BY ts"
+                                    + " RANGE BETWEEN INTERVAL '10' SECOND PRECEDING"
+                                    + " AND CURRENT ROW)"
+                                    + " FROM timestamp_range_source")
+                    .build();
+
+    /**
+     * Regression test for FLINK-30499: RANGE OVER with TIMESTAMP_LTZ(3) ORDER BY failed to compile.
+     */
+    public static final TableTestProgram OVER_AGGREGATE_RANGE_TIMESTAMP_LTZ =
+            TableTestProgram.of(
+                            "over-aggregate-batch-range-timestamp-ltz",
+                            "RANGE OVER with TIMESTAMP_LTZ(3) ORDER BY")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("timestamp_ltz_range_source")
+                                    .addSchema("ts TIMESTAMP_LTZ(3)", "val INT")
+                                    .producedValues(
+                                            Row.of(Instant.parse("2021-01-01T00:00:00Z"), 1),
+                                            Row.of(Instant.parse("2021-01-01T00:00:05Z"), 2),
+                                            Row.of(Instant.parse("2021-01-01T00:00:12Z"), 3))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("timestamp_ltz_range_sink")
+                                    .addSchema("val INT", "cnt BIGINT")
+                                    .consumedValues(Row.of(1, 1L), Row.of(2, 2L), Row.of(3, 2L))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO timestamp_ltz_range_sink"
+                                    + " SELECT val, COUNT(val) OVER (ORDER BY ts"
+                                    + " RANGE BETWEEN INTERVAL '10' SECOND PRECEDING"
+                                    + " AND CURRENT ROW)"
+                                    + " FROM timestamp_ltz_range_source")
+                    .build();
 
     private static SourceTestStep getSourceTestStep(Row[] data, Row[] afterData) {
         return SourceTestStep.newBuilder("MyTable")

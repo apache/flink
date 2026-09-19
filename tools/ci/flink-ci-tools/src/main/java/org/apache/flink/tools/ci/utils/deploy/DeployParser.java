@@ -43,9 +43,11 @@ public class DeployParser {
     // Skipped deployment:
     // [INFO] --- maven-deploy-plugin:2.8.2:deploy (default-deploy) @ flink-parent ---
     // [INFO] Skipping artifact deployment
+    // Maven logs the plugin as "maven-deploy-plugin" up to 3.8 and as "deploy" (the goal prefix)
+    // from 3.9 on; both spellings are accepted so the parser works on either Maven version.
     private static final Pattern DEPLOY_MODULE_PATTERN =
             Pattern.compile(
-                    ".maven-deploy-plugin:.*:deploy .* @ (?<module>[^ _]+)(?:_[0-9.]+)? --.*");
+                    ".*(?:maven-)?deploy(?:-plugin)?:.*:deploy .* @ (?<module>[^ _]+)(?:_[0-9.]+)? --.*");
 
     /**
      * Parses the output of a Maven build where {@code deploy:deploy} was used, and returns a set of

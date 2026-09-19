@@ -18,6 +18,7 @@ limitations under the License.
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
@@ -121,6 +122,42 @@ class SourceCoordinatorProviderTest {
                 context::isJobFailed,
                 Duration.ofSeconds(10L),
                 "The job did not fail before timeout.");
+    }
+
+    @Test
+    void testCoordinatorThreadNameContainsJobIdentity() throws Exception {
+        final MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SPLITS);
+        final RecreateOnResetOperatorCoordinator coordinator =
+                (RecreateOnResetOperatorCoordinator) provider.create(context);
+        final JobInfo jobInfo = context.getJobInfo();
+        try {
+            // Starting the coordinator creates the (lazily initialized) coordinator thread.
+            coordinator.start();
+            CommonTestUtils.waitUtil(
+                    () -> findCoordinatorThread(jobInfo) != null,
+                    Duration.ofMinutes(5L),
+                    "The coordinator thread carrying the job identity was not found.");
+
+            final Thread coordinatorThread = findCoordinatorThread(jobInfo);
+            assertThat(coordinatorThread).isNotNull();
+            assertThat(coordinatorThread.getName())
+                    .startsWith("SourceCoordinator-SourceCoordinatorProviderTest")
+                    .contains(jobInfo.getJobName())
+                    .contains(jobInfo.getJobId().toHexString());
+        } finally {
+            coordinator.close();
+        }
+    }
+
+    private static Thread findCoordinatorThread(JobInfo jobInfo) {
+        for (Thread t : Thread.getAllStackTraces().keySet()) {
+            if (t.getName().startsWith("SourceCoordinator-")
+                    && t.getName().contains(jobInfo.getJobId().toHexString())) {
+                return t;
+            }
+        }
+        return null;
     }
 
     @Test

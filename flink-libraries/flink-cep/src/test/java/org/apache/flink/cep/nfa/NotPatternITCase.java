@@ -25,11 +25,10 @@ import org.apache.flink.cep.pattern.WithinType;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -39,14 +38,14 @@ import java.util.List;
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link Pattern#notFollowedBy(String)} and {@link Pattern#notNext(String)}. */
 @SuppressWarnings("unchecked")
-public class NotPatternITCase extends TestLogger {
+class NotPatternITCase {
 
     @Test
-    public void testNotNext() throws Exception {
+    void testNotNext() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -82,7 +81,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotNextNoMatches() throws Exception {
+    void testNotNextNoMatches() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -111,11 +110,11 @@ public class NotPatternITCase extends TestLogger {
 
         final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
-        assertEquals(0, matches.size());
+        assertThat(matches).isEmpty();
     }
 
     @Test
-    public void testNotNextNoMatchesAtTheEnd() throws Exception {
+    void testNotNextNoMatchesAtTheEnd() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -144,11 +143,11 @@ public class NotPatternITCase extends TestLogger {
 
         final List<List<Event>> matches = feedNFA(inputEvents, nfa);
 
-        assertEquals(0, matches.size());
+        assertThat(matches).isEmpty();
     }
 
     @Test
-    public void testNotFollowedBy() throws Exception {
+    void testNotFollowedBy() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -181,7 +180,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByBeforeOptional() throws Exception {
+    void testNotFollowedByBeforeOptional() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -215,7 +214,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesWithNotFollowedBy() throws Exception {
+    void testTimesWithNotFollowedBy() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -249,7 +248,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testIgnoreStateOfTimesWithNotFollowedBy() throws Exception {
+    void testIgnoreStateOfTimesWithNotFollowedBy() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -288,7 +287,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testTimesWithNotFollowedByAfter() throws Exception {
+    void testTimesWithNotFollowedByAfter() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -326,7 +325,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByBeforeOptionalAtTheEnd() throws Exception {
+    void testNotFollowedByBeforeOptionalAtTheEnd() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -359,7 +358,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByBeforeOptionalTimes() throws Exception {
+    void testNotFollowedByBeforeOptionalTimes() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -395,7 +394,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByWithBranchingAtStart() throws Exception {
+    void testNotFollowedByWithBranchingAtStart() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -444,13 +443,13 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotNextAfterOneOrMoreSkipTillNext() throws Exception {
+    void testNotNextAfterOneOrMoreSkipTillNext() throws Exception {
         final List<List<Event>> matches = testNotNextAfterOneOrMore(false);
-        assertEquals(0, matches.size());
+        assertThat(matches).isEmpty();
     }
 
     @Test
-    public void testNotNextAfterOneOrMoreSkipTillAny() throws Exception {
+    void testNotNextAfterOneOrMoreSkipTillAny() throws Exception {
         final List<List<Event>> matches = testNotNextAfterOneOrMore(true);
         comparePatterns(
                 matches,
@@ -488,13 +487,13 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByNextAfterOneOrMoreEager() throws Exception {
+    void testNotFollowedByNextAfterOneOrMoreEager() throws Exception {
         final List<List<Event>> matches = testNotFollowedByAfterOneOrMore(true, false);
-        assertEquals(0, matches.size());
+        assertThat(matches).isEmpty();
     }
 
     @Test
-    public void testNotFollowedByAnyAfterOneOrMoreEager() throws Exception {
+    void testNotFollowedByAnyAfterOneOrMoreEager() throws Exception {
         final List<List<Event>> matches = testNotFollowedByAfterOneOrMore(true, true);
         comparePatterns(
                 matches,
@@ -524,13 +523,13 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByNextAfterOneOrMoreCombinations() throws Exception {
+    void testNotFollowedByNextAfterOneOrMoreCombinations() throws Exception {
         final List<List<Event>> matches = testNotFollowedByAfterOneOrMore(false, false);
-        assertEquals(0, matches.size());
+        assertThat(matches).isEmpty();
     }
 
     @Test
-    public void testNotFollowedByAnyAfterOneOrMoreCombinations() throws Exception {
+    void testNotFollowedByAnyAfterOneOrMoreCombinations() throws Exception {
         final List<List<Event>> matches = testNotFollowedByAfterOneOrMore(false, true);
         comparePatterns(
                 matches,
@@ -600,7 +599,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByAnyBeforeOneOrMoreEager() throws Exception {
+    void testNotFollowedByAnyBeforeOneOrMoreEager() throws Exception {
         final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(true, true);
 
         comparePatterns(
@@ -629,7 +628,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByAnyBeforeOneOrMoreCombinations() throws Exception {
+    void testNotFollowedByAnyBeforeOneOrMoreCombinations() throws Exception {
         final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(false, true);
 
         comparePatterns(
@@ -680,7 +679,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByBeforeOneOrMoreEager() throws Exception {
+    void testNotFollowedByBeforeOneOrMoreEager() throws Exception {
         final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(true, false);
 
         comparePatterns(
@@ -709,7 +708,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByBeforeOneOrMoreCombinations() throws Exception {
+    void testNotFollowedByBeforeOneOrMoreCombinations() throws Exception {
         final List<List<Event>> matches = testNotFollowedByBeforeOneOrMore(false, false);
 
         comparePatterns(
@@ -794,7 +793,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByBeforeZeroOrMoreEagerSkipTillNext() throws Exception {
+    void testNotFollowedByBeforeZeroOrMoreEagerSkipTillNext() throws Exception {
         final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(true, false);
         comparePatterns(
                 matches,
@@ -822,7 +821,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByBeforeZeroOrMoreCombinationsSkipTillNext() throws Exception {
+    void testNotFollowedByBeforeZeroOrMoreCombinationsSkipTillNext() throws Exception {
         final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(false, false);
         comparePatterns(
                 matches,
@@ -872,7 +871,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByBeforeZeroOrMoreEagerSkipTillAny() throws Exception {
+    void testNotFollowedByBeforeZeroOrMoreEagerSkipTillAny() throws Exception {
         final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(true, true);
         comparePatterns(
                 matches,
@@ -900,7 +899,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByBeforeZeroOrMoreCombinationsSkipTillAny() throws Exception {
+    void testNotFollowedByBeforeZeroOrMoreCombinationsSkipTillAny() throws Exception {
         final List<List<Event>> matches = testNotFollowedByBeforeZeroOrMore(false, true);
         comparePatterns(
                 matches,
@@ -985,16 +984,16 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByWithinFirstAndLastAtEnd() throws Exception {
+    void testNotFollowedByWithinFirstAndLastAtEnd() throws Exception {
         testNotFollowedByWithinAtEnd(WithinType.FIRST_AND_LAST);
     }
 
     @Test
-    public void testNotFollowedByWithinPreviousAndCurrentAtEnd() throws Exception {
+    void testNotFollowedByWithinPreviousAndCurrentAtEnd() throws Exception {
         testNotFollowedByWithinAtEnd(WithinType.PREVIOUS_AND_CURRENT);
     }
 
-    public void testNotFollowedByWithinAtEnd(WithinType withinType) throws Exception {
+    void testNotFollowedByWithinAtEnd(WithinType withinType) throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -1028,7 +1027,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowByBeforeTimesWithin() throws Exception {
+    void testNotFollowByBeforeTimesWithin() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);
@@ -1075,7 +1074,7 @@ public class NotPatternITCase extends TestLogger {
     }
 
     @Test
-    public void testNotFollowedByWithinAtEndAfterMatch() throws Exception {
+    void testNotFollowedByWithinAtEndAfterMatch() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event a1 = new Event(40, "a", 1.0);

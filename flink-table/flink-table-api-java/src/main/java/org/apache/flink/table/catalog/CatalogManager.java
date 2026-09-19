@@ -1114,7 +1114,21 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     private boolean permanentDatabaseExists(String catalogName, String databaseName) {
-        return getCatalog(catalogName).map(c -> c.databaseExists(databaseName)).orElse(false);
+        return getCatalog(catalogName)
+                .map(
+                        c -> {
+                            try {
+                                return c.databaseExists(databaseName);
+                            } catch (CatalogException e) {
+                                LOG.warn(
+                                        "Unable to check whether database '{}' exists in catalog '{}'.",
+                                        databaseName,
+                                        catalogName,
+                                        e);
+                                return false;
+                            }
+                        })
+                .orElse(false);
     }
 
     /**
@@ -1908,6 +1922,18 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         } else {
             return Optional.empty();
         }
+    }
+
+    /** Get a connection from the catalog with contextual metadata. */
+    public Optional<ContextResolvedConnection> getResolvedConnection(
+            ObjectIdentifier objectIdentifier) {
+        return getConnection(objectIdentifier)
+                .map(
+                        connection ->
+                                ContextResolvedConnection.of(
+                                        objectIdentifier,
+                                        connection,
+                                        temporaryConnections.containsKey(objectIdentifier)));
     }
 
     /**

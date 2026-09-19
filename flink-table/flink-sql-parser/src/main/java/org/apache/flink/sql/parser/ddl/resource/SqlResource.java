@@ -37,7 +37,14 @@ import java.util.List;
 public class SqlResource extends SqlCall {
 
     private static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("SqlResource", SqlKind.OTHER);
+            new SqlSpecialOperator("SqlResource", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlResource(
+                            pos, (SqlLiteral) operands[0], (SqlCharStringLiteral) operands[1]);
+                }
+            };
 
     private final SqlLiteral resourceType;
     private final SqlCharStringLiteral resourcePath;

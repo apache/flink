@@ -18,6 +18,9 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsBySplits;
@@ -30,9 +33,13 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.util.MdcUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.slf4j.MDC;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -42,6 +49,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.test.util.TestUtils.waitUntil;
@@ -73,6 +81,36 @@ class SplitFetcherManagerTest {
         fetcherManager.close(30000L);
         assertThatThrownBy(fetcherManager::checkErrors)
                 .hasRootCauseMessage("Artificial exception on closing the split reader.");
+    }
+
+    /**
+     * The exact suffix format is covered by {@code MdcUtilsTest#testJobThreadNameSuffix}; this only
+     * has to show that a fetcher thread is seeded with the job MDC and named after the job at all.
+     */
+    @Test
+    void testFetcherThreadCarriesJobIdInMdcAndThreadName() throws Exception {
+        final JobID jobId = new JobID();
+        final JobInfo jobInfo = new JobInfoImpl(jobId, "my-test-job");
+        final String taskThreadName = Thread.currentThread().getName();
+
+        final FetcherThreadInfo fetcherThread = captureFetcherThread(jobInfo);
+
+        assertThat(fetcherThread.mdcJobId).isEqualTo(jobId.toHexString());
+        assertThat(fetcherThread.threadName)
+                .startsWith(SplitFetcherManager.THREAD_NAME_PREFIX)
+                .contains(taskThreadName)
+                .endsWith(MdcUtils.jobThreadNameSuffix(jobInfo));
+    }
+
+    @Test
+    void testFetcherThreadWithoutJobInfoKeepsHistoricalNameAndNoJobIdInMdc() throws Exception {
+        final FetcherThreadInfo fetcherThread = captureFetcherThread(null);
+
+        // Fetcher threads are named after the thread creating the manager, i.e. this test thread.
+        assertThat(fetcherThread.threadName)
+                .isEqualTo(
+                        SplitFetcherManager.THREAD_NAME_PREFIX + Thread.currentThread().getName());
+        assertThat(fetcherThread.mdcJobId).isNull();
     }
 
     @Test
@@ -243,6 +281,31 @@ class SplitFetcherManagerTest {
         return fetcher;
     }
 
+    /**
+     * Runs a fetcher for the given job identity ({@code null} exercising the constructors without
+     * {@link JobInfo}) and returns what its fetcher thread saw. The fetcher manager is closed again
+     * before returning.
+     */
+    private static FetcherThreadInfo captureFetcherThread(@Nullable JobInfo jobInfo)
+            throws Exception {
+        final ThreadInfoCapturingSplitReader<Integer> reader =
+                new ThreadInfoCapturingSplitReader<>();
+        final SingleThreadFetcherManager<Integer, TestingSourceSplit> fetcherManager =
+                jobInfo == null
+                        ? new SingleThreadFetcherManager<>(() -> reader, new Configuration())
+                        : new SingleThreadFetcherManager<>(
+                                () -> reader, new Configuration(), (ignore) -> {}, jobInfo);
+        try {
+            fetcherManager.addSplits(Collections.singletonList(new TestingSourceSplit("split-0")));
+            assertThat(reader.threadInfo)
+                    .as("The fetcher thread should have started fetching.")
+                    .succeedsWithin(Duration.ofSeconds(60));
+            return reader.threadInfo.get();
+        } finally {
+            fetcherManager.close(30_000L);
+        }
+    }
+
     private static void drainQueue(FutureCompletingBlockingQueue<?> queue) {
         //noinspection StatementWithEmptyBody
         while (queue.poll() != null) {}
@@ -261,6 +324,51 @@ class SplitFetcherManagerTest {
     // ------------------------------------------------------------------------
     //  test mocks
     // ------------------------------------------------------------------------
+
+    /** Thread name and {@value MdcUtils#JOB_ID} MDC value observed on a fetcher thread. */
+    private static final class FetcherThreadInfo {
+
+        private final String threadName;
+        @Nullable private final String mdcJobId;
+
+        private FetcherThreadInfo(String threadName, @Nullable String mdcJobId) {
+            this.threadName = threadName;
+            this.mdcJobId = mdcJobId;
+        }
+    }
+
+    /** A {@link SplitReader} that reports the fetcher thread it is executed on. */
+    private static final class ThreadInfoCapturingSplitReader<E>
+            implements SplitReader<E, TestingSourceSplit> {
+
+        private final CompletableFuture<FetcherThreadInfo> threadInfo = new CompletableFuture<>();
+        private final OneShotLatch fetchBlocker = new OneShotLatch();
+
+        @Override
+        public RecordsWithSplitIds<E> fetch() {
+            threadInfo.complete(
+                    new FetcherThreadInfo(
+                            Thread.currentThread().getName(), MDC.get(MdcUtils.JOB_ID)));
+            // Stay inside fetch() until woken up, so the fetcher does not spin on empty fetches.
+            try {
+                fetchBlocker.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return new RecordsBySplits<>(Collections.emptyMap(), Collections.emptySet());
+        }
+
+        @Override
+        public void handleSplitsChanges(SplitsChange<TestingSourceSplit> splitsChanges) {}
+
+        @Override
+        public void wakeUp() {
+            fetchBlocker.trigger();
+        }
+
+        @Override
+        public void close() {}
+    }
 
     private static final class AwaitingReader<E, SplitT extends SourceSplit>
             implements SplitReader<E, SplitT> {

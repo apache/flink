@@ -75,6 +75,7 @@ public final class InternalSerializers {
                 return BooleanSerializer.INSTANCE;
             case BINARY:
             case VARBINARY:
+            case UUID:
                 return BytePrimitiveArraySerializer.INSTANCE;
             case DECIMAL:
                 return new DecimalDataSerializer(getPrecision(type), getScale(type));
@@ -108,6 +109,7 @@ public final class InternalSerializers {
                 MapType mapType = (MapType) type;
                 return new MapDataSerializer(mapType.getKeyType(), mapType.getValueType());
             case ROW:
+                return new RowDataSerializer((RowType) type);
             case STRUCTURED_TYPE:
                 return new RowDataSerializer(type.getChildren().toArray(new LogicalType[0]));
             case DISTINCT_TYPE:

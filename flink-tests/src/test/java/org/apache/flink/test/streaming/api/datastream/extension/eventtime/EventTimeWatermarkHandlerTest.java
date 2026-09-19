@@ -277,6 +277,11 @@ class EventTimeWatermarkHandlerTest {
         }
 
         @Override
+        public long getReachedWatermark() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void snapshotToRawKeyedState(
                 KeyedStateCheckpointOutputStream stateCheckpointOutputStream, String operatorName)
                 throws Exception {

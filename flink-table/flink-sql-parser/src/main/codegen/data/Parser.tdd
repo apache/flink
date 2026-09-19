@@ -633,6 +633,7 @@
     "OVERWRITING"
     "PARTITIONED"
     "PARTITIONS"
+    "UUID"
     "VIRTUAL"
     "ANALYZE"
     "COMPUTE"
@@ -772,9 +773,13 @@
   joinTypes: [
   ]
 
+  # Method for parsing "SET [OR RESET]" calls.
+  setOptionParserMethod: "SqlSetOption"
+
   includePosixOperators: false
   includeCompoundIdentifier: true
   includeBraces: true
   includeAdditionalDeclarations: false
   includeParsingStringLiteralAsArrayLiteral: false
+  includeIntervalWithoutQualifier: false
 }

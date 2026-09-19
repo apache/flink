@@ -353,9 +353,9 @@ Sink(table=[default_catalog.default_database.retractSink2], fields=[total_min], 
   <TestCase name="testMultiSinksSplitOnUnion1">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[total_sum])
-+- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
-   +- LogicalProject(a=[$0])
+LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[c, total_sum])
++- LogicalAggregate(group=[{0}], total_sum=[SUM($1)])
+   +- LogicalProject(c=[$1], a=[$0])
       +- LogicalUnion(all=[true])
          :- LogicalProject(a=[$0], c=[$2])
          :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
@@ -374,14 +374,14 @@ LogicalSink(table=[default_catalog.default_database.retractSink], fields=[total_
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.upsertSink], fields=[total_sum], changelogMode=[NONE])
-+- GroupAggregate(select=[SUM(a) AS total_sum], changelogMode=[I,UA])
-   +- Exchange(distribution=[single], changelogMode=[I])
-      +- Union(all=[true], union=[a], changelogMode=[I])
-         :- Calc(select=[a], changelogMode=[I])
+Sink(table=[default_catalog.default_database.upsertSink], fields=[c, total_sum], changelogMode=[NONE])
++- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS total_sum], changelogMode=[I,UA])
+   +- Exchange(distribution=[hash[c]], changelogMode=[I])
+      +- Union(all=[true], union=[c, a], changelogMode=[I])
+         :- Calc(select=[c, a], changelogMode=[I])
          :  +- Calc(select=[a, c], changelogMode=[I])
          :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
-         +- Calc(select=[d AS a], changelogMode=[I])
+         +- Calc(select=[f AS c, d AS a], changelogMode=[I])
             +- Calc(select=[d, f], changelogMode=[I])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
 
@@ -498,9 +498,9 @@ LogicalSink(table=[default_catalog.default_database.retractSink], fields=[total_
          +- LogicalProject(a=[$0], c=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
-LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[total_min])
-+- LogicalAggregate(group=[{}], total_min=[MIN($0)])
-   +- LogicalProject(a=[$0])
+LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[c, total_min])
++- LogicalAggregate(group=[{0}], total_min=[MIN($1)])
+   +- LogicalProject(c=[$1], a=[$0])
       +- LogicalUnion(all=[true])
          :- LogicalProject(a=[$0], c=[$1])
          :  +- LogicalUnion(all=[true])
@@ -535,17 +535,17 @@ Sink(table=[default_catalog.default_database.retractSink], fields=[total_sum], c
             +- Calc(select=[a, c], changelogMode=[I])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c], changelogMode=[I])
 
-Sink(table=[default_catalog.default_database.upsertSink], fields=[total_min], changelogMode=[NONE])
-+- GroupAggregate(select=[MIN(a) AS total_min], changelogMode=[I,UA])
-   +- Exchange(distribution=[single], changelogMode=[I])
-      +- Union(all=[true], union=[a], changelogMode=[I])
-         :- Calc(select=[a], changelogMode=[I])
+Sink(table=[default_catalog.default_database.upsertSink], fields=[c, total_min], changelogMode=[NONE])
++- GroupAggregate(groupBy=[c], select=[c, MIN(a) AS total_min], changelogMode=[I,UA])
+   +- Exchange(distribution=[hash[c]], changelogMode=[I])
+      +- Union(all=[true], union=[c, a], changelogMode=[I])
+         :- Calc(select=[c, a], changelogMode=[I])
          :  +- Union(all=[true], union=[a, c], changelogMode=[I])
          :     :- Calc(select=[a, c], changelogMode=[I])
          :     :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          :     +- Calc(select=[d, f], changelogMode=[I])
          :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
-         +- Calc(select=[a], changelogMode=[I])
+         +- Calc(select=[c, a], changelogMode=[I])
             +- Calc(select=[a, c], changelogMode=[I])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c], changelogMode=[I])
 ]]>
@@ -554,9 +554,9 @@ Sink(table=[default_catalog.default_database.upsertSink], fields=[total_min], ch
   <TestCase name="testMultiSinksSplitOnUnion4">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[total_sum])
-+- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
-   +- LogicalProject(a=[$0])
+LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[c, total_sum])
++- LogicalAggregate(group=[{0}], total_sum=[SUM($1)])
+   +- LogicalProject(c=[$1], a=[$0])
       +- LogicalUnion(all=[true])
          :- LogicalUnion(all=[true])
          :  :- LogicalProject(a=[$0], c=[$2])
@@ -581,18 +581,18 @@ LogicalSink(table=[default_catalog.default_database.retractSink], fields=[total_
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.upsertSink], fields=[total_sum], changelogMode=[NONE])
-+- GroupAggregate(select=[SUM(a) AS total_sum], changelogMode=[I,UA])
-   +- Exchange(distribution=[single], changelogMode=[I])
-      +- Union(all=[true], union=[a], changelogMode=[I])
-         :- Union(all=[true], union=[a], changelogMode=[I])
-         :  :- Calc(select=[a], changelogMode=[I])
+Sink(table=[default_catalog.default_database.upsertSink], fields=[c, total_sum], changelogMode=[NONE])
++- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS total_sum], changelogMode=[I,UA])
+   +- Exchange(distribution=[hash[c]], changelogMode=[I])
+      +- Union(all=[true], union=[c, a], changelogMode=[I])
+         :- Union(all=[true], union=[c, a], changelogMode=[I])
+         :  :- Calc(select=[c, a], changelogMode=[I])
          :  :  +- Calc(select=[a, c], changelogMode=[I])
          :  :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
-         :  +- Calc(select=[d AS a], changelogMode=[I])
+         :  +- Calc(select=[f AS c, d AS a], changelogMode=[I])
          :     +- Calc(select=[d, f], changelogMode=[I])
          :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
-         +- Calc(select=[a], changelogMode=[I])
+         +- Calc(select=[c, a], changelogMode=[I])
             +- Calc(select=[a, c], changelogMode=[I])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c], changelogMode=[I])
 
@@ -994,7 +994,7 @@ Sink(table=[default_catalog.default_database.appendSink], fields=[a, b, c, d, e,
   <TestCase name="testUnionAndAggWithDifferentGroupings">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[b, c, a_sum])
+LogicalSink(table=[default_catalog.default_database.retractSink], fields=[b, c, a_sum])
 +- LogicalUnion(all=[true])
    :- LogicalAggregate(group=[{0, 1}], a_sum=[SUM($2)])
    :  +- LogicalProject(b=[$1], c=[$2], a=[$0])
@@ -1007,13 +1007,13 @@ LogicalSink(table=[default_catalog.default_database.upsertSink], fields=[b, c, a
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.upsertSink], fields=[b, c, a_sum], changelogMode=[NONE])
-+- Union(all=[true], union=[b, c, a_sum], changelogMode=[I,UA])
-   :- GroupAggregate(groupBy=[b, c], select=[b, c, SUM(a) AS a_sum], changelogMode=[I,UA])
+Sink(table=[default_catalog.default_database.retractSink], fields=[b, c, a_sum], changelogMode=[NONE])
++- Union(all=[true], union=[b, c, a_sum], changelogMode=[I,UB,UA])
+   :- GroupAggregate(groupBy=[b, c], select=[b, c, SUM(a) AS a_sum], changelogMode=[I,UB,UA])
    :  +- Exchange(distribution=[hash[b, c]], changelogMode=[I])
    :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
-   +- Calc(select=[CAST(1 AS BIGINT) AS b, c, a_sum], changelogMode=[I,UA])
-      +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a_sum], changelogMode=[I,UA])
+   +- Calc(select=[CAST(1 AS BIGINT) AS b, c, a_sum], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a_sum], changelogMode=[I,UB,UA])
          +- Exchange(distribution=[hash[c]], changelogMode=[I])
             +- Calc(select=[c, a], changelogMode=[I])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])

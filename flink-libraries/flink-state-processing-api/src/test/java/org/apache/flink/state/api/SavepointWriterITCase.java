@@ -47,13 +47,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,9 +63,10 @@ import java.util.Objects;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /** IT test for writing savepoints. */
-public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
+class SavepointWriterITCase extends AbstractTestBase {
 
     private static final long CHECKPOINT_ID = 42;
 
@@ -86,25 +86,25 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
             Arrays.asList(new CurrencyRate("USD", 1.0), new CurrencyRate("EUR", 1.3));
 
     @Test
-    public void testDefaultStateBackend() throws Exception {
+    void testDefaultStateBackend() throws Exception {
         testStateBootstrapAndModification(new Configuration(), null);
     }
 
     @Test
-    public void testHashMapStateBackend() throws Exception {
+    void testHashMapStateBackend() throws Exception {
         testStateBootstrapAndModification(
                 new Configuration().set(StateBackendOptions.STATE_BACKEND, "hashmap"),
                 new HashMapStateBackend());
     }
 
     @Test
-    public void testEmbeddedRocksDBStateBackend() throws Exception {
+    void testEmbeddedRocksDBStateBackend() throws Exception {
         testStateBootstrapAndModification(
                 new Configuration().set(StateBackendOptions.STATE_BACKEND, "rocksdb"),
                 new EmbeddedRocksDBStateBackend());
     }
 
-    public void testStateBootstrapAndModification(Configuration config, StateBackend backend)
+    void testStateBootstrapAndModification(Configuration config, StateBackend backend)
             throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
 
@@ -387,14 +387,11 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
                 expected.add(3);
 
                 for (Integer number : state.get()) {
-                    Assert.assertTrue("Duplicate state", expected.contains(number));
+                    assertThat(expected).as("Duplicate state").contains(number);
                     expected.remove(number);
                 }
 
-                Assert.assertTrue(
-                        "Failed to bootstrap all state elements: "
-                                + Arrays.toString(expected.toArray()),
-                        expected.isEmpty());
+                assertThat(expected).as("Failed to bootstrap all state elements").isEmpty();
             }
         }
 
@@ -421,11 +418,9 @@ public class SavepointWriterITCase extends AbstractTestBaseJUnit4 {
         @Override
         public void processElement(CurrencyRate value, ReadOnlyContext ctx, Collector<Void> out)
                 throws Exception {
-            Assert.assertEquals(
-                    "Incorrect currency rate",
-                    value.rate,
-                    ctx.getBroadcastState(descriptor).get(value.currency),
-                    0.0001);
+            assertThat(ctx.getBroadcastState(descriptor).get(value.currency))
+                    .as("Incorrect currency rate")
+                    .isCloseTo(value.rate, within(0.0001));
         }
 
         @Override

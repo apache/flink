@@ -67,6 +67,9 @@ public interface LibraryCacheManager {
          * Every subsequent call to this method, will ensure that created user code class loader can
          * fulfill the required jar files and class paths.
          *
+         * <p>Required jar files are matched by content, not by {@link PermanentBlobKey} identity,
+         * so a jar that is re-uploaded without changing still resolves to the cached class loader.
+         *
          * @param requiredJarFiles requiredJarFiles the user code class loader needs to load
          * @param requiredClasspaths requiredClasspaths the user code class loader needs to be
          *     started with

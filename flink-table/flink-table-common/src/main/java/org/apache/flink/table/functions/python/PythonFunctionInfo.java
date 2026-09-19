@@ -21,27 +21,25 @@ package org.apache.flink.table.functions.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
-import java.io.Serializable;
-
 /**
  * PythonFunctionInfo contains the execution information of a Python function, such as: the actual
  * Python function, the input arguments, etc.
+ *
+ * <p>It is itself a {@link PythonFunctionInput}, so that a nested call can be used as an argument
+ * of another function.
  */
 @Internal
-public class PythonFunctionInfo implements Serializable {
+public class PythonFunctionInfo implements PythonFunctionInput {
 
     private static final long serialVersionUID = 1L;
 
     /** The python function to be executed. */
     private final PythonFunction pythonFunction;
 
-    /**
-     * The input arguments, it could be an input offset of the input row or the execution result of
-     * another python function described as PythonFunctionInfo.
-     */
-    private Object[] inputs;
+    /** The input arguments of this function. */
+    private PythonFunctionInput[] inputs;
 
-    public PythonFunctionInfo(PythonFunction pythonFunction, Object[] inputs) {
+    public PythonFunctionInfo(PythonFunction pythonFunction, PythonFunctionInput[] inputs) {
         this.pythonFunction = Preconditions.checkNotNull(pythonFunction);
         this.inputs = Preconditions.checkNotNull(inputs);
     }
@@ -50,11 +48,11 @@ public class PythonFunctionInfo implements Serializable {
         return this.pythonFunction;
     }
 
-    public Object[] getInputs() {
+    public PythonFunctionInput[] getInputs() {
         return this.inputs;
     }
 
-    public void setInputs(Object[] inputs) {
+    public void setInputs(PythonFunctionInput[] inputs) {
         Preconditions.checkNotNull(inputs);
         this.inputs = inputs;
     }

@@ -20,8 +20,8 @@ from typing import Dict
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.connectors.dynamic_kafka import DynamicKafkaSource, \
-    KafkaRecordDeserializationSchema, KafkaStreamSetSubscriber, StreamPatternSubscriber, \
-    SingleClusterTopicMetadataService
+    KafkaRecordDeserializationSchema, KafkaStreamSetSubscriber, SingleClusterTopicMetadataService, \
+    StreamPatternSubscriber
 from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer, KafkaOffsetResetStrategy, \
     KafkaTopicPartition
 from pyflink.java_gateway import get_gateway
@@ -411,3 +411,92 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
         self.assertTrue(
             offset_reset_strategy.equals(reset_strategy._to_j_offset_reset_strategy())
         )
+
+    def test_single_cluster_metadata_service_with_offsets(self):
+        """
+        Test the new constructor parameters for SingleClusterTopicMetadataService
+        to ensure offsets are correctly forwarded to the underlying Java object.
+        """
+        starting_offset = KafkaOffsetsInitializer.earliest()
+        stopping_offset = KafkaOffsetsInitializer.latest()
+
+        metadata_service = SingleClusterTopicMetadataService(
+            'test-cluster',
+            {'bootstrap.servers': 'localhost:9092'},
+            starting_offset,
+            stopping_offset
+        )
+
+        self.assertIsNotNone(metadata_service._j_metadata_service)
+
+        self._check_metadata_service_offsets(
+            metadata_service._j_metadata_service,
+            starting_offset,
+            stopping_offset)
+
+    def test_single_cluster_metadata_service_default_offsets(self):
+        """
+        Test that SingleClusterTopicMetadataService maintains backward compatibility
+        and leaves offsets unset when not explicitly provided.
+        """
+        metadata_service = self._build_metadata_service()
+
+        self._check_metadata_service_offsets(metadata_service._j_metadata_service, None, None)
+
+    def test_single_cluster_metadata_service_starting_offsets_only(self):
+        """
+        Test that SingleClusterTopicMetadataService allows a per-cluster starting
+        offsets initializer without a stopping offsets initializer.
+        """
+        starting_offset = KafkaOffsetsInitializer.earliest()
+
+        metadata_service = SingleClusterTopicMetadataService(
+            'test-cluster',
+            {'bootstrap.servers': 'localhost:9092'},
+            starting_offset
+        )
+
+        self._check_metadata_service_offsets(
+            metadata_service._j_metadata_service,
+            starting_offset,
+            None)
+
+    def test_single_cluster_metadata_service_stopping_offsets_only(self):
+        """
+        Test that SingleClusterTopicMetadataService allows a per-cluster stopping
+        offsets initializer without a starting offsets initializer.
+        """
+        stopping_offset = KafkaOffsetsInitializer.latest()
+
+        metadata_service = SingleClusterTopicMetadataService(
+            'test-cluster',
+            {'bootstrap.servers': 'localhost:9092'},
+            stopping_offsets_initializer=stopping_offset
+        )
+
+        self._check_metadata_service_offsets(
+            metadata_service._j_metadata_service,
+            None,
+            stopping_offset)
+
+    def _check_metadata_service_offsets(self, metadata_service, expected_starting_offset,
+                                        expected_stopping_offset):
+        j_starting_initializer = get_field_value(metadata_service, 'startingOffsetsInitializer')
+        j_stopping_initializer = get_field_value(metadata_service, 'stoppingOffsetsInitializer')
+        self._check_offsets(
+            j_starting_initializer,
+            j_stopping_initializer,
+            expected_starting_offset,
+            expected_stopping_offset)
+
+    def _check_offsets(self, j_starting_initializer, j_stopping_initializer,
+                       expected_starting_offset, expected_stopping_offset):
+        if expected_starting_offset is None:
+            self.assertIsNone(j_starting_initializer)
+        else:
+            self.assertTrue(expected_starting_offset._j_initializer.equals(j_starting_initializer))
+
+        if expected_stopping_offset is None:
+            self.assertIsNone(j_stopping_initializer)
+        else:
+            self.assertTrue(expected_stopping_offset._j_initializer.equals(j_stopping_initializer))

@@ -39,7 +39,7 @@ import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
  * Stream physical RelNode to write data into an external sink defined by a [[DynamicTableSink]].
@@ -148,7 +148,7 @@ class StreamPhysicalSink(
     val pks = ImmutableBitSet.of(primaryKeys: _*)
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(getCluster.getMetadataQuery)
     val changeLogUpsertKeys = fmq.getUpsertKeys(getInput)
-    changeLogUpsertKeys != null && changeLogUpsertKeys.exists(pks.contains)
+    changeLogUpsertKeys != null && changeLogUpsertKeys.asScala.exists(pks.contains)
   }
 
   def getUpsertKeyNames: String = {
@@ -158,7 +158,7 @@ class StreamPhysicalSink(
       "none"
     } else {
       val fieldNames = contextResolvedTable.getResolvedSchema.getColumnNames
-      changeLogUpsertKeys
+      changeLogUpsertKeys.asScala
         .map(uk => uk.toArray.map(fieldNames.get).mkString("[", ", ", "]"))
         .mkString(", ")
     }

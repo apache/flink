@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -145,6 +146,13 @@ public abstract class InputChannel {
     public ResultSubpartitionIndexSet getConsumedSubpartitionIndexSet() {
         return consumedSubpartitionIndexSet;
     }
+
+    /**
+     * Completes once this channel has consumed all of its recovered state: it never had state to
+     * recover, all recovered data was consumed, or the channel was released. Implementations that
+     * never participate in recovery must return an already completed future.
+     */
+    public abstract CompletableFuture<Void> getStateConsumedFuture();
 
     /**
      * After sending a {@link org.apache.flink.runtime.io.network.api.CheckpointBarrier} of

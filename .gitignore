@@ -17,6 +17,7 @@ scalastyle-output.xml
 .project
 .version.properties
 .spotless-index-file
+.checkstyle-cachefile
 filter.properties
 .mvn/wrapper/*.jar
 .mvn/maven.config

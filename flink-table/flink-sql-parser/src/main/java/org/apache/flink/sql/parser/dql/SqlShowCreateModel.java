@@ -18,8 +18,10 @@
 
 package org.apache.flink.sql.parser.dql;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -33,7 +35,13 @@ import java.util.List;
 public class SqlShowCreateModel extends SqlShowCreate {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("SHOW CREATE MODEL", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("SHOW CREATE MODEL", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlShowCreateModel(pos, (SqlIdentifier) operands[0]);
+                }
+            };
 
     public SqlShowCreateModel(SqlParserPos pos, SqlIdentifier modelName) {
         super(pos, modelName);

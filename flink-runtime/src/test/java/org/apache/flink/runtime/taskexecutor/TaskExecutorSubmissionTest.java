@@ -18,11 +18,21 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MdcOptions;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blob.JobPermanentBlobService;
+import org.apache.flink.runtime.blob.NoOpTransientBlobService;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.blob.TaskExecutorBlobService;
+import org.apache.flink.runtime.blob.TransientBlobService;
+import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -55,34 +65,47 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.types.Either;
+import org.apache.flink.util.JobMdcRegistry;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URL;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
@@ -102,6 +125,11 @@ class TaskExecutorSubmissionTest {
     @BeforeEach
     void setUp(TestInfo testInfo) {
         this.testInfo = testInfo;
+    }
+
+    @AfterEach
+    void clearJobMdcRegistry() {
+        JobMdcRegistry.clear();
     }
 
     /**
@@ -130,6 +158,139 @@ class TaskExecutorSubmissionTest {
             tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
 
             taskRunningFuture.get();
+        }
+    }
+
+    /** Tests that a successful task submission registers the job's MDC context. */
+    @Test
+    void testJobMdcContextRegisteredOnSubmitTask() throws Exception {
+        final ExecutionAttemptID eid = createExecutionAttemptId();
+
+        final Map<String, String> keyMapping = new HashMap<>();
+        keyMapping.put("job.key-1", "mdc-key-1");
+        keyMapping.put("job.key-2", "mdc-key-2");
+        final Configuration jobConfiguration = new Configuration();
+        jobConfiguration.set(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS, keyMapping);
+        jobConfiguration.setString("job.key-1", "val-1");
+        jobConfiguration.setString("job.key-2", "val-2");
+
+        final TaskDeploymentDescriptor tdd =
+                createTestTaskDeploymentDescriptor(
+                        "test task", eid, FutureCompletingInvokable.class, jobConfiguration);
+
+        try (TaskSubmissionTestEnvironment env =
+                new TaskSubmissionTestEnvironment.Builder(jobId)
+                        .setSlotSize(1)
+                        .build(EXECUTOR_EXTENSION.getExecutor())) {
+            TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
+            TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+
+            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Duration.ofSeconds(60));
+            tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
+
+            assertThat(JobMdcRegistry.lookup(jobId))
+                    .containsEntry(MdcUtils.JOB_ID, jobId.toHexString())
+                    .containsEntry("mdc-key-1", "val-1")
+                    .containsEntry("mdc-key-2", "val-2")
+                    .hasSize(3);
+        }
+    }
+
+    /**
+     * Tests that submitting a task with offloaded (blob-stored) job information still populates the
+     * JobMdcRegistry after loadBigData resolves the offloaded data.
+     */
+    @Test
+    void testJobMdcContextRegisteredOnSubmitTaskWithOffloadedJobInfo(@TempDir Path tempDir)
+            throws Exception {
+        try (BlobServer blobServer = createBlobServer(tempDir)) {
+            final ExecutionAttemptID eid = createExecutionAttemptId();
+
+            final Configuration jobConfiguration = singleKeyMdcJobConfiguration();
+
+            final JobInformation jobInformation =
+                    new JobInformation(
+                            jobId,
+                            JobType.STREAMING,
+                            "offloaded-test",
+                            new SerializedValue<>(new ExecutionConfig()),
+                            jobConfiguration,
+                            Collections.emptyList(),
+                            Collections.emptyList());
+
+            final Either<SerializedValue<JobInformation>, PermanentBlobKey> offloadResult =
+                    BlobWriter.serializeAndTryOffload(jobInformation, jobId, blobServer);
+            assertThat(offloadResult.isRight())
+                    .as("job info must be offloaded (OFFLOAD_MINSIZE=0)")
+                    .isTrue();
+            final PermanentBlobKey jobInfoBlobKey = offloadResult.right();
+
+            final TaskDeploymentDescriptor tdd =
+                    createOffloadedTaskDeploymentDescriptor(eid, jobInfoBlobKey);
+
+            assertThatThrownBy(tdd::getJobInformation).isInstanceOf(IllegalStateException.class);
+
+            try (TaskSubmissionTestEnvironment env =
+                    new TaskSubmissionTestEnvironment.Builder(jobId)
+                            .setSlotSize(1)
+                            .setTaskExecutorBlobService(blobServiceFrom(blobServer))
+                            .build(EXECUTOR_EXTENSION.getExecutor())) {
+                TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
+                TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+
+                taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Duration.ofSeconds(60));
+                tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
+
+                assertThat(MdcUtils.asContextData(jobId))
+                        .containsEntry(MdcUtils.JOB_ID, jobId.toHexString())
+                        .containsEntry("mdc-key-1", "val-1")
+                        .hasSize(2);
+            }
+        }
+    }
+
+    /**
+     * Tests that releasing a job's resources via slot freeing unregisters its MDC context from the
+     * process-wide registry.
+     */
+    @Test
+    void testJobMdcContextUnregisteredOnJobRelease() throws Exception {
+        final ExecutionAttemptID eid = createExecutionAttemptId();
+
+        final TaskDeploymentDescriptor tdd =
+                createTestTaskDeploymentDescriptor(
+                        "test task",
+                        eid,
+                        FutureCompletingInvokable.class,
+                        singleKeyMdcJobConfiguration());
+        final AllocationID allocationId = tdd.getAllocationId();
+        final CompletableFuture<Void> taskFinishedFuture = new CompletableFuture<>();
+
+        try (TaskSubmissionTestEnvironment env =
+                new TaskSubmissionTestEnvironment.Builder(jobId)
+                        .setSlotSize(1)
+                        .addTaskManagerActionListener(
+                                eid, ExecutionState.FINISHED, taskFinishedFuture)
+                        .build(EXECUTOR_EXTENSION.getExecutor())) {
+            TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
+            TaskSlotTable taskSlotTable = env.getTaskSlotTable();
+
+            taskSlotTable.allocateSlot(0, jobId, allocationId, Duration.ofSeconds(60));
+            tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
+
+            assertThat(MdcUtils.asContextData(jobId))
+                    .containsEntry("mdc-key-1", "val-1")
+                    .hasSize(2);
+
+            taskFinishedFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            taskSlotTable.removeTask(eid);
+            tmGateway.freeSlot(allocationId, new Exception("test release"), timeout).get();
+
+            CommonTestUtils.waitUntilCondition(() -> JobMdcRegistry.lookup(jobId) == null);
+
+            assertThat(MdcUtils.asContextData(jobId))
+                    .containsEntry(MdcUtils.JOB_ID, jobId.toHexString())
+                    .hasSize(1);
         }
     }
 
@@ -697,6 +858,41 @@ class TaskExecutorSubmissionTest {
             List<ResultPartitionDeploymentDescriptor> producedPartitions,
             List<InputGateDeploymentDescriptor> inputGates)
             throws IOException {
+        return createTestTaskDeploymentDescriptor(
+                taskName,
+                eid,
+                abstractInvokable,
+                maxNumberOfSubtasks,
+                producedPartitions,
+                inputGates,
+                new Configuration());
+    }
+
+    private TaskDeploymentDescriptor createTestTaskDeploymentDescriptor(
+            String taskName,
+            ExecutionAttemptID eid,
+            Class<? extends AbstractInvokable> abstractInvokable,
+            Configuration jobConfiguration)
+            throws IOException {
+        return createTestTaskDeploymentDescriptor(
+                taskName,
+                eid,
+                abstractInvokable,
+                1,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                jobConfiguration);
+    }
+
+    private TaskDeploymentDescriptor createTestTaskDeploymentDescriptor(
+            String taskName,
+            ExecutionAttemptID eid,
+            Class<? extends AbstractInvokable> abstractInvokable,
+            int maxNumberOfSubtasks,
+            List<ResultPartitionDeploymentDescriptor> producedPartitions,
+            List<InputGateDeploymentDescriptor> inputGates,
+            Configuration jobConfiguration)
+            throws IOException {
         Preconditions.checkNotNull(producedPartitions);
         Preconditions.checkNotNull(inputGates);
         return createTaskDeploymentDescriptor(
@@ -707,7 +903,7 @@ class TaskExecutorSubmissionTest {
                 taskName,
                 maxNumberOfSubtasks,
                 1,
-                new Configuration(),
+                jobConfiguration,
                 new Configuration(),
                 abstractInvokable.getName(),
                 producedPartitions,
@@ -766,6 +962,81 @@ class TaskExecutorSubmissionTest {
                 null,
                 producedPartitions,
                 inputGates);
+    }
+
+    private static Configuration singleKeyMdcJobConfiguration() {
+        final Configuration conf = new Configuration();
+        conf.set(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS, Map.of("job.key-1", "mdc-key-1"));
+        conf.setString("job.key-1", "val-1");
+        return conf;
+    }
+
+    private TaskDeploymentDescriptor createOffloadedTaskDeploymentDescriptor(
+            ExecutionAttemptID eid, PermanentBlobKey jobInfoBlobKey) throws IOException {
+        final TaskInformation taskInformation =
+                new TaskInformation(
+                        eid.getJobVertexId(),
+                        "test task",
+                        1,
+                        1,
+                        FutureCompletingInvokable.class.getName(),
+                        new Configuration());
+        return new TaskDeploymentDescriptor(
+                jobId,
+                new TaskDeploymentDescriptor.Offloaded<>(jobInfoBlobKey),
+                new TaskDeploymentDescriptor.NonOffloaded<>(new SerializedValue<>(taskInformation)),
+                eid,
+                new AllocationID(),
+                null,
+                Collections.emptyList(),
+                Collections.emptyList());
+    }
+
+    private static BlobServer createBlobServer(Path tempDir) throws IOException {
+        final Configuration config = new Configuration();
+        config.set(BlobServerOptions.OFFLOAD_MINSIZE, 0);
+        final BlobServer blobServer = new BlobServer(config, tempDir.toFile(), new VoidBlobStore());
+        blobServer.start();
+        return blobServer;
+    }
+
+    private static TaskExecutorBlobService blobServiceFrom(final BlobServer blobServer) {
+        return new TaskExecutorBlobService() {
+            @Override
+            public JobPermanentBlobService getPermanentBlobService() {
+                return new JobPermanentBlobService() {
+                    @Override
+                    public void registerJob(JobID jobId, ApplicationID applicationId) {}
+
+                    @Override
+                    public void releaseJob(JobID jobId, ApplicationID applicationId) {}
+
+                    @Override
+                    public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
+                        return blobServer.getFile(jobId, key);
+                    }
+
+                    @Override
+                    public void close() {}
+                };
+            }
+
+            @Override
+            public TransientBlobService getTransientBlobService() {
+                return NoOpTransientBlobService.INSTANCE;
+            }
+
+            @Override
+            public void setBlobServerAddress(InetSocketAddress blobServerAddress) {}
+
+            @Override
+            public int getPort() {
+                return 0;
+            }
+
+            @Override
+            public void close() {}
+        };
     }
 
     /** Test invokable which completes the given future when executed. */

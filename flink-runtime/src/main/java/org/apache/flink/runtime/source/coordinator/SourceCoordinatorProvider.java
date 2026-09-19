@@ -25,6 +25,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
+import org.apache.flink.util.MdcUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,7 +76,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 
     @Override
     public OperatorCoordinator getCoordinator(OperatorCoordinator.Context context) {
-        final String coordinatorThreadName = "SourceCoordinator-" + operatorName;
+        final String coordinatorThreadName = createCoordinatorThreadName(context);
         CoordinatorExecutorThreadFactory coordinatorThreadFactory =
                 new CoordinatorExecutorThreadFactory(coordinatorThreadName, context);
 
@@ -96,6 +97,21 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
                 context.getCoordinatorStore(),
                 alignmentParams,
                 coordinatorListeningID);
+    }
+
+    /**
+     * Builds the coordinator thread name. The operator name alone is ambiguous on a shared cluster
+     * because two jobs may use identically named sources, so the job identity is appended to make
+     * the coordinator thread (and its derived {@code -worker} pool) attributable to a job.
+     */
+    private String createCoordinatorThreadName(OperatorCoordinator.Context context) {
+        final String base = "SourceCoordinator-" + operatorName;
+        try {
+            return base + MdcUtils.jobThreadNameSuffix(context.getJobInfo());
+        } catch (UnsupportedOperationException e) {
+            // A custom Context may not expose job identity - fall back to the operator-only name.
+            return base;
+        }
     }
 
     /**

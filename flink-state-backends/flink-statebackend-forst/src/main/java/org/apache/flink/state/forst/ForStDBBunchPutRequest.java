@@ -19,10 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
-import org.apache.flink.core.memory.DataInputDeserializer;
-import org.apache.flink.core.memory.DataOutputSerializer;
 
 import org.forstdb.RocksDB;
 import org.forstdb.RocksDBException;
@@ -43,14 +40,7 @@ import static org.apache.flink.state.forst.ForStDBIterRequest.startWithKeyPrefix
  */
 public class ForStDBBunchPutRequest<K, N, UK, UV> extends ForStDBPutRequest<K, N, Map<UK, UV>> {
 
-    /** Serializer for the user values. */
-    final ThreadLocal<TypeSerializer<UV>> userValueSerializer;
-
-    /** The data outputStream used for value serializer, which should be thread-safe. */
-    final ThreadLocal<DataOutputSerializer> valueSerializerView;
-
-    /** The data inputStream used for value deserializer, which should be thread-safe. */
-    final ThreadLocal<DataInputDeserializer> valueDeserializerView;
+    private final ForStMapState<K, N, UK, UV> mapState;
 
     final int keyGroupPrefixBytes;
 
@@ -60,9 +50,7 @@ public class ForStDBBunchPutRequest<K, N, UK, UV> extends ForStDBPutRequest<K, N
             ForStMapState<K, N, UK, UV> table,
             InternalAsyncFuture<Void> future) {
         super(key, value, false, (ForStInnerTable<K, N, Map<UK, UV>>) table, future);
-        this.userValueSerializer = table.userValueSerializer;
-        this.valueSerializerView = table.valueSerializerView;
-        this.valueDeserializerView = table.valueDeserializerView;
+        this.mapState = table;
         this.keyGroupPrefixBytes = table.getKeyGroupPrefixBytes();
     }
 
@@ -98,10 +86,7 @@ public class ForStDBBunchPutRequest<K, N, UK, UV> extends ForStDBPutRequest<K, N
     }
 
     public byte[] buildSerializedValue(UV singleValue) throws IOException {
-        DataOutputSerializer outputView = valueSerializerView.get();
-        outputView.clear();
-        userValueSerializer.get().serialize(singleValue, outputView);
-        return outputView.getCopyOfBuffer();
+        return mapState.serializeValue(singleValue);
     }
 
     // --------------- For testing usage ---------------

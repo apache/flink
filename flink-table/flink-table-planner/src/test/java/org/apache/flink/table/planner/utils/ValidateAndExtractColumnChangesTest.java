@@ -22,6 +22,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableChange.ColumnPosition;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.types.DataType;
@@ -100,9 +101,18 @@ class ValidateAndExtractColumnChangesTest {
                                 TableChange.add(physical("b", DataTypes.STRING())),
                                 TableChange.add(physical("c", DataTypes.BOOLEAN())))),
                 TestSpec.of(
-                        "nullability differs but schema is not defined in query",
+                        "loosening nullability of a query-defined column emits modifyPhysicalColumnType",
                         schema(physical("a", DataTypes.INT().notNull())),
                         schema(physical("a", DataTypes.INT())),
+                        false,
+                        List.of(
+                                TableChange.modifyPhysicalColumnType(
+                                        physical("a", DataTypes.INT().notNull()),
+                                        DataTypes.INT()))),
+                TestSpec.of(
+                        "tightening nullability inferred from a query is tolerated",
+                        schema(physical("a", DataTypes.INT())),
+                        schema(physical("a", DataTypes.INT().notNull())),
                         false,
                         List.of()),
                 TestSpec.of(
@@ -233,7 +243,53 @@ class ValidateAndExtractColumnChangesTest {
                                 new TableChange.ModifyColumn(
                                         computed("comp", expr(DataTypes.INT())),
                                         computed("comp", expr(DataTypes.BIGINT())),
-                                        null))));
+                                        null))),
+                TestSpec.of(
+                        "query inserts a column mid-projection, repositioning the trailing column",
+                        schema(
+                                physical("city", DataTypes.STRING()),
+                                physical("user_count", DataTypes.BIGINT())),
+                        schema(
+                                physical("city", DataTypes.STRING()),
+                                physical("name_initial", DataTypes.STRING()),
+                                physical("user_count", DataTypes.BIGINT())),
+                        false,
+                        List.of(
+                                TableChange.add(physical("name_initial", DataTypes.STRING())),
+                                TableChange.modifyColumnPosition(
+                                        physical("user_count", DataTypes.BIGINT()),
+                                        ColumnPosition.after("name_initial")))),
+                TestSpec.of(
+                        "non-persisted column between physicals does not skew the position diff",
+                        schema(
+                                physical("city", DataTypes.STRING()),
+                                metadata(
+                                        "ingest_time",
+                                        DataTypes.TIMESTAMP_LTZ(3),
+                                        "timestamp",
+                                        true),
+                                physical("user_count", DataTypes.BIGINT())),
+                        schema(
+                                physical("city", DataTypes.STRING()),
+                                physical("name_initial", DataTypes.STRING()),
+                                physical("user_count", DataTypes.BIGINT())),
+                        false,
+                        List.of(
+                                TableChange.add(physical("name_initial", DataTypes.STRING())),
+                                TableChange.modifyColumnPosition(
+                                        physical("user_count", DataTypes.BIGINT()),
+                                        ColumnPosition.after("name_initial")))),
+                TestSpec.of(
+                        "query reorders existing columns, positions emitted",
+                        schema(physical("a", DataTypes.INT()), physical("b", DataTypes.STRING())),
+                        schema(physical("b", DataTypes.STRING()), physical("a", DataTypes.INT())),
+                        false,
+                        List.of(
+                                TableChange.modifyColumnPosition(
+                                        physical("b", DataTypes.STRING()), ColumnPosition.first()),
+                                TableChange.modifyColumnPosition(
+                                        physical("a", DataTypes.INT()),
+                                        ColumnPosition.after("b")))));
     }
 
     private static ResolvedSchema schema(Column... columns) {

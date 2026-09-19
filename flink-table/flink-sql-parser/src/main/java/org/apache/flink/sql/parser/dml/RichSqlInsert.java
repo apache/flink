@@ -21,23 +21,46 @@ package org.apache.flink.sql.parser.dml;
 import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlProperty;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlInsertKeyword;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlTableRef;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 
 /** A {@link SqlInsert} that have some extension functions like partition, overwrite. * */
 public class RichSqlInsert extends SqlInsert {
+
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("INSERT", SqlKind.INSERT) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new RichSqlInsert(
+                            pos,
+                            (SqlNodeList) operands[0],
+                            (SqlNodeList) operands[4],
+                            operands[1],
+                            operands[2],
+                            (SqlNodeList) operands[3],
+                            (SqlNodeList) operands[5],
+                            (SqlLiteral) operands[6]);
+                }
+            };
+
     private final SqlNodeList staticPartitions;
 
     private final SqlNodeList extendedKeywords;
@@ -91,6 +114,22 @@ public class RichSqlInsert extends SqlInsert {
             this.targetTableID = targetTable;
             this.tableHints = SqlNodeList.EMPTY;
         }
+    }
+
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
+
+    @Override
+    public List<SqlNode> getOperandList() {
+        // SqlInsert exposes [keywords, targetTable, source, columnList]; append the
+        // Flink-specific operands so that a deep copy can faithfully rebuild this node.
+        List<SqlNode> operands = new ArrayList<>(super.getOperandList());
+        operands.add(extendedKeywords);
+        operands.add(staticPartitions);
+        operands.add(conflictAction);
+        return operands;
     }
 
     /**

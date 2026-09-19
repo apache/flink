@@ -21,14 +21,18 @@ package org.apache.flink.table.planner.functions.bridging;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 
+import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
@@ -124,6 +128,23 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
                 SqlKind.OTHER_FUNCTION,
                 resolvedFunction,
                 typeInference);
+    }
+
+    /** Creates an instance of an aggregating function during translation. */
+    public static BridgingSqlAggFunction of(
+            RelOptCluster cluster, ContextResolvedFunction resolvedFunction) {
+        final FlinkContext context = ShortcutUtils.unwrapContext(cluster);
+        final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(cluster);
+        return of(context, typeFactory, resolvedFunction);
+    }
+
+    /** Creates an instance of an aggregating built-in function during translation. */
+    public static BridgingSqlAggFunction of(
+            RelOptCluster cluster, BuiltInFunctionDefinition functionDefinition) {
+        return of(
+                cluster,
+                ContextResolvedFunction.permanent(
+                        FunctionIdentifier.of(functionDefinition.getName()), functionDefinition));
     }
 
     public DataTypeFactory getDataTypeFactory() {

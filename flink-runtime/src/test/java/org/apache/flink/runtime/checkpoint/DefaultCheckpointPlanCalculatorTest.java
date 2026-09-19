@@ -37,6 +37,8 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -164,6 +166,37 @@ class DefaultCheckpointPlanCalculatorTest {
         runWithNotRunningTask(false, true);
 
         // then: The plan failed because one task didn't have RUNNING state.
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = ExecutionState.class,
+            names = {"FAILED", "CANCELED", "CANCELING"})
+    void testPlanAbortedWhenTaskIsFailingOverWhileOthersFinished(ExecutionState failoverState)
+            throws Exception {
+        ExecutionGraph graph =
+                createExecutionGraph(
+                        Arrays.asList(
+                                new VertexDeclaration(1, of(0)), new VertexDeclaration(1, of())),
+                        Collections.emptyList());
+
+        chooseJobVertex(graph, 1)
+                .getTaskVertices()[0]
+                .getCurrentExecutionAttempt()
+                .transitionState(failoverState);
+
+        DefaultCheckpointPlanCalculator planCalculator = createCheckpointPlanCalculator(graph);
+
+        assertThatFuture(planCalculator.calculateCheckpointPlan())
+                .eventuallyFailsWith(ExecutionException.class)
+                .havingCause()
+                .isInstanceOfSatisfying(
+                        CheckpointException.class,
+                        e ->
+                                assertThat(e.getCheckpointFailureReason())
+                                        .isEqualTo(
+                                                CheckpointFailureReason
+                                                        .NOT_ALL_REQUIRED_TASKS_RUNNING));
     }
 
     private void runWithNotRunningTask(

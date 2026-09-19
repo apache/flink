@@ -76,6 +76,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
@@ -282,6 +283,21 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 });
     }
 
+    /**
+     * Awaits the point during {@link #generateTestSetupFiles} at which the stop-with-savepoint
+     * should be triggered. The default waits until every sink has produced its "before restore"
+     * expected rows.
+     *
+     * <p>Override for operators that produce no output at the point of interest or when the test
+     * logic requires more customized savepoint triggering (e.g., based on processed input). See
+     * {@link TestValuesTableFactory#awaitSourceEmitted(String, int)}.
+     */
+    protected void awaitSavepointReady(
+            final TableTestProgram program, final List<CompletableFuture<?>> futures)
+            throws Exception {
+        awaitExpectedResults(program, futures, true);
+    }
+
     private void awaitExpectedResults(
             final TableTestProgram program,
             final List<CompletableFuture<?>> futures,
@@ -336,6 +352,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 .set(
                         TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS,
                         TableConfigOptions.CatalogPlanCompilation.SCHEMA);
+        tEnv.getConfig().set(TableConfigOptions.LOCAL_TIME_ZONE, "UTC");
 
         for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
             final String id = TestValuesTableFactory.registerData(sourceTestStep.dataBeforeRestore);
@@ -379,12 +396,9 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         compiledPlan.writeToFile(getPlanPath(program, getLatestMetadata()));
 
         final TableResult tableResult = compiledPlan.execute();
-        awaitExpectedResults(program, futures, true);
+        awaitSavepointReady(program, futures);
         final JobClient jobClient = tableResult.getJobClient().get();
-        final String savepoint =
-                jobClient
-                        .stopWithSavepoint(false, tmpDir.toString(), SavepointFormatType.DEFAULT)
-                        .get();
+        final String savepoint = stopWithSavepointWhenRunning(jobClient);
         CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
         final Path savepointPath = Paths.get(new URI(savepoint));
         final Path savepointDirPath =
@@ -414,6 +428,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 .set(
                         TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
                         TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
+        tEnv.getConfig().set(TableConfigOptions.LOCAL_TIME_ZONE, "UTC");
 
         program.getSetupConfigOptionTestSteps().forEach(s -> s.apply(tEnv));
 
@@ -487,6 +502,31 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                         .as("%s", program.id)
                         .containsExactlyInAnyOrder(
                                 sinkTestStep.getExpectedAsStrings().toArray(new String[0]));
+            }
+        }
+    }
+
+    /**
+     * Triggers a stop-with-savepoint, retrying while the job is not yet fully running. A savepoint
+     * gated on source emission (see {@link #awaitSavepointReady}) can be requested before all
+     * downstream tasks have reached RUNNING, which aborts with "Not all required tasks are
+     * currently running". Sink-gated triggers never hit this (sink output implies a running
+     * pipeline), so they succeed on the first attempt.
+     */
+    private String stopWithSavepointWhenRunning(JobClient jobClient) throws Exception {
+        final long deadline = System.currentTimeMillis() + RESULT_AWAIT_TIMEOUT_MILLIS;
+        while (true) {
+            try {
+                return jobClient
+                        .stopWithSavepoint(false, tmpDir.toString(), SavepointFormatType.DEFAULT)
+                        .get();
+            } catch (ExecutionException e) {
+                final boolean notAllRunning =
+                        e.getMessage() != null && e.getMessage().contains("Not all required tasks");
+                if (!notAllRunning || System.currentTimeMillis() >= deadline) {
+                    throw e;
+                }
+                Thread.sleep(200);
             }
         }
     }

@@ -213,8 +213,13 @@ class GroupingSetsTest extends TableTestBase {
 
   @Test
   def testRollupPlusOrderBy(): Unit = {
-    util.verifyExecPlan(
-      "SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender) ORDER BY c DESC")
+    // A non-time-attribute streaming sort is rejected during optimization.
+    assertThatThrownBy(
+      () =>
+        util.verifyExecPlan(
+          "SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender) ORDER BY c DESC"))
+      .hasMessageContaining(
+        "requires the primary sort key to be a time attribute in ascending order")
   }
 
   @Test
@@ -318,7 +323,10 @@ class GroupingSetsTest extends TableTestBase {
       """
         |SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) ORDER BY GROUPING(deptno), c
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    // A non-time-attribute streaming sort is rejected during optimization.
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasMessageContaining(
+        "requires the primary sort key to be a time attribute in ascending order")
   }
 
   @Test
@@ -407,9 +415,7 @@ class GroupingSetsTest extends TableTestBase {
         |SELECT deptno, GROUP_ID() AS g, COUNT(*) AS c
         |FROM scott_emp GROUP BY GROUPING SETS (deptno, (), ())
       """.stripMargin
-    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
-      .hasMessageContaining("GROUPING SETS are currently not supported")
-      .isInstanceOf[TableException]
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -426,7 +432,6 @@ class GroupingSetsTest extends TableTestBase {
         |    END gr_text
         |from scott_emp
         |    GROUP BY ROLLUP(deptno, job, (empno,ename))
-        |    ORDER BY deptno, job, empno
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
   }

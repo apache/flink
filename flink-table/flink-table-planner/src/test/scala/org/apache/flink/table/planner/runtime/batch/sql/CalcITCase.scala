@@ -1063,8 +1063,12 @@ class CalcITCase extends BatchTestBase {
     assertThatThrownBy(
       () =>
         checkResult("SELECT COUNT(*) FROM SmallTable3 GROUP BY MAP[1, 'Hello', 2, 'Hi']", Seq()))
+      .isInstanceOf(classOf[ValidationException])
       .hasMessage(
-        "Type(MAP<INT NOT NULL, VARCHAR(5) NOT NULL> NOT NULL) is not an orderable data type, it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
+        "Type 'MAP<INT NOT NULL, VARCHAR(5) NOT NULL> NOT NULL' cannot be ordered, so it cannot " +
+          "be used as a key for sorting, grouping, or joining (for example in ORDER BY, GROUP " +
+          "BY, DISTINCT, or a join condition). Remove it from the key, or replace it with a " +
+          "value that can be ordered.")
   }
 
   @Test

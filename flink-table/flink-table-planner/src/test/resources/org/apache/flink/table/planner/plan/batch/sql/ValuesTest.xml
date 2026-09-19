@@ -25,9 +25,9 @@ limitations under the License.
 LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
 +- LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
    +- LogicalUnion(all=[true]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
-      :- LogicalProject(EXPR$0=[1], EXPR$1=[2.0:DECIMAL(2, 1)]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(2, 1) EXPR$1)]
+      :- LogicalProject(EXPR$0=[1], EXPR$1=[2.0:DECIMAL(20, 1)]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
       :  +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
-      +- LogicalProject(EXPR$0=[3], EXPR$1=[4:BIGINT]), rowType=[RecordType(INTEGER EXPR$0, BIGINT EXPR$1)]
+      +- LogicalProject(EXPR$0=[3], EXPR$1=[4:DECIMAL(20, 1)]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
          +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
 ]]>
     </Resource>
@@ -36,7 +36,7 @@ LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)
 Union(all=[true], union=[EXPR$0, EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
 :- Calc(select=[1 AS EXPR$0, 2.0 AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
 :  +- Values(tuples=[[{ 0 }]], values=[ZERO]), rowType=[RecordType(INTEGER ZERO)]
-+- Calc(select=[3 AS EXPR$0, 4.0 AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
++- Calc(select=[3 AS EXPR$0, 4 AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
    +- Values(tuples=[[{ 0 }]], values=[ZERO]), rowType=[RecordType(INTEGER ZERO)]
 ]]>
     </Resource>

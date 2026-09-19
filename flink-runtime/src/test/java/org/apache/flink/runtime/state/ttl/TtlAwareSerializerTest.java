@@ -130,7 +130,7 @@ class TtlAwareSerializerTest {
         assertThat(
                         ((TtlAwareSerializerSnapshot<?>)
                                         intTtlAwareSerializer.snapshotConfiguration())
-                                .getOrinalTypeSerializerSnapshot())
+                                .getOriginalTypeSerializerSnapshot())
                 .isInstanceOf(IntSerializer.IntSerializerSnapshot.class);
 
         assertThat(listTtlAwareSerializer.snapshotConfiguration())

@@ -75,6 +75,16 @@ public class MockChannelStateWriter implements ChannelStateWriter {
     }
 
     @Override
+    public void addInputDataFromSpill(long checkpointId, FetchedChannelStateReader reader) {
+        checkCheckpointId(checkpointId);
+        try {
+            reader.close();
+        } catch (Exception e) {
+            rethrow(e);
+        }
+    }
+
+    @Override
     public void addOutputData(
             long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {
         checkCheckpointId(checkpointId);

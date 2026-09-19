@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.state.forst.ForStExtension;
 import org.apache.flink.state.forst.ForStOperationUtils;
+import org.apache.flink.state.forst.ForStOptions;
 import org.apache.flink.state.forst.datatransfer.ForStStateDataTransfer;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
@@ -199,7 +200,8 @@ class ForStIncrementalSnapshotStrategyTest {
                 CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(2),
                 UUID.randomUUID(),
                 new TreeMap<>(),
-                new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM),
+                new ForStStateDataTransfer(
+                        ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue()),
                 -1);
     }
 
@@ -231,7 +233,8 @@ class ForStIncrementalSnapshotStrategyTest {
                 new KeyGroupRange(0, 1),
                 CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(2),
                 UUID.randomUUID(),
-                new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM));
+                new ForStStateDataTransfer(
+                        ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue()));
     }
 
     private FsCheckpointStreamFactory createFsCheckpointStreamFactory() throws IOException {

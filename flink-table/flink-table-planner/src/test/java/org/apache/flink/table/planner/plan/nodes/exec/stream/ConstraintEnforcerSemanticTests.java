@@ -44,6 +44,12 @@ public class ConstraintEnforcerSemanticTests extends SemanticTestBase {
                 ConstraintEnforcerTestPrograms.CHAR_LENGTH_TRIM_PAD_WITH_NULLABLE_COLUMNS,
                 ConstraintEnforcerTestPrograms.BINARY_LENGTH_TRIM_PAD_WITH_NULLABLE_COLUMNS,
                 ConstraintEnforcerTestPrograms.CHAR_LENGTH_ERROR_WITH_NULLABLE_COLUMNS,
-                ConstraintEnforcerTestPrograms.BINARY_LENGTH_ERROR_WITH_NULLABLE_COLUMNS);
+                ConstraintEnforcerTestPrograms.BINARY_LENGTH_ERROR_WITH_NULLABLE_COLUMNS,
+                ConstraintEnforcerTestPrograms.NOT_NULL_ERROR_DELETE_BY_KEY,
+                ConstraintEnforcerTestPrograms.NOT_NULL_DROP_DELETE_BY_KEY,
+                ConstraintEnforcerTestPrograms.NOT_NULL_ERROR_INSERT_IN_DELETE_BY_KEY,
+                ConstraintEnforcerTestPrograms.NOT_NULL_ERROR_DELETE_BY_KEY_NULL_KEY,
+                ConstraintEnforcerTestPrograms.NOT_NULL_ERROR_DELETE_BY_KEY_NESTED_ROW,
+                ConstraintEnforcerTestPrograms.NOT_NULL_ERROR_DELETE_BY_KEY_COMPOSITE_PK);
     }
 }

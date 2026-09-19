@@ -115,12 +115,21 @@ public class TaskMailboxImpl implements TaskMailbox {
 
     @Override
     public Optional<Mail> tryTake(int priority) {
+        return tryTake(priority, false);
+    }
+
+    @Override
+    public Optional<Mail> tryTakeIgnoringDeferrable(int priority) {
+        return tryTake(priority, true);
+    }
+
+    private Optional<Mail> tryTake(int priority, boolean ignoreDeferrable) {
         checkIsMailboxThread();
         checkTakeStateConditions();
 
         moveUrgentMailsToBatchIfNeeded(true);
 
-        Mail head = takeOrNull(batch, priority);
+        Mail head = takeOrNull(batch, priority, ignoreDeferrable);
         if (head != null) {
             return Optional.of(head);
         }
@@ -130,7 +139,7 @@ public class TaskMailboxImpl implements TaskMailbox {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
-            final Mail value = takeOrNull(queue, priority);
+            final Mail value = takeOrNull(queue, priority, ignoreDeferrable);
             if (value == null) {
                 return Optional.empty();
             }
@@ -148,7 +157,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 
         moveUrgentMailsToBatchIfNeeded(true);
 
-        Mail head = takeOrNull(batch, priority);
+        Mail head = takeOrNull(batch, priority, false);
         if (head != null) {
             return head;
         }
@@ -156,7 +165,7 @@ public class TaskMailboxImpl implements TaskMailbox {
         lock.lockInterruptibly();
         try {
             Mail headMail;
-            while ((headMail = takeOrNull(queue, priority)) == null) {
+            while ((headMail = takeOrNull(queue, priority, false)) == null) {
                 // to ease debugging
                 notEmpty.await(1, TimeUnit.SECONDS);
             }
@@ -333,7 +342,7 @@ public class TaskMailboxImpl implements TaskMailbox {
     // ------------------------------------------------------------------------------------------------------------------
 
     @Nullable
-    private Mail takeOrNull(Deque<Mail> queue, int priority) {
+    private Mail takeOrNull(Deque<Mail> queue, int priority, boolean ignoreDeferrable) {
         if (queue.isEmpty()) {
             return null;
         }
@@ -341,7 +350,9 @@ public class TaskMailboxImpl implements TaskMailbox {
         Iterator<Mail> iterator = queue.iterator();
         while (iterator.hasNext()) {
             Mail mail = iterator.next();
-            if (mail.getPriority() >= priority) {
+            int mailPriority =
+                    ignoreDeferrable ? mail.getPriorityIgnoringDeferrable() : mail.getPriority();
+            if (mailPriority >= priority) {
                 iterator.remove();
                 return mail;
             }

@@ -644,6 +644,43 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                         .expectArgumentTypes(
                                 DataTypes.ARRAY(DataTypes.INT().notNull()).notNull(),
                                 DataTypes.INT()),
+                TestSpec.forStrategy(
+                                "MapKey argument type strategy implicitly casts the key",
+                                sequence(
+                                        logical(LogicalTypeRoot.MAP),
+                                        SpecificInputTypeStrategies.MAP_KEY_ARG))
+                        .calledWithArgumentTypes(
+                                DataTypes.MAP(DataTypes.BIGINT().notNull(), DataTypes.STRING()),
+                                DataTypes.INT().notNull())
+                        .expectSignature("f(<MAP>, <MAP KEY>)")
+                        .expectArgumentTypes(
+                                DataTypes.MAP(DataTypes.BIGINT().notNull(), DataTypes.STRING()),
+                                DataTypes.BIGINT().notNull()),
+                TestSpec.forStrategy(
+                                "MapKey argument type strategy widens a NOT NULL key type "
+                                        + "for a nullable argument",
+                                sequence(
+                                        logical(LogicalTypeRoot.MAP),
+                                        SpecificInputTypeStrategies.MAP_KEY_ARG))
+                        .calledWithArgumentTypes(
+                                DataTypes.MAP(DataTypes.BIGINT().notNull(), DataTypes.STRING())
+                                        .notNull(),
+                                DataTypes.BIGINT())
+                        .expectArgumentTypes(
+                                DataTypes.MAP(DataTypes.BIGINT().notNull(), DataTypes.STRING())
+                                        .notNull(),
+                                DataTypes.BIGINT()),
+                TestSpec.forStrategy(
+                                "MapKey argument type strategy rejects a key that cannot be cast",
+                                sequence(
+                                        logical(LogicalTypeRoot.MAP),
+                                        SpecificInputTypeStrategies.MAP_KEY_ARG))
+                        .calledWithArgumentTypes(
+                                DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()),
+                                DataTypes.BOOLEAN())
+                        .expectErrorMessage(
+                                "Unsupported argument type. Expected type 'INT' but actual "
+                                        + "type was 'BOOLEAN'."),
                 TestSpec.forStrategy(sequence(SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE))
                         .expectSignature("f(<ARRAY<COMPARABLE>>)")
                         .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.ROW()))

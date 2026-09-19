@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY, Observable, of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 import {
@@ -34,12 +34,16 @@ import {
 import { ProfilingDetail, ProfilingList } from '@flink-runtime-web/interfaces/job-profiler';
 
 import { ConfigService } from './config.service';
+import { EXPECTED_NOT_FOUND } from './http-context';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TaskManagerService {
-  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
+  constructor(
+    private readonly httpClient: HttpClient,
+    private readonly configService: ConfigService
+  ) {}
 
   loadManagers(): Observable<TaskManagersItem[]> {
     return this.httpClient.get<TaskManagerList>(`${this.configService.BASE_URL}/taskmanagers`).pipe(
@@ -49,9 +53,11 @@ export class TaskManagerService {
   }
 
   loadManager(taskManagerId: string): Observable<TaskManagerDetail> {
-    return this.httpClient
-      .get<TaskManagerDetail>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}`)
-      .pipe(catchError(() => EMPTY));
+    // Let errors propagate (e.g. a 404 for a gone TaskManager) so callers can react to them. The 404
+    // is expected and handled by the callers, so it is not surfaced as a server error notification.
+    return this.httpClient.get<TaskManagerDetail>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}`, {
+      context: new HttpContext().set(EXPECTED_NOT_FOUND, true)
+    });
   }
 
   loadLogList(taskManagerId: string): Observable<TaskManagerLogItem[]> {
@@ -74,14 +80,16 @@ export class TaskManagerService {
       );
   }
 
-  loadThreadDump(taskManagerId: string): Observable<string> {
-    return this.httpClient
-      .get<TaskManagerThreadDump>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`)
-      .pipe(
-        map(taskManagerThreadDump => {
-          return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
-        })
-      );
+  loadThreadDump(taskManagerId: string, mode?: 'lite' | 'full'): Observable<string> {
+    let url = `${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`;
+    if (mode) {
+      url += `?mode=${mode}`;
+    }
+    return this.httpClient.get<TaskManagerThreadDump>(url).pipe(
+      map(taskManagerThreadDump => {
+        return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
+      })
+    );
   }
 
   loadLogs(taskManagerId: string): Observable<string> {

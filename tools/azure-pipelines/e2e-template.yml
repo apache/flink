@@ -31,11 +31,23 @@ jobs:
   cancelTimeoutInMinutes: 1
   workspace:
     clean: all
+  variables:
+    # Newline-separated git pathspec globs (GitHub Actions "paths-ignore" style); PRs touching only these skip e2e.
+    IGNORE_PATHS: |
+      docs/**
+      **/*.md
+      .idea/**
+      .asf.yaml
+      .editorconfig
+      .git-blame-ignore-revs
+      .gitignore
+      .gitattributes
+      .github/**
   steps:
     # Skip e2e test execution if this is a documentation only pull request (master / release builds will still be checked regularly)
     - bash: |
         source ./tools/azure-pipelines/build_properties.sh
-        is_docs_only_pullrequest
+        is_ignored_pattern_pullrequest
         if [[ "$?" == 0 ]] ; then
           echo "##[debug]This is a documentation-only change. Skipping e2e execution."
           echo "##vso[task.setvariable variable=skip;]1"
@@ -45,12 +57,12 @@ jobs:
         fi
       displayName: Check if Docs only PR
     # free up disk space before running anything caching related. Caching has proven to fail in the past, due to lacking disk space.
-    - script: ./tools/azure-pipelines/free_disk_space.sh
+    - script: ./tools/ci/free_disk_space.sh
       target: host
       displayName: Free up disk space
     - task: UsePythonVersion@0
       inputs:
-        versionSpec: '3.12'
+        versionSpec: '3.13'
     # Install upstream kubectl so we don't use the agent's FIPS-patched build.
     - bash: |
         set -euo pipefail
@@ -101,7 +113,7 @@ jobs:
       continueOnError: true
       condition: not(eq(variables['SKIP'], '1'))
       displayName: Cache docker images
-    - script: ./tools/azure-pipelines/cache_docker_images.sh load
+    - script: ./tools/ci/cache_docker_images.sh load
       displayName: Restore docker images
       condition: and(not(canceled()), eq(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
       continueOnError: true
@@ -128,10 +140,11 @@ jobs:
         sudo apt install ./libssl1.0.0_*.deb
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile_ci.sh
+    # e2e only needs the built binary; MVN_LICENSE_CHECK_ARGS="" skips all QA (convergence, license, structural) and the DEBUG shade logging, which run in the license_check job.
+    - script: MVN_LICENSE_CHECK_ARGS="" ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile_ci.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh ${{parameters.group}}
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/ci/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh ${{parameters.group}}
       displayName: Run e2e tests
       env:
         IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
@@ -145,7 +158,7 @@ jobs:
       inputs:
         targetPath: $(DEBUG_FILES_OUTPUT_DIR)
         artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
-    - script: ./tools/azure-pipelines/cache_docker_images.sh save
+    - script: ./tools/ci/cache_docker_images.sh save
       displayName: Save docker images
       condition: and(not(eq(variables['SKIP'], '1')), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
       continueOnError: true

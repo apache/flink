@@ -106,7 +106,8 @@ class CancelPartitionRequestTest {
                                     pid,
                                     new ResultSubpartitionIndexSet(0),
                                     new InputChannelID(),
-                                    Integer.MAX_VALUE))
+                                    Integer.MAX_VALUE,
+                                    false))
                     .await();
 
             // Wait for the notification
@@ -170,7 +171,8 @@ class CancelPartitionRequestTest {
                                     pid,
                                     new ResultSubpartitionIndexSet(0),
                                     inputChannelId,
-                                    Integer.MAX_VALUE))
+                                    Integer.MAX_VALUE,
+                                    false))
                     .await();
 
             // Wait for the notification

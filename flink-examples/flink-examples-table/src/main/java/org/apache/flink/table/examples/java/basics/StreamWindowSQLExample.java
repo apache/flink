@@ -24,6 +24,7 @@ import org.apache.flink.util.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 
 /**
  * Simple example for demonstrating the use of SQL in Java.
@@ -91,7 +92,7 @@ public class StreamWindowSQLExample {
 
     /** Creates a temporary file with the contents and returns the absolute path. */
     private static String createTempFile(String contents) throws IOException {
-        File tempFile = File.createTempFile("orders", ".csv");
+        File tempFile = Files.createTempFile("orders", ".csv").toFile();
         tempFile.deleteOnExit();
         FileUtils.writeFileUtf8(tempFile, contents);
         return tempFile.toURI().toString();

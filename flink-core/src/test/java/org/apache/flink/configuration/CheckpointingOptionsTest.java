@@ -358,14 +358,33 @@ class CheckpointingOptionsTest {
                 .as("During-recovery should be disabled when during-recovery option is not enabled")
                 .isFalse();
 
-        // Test when both options are enabled - should return true
-        Configuration bothEnabledConfig = new Configuration();
-        bothEnabledConfig.set(CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, true);
-        bothEnabledConfig.set(CheckpointingOptions.CHECKPOINTING_DURING_RECOVERY_ENABLED, true);
-        assertThat(CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(bothEnabledConfig))
+        // Test when all three prerequisites are enabled - should return true
+        Configuration allEnabledConfig = new Configuration();
+        allEnabledConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        allEnabledConfig.set(CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, true);
+        allEnabledConfig.set(CheckpointingOptions.CHECKPOINTING_DURING_RECOVERY_ENABLED, true);
+        allEnabledConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
+        assertThat(CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(allEnabledConfig))
                 .as(
-                        "During-recovery should be enabled when both recover-output-on-downstream and during-recovery are enabled")
+                        "During-recovery should be enabled when recover-output-on-downstream, during-recovery and unaligned checkpoints are all enabled")
                 .isTrue();
+
+        // Test when recover-output-on-downstream and during-recovery are enabled but unaligned
+        // checkpoints are disabled - should return false (checkpointing during recovery only works
+        // on the unaligned barrier-handler path).
+        Configuration unalignedDisabledConfig = new Configuration();
+        unalignedDisabledConfig.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        unalignedDisabledConfig.set(
+                CheckpointingOptions.UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM, true);
+        unalignedDisabledConfig.set(
+                CheckpointingOptions.CHECKPOINTING_DURING_RECOVERY_ENABLED, true);
+        unalignedDisabledConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, false);
+        assertThat(
+                        CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(
+                                unalignedDisabledConfig))
+                .as("During-recovery should be disabled when unaligned checkpoints are disabled")
+                .isFalse();
 
         // Test when recover-output-on-downstream is explicitly false and during-recovery is true
         Configuration explicitlyDisabledConfig = new Configuration();

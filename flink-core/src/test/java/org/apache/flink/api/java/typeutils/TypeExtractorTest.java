@@ -77,6 +77,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -113,6 +114,26 @@ public class TypeExtractorTest {
 
         // use getForObject()
         assertThat(TypeExtractor.getForObject(true)).isEqualTo(BasicTypeInfo.BOOLEAN_TYPE_INFO);
+    }
+
+    @Test
+    void testMapWithExplicitUuidType() {
+        // A lambda would bypass the input validation exercised by this test.
+        final MapFunction<UUID, String> mapper =
+                new MapFunction<UUID, String>() {
+                    @Override
+                    public String map(UUID value) {
+                        return value.toString();
+                    }
+                };
+
+        assertThat(TypeExtractor.getMapReturnTypes(mapper, Types.UUID)).isEqualTo(Types.STRING);
+    }
+
+    @Test
+    void testUuidIsNotAutomaticallyExtracted() {
+        assertThat(TypeExtractor.getForObject(new UUID(0L, 0L)))
+                .isEqualTo(new GenericTypeInfo<>(UUID.class));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

@@ -618,13 +618,12 @@ class GroupingSetsITCase extends BatchTestBase {
       "select deptno, group_id() as g, count(*) as c " +
         "from scott_emp group by grouping sets (deptno, (), ())",
       Seq(
+        // Suddenly before CALCITE-7126 it returned result different from Postgres/Oracle
         row(10, 0, 3),
-        row(10, 1, 3),
         row(20, 0, 5),
-        row(20, 1, 5),
         row(30, 0, 6),
-        row(30, 1, 6),
-        row(null, 0, 14))
+        row(null, 0, 14),
+        row(null, 1, 14))
     )
   }
 

@@ -95,6 +95,7 @@ public final class BinaryArrayData extends BinarySection implements ArrayData, T
             case RAW:
             case VARIANT:
             case BITMAP:
+            case UUID:
                 // long and double are 8 bytes;
                 // otherwise it stores the length and offset of the variable-length part for types
                 // such as is string, map, etc.

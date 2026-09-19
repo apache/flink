@@ -246,6 +246,43 @@ class CatalogManagerTest {
     }
 
     @Test
+    void testSchemaExistsSwallowsCatalogExceptionFromDatabaseExists() {
+        CatalogManager catalogManager =
+                CatalogManagerMocks.preparedCatalogManager()
+                        .defaultCatalog("broken", new UnreachableCatalog("broken"))
+                        .classLoader(CatalogManagerTest.class.getClassLoader())
+                        .config(new Configuration())
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .classloader(CatalogManagerTest.class.getClassLoader())
+                                        .catalogStore(new GenericInMemoryCatalogStore())
+                                        .config(new Configuration())
+                                        .build())
+                        .build();
+        assertThat(catalogManager.schemaExists("broken", "default")).isFalse();
+    }
+
+    /**
+     * A catalog whose {@link #databaseExists(String)} always fails, simulating a connectivity
+     * problem with an unreachable destination.
+     */
+    private static class UnreachableCatalog extends GenericInMemoryCatalog {
+        UnreachableCatalog(String name) {
+            super(name, "default");
+        }
+
+        @Override
+        public boolean databaseExists(String databaseName) {
+            throw new CatalogException(
+                    "Failed to connect to database '"
+                            + databaseName
+                            + "' of catalog '"
+                            + getName()
+                            + "'.");
+        }
+    }
+
+    @Test
     public void testDropCurrentDatabase() throws Exception {
         CatalogManager catalogManager = createCatalogManager(null);
 
@@ -488,6 +525,48 @@ class CatalogManagerTest {
         assertThat(dropTemporaryEvent.isTemporary()).isTrue();
         assertThat(dropTemporaryEvent.ignoreIfNotExists()).isFalse();
         assertThat(dropTemporaryEvent.identifier().getObjectName()).isEqualTo("conn2");
+    }
+
+    @Test
+    void testGetResolvedConnection() throws Exception {
+        CatalogManager catalogManager = createCatalogManager(null);
+        ObjectIdentifier identifier =
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "connection");
+        catalogManager
+                .getCatalog(catalogManager.getCurrentCatalog())
+                .orElseThrow()
+                .createConnection(
+                        identifier.toObjectPath(),
+                        CatalogConnection.of(Map.of("endpoint", "permanent"), null),
+                        false);
+        catalogManager.createTemporaryConnection(
+                SensitiveConnection.of(Map.of("type", "default", "endpoint", "temporary"), null),
+                identifier,
+                false);
+
+        ContextResolvedConnection temporaryConnection =
+                catalogManager.getResolvedConnection(identifier).orElseThrow();
+        assertThat(temporaryConnection.isTemporary()).isTrue();
+        assertThat(temporaryConnection.getConnection().getOptions())
+                .containsEntry("endpoint", "temporary");
+
+        catalogManager.dropTemporaryConnection(identifier, false);
+
+        ContextResolvedConnection permanentConnection =
+                catalogManager.getResolvedConnection(identifier).orElseThrow();
+        assertThat(permanentConnection.isTemporary()).isFalse();
+        assertThat(permanentConnection.getConnection().getOptions())
+                .containsEntry("endpoint", "permanent");
+        assertThat(
+                        catalogManager.getResolvedConnection(
+                                ObjectIdentifier.of(
+                                        catalogManager.getCurrentCatalog(),
+                                        catalogManager.getCurrentDatabase(),
+                                        "missing")))
+                .isEmpty();
     }
 
     @Test

@@ -47,8 +47,20 @@ class DependencyParserTreeTest {
 
     @Test
     void testTreeParsing() {
+        assertTreeParsing(getTestDependencyTree());
+    }
+
+    /** Maven 3.9+ logs plugins by their goal prefix instead of their artifactId. */
+    @Test
+    void testTreeParsingWithGoalPrefixedPluginName() {
+        assertTreeParsing(
+                getTestDependencyTree()
+                        .map(line -> line.replace("maven-dependency-plugin:", "dependency:")));
+    }
+
+    private static void assertTreeParsing(Stream<String> lines) {
         final Map<String, DependencyTree> dependenciesByModule =
-                DependencyParser.parseDependencyTreeOutput(getTestDependencyTree());
+                DependencyParser.parseDependencyTreeOutput(lines);
 
         assertThat(dependenciesByModule).containsOnlyKeys("m1", "m2");
         assertThat(dependenciesByModule.get("m1").flatten())

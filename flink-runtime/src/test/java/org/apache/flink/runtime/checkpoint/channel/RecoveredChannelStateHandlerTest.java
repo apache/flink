@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Base class which contains all tests which should be implemented for every implementation of
- * {@link InputChannelRecoveredStateHandler}.
+ * {@link AbstractInputChannelRecoveredStateHandler}.
  */
 abstract class RecoveredChannelStateHandlerTest {
 

@@ -47,7 +47,7 @@ jobs:
     if: github.repository == 'apache/flink'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.branch }}
 
@@ -80,7 +80,7 @@ jobs:
           docker run --rm \
             --volume "$PWD:/root/flink" \
             --volume "$HOME/.m2/repository:/root/.m2/repository" \
-            apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy \
+            apache/flink-ci-docker:java_8_11_17_21_25_maven_386_noble \
             bash -c "apt-get update && apt-get install -y rsync && cd /root/flink && ./.github/workflows/docs.sh"
 
       - name: Upload documentation

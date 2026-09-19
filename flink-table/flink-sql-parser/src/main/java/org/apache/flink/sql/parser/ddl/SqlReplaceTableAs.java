@@ -25,9 +25,11 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.ddl.table.SqlCreateTable;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -38,6 +40,7 @@ import org.apache.calcite.util.ImmutableNullableList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -73,10 +76,44 @@ import java.util.List;
 public class SqlReplaceTableAs extends SqlCreateTable implements ExtendedSqlNode {
 
     public static final SqlSpecialOperator REPLACE_OPERATOR =
-            new SqlSpecialOperator("REPLACE TABLE AS", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("REPLACE TABLE AS", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return createReplaceCall(pos, operands, false);
+                }
+            };
 
     public static final SqlSpecialOperator CREATE_OR_REPLACE_OPERATOR =
-            new SqlSpecialOperator("CREATE OR REPLACE TABLE AS", SqlKind.OTHER_DDL);
+            new SqlSpecialOperator("CREATE OR REPLACE TABLE AS", SqlKind.OTHER_DDL) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return createReplaceCall(pos, operands, true);
+                }
+            };
+
+    private static SqlReplaceTableAs createReplaceCall(
+            SqlParserPos pos, SqlNode[] operands, boolean isCreateOrReplace) {
+        List<SqlTableConstraint> constraints = new ArrayList<>();
+        for (SqlNode c : (SqlNodeList) operands[2]) {
+            constraints.add((SqlTableConstraint) c);
+        }
+        return new SqlReplaceTableAs(
+                pos,
+                (SqlIdentifier) operands[0],
+                (SqlNodeList) operands[1],
+                constraints,
+                (SqlNodeList) operands[3],
+                (SqlDistribution) operands[8],
+                (SqlNodeList) operands[4],
+                (SqlWatermark) operands[5],
+                (SqlCharStringLiteral) operands[6],
+                operands[7],
+                false,
+                false,
+                isCreateOrReplace);
+    }
 
     private final boolean isCreateOrReplace;
 
@@ -124,9 +161,10 @@ public class SqlReplaceTableAs extends SqlCreateTable implements ExtendedSqlNode
                 new SqlNodeList(getTableConstraints(), SqlParserPos.ZERO),
                 properties,
                 partitionKeyList,
-                getWatermark().get(),
+                getWatermark().orElse(null),
                 comment,
-                asQuery);
+                asQuery,
+                getDistribution());
     }
 
     @Override

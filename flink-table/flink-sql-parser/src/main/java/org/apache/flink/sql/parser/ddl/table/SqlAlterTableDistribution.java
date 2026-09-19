@@ -20,8 +20,13 @@ package org.apache.flink.sql.parser.ddl.table;
 
 import org.apache.flink.sql.parser.ddl.SqlDistribution;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
@@ -68,9 +73,24 @@ public abstract class SqlAlterTableDistribution extends SqlAlterTable {
 
     public static class SqlAlterTableAddDistribution extends SqlAlterTableDistribution {
 
+        private static final SqlSpecialOperator ADD_DISTRIBUTION_OPERATOR =
+                new SqlSpecialOperator("ALTER TABLE ADD DISTRIBUTION", SqlKind.ALTER_TABLE) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        return new SqlAlterTableAddDistribution(
+                                pos, (SqlIdentifier) operands[0], (SqlDistribution) operands[1]);
+                    }
+                };
+
         public SqlAlterTableAddDistribution(
                 SqlParserPos pos, SqlIdentifier tableName, SqlDistribution distribution) {
             super(pos, tableName, distribution);
+        }
+
+        @Override
+        public SqlOperator getOperator() {
+            return ADD_DISTRIBUTION_OPERATOR;
         }
 
         @Override
@@ -81,9 +101,24 @@ public abstract class SqlAlterTableDistribution extends SqlAlterTable {
 
     public static class SqlAlterTableModifyDistribution extends SqlAlterTableDistribution {
 
+        private static final SqlSpecialOperator MODIFY_DISTRIBUTION_OPERATOR =
+                new SqlSpecialOperator("ALTER TABLE MODIFY DISTRIBUTION", SqlKind.ALTER_TABLE) {
+                    @Override
+                    public SqlCall createCall(
+                            SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                        return new SqlAlterTableModifyDistribution(
+                                pos, (SqlIdentifier) operands[0], (SqlDistribution) operands[1]);
+                    }
+                };
+
         public SqlAlterTableModifyDistribution(
                 SqlParserPos pos, SqlIdentifier tableName, SqlDistribution distribution) {
             super(pos, tableName, distribution);
+        }
+
+        @Override
+        public SqlOperator getOperator() {
+            return MODIFY_DISTRIBUTION_OPERATOR;
         }
 
         @Override

@@ -89,8 +89,8 @@ msgstr ""
 
 #: ../../user_guide/execution_mode.rst:46
 msgid ""
-"The execution mode can be configured via the ``python.execution-mode`` "
-"setting. There are two possible values:"
+"The execution mode can be configured via the :confval:`python.execution-"
+"mode` setting. There are two possible values:"
 msgstr ""
 
 #: ../../user_guide/execution_mode.rst:49

@@ -14,19 +14,19 @@ Depending on the level of abstraction you need, there are two different APIs tha
 
 The PyFlink Table API allows you to write powerful relational queries in a way that is similar to
 using SQL or working with tabular data in Python. You can find more information about it via the tutorial
-[https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/table_api_tutorial/](https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/table_api_tutorial/)
+[https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/table_api_tutorial.html](https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/table_api_tutorial.html)
 
 The PyFlink DataStream API gives you lower-level control over the core building blocks of Flink,
 state and time, to build more complex stream processing use cases.
-Tutorial can be found at [https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/datastream_tutorial/](https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/datastream_tutorial/)
+Tutorial can be found at [https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/datastream_tutorial.html](https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/datastream_tutorial.html)
 
-You can find more information via the documentation at [https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/overview/](https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/overview/)
+You can find more information via the documentation at [https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/overview.html](https://nightlies.apache.org/flink/flink-docs-stable/api/python/user_guide/overview.html)
 
 The auto-generated Python docs can be found at [https://nightlies.apache.org/flink/flink-docs-stable/api/python/](https://nightlies.apache.org/flink/flink-docs-stable/api/python/)
 
 ## Python Requirements
 
-Apache Flink Python API depends on Py4J (currently version 0.10.9.7), CloudPickle (currently version 2.2.0), python-dateutil (currently version >=2.8.0,<3), Apache Beam (currently version >= 2.54.0, <= 2.61.0).
+Apache Flink Python API depends on Py4J (currently version 0.10.9.7), CloudPickle (currently version 2.2.0), python-dateutil (currently version >=2.8.0,<3), Apache Beam (currently version >= 2.69.0, <= 2.75.0).
 
 ## Development Notices
 
@@ -39,7 +39,7 @@ python pyflink/gen_protos.py
 ```
 
 PyFlink depends on the following libraries to execute the above script:
-1. grpcio-tools (>=1.29.0,<=1.71.0)
+1. grpcio-tools (==1.80.0)
 2. setuptools (>=37.0.0)
 3. pip (>=20.3)
 

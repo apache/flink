@@ -24,6 +24,6 @@
 CI_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${CI_DIR}/maven-utils.sh"
 
-MVN=run_mvn "${CI_DIR}/compile.sh"
+MVN=run_mvn "${CI_DIR}/compile.sh" "${@}"
 
 exit $?

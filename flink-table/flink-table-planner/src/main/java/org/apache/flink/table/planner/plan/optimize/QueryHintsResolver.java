@@ -146,6 +146,13 @@ public class QueryHintsResolver extends QueryHintsRelShuttle {
                     updateInfoForOptionCheck(hint.hintName, rightName);
                     newHints.add(hint);
                 }
+            } else if (JoinStrategy.isEarlyFireHint(hint.hintName)) {
+                // EARLY_FIRE carries only key-value options and is not bound to a specific input
+                // side, so it is passed through unchanged once its options are validated by the
+                // hint option checker.
+                allHints.add(trimInheritPath(hint));
+                validHints.add(trimInheritPath(hint));
+                newHints.add(hint);
             } else if (JoinStrategy.isJoinStrategy(hint.hintName)) {
                 allHints.add(trimInheritPath(hint));
                 // add options about this hint for finally checking

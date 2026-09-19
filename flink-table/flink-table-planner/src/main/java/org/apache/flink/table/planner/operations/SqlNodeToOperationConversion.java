@@ -32,6 +32,8 @@ import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.ddl.SqlUseModules;
 import org.apache.flink.sql.parser.ddl.catalog.SqlDropCatalog;
 import org.apache.flink.sql.parser.ddl.catalog.SqlUseCatalog;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableAsQuery;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlCreateMaterializedTable;
 import org.apache.flink.sql.parser.ddl.table.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.table.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.view.SqlDropView;
@@ -584,8 +586,10 @@ public class SqlNodeToOperationConversion {
             }
         } else if (sqlNode.getKind().belongsTo(SqlKind.QUERY)) {
             operation = convertSqlQuery(sqlExplain.getStatement());
-        } else if ((sqlNode instanceof SqlCreateTableAs)
-                || (sqlNode instanceof SqlReplaceTableAs)) {
+        } else if (sqlNode instanceof SqlCreateTableAs
+                || sqlNode instanceof SqlReplaceTableAs
+                || sqlNode instanceof SqlCreateMaterializedTable
+                || sqlNode instanceof SqlAlterMaterializedTableAsQuery) {
             operation =
                     convert(flinkPlanner, catalogManager, sqlNode)
                             .orElseThrow(

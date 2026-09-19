@@ -50,6 +50,8 @@ Flink adds the following fields to [MDC](https://www.slf4j.org/api/org/slf4j/MDC
 
 This is most useful in environments with structured logging and allows you to quickly filter the relevant logs.
 
+Additional fields can be published from the job configuration. See [Logging Context (MDC)]({{< ref "docs/ops/logging_context" >}}).
+
 The MDC is propagated by slf4j to the logging backend which usually adds it to the log records automatically (e.g. in [log4j2 json layout](https://logging.apache.org/log4j/2.x/manual/json-template-layout.html#event-template-resolver-mdc).
 
 #### Log4j 2 JsonTemplateLayout

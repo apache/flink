@@ -989,7 +989,11 @@ internal_run_with_timeout() {
 
   (
       command_pid=$BASHPID
-      (sleep "${timeout_in_seconds}" # set a timeout for this command
+      (
+      # Kill the sleep on teardown so it doesn't keep the CI stdout pipe open until timeout.
+      trap 'kill $sleep_pid 2>/dev/null; exit 0' TERM
+      sleep "${timeout_in_seconds}" & sleep_pid=$! # set a timeout for this command
+      wait $sleep_pid
       echo "${command_label:-"The command '${command}'"} (pid: $command_pid) did not finish after $timeout_in_seconds seconds."
       eval "${on_failure}"
       kill "$command_pid") & watchdog_pid=$!

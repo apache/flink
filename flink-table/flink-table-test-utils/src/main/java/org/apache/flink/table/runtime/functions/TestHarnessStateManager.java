@@ -124,7 +124,10 @@ class TestHarnessStateManager {
         Map<String, Object> internalState = new HashMap<>();
         for (ProcessTableFunctionTestHarness.StateArgumentInfo stateArg : stateArguments) {
             Object external = externalState.get(stateArg.name);
-            Object internalData = convertToInternal(external, stateArg);
+            Object internalData =
+                    external == null
+                            ? createNewStateInternalData(stateArg)
+                            : convertToInternal(external, stateArg);
             internalState.put(stateArg.name, internalData);
         }
         stateByKey.put(key, internalState);

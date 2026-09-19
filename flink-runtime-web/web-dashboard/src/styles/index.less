@@ -24,7 +24,10 @@
 @import "./theme";
 @import "./rewrite";
 
-.d3-flame-graph-tip {
+// Scoped under `body` so these overrides win over the vendor `.d3-flame-graph-tip`
+// rules, which d3-flame-graph 5 ships inside its ESM entry and Angular injects
+// (with the lazily-loaded flame graph chunk) after this global stylesheet.
+body .d3-flame-graph-tip {
   z-index: 1000;
   padding: 12px;
   border-radius: 2px;

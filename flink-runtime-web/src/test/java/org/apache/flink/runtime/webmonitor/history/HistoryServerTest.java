@@ -52,8 +52,6 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -68,7 +66,6 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -87,16 +84,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.webmonitor.history.HistoryServerTestUtils.createLegacyArchive;
+import static org.apache.flink.runtime.webmonitor.history.HistoryServerTestUtils.createLegacyArchiveWithModifiedDate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the HistoryServer. */
 class HistoryServerTest {
 
-    private static final JsonFactory JACKSON_FACTORY =
-            new JsonFactory()
-                    .enable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
-                    .disable(JsonGenerator.Feature.AUTO_CLOSE_JSON_CONTENT);
     private static final ObjectMapper OBJECT_MAPPER =
             JacksonMapperFactory.createObjectMapper()
                     .enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
@@ -198,7 +193,7 @@ class HistoryServerTest {
 
         for (int j = 0; j < numArchivesBeforeHsStarted; j++) {
             JobID jobId =
-                    createLegacyArchive(
+                    createLegacyArchiveWithModifiedDate(
                             jmDirectory.toPath(), j * oneMinuteSinceEpoch, versionLessThan14);
             if (j >= numArchivesToRemoveUponHsStart) {
                 expectedJobIdsToKeep.add(jobId);
@@ -253,7 +248,7 @@ class HistoryServerTest {
                     j++) {
                 expectedJobIdsToKeep.remove(0);
                 expectedJobIdsToKeep.add(
-                        createLegacyArchive(
+                        createLegacyArchiveWithModifiedDate(
                                 jmDirectory.toPath(), j * oneMinuteSinceEpoch, versionLessThan14));
             }
             assertThat(numArchivesCreatedTotal.await(10L, TimeUnit.SECONDS)).isTrue();
@@ -532,62 +527,6 @@ class HistoryServerTest {
         env.fromData(1, 2, 3).sinkTo(new DiscardingSink<>());
 
         env.execute();
-    }
-
-    private static JobID createLegacyArchive(
-            Path directory, long fileModifiedDate, boolean versionLessThan14) throws IOException {
-        JobID jobId = createLegacyArchive(directory, versionLessThan14);
-        File jobArchive = directory.resolve(jobId.toString()).toFile();
-        jobArchive.setLastModified(fileModifiedDate);
-        return jobId;
-    }
-
-    private static JobID createLegacyArchive(Path directory, boolean versionLessThan14)
-            throws IOException {
-        JobID jobId = JobID.generate();
-
-        StringWriter sw = new StringWriter();
-        try (JsonGenerator gen = JACKSON_FACTORY.createGenerator(sw)) {
-            try (JsonObject root = new JsonObject(gen)) {
-                try (JsonArray finished = new JsonArray(gen, "finished")) {
-                    try (JsonObject job = new JsonObject(gen)) {
-                        gen.writeStringField("jid", jobId.toString());
-                        gen.writeStringField("name", "testjob");
-                        gen.writeStringField("state", JobStatus.FINISHED.name());
-
-                        gen.writeNumberField("start-time", 0L);
-                        gen.writeNumberField("end-time", 1L);
-                        gen.writeNumberField("duration", 1L);
-                        gen.writeNumberField("last-modification", 1L);
-
-                        try (JsonObject tasks = new JsonObject(gen, "tasks")) {
-                            gen.writeNumberField("total", 0);
-
-                            if (versionLessThan14) {
-                                gen.writeNumberField("pending", 0);
-                            } else {
-                                gen.writeNumberField("created", 0);
-                                gen.writeNumberField("deploying", 0);
-                                gen.writeNumberField("scheduled", 0);
-                            }
-                            gen.writeNumberField("running", 0);
-                            gen.writeNumberField("finished", 0);
-                            gen.writeNumberField("canceling", 0);
-                            gen.writeNumberField("canceled", 0);
-                            gen.writeNumberField("failed", 0);
-                        }
-                    }
-                }
-            }
-        }
-        String json = sw.toString();
-        ArchivedJson archivedJson = new ArchivedJson("/joboverview", json);
-        FsJsonArchivist.writeArchivedJsons(
-                new org.apache.flink.core.fs.Path(
-                        directory.toAbsolutePath().toString(), jobId.toString()),
-                Collections.singleton(archivedJson));
-
-        return jobId;
     }
 
     @Test
@@ -990,40 +929,5 @@ class HistoryServerTest {
                 ArchivePathUtils.getApplicationArchivePath(clusterConfig, applicationId)
                         .getParent();
         applicationArchiveDir.getFileSystem().delete(applicationArchiveDir, true);
-    }
-
-    private static final class JsonObject implements AutoCloseable {
-
-        private final JsonGenerator gen;
-
-        JsonObject(JsonGenerator gen) throws IOException {
-            this.gen = gen;
-            gen.writeStartObject();
-        }
-
-        private JsonObject(JsonGenerator gen, String name) throws IOException {
-            this.gen = gen;
-            gen.writeObjectFieldStart(name);
-        }
-
-        @Override
-        public void close() throws IOException {
-            gen.writeEndObject();
-        }
-    }
-
-    private static final class JsonArray implements AutoCloseable {
-
-        private final JsonGenerator gen;
-
-        JsonArray(JsonGenerator gen, String name) throws IOException {
-            this.gen = gen;
-            gen.writeArrayFieldStart(name);
-        }
-
-        @Override
-        public void close() throws IOException {
-            gen.writeEndArray();
-        }
     }
 }

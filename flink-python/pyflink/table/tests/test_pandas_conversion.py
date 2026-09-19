@@ -113,6 +113,27 @@ class PandasConversionTests(PandasConversionTestBase):
         table = self.t_env.from_pandas(self.pdf, schema=tuple(new_types))
         self.assertEqual(new_types, table.get_schema().get_field_data_types())
 
+    def test_from_pandas_with_nested_timezone_aware_timestamps(self):
+        import pandas as pd
+
+        timestamp = pd.Timestamp("2026-01-01T00:00:00Z")
+        pdf = pd.DataFrame(
+            {
+                "payload": [{"ts": timestamp}],
+                "timestamps": [[timestamp]],
+            }
+        )
+
+        table = self.t_env.from_pandas(pdf)
+
+        self.assertEqual(
+            [
+                DataTypes.ROW([DataTypes.FIELD("ts", DataTypes.TIMESTAMP(6))]),
+                DataTypes.ARRAY(DataTypes.TIMESTAMP(6)),
+            ],
+            table.get_schema().get_field_data_types(),
+        )
+
 
 class PandasConversionITTests(PandasConversionTestBase):
 

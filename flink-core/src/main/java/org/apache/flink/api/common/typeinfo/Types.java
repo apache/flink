@@ -56,6 +56,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * This class gives access to the type information of the most common types for which Flink has
@@ -157,6 +158,9 @@ public class Types {
 
     /** Returns type information for {@link java.time.Instant}. Supports a null value. */
     public static final TypeInformation<Instant> INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO;
+
+    /** Returns type information for {@link java.util.UUID}. */
+    public static final TypeInformation<UUID> UUID = BasicTypeInfo.UUID_TYPE_INFO;
 
     public static final TypeInformation<Variant> VARIANT = VariantTypeInfo.INSTANCE;
 

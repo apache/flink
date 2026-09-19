@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -48,6 +49,12 @@ public class MultiInputStreamOperatorTestHarness<OUT>
             int subtaskIndex)
             throws Exception {
         super(operatorFactory, maxParallelism, numSubtasks, subtaskIndex);
+    }
+
+    public MultiInputStreamOperatorTestHarness(
+            StreamOperatorFactory<OUT> operatorFactory, MockEnvironment environment)
+            throws Exception {
+        super(operatorFactory, environment);
     }
 
     public void processElement(int idx, StreamRecord<?> element) throws Exception {

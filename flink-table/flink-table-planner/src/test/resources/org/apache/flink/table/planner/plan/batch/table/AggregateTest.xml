@@ -94,4 +94,84 @@ Calc(select=[CAST(1 AS INTEGER) AS a, EXPR$0, EXPR$1, EXPR$2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testGroupAggregateWithHaving">
+    <Resource name="ast">
+      <![CDATA[
+LogicalFilter(condition=[>($1, 3)])
++- LogicalProject(b=[$0], s=[$1])
+   +- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[b, EXPR$0], where=[>(EXPR$0, 3)])
++- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalHashAggregate(groupBy=[b], select=[b, Partial_SUM(a) AS sum$0])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOrderByExprWithFetchThenGlobalAggregate">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
+   +- LogicalProject(a=[$0])
+      +- LogicalSort(sort0=[$2], dir0=[ASC], fetch=[10])
+         +- LogicalProject(a=[$0], b=[$1], $f2=[+($0, 1)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[MAX(a) AS EXPR$0])
++- Calc(select=[a])
+   +- SortLimit(orderBy=[$f2 ASC], offset=[0], fetch=[10], global=[true])
+      +- Exchange(distribution=[single])
+         +- SortLimit(orderBy=[$f2 ASC], offset=[0], fetch=[10], global=[false])
+            +- Calc(select=[a, b, +(a, 1) AS $f2])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOrderByThenGlobalAggregate">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalHashAggregate(select=[Partial_MAX(a) AS max$0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOrderByWithFetchThenGlobalAggregate">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
+   +- LogicalProject(a=[$0])
+      +- LogicalSort(sort0=[$1], dir0=[ASC], fetch=[10])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[MAX(a) AS EXPR$0])
++- Calc(select=[a])
+   +- SortLimit(orderBy=[b ASC], offset=[0], fetch=[10], global=[true])
+      +- Exchange(distribution=[single])
+         +- SortLimit(orderBy=[b ASC], offset=[0], fetch=[10], global=[false])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

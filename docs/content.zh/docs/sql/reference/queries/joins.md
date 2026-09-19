@@ -259,7 +259,7 @@ SELECT
   o_amount, r_rate
 FROM
   Orders,
-  LATERAL TABLE (Rates(o_proctime))
+  LATERAL Rates(o_proctime)
 WHERE
   r_currency = o_currency
 ```
@@ -285,7 +285,7 @@ SELECT
   o_amount, r_rate
 FROM
   Orders,
-  LATERAL TABLE (Rates(o_proctime))
+  LATERAL Rates(o_proctime)
 WHERE
   r_currency = o_currency
 ```
@@ -294,6 +294,154 @@ WHERE
 
 - SQL 中可以定义 temporal table DDL，但不能定义 temporal table 函数;
 - temporal table DDL 和 temporal table function 都支持 temporal join 版本表，但只有 temporal table function 可以 temporal join 任何表/视图的最新版本（即"处理时间 Temporal Join"）。
+
+LATERAL SNAPSHOT Join
+--------------
+
+{{< label Streaming >}} {{< label Batch >}}
+
+A `LATERAL SNAPSHOT` join is a *stream enrichment* join that augments an append-only table with the current state of an updating table.
+As in the [temporal joins](#temporal-joins), the enriched (left) input is called the *probe side* and the enriching (right) input is called the *build side*.
+Every probe-side row is joined with the build-side state that is current at the time the row is processed.
+
+For example, the following query enriches an append-only stream of `orders` (the probe side) with the conversion rate from an updating `currency_rates` table (the build side) that is current when the order is processed:
+
+```sql
+-- probe side: append-only stream of orders
+-- order_id | currency | amount | order_time
+-- ---------+----------+--------+-----------
+--        1 | EUR      |     10 |      10:15
+--        2 | EUR      |     10 |      10:31
+--        3 | USD      |     20 |      11:00
+
+-- build side: updating currency rates (upsert on currency)
+-- currency | rate | update_time
+-- ---------+------+------------
+-- EUR      | 1.1  |       10:00
+-- USD      | 1.0  |       10:00
+-- EUR      | 1.2  |       10:30
+
+SELECT o.order_id, o.currency, o.amount, r.rate
+FROM orders AS o
+JOIN LATERAL SNAPSHOT(input => TABLE currency_rates, on_time => DESCRIPTOR(update_time)) AS r
+ON o.currency = r.currency;
+
+order_id  currency  amount  rate
+========  ========  ======  ====
+       1  EUR           10  1.1   -- rate as of 10:00
+       2  EUR           10  1.2   -- rate as of 10:30
+       3  USD           20  1.0   -- rate as of 10:00
+```
+
+*Important:* The `LATERAL SNAPSHOT` join is non-deterministic. The order with `order_id = 2` could also have been joined with the `10:00` version of `EUR`. The result depends on the order in which the operator processes its inputs, which cannot be controlled.
+
+**When to use it**
+
+The `LATERAL SNAPSHOT` join is designed for enrichment scenarios where the other temporal joins are a poor fit:
+
+- **The build side does not receive continuous updates.** An event-time temporal join only emits a joined row once the combined watermark of both inputs has passed the event time of the probe-side row. A build side that does not continuously produce records, and therefore does not advance its watermark, stalls the join and lets probe-side state accumulate. A `LATERAL SNAPSHOT` join keeps making progress even when the build side is idle.
+- **Low latency is required.** An event-time temporal join holds back probe-side rows until the watermark catches up, which adds latency. After the initial load phase, the `LATERAL SNAPSHOT` join immediately joins a probe-side row when it arrives.
+- **The build side has no primary key.** Event-time and processing-time temporal joins require the build side to have a primary key that appears in the equi-join condition. A `LATERAL SNAPSHOT` join has no such requirement; neither the probe side nor the build side needs a primary key.
+
+**How the join works**
+
+A `LATERAL SNAPSHOT` join operates in two phases to avoid joining probe-side rows against an incomplete build side: it first loads the build side up to a well-defined point in time (the *load phase*) before it starts joining (the *join phase*).
+
+During the *load phase*, the operator accumulates the build-side changes into state until the load-completion condition is met, without emitting any results yet. Probe-side rows that arrive during the load phase are buffered. The load phase completes when one of the following occurs:
+
+- the build-side watermark reaches a configured `load_completed_time`. This time is either explicitly set by the user, or, if `load_completed_time` is not provided, automatically set to the wall-clock time when the query is compiled, or
+- as a fallback, the `load_completed_idle_timeout` elapses in processing time without the build-side watermark advancing (which handles build sides that become idle during start-up).
+
+When the load phase completes, the operator transitions to the *join phase*: all buffered probe-side rows are joined against the current build-side state and emitted. 
+From then on, each probe-side row is joined and emitted immediately against the build-side state that is current at that moment. 
+Build-side updates continue to be applied to the state and become visible to subsequent probe-side rows.
+
+The load phase is what distinguishes a `LATERAL SNAPSHOT` join from the [processing-time temporal join](#processing-time-temporal-join), which has been disabled for Flink SQL. The processing-time temporal join starts joining immediately at query start, so early probe-side rows are joined against whatever build-side data happens to have been loaded so far, producing missing or stale results that depend on the order in which the inputs are read. By first loading the build side, a `LATERAL SNAPSHOT` join avoids this problem.
+
+**Completing the load phase for static or nearly-static build sides**
+
+The event-time gate (build-side watermark reaches `load_completed_time`) works well when the build side keeps producing records and advancing its watermark. 
+Build sides that are *static* (loaded once, then silent) or *nearly static* (infrequent updates) are common for reference data such as currency rates, product catalogs, or feature tables.
+Since watermarks only advance when new records with larger event times arrive, such inputs may take a long time to (or never) produce a watermark that reaches `load_completed_time`.
+This leaves the join **stuck in the load phase indefinitely**: probe-side rows keep buffering, state keeps growing, and no results are ever emitted.
+
+Picking a `load_completed_time` that both sits above the build side's real event times and is guaranteed to be reached by its watermark is difficult and requires insight into the data: set it too low and the join flips before the build side is fully loaded (probe rows are joined against an incomplete build side); set it too high and the join never flips.
+
+If the build-side input is truly static and its source connector supports it, configure the connector to run in **bounded mode**. 
+When the source finishes reading, it advances the watermark to its maximum value, which completes the load phase.
+
+If the build side is not truly static or the connector does not support a bounded mode, set **`load_completed_idle_timeout`**. 
+It is a processing-time (wall-clock) safety net that is independent of event-time progress: the operator flips from load to join once the build-side watermark has not advanced for the configured duration, so it triggers the flip during a genuine stall — exactly the situation a static or idle build side ends up in once it has been fully read.
+Choose the timeout larger than any expected pause in the build side's changes during start-up — if it fires while the backlog is still being read, the join flips against an incomplete build side.
+`load_completed_idle_timeout` is **not set by default**, so you must set it explicitly if your build side may become static or idle during start-up.
+
+If a `LATERAL SNAPSHOT` join produces no output, first check whether it is stuck in the load phase using the metrics below, then set `load_completed_idle_timeout`.
+
+**Syntax**
+
+The build side is wrapped in the `SNAPSHOT` table function, which is called with `LATERAL`. The outer (probe-side) table must be an append-only table. 
+Both `INNER JOIN` and `LEFT [OUTER] JOIN` are supported. The join requires at least one conjunctive equality predicate; additional non-equi predicates are allowed in the `ON` clause.
+
+```sql
+SELECT [column_list]
+FROM probe_table
+[LEFT] JOIN LATERAL SNAPSHOT(
+    input                        => TABLE build_table,
+    [ on_time                    => DESCRIPTOR(<rowtime_column>), ]
+    [ load_completed_time        => <timestamp_ltz>, ]
+    [ load_completed_idle_timeout => <interval>, ]
+    [ state_ttl                  => <interval> ]) AS s
+ON probe_table.col = s.col
+```
+
+The `SNAPSHOT` function accepts the following arguments:
+
+| Argument | Type | Required | Description                                                                                                                                                                                                                                                                                                                                                 |
+| --- | --- | --- |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `input` | TABLE | yes | The build-side table. It may use any changelog mode (inserts, updates, and deletes).                                                                                      |
+| `on_time` | DESCRIPTOR | no | Declares a build-side rowtime column that defines the order in which the build-side changes are applied. The referenced column must exist in `input` and be a `TIMESTAMP` or `TIMESTAMP_LTZ` column (up to precision 3) that is declared as a [watermarked rowtime attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#event-time). The argument is **required for streaming queries**. |
+| `load_completed_time` | TIMESTAMP_LTZ(3) | no | The build-side event time that completes the load phase. If omitted, the load phase completes once the build-side watermark reaches the wall-clock time at which the query was compiled.                                                                                                                                                                                             |
+| `load_completed_idle_timeout` | INTERVAL | no | A processing-time fallback to complete the load phase. The transition to the join phase happens when the build-side watermark does not advance for more than the configured interval.                                                                                                                                                                           |
+| `state_ttl` | INTERVAL | no | Retention time for build-side state. Join keys that are not accessed within this duration become eligible for eviction. Only applied during the join phase. Defaults to the pipeline's [state TTL]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl).                                                                                               |
+
+`on_time`, `load_completed_time`, `load_completed_idle_timeout`, and `state_ttl` only affect streaming execution and are ignored in batch mode (see **Batch mode** below).
+
+**Result and state characteristics**
+
+The result is append-only and preserves the probe-side time attributes. A build-side rowtime attribute that is projected into the output is materialized as a regular `TIMESTAMP` and is no longer a time attribute. Probe-side watermarks are forwarded downstream during the join phase; build-side watermarks are consumed internally and are not propagated.
+
+Because rows are joined against the build-side state that is current at processing time, the result is **not deterministic**. A given probe-side row may be joined with different build-side versions across different runs, depending on the relative timing of the two inputs. Probe and build-side inputs can be configured with watermark alignment to keep the two inputs roughly aligned on event time, so that a probe-side row tends to be joined with build-side changes of a similar event time. This is a best-effort alignment and does not make the result deterministic.
+
+The build-side state grows with the number of distinct build-side keys, and during the load phase the buffered probe-side rows add to the state footprint until the operator transitions to the join phase. Use `state_ttl` to bound the build-side state for keys that are no longer updated or joined. You can reduce the amount of data that is buffered and processed during the load phase by configuring scan start offsets on the build and probe-side inputs, for example with a `scan.startup.*` [dynamic table option hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options).
+
+**Monitoring**
+
+The operator exposes metrics that help you understand which phase the join is in and whether it is making progress. They are reported under the operator's [metric group]({{< ref "docs/ops/metrics" >}}) alongside the standard operator metrics.
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `currentPhase` | Gauge | The current phase: `0` = load phase, `1` = join phase. A value stuck at `0` means the load phase has not completed. |
+| `currentBuildSideWatermark` | Gauge | The highest build-side watermark observed (epoch milliseconds). In the load phase the flip happens once this reaches `load_completed_time`. A value that stops advancing below `load_completed_time` is the signature of a static or idle build side that might not complete the load phase on its own. |
+| `currentProbeSideWatermark` | Gauge | The latest probe-side watermark observed (epoch milliseconds). Probe-side watermarks are held back during the load phase and forwarded during the join phase. |
+| `numProbeSideRecordsBuffered` | Gauge | The number of probe-side rows currently buffered. This grows during the load phase and drops to zero shortly after the flip to the join phase. |
+| `numStateTtlEvictions` | Counter | The number of build-side keys evicted from state by `state_ttl`. Only advances during the join phase. |
+| `maxJoinFanOut` | Gauge | The largest number of joined rows emitted for a single probe-side row. |
+| `avgJoinFanOut` | Gauge | The average number of joined rows emitted per probe-side row. |
+| `numUnmatchedProbeRecords` | Counter | The number of probe-side rows that found no build-side match. For an `INNER JOIN` these produce no output; for a `LEFT JOIN` they are emitted null-padded. |
+| `numUnmatchedBuildRetractions` | Counter | The number of build-side retractions (`-U`/`-D`) for a row that was not present in state. |
+
+To diagnose a join that emits no output, check `currentPhase` first. If it is `0` while `numProbeSideRecordsBuffered` keeps growing, the join is stuck in the load phase. 
+Compare `currentBuildSideWatermark` against your `load_completed_time`: if the build-side watermark has stopped advancing below it, the build side has become static or idle and the event-time gate will never be crossed. 
+Set `load_completed_idle_timeout` as described above to let the load phase complete.
+
+On a query restart, the metric values are not restored: counters restart at zero and the watermark and buffer gauges are re-populated as new records and watermarks arrive. 
+The phase, however, is restored from state.
+
+**Batch mode**
+
+In batch mode, a `LATERAL SNAPSHOT` join is executed as a regular (`INNER` or `LEFT`) join between the probe side and the complete build side. Batch execution reads the entire build side before joining, so there is no load phase and no incremental state build-up. The streaming-specific arguments (`on_time`, `load_completed_time`, `load_completed_idle_timeout`, and `state_ttl`) are accepted but have no effect, and the build side does not need to declare a watermark or provide a `on_time`.
+
+Because every probe-side row is joined against the final, complete build side, the batch result is **deterministic**.
 
 Lookup Join
 --------------
@@ -348,7 +496,7 @@ Table Function
 ```sql
 SELECT order_id, res
 FROM Orders,
-LATERAL TABLE(table_func(order_id)) t(res)
+LATERAL table_func(order_id) t(res)
 ```
 
 ### LEFT OUTER JOIN
@@ -358,7 +506,7 @@ LATERAL TABLE(table_func(order_id)) t(res)
 ```sql
 SELECT order_id, res
 FROM Orders
-LEFT OUTER JOIN LATERAL TABLE(table_func(order_id)) t(res)
+LEFT OUTER JOIN LATERAL table_func(order_id) t(res)
   ON TRUE
 ```
 

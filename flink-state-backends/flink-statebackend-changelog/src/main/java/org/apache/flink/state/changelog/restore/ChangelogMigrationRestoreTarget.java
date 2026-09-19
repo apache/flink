@@ -238,6 +238,12 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
                 return keyedStateBackend.getKeysAndNamespaces(state);
             }
 
+            @Override
+            public <N> Stream<Tuple2<K, Integer>> getKeysAndKeyGroups(
+                    List<String> states, N namespace) {
+                return keyedStateBackend.getKeysAndKeyGroups(states, namespace);
+            }
+
             @Nonnull
             @Override
             public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(

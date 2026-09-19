@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.rocksdb.sstmerge;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -26,6 +27,7 @@ import org.apache.flink.configuration.MemorySize;
 import java.time.Duration;
 
 /** Configuration options for manual compaction for the RocksDB backend. */
+@PublicEvolving
 public class RocksDBManualCompactionOptions {
 
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
@@ -42,7 +44,7 @@ public class RocksDBManualCompactionOptions {
                     .intType()
                     .defaultValue(5)
                     .withDescription(
-                            "The maximum number of manual compactions to start."
+                            "The maximum number of manual compactions to start. "
                                     + "Note that only one of them can run at a time as of v8.10.0; all the others will be waiting");
 
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
@@ -81,6 +83,6 @@ public class RocksDBManualCompactionOptions {
                     .intType()
                     .defaultValue(30)
                     .withDescription(
-                            "The maximum number of automatic compactions running for manual compaction to start."
+                            "The maximum number of automatic compactions running for manual compaction to start. "
                                     + "If the actual number is higher, manual compaction won't be started to avoid delaying automatic ones.");
 }

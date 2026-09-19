@@ -202,7 +202,7 @@ class CheckpointMetadataLoadingTest {
         final StreamStateHandle serializedMetadata;
 
         try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-            Checkpoints.storeCheckpointMetadata(savepoint, os);
+            Checkpoints.storeCheckpointMetadataWithoutExclusiveDir(savepoint, os);
             serializedMetadata = new ByteStreamStateHandle("checkpoint", os.toByteArray());
         }
 

@@ -59,7 +59,19 @@ import java.util.Optional;
 public class SqlTableConstraint extends SqlCall {
     /** Use this operator only if you don't have a better one. */
     private static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("SqlTableConstraint", SqlKind.OTHER);
+            new SqlSpecialOperator("SqlTableConstraint", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlTableConstraint(
+                            (SqlIdentifier) operands[0],
+                            (SqlLiteral) operands[1],
+                            (SqlNodeList) operands[2],
+                            (SqlLiteral) operands[3],
+                            ((SqlLiteral) operands[4]).booleanValue(),
+                            pos);
+                }
+            };
 
     private final SqlIdentifier constraintName;
     private final SqlLiteral uniqueSpec;
@@ -143,7 +155,12 @@ public class SqlTableConstraint extends SqlCall {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(constraintName, uniqueSpec, columns, enforcement);
+        return ImmutableNullableList.of(
+                constraintName,
+                uniqueSpec,
+                columns,
+                enforcement,
+                SqlLiteral.createBoolean(isTableConstraint, SqlParserPos.ZERO));
     }
 
     @Override

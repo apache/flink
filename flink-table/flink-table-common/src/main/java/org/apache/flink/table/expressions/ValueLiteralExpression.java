@@ -23,11 +23,13 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.EncodingUtils;
@@ -39,6 +41,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -56,6 +59,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -135,6 +139,8 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                 convertedValue = convertToInstant(value, valueClass);
             } else if (clazz == BigDecimal.class) {
                 convertedValue = convertToBigDecimal(value);
+            } else if (clazz == UUID.class) {
+                convertedValue = convertToUuid(value, valueClass);
             }
         }
 
@@ -208,6 +214,15 @@ public final class ValueLiteralExpression implements ResolvedExpression {
     private @Nullable BigDecimal convertToBigDecimal(Object value) {
         if (Number.class.isAssignableFrom(value.getClass())) {
             return new BigDecimal(String.valueOf(value));
+        }
+
+        return null;
+    }
+
+    private @Nullable UUID convertToUuid(Object value, Class<?> valueClass) {
+        if (valueClass == byte[].class) {
+            final ByteBuffer buffer = ByteBuffer.wrap((byte[]) value);
+            return new UUID(buffer.getLong(), buffer.getLong());
         }
 
         return null;
@@ -288,18 +303,11 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                         getValueAs(Instant.class).get(),
                         ((LocalZonedTimestampType) dataType.getLogicalType()).getPrecision());
             case INTERVAL_YEAR_MONTH:
-                final Period period = getValueAs(Period.class).get().normalized();
-                return String.format(
-                        "INTERVAL '%d-%d' YEAR TO MONTH", period.getYears(), period.getMonths());
+                return formatYearMonthIntervalLiteral(
+                        (YearMonthIntervalType) logicalType, getValueAs(Period.class).get());
             case INTERVAL_DAY_TIME:
-                final Duration duration = getValueAs(Duration.class).get();
-                return String.format(
-                        "INTERVAL '%d %02d:%02d:%02d.%d' DAY TO SECOND(3)",
-                        duration.toDays(),
-                        duration.toHours() % 24,
-                        duration.toMinutes() % 60,
-                        duration.getSeconds() % 60,
-                        duration.getNano() / 1_000_000);
+                return formatDayTimeIntervalLiteral(
+                        (DayTimeIntervalType) logicalType, getValueAs(Duration.class).get());
             case DESCRIPTOR:
                 final ColumnList columnList = getValueAs(ColumnList.class).get();
                 if (!columnList.getDataTypes().isEmpty()) {
@@ -311,6 +319,8 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                                 .map(EncodingUtils::escapeBackticks)
                                 .map(c -> String.format("`%s`", c))
                                 .collect(Collectors.joining()));
+            case UUID:
+                return String.format("UUID '%s'", getValueAs(UUID.class).get());
             case ARRAY:
             case MULTISET:
             case MAP:
@@ -409,6 +419,51 @@ public final class ValueLiteralExpression implements ResolvedExpression {
                             "Data type '%s' does not support a conversion from class '%s'.",
                             dataType, candidate.getName()));
         }
+    }
+
+    /**
+     * Formats a year-month interval value as a SQL literal, including explicit precision on the
+     * {@code YEAR} field.
+     */
+    private static String formatYearMonthIntervalLiteral(
+            YearMonthIntervalType type, Period period) {
+        final long totalMonths = period.toTotalMonths();
+        final long years = totalMonths / 12;
+        final int months = (int) (totalMonths % 12);
+        final int yearPrecision = type.getYearPrecision();
+        return String.format("INTERVAL '%d-%d' YEAR(%d) TO MONTH", years, months, yearPrecision);
+    }
+
+    /**
+     * Formats a day-time interval value as a SQL literal, including explicit precision on the
+     * {@code DAY} and {@code SECOND} field.
+     */
+    private static String formatDayTimeIntervalLiteral(
+            DayTimeIntervalType type, Duration duration) {
+        final long days = duration.toDays();
+        final int hours = duration.toHoursPart();
+        final int minutes = duration.toMinutesPart();
+        final int seconds = duration.toSecondsPart();
+        final int dayPrecision = type.getDayPrecision();
+        final int fractionalPrecision = type.getFractionalPrecision();
+        final String fraction = formatFractionalSeconds(duration.getNano(), fractionalPrecision);
+
+        return String.format(
+                "INTERVAL '%d %02d:%02d:%02d%s' DAY(%d) TO SECOND(%d)",
+                days, hours, minutes, seconds, fraction, dayPrecision, fractionalPrecision);
+    }
+
+    /**
+     * Formats the fractional-seconds suffix (including the leading {@code .}) from a raw nanosecond
+     * value to {@code fractionalPrecision} digits. Returns an empty string when {@code
+     * fractionalPrecision} is 0.
+     */
+    private static String formatFractionalSeconds(int nanos, int fractionalPrecision) {
+        if (fractionalPrecision == 0) {
+            return "";
+        }
+        final String nanosString = String.format("%09d", nanos);
+        return "." + nanosString.substring(0, fractionalPrecision);
     }
 
     /** Supports (nested) arrays and makes string values more explicit. */

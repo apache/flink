@@ -24,6 +24,7 @@ import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
@@ -40,7 +41,14 @@ import static java.util.Objects.requireNonNull;
 /** LOAD MODULE sql call. */
 public class SqlLoadModule extends SqlCall {
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("LOAD MODULE", SqlKind.OTHER);
+            new SqlSpecialOperator("LOAD MODULE", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlLoadModule(
+                            pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1]);
+                }
+            };
 
     private final SqlIdentifier moduleName;
     private final SqlNodeList propertyList;

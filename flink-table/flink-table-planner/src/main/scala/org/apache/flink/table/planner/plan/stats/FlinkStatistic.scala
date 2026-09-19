@@ -30,8 +30,6 @@ import javax.annotation.Nullable
 
 import java.util
 
-import scala.collection.JavaConversions._
-
 /** The class provides statistics for a [[org.apache.calcite.schema.Table]]. */
 class FlinkStatistic(
     tableStats: TableStats,
@@ -42,7 +40,7 @@ class FlinkStatistic(
 
   require(tableStats != null, "tableStats should not be null")
   require(
-    uniqueKeys == null || !uniqueKeys.exists(keys => keys == null || keys.isEmpty),
+    uniqueKeys == null || !uniqueKeys.stream().anyMatch(keys => keys == null || keys.isEmpty),
     "uniqueKeys contains invalid elements!")
 
   /**

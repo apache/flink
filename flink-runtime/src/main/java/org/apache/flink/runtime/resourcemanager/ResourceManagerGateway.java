@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blocklist.BlocklistListener;
@@ -257,13 +258,13 @@ public interface ResourceManagerGateway
     /**
      * Requests the thread dump from the given {@link TaskExecutor}.
      *
-     * @param taskManagerId taskManagerId identifying the {@link TaskExecutor} to get the thread
-     *     dump from
+     * @param taskManagerId identifies the {@link TaskExecutor} to dump
+     * @param mode dump granularity; when {@code null} the cluster default is used.
      * @param timeout timeout of the asynchronous operation
      * @return Future containing the thread dump information
      */
     CompletableFuture<ThreadDumpInfo> requestThreadDump(
-            ResourceID taskManagerId, @RpcTimeout Duration timeout);
+            ResourceID taskManagerId, ThreadDumpMode mode, @RpcTimeout Duration timeout);
 
     /**
      * Requests the {@link TaskExecutorGateway}.

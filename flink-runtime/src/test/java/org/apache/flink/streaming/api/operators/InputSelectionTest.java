@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.InputSelection.Builder;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -138,7 +139,8 @@ class InputSelectionTest {
     }
 
     /** Tests for {@link Builder}. */
-    static class BuilderTest {
+    @Nested
+    class BuilderTest {
 
         @Test
         void testSelect() {

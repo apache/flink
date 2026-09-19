@@ -37,7 +37,7 @@ jobs:
 
   steps:
   # if on Azure, free up disk space
-  - script: ./tools/azure-pipelines/free_disk_space.sh
+  - script: ./tools/ci/free_disk_space.sh
     target: host
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Free up disk space
@@ -67,9 +67,10 @@ jobs:
       echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
     displayName: "Set JDK"
   # Compile
+  # Fast multi-threaded build that only produces the test artifact; all QA (structural + convergence + license) runs single-threaded in the license_check job (MVN_LICENSE_CHECK_ARGS="" disables it here).
   - script: |
-      ${{parameters.environment}} ./tools/ci/compile_ci.sh || exit $?
-      ./tools/azure-pipelines/create_build_artifact.sh
+      MVN_LICENSE_CHECK_ARGS="" ${{parameters.environment}} ./tools/ci/compile_ci.sh -Dfast || exit $?
+      ./tools/ci/create_build_artifact.sh
     displayName: Compile
 
   # upload artifacts for next stage
@@ -77,6 +78,38 @@ jobs:
     inputs:
       targetPath: $(FLINK_ARTIFACT_DIR)
       artifact: FlinkCompileArtifact-${{parameters.stage_name}}
+
+# All QA (structural + convergence + license) runs single-threaded here, off the critical path (no dependsOn), so the compile job can build fast with -Dfast -T1C.
+- job: license_check_${{parameters.stage_name}}
+  # succeeded() is needed to allow job cancellation
+  condition: and(succeeded(), not(eq(variables['MODE'], 'e2e')))
+  pool: ${{parameters.test_pool_definition}}
+  container: ${{parameters.container}}
+  timeoutInMinutes: 240
+  cancelTimeoutInMinutes: 1
+  workspace:
+    clean: all
+  steps:
+  # if on Azure, free up disk space
+  - script: ./tools/ci/free_disk_space.sh
+    target: host
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Free up disk space
+  - task: Cache@2
+    inputs:
+      key: $(PIPELINE_START_YEAR) | $(CACHE_KEY)
+      restoreKeys: $(PIPELINE_START_YEAR) | $(CACHE_FALLBACK_KEY)
+      path: $(MAVEN_CACHE_FOLDER)
+    continueOnError: true # continue the build even if the cache fails.
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Cache Maven local repo
+  - script: |
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
+    displayName: "Set JDK"
+  # Full single-threaded build (deploy + -Pcheck-convergence) running every structural QA check and the license check.
+  - script: ${{parameters.environment}} ./tools/ci/compile_ci.sh
+    displayName: QA checks
 
 - job: test_${{parameters.stage_name}}
   dependsOn: compile_${{parameters.stage_name}}
@@ -103,7 +136,7 @@ jobs:
         module: misc
   steps:
   # if on Azure, free up disk space
-  - script: ./tools/azure-pipelines/free_disk_space.sh
+  - script: ./tools/ci/free_disk_space.sh
     target: host
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Free up disk space
@@ -121,7 +154,7 @@ jobs:
       path: $(FLINK_ARTIFACT_DIR)
       artifact: FlinkCompileArtifact-${{parameters.stage_name}}
 
-  - script: ./tools/azure-pipelines/unpack_build_artifact.sh
+  - script: ./tools/ci/unpack_build_artifact.sh
     displayName: "Unpack Build artifact"
 
   - task: Cache@2
@@ -142,7 +175,7 @@ jobs:
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Cache docker images
 
-  - script: ./tools/azure-pipelines/cache_docker_images.sh load
+  - script: ./tools/ci/cache_docker_images.sh load
     displayName: Restore docker images
     condition: and(not(canceled()), eq(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
     continueOnError: true
@@ -156,7 +189,7 @@ jobs:
     displayName: Set coredump pattern
 
   # Test
-  - script: ${{parameters.environment}} ./tools/azure-pipelines/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module)
+  - script: ${{parameters.environment}} ./tools/ci/uploading_watchdog.sh ./tools/ci/test_controller.sh $(module)
     displayName: Test - $(module)
     env:
       IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
@@ -176,7 +209,7 @@ jobs:
       targetPath: $(DEBUG_FILES_OUTPUT_DIR)
       artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
 
-  - script: ./tools/azure-pipelines/cache_docker_images.sh save
+  - script: ./tools/ci/cache_docker_images.sh save
     displayName: Save docker images
     condition: and(not(canceled()), or(failed(), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true')))
     continueOnError: true

@@ -23,7 +23,9 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
+import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -36,7 +38,10 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RestClient} that rely on external connections. */
 @ExtendWith(TestLoggerExtension.class)
@@ -51,14 +56,22 @@ class RestClientITCase {
                         "apache/flink/master/flink-runtime-web/web-dashboard/package.json");
         try (final RestClient restClient =
                 RestClient.forUrl(config, Executors.directExecutor(), httpsUrl)) {
-            restClient
-                    .sendRequest(
-                            httpsUrl.getHost(),
-                            443,
-                            testUrlMessageHeaders,
-                            EmptyMessageParameters.getInstance(),
-                            EmptyRequestBody.getInstance())
-                    .get(60, TimeUnit.SECONDS);
+            try {
+                restClient
+                        .sendRequest(
+                                httpsUrl.getHost(),
+                                443,
+                                testUrlMessageHeaders,
+                                EmptyMessageParameters.getInstance(),
+                                EmptyRequestBody.getInstance())
+                        .get(60, TimeUnit.SECONDS);
+            } catch (ExecutionException e) {
+                // A 429/non-JSON body arrives as RestClientException only after a successful TLS
+                // handshake; a cert/trust failure surfaces as SSLException instead.
+                assertThat(ExceptionUtils.findThrowable(e, RestClientException.class))
+                        .as("expected an HTTP response proving the TLS handshake succeeded")
+                        .isPresent();
+            }
         }
     }
 

@@ -20,6 +20,7 @@ package org.apache.flink.state.api.input;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -36,13 +37,20 @@ import java.util.stream.Stream;
 /**
  * An iterator for reading all keys in a state backend across multiple partitioned states.
  *
+ * <p>Uses {@link KeyedStateBackend#getKeysAndKeyGroups} rather than {@link
+ * KeyedStateBackend#getKeys(List, Object)}, because the State Processing API can read state whose
+ * key class is missing from the classpath, deserializing the key into a substitute representation
+ * instead of failing (see {@code CustomRestoreSerializerFactory}). Such a substituted key's {@code
+ * hashCode()} is not guaranteed to reproduce the original, so the key-group it was physically
+ * written under must be carried alongside it rather than recomputed from the key.
+ *
  * @param <K> Type of the key by which state is keyed.
  */
 @Internal
-public final class MultiStateKeyIterator<K> implements CloseableIterator<K> {
+public final class MultiStateKeyIterator<K> implements CloseableIterator<Tuple2<K, Integer>> {
     private final List<? extends StateDescriptor<?, ?>> descriptors;
 
-    private final Iterator<K> iterator;
+    private final Iterator<Tuple2<K, Integer>> iterator;
 
     private final CloseableRegistry registry;
 
@@ -52,8 +60,8 @@ public final class MultiStateKeyIterator<K> implements CloseableIterator<K> {
         this.descriptors = Preconditions.checkNotNull(descriptors);
         Preconditions.checkNotNull(backend);
         registry = new CloseableRegistry();
-        Stream<K> stream =
-                backend.getKeys(
+        Stream<Tuple2<K, Integer>> stream =
+                backend.getKeysAndKeyGroups(
                         this.descriptors.stream()
                                 .map(StateDescriptor::getName)
                                 .collect(Collectors.toList()),
@@ -72,7 +80,7 @@ public final class MultiStateKeyIterator<K> implements CloseableIterator<K> {
     }
 
     @Override
-    public K next() {
+    public Tuple2<K, Integer> next() {
         if (!hasNext()) {
             throw new NoSuchElementException();
         } else {

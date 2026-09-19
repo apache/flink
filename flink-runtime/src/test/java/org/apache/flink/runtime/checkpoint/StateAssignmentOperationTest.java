@@ -66,6 +66,7 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -96,6 +97,7 @@ import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests to verify state assignment operation. */
 class StateAssignmentOperationTest {
@@ -577,6 +579,72 @@ class StateAssignmentOperationTest {
                                                 mappings(to(0, 2), to(1)),
                                                 emptySet(),
                                                 RESCALING))));
+    }
+
+    @Test
+    void testChannelStateAssignmentUsesResultIdForDuplicateJobVertexConnections()
+            throws JobException, JobExecutionException {
+        int oldParallelism = 3;
+        int newParallelism = 2;
+        JobVertex upstream = createJobVertex(new OperatorID(), newParallelism);
+        JobVertex downstream = createJobVertex(new OperatorID(), newParallelism);
+        OperatorID upstreamOperator = upstream.getOperatorIDs().get(0).getGeneratedOperatorID();
+        OperatorID downstreamOperator = downstream.getOperatorIDs().get(0).getGeneratedOperatorID();
+        Random random = new Random();
+
+        OperatorState upstreamState =
+                new OperatorState("", "", upstreamOperator, oldParallelism, MAX_P);
+        OperatorState downstreamState =
+                new OperatorState("", "", downstreamOperator, oldParallelism, MAX_P);
+        for (int i = 0; i < oldParallelism; i++) {
+            upstreamState.putState(
+                    i,
+                    OperatorSubtaskState.builder()
+                            .setResultSubpartitionState(
+                                    new StateObjectCollection<>(
+                                            asList(
+                                                    createNewResultSubpartitionStateHandle(
+                                                            10, 0, random),
+                                                    createNewResultSubpartitionStateHandle(
+                                                            10, 1, random))))
+                            .build());
+            downstreamState.putState(
+                    i,
+                    OperatorSubtaskState.builder()
+                            .setInputChannelState(
+                                    new StateObjectCollection<>(
+                                            asList(
+                                                    createNewInputChannelStateHandle(10, 0, random),
+                                                    createNewInputChannelStateHandle(
+                                                            10, 1, random))))
+                            .build());
+        }
+        Map<OperatorID, OperatorState> states = new HashMap<>();
+        states.put(upstreamOperator, upstreamState);
+        states.put(downstreamOperator, downstreamState);
+
+        connectVertices(upstream, downstream, RANGE, RANGE);
+        connectVertices(upstream, downstream, ROUND_ROBIN, ROUND_ROBIN);
+
+        Map<OperatorID, ExecutionJobVertex> vertices = toExecutionVertices(upstream, downstream);
+
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false, false)
+                .assignStates();
+
+        InflightDataRescalingDescriptor outputDescriptor =
+                getAssignedState(vertices.get(upstreamOperator), upstreamOperator, 0)
+                        .getOutputRescalingDescriptor();
+        InflightDataRescalingDescriptor inputDescriptor =
+                getAssignedState(vertices.get(downstreamOperator), downstreamOperator, 0)
+                        .getInputRescalingDescriptor();
+        assertThat(outputDescriptor.getChannelMapping(0))
+                .isEqualTo(RANGE.getNewToOldSubtasksMapping(oldParallelism, newParallelism));
+        assertThat(outputDescriptor.getChannelMapping(1))
+                .isEqualTo(ROUND_ROBIN.getNewToOldSubtasksMapping(oldParallelism, newParallelism));
+        assertThat(inputDescriptor.getChannelMapping(0))
+                .isEqualTo(RANGE.getNewToOldSubtasksMapping(oldParallelism, newParallelism));
+        assertThat(inputDescriptor.getChannelMapping(1))
+                .isEqualTo(ROUND_ROBIN.getNewToOldSubtasksMapping(oldParallelism, newParallelism));
     }
 
     private InflightDataGateOrPartitionRescalingDescriptor gate(
@@ -1313,6 +1381,76 @@ class StateAssignmentOperationTest {
         return IntStream.range(0, numOperators)
                 .mapToObj(j -> new OperatorID())
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * A keyed vertex whose chained operators recorded different maximum parallelism cannot be
+     * restored. The rejection must not depend on the order in which the operator states are
+     * reconciled onto the shared vertex, so both orders are exercised.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void restoreRejectsKeyedVertexWithConflictingMaxParallelism(boolean keyedStateFirst)
+            throws Exception {
+        final OperatorID keyedOperator = new OperatorID();
+        final OperatorID chainedOperator = new OperatorID();
+        final int keyedMaxParallelism = 128;
+        final int chainedMaxParallelism = 64;
+
+        OperatorState keyedState =
+                new OperatorState(null, null, keyedOperator, 1, keyedMaxParallelism);
+        keyedState.putState(
+                0,
+                OperatorSubtaskState.builder()
+                        .setManagedKeyedState(
+                                StateObjectCollection.singleton(
+                                        createNewKeyedStateHandle(
+                                                KeyGroupRange.of(0, keyedMaxParallelism - 1))))
+                        .build());
+        OperatorState chainedState =
+                new OperatorState(null, null, chainedOperator, 1, chainedMaxParallelism);
+        chainedState.putState(
+                0,
+                OperatorSubtaskState.builder()
+                        .setManagedOperatorState(
+                                StateObjectCollection.singleton(
+                                        createNewOperatorStateHandle(2, new Random())))
+                        .build());
+
+        JobVertex jobVertex =
+                new JobVertex(
+                        "keyed-chain",
+                        new JobVertexID(),
+                        asList(
+                                OperatorIDPair.generatedIDOnly(keyedOperator),
+                                OperatorIDPair.generatedIDOnly(chainedOperator)));
+        jobVertex.setInvokableClass(NoOpInvokable.class);
+        jobVertex.setParallelism(1);
+        ExecutionJobVertex executionJobVertex =
+                ExecutionGraphTestUtils.getExecutionJobVertex(jobVertex);
+
+        Map<OperatorID, OperatorState> oldState = new LinkedHashMap<>();
+        if (keyedStateFirst) {
+            oldState.put(keyedOperator, keyedState);
+            oldState.put(chainedOperator, chainedState);
+        } else {
+            oldState.put(chainedOperator, chainedState);
+            oldState.put(keyedOperator, keyedState);
+        }
+
+        TaskStateAssignment taskStateAssignment =
+                new TaskStateAssignment(
+                        executionJobVertex, oldState, new HashMap<>(), new HashMap<>(), false);
+        StateAssignmentOperation stateAssignmentOperation =
+                new StateAssignmentOperation(
+                        1L, Collections.singleton(executionJobVertex), oldState, false, false);
+
+        assertThatThrownBy(
+                        () ->
+                                stateAssignmentOperation.checkParallelismPreconditions(
+                                        taskStateAssignment))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("recorded different maximum parallelism");
     }
 
     /**

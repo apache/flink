@@ -30,9 +30,13 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.catalog.CatalogSchemaModel;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.SystemTypeInference;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.logical.DecimalType;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -67,6 +71,7 @@ import org.apache.calcite.sql.SqlWindowTableFunction;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.DelegatingScope;
 import org.apache.calcite.sql.validate.IdentifierNamespace;
@@ -88,6 +93,7 @@ import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -273,6 +279,7 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
             sqlSnapshot.setOperand(
                     1,
                     SqlLiteral.createTimestamp(
+                            SqlTypeName.TIMESTAMP,
                             timestampString,
                             rexLiteral.getType().getPrecision(),
                             sqlSnapshot.getPeriod().getParserPosition()));
@@ -381,6 +388,7 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
 
         final SqlBasicCall call = (SqlBasicCall) node;
         checkNoNamedAndPositionalMixedArgs(call);
+        checkDisabledSystemArgs(call);
 
         // Special case for MODEL
         if (node instanceof SqlExplicitModelCall) {
@@ -454,9 +462,53 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
         }
     }
 
+    /**
+     * Rejects the implicit PTF system arguments (on_time, uid) for functions that disable them.
+     *
+     * <p>This must happen before Calcite permutes named arguments, because unknown named arguments
+     * are silently dropped during permutation and would otherwise be lost. The actual rule and
+     * error message live in {@link SystemTypeInference#checkNoSystemArguments} so that the Table
+     * API path (which resolves calls without this validator) enforces it identically.
+     */
+    private static void checkDisabledSystemArgs(SqlBasicCall call) {
+        final SqlOperator operator = call.getOperator();
+        if (!(operator instanceof BridgingSqlFunction)) {
+            return;
+        }
+        final TypeInference typeInference = ((BridgingSqlFunction) operator).getTypeInference();
+        if (!typeInference.disableSystemArguments()) {
+            return;
+        }
+        final Set<String> suppliedArgNames = new HashSet<>();
+        for (SqlNode operand : call.getOperandList()) {
+            if (operand != null && operand.getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
+                final SqlNode nameNode = ((SqlCall) operand).operand(1);
+                if (nameNode instanceof SqlIdentifier) {
+                    suppliedArgNames.add(((SqlIdentifier) nameNode).getSimple());
+                }
+            }
+        }
+        // A function that disabled the automatic system arguments may still declare an argument
+        // with a reserved name (e.g. SNAPSHOT declares `on_time`); such declared names are allowed.
+        final Set<String> declaredArgNames =
+                typeInference.getStaticArguments().orElse(List.of()).stream()
+                        .map(StaticArgument::getName)
+                        .collect(Collectors.toSet());
+        SystemTypeInference.checkNoSystemArguments(
+                true, suppliedArgNames, declaredArgNames, operator.getName());
+    }
+
     @Override
     public SqlNode maybeCast(SqlNode node, RelDataType currentType, RelDataType desiredType) {
         return super.maybeCast(node, currentType, desiredType);
+    }
+
+    @Override
+    public @Nullable SqlCall makeNullaryCall(SqlIdentifier id) {
+        if (id.names.size() == 1 && !id.isComponentQuoted(0)) {
+            return super.makeNullaryCall(id);
+        }
+        return null;
     }
 
     // --------------------------------------------------------------------------------------------

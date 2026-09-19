@@ -47,16 +47,15 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
 import org.apache.flink.util.Collector;
 
-import org.hamcrest.Matchers;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** IT Case for reading window operator state. */
-public abstract class SavepointWindowReaderITCase<B extends StateBackend>
-        extends SavepointTestBase {
+abstract class SavepointWindowReaderITCase<B extends StateBackend> extends SavepointTestBase {
     private static final String uid = "stateful-operator";
 
     private static final Integer[] numbers = {1, 2, 3};
@@ -64,7 +63,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
     protected abstract Tuple2<Configuration, B> getStateBackendTuple();
 
     @Test
-    public void testReduceWindowStateReader() throws Exception {
+    void testReduceWindowStateReader() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -91,14 +90,13 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                                 .window(TumblingEventTimeWindows.of(Duration.ofMillis(10)))
                                 .reduce(uid, new ReduceSum(), Types.INT, Types.INT));
 
-        Assert.assertThat(
-                "Unexpected results from keyed state",
-                results,
-                Matchers.containsInAnyOrder(numbers));
+        assertThat(results)
+                .as("Unexpected results from keyed state")
+                .containsExactlyInAnyOrder(numbers);
     }
 
     @Test
-    public void testReduceEvictorWindowStateReader() throws Exception {
+    void testReduceEvictorWindowStateReader() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -127,14 +125,13 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                                 .evictor()
                                 .reduce(uid, new ReduceSum(), Types.INT, Types.INT));
 
-        Assert.assertThat(
-                "Unexpected results from keyed state",
-                results,
-                Matchers.containsInAnyOrder(numbers));
+        assertThat(results)
+                .as("Unexpected results from keyed state")
+                .containsExactlyInAnyOrder(numbers);
     }
 
     @Test
-    public void testAggregateWindowStateReader() throws Exception {
+    void testAggregateWindowStateReader() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -162,14 +159,13 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                                 .aggregate(
                                         uid, new AggregateSum(), Types.INT, Types.INT, Types.INT));
 
-        Assert.assertThat(
-                "Unexpected results from keyed state",
-                results,
-                Matchers.containsInAnyOrder(numbers));
+        assertThat(results)
+                .as("Unexpected results from keyed state")
+                .containsExactlyInAnyOrder(numbers);
     }
 
     @Test
-    public void testAggregateEvictorWindowStateReader() throws Exception {
+    void testAggregateEvictorWindowStateReader() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -199,14 +195,13 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                                 .aggregate(
                                         uid, new AggregateSum(), Types.INT, Types.INT, Types.INT));
 
-        Assert.assertThat(
-                "Unexpected results from keyed state",
-                results,
-                Matchers.containsInAnyOrder(numbers));
+        assertThat(results)
+                .as("Unexpected results from keyed state")
+                .containsExactlyInAnyOrder(numbers);
     }
 
     @Test
-    public void testProcessWindowStateReader() throws Exception {
+    void testProcessWindowStateReader() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -238,14 +233,13 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                                         Types.INT,
                                         Types.INT));
 
-        Assert.assertThat(
-                "Unexpected results from keyed state",
-                results,
-                Matchers.containsInAnyOrder(numbers));
+        assertThat(results)
+                .as("Unexpected results from keyed state")
+                .containsExactlyInAnyOrder(numbers);
     }
 
     @Test
-    public void testProcessEvictorWindowStateReader() throws Exception {
+    void testProcessEvictorWindowStateReader() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -279,14 +273,13 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                                         Types.INT,
                                         Types.INT));
 
-        Assert.assertThat(
-                "Unexpected results from keyed state",
-                results,
-                Matchers.containsInAnyOrder(numbers));
+        assertThat(results)
+                .as("Unexpected results from keyed state")
+                .containsExactlyInAnyOrder(numbers);
     }
 
     @Test
-    public void testApplyWindowStateReader() throws Exception {
+    void testApplyWindowStateReader() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -318,14 +311,13 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                                         Types.INT,
                                         Types.INT));
 
-        Assert.assertThat(
-                "Unexpected results from keyed state",
-                results,
-                Matchers.containsInAnyOrder(numbers));
+        assertThat(results)
+                .as("Unexpected results from keyed state")
+                .containsExactlyInAnyOrder(numbers);
     }
 
     @Test
-    public void testApplyEvictorWindowStateReader() throws Exception {
+    void testApplyEvictorWindowStateReader() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -359,14 +351,13 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                                         Types.INT,
                                         Types.INT));
 
-        Assert.assertThat(
-                "Unexpected results from keyed state",
-                results,
-                Matchers.containsInAnyOrder(numbers));
+        assertThat(results)
+                .as("Unexpected results from keyed state")
+                .containsExactlyInAnyOrder(numbers);
     }
 
     @Test
-    public void testWindowTriggerStateReader() throws Exception {
+    void testWindowTriggerStateReader() throws Exception {
         Tuple2<Configuration, B> backendTuple = getStateBackendTuple();
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(backendTuple.f0);
@@ -397,8 +388,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                                         Types.INT,
                                         Types.LONG));
 
-        Assert.assertThat(
-                "Unexpected results from trigger state", results, Matchers.contains(1L, 1L, 1L));
+        assertThat(results).as("Unexpected results from trigger state").containsExactly(1L, 1L, 1L);
     }
 
     private static class NoOpProcessWindowFunction
@@ -433,11 +423,10 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 Iterable<Integer> elements,
                 Collector<Integer> out)
                 throws Exception {
-            Assert.assertEquals("Unexpected window", new TimeWindow(0, 10), context.window());
-            Assert.assertThat(
-                    "Unexpected registered timers",
-                    context.registeredEventTimeTimers(),
-                    Matchers.contains(9L));
+            assertThat(context.window()).as("Unexpected window").isEqualTo(new TimeWindow(0, 10));
+            assertThat(context.registeredEventTimeTimers())
+                    .as("Unexpected registered timers")
+                    .containsExactly(9L);
 
             out.collect(elements.iterator().next());
         }

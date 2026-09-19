@@ -23,6 +23,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
@@ -37,6 +38,7 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.api.operators.SupportsChainAvailability;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.queue.OrderedStreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
@@ -57,6 +59,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -92,7 +95,7 @@ import static org.apache.flink.streaming.util.retryable.AsyncRetryStrategies.NO_
 @Internal
 public class AsyncWaitOperator<IN, OUT>
         extends AbstractUdfStreamOperator<OUT, AsyncFunction<IN, OUT>>
-        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput, SupportsChainAvailability {
     private static final long serialVersionUID = 1L;
 
     private static final String STATE_NAME = "_async_wait_operator_state_";
@@ -138,6 +141,8 @@ public class AsyncWaitOperator<IN, OUT>
 
     /** Whether retry is disabled due to task finish, initially set to false. */
     private transient AtomicBoolean retryDisabledOnFinish;
+
+    private AvailabilityProvider downstreamAvailabilityProvider;
 
     public AsyncWaitOperator(
             StreamOperatorParameters<OUT> parameters,
@@ -390,6 +395,25 @@ public class AsyncWaitOperator<IN, OUT>
      */
     private void outputCompletedElement() {
         if (queue.hasCompletedElements()) {
+            // Defer emission until downstream becomes available.
+            if (downstreamAvailabilityProvider != null
+                    && !downstreamAvailabilityProvider.isAvailable()) {
+                downstreamAvailabilityProvider
+                        .getAvailableFuture()
+                        .thenRun(
+                                () -> {
+                                    try {
+                                        mailboxExecutor.execute(
+                                                this::outputCompletedElement,
+                                                "AsyncWaitOperator#outputCompletedElement(deferred)");
+                                    } catch (RejectedExecutionException e) {
+                                        LOG.debug(
+                                                "Deferred element emission is ignored since the mailbox rejected the execution.",
+                                                e);
+                                    }
+                                });
+                return;
+            }
             // emit only one element to not block the mailbox thread unnecessarily
             queue.emitCompletedElement(timestampedCollector);
             // if there are more completed elements, emit them with subsequent mails
@@ -431,6 +455,16 @@ public class AsyncWaitOperator<IN, OUT>
                 timeoutTimestamp, timestamp -> callback.accept(null));
     }
 
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return queue.getAvailableFuture();
+    }
+
+    @Override
+    public void setDownstreamAvailabilityProvider(AvailabilityProvider provider) {
+        this.downstreamAvailabilityProvider = provider;
+    }
+
     /** A delegator holds the real {@link ResultHandler} to handle retries. */
     private class RetryableResultHandlerDelegator implements ResultFuture<OUT> {
 
@@ -449,6 +483,9 @@ public class AsyncWaitOperator<IN, OUT>
          * rejected if it is true, and it will be reset to false after the retry fired.
          */
         private final AtomicBoolean retryAwaiting = new AtomicBoolean(false);
+
+        // set once the timeout fired; makes the result terminal and bypass the retry path
+        private final AtomicBoolean timedOut = new AtomicBoolean(false);
 
         public RetryableResultHandlerDelegator(
                 StreamRecord<IN> inputRecord,
@@ -477,6 +514,9 @@ public class AsyncWaitOperator<IN, OUT>
                 // cancel delayed retry timer first
                 cancelRetryTimer();
 
+                // timeout result is terminal: route it straight to the handler, not the retry path
+                timedOut.set(true);
+
                 // force reset retryAwaiting to prevent the handler to trigger retry unnecessarily
                 retryAwaiting.set(false);
 
@@ -488,7 +528,7 @@ public class AsyncWaitOperator<IN, OUT>
         public void complete(Collection<OUT> results) {
             Preconditions.checkNotNull(
                     results, "Results must not be null, use empty collection to emit nothing");
-            if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
+            if (shouldProcessResultForRetry()) {
                 processRetryInMailBox(results, null);
             } else {
                 cancelRetryTimer();
@@ -499,7 +539,7 @@ public class AsyncWaitOperator<IN, OUT>
 
         @Override
         public void completeExceptionally(Throwable error) {
-            if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
+            if (shouldProcessResultForRetry()) {
                 processRetryInMailBox(null, error);
             } else {
                 cancelRetryTimer();
@@ -512,7 +552,7 @@ public class AsyncWaitOperator<IN, OUT>
         public void complete(CollectionSupplier<OUT> supplier) {
             Preconditions.checkNotNull(
                     supplier, "Runnable must not be null, return empty collection to emit nothing");
-            if (!retryDisabledOnFinish.get() && resultHandler.inputRecord.isRecord()) {
+            if (shouldProcessResultForRetry()) {
                 mailboxExecutor.submit(
                         () -> {
                             try {
@@ -527,6 +567,12 @@ public class AsyncWaitOperator<IN, OUT>
 
                 resultHandler.complete(supplier);
             }
+        }
+
+        private boolean shouldProcessResultForRetry() {
+            return !timedOut.get()
+                    && !retryDisabledOnFinish.get()
+                    && resultHandler.inputRecord.isRecord();
         }
 
         private void processRetryInMailBox(Collection<OUT> results, Throwable error) {

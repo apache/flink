@@ -18,9 +18,12 @@
 
 package org.apache.flink.sql.parser.dql;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -38,7 +41,19 @@ import javax.annotation.Nullable;
 public class SqlShowProcedures extends SqlShowCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("SHOW PROCEDURES", SqlKind.OTHER);
+            new SqlSpecialOperator("SHOW PROCEDURES", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlShowProcedures(
+                            pos,
+                            operandToString(operands[1]),
+                            (SqlIdentifier) operands[0],
+                            operandToBoolean(operands[4]),
+                            operandToString(operands[2]),
+                            (SqlCharStringLiteral) operands[3]);
+                }
+            };
 
     public SqlShowProcedures(
             SqlParserPos pos,

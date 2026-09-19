@@ -79,7 +79,17 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             readingInputIndex = selectFirstReadingInputIndex();
         }
         if (readingInputIndex == InputSelection.NONE_AVAILABLE) {
-            return DataInputStatus.NOTHING_AVAILABLE;
+            // If all inputs are already finished, there is nothing left to read: report
+            // END_OF_INPUT rather than NOTHING_AVAILABLE. Otherwise, because getAvailableFuture()
+            // returns AVAILABLE once all inputs are finished, the mailbox loop would never block
+            // and
+            // would spin on processInput. This matters when processInput is invoked again after the
+            // operator already finished -- e.g. a task that reached END_OF_INPUT during recovery
+            // and
+            // is resumed once recovery completes (see StreamTask#processInput).
+            return inputSelectionHandler.areAllInputsFinished()
+                    ? DataInputStatus.END_OF_INPUT
+                    : DataInputStatus.NOTHING_AVAILABLE;
         }
 
         lastReadInputIndex = readingInputIndex;

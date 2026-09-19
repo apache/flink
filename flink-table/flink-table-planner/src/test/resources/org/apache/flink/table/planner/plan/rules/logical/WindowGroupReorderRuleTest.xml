@@ -115,7 +115,7 @@ LogicalProject(EXPR$0=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RAN
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[$2], EXPR$1=[CASE(>($3, 0), $4, null:INTEGER)], EXPR$2=[$7], EXPR$3=[CASE(>($5, 0), $6, null:INTEGER)], EXPR$4=[$8])
-+- LogicalWindow(window#0=[window(partition {1} order by [0 ASC-nulls-first] range between $2 PRECEDING and $3 FOLLOWING aggs [COUNT()])], window#1=[window(partition {1} order by [0 ASC-nulls-first] aggs [COUNT($0), SUM($0)])], window#2=[window(partition {1} order by [0 ASC-nulls-first] range between $4 PRECEDING and $3 FOLLOWING aggs [COUNT($0), SUM($0)])], window#3=[window(partition {1} order by [0 ASC-nulls-first, 1 ASC-nulls-first] aggs [RANK()])], window#4=[window(partition {1} order by [1 ASC-nulls-first] rows between $4 PRECEDING and $3 FOLLOWING aggs [COUNT()])])
++- LogicalWindow(window#0=[window(partition {1} order by [0 ASC-nulls-first] range between $2 PRECEDING and $3 FOLLOWING aggs [COUNT()])], window#1=[window(partition {1} order by [0 ASC-nulls-first] aggs [COUNT($0), SUM($0)])], window#2=[window(partition {1} order by [0 ASC-nulls-first] range between $4 PRECEDING and $3 FOLLOWING aggs [COUNT($0), SUM($0)])], window#3=[window(partition {1} order by [0 ASC-nulls-first, 1 ASC-nulls-first] aggs [RANK()])], window#4=[window(partition {1} order by [1 ASC-nulls-first] rows between $4 PRECEDING and $3 FOLLOWING aggs [COUNT()])], constants=[[-1, 10, 1]])
    +- LogicalProject(a=[$0], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>

@@ -153,6 +153,12 @@
             <td>The checkpoint storage implementation to be used to checkpoint state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <code class="highlighter-rouge">CheckpointStorageFactory</code>. If a factory is specified it is instantiated via its zero argument constructor and its <code class="highlighter-rouge">CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)</code>  method is called.<br />Recognized shortcut names are 'jobmanager' and 'filesystem'.<br />'execution.checkpointing.storage' and 'execution.checkpointing.dir' are usually combined to configure the checkpoint location. By default,  the checkpoint meta data and actual program state will be stored in the JobManager's memory directly. When 'execution.checkpointing.storage' is set to 'jobmanager', if 'execution.checkpointing.dir' is configured, the meta data of checkpoints will be persisted to the path specified by 'execution.checkpointing.dir'. Otherwise, the meta data will be stored in the JobManager's memory. When 'execution.checkpointing.storage' is set to 'filesystem', a valid path must be configured to 'execution.checkpointing.dir', and the checkpoint meta data and actual program state will both be persisted to the path.</td>
         </tr>
         <tr>
+            <td><h5>execution.checkpointing.sync-phase-timeout</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>A timeout for the synchronous phase of a checkpoint, after which a task cancellation is triggered. If the task thread is merely slow, the task will restart and continue. If a true thread blockage is encountered, (e.g. by a blocking native call),  a fatal error will be thrown after the task.cancellation.timeoutand trigger a TM restart to address the blockage. Defaults to 0 (disabled).</td>
+        </tr>
+        <tr>
             <td><h5>execution.checkpointing.timeout</h5></td>
             <td style="word-wrap: break-word;">10 min</td>
             <td>Duration</td>
@@ -175,6 +181,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Forces unaligned checkpoints, particularly allowing them for iterative jobs.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.unaligned.interruptible-timers.emit-intermediate-watermarks</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When unaligned checkpoints with interruptible timers are enabled (see 'execution.checkpointing.unaligned.interruptible-timers.enabled') and firing the timers due for a watermark advance is interrupted before completing, an intermediate watermark reflecting the progress made so far is emitted downstream, at most as often as configured by 'pipeline.auto-watermark-interval'. This keeps downstream operators from stalling on watermark progress during a long-running catch-up. Set to false to disable intermediate watermark emission.</td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.unaligned.interruptible-timers.enabled</h5></td>

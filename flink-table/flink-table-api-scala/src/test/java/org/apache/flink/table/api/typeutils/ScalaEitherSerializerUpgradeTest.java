@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.test.util.MigrationTest;
 
 import org.assertj.core.api.Condition;
-import org.junit.jupiter.api.Disabled;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,7 +36,6 @@ import scala.util.Either;
 import scala.util.Right;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link ScalaEitherSerializerSnapshot}. */
-@Disabled("FLINK-36334")
 class ScalaEitherSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<Either<Integer, String>, Either<Integer, String>> {
 

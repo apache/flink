@@ -79,8 +79,9 @@ This change added tests and can be verified as follows:
 
 <!--
 If generative AI tooling has been used in the process of authoring this PR, please
-change the checkbox below to `[X]` followed by the name of the tool, and uncomment the
-"Generated-by" line. See the ASF Generative Tooling Guidance for details:
+change the checkbox below to `[X]` and replace the placeholder in the "Generated-by"
+line with the tool name and version. Otherwise remove the "Generated-by" line.
+See the ASF Generative Tooling Guidance for details:
 https://www.apache.org/legal/generative-tooling.html
 
 You are responsible for the quality and correctness of every change in this PR
@@ -90,6 +91,4 @@ AGENTS.md for the full guidance.
 
 - [ ] Yes (please specify the tool below)
 
-<!--
 Generated-by: [Tool Name and Version]
--->

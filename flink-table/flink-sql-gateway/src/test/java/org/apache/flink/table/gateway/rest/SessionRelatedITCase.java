@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.gateway.rest;
 
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -156,6 +157,30 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
         for (String key : properties.keySet()) {
             assertThat(properties).containsEntry(key, getProperties.get(key));
         }
+    }
+
+    @Test
+    void testGetSessionConfigurationHidesSensitiveValues() throws Exception {
+        Map<String, String> sensitiveProperties = new HashMap<>();
+        sensitiveProperties.put("s3.secret-key", "super-secret-value");
+        CompletableFuture<OpenSessionResponseBody> openResponse =
+                sendRequest(
+                        openSessionHeaders,
+                        emptyParameters,
+                        new OpenSessionRequestBody(SESSION_NAME, sensitiveProperties));
+        SessionHandle handle =
+                new SessionHandle(UUID.fromString(openResponse.get().getSessionHandle()));
+        SessionMessageParameters parameters = new SessionMessageParameters(handle);
+
+        CompletableFuture<GetSessionConfigResponseBody> future =
+                sendRequest(GetSessionConfigHeaders.getInstance(), parameters, emptyRequestBody);
+        Map<String, String> getProperties = future.get().getProperties();
+
+        assertThat(getProperties).containsKey("s3.secret-key");
+        assertThat(getProperties.get("s3.secret-key"))
+                .isEqualTo(GlobalConfiguration.HIDDEN_CONTENT);
+
+        sendRequest(closeSessionHeaders, parameters, emptyRequestBody).get();
     }
 
     @Test

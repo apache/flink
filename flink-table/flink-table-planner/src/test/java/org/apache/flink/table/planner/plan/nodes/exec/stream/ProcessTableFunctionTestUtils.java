@@ -29,6 +29,7 @@ import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ChangelogFunction;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -41,6 +42,7 @@ import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.variant.Variant;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -550,6 +552,31 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
+    public static class VariantFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Variant variant1,
+                @ArgumentHint(isOptional = true) Variant variant2,
+                @DataTypeHint("VARIANT NOT NULL") Variant variant3) {
+            collectObjects(variant1, variant2, variant3);
+        }
+    }
+
+    /** Testing function. */
+    public static class VariantStateFunction extends AppendProcessTableFunctionBase {
+        public void eval(@StateHint VariantScore s, @ArgumentHint(SET_SEMANTIC_TABLE) Row r) {
+            collectObjects(s, r);
+            s.v = Variant.newBuilder().of(r.<Integer>getFieldAs("score"));
+        }
+    }
+
+    /** Testing function. */
+    public static class VariantTableArgFunction extends AppendProcessTableFunctionBase {
+        public void eval(@ArgumentHint(SET_SEMANTIC_TABLE) Row r) {
+            collectObjects(r);
+        }
+    }
+
+    /** Testing function. */
     public static class RequiredTimeFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint({ArgumentTrait.ROW_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
             collectObjects(r);
@@ -952,6 +979,18 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /**
+     * Testing function that is itself non-deterministic (isDeterministic() = false). Used to verify
+     * that Concern 1 (PTF own non-determinism) is caught by the NDU visitor when downstream
+     * requires deterministic output columns.
+     */
+    public static class NonDeterministicUpdatingRetractFunction extends UpdatingRetractFunction {
+        @Override
+        public boolean isDeterministic() {
+            return false;
+        }
+    }
+
     /** Testing function. */
     public static class UpdatingUpsertFullDeletesFunction
             extends ChangelogProcessTableFunctionBase {
@@ -991,6 +1030,15 @@ public class ProcessTableFunctionTestUtils {
         @Override
         public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
             return ChangelogMode.all();
+        }
+    }
+
+    /** Row-semantic counterpart of {@link NonDeterministicUpdatingRetractFunction}. */
+    public static class NonDeterministicUpdatingRetractRowSemanticFunction
+            extends UpdatingRetractRowSemanticFunction {
+        @Override
+        public boolean isDeterministic() {
+            return false;
         }
     }
 
@@ -1167,6 +1215,13 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /** Testing function with non default conversion class. */
+    public static class RowDataRowSemanticTableFunction extends AppendProcessTableFunctionBase {
+        public void eval(@ArgumentHint(ROW_SEMANTIC_TABLE) RowData input) {
+            collectObjects("Hello " + input.getString(0) + "!");
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helpers
     // --------------------------------------------------------------------------------------------
@@ -1212,6 +1267,16 @@ public class ProcessTableFunctionTestUtils {
         @Override
         public String toString() {
             return String.format("ScoreWithDefaults(s='%s', i=%s)", s, i);
+        }
+    }
+
+    /** POJO for state. */
+    public static class VariantScore {
+        public Variant v;
+
+        @Override
+        public String toString() {
+            return String.format("VariantScore(v=%s)", v);
         }
     }
 

@@ -33,6 +33,10 @@ module.exports = {
     'property-no-vendor-prefix': null,
     'alpha-value-notation': null,
     'color-function-notation': null,
+    'declaration-property-value-no-unknown': null,
+    'declaration-property-value-keyword-no-deprecated': null,
+    'import-notation': 'string',
+    'color-function-alias-notation': 'with-alpha',
     'selector-pseudo-element-no-unknown': [
       true,
       {

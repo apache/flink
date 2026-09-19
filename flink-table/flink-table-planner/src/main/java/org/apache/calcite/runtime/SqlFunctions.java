@@ -42,9 +42,11 @@ import org.apache.calcite.linq4j.function.Functions;
 import org.apache.calcite.linq4j.function.NonDeterministic;
 import org.apache.calcite.linq4j.function.Predicate1;
 import org.apache.calcite.linq4j.tree.Primitive;
+import org.apache.calcite.linq4j.tree.UnsignedType;
 import org.apache.calcite.rel.type.TimeFrame;
 import org.apache.calcite.rel.type.TimeFrameSet;
 import org.apache.calcite.runtime.FlatLists.ComparableList;
+import org.apache.calcite.runtime.variant.VariantValue;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.fun.SqlLibraryOperators;
@@ -64,10 +66,15 @@ import org.apache.commons.codec.binary.Base32;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.codec.language.Soundex;
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.math3.util.CombinatoricsUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joou.UByte;
+import org.joou.UInteger;
+import org.joou.ULong;
+import org.joou.UShort;
+import org.joou.Unsigned;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -101,6 +108,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.time.format.SignStyle;
 import java.time.temporal.ChronoField;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -111,6 +119,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -120,6 +129,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
@@ -127,6 +137,7 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.zip.CRC32;
 
 import static java.lang.Byte.parseByte;
 import static java.lang.Double.parseDouble;
@@ -270,12 +281,34 @@ public class SqlFunctions {
         return condition;
     }
 
-    /** SQL TO_BASE64(string) function. */
+    public static String uuidToString(UUID uuid) {
+        return uuid.toString();
+    }
+
+    public static UUID binaryToUuid(ByteString bytes) {
+        if (bytes.length() < 16) {
+            throw new IllegalArgumentException("Need at least 16 bytes for UUID");
+        }
+        ByteBuffer byteBuffer = ByteBuffer.wrap(bytes.getBytes());
+        long mostSignificantBits = byteBuffer.getLong();
+        long leastSignificantBits = byteBuffer.getLong();
+        return new UUID(mostSignificantBits, leastSignificantBits);
+    }
+
+    public static ByteString uuidToBinary(UUID uuid) {
+        byte[] dest = new byte[16];
+        ByteBuffer byteBuffer = ByteBuffer.wrap(dest);
+        byteBuffer.putLong(uuid.getMostSignificantBits());
+        byteBuffer.putLong(uuid.getLeastSignificantBits());
+        return new ByteString(dest);
+    }
+
+    /** SQL TO_BASE64(string)/BASE64(string) function. */
     public static String toBase64(String string) {
         return toBase64_(string.getBytes(UTF_8));
     }
 
-    /** SQL TO_BASE64(string) function for binary string. */
+    /** SQL TO_BASE64(string)/BASE64(string) function for binary string. */
     public static String toBase64(ByteString string) {
         return toBase64_(string.getBytes());
     }
@@ -294,7 +327,7 @@ public class SqlFunctions {
         return str.substring(0, str.length() - 1);
     }
 
-    /** SQL FROM_BASE64(string) function. */
+    /** SQL FROM_BASE64(string)/UNBASE64(string) function. */
     public static @Nullable ByteString fromBase64(String base64) {
         try {
             base64 = FROM_BASE64_REGEXP.matcher(base64).replaceAll("");
@@ -336,6 +369,46 @@ public class SqlFunctions {
     /** SQL TO_HEX(binary) function. */
     public static String toHex(ByteString byteString) {
         return Hex.encodeHexString(byteString.getBytes());
+    }
+
+    /** SQL HEX(varchar) function. */
+    public static String hex(String value) {
+        return Hex.encodeHexString(value.getBytes(UTF_8));
+    }
+
+    /** SQL BIN(long) function. */
+    public static String bin(long value) {
+        int zeros = Long.numberOfLeadingZeros(value);
+        if (zeros == Long.SIZE) {
+            return "0";
+        } else {
+            int length = Long.SIZE - zeros;
+            byte[] bytes = new byte[length];
+            for (int index = length - 1; index >= 0; index--) {
+                bytes[index] = (byte) ((value & 0x1) == 1 ? '1' : '0');
+                value >>>= 1;
+            }
+            // CHECKSTYLE: IGNORE 1
+            return new String(bytes, UTF_8);
+        }
+    }
+
+    /** SQL CRC32(string) function. */
+    public static long crc32(String value) {
+        final CRC32 crc32 = new CRC32();
+        crc32.reset();
+        byte[] bytes = value.getBytes(UTF_8);
+        crc32.update(bytes, 0, bytes.length);
+        return crc32.getValue();
+    }
+
+    /** SQL CRC32(string) function for binary string. */
+    public static long crc32(ByteString value) {
+        final CRC32 crc32 = new CRC32();
+        crc32.reset();
+        byte[] bytes = value.getBytes();
+        crc32.update(bytes, 0, bytes.length);
+        return crc32.getValue();
     }
 
     /** SQL MD5(string) function. */
@@ -711,7 +784,7 @@ public class SqlFunctions {
                 int pos,
                 int occurrence,
                 @Nullable String matchType) {
-            if (pos < 1 || pos > s.length()) {
+            if (pos < 1 || pos > s.length() + 1) {
                 throw RESOURCE.invalidInputForRegexpReplace(Integer.toString(pos)).ex();
             }
 
@@ -723,7 +796,7 @@ public class SqlFunctions {
 
         /** SQL {@code REGEXP_REPLACE} function for PostgreSQL with 3 arguments. */
         public String regexpReplacePg(String s, String regex, String replacement) {
-            return regexpReplace(s, regex, replacement, 1, 1, null);
+            return regexpReplaceNonDollarIndexed(s, regex, replacement, 1, 1, null);
         }
 
         /** SQL {@code REGEXP_REPLACE} function for PostgreSQL with 4 arguments. */
@@ -731,7 +804,7 @@ public class SqlFunctions {
                 String s, String regex, String replacement, String matchType) {
             // Translate g flag to occurrence
             final int occurrence = matchType.contains("g") ? 0 : 1;
-            return regexpReplace(s, regex, replacement, 1, occurrence, matchType);
+            return regexpReplaceNonDollarIndexed(s, regex, replacement, 1, occurrence, matchType);
         }
 
         /**
@@ -739,6 +812,16 @@ public class SqlFunctions {
          * capturing groups.
          */
         public String regexpReplaceNonDollarIndexed(String s, String regex, String replacement) {
+            return regexpReplaceNonDollarIndexed(s, regex, replacement, 1, 0, null);
+        }
+
+        private String regexpReplaceNonDollarIndexed(
+                String s,
+                String regex,
+                String replacement,
+                int pos,
+                int occurrence,
+                @Nullable String matchType) {
             // Modify double-backslash capturing group indices in replacement argument,
             // retrieved from cache when available.
             String indexedReplacement;
@@ -752,7 +835,7 @@ public class SqlFunctions {
             }
 
             // Call generic regexp replace method with modified replacement pattern
-            return regexpReplace(s, regex, indexedReplacement, 1, 0, null);
+            return regexpReplace(s, regex, indexedReplacement, pos, occurrence, matchType);
         }
 
         private static int makeRegexpFlags(String stringFlags) {
@@ -951,6 +1034,26 @@ public class SqlFunctions {
             list.add(s.substring(i, j));
             i = j + delimiter.length();
         }
+    }
+
+    /** SQL {@code SPLIT_PART(string, string, int)} function. */
+    public static String splitPart(String s, String delimiter, int n) {
+        if (Strings.isNullOrEmpty(s) || Strings.isNullOrEmpty(delimiter)) {
+            return "";
+        }
+
+        String[] parts = s.split(delimiter, -1);
+        int partCount = parts.length;
+
+        if (n < 0) {
+            n = partCount + n + 1;
+        }
+
+        if (n <= 0 || n > partCount) {
+            return "";
+        }
+
+        return parts[n - 1];
     }
 
     /** SQL {@code SPLIT(string)} function. */
@@ -1692,6 +1795,31 @@ public class SqlFunctions {
         }
     }
 
+    /**
+     * Oracle's {@code CONVERT(charValue, destCharsetName[, srcCharsetName])} function, return null
+     * if s is null or empty.
+     */
+    public static String convertOracle(String s, String... args) {
+        final Charset src;
+        final Charset dest;
+        if (args.length == 1) {
+            // srcCharsetName is not specified
+            src = Charset.defaultCharset();
+            dest = SqlUtil.getCharset(args[0]);
+        } else {
+            dest = SqlUtil.getCharset(args[0]);
+            src = SqlUtil.getCharset(args[1]);
+        }
+        byte[] bytes = s.getBytes(src);
+        final CharsetDecoder decoder = dest.newDecoder();
+        final ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        try {
+            return decoder.decode(buffer).toString();
+        } catch (CharacterCodingException ex) {
+            throw RESOURCE.charsetEncoding(s, dest.name()).ex();
+        }
+    }
+
     /** State for {@code PARSE_URL}. */
     @Deterministic
     public static class ParseUrlFunction {
@@ -1780,7 +1908,7 @@ public class SqlFunctions {
 
     public static String trim(boolean left, boolean right, String seek, String s, boolean strict) {
         if (strict && seek.length() != 1) {
-            throw RESOURCE.trimError().ex();
+            throw RESOURCE.trimError(seek).ex();
         }
         int j = s.length();
         if (right) {
@@ -2408,6 +2536,72 @@ public class SqlFunctions {
         throw notArithmetic("+", b0, b1);
     }
 
+    public static UByte plus(UByte b0, UByte b1) {
+        return (b0 == null || b1 == null) ? castNonNull(null) : b0.add(b1);
+    }
+
+    public static UShort plus(UShort b0, UShort b1) {
+        return (b0 == null || b1 == null) ? castNonNull(null) : b0.add(b1);
+    }
+
+    public static UInteger plus(UInteger b0, UInteger b1) {
+        return (b0 == null || b1 == null) ? castNonNull(null) : b0.add(b1);
+    }
+
+    public static ULong plus(ULong b0, ULong b1) {
+        return (b0 == null || b1 == null) ? castNonNull(null) : b0.add(b1);
+    }
+
+    // checked +
+
+    static byte intToByte(int value) {
+        if (value < Byte.MIN_VALUE || value > Byte.MAX_VALUE) {
+            throw new ArithmeticException(
+                    "integer overflow: Value " + value + " does not fit in a TINYINT");
+        }
+        return (byte) value;
+    }
+
+    static short intToShort(int value) {
+        if (value < Short.MIN_VALUE || value > Short.MAX_VALUE) {
+            throw new ArithmeticException(
+                    "integer overflow: Value " + value + " does not fit in a SMALLINT");
+        }
+        return (short) value;
+    }
+
+    public static byte checkedPlus(byte b0, byte b1) {
+        return intToByte(b0 + b1);
+    }
+
+    public static short checkedPlus(short b0, short b1) {
+        return intToShort(b0 + b1);
+    }
+
+    public static int checkedPlus(int b0, int b1) {
+        return Math.addExact(b0, b1);
+    }
+
+    public static long checkedPlus(long b0, long b1) {
+        return Math.addExact(b0, b1);
+    }
+
+    public static UByte checkedPlus(UByte b0, UByte b1) {
+        return b0.add(b1);
+    }
+
+    public static UShort checkedPlus(UShort b0, UShort b1) {
+        return b0.add(b1);
+    }
+
+    public static UInteger checkedPlus(UInteger b0, UInteger b1) {
+        return b0.add(b1);
+    }
+
+    public static ULong checkedPlus(ULong b0, ULong b1) {
+        return b0.add(b1);
+    }
+
     // -
 
     /** SQL <code>-</code> operator applied to int values. */
@@ -2440,6 +2634,11 @@ public class SqlFunctions {
         return (b0 == null || b1 == null) ? castNonNull(null) : (b0.longValue() - b1.longValue());
     }
 
+    /** SQL <code>-</code> operator applied to nullable long and long values. */
+    public static Long minus(Long b0, Long b1) {
+        return (b0 == null || b1 == null) ? castNonNull(null) : b0.longValue() - b1.longValue();
+    }
+
     /** SQL <code>-</code> operator applied to nullable BigDecimal values. */
     public static BigDecimal minus(BigDecimal b0, BigDecimal b1) {
         return (b0 == null || b1 == null) ? castNonNull(null) : b0.subtract(b1);
@@ -2459,6 +2658,89 @@ public class SqlFunctions {
         }
 
         throw notArithmetic("-", b0, b1);
+    }
+
+    public static UByte minus(UByte b0, UByte b1) {
+        return (b0 == null || b1 == null) ? castNonNull(null) : b0.subtract(b1);
+    }
+
+    public static UShort minus(UShort b0, UShort b1) {
+        return (b0 == null || b1 == null) ? castNonNull(null) : b0.subtract(b1);
+    }
+
+    public static UInteger minus(UInteger b0, UInteger b1) {
+        return (b0 == null || b1 == null) ? castNonNull(null) : b0.subtract(b1);
+    }
+
+    /** SQL <code>-</code> operator applied to nullable unsigned long and long values. */
+    public static ULong minus(ULong b0, ULong b1) {
+        return (b0 == null || b1 == null) ? castNonNull(null) : b0.subtract(b1);
+    }
+
+    // checked -
+
+    public static byte checkedMinus(byte b0, byte b1) {
+        return intToByte(b0 - b1);
+    }
+
+    public static short checkedMinus(short b0, short b1) {
+        return intToShort(b0 - b1);
+    }
+
+    public static int checkedMinus(int b0, int b1) {
+        return Math.subtractExact(b0, b1);
+    }
+
+    public static long checkedMinus(long b0, long b1) {
+        return Math.subtractExact(b0, b1);
+    }
+
+    public static byte checkedUnaryMinus(byte b) {
+        return intToByte(-b);
+    }
+
+    public static short checkedUnaryMinus(short b) {
+        return intToShort(-b);
+    }
+
+    public static int checkedUnaryMinus(int b) {
+        return Math.subtractExact(0, b);
+    }
+
+    public static long checkedUnaryMinus(long b) {
+        return Math.subtractExact(0, b);
+    }
+
+    public static UByte checkedMinus(UByte b0, UByte b1) {
+        return b0.subtract(b1);
+    }
+
+    public static UShort checkedMinus(UShort b0, UShort b1) {
+        return b0.subtract(b1);
+    }
+
+    public static UInteger checkedMinus(UInteger b0, UInteger b1) {
+        return b0.subtract(b1);
+    }
+
+    public static ULong checkedMinus(ULong b0, ULong b1) {
+        return b0.subtract(b1);
+    }
+
+    public static UByte checkedUnaryMinus(UByte b) {
+        return Unsigned.ubyte(0).subtract(b);
+    }
+
+    public static UShort checkedUnaryMinus(UShort b) {
+        return Unsigned.ushort(0).subtract(b);
+    }
+
+    public static UInteger checkedUnaryMinus(UInteger b) {
+        return Unsigned.uint(0).subtract(b);
+    }
+
+    public static ULong checkedUnaryMinus(ULong b) {
+        return Unsigned.ulong(0).subtract(b);
     }
 
     // /
@@ -2524,6 +2806,75 @@ public class SqlFunctions {
         return BigDecimal.valueOf(b0).divide(b1, RoundingMode.HALF_DOWN).longValue();
     }
 
+    public static UByte divide(UByte b0, UByte b1) {
+        return (b0 == null || b1 == null)
+                ? castNonNull(null)
+                : UByte.valueOf(b0.intValue() / b1.intValue());
+    }
+
+    public static UShort divide(UShort b0, UShort b1) {
+        return (b0 == null || b1 == null)
+                ? castNonNull(null)
+                : UShort.valueOf(b0.intValue() / b1.intValue());
+    }
+
+    public static UInteger divide(UInteger b0, UInteger b1) {
+        return (b0 == null || b1 == null)
+                ? castNonNull(null)
+                : UInteger.valueOf(b0.longValue() / b1.longValue());
+    }
+
+    public static ULong divide(ULong b0, ULong b1) {
+        return (b0 == null || b1 == null)
+                ? castNonNull(null)
+                : ULong.valueOf(
+                        UnsignedType.toBigInteger(b0).divide(UnsignedType.toBigInteger(b1)));
+    }
+
+    public static byte checkedDivide(byte b0, byte b1) {
+        return intToByte(b0 / b1);
+    }
+
+    public static short checkedDivide(short b0, short b1) {
+        return intToShort(b0 / b1);
+    }
+
+    public static int checkedDivide(int b0, int b1) {
+        // Implementation taken from Java 19
+        int q = b0 / b1;
+        if ((b0 & b1 & q) >= 0) {
+            return q;
+        } else {
+            throw new ArithmeticException("integer overflow");
+        }
+    }
+
+    public static long checkedDivide(long b0, long b1) {
+        // Implementation taken from Java 19
+        long q = b0 / b1;
+        if ((b0 & b1 & q) >= 0) {
+            return q;
+        } else {
+            throw new ArithmeticException("integer overflow");
+        }
+    }
+
+    public static UByte checkedDivide(UByte b0, UByte b1) {
+        return UByte.valueOf(b0.intValue() / b1.intValue());
+    }
+
+    public static UShort checkedDivide(UShort b0, UShort b1) {
+        return UShort.valueOf(b0.intValue() / b1.intValue());
+    }
+
+    public static UInteger checkedDivide(UInteger b0, UInteger b1) {
+        return UInteger.valueOf(b0.longValue() / b1.longValue());
+    }
+
+    public static ULong checkedDivide(ULong b0, ULong b1) {
+        return ULong.valueOf(UnsignedType.toBigInteger(b0).divide(UnsignedType.toBigInteger(b1)));
+    }
+
     // *
 
     /** SQL <code>*</code> operator applied to int values. */
@@ -2544,6 +2895,32 @@ public class SqlFunctions {
     /** SQL <code>*</code> operator applied to nullable int values. */
     public static Integer multiply(Integer b0, Integer b1) {
         return (b0 == null || b1 == null) ? castNonNull(null) : (b0 * b1);
+    }
+
+    public static UByte multiply(UByte b0, UByte b1) {
+        return (b0 == null || b1 == null)
+                ? castNonNull(null)
+                : UByte.valueOf(b0.longValue() * b1.longValue());
+    }
+
+    public static UShort multiply(UShort b0, UShort b1) {
+        return (b0 == null || b1 == null)
+                ? castNonNull(null)
+                : UShort.valueOf(b0.intValue() * b1.intValue());
+    }
+
+    public static UInteger multiply(UInteger b0, UInteger b1) {
+        return (b0 == null || b1 == null)
+                ? castNonNull(null)
+                : UInteger.valueOf(b0.longValue() * b1.longValue());
+    }
+
+    public static ULong multiply(ULong b0, ULong b1) {
+        if (b0 == null || b1 == null) {
+            return castNonNull(null);
+        }
+        BigInteger result = UnsignedType.toBigInteger(b0).multiply(UnsignedType.toBigInteger(b1));
+        return ULong.valueOf(result);
     }
 
     /** SQL <code>*</code> operator applied to nullable long and int values. */
@@ -2575,6 +2952,40 @@ public class SqlFunctions {
         }
 
         throw notArithmetic("*", b0, b1);
+    }
+
+    // checked *
+
+    public static byte checkedMultiply(byte b0, byte b1) {
+        return intToByte(b0 * b1);
+    }
+
+    public static short checkedMultiply(short b0, short b1) {
+        return intToShort(b0 * b1);
+    }
+
+    public static int checkedMultiply(int b0, int b1) {
+        return Math.multiplyExact(b0, b1);
+    }
+
+    public static long checkedMultiply(long b0, long b1) {
+        return Math.multiplyExact(b0, b1);
+    }
+
+    public static UByte checkedMultiply(UByte b0, UByte b1) {
+        return UByte.valueOf(b0.intValue() * b1.intValue());
+    }
+
+    public static UShort checkedMultiply(UShort b0, UShort b1) {
+        return UShort.valueOf(b0.intValue() * b1.intValue());
+    }
+
+    public static UInteger checkedMultiply(UInteger b0, UInteger b1) {
+        return UInteger.valueOf(b0.longValue() * b1.longValue());
+    }
+
+    public static ULong checkedMultiply(ULong b0, ULong b1) {
+        return ULong.valueOf(UnsignedType.toBigInteger(b0).multiply(UnsignedType.toBigInteger(b1)));
     }
 
     /** SQL <code>SAFE_ADD</code> function applied to long values. */
@@ -2870,6 +3281,126 @@ public class SqlFunctions {
     }
 
     /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.UByte} values. Returns {@code
+     * null} if any operand is null.
+     */
+    public static UByte bitAnd(UByte b0, UByte b1) {
+        return UByte.valueOf((short) (b0.shortValue() & b1.shortValue()));
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.UShort} values. Returns
+     * {@code null} if any operand is null.
+     */
+    public static UShort bitAnd(UShort b0, UShort b1) {
+        return UShort.valueOf(b0.intValue() & b1.intValue());
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.UInteger} values. Returns
+     * {@code null} if any operand is null.
+     */
+    public static UInteger bitAnd(UInteger b0, UInteger b1) {
+        return UInteger.valueOf(b0.longValue() & b1.longValue());
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.ULong} values. Returns {@code
+     * null} if any operand is null.
+     */
+    public static ULong bitAnd(ULong b0, ULong b1) {
+        return ULong.valueOf(b0.longValue() & b1.longValue());
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.UInteger} and {@link Integer}
+     * values. Returns {@code null} if any operand is null.
+     */
+    public static long bitAnd(UInteger b0, long b1) {
+        return b0.intValue() & b1;
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.ULong} and {@link long}
+     * values. Returns {@code null} if any operand is null.
+     */
+    public static long bitAnd(ULong b0, long b1) {
+        return b0.longValue() & b1;
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link long} and {@link org.joou.UInteger}
+     * values. Returns {@code null} if any operand is null.
+     */
+    public static long bitAnd(long b1, ULong b2) {
+        return b1 & b2.longValue();
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link long} and {@link org.joou.UInteger}
+     * values. Returns {@code null} if any operand is null.
+     */
+    public static long bitAnd(long b1, UInteger b2) {
+        return b1 & b2.longValue();
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.UShort} and {@link Integer}
+     * values. Returns {@code null} if any operand is null.
+     */
+    public static long bitAnd(UShort b0, long b1) {
+        return b0.intValue() & b1;
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.UShort} and {@link Integer}
+     * values. Returns {@code null} if any operand is null.
+     */
+    public static long bitAnd(long b0, UShort b1) {
+        return b0 & b1.intValue();
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.UInteger} and {@link Integer}
+     * values. Returns {@code null} if any operand is null.
+     */
+    public static UInteger bitAnd(UInteger b0, int b1) {
+        return UInteger.valueOf(b0.intValue() & b1);
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.UInteger} and {@link Integer}
+     * values. Returns {@code null} if any operand is null.
+     */
+    public static ULong bitAnd(ULong b0, int b1) {
+        return ULong.valueOf(b0.longValue() & b1);
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link Integer} and {@link org.joou.UInteger}
+     * values. Returns {@code null} if any operand is null.
+     */
+    public static ULong bitAnd(int b1, ULong b2) {
+        return ULong.valueOf(b1 & b2.longValue());
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.UShort} and {@link Integer}
+     * values. Returns {@code null} if any operand is null.
+     */
+    public static Integer bitAnd(int b0, UShort b1) {
+        return b0 & b1.intValue();
+    }
+
+    /**
+     * Bitwise function <code>BITAND</code> applied to {@link org.joou.UShort} and {@link Integer}
+     * values. Returns {@code null} if any operand is null.
+     */
+    public static Integer bitAnd(UShort b0, int b1) {
+        return b0.intValue() & b1;
+    }
+
+    /**
      * Helper function for implementing <code>BITCOUNT</code>. Counts the number of bits set in an
      * integer value.
      */
@@ -2912,6 +3443,58 @@ public class SqlFunctions {
         return bitsSet;
     }
 
+    /**
+     * Helper function for implementing MySQL <code>BIT_COUNT</code>. Counts the number of bits set
+     * in a boolean value.
+     */
+    public static long bitCountMySQL(Boolean b) {
+        return Long.bitCount(b ? 1L : 0L);
+    }
+
+    /**
+     * Helper function for implementing MySQL <code>BIT_COUNT</code>. Counts the number of bits set
+     * in a string value.
+     */
+    public static long bitCountMySQL(String b) {
+        try {
+            return bitCount(new BigDecimal(b));
+        } catch (Exception ignore) {
+            return 0;
+        }
+    }
+
+    /**
+     * Helper function for implementing MySQL <code>BIT_COUNT</code>. Counts the number of bits set
+     * in a number value.
+     */
+    public static long bitCountMySQL(Number b) {
+        return bitCount(new BigDecimal(b.toString()));
+    }
+
+    /**
+     * Helper function for implementing MySQL <code>BIT_COUNT</code>. Counts the number of bits set
+     * in a date value.
+     */
+    public static long bitCountMySQL(java.sql.Date b) {
+        return bitCountMySQL(new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH).format(b));
+    }
+
+    /**
+     * Helper function for implementing MySQL <code>BIT_COUNT</code>. Counts the number of bits set
+     * in a time value.
+     */
+    public static long bitCountMySQL(Time b) {
+        return bitCountMySQL(new SimpleDateFormat("HHmmss", Locale.ENGLISH).format(b));
+    }
+
+    /**
+     * Helper function for implementing MySQL <code>BIT_COUNT</code>. Counts the number of bits set
+     * in a timestamp value.
+     */
+    public static long bitCountMySQL(Timestamp b) {
+        return bitCountMySQL(new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH).format(b));
+    }
+
     /** Bitwise function <code>BIT_OR</code> applied to integer values. */
     public static long bitOr(long b0, long b1) {
         return b0 | b1;
@@ -2944,16 +3527,16 @@ public class SqlFunctions {
     }
 
     /**
-     * Bitwise function <code>BITXOR</code> applied to a Long and int value. Needed for handling
-     * NULL for the first argument.
+     * Bitwise function <code>BITXOR</code> applied to a Long and int value. Overload to support
+     * type coercion between boxed Long and primitive int.
      */
     public static long bitXor(Long b0, int b1) {
         return b0 ^ b1;
     }
 
     /**
-     * Bitwise function <code>BITXOR</code> applied to a Long and int value. Needed for handling
-     * NULL for the second argument.
+     * Bitwise function <code>BITXOR</code> applied to a Long and int value. Overload to support
+     * type coercion between boxed Long and primitive int.
      */
     public static long bitXor(int b0, Long b1) {
         return b0 ^ b1;
@@ -2977,6 +3560,62 @@ public class SqlFunctions {
         }
 
         return new ByteString(result);
+    }
+
+    /**
+     * Bitwise function <code>BITXOR</code> applied to {@link Long} values. Returns {@code null} if
+     * any operand is null.
+     */
+    public static long bitXor(Long b0, Long b1) {
+        return b0 ^ b1;
+    }
+
+    /**
+     * Bitwise function <code>BITXOR</code> applied to {@link Integer} values. Returns {@code null}
+     * if any operand is null.
+     */
+    public static long bitXor(Integer b0, Integer b1) {
+        return b0 ^ b1;
+    }
+
+    /**
+     * Bitwise function <code>BITXOR</code> applied to {@link org.joou.UByte} values. Returns {@code
+     * null} if any operand is null.
+     */
+    public static UByte bitXor(UByte b0, UByte b1) {
+        return UByte.valueOf(b0.shortValue() ^ b1.shortValue());
+    }
+
+    /**
+     * Bitwise function <code>BITXOR</code> applied to {@link org.joou.UShort} values. Returns
+     * {@code null} if any operand is null.
+     */
+    public static UShort bitXor(UShort b0, UShort b1) {
+        return UShort.valueOf(b0.intValue() ^ b1.intValue());
+    }
+
+    /**
+     * Bitwise function <code>BITXOR</code> applied to {@link org.joou.UInteger} values. Returns
+     * {@code null} if any operand is null.
+     */
+    public static UInteger bitXor(UInteger b0, UInteger b1) {
+        return UInteger.valueOf(b0.longValue() ^ b1.longValue());
+    }
+
+    /**
+     * Bitwise function <code>BITXOR</code> applied to {@link org.joou.ULong} values. Returns {@code
+     * null} if any operand is null.
+     */
+    public static ULong bitXor(ULong b0, ULong b1) {
+        return ULong.valueOf(b0.longValue() ^ b1.longValue());
+    }
+
+    public static @Nullable Object bitXor(@Nullable Object b0, @Nullable Object b1) {
+        if (b0 == null || b1 == null) {
+            return null;
+        }
+        throw new IllegalArgumentException(
+                "Invalid arguments for BITXOR: " + "" + b0.getClass() + ", " + b1.getClass());
     }
 
     /**
@@ -3006,6 +3645,139 @@ public class SqlFunctions {
         }
 
         return new ByteString(result);
+    }
+
+    /**
+     * Performs PostgresSQL-style bitwise shift on a 32-bit integer.
+     *
+     * @param x the integer value to shift
+     * @param y the shift amount (positive: left shift, negative: right shift)
+     * @return the shifted integer
+     */
+    public static int leftShift(int x, int y) {
+        int shift = ((y % 32) + 32) % 32; // normalize to 0~31
+        return y >= 0 ? x << shift : x >> shift; // arithmetic right shift
+    }
+
+    // ----------------- long -----------------
+    /**
+     * Performs PostgresSQL-style bitwise shift on a 64-bit long value.
+     *
+     * @param x the long value to shift
+     * @param y the shift amount
+     * @return the shifted long value
+     */
+    public static long leftShift(long x, int y) {
+        int shift = ((y % 64) + 64) % 64; // normalize to 0~63
+        return y >= 0 ? x << shift : x >> shift;
+    }
+
+    /**
+     * Performs PostgresSQL-style bitwise shift on an int value with a long shift amount.
+     *
+     * @param x the int value to shift
+     * @param y the long shift amount
+     * @return the shifted value as long
+     */
+    public static long leftShift(int x, long y) {
+        int shift = (int) (((y % 32) + 32) % 32); // normalize to 0~31
+        return y >= 0 ? (long) x << shift : (long) x >> shift;
+    }
+
+    /**
+     * Performs PostgresSQL-style bitwise shift on a byte array. Positive shift: left shift.
+     * Negative shift: treated as positive shift with modulo arithmetic.
+     *
+     * @param bytes the input byte array
+     * @param y the shift amount in bits
+     * @return the shifted byte array
+     */
+    public static byte[] leftShift(byte[] bytes, int y) {
+        if (bytes.length == 0) {
+            return new byte[0];
+        }
+
+        int bitLen = bytes.length * 8;
+
+        // PostgreSQL behavior: always treat as left shift with modulo arithmetic
+        // Negative y becomes equivalent positive shift
+        int shift = ((y % bitLen) + bitLen) % bitLen;
+
+        if (shift == 0) {
+            return bytes.clone();
+        }
+
+        byte[] result = new byte[bytes.length];
+
+        // Always perform left shift (even for originally negative y)
+        int byteShift = shift / 8;
+        int bitShift = shift % 8;
+
+        for (int i = 0; i < bytes.length; i++) {
+            int srcIndex = i - byteShift;
+            int val = 0;
+
+            // Get the main byte
+            if (srcIndex >= 0) {
+                val = (bytes[srcIndex] & 0xFF) << bitShift;
+            }
+
+            // Get carry bits from previous byte
+            if (srcIndex - 1 >= 0 && bitShift != 0) {
+                val |= (bytes[srcIndex - 1] & 0xFF) >>> (8 - bitShift);
+            }
+
+            result[i] = (byte) val;
+        }
+        return result;
+    }
+
+    /**
+     * Performs PostgresSQL-style bitwise shift on ByteString.
+     *
+     * @param bytes the ByteString to shift
+     * @param y the shift amount in bits
+     * @return shifted ByteString
+     */
+    public static ByteString leftShift(ByteString bytes, int y) {
+        return new ByteString(leftShift(bytes.getBytes(), y));
+    }
+
+    /** Performs PostgresSQL-style bitwise shift on UByte. Overflow bits are masked to 8 bits. */
+    public static UByte leftShift(UByte x, int y) {
+        int shift = ((y % 8) + 8) % 8;
+        int val = x.byteValue() & 0xFF;
+        val = (y >= 0) ? (val << shift) & 0xFF : (val >> shift) & 0xFF;
+        return UByte.valueOf((byte) val);
+    }
+
+    /** Performs PostgresSQL-style bitwise shift on UShort. Overflow bits are masked to 16 bits. */
+    public static UShort leftShift(UShort x, int y) {
+        int shift = ((y % 16) + 16) % 16;
+        int val = x.shortValue() & 0xFFFF;
+        val = (y >= 0) ? (val << shift) & 0xFFFF : (val >> shift) & 0xFFFF;
+        return UShort.valueOf((short) val);
+    }
+
+    /**
+     * Performs PostgresSQL-style bitwise shift on UInteger. Overflow bits are masked to 32 bits.
+     */
+    public static UInteger leftShift(UInteger x, int y) {
+        int shift = ((y % 32) + 32) % 32;
+        long val = x.longValue() & 0xFFFFFFFFL;
+        val = (y >= 0) ? (val << shift) & 0xFFFFFFFFL : (val >> shift) & 0xFFFFFFFFL;
+        return UInteger.valueOf(val);
+    }
+
+    /**
+     * Performs PostgresSQL-style bitwise shift on ULong. Overflow bits are masked to 64 bits (long
+     * shifts naturally truncate).
+     */
+    public static ULong leftShift(ULong x, int y) {
+        int shift = ((y % 64) + 64) % 64;
+        long val = x.longValue();
+        val = (y >= 0) ? val << shift : val >> shift;
+        return ULong.valueOf(val);
     }
 
     // EXP
@@ -3802,12 +4574,18 @@ public class SqlFunctions {
     // Helpers
 
     /** Helper for implementing MIN. Somewhat similar to LEAST operator. */
-    public static <T extends Comparable<T>> T lesser(T b0, T b1) {
-        return b0 == null || b0.compareTo(b1) > 0 ? b1 : b0;
+    public static @Nullable <T extends Comparable<T>> T lesser(@Nullable T b0, @Nullable T b1) {
+        if (b0 == null) {
+            return b1;
+        }
+        if (b1 == null) {
+            return b0;
+        }
+        return b0.compareTo(b1) > 0 ? b1 : b0;
     }
 
     /** LEAST operator. */
-    public static <T extends Comparable<T>> T least(T b0, T b1) {
+    public static @Nullable <T extends Comparable<T>> T least(@Nullable T b0, @Nullable T b1) {
         return b0 == null || b1 != null && b0.compareTo(b1) > 0 ? b1 : b0;
     }
 
@@ -3875,13 +4653,41 @@ public class SqlFunctions {
         return b0 > b1 ? b1 : b0;
     }
 
+    public static @Nullable <T extends Comparable<T>> List<T> lesser(
+            @Nullable List<T> b0, @Nullable List<T> b1) {
+        if (b0 == null) {
+            return b1;
+        }
+        if (b1 == null) {
+            return b0;
+        }
+        return lt(b0, b1) ? b0 : b1;
+    }
+
+    public static @Nullable <T extends Comparable<T>> List<T> greater(
+            @Nullable List<T> b0, @Nullable List<T> b1) {
+        if (b0 == null) {
+            return b1;
+        }
+        if (b1 == null) {
+            return b0;
+        }
+        return gt(b0, b1) ? b0 : b1;
+    }
+
     /** Helper for implementing MAX. Somewhat similar to GREATEST operator. */
-    public static <T extends Comparable<T>> T greater(T b0, T b1) {
-        return b0 == null || b0.compareTo(b1) < 0 ? b1 : b0;
+    public static @Nullable <T extends Comparable<T>> T greater(@Nullable T b0, @Nullable T b1) {
+        if (b0 == null) {
+            return b1;
+        }
+        if (b1 == null) {
+            return b0;
+        }
+        return b0.compareTo(b1) < 0 ? b1 : b0;
     }
 
     /** GREATEST operator. */
-    public static <T extends Comparable<T>> T greatest(T b0, T b1) {
+    public static @Nullable <T extends Comparable<T>> T greatest(@Nullable T b0, @Nullable T b1) {
         return b0 == null || b1 != null && b0.compareTo(b1) < 0 ? b1 : b0;
     }
 
@@ -4072,6 +4878,10 @@ public class SqlFunctions {
         return v == null ? castNonNull(null) : toInt(v);
     }
 
+    // Method tagged as non-deterministic because it can throw.
+    // The DeterministicCodeOptimizer may otherwise try to lift it out of try-catch blocks.
+    // See https://issues.apache.org/jira/browse/CALCITE-6753
+    @NonDeterministic
     public static int toInt(String s) {
         return parseInt(s.trim());
     }
@@ -5379,6 +6189,32 @@ public class SqlFunctions {
         return timestampToTime(localTimestamp(root));
     }
 
+    /** SQL {@code SYSTIMESTAMP} function. */
+    @NonDeterministic
+    public static long sysTimestamp(DataContext root) {
+        return DataContext.Variable.SYS_TIMESTAMP.get(root);
+    }
+
+    /**
+     * SQL {@code SYSDATE} function.
+     *
+     * <p>When the date is before 1970-01-01 00:00:00, for example: 1969-12-31 23:59:59, the
+     * timestamp will return a negative value, such as -1000. The date(days since epoch) returned by
+     * timestampToDate(-1000) is 0, so we need to additionally judge the result of
+     * timestampToTime(-1000). If its value is less than 0, we need to reduce date by 1 to ensure
+     * the accuracy of date.
+     */
+    @NonDeterministic
+    public static int sysDate(DataContext root) {
+        final long timestamp = sysTimestamp(root);
+        int date = timestampToDate(timestamp);
+        final int time = timestampToTime(timestamp);
+        if (time < 0) {
+            --date;
+        }
+        return date;
+    }
+
     @NonDeterministic
     public static TimeZone timeZone(DataContext root) {
         return DataContext.Variable.TIME_ZONE.get(root);
@@ -5509,8 +6345,16 @@ public class SqlFunctions {
     }
 
     /** SQL {@code REPLACE(string, search, replacement)} function. */
-    public static String replace(String s, String search, String replacement) {
-        return s.replace(search, replacement);
+    public static String replace(
+            String s, String search, String replacement, boolean isCaseSensitive) {
+        if (search.isEmpty()) {
+            return s;
+        }
+        if (isCaseSensitive) {
+            return s.replace(search, replacement);
+        }
+        // for MSSQL's REPLACE function, search pattern is case-insensitive during matching
+        return org.apache.commons.lang3.Strings.CI.replace(s, search, replacement);
     }
 
     /**
@@ -5547,6 +6391,9 @@ public class SqlFunctions {
      * Implements the {@code [ ... ]} operator on an object whose type is not known until runtime.
      */
     public static @Nullable Object item(Object object, Object index) {
+        if (object instanceof VariantValue) {
+            return ((VariantValue) object).item(index);
+        }
         if (object instanceof Map) {
             return mapItem((Map) object, index);
         }
@@ -5923,6 +6770,44 @@ public class SqlFunctions {
         return new ArrayList<>(result);
     }
 
+    /** Transforms a list, applying a function to each element. */
+    public static <F, T> List<T> transform(
+            List<? extends F> list, Function1<? super F, ? extends T> function) {
+        return new TransformingList<>(list, function);
+    }
+
+    /**
+     * List that returns the same number of elements as a backing list, applying a transformation
+     * function to each one.
+     *
+     * @param <F> Element type of backing list
+     * @param <T> Element type of this list
+     */
+    private static class TransformingList<F, T> extends AbstractList<T> {
+        private final Function1<? super F, ? extends T> function;
+        private final List<? extends F> list;
+
+        TransformingList(List<? extends F> list, Function1<? super F, ? extends T> function) {
+            this.function = function;
+            this.list = list;
+        }
+
+        @Override
+        public T get(int i) {
+            return function.apply(list.get(i));
+        }
+
+        @Override
+        public int size() {
+            return list.size();
+        }
+
+        @Override
+        public Iterator<T> iterator() {
+            return listIterator();
+        }
+    }
+
     /** Support the SORT_ARRAY function. */
     public static List sortArray(List list, boolean ascending) {
         Comparator comparator =
@@ -6212,6 +7097,15 @@ public class SqlFunctions {
         return list;
     }
 
+    /** SQL {@code ARRAY_SLICE(array, start, length)} function. */
+    public static List arraySlice(List list, int start, int length) {
+        // return empty list if start/length are out of range of the array
+        if (start + length > list.size()) {
+            return Collections.emptyList();
+        }
+        return list.subList(start, start + length);
+    }
+
     /** SQL {@code ARRAY_TO_STRING(array, delimiter)} function. */
     public static String arrayToString(List list, String delimiter) {
         return arrayToString(list, delimiter, null);
@@ -6250,6 +7144,40 @@ public class SqlFunctions {
             isFirst = false;
         }
         return sb.toString();
+    }
+
+    /**
+     * SQL {@code STRING_TO_ARRAY(string, delimiter)} function. Returns a one-dimensional string[]
+     * array by splitting the input string value into subvalues using the specified string value as
+     * the "delimiter". Optionally, allows a specified string value to be interpreted as NULL.
+     */
+    public static List<@Nullable String> stringToArray(String string, @Nullable String delimiter) {
+        return stringToArray(string, delimiter, null);
+    }
+
+    /** SQL {@code STRING_TO_ARRAY(string, delimiter, nullString)} function. */
+    public static List<@Nullable String> stringToArray(
+            String string, @Nullable String delimiter, @Nullable String nullString) {
+        String[] parts;
+        if (delimiter == null) {
+            parts =
+                    string.chars()
+                            .mapToObj(c -> Character.toString((char) c))
+                            .toArray(String[]::new);
+        } else if (delimiter.isEmpty()) {
+            parts = new String[] {string};
+        } else {
+            parts = string.split(delimiter);
+        }
+        List<@Nullable String> result = new ArrayList<>(parts.length);
+        for (String part : parts) {
+            if (nullString != null && nullString.equals(part)) {
+                result.add(null);
+            } else {
+                result.add(part);
+            }
+        }
+        return result;
     }
 
     /**

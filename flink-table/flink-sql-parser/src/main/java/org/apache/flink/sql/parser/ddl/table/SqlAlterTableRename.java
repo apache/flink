@@ -18,8 +18,13 @@
 
 package org.apache.flink.sql.parser.ddl.table;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -33,6 +38,19 @@ import static java.util.Objects.requireNonNull;
  * dataBasesName].newTableName.
  */
 public class SqlAlterTableRename extends SqlAlterTable {
+
+    private static final SqlSpecialOperator RENAME_OPERATOR =
+            new SqlSpecialOperator("ALTER TABLE RENAME", SqlKind.ALTER_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterTableRename(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlIdentifier) operands[1],
+                            ((SqlLiteral) operands[2]).booleanValue());
+                }
+            };
 
     private final SqlIdentifier newTableIdentifier;
 
@@ -51,8 +69,16 @@ public class SqlAlterTableRename extends SqlAlterTable {
     }
 
     @Override
+    public SqlOperator getOperator() {
+        return RENAME_OPERATOR;
+    }
+
+    @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(tableIdentifier, newTableIdentifier);
+        return ImmutableNullableList.of(
+                tableIdentifier,
+                newTableIdentifier,
+                SqlLiteral.createBoolean(ifTableExists, SqlParserPos.ZERO));
     }
 
     @Override

@@ -28,7 +28,6 @@ import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocal
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -44,10 +43,13 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -84,6 +86,7 @@ public class RocksDBStateDownloader implements Closeable {
         CloseableRegistry internalCloser = new CloseableRegistry();
         // Make sure we also react to external close signals.
         closeableRegistry.registerCloseable(internalCloser);
+        AtomicReference<Throwable> rawException = new AtomicReference<>();
         try {
             // We have to wait for all futures to be completed, to make sure in
             // case of failure that we will clean up all the files
@@ -96,6 +99,12 @@ public class RocksDBStateDownloader implements Closeable {
                                                             runnable,
                                                             transfer.getExecutorService()))
                                     .collect(Collectors.toList()));
+
+            // Capture the raw CompletionException before get() strips it. get() unwraps
+            // CompletionException to its cause (RuntimeException), losing the suppressed list
+            // that holds all parallel thread failures. whenComplete fires before get() unblocks.
+            downloadFuture.whenComplete((v, t) -> rawException.set(t));
+
             Exception interruptedException = null;
             while (!downloadFuture.isDone() || downloadFuture.isCompletedExceptionally()) {
                 try {
@@ -114,14 +123,8 @@ public class RocksDBStateDownloader implements Closeable {
                     .map(StateHandleDownloadSpec::getDownloadDestination)
                     .map(Path::toFile)
                     .forEach(FileUtils::deleteDirectoryQuietly);
-            // Error reporting
-            Throwable throwable = ExceptionUtils.stripExecutionException(e);
-            throwable = ExceptionUtils.stripException(throwable, RuntimeException.class);
-            if (throwable instanceof IOException) {
-                throw (IOException) throwable;
-            } else {
-                throw new FlinkRuntimeException("Failed to download data for state handles.", e);
-            }
+            Throwable raw = rawException.get();
+            throw buildDownloadException(raw != null ? raw : e);
         } finally {
             // Unregister and close the internal closer.
             if (closeableRegistry.unregisterCloseable(internalCloser)) {
@@ -259,6 +262,40 @@ public class RocksDBStateDownloader implements Closeable {
             IOUtils.closeQuietly(closeableRegistry);
             throw new IOException(ex);
         }
+    }
+
+    /**
+     * Builds a descriptive {@link IOException} from a potentially cascaded failure across multiple
+     * parallel download threads.
+     *
+     * <p>When one thread fails it closes the shared {@link CloseableRegistry}, causing all other
+     * threads to throw a {@code ClosedChannelException} on their local file writes. This method
+     * strips the wrapper chain of each collected failure to reach the real {@link IOException},
+     * deduplicates by type and message, and returns either the single unique cause directly or a
+     * merged exception listing all distinct failures.
+     */
+    private static IOException buildDownloadException(Throwable rawException) {
+        Map<String, Throwable> unique = new LinkedHashMap<>();
+        Stream.concat(Stream.of(rawException), Stream.of(rawException.getSuppressed()))
+                .map(t -> ExceptionUtils.stripException(t, CompletionException.class))
+                .map(t -> ExceptionUtils.stripException(t, RuntimeException.class))
+                .forEach(t -> unique.putIfAbsent(t.getClass().getName() + ":" + t.getMessage(), t));
+
+        if (unique.size() == 1) {
+            Throwable t = unique.values().iterator().next();
+            return t instanceof IOException ? (IOException) t : new IOException(t);
+        }
+
+        String summary =
+                unique.values().stream()
+                        .map(t -> t.getClass().getSimpleName() + ": " + t.getMessage())
+                        .collect(Collectors.joining(" | "));
+        IOException merged =
+                new IOException(
+                        unique.size() + " downloads failed with distinct errors: [" + summary + "]",
+                        unique.values().iterator().next());
+        unique.values().stream().skip(1).forEach(merged::addSuppressed);
+        return merged;
     }
 
     @Override

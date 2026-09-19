@@ -35,10 +35,11 @@ public class OverAggregateBatchRestoreTest extends BatchRestoreTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                // These tests fail due to FLINK-25802
-                // OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS,
-                // OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS
+                OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS,
+                OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS,
                 OverAggregateTestPrograms.OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS,
-                OverAggregateTestPrograms.OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS);
+                OverAggregateTestPrograms.OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS,
+                OverAggregateTestPrograms.OVER_AGGREGATE_RANGE_TIMESTAMP,
+                OverAggregateTestPrograms.OVER_AGGREGATE_RANGE_TIMESTAMP_LTZ);
     }
 }

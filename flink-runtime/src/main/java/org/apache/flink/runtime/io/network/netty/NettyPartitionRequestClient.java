@@ -129,7 +129,8 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
                         partitionId,
                         subpartitionIndexSet,
                         inputChannel.getInputChannelId(),
-                        inputChannel.getInitialCredit());
+                        inputChannel.getInitialCredit(),
+                        inputChannel.needsRecovery());
 
         final ChannelFutureListener listener =
                 future -> {

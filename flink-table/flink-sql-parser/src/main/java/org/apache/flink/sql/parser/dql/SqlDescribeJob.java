@@ -21,6 +21,7 @@ package org.apache.flink.sql.parser.dql;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -35,7 +36,13 @@ import java.util.List;
 public class SqlDescribeJob extends SqlCall {
 
     public static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("DESCRIBE JOB", SqlKind.OTHER);
+            new SqlSpecialOperator("DESCRIBE JOB", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlDescribeJob(pos, (SqlCharStringLiteral) operands[0]);
+                }
+            };
 
     private final SqlCharStringLiteral jobId;
 

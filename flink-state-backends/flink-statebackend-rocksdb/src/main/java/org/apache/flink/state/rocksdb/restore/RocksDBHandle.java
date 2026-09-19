@@ -37,6 +37,7 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.ExportImportFilesMetaData;
 import org.rocksdb.RocksDB;
+import org.rocksdb.Statistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,6 +91,8 @@ class RocksDBHandle implements AutoCloseable {
     private RocksDB db;
     private ColumnFamilyHandle defaultColumnFamilyHandle;
     private RocksDBNativeMetricMonitor nativeMetricMonitor;
+    // Released in close() for the partial-init case; on success the monitor closes it.
+    private Statistics statistics;
     private final Long writeBufferManagerCapacity;
 
     protected RocksDBHandle(
@@ -147,12 +150,16 @@ class RocksDBHandle implements AutoCloseable {
                         dbOptions);
         // remove the default column family which is located at the first index
         defaultColumnFamilyHandle = columnFamilyHandles.remove(0);
-        // init native metrics monitor if configured
+
+        if (!nativeMetricOptions.isEnabled()) {
+            return;
+        }
+        // dbOptions.statistics() returns a new Java wrapper around a fresh shared_ptr<Statistics>
+        // aliasing the existing native StatisticsImpl. The original wrapper is closed by
+        // RocksDBResourceContainer (via dbOptions); this one must also be closed. See FLINK-39923.
+        statistics = dbOptions.statistics();
         nativeMetricMonitor =
-                nativeMetricOptions.isEnabled()
-                        ? new RocksDBNativeMetricMonitor(
-                                nativeMetricOptions, metricGroup, db, dbOptions.statistics())
-                        : null;
+                new RocksDBNativeMetricMonitor(nativeMetricOptions, metricGroup, db, statistics);
     }
 
     RocksDbKvStateInfo getOrRegisterStateColumnFamilyHandle(
@@ -306,7 +313,13 @@ class RocksDBHandle implements AutoCloseable {
     @Override
     public void close() throws Exception {
         IOUtils.closeQuietly(defaultColumnFamilyHandle);
-        IOUtils.closeQuietly(nativeMetricMonitor);
+        if (nativeMetricMonitor != null) {
+            // Monitor owns the statistics wrapper.
+            IOUtils.closeQuietly(nativeMetricMonitor);
+        } else {
+            // Monitor construction never completed; release the wrapper directly.
+            IOUtils.closeQuietly(statistics);
+        }
         IOUtils.closeQuietly(db);
         // Making sure the already created column family options will be closed
         columnFamilyDescriptors.forEach((cfd) -> IOUtils.closeQuietly(cfd.getOptions()));

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -541,6 +542,7 @@ class OperatorCoordinatorHolderTest {
                                 1,
                                 NoOpInvokable.class.getName(),
                                 new Configuration()),
+                        new JobInfoImpl(new JobID(), "test-job"),
                         UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
         JobID jobId = new JobID();

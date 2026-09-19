@@ -32,8 +32,8 @@ import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegist
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.BeamUrns;
-import org.apache.beam.runners.core.construction.graph.TimerReference;
+import org.apache.beam.sdk.util.construction.BeamUrns;
+import org.apache.beam.sdk.util.construction.graph.TimerReference;
 
 import javax.annotation.Nullable;
 
@@ -182,7 +182,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                                 RunnerApi.FunctionSpec.newBuilder()
                                         .setUrn(STATELESS_FUNCTION_URN)
                                         .setPayload(
-                                                org.apache.beam.vendor.grpc.v1p60p1.com.google
+                                                org.apache.beam.vendor.grpc.v1p69p0.com.google
                                                         .protobuf.ByteString.copyFrom(
                                                         proto.toByteArray()))
                                         .build());
@@ -199,7 +199,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                                 RunnerApi.FunctionSpec.newBuilder()
                                         .setUrn(urn)
                                         .setPayload(
-                                                org.apache.beam.vendor.grpc.v1p60p1.com.google
+                                                org.apache.beam.vendor.grpc.v1p69p0.com.google
                                                         .protobuf.ByteString.copyFrom(
                                                         proto.toByteArray()))
                                         .build());

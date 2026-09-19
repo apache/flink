@@ -67,7 +67,7 @@ msgid "Before you begin, make sure you have:"
 msgstr ""
 
 #: ../../getting_started/quickstart.rst:33
-msgid "Python 3.9, 3.10, 3.11, or 3.12 installed"
+msgid "Python 3.9, 3.10, 3.11, 3.12 or 3.13 installed"
 msgstr ""
 
 #: ../../getting_started/quickstart.rst:34

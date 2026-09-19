@@ -193,6 +193,35 @@ public class VariantSemanticTest extends SemanticTestBase {
                     .runSql("INSERT INTO sink_t SELECT udf(v) FROM t")
                     .build();
 
+    static final TableTestProgram VARIANT_IN_VIEW =
+            TableTestProgram.of("variant-in-view", "validates variant unparsing through a view")
+                    .setupTemporarySystemFunction("udf", VariantIdentity.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("v VARIANT")
+                                    .producedValues(
+                                            Row.of(
+                                                    BUILDER.object()
+                                                            .add("k", BUILDER.of(1))
+                                                            .build()),
+                                            Row.of(BUILDER.array().add(BUILDER.of("x")).build()),
+                                            new Row(1))
+                                    .build())
+                    .setupSql("CREATE VIEW variant_view AS SELECT udf(v) AS v FROM t")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("v VARIANT")
+                                    .consumedValues(
+                                            Row.of(
+                                                    BUILDER.object()
+                                                            .add("k", BUILDER.of(1))
+                                                            .build()),
+                                            Row.of(BUILDER.array().add(BUILDER.of("x")).build()),
+                                            new Row(1))
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT v FROM variant_view")
+                    .build();
+
     static final TableTestProgram VARIANT_AS_UDAF_ARG =
             TableTestProgram.of("variant-as-udaf-arg", "validates variant as udaf argument")
                     .setupTemporarySystemFunction("udf", MyAggFunc.class)
@@ -458,6 +487,7 @@ public class VariantSemanticTest extends SemanticTestBase {
                 BUILTIN_AGG,
                 BUILTIN_AGG_WITH_RETRACTION,
                 VARIANT_AS_UDF_ARG,
+                VARIANT_IN_VIEW,
                 VARIANT_AS_UDAF_ARG,
                 VARIANT_AS_AGG_KEY,
                 VARIANT_ARRAY_ACCESS,
@@ -466,6 +496,12 @@ public class VariantSemanticTest extends SemanticTestBase {
                 VARIANT_NESTED_ACCESS,
                 VARIANT_ARRAY_ERROR_ACCESS,
                 VARIANT_OBJECT_ERROR_ACCESS);
+    }
+
+    public static class VariantIdentity extends ScalarFunction {
+        public Variant eval(Variant v) {
+            return v;
+        }
     }
 
     public static class MyUdf extends ScalarFunction {

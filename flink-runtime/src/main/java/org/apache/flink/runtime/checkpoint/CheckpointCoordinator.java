@@ -61,6 +61,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1997,6 +1998,27 @@ public class CheckpointCoordinator {
 
     public long getCheckpointTimeout() {
         return checkpointTimeout;
+    }
+
+    /**
+     * Returns the remaining {@link Duration} until {@code minPauseBetweenCheckpoints} is satisfied
+     * for a new active-trigger checkpoint, computed from the time elapsed since the last completed
+     * checkpoint (or from the coordinator clock's epoch when no checkpoint has completed yet —
+     * which is normally far in the past in production). {@link Duration#ZERO} means the trigger can
+     * fire immediately.
+     *
+     * <p>Returns {@link Optional#empty()} as a fallback if a checkpoint is already in flight
+     * (triggering or pending), in which case no active trigger should be scheduled.
+     */
+    public Optional<Duration> getActiveCheckpointTriggerDelay() {
+        synchronized (lock) {
+            if (isTriggering || !pendingCheckpoints.isEmpty()) {
+                return Optional.empty();
+            }
+            final long elapsed = clock.relativeTimeMillis() - lastCheckpointCompletionRelativeTime;
+            final long remaining = minPauseBetweenCheckpoints - elapsed;
+            return Optional.of(remaining > 0 ? Duration.ofMillis(remaining) : Duration.ZERO);
+        }
     }
 
     /**

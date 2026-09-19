@@ -36,6 +36,7 @@ public class CalcRestoreTest extends RestoreTestBase {
     public List<TableTestProgram> programs() {
         return Arrays.asList(
                 CalcTestPrograms.SIMPLE_CALC,
+                CalcTestPrograms.CALC_PARTIAL_DELETE_WITH_EXPRESSION_AND_FILTER,
                 CalcTestPrograms.CALC_FILTER,
                 CalcTestPrograms.CALC_FILTER_PUSHDOWN,
                 CalcTestPrograms.CALC_PROJECT_PUSHDOWN,
@@ -43,6 +44,7 @@ public class CalcRestoreTest extends RestoreTestBase {
                 CalcTestPrograms.CALC_UDF_SIMPLE,
                 CalcTestPrograms.CALC_UDF_COMPLEX,
                 CalcTestPrograms.CALC_CURRENT_TIMESTAMP,
-                CalcTestPrograms.COALESCE);
+                CalcTestPrograms.COALESCE,
+                CalcTestPrograms.CALC_VARIANT);
     }
 }

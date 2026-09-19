@@ -27,7 +27,7 @@ import org.apache.calcite.tools.RuleSets
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 /**
- * Former test for [[FlinkPruneEmptyRules]] which now replaced by Calcite's
+ * Former test for [[PruneEmptyRules]] which now replaced by Calcite's
  * [[PruneEmptyRules.JOIN_RIGHT_INSTANCE]].
  */
 class FlinkPruneEmptyRulesTest extends TableTestBase {
@@ -52,9 +52,9 @@ class FlinkPruneEmptyRulesTest extends TableTestBase {
           CoreRules.PROJECT_FILTER_VALUES_MERGE,
           PruneEmptyRules.PROJECT_INSTANCE,
           PruneEmptyRules.FILTER_INSTANCE,
-          FlinkPruneEmptyRules.UNION_INSTANCE,
+          PruneEmptyRules.UNION_INSTANCE,
           PruneEmptyRules.INTERSECT_INSTANCE,
-          FlinkPruneEmptyRules.MINUS_INSTANCE,
+          PruneEmptyRules.MINUS_INSTANCE,
           PruneEmptyRules.SORT_INSTANCE,
           PruneEmptyRules.AGGREGATE_INSTANCE,
           PruneEmptyRules.JOIN_LEFT_INSTANCE,

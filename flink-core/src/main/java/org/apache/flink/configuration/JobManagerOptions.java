@@ -309,6 +309,29 @@ public class JobManagerOptions {
                             "Directory for JobManager to store the archives of completed jobs.");
 
     /**
+     * Whether only jobs that reached the {@code FAILED} terminal state should be archived to {@link
+     * #ARCHIVE_DIR}.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<Boolean> ARCHIVE_ON_FAILED_JOBS_ONLY =
+            key("jobmanager.archive.only-failed-jobs")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to only archive jobs that reached the %s terminal state to %s. ",
+                                            code("FAILED"), code(ARCHIVE_DIR.key()))
+                                    .text(
+                                            "When enabled, jobs that finished or were canceled are not "
+                                                    + "archived to the history server, reducing the number of files written "
+                                                    + "for large clusters running many short-lived batch jobs. ")
+                                    .text(
+                                            "This option has no effect unless %s is configured.",
+                                            code(ARCHIVE_DIR.key()))
+                                    .build());
+
+    /**
      * @deprecated Use {@link JobManagerOptions#COMPLETED_APPLICATION_STORE_CACHE_SIZE}
      */
     @Deprecated
@@ -743,6 +766,24 @@ public class JobManagerOptions {
                                             text(
                                                     SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES
                                                             .key()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Boolean> SCHEDULER_RESCALE_TRIGGER_ACTIVE_CHECKPOINT_ENABLED =
+            key("jobmanager.adaptive-scheduler.rescale-trigger.active-checkpoint.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "When enabled, the Adaptive Scheduler actively triggers a checkpoint when resources change and rescaling is desired, "
+                                                    + "rather than waiting for the next periodic checkpoint. "
+                                                    + "This reduces rescaling latency, especially when checkpoint intervals are large. "
+                                                    + "The active trigger respects the configured minimum pause between checkpoints and "
+                                                    + "will not fire if a checkpoint is already in progress or being triggered.")
                                     .build());
 
     /**

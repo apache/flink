@@ -84,7 +84,7 @@ Ogg 为变更日志提供了统一的格式, 这是一个 JSON 格式的从 Orac
 }
 ```
 
-*注意：请参考 [Debezium documentation](https://debezium.io/documentation/reference/1.3/connectors/oracle.html#oracle-events)
+*注意：请参考 [Debezium documentation](https://debezium.io/documentation/reference/stable/connectors/oracle.html#oracle-events)
 了解每个字段的含义.*
 
 Oracle `PRODUCTS` 表 有 4 列 (`id`, `name`, `description` and `weight`). 上面的 JSON 消息是 `PRODUCTS` 表上的一条更新事件，其中 `id = 111` 的行的

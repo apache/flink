@@ -124,6 +124,65 @@ public final class TestValuesRuntimeFunctions {
     private static final Map<String, List<BiConsumer<Integer, List<Row>>>>
             localRawResultsObservers = new HashMap<>();
 
+    // [table_name, cumulative number of rows emitted by all subtasks of the source]
+    private static final Map<String, Integer> sourceEmittedCounts = new HashMap<>();
+    // [table_name, [pending emission barriers]]
+    private static final Map<String, List<SourceEmissionBarrier>> sourceEmissionBarriers =
+            new HashMap<>();
+
+    /** A pending {@link #awaitSourceEmitted} request, completed once its target is reached. */
+    private static final class SourceEmissionBarrier {
+        private final int target;
+        private final CompletableFuture<Void> future;
+
+        private SourceEmissionBarrier(int target, CompletableFuture<Void> future) {
+            this.target = target;
+            this.future = future;
+        }
+    }
+
+    /**
+     * Records that a source emitted a row and completes any barrier whose target row count has been
+     * reached. Called by the source runtime after every emitted element.
+     */
+    static void notifySourceEmitted(String tableName) {
+        final List<CompletableFuture<Void>> toComplete = new ArrayList<>();
+        synchronized (LOCK) {
+            final int count = sourceEmittedCounts.merge(tableName, 1, Integer::sum);
+            final List<SourceEmissionBarrier> barriers = sourceEmissionBarriers.get(tableName);
+            if (barriers != null) {
+                barriers.removeIf(
+                        barrier -> {
+                            if (count >= barrier.target) {
+                                toComplete.add(barrier.future);
+                                return true;
+                            }
+                            return false;
+                        });
+            }
+        }
+        // Complete outside the lock; the awaiting thread may re-enter this class.
+        toComplete.forEach(future -> future.complete(null));
+    }
+
+    /**
+     * Returns a future that completes once source {@code tableName} has emitted at least {@code
+     * targetCount} rows (cumulative across all subtasks).
+     */
+    static CompletableFuture<Void> awaitSourceEmitted(String tableName, int targetCount) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        synchronized (LOCK) {
+            if (sourceEmittedCounts.getOrDefault(tableName, 0) >= targetCount) {
+                future.complete(null);
+            } else {
+                sourceEmissionBarriers
+                        .computeIfAbsent(tableName, n -> new ArrayList<>())
+                        .add(new SourceEmissionBarrier(targetCount, future));
+            }
+        }
+        return future;
+    }
+
     static List<String> getRawResultsAsStrings(String tableName) {
         return getRawResults(tableName).stream()
                 .map(TestValuesRuntimeFunctions::rowToString)
@@ -205,6 +264,8 @@ public final class TestValuesRuntimeFunctions {
             globalRetractResult.clear();
             watermarkHistory.clear();
             localRawResultsObservers.clear();
+            sourceEmittedCounts.clear();
+            sourceEmissionBarriers.clear();
         }
     }
 
@@ -257,15 +318,24 @@ public final class TestValuesRuntimeFunctions {
 
         private final TerminatingLogic terminating;
 
+        /** Sleep for {@link #sleepTimeMillis} after emitting every {@code sleepAfterElements}. */
+        private final int sleepAfterElements;
+
+        private final long sleepTimeMillis;
+
         public FromElementSourceFunctionWithWatermark(
                 String tableName,
                 TypeSerializer<RowData> serializer,
                 Iterable<RowData> elements,
                 WatermarkStrategy<RowData> watermarkStrategy,
-                TerminatingLogic terminating)
+                TerminatingLogic terminating,
+                int sleepAfterElements,
+                long sleepTimeMillis)
                 throws IOException {
             this.tableName = tableName;
             this.terminating = terminating;
+            this.sleepAfterElements = sleepAfterElements;
+            this.sleepTimeMillis = sleepTimeMillis;
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
 
@@ -324,6 +394,14 @@ public final class TestValuesRuntimeFunctions {
                     numElementsEmitted++;
                     generator.onEvent(next, Long.MIN_VALUE, output);
                     generator.onPeriodicEmit(output);
+                }
+                notifySourceEmitted(tableName);
+
+                // If enabled, throttle emission of values
+                if (sleepAfterElements > 0
+                        && sleepTimeMillis > 0
+                        && numElementsEmitted % sleepAfterElements == 0) {
+                    Thread.sleep(sleepTimeMillis);
                 }
             }
 

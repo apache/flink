@@ -95,7 +95,7 @@ fi
 
 if [ $EXIT_CODE == 0 ]; then
     ROW_COUNT=`find ${TEST_DATA_DIR}/result1/* -type f | xargs wc -l | grep "total" | awk '{print $1}'`
-    if [ $((ROW_COUNT)) -ne 192 ]; then
+    if [ $((ROW_COUNT)) -ne 236 ]; then
         echo "[FAIL] Unexpected number of rows in output."
         echo "Found: $ROW_COUNT"
         EXIT_CODE=1

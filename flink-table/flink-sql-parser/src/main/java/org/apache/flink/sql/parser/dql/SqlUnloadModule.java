@@ -21,6 +21,7 @@ package org.apache.flink.sql.parser.dql;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -34,7 +35,13 @@ import java.util.List;
 public class SqlUnloadModule extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("UNLOAD MODULE", SqlKind.OTHER);
+            new SqlSpecialOperator("UNLOAD MODULE", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlUnloadModule(pos, (SqlIdentifier) operands[0]);
+                }
+            };
 
     private final SqlIdentifier moduleName;
 

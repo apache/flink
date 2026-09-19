@@ -80,6 +80,31 @@ under the License.
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.avro.shaded.com.fasterxml.jackson</shadedPattern>
 								</relocation>
+								<!--
+								Manually relocate multi-release classes to the correct shaded package. This is needed
+								due to a bug in the Maven Shade plugin, which only relocates the content but not
+								the package structure itself, see https://github.com/apache/maven-shade-plugin/issues/652
+								-->
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/com/fasterxml/jackson/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/avro/shaded/com/fasterxml/jackson/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<!--
+								Same maven-shade-plugin#652 workaround as the jackson relocation above, extended to every
+								relocated package: keep each dependency's multi-release (META-INF/versions/N) classes aligned
+								with its relocated base classes. No-op for non-multi-release jars.
+								-->
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/org/apache/commons/compress/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/avro/shaded/org/apache/commons/compress/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/(\d+)/org/apache/avro/</pattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/avro/shaded/org/apache/avro/</shadedPattern>
+									<rawString>true</rawString>
+								</relocation>
 								<relocation>
 									<pattern>org.apache.commons.compress</pattern>
 									<shadedPattern>org.apache.flink.avro.shaded.org.apache.commons.compress</shadedPattern>
@@ -89,6 +114,21 @@ under the License.
 									<shadedPattern>org.apache.flink.avro.shaded.org.apache.avro</shadedPattern>
 								</relocation>
 							</relocations>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/**/module-info.class</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<transformers combine.children="append">
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<manifestEntries>
+										<Multi-Release>true</Multi-Release>
+									</manifestEntries>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
 				</executions>

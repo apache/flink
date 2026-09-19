@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.calcite.sql.type;
 
 import com.google.common.collect.ImmutableMap;
@@ -212,6 +211,9 @@ public class SqlTypeAssignmentRule implements SqlTypeMappingRule {
         // COLUMN_LIST is assignable from ...
         rules.add(SqlTypeName.COLUMN_LIST, EnumSet.of(SqlTypeName.COLUMN_LIST));
         // ----- FLINK MODIFICATION END -----
+
+        // UUID is assignable from
+        rules.add(SqlTypeName.UUID, EnumSet.of(SqlTypeName.UUID));
 
         // ANY is assignable from ...
         rule.clear();

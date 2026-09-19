@@ -175,6 +175,140 @@ GroupAggregate(groupBy=[cnt], select=[cnt, COUNT_RETRACT(cnt) AS frequency], cha
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testKeylessUpsertSinkFallsBackToRetractOnGlobalAggregate">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO keyless_upsert_sink_count SELECT COUNT(*) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.keyless_upsert_sink_count], fields=[EXPR$0])
++- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.keyless_upsert_sink_count], fields=[EXPR$0], changelogMode=[NONE])
++- GroupAggregate(select=[COUNT(*) AS EXPR$0], changelogMode=[I,UB,UA])
+   +- Exchange(distribution=[single], changelogMode=[I])
+      +- Calc(select=[0 AS $f0], changelogMode=[I])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testKeylessUpsertSinkFallsBackToRetractWhenUpsertKeyProjectedAway">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO keyless_upsert_sink_no_key SELECT rate FROM DeduplicatedView]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.keyless_upsert_sink_no_key], fields=[rate])
++- LogicalProject(rate=[$1])
+   +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+      +- LogicalFilter(condition=[=($3, 1)])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+               +- LogicalTableScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.keyless_upsert_sink_no_key], fields=[rate], changelogMode=[NONE])
++- Calc(select=[rate], changelogMode=[I,UB,UA,D])
+   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[currency], orderBy=[ROWTIME rowtime DESC], select=[currency, rate, rowtime], changelogMode=[I,UB,UA,D])
+      +- Exchange(distribution=[hash[currency]], changelogMode=[I])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]], fields=[currency, rate, rowtime], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testKeylessUpsertSinkKeepsUpsertWhenInputHasUpsertKey">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO keyless_upsert_sink SELECT currency, rate FROM DeduplicatedView]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.keyless_upsert_sink], fields=[currency, rate])
++- LogicalProject(currency=[$0], rate=[$1])
+   +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2])
+      +- LogicalFilter(condition=[=($3, 1)])
+         +- LogicalProject(currency=[$0], rate=[$1], rowtime=[$2], rowNum=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+               +- LogicalTableScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.keyless_upsert_sink], fields=[currency, rate], changelogMode=[NONE])
++- Calc(select=[currency, rate], changelogMode=[I,UA,D])
+   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[currency], orderBy=[ROWTIME rowtime DESC], select=[currency, rate, rowtime], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[currency]], changelogMode=[I])
+         +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, ratesHistory, source: [CollectionTableSource(currency, rate, rowtime)]]], fields=[currency, rate, rowtime], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testKeylessUpsertSinkWithLookupJoinOnGlobalAggregateProbeSide">
+    <Resource name="sql">
+      <![CDATA[
+INSERT INTO lookup_sink
+SELECT dim.id, dim.v
+FROM (SELECT COUNT(*) AS cnt, PROCTIME() AS pt FROM MyTable) g
+JOIN LookupDim FOR SYSTEM_TIME AS OF g.pt AS dim
+ON g.cnt = dim.id
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.lookup_sink], fields=[id, v])
++- LogicalProject(id=[$2], v=[$3])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
+      :- LogicalProject(cnt=[$0], pt=[PROCTIME()])
+      :  +- LogicalAggregate(group=[{}], cnt=[COUNT()])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]])
+      +- LogicalFilter(condition=[=($cor0.cnt, $0)])
+         +- LogicalSnapshot(period=[$cor0.pt])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupDim]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.lookup_sink], fields=[id, v], changelogMode=[NONE])
++- Calc(select=[id, v], changelogMode=[I,UB,UA])
+   +- LookupJoin(table=[default_catalog.default_database.LookupDim], joinType=[InnerJoin], lookup=[id=cnt], select=[cnt, id, v], upsertKey=[[]], changelogMode=[I,UB,UA])
+      +- GroupAggregate(select=[COUNT(*) AS cnt], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[single], changelogMode=[I])
+            +- Calc(select=[0 AS $f0], changelogMode=[I])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [CollectionTableSource(word, number)]]], fields=[word, number], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testKeylessUpsertSinkWithMultiTableArgUpsertPtfComputesDistinctKeyPerArg">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO keyless_upsert_sink_ptf_probe SELECT `name`, name0, `out` FROM f(scoreTable => TABLE scores_ptf_probe PARTITION BY name, cityTable => TABLE city_ptf_probe PARTITION BY name)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.keyless_upsert_sink_ptf_probe], fields=[name, name0, out])
++- LogicalProject(name=[$0], name0=[$1], out=[$2])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1) PARTITION BY($0), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) name0, VARCHAR(2147483647) out)])
+      :- LogicalProject(name=[$0], score=[$1])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, scores_ptf_probe]])
+      +- LogicalProject(name=[$0], city=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, city_ptf_probe]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.keyless_upsert_sink_ptf_probe], fields=[name, name0, out], changelogMode=[NONE])
++- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1) PARTITION BY($0), DEFAULT(), DEFAULT())], uid=[f], select=[name,name0,out], rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) name0, VARCHAR(2147483647) out)], changelogMode=[I,UA,PD])
+   :- Exchange(distribution=[hash[name]], changelogMode=[I,UA,PD])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, scores_ptf_probe]], fields=[name, score], changelogMode=[I,UA,PD])
+   +- Exchange(distribution=[hash[name]], changelogMode=[I,UA,PD])
+      +- TableSourceScan(table=[[default_catalog, default_database, city_ptf_probe]], fields=[name, city], changelogMode=[I,UA,PD])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testOneLevelGroupBy">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(number) FROM MyTable GROUP BY word]]>

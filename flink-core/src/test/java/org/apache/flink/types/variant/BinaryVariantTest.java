@@ -18,14 +18,23 @@
 
 package org.apache.flink.types.variant;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -93,8 +102,91 @@ class BinaryVariantTest {
         assertThat(builder.of(localDate).getDate()).isEqualTo(localDate);
         assertThat(builder.of(localDate).get()).isEqualTo(localDate);
 
+        LocalTime localTime = LocalTime.now().truncatedTo(ChronoUnit.MICROS);
+        assertThat(builder.of(localTime).getTime()).isEqualTo(localTime);
+        assertThat(builder.of(localTime).get()).isEqualTo(localTime);
+
+        UUID uuid = UUID.randomUUID();
+        assertThat(builder.of(uuid).getUuid()).isEqualTo(uuid);
+        assertThat(builder.of(uuid).get()).isEqualTo(uuid);
+
         assertThat(builder.ofNull().get()).isEqualTo(null);
         assertThat(builder.ofNull().isNull()).isTrue();
+    }
+
+    @Test
+    void testNanosecondPrecisionVariant() {
+        // Microsecond-precision values keep using the compact TIMESTAMP/TIMESTAMP_LTZ encoding,
+        // matching the pre-existing on-wire format.
+        Instant microInstant = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        assertThat(builder.of(microInstant).getType()).isEqualTo(Variant.Type.TIMESTAMP_LTZ);
+        assertThat(builder.of(microInstant).getInstant()).isEqualTo(microInstant);
+
+        LocalDateTime microLocalDateTime = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        assertThat(builder.of(microLocalDateTime).getType()).isEqualTo(Variant.Type.TIMESTAMP);
+        assertThat(builder.of(microLocalDateTime).getDateTime()).isEqualTo(microLocalDateTime);
+
+        // Sub-microsecond precision switches to the nanosecond encoding instead of truncating,
+        // but getInstant()/getDateTime() still work regardless of which encoding was picked.
+        Instant nanoInstant = Instant.now().truncatedTo(ChronoUnit.MICROS).plusNanos(123);
+        Variant instantVariant = builder.of(nanoInstant);
+        assertThat(instantVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP_LTZ_NS);
+        assertThat(instantVariant.getInstant()).isEqualTo(nanoInstant);
+        assertThat(instantVariant.get()).isEqualTo(nanoInstant);
+
+        LocalDateTime nanoLocalDateTime = LocalDateTime.now().withNano(123456789);
+        Variant dateTimeVariant = builder.of(nanoLocalDateTime);
+        assertThat(dateTimeVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP_NS);
+        assertThat(dateTimeVariant.getDateTime()).isEqualTo(nanoLocalDateTime);
+        assertThat(dateTimeVariant.get()).isEqualTo(nanoLocalDateTime);
+    }
+
+    @Test
+    void testNanosecondTimestampPrecisionRange() {
+        // Nanosecond timestamps only span +/-292 years around 1970, beyond that must fail with
+        // proper exception
+        LocalDateTime outOfRangeLocalDateTime = LocalDateTime.of(2300, 1, 1, 0, 0, 0, 1);
+        assertThatThrownBy(() -> builder.of(outOfRangeLocalDateTime))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("nanosecond precision");
+
+        Instant outOfRangeInstant = outOfRangeLocalDateTime.toInstant(ZoneOffset.UTC);
+        assertThatThrownBy(() -> builder.of(outOfRangeInstant))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("nanosecond precision");
+    }
+
+    @Test
+    void testMicrosecondTimestampPrecisionRange() {
+        // Microsecond precision spans = +/-292.000 years around 1970
+        LocalDateTime inRangeLocalDateTime = LocalDateTime.of(150_000, 1, 1, 0, 0, 0, 0);
+        Variant inRangeLocalDateTimeVariant = builder.of(inRangeLocalDateTime);
+        assertThat(inRangeLocalDateTimeVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP);
+        assertThat(inRangeLocalDateTimeVariant.getDateTime()).isEqualTo(inRangeLocalDateTime);
+
+        Instant inRangeInstant = inRangeLocalDateTime.toInstant(ZoneOffset.UTC);
+        Variant inRangeInstantVariant = builder.of(inRangeInstant);
+        assertThat(inRangeInstantVariant.getType()).isEqualTo(Variant.Type.TIMESTAMP_LTZ);
+        assertThat(inRangeInstantVariant.getInstant()).isEqualTo(inRangeInstant);
+
+        // beyond that must fail with proper exception
+        LocalDateTime outOfRangeLocalDateTime = LocalDateTime.of(350_000, 1, 1, 0, 0, 0, 0);
+        assertThatThrownBy(() -> builder.of(outOfRangeLocalDateTime))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("microsecond precision");
+
+        Instant outOfRangeInstant = outOfRangeLocalDateTime.toInstant(ZoneOffset.UTC);
+        assertThatThrownBy(() -> builder.of(outOfRangeInstant))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("microsecond precision");
+    }
+
+    @Test
+    void testTimeSubMicrosecondTruncation() {
+        // A sub-microsecond LocalTime silently loses precision below the microsecond.
+        // TIME has no nanosecond-precision counterpart in the variant spec.
+        LocalTime nanoTime = LocalTime.of(23, 59, 59, 999999999);
+        assertThat(builder.of(nanoTime).getTime()).isEqualTo(LocalTime.of(23, 59, 59, 999999000));
     }
 
     @Test
@@ -199,6 +291,10 @@ class BinaryVariantTest {
         Instant instant = Instant.EPOCH;
         LocalDateTime localDateTime = LocalDateTime.of(2000, 1, 1, 0, 0);
         LocalDate localDate = LocalDate.of(2000, 1, 1);
+        LocalTime localTime = LocalTime.of(13, 45, 30, 123456789);
+        Instant nanoInstant = Instant.EPOCH.plusNanos(123456789);
+        LocalDateTime nanoLocalDateTime = LocalDateTime.of(2000, 1, 1, 0, 0, 0, 123456789);
+        UUID uuid = UUID.fromString("00112233-4455-6677-8899-aabbccddeeff");
 
         assertThat(builder.of((byte) 1).toJson()).isEqualTo("1");
         assertThat(builder.of((short) 1).toJson()).isEqualTo("1");
@@ -212,8 +308,50 @@ class BinaryVariantTest {
         assertThat(builder.of(instant).toJson()).isEqualTo("\"1970-01-01T00:00:00+00:00\"");
         assertThat(builder.of(localDateTime).toJson()).isEqualTo("\"2000-01-01T00:00:00\"");
         assertThat(builder.of(localDate).toJson()).isEqualTo("\"2000-01-01\"");
+        assertThat(builder.of(localTime).toJson()).isEqualTo("\"13:45:30.123456\"");
+        assertThat(builder.of(nanoInstant).toJson())
+                .isEqualTo("\"1970-01-01T00:00:00.123456789+00:00\"");
+        assertThat(builder.of(nanoLocalDateTime).toJson())
+                .isEqualTo("\"2000-01-01T00:00:00.123456789\"");
         assertThat(builder.of("hello".getBytes()).toJson()).isEqualTo("\"aGVsbG8=\"");
+        assertThat(builder.of(uuid).toJson()).isEqualTo("\"00112233-4455-6677-8899-aabbccddeeff\"");
         assertThat(builder.ofNull().toJson()).isEqualTo("null");
+    }
+
+    @Test
+    void testUuidDecodeFromSpecBytes() {
+        // Interop check against the shared variant wire format: this is the exact byte sequence
+        // from Iceberg's TestSerializedPrimitives#testUUID (primitive header for type 20 followed
+        // by 16 big-endian UUID bytes). Decoding it must produce the same UUID, which proves Flink
+        // reads variants written by other implementations of the spec.
+        // https://github.com/apache/iceberg/blob/9da109dd2537e77e8e5034068933575aa4e235ff/api/src/test/java/org/apache/iceberg/variants/TestSerializedPrimitives.java#L586
+        byte[] value = {
+            BinaryVariantUtil.primitiveHeader(BinaryVariantUtil.UUID),
+            (byte) 0xf2,
+            0x4f,
+            (byte) 0x9b,
+            0x64,
+            (byte) 0x81,
+            (byte) 0xfa,
+            0x49,
+            (byte) 0xd1,
+            (byte) 0xb7,
+            0x4e,
+            (byte) 0x8c,
+            0x09,
+            (byte) 0xa6,
+            (byte) 0xe3,
+            0x1c,
+            0x56
+        };
+        // A primitive carries no dictionary keys, so reuse an empty metadata block.
+        byte[] metadata = ((BinaryVariant) builder.of(0)).getMetadata();
+        Variant variant = new BinaryVariant(value, metadata);
+
+        UUID expected = UUID.fromString("f24f9b64-81fa-49d1-b74e-8c09a6e31c56");
+        assertThat(variant.getType()).isEqualTo(Variant.Type.UUID);
+        assertThat(variant.getUuid()).isEqualTo(expected);
+        assertThat(variant.get()).isEqualTo(expected);
     }
 
     @Test
@@ -234,6 +372,69 @@ class BinaryVariantTest {
         String json = variant.toJson();
         assertThat(json)
                 .isEqualTo("{" + "\"list\":[\"hello\",1]," + "\"object\":{\"ff\":10.0,\"ss\":1}}");
+    }
+
+    @ParameterizedTest
+    @ValueSource(doubles = {Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN})
+    void testToJsonRejectsNonFiniteDouble(final double nonFinite) {
+        assertThatThrownBy(() -> builder.of(nonFinite).toJson())
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("cannot be serialized to JSON");
+    }
+
+    @ParameterizedTest
+    @ValueSource(floats = {Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.NaN})
+    void testToJsonRejectsNonFiniteFloat(final float nonFinite) {
+        assertThatThrownBy(() -> builder.of(nonFinite).toJson())
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("cannot be serialized to JSON");
+    }
+
+    @Test
+    void testNonAsciiStringsAndFieldNames() {
+        // Multi-byte code points make the UTF-8 byte length differ from the character count, so a
+        // charset mismatch between writing and reading mangles the text instead of preserving it.
+        final String nestedKey = "キー";
+        final String shortValue = "Grüße, 世界 🚀";
+        final String longValue = String.join("", Collections.nCopies(20, "äö🚀"));
+
+        assertThat(longValue.getBytes(StandardCharsets.UTF_8).length)
+                .as("long string must not fit into the short string encoding")
+                .isGreaterThan(BinaryVariantUtil.MAX_SHORT_STR_SIZE);
+
+        final BinaryVariant variant =
+                (BinaryVariant)
+                        builder.object()
+                                .add("schlüssel", builder.of(shortValue))
+                                .add(
+                                        nestedKey,
+                                        builder.object()
+                                                .add("schlüssel", builder.of(longValue))
+                                                .build())
+                                .build();
+
+        // Reading through the raw binaries is what happens once a variant has been serialized, and
+        // it is the only path that decodes the field names from the metadata.
+        final BinaryVariant decoded = new BinaryVariant(variant.getValue(), variant.getMetadata());
+
+        assertThat(decoded.getFieldNames()).containsExactlyInAnyOrder("schlüssel", nestedKey);
+        assertThat(decoded.getField("schlüssel").getString()).isEqualTo(shortValue);
+        assertThat(decoded.getField(nestedKey).getFieldNames()).containsExactly("schlüssel");
+        assertThat(decoded.getField(nestedKey).getField("schlüssel").getString())
+                .isEqualTo(longValue);
+        assertThat(decoded.toJson())
+                .isEqualTo(
+                        "{\""
+                                + "schlüssel"
+                                + "\":\""
+                                + shortValue
+                                + "\",\""
+                                + nestedKey
+                                + "\":{\""
+                                + "schlüssel"
+                                + "\":\""
+                                + longValue
+                                + "\"}}");
     }
 
     @Test
@@ -266,5 +467,41 @@ class BinaryVariantTest {
         assertThatThrownBy(variant::getDouble)
                 .isInstanceOf(VariantTypeException.class)
                 .hasMessage("Expected type DOUBLE but got FLOAT");
+    }
+
+    @Test
+    void testUuidGetThrowException() {
+        // Reading a UUID from a non-UUID variant, and reading another type from a UUID variant,
+        // must both fail with a type exception.
+        assertThatThrownBy(builder.of(10)::getUuid)
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("Expected type UUID but got INT");
+
+        assertThatThrownBy(builder.of(UUID.randomUUID())::getString)
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("Expected type STRING but got UUID");
+
+        // A UUID header followed by fewer than 16 bytes is malformed and must be rejected
+        byte[] truncated = {
+            BinaryVariantUtil.primitiveHeader(BinaryVariantUtil.UUID), 0x00, 0x01, 0x02, 0x03
+        };
+        assertThatThrownBy(() -> BinaryVariantUtil.getUuid(truncated, 0))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("MALFORMED_VARIANT");
+    }
+
+    @Test
+    void testJavaSerialization() throws Exception {
+        Variant variant =
+                builder.object()
+                        .add("i", builder.of(1))
+                        .add("nested", builder.array().add(builder.of("v")).build())
+                        .build();
+        assertThat(CommonTestUtils.createCopySerializable(variant)).isEqualTo(variant);
+
+        // a sub-variant is addressed by a position into the value binary of the enclosing document
+        Variant subVariant = variant.getField("nested");
+        assertThat(((BinaryVariant) subVariant).getPos()).isGreaterThan(0);
+        assertThat(CommonTestUtils.createCopySerializable(subVariant)).isEqualTo(subVariant);
     }
 }

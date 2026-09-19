@@ -81,8 +81,10 @@ public class VariantSerializer extends TypeSerializerSingleton<Variant> {
         byte[] value = new byte[valueLength];
         byte[] metaData = new byte[metadataLength];
 
-        source.read(value);
-        source.read(metaData);
+        // readFully, not read: read(byte[]) may legally return a short read, leaving the array
+        // partially filled and the stream desynchronized.
+        source.readFully(value);
+        source.readFully(metaData);
         return new BinaryVariant(value, metaData);
     }
 

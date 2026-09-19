@@ -72,7 +72,8 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         new List[] {inputGates1, inputGates2},
                         Collections.emptyList(),
                         mainMailboxExecutor,
-                        systemTimerService);
+                        systemTimerService,
+                        getRecoveryCheckpointTrigger());
 
         CheckpointedInputGate[] checkpointedInputGates =
                 InputProcessorUtil.createCheckpointedMultipleInputGate(

@@ -105,6 +105,12 @@
             <td>This parameter defines whether the adaptive scheduler prioritizes using the minimum number of <code class="highlighter-rouge">TaskManagers</code> when scheduling tasks.<br />Note, this parameter is suitable if <code class="highlighter-rouge">execution.state-recovery.from-local</code> is not enabled. More details about this configuration are available at <a href="https://issues.apache.org/jira/browse/FLINK-33977">FLINK-33977</a>.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.adaptive-scheduler.rescale-trigger.active-checkpoint.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When enabled, the Adaptive Scheduler actively triggers a checkpoint when resources change and rescaling is desired, rather than waiting for the next periodic checkpoint. This reduces rescaling latency, especially when checkpoint intervals are large. The active trigger respects the configured minimum pause between checkpoints and will not fire if a checkpoint is already in progress or being triggered.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.rescale-trigger.max-checkpoint-failures</h5></td>
             <td style="word-wrap: break-word;">2</td>
             <td>Integer</td>

@@ -60,53 +60,52 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
 
     isNull$0 = _myInputIsNull;
     if (!isNull$0) {
-        builder$1.setLength(0);
-        builder$1.append("[");
-        for (int i$3 = 0; i$3 < _myInput.size(); i$3++) {
-            if (builder$1.length() > 10) {
+        int size$2 = _myInput.size();
+        builder$0.setLength(0);
+        builder$0.append("[");
+        for (int i$3 = 0; i$3 < size$2; i$3++) {
+            if (builder$0.length() > 10) {
                 break;
             }
             if (i$3 != 0) {
-                builder$1.append(", ");
+                builder$0.append(", ");
             }
             int element$4 = -1;
             boolean elementIsNull$5 = _myInput.isNullAt(i$3);
             if (!elementIsNull$5) {
-                element$4 = _myInput.getInt(i$3);
-                isNull$2 = false;
-                if (!isNull$2) {
-                    result$3 = org.apache.flink.table.data.binary.BinaryStringData.fromString("" + element$4);
-                    isNull$2 = result$3 == null;
-                } else {
-                    result$3 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
-                }
-                builder$1.append(result$3);
+            element$4 = _myInput.getInt(i$3);
+            isNull$2 = false;
+            if (!isNull$2) {
+                result$3 = org.apache.flink.table.data.binary.BinaryStringData.fromString("" + element$4);
+                isNull$2 = result$3 == null;
             } else {
-                builder$1.append("NULL");
+                result$3 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
+            }
+            builder$0.append(result$3);
+            } else {
+                builder$0.append("NULL");
             }
         }
-        builder$1.append("]");
-        java.lang.String resultString$2;
-        resultString$2 = builder$1.toString();
-        if (builder$1.length() > 10) {
-            resultString$2 = builder$1.substring(0, java.lang.Math.min(builder$1.length(), 10));
+        builder$0.append("]");
+        java.lang.String resultString$1;
+        if (builder$0.length() > 10) {
+            resultString$1 = builder$0.substring(0, 10);
         } else {
-            if (resultString$2.length() < 10) {
+            resultString$1 = builder$0.toString();
+            if (builder$0.length() < 10) {
                 int padLength$6;
-                padLength$6 = 10 - resultString$2.length();
-                java.lang.StringBuilder sbPadding$7;
-                sbPadding$7 = new java.lang.StringBuilder();
-                for (int i$8 = 0; i$8 < padLength$6; i$8++) {
-                    sbPadding$7.append(" ");
-                }
-                resultString$2 = resultString$2 + sbPadding$7.toString();
+                padLength$6 = 10 - builder$0.length();
+                resultString$1 = resultString$1 + " ".repeat(padLength$6);
             }
         }
-        result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(resultString$2);
+        result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(resultString$1);
         isNull$0 = result$1 == null;
     } else {
         result$1 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
     }
+
+    returnTerm = result$1
+    isNullTerm = isNull$0
 
     */
     @Override
@@ -124,14 +123,16 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
                 className(StringBuilder.class), builderTerm, constructorCall(StringBuilder.class));
 
         final String resultStringTerm = newName(codeGeneratorContext, "resultString");
+        final String sizeTerm = newName(codeGeneratorContext, "size");
         final int length = LogicalTypeChecks.getLength(targetLogicalType);
 
         CastRuleUtils.CodeWriter writer =
                 new CastRuleUtils.CodeWriter()
+                        .declStmt(int.class, sizeTerm, methodCall(inputTerm, "size"))
                         .stmt(methodCall(builderTerm, "setLength", 0))
                         .stmt(methodCall(builderTerm, "append", strLiteral("[")))
                         .forStmt(
-                                methodCall(inputTerm, "size"),
+                                sizeTerm,
                                 (indexTerm, loopBodyWriter) -> {
                                     String elementTerm = newName(codeGeneratorContext, "element");
                                     String elementIsNullTerm =
