@@ -31,6 +31,8 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
+import org.apache.flink.types.variant.Variant;
 
 import org.apache.commons.io.IOUtils;
 
@@ -41,6 +43,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +53,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BINARY;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -60,6 +64,7 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.json;
@@ -84,17 +89,274 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         final List<TestSetSpec> testCases = new ArrayList<>();
         testCases.add(jsonExistsSpec());
         testCases.add(jsonValueSpec());
+        testCases.add(jsonLengthSpec());
         testCases.addAll(isJsonSpec());
         testCases.addAll(jsonQuerySpec());
         testCases.addAll(jsonStringSpec());
+        testCases.addAll(parseJsonSpec());
         testCases.addAll(jsonObjectSpec());
         testCases.addAll(jsonSpec());
         testCases.addAll(jsonArraySpec());
+        testCases.addAll(jsonTypeSpec());
         testCases.addAll(jsonQuoteSpec());
         testCases.addAll(jsonUnquoteSpecWithValidInput());
         testCases.addAll(jsonUnquoteSpecWithInvalidInput());
         testCases.addAll(jsonLocalRefReuseSpec());
         return testCases.stream();
+    }
+
+    private static TestSetSpec jsonLengthSpec() {
+        final String jsonValue = getJsonFromResource("/json/json-exists.json");
+
+        return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_LENGTH)
+                .onFieldsWithData(
+                        jsonValue,
+                        "{\"a\":1,\"b\":2}",
+                        "[1,2,3]",
+                        "\"abc\"",
+                        "null",
+                        "{",
+                        ((String) null),
+                        "$",
+                        "{\"a\":[true, false, null]}",
+                        "{}",
+                        "[]",
+                        "{\"lax\": {\"strict\": 2}, \"strict value\": 1}")
+                .andDataTypes(
+                        STRING(), STRING(), STRING(), STRING(), STRING(), STRING(), STRING(),
+                        STRING(), STRING(), STRING(), STRING(), STRING())
+                // path exists but resolves to a JSON null literal -> scalar, length 1
+                .testResult(
+                        $("f8").jsonLength("$.a[2]"),
+                        "JSON_LENGTH(f8, '$.a[2]')",
+                        1,
+                        INT().nullable())
+                // missing paths on the same document -> NULL
+                .testResult(
+                        $("f8").jsonLength("$.a[9]"),
+                        "JSON_LENGTH(f8, '$.a[9]')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f8").jsonLength("$.b"), "JSON_LENGTH(f8, '$.b')", null, INT().nullable())
+
+                // whole document is a JSON null literal: the root path matches it as a scalar,
+                // anything else does not exist
+                .testResult($("f4").jsonLength("$"), "JSON_LENGTH(f4, '$')", 1, INT().nullable())
+                .testResult(
+                        $("f4").jsonLength("$.a"), "JSON_LENGTH(f4, '$.a')", null, INT().nullable())
+                .testResult(
+                        $("f4").jsonLength("$[0]"),
+                        "JSON_LENGTH(f4, '$[0]')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f4").jsonLength("$.*"), "JSON_LENGTH(f4, '$.*')", null, INT().nullable())
+
+                // malformed, blank and empty paths -> NULL
+                .testResult(
+                        $("f8").jsonLength("$["), "JSON_LENGTH(f8, '$[')", null, INT().nullable())
+                .testResult(
+                        $("f8").jsonLength("$.[]"),
+                        "JSON_LENGTH(f8, '$.[]')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f8").jsonLength("   "), "JSON_LENGTH(f8, '   ')", null, INT().nullable())
+                .testResult($("f8").jsonLength(""), "JSON_LENGTH(f8, '')", null, INT().nullable())
+
+                // the root path on a scalar document behaves like the no-path overload
+                .testResult($("f3").jsonLength("$"), "JSON_LENGTH(f3, '$')", 1, INT().nullable())
+
+                // SQL NULL input
+                .testResult($("f6").jsonLength(), "JSON_LENGTH(f6)", null, INT().nullable())
+
+                // whole-document length from the existing resource:
+                .testResult($("f0").jsonLength(), "JSON_LENGTH(f0)", 3, INT().nullable())
+
+                // basic shapes
+                .testResult($("f1").jsonLength(), "JSON_LENGTH(f1)", 2, INT().nullable())
+                .testResult($("f2").jsonLength(), "JSON_LENGTH(f2)", 3, INT().nullable())
+                .testResult($("f3").jsonLength(), "JSON_LENGTH(f3)", 1, INT().nullable())
+
+                // empty containers -> 0
+                .testResult($("f9").jsonLength(), "JSON_LENGTH(f9)", 0, INT().nullable())
+                .testResult($("f10").jsonLength(), "JSON_LENGTH(f10)", 0, INT().nullable())
+                .testResult($("f9").jsonLength("$"), "JSON_LENGTH(f9, '$')", 0, INT().nullable())
+                .testResult($("f10").jsonLength("$"), "JSON_LENGTH(f10, '$')", 0, INT().nullable())
+                .testResult($("f4").jsonLength(), "JSON_LENGTH(f4)", 1, INT().nullable())
+
+                // (valid) paths
+                .testResult($("f0").jsonLength("$"), "JSON_LENGTH(f0, '$')", 3, INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.type"),
+                        "JSON_LENGTH(f0, '$.type')",
+                        1,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.author"),
+                        "JSON_LENGTH(f0, '$.author')",
+                        2,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.author.address"),
+                        "JSON_LENGTH(f0, '$.author.address')",
+                        2,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.tags"),
+                        "JSON_LENGTH(f0, '$.metadata.tags')",
+                        3,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.references"),
+                        "JSON_LENGTH(f0, '$.metadata.references')",
+                        1,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.references[0]"),
+                        "JSON_LENGTH(f0, '$.metadata.references[0]')",
+                        2,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.references[0].url"),
+                        "JSON_LENGTH(f0, '$.metadata.references[0].url')",
+                        1,
+                        INT().nullable())
+                // (invalid) path
+                .testResult(
+                        $("f0").jsonLength("$.missing"),
+                        "JSON_LENGTH(f0, '$.missing')",
+                        null,
+                        INT().nullable())
+                .testResult($("f7").jsonLength(), "JSON_LENGTH(f7)", null, INT().nullable())
+
+                // invalid JSON -> NULL
+                .testResult($("f5").jsonLength(), "JSON_LENGTH(f5)", null, INT().nullable())
+
+                // literal (NOT NULL) arguments must still yield a nullable result
+                .testResult(
+                        lit("{\"a\":[1,2,3]}").jsonLength("$.b"),
+                        "JSON_LENGTH('{\"a\":[1,2,3]}', '$.b')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        lit("{\"a\":[1,2,3]}").jsonLength("$.a"),
+                        "JSON_LENGTH('{\"a\":[1,2,3]}', '$.a')",
+                        3,
+                        INT().nullable())
+
+                // missing path: neither mode throws -> both yield NULL
+                .testResult(
+                        $("f0").jsonLength("$.author.nope"),
+                        "JSON_LENGTH(f0, '$.author.nope')",
+                        null,
+                        INT().nullable())
+
+                // WILDCARDS matching MULTIPLE nodes -> NULL
+                .testResult(
+                        $("f0").parseJson().jsonLength("$.*"),
+                        "JSON_LENGTH(PARSE_JSON(f0), '$.*')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.*"), "JSON_LENGTH(f0, '$.*')", null, INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.author.*"),
+                        "JSON_LENGTH(f0, '$.author.*')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.author.address.*"),
+                        "JSON_LENGTH(f0, '$.author.address.*')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.tags[*]"),
+                        "JSON_LENGTH(f0, '$.metadata.tags[*]')",
+                        null,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$..name"),
+                        "JSON_LENGTH(f0, '$..name')",
+                        null,
+                        INT().nullable())
+
+                // deep-scan `$..url` -> single scalar
+                .testResult(
+                        $("f0").jsonLength("$..url"),
+                        "JSON_LENGTH(f0, '$..url')",
+                        1,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$..address"),
+                        "JSON_LENGTH(f0, '$..address')",
+                        2,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.metadata.references[*]"),
+                        "JSON_LENGTH(f0, '$.metadata.references[*]')",
+                        2,
+                        INT().nullable())
+                // `$.metadata.references[*].name` -> single scalar)
+                .testResult(
+                        $("f0").jsonLength("$.metadata.references[*].name"),
+                        "JSON_LENGTH(f0, '$.metadata.references[*].name')",
+                        1,
+                        INT().nullable())
+                // JSON_LENGTH variant support (runtime path, no constant folding)
+                .testResult(
+                        $("f0").parseJson().jsonLength(),
+                        "JSON_LENGTH(PARSE_JSON(f0))",
+                        3,
+                        INT().nullable())
+                .testResult(
+                        lit("[1,2,3,4,5]").parseJson().jsonLength(),
+                        "JSON_LENGTH(PARSE_JSON('[1,2,3,4,5]'))",
+                        5,
+                        INT().nullable())
+                .testResult(
+                        lit("\"hello\"").parseJson().jsonLength(),
+                        "JSON_LENGTH(PARSE_JSON('\"hello\"'))",
+                        1,
+                        INT().nullable())
+                .testResult(
+                        $("f0").parseJson().jsonLength("$.metadata.tags"),
+                        "JSON_LENGTH(PARSE_JSON(f0), '$.metadata.tags')",
+                        3,
+                        INT().nullable())
+                .testResult(
+                        $("f0").jsonLength("$.items[*]"),
+                        "JSON_LENGTH(f0, '$.items[*]')",
+                        null,
+                        INT().nullable())
+
+                // lax/strict path modes are not supported and are rejected at planning time
+                .testSqlValidationError(
+                        "JSON_LENGTH(f0, 'strict $.type')",
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'strict $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.")
+                .testSqlValidationError(
+                        "JSON_LENGTH(f0, 'lax $.type')",
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'lax $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.")
+                .testTableApiValidationError(
+                        $("f0").jsonLength("strict $.type"),
+                        "JSON_LENGTH does not support the 'lax'/'strict' path mode prefix "
+                                + "(got: 'strict $.type'). Use a plain path such as '$.a.b'. "
+                                + "To check path existence or handle invalid input, use "
+                                + "JSON_EXISTS or IS JSON.")
+                .testResult(
+                        $("f11").jsonLength("lax"), "JSON_LENGTH(f11, 'lax')", 1, INT().nullable())
+                .testResult(
+                        $("f11").jsonLength("$[\"strict value\"]"),
+                        "JSON_LENGTH(f11, '$[\"strict value\"]')",
+                        1,
+                        INT().nullable());
     }
 
     private static TestSetSpec jsonExistsSpec() {
@@ -174,14 +436,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testTableApiRuntimeError(
                         $("f0").jsonExists("strict $.invalid", JsonExistsOnError.ERROR),
                         TableRuntimeException.class,
-                        "No results for path: $['invalid']");
+                        "No results for path: $['invalid']")
+                .testSqlResult("JSON_EXISTS(f0, '$.items[*]')", false, BOOLEAN())
+                .testSqlResult("JSON_EXISTS(f0, '$.metadata.tags[*]')", true, BOOLEAN());
     }
 
     private static TestSetSpec jsonValueSpec() {
         final String jsonValue = getJsonFromResource("/json/json-value.json");
         return TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_VALUE)
-                .onFieldsWithData(jsonValue)
-                .andDataTypes(STRING())
+                .onFieldsWithData(
+                        jsonValue, jsonValue.getBytes(StandardCharsets.UTF_8), Row.of(jsonValue))
+                .andDataTypes(STRING(), BYTES(), ROW(FIELD("json", STRING())))
 
                 // NULL and invalid types
                 .testResult(
@@ -298,7 +563,14 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlResult(
                         "JSON_VALUE(f0, '$.type'), JSON_VALUE(f0, '$.age')",
                         List.of("account", "42"),
-                        List.of(STRING(), STRING()));
+                        List.of(STRING(), STRING()))
+                .testSqlResult(
+                        "JSON_VALUE(f1, '$.type'), "
+                                + "JSON_VALUE(f2, '$.type'), "
+                                + "JSON_VALUE(CAST(NULL AS INT), '$.type'), "
+                                + "JSON_VALUE(CAST(NULL AS DATE), '$.type')",
+                        Arrays.asList(null, null, null, null),
+                        List.of(STRING(), STRING(), STRING(), STRING()));
     }
 
     private static List<TestSetSpec> isJsonSpec() {
@@ -316,59 +588,97 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData((String) null)
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN().notNull()),
+                        // IS [NOT] JSON follows SQL three-valued logic and returns NULL for a NULL
+                        // input, see FLINK-39943. This holds for every JSON type and for both the
+                        // IS JSON and IS NOT JSON forms.
+                        .testResult($("f0").isJson(), "f0 IS JSON", null, BOOLEAN())
+                        .testResult($("f0").isJson().not(), "f0 IS NOT JSON", null, BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE), "f0 IS JSON VALUE", null, BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.VALUE).not(),
+                                "f0 IS NOT JSON VALUE",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.SCALAR),
+                                "f0 IS JSON SCALAR",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.SCALAR).not(),
+                                "f0 IS NOT JSON SCALAR",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.ARRAY), "f0 IS JSON ARRAY", null, BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.ARRAY).not(),
+                                "f0 IS NOT JSON ARRAY",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.OBJECT),
+                                "f0 IS JSON OBJECT",
+                                null,
+                                BOOLEAN())
+                        .testResult(
+                                $("f0").isJson(JsonType.OBJECT).not(),
+                                "f0 IS NOT JSON OBJECT",
+                                null,
+                                BOOLEAN()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("a")
                         .andDataTypes(STRING())
+                        .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN())
+                        .testResult($("f0").isJson().not(), "f0 IS NOT JSON", true, BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
+                        // A non-nullable input yields a non-nullable BOOLEAN result.
+                        .onFieldsWithData("a")
+                        .andDataTypes(STRING().notNull())
                         .testResult($("f0").isJson(), "f0 IS JSON", false, BOOLEAN().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("\"a\"")
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN().notNull())
+                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN())
                         .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                true,
-                                BOOLEAN().notNull())
+                                $("f0").isJson(JsonType.VALUE), "f0 IS JSON VALUE", true, BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.SCALAR),
                                 "f0 IS JSON SCALAR",
                                 true,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.ARRAY),
                                 "f0 IS JSON ARRAY",
                                 false,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.OBJECT),
                                 "f0 IS JSON OBJECT",
                                 false,
-                                BOOLEAN().notNull()),
+                                BOOLEAN()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.IS_JSON)
                         .onFieldsWithData("{}")
                         .andDataTypes(STRING())
-                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN().notNull())
+                        .testResult($("f0").isJson(), "f0 IS JSON", true, BOOLEAN())
                         .testResult(
-                                $("f0").isJson(JsonType.VALUE),
-                                "f0 IS JSON VALUE",
-                                true,
-                                BOOLEAN().notNull())
+                                $("f0").isJson(JsonType.VALUE), "f0 IS JSON VALUE", true, BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.SCALAR),
                                 "f0 IS JSON SCALAR",
                                 false,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.ARRAY),
                                 "f0 IS JSON ARRAY",
                                 false,
-                                BOOLEAN().notNull())
+                                BOOLEAN())
                         .testResult(
                                 $("f0").isJson(JsonType.OBJECT),
                                 "f0 IS JSON OBJECT",
                                 true,
-                                BOOLEAN().notNull()));
+                                BOOLEAN()));
     }
 
     private static List<TestSetSpec> jsonQuerySpec() {
@@ -701,7 +1011,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "{\"f0\":[{\"f0\":1,\"f1\":2}]}",
                                 STRING().notNull())
                         .testResult(
-                                jsonString(call("PARSE_JSON", $("f14"))),
+                                jsonString($("f14").parseJson()),
                                 "JSON_STRING(PARSE_JSON('{\"key\":\"value\"}'))",
                                 "{\"key\":\"value\"}",
                                 STRING().notNull()),
@@ -720,6 +1030,96 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_STRING(f0)",
                                 "{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}",
                                 STRING().notNull()));
+    }
+
+    private static List<TestSetSpec> parseJsonSpec() {
+        // The bulk of parsing behavior is covered by BinaryVariantInternalBuilderTest.
+        return List.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.PARSE_JSON)
+                        .onFieldsWithData("{\"a\":1,\"b\":[2,3]}", "1e400", "{\"a\":1,\"a\":2}")
+                        .andDataTypes(STRING().notNull(), STRING().notNull(), STRING().notNull())
+                        .testResult(
+                                jsonString($("f0").parseJson()),
+                                "JSON_STRING(PARSE_JSON(f0))",
+                                "{\"a\":1,\"b\":[2,3]}",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString(nullOf(STRING()).parseJson()),
+                                "JSON_STRING(PARSE_JSON(CAST(NULL AS STRING)))",
+                                null,
+                                STRING().nullable())
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f1)",
+                                TableRuntimeException.class,
+                                "Failed to parse json string")
+                        .testTableApiRuntimeError(
+                                $("f1").parseJson(),
+                                TableRuntimeException.class,
+                                "Failed to parse json string")
+                        // allowDuplicateKeys: false (the default) rejects duplicate keys
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f2, false)",
+                                TableRuntimeException.class,
+                                "Failed to parse json string")
+                        .testTableApiRuntimeError(
+                                $("f2").parseJson(false),
+                                TableRuntimeException.class,
+                                "Failed to parse json string")
+                        // allowDuplicateKeys: true keeps the last occurrence of the duplicated key
+                        .testResult(
+                                jsonString($("f2").parseJson(true)),
+                                "JSON_STRING(PARSE_JSON(f2, true))",
+                                "{\"a\":2}",
+                                STRING().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TRY_PARSE_JSON)
+                        .onFieldsWithData("{\"a\":1}", "1e400", "{\"a\":1,\"a\":2}")
+                        .andDataTypes(STRING().notNull(), STRING().notNull(), STRING().notNull())
+                        .testResult(
+                                jsonString($("f0").tryParseJson()),
+                                "JSON_STRING(TRY_PARSE_JSON(f0))",
+                                "{\"a\":1}",
+                                STRING())
+                        .testResult(
+                                jsonString($("f1").tryParseJson()),
+                                "JSON_STRING(TRY_PARSE_JSON(f1))",
+                                null,
+                                STRING())
+                        // allowDuplicateKeys: false (the default) yields NULL on duplicate keys
+                        .testResult(
+                                jsonString($("f2").tryParseJson(false)),
+                                "JSON_STRING(TRY_PARSE_JSON(f2, false))",
+                                null,
+                                STRING())
+                        // allowDuplicateKeys: true keeps the last occurrence of the duplicated key
+                        .testResult(
+                                jsonString($("f2").tryParseJson(true)),
+                                "JSON_STRING(TRY_PARSE_JSON(f2, true))",
+                                "{\"a\":2}",
+                                STRING()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.PARSE_JSON,
+                                "VARIANT expression preceding another expression in a"
+                                        + " constant-folded projection")
+                        .onFieldsWithData("{\"a\": 1}")
+                        .andDataTypes(STRING().notNull())
+                        .withConstantFoldingEnabled()
+                        .testResult(
+                                resultSpec(
+                                        $("f0").parseJson(),
+                                        "PARSE_JSON(f0)",
+                                        getVariantForJson("{\"a\": 1}"),
+                                        VARIANT().notNull(),
+                                        VARIANT().notNull()),
+                                resultSpec(
+                                        jsonString($("f0").parseJson()),
+                                        "JSON_STRING(PARSE_JSON(f0))",
+                                        "{\"a\":1}",
+                                        STRING().notNull(),
+                                        STRING().notNull()))
+                        .testSqlResult(
+                                "PARSE_JSON(f0), JSON_STRING(PARSE_JSON(f0))",
+                                List.of(getVariantForJson("{\"a\": 1}"), "{\"a\":1}"),
+                                List.of(VARIANT().notNull(), STRING().notNull())));
     }
 
     private static List<TestSetSpec> jsonSpec() {
@@ -1107,6 +1507,155 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_OBJECT(KEY 'testRow' VALUE f0 NULL ON NULL)",
                                 "{\"testRow\":{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}}",
                                 STRING().notNull()));
+    }
+
+    private static List<TestSetSpec> jsonTypeSpec() {
+        return List.of(
+                // One flag per JSON type.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData(
+                                "{\"a\": true}", "[1, 2]", "true", "\"Hello, World!\"", "66")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType(), "JSON_TYPE(f0)", "object", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "array", STRING().nullable())
+                        .testResult(
+                                $("f2").jsonType(), "JSON_TYPE(f2)", "boolean", STRING().nullable())
+                        .testResult(
+                                $("f3").jsonType(), "JSON_TYPE(f3)", "string", STRING().nullable())
+                        .testResult(
+                                $("f4").jsonType(), "JSON_TYPE(f4)", "number", STRING().nullable()),
+
+                // The flag follows the JSON grammar alone: a number has no width, and a quoted
+                // value is a string whatever it spells.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData(
+                                "11.1", "99999999999999999999", "\"2015-01-01\"", "\"66\"")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType(), "JSON_TYPE(f0)", "number", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "number", STRING().nullable())
+                        .testResult(
+                                $("f2").jsonType(), "JSON_TYPE(f2)", "string", STRING().nullable())
+                        .testResult(
+                                $("f3").jsonType(), "JSON_TYPE(f3)", "string", STRING().nullable()),
+
+                // A SQL NULL input and invalid JSON both yield SQL NULL; the JSON null literal
+                // returns the string 'null'.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData("68s", "null")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                nullOf(STRING()).jsonType(),
+                                "JSON_TYPE(CAST(NULL AS STRING))",
+                                null,
+                                STRING().nullable())
+                        .testResult($("f0").jsonType(), "JSON_TYPE(f0)", null, STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType(), "JSON_TYPE(f1)", "null", STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType("$"),
+                                "JSON_TYPE(f1, '$')",
+                                "null",
+                                STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType("$.a"),
+                                "JSON_TYPE(f1, '$.a')",
+                                null,
+                                STRING().nullable()),
+
+                // A path reads the type at that location instead of the root, and yields NULL
+                // unless it resolves to exactly one value. A wildcard path is indefinite: it reads
+                // back as a list, so it has a type only for a single match.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData("{\"a\": [1, 2]}", "{\"a\": [1]}")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                $("f0").jsonType("$.a"),
+                                "JSON_TYPE(f0, '$.a')",
+                                "array",
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonType("$.a[0]"),
+                                "JSON_TYPE(f0, '$.a[0]')",
+                                "number",
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonType("$.b"),
+                                "JSON_TYPE(f0, '$.b')",
+                                null,
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonType("$.["),
+                                "JSON_TYPE(f0, '$.[')",
+                                null,
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonType(""),
+                                "JSON_TYPE(f0, '')",
+                                null,
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonType("$.a[*]"),
+                                "JSON_TYPE(f0, '$.a[*]')",
+                                null,
+                                STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType("$.a[*]"),
+                                "JSON_TYPE(f1, '$.a[*]')",
+                                "number",
+                                STRING().nullable()),
+
+                // The 'lax'/'strict' path mode prefix is rejected at planning time, but a field of
+                // that name is addressed like any other.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData(
+                                "{\"a\": 1}", "{\"lax\": {\"strict\": 2}, \"strict value\": 1}")
+                        .andDataTypes(STRING(), STRING())
+                        .testSqlValidationError(
+                                "JSON_TYPE(f0, 'lax $.a')",
+                                "JSON_TYPE does not support the 'lax'/'strict' path mode prefix "
+                                        + "(got: 'lax $.a'). Use a plain path such as '$.a.b'. To "
+                                        + "check path existence or handle invalid input, use "
+                                        + "JSON_EXISTS or IS JSON.")
+                        .testTableApiValidationError(
+                                $("f0").jsonType("strict $.a"),
+                                "JSON_TYPE does not support the 'lax'/'strict' path mode prefix "
+                                        + "(got: 'strict $.a'). Use a plain path such as '$.a.b'. "
+                                        + "To check path existence or handle invalid input, use "
+                                        + "JSON_EXISTS or IS JSON.")
+                        .testResult(
+                                $("f1").jsonType("lax"),
+                                "JSON_TYPE(f1, 'lax')",
+                                "object",
+                                STRING().nullable())
+                        .testResult(
+                                $("f1").jsonType("$[\"strict value\"]"),
+                                "JSON_TYPE(f1, '$[\"strict value\"]')",
+                                "number",
+                                STRING().nullable()),
+
+                // Only CHARACTER_STRING casts implicitly to VARCHAR, so a non-string is rejected
+                // rather than coerced. A path argument must be a literal.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_TYPE)
+                        .onFieldsWithData(1, "{}")
+                        .andDataTypes(INT(), STRING())
+                        .testTableApiValidationError(
+                                $("f0").jsonType(),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "JSON_TYPE(<CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "JSON_TYPE(f0)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "JSON_TYPE(<CHARACTER_STRING>)")
+                        .testSqlValidationError("JSON_TYPE(f1, f1)", "Invalid input arguments.")
+                        .testSqlValidationError(
+                                "JSON_TYPE()",
+                                "No match found for function signature JSON_TYPE().\n"
+                                        + "Supported signatures are:\n"
+                                        + "JSON_TYPE(<CHARACTER_STRING>)"));
     }
 
     private static List<TestSetSpec> jsonQuoteSpec() {
@@ -1774,6 +2323,14 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
 
         try {
             return IOUtils.toString(jsonResource, Charset.defaultCharset());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Variant getVariantForJson(String json) {
+        try {
+            return BinaryVariantInternalBuilder.parseJson(json, false);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

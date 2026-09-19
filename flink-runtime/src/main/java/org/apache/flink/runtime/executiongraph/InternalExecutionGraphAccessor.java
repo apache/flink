@@ -48,6 +48,8 @@ public interface InternalExecutionGraphAccessor {
 
     JobID getJobID();
 
+    String getJobName();
+
     BlobWriter getBlobWriter();
 
     /**

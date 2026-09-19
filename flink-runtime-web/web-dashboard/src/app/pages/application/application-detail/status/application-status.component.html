@@ -20,7 +20,10 @@
   <div class="operate-action">
     <span *ngIf="statusTips">{{ statusTips }}</span>
     <ng-container *ngIf="!statusTips">
-      <a
+      <button
+        nz-button
+        nzDanger
+        nzSize="small"
         nz-popconfirm
         nzPopconfirmTitle="Cancel Application?"
         nzOkText="Yes"
@@ -32,7 +35,7 @@
         "
       >
         Cancel Application
-      </a>
+      </button>
     </ng-container>
   </div>
 </ng-template>

@@ -133,38 +133,8 @@ public class SimpleCalciteSchema extends CalciteSchema {
     }
 
     @Override
-    protected @Nullable CalciteSchema getImplicitSubSchema(
-            String schemaName, boolean caseSensitive) {
-        // Check implicit schemas.
-        final String schemaName2 =
-                caseSensitive
-                        ? schemaName
-                        : caseInsensitiveLookup(schema.getSubSchemaNames(), schemaName);
-        if (schemaName2 == null) {
-            return null;
-        }
-        final Schema s = schema.getSubSchema(schemaName2);
-        if (s == null) {
-            return null;
-        }
-        return new SimpleCalciteSchema(this, s, schemaName2);
-    }
-
-    @Override
-    protected @Nullable TableEntry getImplicitTable(String tableName, boolean caseSensitive) {
-        // Check implicit tables.
-        final String tableName2 =
-                caseSensitive
-                        ? tableName
-                        : caseInsensitiveLookup(schema.getTableNames(), tableName);
-        if (tableName2 == null) {
-            return null;
-        }
-        final Table table = schema.getTable(tableName2);
-        if (table == null) {
-            return null;
-        }
-        return tableEntry(tableName2, table);
+    protected CalciteSchema createSubSchema(Schema schema, String name) {
+        return new SimpleCalciteSchema(this, schema, name);
     }
 
     // ----- FLINK MODIFICATION START -----
@@ -199,28 +169,6 @@ public class SimpleCalciteSchema extends CalciteSchema {
             return null;
         }
         return typeEntry(name2, type);
-    }
-
-    @Override
-    protected void addImplicitSubSchemaToBuilder(
-            ImmutableSortedMap.Builder<String, CalciteSchema> builder) {
-        ImmutableSortedMap<String, CalciteSchema> explicitSubSchemas = builder.build();
-        for (String schemaName : schema.getSubSchemaNames()) {
-            if (explicitSubSchemas.containsKey(schemaName)) {
-                // explicit subschema wins.
-                continue;
-            }
-            Schema s = schema.getSubSchema(schemaName);
-            if (s != null) {
-                CalciteSchema calciteSchema = new SimpleCalciteSchema(this, s, schemaName);
-                builder.put(schemaName, calciteSchema);
-            }
-        }
-    }
-
-    @Override
-    protected void addImplicitTableToBuilder(ImmutableSortedSet.Builder<String> builder) {
-        builder.addAll(schema.getTableNames());
     }
 
     @Override

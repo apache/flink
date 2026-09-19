@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.util.Preconditions;
 
@@ -38,5 +39,10 @@ public abstract class RichSourceReaderContext implements SourceReaderContext {
     public RuntimeContext getRuntimeContext() {
         Preconditions.checkNotNull(runtimeContext, "The runtime context must not be null.");
         return runtimeContext;
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return getRuntimeContext().getJobInfo();
     }
 }

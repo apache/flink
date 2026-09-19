@@ -256,7 +256,9 @@ advanced type helper functions
     Expression.array_min
     Expression.array_sort
     Expression.array_union
+    Expression.map_contains_key
     Expression.map_entries
+    Expression.map_from_entries
     Expression.map_keys
     Expression.map_union
     Expression.map_values
@@ -326,6 +328,8 @@ JSON functions
     Expression.json_query
     Expression.json_quote
     Expression.json_unquote
+    Expression.json_length
+    Expression.json_type
 
 value modification functions
 ----------------------------

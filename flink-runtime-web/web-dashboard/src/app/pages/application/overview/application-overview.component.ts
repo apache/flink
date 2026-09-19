@@ -37,7 +37,10 @@ export class ApplicationOverviewComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly applicationLocalService: ApplicationLocalService, private router: Router) {}
+  constructor(
+    private readonly applicationLocalService: ApplicationLocalService,
+    private router: Router
+  ) {}
 
   public ngOnInit(): void {
     this.jobData$ = this.applicationLocalService.applicationDetailChanges().pipe(

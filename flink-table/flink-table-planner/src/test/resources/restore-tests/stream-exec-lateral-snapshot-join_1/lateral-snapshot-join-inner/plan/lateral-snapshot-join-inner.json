@@ -1,0 +1,469 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`probe`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "pk",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "pv",
+              "dataType" : "INT"
+            }, {
+              "name" : "pts_str",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "pts",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$TO_TIMESTAMP$1",
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 2,
+                    "type" : "VARCHAR(2147483647)"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "TO_TIMESTAMP(`pts_str`)"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "pts",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 3,
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`pts`"
+              }
+            } ]
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "WatermarkPushDown",
+        "watermarkExpr" : {
+          "kind" : "CALL",
+          "internalName" : "$TO_TIMESTAMP$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 2,
+            "type" : "VARCHAR(2147483647)"
+          } ],
+          "type" : "TIMESTAMP(3)"
+        },
+        "rowtimeExpr" : {
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$REINTERPRET$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$TO_TIMESTAMP$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 2,
+              "type" : "VARCHAR(2147483647)"
+            } ],
+            "type" : "TIMESTAMP(3)"
+          } ],
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        },
+        "idleTimeoutMillis" : -1,
+        "producedType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `pts_str` VARCHAR(2147483647)> NOT NULL",
+        "watermarkParams" : {
+          "emitStrategy" : "ON_EVENT",
+          "alignGroupName" : null,
+          "alignMaxDrift" : "PT0S",
+          "alignUpdateInterval" : "PT1S",
+          "sourceIdleTimeout" : -1
+        }
+      } ]
+    },
+    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `pts_str` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, probe, watermark=[TO_TIMESTAMP(pts_str)], watermarkEmitStrategy=[on-event]]], fields=[pk, pv, pts_str])"
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT>",
+    "description" : "Calc(select=[pk, pv])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT>",
+    "description" : "Exchange(distribution=[hash[pk]])"
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`b`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "bk",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "bv",
+              "dataType" : "INT"
+            }, {
+              "name" : "bts_str",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "bts",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$TO_TIMESTAMP$1",
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 2,
+                    "type" : "VARCHAR(2147483647)"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "TO_TIMESTAMP(`bts_str`)"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "bts",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 3,
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`bts`"
+              }
+            } ]
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "WatermarkPushDown",
+        "watermarkExpr" : {
+          "kind" : "CALL",
+          "internalName" : "$TO_TIMESTAMP$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 2,
+            "type" : "VARCHAR(2147483647)"
+          } ],
+          "type" : "TIMESTAMP(3)"
+        },
+        "rowtimeExpr" : {
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$REINTERPRET$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$TO_TIMESTAMP$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 2,
+              "type" : "VARCHAR(2147483647)"
+            } ],
+            "type" : "TIMESTAMP(3)"
+          } ],
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        },
+        "idleTimeoutMillis" : -1,
+        "producedType" : "ROW<`bk` VARCHAR(2147483647), `bv` INT, `bts_str` VARCHAR(2147483647)> NOT NULL",
+        "watermarkParams" : {
+          "emitStrategy" : "ON_EVENT",
+          "alignGroupName" : null,
+          "alignMaxDrift" : "PT0S",
+          "alignUpdateInterval" : "PT1S",
+          "sourceIdleTimeout" : -1
+        }
+      } ]
+    },
+    "outputType" : "ROW<`bk` VARCHAR(2147483647), `bv` INT, `bts_str` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, b, watermark=[TO_TIMESTAMP(bts_str)], watermarkEmitStrategy=[on-event]]], fields=[bk, bv, bts_str])"
+  }, {
+    "id" : 5,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$REINTERPRET$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "internalName" : "$TO_TIMESTAMP$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "TIMESTAMP(3)"
+      } ],
+      "type" : {
+        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+        "precision" : 3,
+        "kind" : "ROWTIME"
+      }
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "bk",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "bv",
+        "fieldType" : "INT"
+      }, {
+        "name" : "bts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Calc(select=[bk, bv, Reinterpret(TO_TIMESTAMP(bts_str)) AS bts])"
+  }, {
+    "id" : 6,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "bk",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "bv",
+        "fieldType" : "INT"
+      }, {
+        "name" : "bts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[bk]])"
+  }, {
+    "id" : 7,
+    "type" : "stream-exec-lateral-snapshot-join_1",
+    "joinSpec" : {
+      "joinType" : "INNER",
+      "leftKeys" : [ 0 ],
+      "rightKeys" : [ 0 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : null
+    },
+    "rightTimeAttributeIndex" : 2,
+    "loadCompletedCondition" : "user_time",
+    "loadCompletedTime" : 1577836803000,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `bk` VARCHAR(2147483647), `bv` INT, `bts` TIMESTAMP(3)>",
+    "description" : "LateralSnapshotJoin(joinType=[InnerJoin], where=[(pk = bk)], select=[pk, pv, bk, bv, bts], loadCompletedCondition=[user_time], loadCompletedTime=[1577836803000])"
+  }, {
+    "id" : 8,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "INT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `bk` VARCHAR(2147483647), `bv` INT>",
+    "description" : "Calc(select=[pk, pv, bk, bv])"
+  }, {
+    "id" : 9,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "pk",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "pv",
+              "dataType" : "INT"
+            }, {
+              "name" : "bk",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "bv",
+              "dataType" : "INT"
+            } ]
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "upsertMaterializeStrategy" : "VALUE",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`pk` VARCHAR(2147483647), `pv` INT, `bk` VARCHAR(2147483647), `bv` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[pk, pv, bk, bv])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

@@ -148,30 +148,40 @@ public class SecurityOptions {
             key("security.delegation.tokens.enabled")
                     .booleanType()
                     .defaultValue(true)
-                    .withDeprecatedKeys("security.kerberos.fetch.delegation-token")
                     .withDescription(
                             "Indicates whether to start delegation tokens system for external services.");
 
     @Documentation.Section(value = Documentation.Sections.SECURITY_DELEGATION_TOKEN, position = 2)
-    public static final ConfigOption<Duration> DELEGATION_TOKENS_RENEWAL_RETRY_BACKOFF =
-            key("security.delegation.tokens.renewal.retry.backoff")
+    public static final ConfigOption<Duration> DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF =
+            key("security.delegation.tokens.renewal.retry.initial.backoff")
                     .durationType()
-                    .defaultValue(Duration.ofHours(1))
-                    .withDeprecatedKeys("security.kerberos.tokens.renewal.retry.backoff")
+                    .defaultValue(Duration.ofSeconds(10))
                     .withDescription(
-                            "The time period how long to wait before retrying to obtain new delegation tokens after a failure.");
+                            "Initial backoff time when retrying to obtain delegation tokens after a failure. "
+                                    + "Doubles on each subsequent failure up to "
+                                    + "security.delegation.tokens.renewal.retry.max.backoff.");
 
     @Documentation.Section(value = Documentation.Sections.SECURITY_DELEGATION_TOKEN, position = 3)
+    public static final ConfigOption<Duration> DELEGATION_TOKENS_RENEWAL_RETRY_MAX_BACKOFF =
+            key("security.delegation.tokens.renewal.retry.max.backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(5))
+                    .withDeprecatedKeys("security.delegation.tokens.renewal.retry.backoff")
+                    .withDescription(
+                            "Maximum backoff time between retries when obtaining delegation tokens fails. "
+                                    + "Retry delays start at security.delegation.tokens.renewal.retry.initial.backoff "
+                                    + "and double on each failure up to this cap.");
+
+    @Documentation.Section(value = Documentation.Sections.SECURITY_DELEGATION_TOKEN, position = 4)
     public static final ConfigOption<Double> DELEGATION_TOKENS_RENEWAL_TIME_RATIO =
             key("security.delegation.tokens.renewal.time-ratio")
                     .doubleType()
                     .defaultValue(0.75)
-                    .withDeprecatedKeys("security.kerberos.tokens.renewal.time-ratio")
                     .withDescription(
                             "Ratio of the tokens's expiration time when new credentials should be re-obtained.");
 
     @Documentation.SuffixOption(DELEGATION_TOKEN_PROVIDER_PREFIX)
-    @Documentation.Section(value = Documentation.Sections.SECURITY_DELEGATION_TOKEN, position = 4)
+    @Documentation.Section(value = Documentation.Sections.SECURITY_DELEGATION_TOKEN, position = 5)
     public static final ConfigOption<Boolean> DELEGATION_TOKEN_PROVIDER_ENABLED =
             key("enabled")
                     .booleanType()

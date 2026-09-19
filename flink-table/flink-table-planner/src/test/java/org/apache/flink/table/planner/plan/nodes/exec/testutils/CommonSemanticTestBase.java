@@ -22,6 +22,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesModelFactory;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.test.program.ConfigOptionTestStep;
@@ -192,6 +193,7 @@ public abstract class CommonSemanticTestBase implements TableTestProgramRunner {
         config.set(
                 OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
                 OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE);
+        config.set(TableConfigOptions.LOCAL_TIME_ZONE, "UTC");
     }
 
     private Map<String, String> createSourceOptions(SourceTestStep sourceTestStep, String id) {

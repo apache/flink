@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -182,7 +183,8 @@ public class MLPredictTestPrograms {
                                             env.from("features").asArgument("INPUT"),
                                             env.fromModel("chatgpt").asArgument("MODEL"),
                                             descriptor("feature").asArgument("ARGS")),
-                            "sink")
+                            "sink",
+                            InsertConflictStrategy.deduplicate())
                     .build();
 
     public static final TableTestProgram ASYNC_ML_PREDICT_TABLE_API =
@@ -209,7 +211,8 @@ public class MLPredictTestPrograms {
                                                                             DataTypes.STRING())
                                                                     .notNull())
                                                     .asArgument("CONFIG")),
-                            "sink")
+                            "sink",
+                            InsertConflictStrategy.deduplicate())
                     .build();
 
     public static final TableTestProgram ASYNC_ML_PREDICT_TABLE_API_MAP_EXPRESSION_CONFIG =
@@ -235,7 +238,8 @@ public class MLPredictTestPrograms {
                                                             "max-concurrent-operations",
                                                             "10")
                                                     .asArgument("CONFIG")),
-                            "sink")
+                            "sink",
+                            InsertConflictStrategy.deduplicate())
                     .build();
 
     public static final TableTestProgram ML_PREDICT_MODEL_API =
@@ -248,7 +252,8 @@ public class MLPredictTestPrograms {
                                     env.fromModel("chatgpt")
                                             .predict(
                                                     env.from("features"), ColumnList.of("feature")),
-                            "sink")
+                            "sink",
+                            InsertConflictStrategy.deduplicate())
                     .build();
 
     public static final TableTestProgram ASYNC_ML_PREDICT_MODEL_API =
@@ -270,7 +275,8 @@ public class MLPredictTestPrograms {
                                                             "true",
                                                             "max-concurrent-operations",
                                                             "10")),
-                            "sink")
+                            "sink",
+                            InsertConflictStrategy.deduplicate())
                     .build();
 
     public static final TableTestProgram ML_PREDICT_ANON_MODEL_API =
@@ -304,6 +310,7 @@ public class MLPredictTestPrograms {
                                                             .build())
                                             .predict(
                                                     env.from("features"), ColumnList.of("feature")),
-                            "sink")
+                            "sink",
+                            InsertConflictStrategy.deduplicate())
                     .build();
 }

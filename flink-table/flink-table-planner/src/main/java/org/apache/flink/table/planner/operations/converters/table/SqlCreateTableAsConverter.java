@@ -47,18 +47,17 @@ public class SqlCreateTableAsConverter extends AbstractCreateTableConverter<SqlC
     public Operation convertSqlNode(SqlCreateTableAs sqlCreateTableAs, ConvertContext context) {
         final FlinkPlannerImpl flinkPlanner = context.getFlinkPlanner();
         final CatalogManager catalogManager = context.getCatalogManager();
-        SqlNode asQuerySqlNode = sqlCreateTableAs.getAsQuery();
-        SqlNode validatedAsQuery = flinkPlanner.validate(asQuerySqlNode);
+        final SqlNode asQuerySqlNode = sqlCreateTableAs.getAsQuery();
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
                         SqlNodeToOperationConversion.convert(
-                                        flinkPlanner, catalogManager, validatedAsQuery)
+                                        flinkPlanner, catalogManager, asQuerySqlNode)
                                 .orElseThrow(
                                         () ->
                                                 new TableException(
                                                         "CTAS unsupported node type "
-                                                                + validatedAsQuery
+                                                                + asQuerySqlNode
                                                                         .getClass()
                                                                         .getSimpleName()));
         ResolvedCatalogTable tableWithResolvedSchema =
@@ -67,12 +66,7 @@ public class SqlCreateTableAsConverter extends AbstractCreateTableConverter<SqlC
         // If needed, rewrite the query to include the new sink fields in the select list
         query =
                 new MergeTableAsUtil(context)
-                        .maybeRewriteQuery(
-                                catalogManager,
-                                flinkPlanner,
-                                query,
-                                validatedAsQuery,
-                                tableWithResolvedSchema);
+                        .maybeRewriteQuery(query, asQuerySqlNode, tableWithResolvedSchema);
 
         ObjectIdentifier identifier = getIdentifier(sqlCreateTableAs, context);
         CreateTableOperation createTableOperation =

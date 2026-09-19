@@ -219,7 +219,9 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
             List<Map.Entry<Long, List<RowData>>> entries = new ArrayList<>();
             Iterator<Map.Entry<Long, List<RowData>>> iterator = buffer.entries().iterator();
             while (iterator.hasNext()) {
-                entries.add(iterator.next());
+                // The value of an entry is undefined once the iterator removed it.
+                final Map.Entry<Long, List<RowData>> entry = iterator.next();
+                entries.add(Map.entry(entry.getKey(), entry.getValue()));
                 iterator.remove();
             }
 

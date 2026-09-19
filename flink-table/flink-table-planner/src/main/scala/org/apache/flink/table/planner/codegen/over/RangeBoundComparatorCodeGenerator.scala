@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtil
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, ROW_DATA}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
-import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, LogicalTypeRoot, RowType}
+import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, LogicalTypeFamily, LogicalTypeRoot, RowType}
 
 import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rex.{RexInputRef, RexWindowBound}
@@ -135,16 +135,32 @@ class RangeBoundComparatorCodeGenerator(
       inputValue: String,
       currentValue: String,
       parentCtx: CodeGeneratorContext): String = {
-    val (realBoundValue, realKeyType) = keyType.getTypeRoot match {
-      case LogicalTypeRoot.DATE =>
-        // The constant about time is expressed based millisecond unit in calcite, but
-        // the field about date is expressed based day unit. So here should keep the same unit for
-        // comparator.
+    val (realBoundValue, realKeyType) =
+      if (keyType.is(LogicalTypeFamily.TIMESTAMP)) {
+        // Scale millis bound to microseconds to preserve sub-millisecond TIMESTAMP(n>3) precision
+        val microsBound = bound match {
+          case l: Long => l * 1000L
+          case bg: BigDecimal => bg.multiply(BigDecimal.valueOf(1000))
+        }
+        (microsBound, new BigIntType())
+      } else if (keyType.is(LogicalTypeFamily.TIME)) {
+        (bound, new IntType())
+      } else if (keyType.is(LogicalTypeRoot.DATE)) {
+        // Calcite bound is in millis; DATE field is in days
         (bound.asInstanceOf[Long] / DateTimeUtils.MILLIS_PER_DAY, new IntType())
-      case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE => (bound, new IntType())
-      case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE => (bound, new BigIntType())
-      case _ => (bound, keyType)
-    }
+      } else {
+        (bound, keyType)
+      }
+
+    val (realInputValue, realCurrentValue) =
+      if (keyType.is(LogicalTypeFamily.TIMESTAMP)) {
+        // Epoch microseconds: millis * 1000 + nanoOfMillis / 1000 preserves TIMESTAMP(6) precision
+        (
+          s"($inputValue.getMillisecond() * 1000L + $inputValue.getNanoOfMillisecond() / 1000)",
+          s"($currentValue.getMillisecond() * 1000L + $currentValue.getNanoOfMillisecond() / 1000)")
+      } else {
+        (inputValue, currentValue)
+      }
 
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val relKeyType = typeFactory.createFieldTypeFromLogicalType(realKeyType)
@@ -157,7 +173,9 @@ class RangeBoundComparatorCodeGenerator(
     } else {
       relBuilder.call(MINUS, new RexInputRef(1, relKeyType), new RexInputRef(0, relKeyType))
     }
-    exprCodeGenerator.bindInput(realKeyType, inputValue).bindSecondInput(realKeyType, currentValue)
+    exprCodeGenerator
+      .bindInput(realKeyType, realInputValue)
+      .bindSecondInput(realKeyType, realCurrentValue)
     val literal = relBuilder.literal(realBoundValue)
 
     // In order to avoid the loss of precision in long cast to int.
@@ -169,8 +187,12 @@ class RangeBoundComparatorCodeGenerator(
 
     val comExpr = exprCodeGenerator.generateExpression(comCall)
 
+    val childMemberCode = ctx.reuseMemberCode()
+    if (childMemberCode.nonEmpty) {
+      parentCtx.addReusableMember(childMemberCode)
+    }
+
     j"""
-       ${ctx.reuseMemberCode()}
        ${ctx.reuseLocalVariableCode()}
        ${ctx.reuseInputUnboxingCode()}
        ${comExpr.code}

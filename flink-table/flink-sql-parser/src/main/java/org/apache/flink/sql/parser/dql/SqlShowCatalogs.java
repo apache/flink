@@ -18,8 +18,11 @@
 
 package org.apache.flink.sql.parser.dql;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -34,7 +37,17 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 public class SqlShowCatalogs extends SqlShowCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("SHOW CATALOGS", SqlKind.OTHER);
+            new SqlSpecialOperator("SHOW CATALOGS", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlShowCatalogs(
+                            pos,
+                            operandToString(operands[2]),
+                            (SqlCharStringLiteral) operands[3],
+                            operandToBoolean(operands[4]));
+                }
+            };
 
     public SqlShowCatalogs(
             SqlParserPos pos, String likeType, SqlCharStringLiteral likeLiteral, boolean notLike) {

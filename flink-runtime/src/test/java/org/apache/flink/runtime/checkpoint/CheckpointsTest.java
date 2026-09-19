@@ -40,7 +40,8 @@ class CheckpointsTest {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
                 DataOutputStream dos = new DataOutputStream(out)) {
 
-            Checkpoints.storeCheckpointMetadata(metadata, dos, MetadataV3Serializer.INSTANCE);
+            Checkpoints.storeCheckpointMetadataWithoutExclusiveDir(
+                    metadata, dos, MetadataV3Serializer.INSTANCE);
 
             try (DataInputStream dis =
                     new DataInputStream(new ByteArrayInputStream(out.toByteArray()))) {

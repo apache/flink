@@ -1,7 +1,6 @@
-[
-  {
-    "context": ["/"],
+{
+  "^/(applications|config|jars|jobmanager|jobs|overview|taskmanagers)(/|\\?|$)": {
     "target": "http://localhost:8081",
     "secure": false
   }
-]
+}

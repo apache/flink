@@ -54,15 +54,16 @@ import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
+import org.apache.flink.util.FileUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.File;
 import java.io.Serializable;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -161,35 +162,47 @@ class SinkV2ITCase extends AbstractTestBase {
     void writerAndCommitterExecuteInStreamingModeWithScaling(
             int initialParallelism,
             int scaledParallelism,
-            @TempDir File checkpointDir,
             @InjectMiniCluster MiniCluster miniCluster,
             @InjectClusterClient ClusterClient<?> clusterClient)
             throws Exception {
-        SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
-                SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());
-        final TrackingCommitter trackingCommitter = new TrackingCommitter(committed);
-        final Configuration config = createConfigForScalingTest(checkpointDir, initialParallelism);
+        // Managed explicitly so cleanup survives the shared MiniCluster's asynchronous checkpoint
+        // discard after job termination, which would otherwise race JUnit's @TempDir deletion.
+        final File checkpointDir = Files.createTempDirectory("SinkV2ITCase").toFile();
+        try {
+            SharedReference<Queue<Committer.CommitRequest<Record<Integer>>>> committed =
+                    SHARED_OBJECTS.add(new ConcurrentLinkedQueue<>());
+            final TrackingCommitter trackingCommitter = new TrackingCommitter(committed);
+            final Configuration config =
+                    createConfigForScalingTest(checkpointDir, initialParallelism);
 
-        // first run
-        final JobID jobID =
-                runStreamingWithScalingTest(
-                        config,
-                        initialParallelism,
-                        trackingCommitter,
-                        true,
-                        miniCluster,
-                        clusterClient);
+            // first run
+            final JobID jobID =
+                    runStreamingWithScalingTest(
+                            config,
+                            initialParallelism,
+                            trackingCommitter,
+                            true,
+                            miniCluster,
+                            clusterClient);
 
-        // second run
-        config.set(StateRecoveryOptions.SAVEPOINT_PATH, getCheckpointPath(miniCluster, jobID));
-        config.set(CoreOptions.DEFAULT_PARALLELISM, scaledParallelism);
-        runStreamingWithScalingTest(
-                config, initialParallelism, trackingCommitter, false, miniCluster, clusterClient);
+            // second run
+            config.set(StateRecoveryOptions.SAVEPOINT_PATH, getCheckpointPath(miniCluster, jobID));
+            config.set(CoreOptions.DEFAULT_PARALLELISM, scaledParallelism);
+            runStreamingWithScalingTest(
+                    config,
+                    initialParallelism,
+                    trackingCommitter,
+                    false,
+                    miniCluster,
+                    clusterClient);
 
-        assertThat(committed.get())
-                .extracting(Committer.CommitRequest::getCommittable)
-                .containsExactlyInAnyOrderElementsOf(
-                        duplicate(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE));
+            assertThat(committed.get())
+                    .extracting(Committer.CommitRequest::getCommittable)
+                    .containsExactlyInAnyOrderElementsOf(
+                            duplicate(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE));
+        } finally {
+            FileUtils.deleteDirectoryQuietly(checkpointDir);
+        }
     }
 
     private static List<Record<Integer>> duplicate(List<Record<Integer>> values) {

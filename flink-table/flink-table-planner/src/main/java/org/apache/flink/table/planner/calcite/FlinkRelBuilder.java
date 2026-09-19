@@ -242,8 +242,16 @@ public final class FlinkRelBuilder extends RelBuilder {
     }
 
     public RelBuilder queryOperation(QueryOperation queryOperation) {
-        final RelNode relNode = queryOperation.accept(toRelNodeConverter);
-        return push(relNode);
+        // Only the outermost call has a root (its top-level ORDER BY is kept); subquery
+        // re-entries have none, so their fetch-less sorts are dropped. Restore afterwards.
+        final QueryOperation previousRoot = toRelNodeConverter.getRootOperation();
+        toRelNodeConverter.setRootOperation(previousRoot == null ? queryOperation : null);
+        try {
+            final RelNode relNode = queryOperation.accept(toRelNodeConverter);
+            return push(relNode);
+        } finally {
+            toRelNodeConverter.setRootOperation(previousRoot);
+        }
     }
 
     @Override

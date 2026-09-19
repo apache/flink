@@ -36,16 +36,16 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
 
-import org.hamcrest.Matchers;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test writing keyed bootstrap state. */
-public class KeyedStateBootstrapOperatorTest {
+class KeyedStateBootstrapOperatorTest {
 
     private static final ValueStateDescriptor<Long> descriptor =
             new ValueStateDescriptor<>("state", Types.LONG);
@@ -54,11 +54,11 @@ public class KeyedStateBootstrapOperatorTest {
 
     private static final Long PROC_TIMER = Long.MAX_VALUE - 2;
 
-    @Rule public TemporaryFolder folder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path folder;
 
     @Test
-    public void testTimerStateRestorable() throws Exception {
-        Path path = new Path(folder.newFolder().toURI());
+    void testTimerStateRestorable() throws Exception {
+        Path path = new Path(TempDirUtils.newFolder(folder).toURI());
 
         OperatorSubtaskState state;
         KeyedStateBootstrapOperator<Long, Long> bootstrapOperator =
@@ -88,8 +88,8 @@ public class KeyedStateBootstrapOperatorTest {
     }
 
     @Test
-    public void testNonTimerStatesRestorableByNonProcessesOperator() throws Exception {
-        Path path = new Path(folder.newFolder().toURI());
+    void testNonTimerStatesRestorableByNonProcessesOperator() throws Exception {
+        Path path = new Path(TempDirUtils.newFolder(folder).toURI());
 
         OperatorSubtaskState state;
         KeyedStateBootstrapOperator<Long, Long> bootstrapOperator =
@@ -123,7 +123,8 @@ public class KeyedStateBootstrapOperatorTest {
                         bootstrapOperator, id -> id, Types.LONG, 128, 1, 0);
 
         harness.setStateBackend(new EmbeddedRocksDBStateBackend());
-        harness.setCheckpointStorage(new FileSystemCheckpointStorage(folder.newFolder().toURI()));
+        harness.setCheckpointStorage(
+                new FileSystemCheckpointStorage(TempDirUtils.newFolder(folder).toURI()));
         if (state != null) {
             harness.initializeState(state);
         }
@@ -151,10 +152,9 @@ public class KeyedStateBootstrapOperatorTest {
 
     private <T> void assertHarnessOutput(
             KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness, T... output) {
-        Assert.assertThat(
-                "The output from the operator does not match the expected values",
-                harness.extractOutputValues(),
-                Matchers.containsInAnyOrder(output));
+        assertThat(harness.extractOutputValues())
+                .as("The output from the operator does not match the expected values")
+                .containsExactlyInAnyOrder(output);
     }
 
     private static class TimerBootstrapFunction extends KeyedStateBootstrapFunction<Long, Long> {

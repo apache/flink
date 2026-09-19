@@ -18,12 +18,18 @@
 
 package org.apache.flink.sql.parser.dql;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Show Functions sql call. The full syntax for show functions is as followings:
@@ -36,7 +42,20 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 public class SqlShowFunctions extends SqlShowCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("SHOW FUNCTIONS", SqlKind.OTHER);
+            new SqlSpecialOperator("SHOW FUNCTIONS", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlShowFunctions(
+                            pos,
+                            operandToBoolean(operands[5]),
+                            operandToString(operands[1]),
+                            (SqlIdentifier) operands[0],
+                            operandToString(operands[2]),
+                            (SqlCharStringLiteral) operands[3],
+                            operandToBoolean(operands[4]));
+                }
+            };
 
     private final boolean requireUser;
 
@@ -59,6 +78,13 @@ public class SqlShowFunctions extends SqlShowCall {
 
     public boolean requireUser() {
         return requireUser;
+    }
+
+    @Override
+    public List<SqlNode> getOperandList() {
+        List<SqlNode> operands = new ArrayList<>(super.getOperandList());
+        operands.add(SqlLiteral.createBoolean(requireUser, SqlParserPos.ZERO));
+        return operands;
     }
 
     @Override

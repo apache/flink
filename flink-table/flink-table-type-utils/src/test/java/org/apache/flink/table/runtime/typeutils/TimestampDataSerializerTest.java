@@ -22,61 +22,71 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.TimestampData;
 
+import org.junit.jupiter.api.Nested;
+
 /** Test for {@link TimestampDataSerializer}. */
-abstract class TimestampDataSerializerTest extends SerializerTestBase<TimestampData> {
+class TimestampDataSerializerTest {
 
-    @Override
-    protected TypeSerializer<TimestampData> createSerializer() {
-        return new TimestampDataSerializer(getPrecision());
-    }
-
-    @Override
-    protected int getLength() {
-        return (getPrecision() <= 3) ? 8 : 12;
-    }
-
-    @Override
-    protected Class<TimestampData> getTypeClass() {
-        return TimestampData.class;
-    }
-
-    @Override
-    protected TimestampData[] getTestData() {
-        return new TimestampData[] {
-            TimestampData.fromEpochMillis(1),
-            TimestampData.fromEpochMillis(2),
-            TimestampData.fromEpochMillis(3),
-            TimestampData.fromEpochMillis(4)
-        };
-    }
-
-    protected abstract int getPrecision();
-
-    static final class TimestampSerializer0Test extends TimestampDataSerializerTest {
+    @Nested
+    final class TimestampSerializer0Test extends TimestampDataSerializerTestBase {
         @Override
         protected int getPrecision() {
             return 0;
         }
     }
 
-    static final class TimestampSerializer3Test extends TimestampDataSerializerTest {
+    @Nested
+    final class TimestampSerializer3Test extends TimestampDataSerializerTestBase {
         @Override
         protected int getPrecision() {
             return 3;
         }
     }
 
-    static final class TimestampSerializer6Test extends TimestampDataSerializerTest {
+    @Nested
+    final class TimestampSerializer6Test extends TimestampDataSerializerTestBase {
         @Override
         protected int getPrecision() {
             return 6;
         }
     }
 
-    static final class TimestampSerializer8Test extends TimestampDataSerializerTest {
+    @Nested
+    final class TimestampSerializer8Test extends TimestampDataSerializerTestBase {
         @Override
         protected int getPrecision() {
             return 8;
         }
+    }
+
+    abstract static class TimestampDataSerializerTestBase
+            extends SerializerTestBase<TimestampData> {
+
+        @Override
+        protected TypeSerializer<TimestampData> createSerializer() {
+            return new TimestampDataSerializer(getPrecision());
+        }
+
+        @Override
+        protected int getLength() {
+            return (getPrecision() <= 3) ? 8 : 12;
+        }
+
+        @Override
+        protected Class<TimestampData> getTypeClass() {
+            return TimestampData.class;
+        }
+
+        @Override
+        protected TimestampData[] getTestData() {
+            return new TimestampData[] {
+                TimestampData.fromEpochMillis(1),
+                TimestampData.fromEpochMillis(2),
+                TimestampData.fromEpochMillis(3),
+                TimestampData.fromEpochMillis(4)
+            };
+        }
+
+        protected abstract int getPrecision();
     }
 }

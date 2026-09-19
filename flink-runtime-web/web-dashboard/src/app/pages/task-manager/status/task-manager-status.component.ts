@@ -19,16 +19,19 @@
 import { DatePipe, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { of, Subject } from 'rxjs';
-import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 import { BlockedBadgeComponent } from '@flink-runtime-web/components/blocked-badge/blocked-badge.component';
 import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
 import { NavigationComponent } from '@flink-runtime-web/components/navigation/navigation.component';
 import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
 import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzDescriptionsModule } from 'ng-zorro-antd/descriptions';
 import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
+
+import { pollTaskManagerDetail } from '../task-manager-detail-poll';
 
 @Component({
   selector: 'flink-task-manager-status',
@@ -38,6 +41,7 @@ import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
   imports: [
     NgIf,
     BlockedBadgeComponent,
+    NzAlertModule,
     NzDescriptionsModule,
     DatePipe,
     HumanizeBytesPipe,
@@ -56,6 +60,7 @@ export class TaskManagerStatusComponent implements OnInit, OnDestroy {
   ];
   public taskManagerDetail?: TaskManagerDetail;
   public loading = true;
+  public notFound = false;
 
   private readonly destroy$ = new Subject<void>();
 
@@ -67,17 +72,13 @@ export class TaskManagerStatusComponent implements OnInit, OnDestroy {
   ) {}
 
   public ngOnInit(): void {
-    this.statusService.refresh$
-      .pipe(
-        mergeMap(() =>
-          this.taskManagerService
-            .loadManager(this.activatedRoute.snapshot.params.taskManagerId)
-            .pipe(catchError(() => of(undefined)))
-        ),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(data => {
-        this.taskManagerDetail = data;
+    pollTaskManagerDetail(this.statusService.refresh$, () =>
+      this.taskManagerService.loadManager(this.activatedRoute.snapshot.params.taskManagerId)
+    )
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(({ detail, notFound }) => {
+        this.taskManagerDetail = detail;
+        this.notFound = notFound;
         this.loading = false;
         this.cdr.markForCheck();
       });

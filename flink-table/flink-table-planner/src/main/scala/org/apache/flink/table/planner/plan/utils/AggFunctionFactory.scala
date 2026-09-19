@@ -37,7 +37,7 @@ import org.apache.calcite.sql.fun._
 
 import java.util
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
  * Factory for creating runtime implementation for internal aggregate functions that are declared as
@@ -62,7 +62,7 @@ class AggFunctionFactory(
   /** The entry point to create an aggregate function from the given [[AggregateCall]]. */
   def createAggFunction(call: AggregateCall, index: Int): UserDefinedFunction = {
 
-    val argTypes: Array[LogicalType] = call.getArgList
+    val argTypes: Array[LogicalType] = call.getArgList.asScala
       .map(inputRowType.getChildren.get(_))
       .toArray
 
@@ -142,10 +142,6 @@ class AggFunctionFactory(
       case _: SqlListAggFunction if call.getArgList.size() == 2 =>
         createListAggWsFunction(argTypes, index)
 
-      case a: SqlBasicAggFunction
-          if a.getName == BuiltInFunctionDefinitions.INTERNAL_WELFORD_M2.getName =>
-        createWelfordM2AggFunction(argTypes)
-
       // TODO supports SqlCardinalityCountAggFunction
 
       case a: SqlAggFunction if a.getKind == SqlKind.COLLECT =>
@@ -172,6 +168,8 @@ class AggFunctionFactory(
       case bridge: BridgingSqlAggFunction =>
         bridge.getDefinition match {
           // built-in imperativeFunction
+          case BuiltInFunctionDefinitions.INTERNAL_WELFORD_M2 =>
+            createWelfordM2AggFunction(argTypes)
           case BuiltInFunctionDefinitions.PERCENTILE =>
             createPercentileAggFunction(argTypes)
           case BuiltInFunctionDefinitions.BITMAP_BUILD_AGG =>

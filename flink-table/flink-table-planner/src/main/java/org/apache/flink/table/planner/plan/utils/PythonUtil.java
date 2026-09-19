@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.python.PythonFunction;
@@ -39,6 +40,7 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexNodeAndFieldIndex;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
 
@@ -141,7 +143,9 @@ public class PythonUtil {
             return aggSqlFunction.aggregateFunction() instanceof BuiltInAggregateFunction;
         } else if (aggregation instanceof BridgingSqlAggFunction) {
             BridgingSqlAggFunction bridgingSqlAggFunction = (BridgingSqlAggFunction) aggregation;
-            return bridgingSqlAggFunction.getDefinition() instanceof DeclarativeAggregateFunction;
+            FunctionDefinition definition = bridgingSqlAggFunction.getDefinition();
+            return definition instanceof DeclarativeAggregateFunction
+                    || definition instanceof BuiltInFunctionDefinition;
         } else {
             return true;
         }
@@ -273,6 +277,11 @@ public class PythonUtil {
         }
 
         @Override
+        public Boolean visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
+            throw new UnsupportedOperationException("not supported yet");
+        }
+
+        @Override
         public Boolean visitNode(RexNode rexNode) {
             return false;
         }
@@ -302,6 +311,11 @@ public class PythonUtil {
             } else {
                 return false;
             }
+        }
+
+        @Override
+        public Boolean visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
+            throw new UnsupportedOperationException("not supported yet");
         }
 
         @Override

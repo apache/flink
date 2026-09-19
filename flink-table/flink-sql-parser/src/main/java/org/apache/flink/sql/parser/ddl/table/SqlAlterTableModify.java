@@ -21,12 +21,19 @@ package org.apache.flink.sql.parser.ddl.table;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -50,6 +57,25 @@ import java.util.List;
  */
 public class SqlAlterTableModify extends SqlAlterTableSchema {
 
+    private static final SqlSpecialOperator MODIFY_OPERATOR =
+            new SqlSpecialOperator("ALTER TABLE MODIFY", SqlKind.ALTER_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    List<SqlTableConstraint> constraints = new ArrayList<>();
+                    for (SqlNode c : (SqlNodeList) operands[2]) {
+                        constraints.add((SqlTableConstraint) c);
+                    }
+                    return new SqlAlterTableModify(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlNodeList) operands[1],
+                            constraints,
+                            (SqlWatermark) operands[3],
+                            ((SqlLiteral) operands[4]).booleanValue());
+                }
+            };
+
     public SqlAlterTableModify(
             SqlParserPos pos,
             SqlIdentifier tableName,
@@ -58,6 +84,11 @@ public class SqlAlterTableModify extends SqlAlterTableSchema {
             @Nullable SqlWatermark watermark,
             boolean ifTableExists) {
         super(pos, tableName, modifiedColumns, constraints, watermark, ifTableExists);
+    }
+
+    @Override
+    public SqlOperator getOperator() {
+        return MODIFY_OPERATOR;
     }
 
     @Override

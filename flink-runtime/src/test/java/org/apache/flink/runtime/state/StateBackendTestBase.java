@@ -509,6 +509,50 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
     }
 
     @TestTemplate
+    void testGetKeysAndKeyGroups() throws Exception {
+        final int elementsNum = 1000;
+        final int numberOfKeyGroups = 10;
+        String fieldName = "get-keys-and-key-groups-test";
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
+        try {
+            final String ns = "ns1";
+            ValueState<Integer> keyedState =
+                    backend.getPartitionedState(
+                            ns,
+                            StringSerializer.INSTANCE,
+                            new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE));
+
+            for (int key = 0; key < elementsNum; key++) {
+                backend.setCurrentKey(key);
+                keyedState.update(key * 2);
+            }
+
+            try (Stream<Tuple2<Integer, Integer>> stream =
+                    backend.getKeysAndKeyGroups(Collections.singletonList(fieldName), ns)) {
+                final Set<Integer> seenKeys = new HashSet<>();
+                stream.forEach(
+                        entry -> {
+                            assertThat(seenKeys.add(entry.f0))
+                                    .withFailMessage("Duplicate key")
+                                    .isTrue();
+                            assertThat(entry.f1)
+                                    .withFailMessage("Unexpected key-group")
+                                    .isEqualTo(
+                                            KeyGroupRangeAssignment.assignToKeyGroup(
+                                                    entry.f0, numberOfKeyGroups));
+                        });
+                assertThat(seenKeys.size())
+                        .withFailMessage("Unexpected keys count")
+                        .isEqualTo(elementsNum);
+            }
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
+    }
+
+    @TestTemplate
     void testGetKeysAndNamespaces() throws Exception {
         final int elementsNum = 1000;
         String fieldName = "get-keys-test";

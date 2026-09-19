@@ -324,6 +324,10 @@ public final class ForStResourceContainer implements AutoCloseable {
         return configuration.get(ForStOptions.EXECUTOR_WRITE_IO_PARALLELISM);
     }
 
+    public int getDataTransferThreadNum() {
+        return configuration.get(ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM);
+    }
+
     /**
      * Prepare local and remote directories.
      *

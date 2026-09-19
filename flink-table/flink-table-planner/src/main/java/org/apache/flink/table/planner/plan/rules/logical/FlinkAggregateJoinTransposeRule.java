@@ -403,7 +403,7 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 
         // Aggregate above to sum up the sub-totals
         final List<AggregateCall> newAggCalls = new ArrayList<>();
-        final int groupIndicatorCount = aggregate.getGroupCount() + aggregate.getIndicatorCount();
+        final int groupIndicatorCount = aggregate.getGroupCount();
         final int newLeftWidth = sides.get(0).newInput.getRowType().getFieldCount();
         final List<RexNode> projects =
                 new ArrayList<>(rexBuilder.identityProjects(relBuilder.peek().getRowType()));

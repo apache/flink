@@ -49,6 +49,7 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -164,6 +165,8 @@ final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
                 return deserializeStructuredType(logicalTypeNode, serdeContext);
             case SYMBOL:
                 return new SymbolType<>();
+            case VARIANT:
+                return new VariantType();
             case RAW:
                 return deserializeSpecializedRaw(logicalTypeNode, serdeContext);
             default:

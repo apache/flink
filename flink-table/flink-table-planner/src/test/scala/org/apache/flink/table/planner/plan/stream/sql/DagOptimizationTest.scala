@@ -394,13 +394,14 @@ class DagOptimizationTest extends TableTestBase {
       util.tableEnv.sqlQuery("SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1")
     util.tableEnv.createTemporaryView("TempTable", table)
 
-    val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable")
+    val table1 = util.tableEnv.sqlQuery("SELECT c, SUM(a) AS total_sum FROM TempTable GROUP BY c")
     TestSinkUtil.addValuesSink(
       util.tableEnv,
       "upsertSink",
-      List("total_sum"),
-      List(INT),
-      ChangelogMode.upsert()
+      List("c", "total_sum"),
+      List(STRING, INT),
+      ChangelogMode.upsert(),
+      pk = List("c")
     )
     stmtSet.addInsert("upsertSink", table1)
 
@@ -508,13 +509,15 @@ class DagOptimizationTest extends TableTestBase {
     )
     stmtSet.addInsert("retractSink", table2)
 
-    val table3 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable1")
+    val table3 =
+      util.tableEnv.sqlQuery("SELECT c, MIN(a) AS total_min FROM TempTable1 GROUP BY c")
     TestSinkUtil.addValuesSink(
       util.tableEnv,
       "upsertSink",
-      List("total_min"),
-      List(INT),
-      ChangelogMode.upsert()
+      List("c", "total_min"),
+      List(STRING, INT),
+      ChangelogMode.upsert(),
+      pk = List("c")
     )
     stmtSet.addInsert("upsertSink", table3)
 
@@ -540,13 +543,14 @@ class DagOptimizationTest extends TableTestBase {
     val table = util.tableEnv.sqlQuery(sqlQuery)
     util.tableEnv.createTemporaryView("TempTable", table)
 
-    val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable")
+    val table1 = util.tableEnv.sqlQuery("SELECT c, SUM(a) AS total_sum FROM TempTable GROUP BY c")
     TestSinkUtil.addValuesSink(
       util.tableEnv,
       "upsertSink",
-      List("total_sum"),
-      List(INT),
-      ChangelogMode.upsert()
+      List("c", "total_sum"),
+      List(STRING, INT),
+      ChangelogMode.upsert(),
+      pk = List("c")
     )
     stmtSet.addInsert("upsertSink", table1)
 
@@ -573,14 +577,16 @@ class DagOptimizationTest extends TableTestBase {
       """.stripMargin
     val table = util.tableEnv.sqlQuery(sqlQuery)
 
+    // The union of two differently-grouped aggregates has no common upsert key, so it feeds a
+    // retract sink.
     TestSinkUtil.addValuesSink(
       util.tableEnv,
-      "upsertSink",
+      "retractSink",
       List("b", "c", "a_sum"),
       List(LONG, STRING, INT),
-      ChangelogMode.upsert()
+      ChangelogMode.all()
     )
-    util.verifyRelPlanInsert(table, "upsertSink", ExplainDetail.CHANGELOG_MODE)
+    util.verifyRelPlanInsert(table, "retractSink", ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

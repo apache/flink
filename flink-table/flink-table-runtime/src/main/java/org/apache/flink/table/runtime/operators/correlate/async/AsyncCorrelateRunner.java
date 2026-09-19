@@ -79,6 +79,20 @@ public class AsyncCorrelateRunner extends RichAsyncFunction<RowData, RowData> {
     }
 
     @Override
+    public void timeout(RowData input, ResultFuture<RowData> resultFuture) throws Exception {
+        // Forward to the user UDF's timeout(...) so the FLIP-498 custom-timeout contract reaches
+        // correlate queries the same way it reaches lookup join.
+        try {
+            JoinedRowResultFuture outResultFuture =
+                    new JoinedRowResultFuture(input, resultFuture, fetcherConverter);
+
+            fetcher.timeout(input, outResultFuture);
+        } catch (Throwable t) {
+            resultFuture.completeExceptionally(t);
+        }
+    }
+
+    @Override
     public void close() throws Exception {
         super.close();
         FunctionUtils.closeFunction(fetcher);

@@ -35,6 +35,7 @@ import java.time.DateTimeException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -574,11 +575,50 @@ public class BinaryStringDataUtil {
     }
 
     public static double toDouble(BinaryStringData str) throws NumberFormatException {
-        return Double.parseDouble(str.toString());
+        final String s = str.toString();
+        try {
+            return Double.parseDouble(s);
+        } catch (NumberFormatException e) {
+            final Double special = specialFloatingPointOrNull(s);
+            if (special == null) {
+                throw e;
+            }
+            return special;
+        }
     }
 
     public static float toFloat(BinaryStringData str) throws NumberFormatException {
-        return Float.parseFloat(str.toString());
+        final String s = str.toString();
+        try {
+            return Float.parseFloat(s);
+        } catch (NumberFormatException e) {
+            final Double special = specialFloatingPointOrNull(s);
+            if (special == null) {
+                throw e;
+            }
+            return special.floatValue();
+        }
+    }
+
+    /**
+     * Returns the value for a case-insensitive {@code nan}/{@code inf}/{@code infinity} spelling
+     * (optional sign on infinity), or {@code null} if the string is not one of those.
+     */
+    private static Double specialFloatingPointOrNull(String str) {
+        switch (str.trim().toLowerCase(Locale.ROOT)) {
+            case "inf":
+            case "+inf":
+            case "infinity":
+            case "+infinity":
+                return Double.POSITIVE_INFINITY;
+            case "-inf":
+            case "-infinity":
+                return Double.NEGATIVE_INFINITY;
+            case "nan":
+                return Double.NaN;
+            default:
+                return null;
+        }
     }
 
     private static NumberFormatException numberFormatExceptionFor(StringData input, String reason) {
@@ -616,121 +656,6 @@ public class BinaryStringDataUtil {
     public static TimestampData toTimestamp(
             BinaryStringData input, int precision, TimeZone timeZone) throws DateTimeException {
         return DateTimeUtils.parseTimestampData(input.toString(), precision, timeZone);
-    }
-
-    /**
-     * Parse target string as key-value string and return the value matches key name. If accept any
-     * null arguments, return null. example: keyvalue('k1=v1;k2=v2', ';', '=', 'k2') = 'v2'
-     * keyvalue('k1:v1,k2:v2', ',', ':', 'k3') = NULL
-     *
-     * @param split1 separator between key-value tuple.
-     * @param split2 separator between key and value.
-     * @param keyName name of the key whose value you want return.
-     * @return target value.
-     */
-    public static BinaryStringData keyValue(
-            BinaryStringData str, byte split1, byte split2, BinaryStringData keyName) {
-        str.ensureMaterialized();
-        if (keyName == null || keyName.getSizeInBytes() == 0) {
-            return null;
-        }
-        if (str.inFirstSegment() && keyName.inFirstSegment()) {
-            // position in byte
-            int byteIdx = 0;
-            // position of last split1
-            int lastSplit1Idx = -1;
-            while (byteIdx < str.getSizeInBytes()) {
-                // If find next split1 in str, process current kv
-                if (str.getSegments()[0].get(str.getOffset() + byteIdx) == split1) {
-                    int currentKeyIdx = lastSplit1Idx + 1;
-                    // If key of current kv is keyName, return the value directly
-                    BinaryStringData value =
-                            findValueOfKey(str, split2, keyName, currentKeyIdx, byteIdx);
-                    if (value != null) {
-                        return value;
-                    }
-                    lastSplit1Idx = byteIdx;
-                }
-                byteIdx++;
-            }
-            // process the string which is not ends with split1
-            int currentKeyIdx = lastSplit1Idx + 1;
-            return findValueOfKey(str, split2, keyName, currentKeyIdx, str.getSizeInBytes());
-        } else {
-            return keyValueSlow(str, split1, split2, keyName);
-        }
-    }
-
-    private static BinaryStringData findValueOfKey(
-            BinaryStringData str, byte split, BinaryStringData keyName, int start, int end) {
-        int keyNameLen = keyName.getSizeInBytes();
-        for (int idx = start; idx < end; idx++) {
-            if (str.getSegments()[0].get(str.getOffset() + idx) == split) {
-                if (idx == start + keyNameLen
-                        && str.getSegments()[0].equalTo(
-                                keyName.getSegments()[0],
-                                str.getOffset() + start,
-                                keyName.getOffset(),
-                                keyNameLen)) {
-                    int valueIdx = idx + 1;
-                    int valueLen = end - valueIdx;
-                    byte[] bytes = new byte[valueLen];
-                    str.getSegments()[0].get(str.getOffset() + valueIdx, bytes, 0, valueLen);
-                    return fromBytes(bytes, 0, valueLen);
-                } else {
-                    return null;
-                }
-            }
-        }
-        return null;
-    }
-
-    private static BinaryStringData keyValueSlow(
-            BinaryStringData str, byte split1, byte split2, BinaryStringData keyName) {
-        // position in byte
-        int byteIdx = 0;
-        // position of last split1
-        int lastSplit1Idx = -1;
-        while (byteIdx < str.getSizeInBytes()) {
-            // If find next split1 in str, process current kv
-            if (str.byteAt(byteIdx) == split1) {
-                int currentKeyIdx = lastSplit1Idx + 1;
-                BinaryStringData value =
-                        findValueOfKeySlow(str, split2, keyName, currentKeyIdx, byteIdx);
-                if (value != null) {
-                    return value;
-                }
-                lastSplit1Idx = byteIdx;
-            }
-            byteIdx++;
-        }
-        int currentKeyIdx = lastSplit1Idx + 1;
-        return findValueOfKeySlow(str, split2, keyName, currentKeyIdx, str.getSizeInBytes());
-    }
-
-    private static BinaryStringData findValueOfKeySlow(
-            BinaryStringData str, byte split, BinaryStringData keyName, int start, int end) {
-        int keyNameLen = keyName.getSizeInBytes();
-        for (int idx = start; idx < end; idx++) {
-            if (str.byteAt(idx) == split) {
-                if (idx == start + keyNameLen
-                        && SegmentsUtil.equals(
-                                str.getSegments(),
-                                str.getOffset() + start,
-                                keyName.getSegments(),
-                                keyName.getOffset(),
-                                keyNameLen)) {
-                    int valueIdx = idx + 1;
-                    byte[] bytes =
-                            SegmentsUtil.copyToBytes(
-                                    str.getSegments(), str.getOffset() + valueIdx, end - valueIdx);
-                    return fromBytes(bytes);
-                } else {
-                    return null;
-                }
-            }
-        }
-        return null;
     }
 
     public static BinaryStringData substringSQL(BinaryStringData str, int pos) {

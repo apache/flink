@@ -19,6 +19,10 @@ on:
     - cron: '0 0 * * *' # Deploy every day
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
   build-documentation:
     if: github.repository == 'apache/flink'
@@ -35,7 +39,7 @@ jobs:
           - release-1.20
           - release-1.19
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ matrix.branch }}
 
@@ -46,8 +50,8 @@ jobs:
           echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
 
           if [ "${currentBranch}" = "master" ]; then
-            echo "flink_alias=release-2.3" >> ${GITHUB_ENV}
-          elif [ "${currentBranch}" = "release-2.2" ]; then
+            echo "flink_alias=release-2.4" >> ${GITHUB_ENV}
+          elif [ "${currentBranch}" = "release-2.3" ]; then
             echo "flink_alias=stable" >> ${GITHUB_ENV}
           elif [ "${currentBranch}" = "release-1.20" ]; then
             echo "flink_alias=lts" >> ${GITHUB_ENV}
@@ -66,7 +70,7 @@ jobs:
           docker run --rm \
             --volume "$PWD:/root/flink" \
             --volume "$HOME/.m2/repository:/root/.m2/repository" \
-            apache/flink-ci-docker:java_8_11_17_21_25_maven_386_jammy \
+            apache/flink-ci-docker:java_8_11_17_21_25_maven_386_noble \
             bash -c "cd /root/flink && ./.github/workflows/docs.sh"
 
       - name: Upload documentation

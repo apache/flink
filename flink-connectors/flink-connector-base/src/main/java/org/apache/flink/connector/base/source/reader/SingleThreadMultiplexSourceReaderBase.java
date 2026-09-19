@@ -19,6 +19,7 @@
 package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -75,7 +76,8 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
             Configuration config,
             SourceReaderContext context) {
         super(
-                new SingleThreadFetcherManager<>(splitReaderSupplier, config),
+                new SingleThreadFetcherManager<>(
+                        splitReaderSupplier, config, (ignore) -> {}, getJobInfoOrNull(context)),
                 recordEmitter,
                 config,
                 context);
@@ -93,7 +95,8 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
             SourceReaderContext context,
             @Nullable RateLimiterStrategy<SplitT> rateLimiterStrategy) {
         super(
-                new SingleThreadFetcherManager<>(splitReaderSupplier, config),
+                new SingleThreadFetcherManager<>(
+                        splitReaderSupplier, config, (ignore) -> {}, getJobInfoOrNull(context)),
                 recordEmitter,
                 null,
                 config,
@@ -148,5 +151,19 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
                 config,
                 context,
                 rateLimiterStrategy);
+    }
+
+    /**
+     * Returns the {@link JobInfo} of the given context, or {@code null} if the context (e.g. an
+     * older runtime or a test double) does not implement {@link SourceReaderContext#getJobInfo()},
+     * which throws {@link UnsupportedOperationException} by default.
+     */
+    @Nullable
+    private static JobInfo getJobInfoOrNull(SourceReaderContext context) {
+        try {
+            return context.getJobInfo();
+        } catch (UnsupportedOperationException e) {
+            return null;
+        }
     }
 }

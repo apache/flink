@@ -103,7 +103,7 @@ class MetadataV6SerializerTest {
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
                 DataOutputStream dos = new DataOutputStream(out)) {
-            INSTANCE.serialize(metadata, dos);
+            INSTANCE.serialize(metadata, dos, null);
 
             try (DataInputStream dis =
                     new DataInputStream(new ByteArrayInputStream(out.toByteArray()))) {

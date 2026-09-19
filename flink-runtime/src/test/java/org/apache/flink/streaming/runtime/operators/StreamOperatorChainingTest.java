@@ -19,8 +19,11 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -37,6 +40,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.api.operators.SupportsChainAvailability;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.RegularOperatorChain;
@@ -49,7 +53,9 @@ import org.apache.flink.util.OutputTag;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setupStreamOperator;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -273,6 +279,142 @@ class StreamOperatorChainingTest {
             assertThat(sink1Results).containsExactly("First 1: 1");
             assertThat(sink2Results).containsExactly("First 2: 1");
             assertThat(sink3Results).containsExactly("Second: 2", "Second: 3");
+        }
+    }
+
+    /**
+     * Exercises the head branch of {@link OperatorChain}: when the main operator implements {@link
+     * SupportsChainAvailability}, the chain availability provider must be the head operator itself.
+     */
+    @Test
+    void testChainAvailabilityProviderForHeadChainAvailabilityOperator() throws Exception {
+        JobVertex chainedVertex = buildChainedVertexWithChainAvailabilityOperator(true);
+
+        StreamConfig streamConfig = new StreamConfig(chainedVertex.getConfiguration());
+
+        try (MockEnvironment environment = createMockEnvironment(chainedVertex.getName())) {
+            environment.addOutputs(
+                    Collections.singletonList(new AvailabilityTestResultPartitionWriter(true)));
+            StreamTask<Integer, ChainAvailabilityMapOperator<Integer, Integer>> mockTask =
+                    createMockTask(streamConfig, environment);
+            OperatorChain<Integer, ChainAvailabilityMapOperator<Integer, Integer>> operatorChain =
+                    createOperatorChain(streamConfig, environment, mockTask);
+
+            AvailabilityProvider chainAvailability = operatorChain.getChainAvailabilityProvider();
+            assertThat(chainAvailability)
+                    .as("Head chain-availability operator should represent chain" + " availability")
+                    .isSameAs(operatorChain.getMainOperator());
+            assertThat(chainAvailability.isAvailable()).as("Operator starts available").isTrue();
+        }
+    }
+
+    /**
+     * Exercises the chained branch of {@link OperatorChain}: when a {@link
+     * SupportsChainAvailability} operator sits behind the head, it replaces the downstream leaves
+     * in the parent's collector, so the chain availability provider must be that chained operator.
+     */
+    @Test
+    void testChainAvailabilityProviderForChainedChainAvailabilityOperator() throws Exception {
+        JobVertex chainedVertex = buildChainedVertexWithChainAvailabilityOperator(false);
+
+        StreamConfig streamConfig = new StreamConfig(chainedVertex.getConfiguration());
+
+        try (MockEnvironment environment = createMockEnvironment(chainedVertex.getName())) {
+            environment.addOutputs(
+                    Collections.singletonList(new AvailabilityTestResultPartitionWriter(true)));
+            StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
+                    createMockTask(streamConfig, environment);
+            OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain =
+                    createOperatorChain(streamConfig, environment, mockTask);
+
+            SupportsChainAvailability chainedOp =
+                    findSingleChainAvailabilityOperator(operatorChain);
+            AvailabilityProvider chainAvailability = operatorChain.getChainAvailabilityProvider();
+            assertThat(chainAvailability)
+                    .as(
+                            "Chained chain-availability operator should replace downstream"
+                                    + " leaves and act as chain availability boundary")
+                    .isSameAs(chainedOp);
+            assertThat(chainAvailability)
+                    .as(
+                            "Head operator (not the chain-availability one) is not the chain"
+                                    + " availability provider")
+                    .isNotSameAs(operatorChain.getMainOperator());
+            assertThat(chainAvailability.isAvailable()).as("Operator starts available").isTrue();
+        }
+    }
+
+    private static JobVertex buildChainedVertexWithChainAvailabilityOperator(
+            boolean chainAvailabilityAtHead) {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(2);
+
+        DataStream<Integer> input = env.fromData(1, 2, 3);
+
+        if (chainAvailabilityAtHead) {
+            input =
+                    input.transform(
+                            "ChainAvailabilityMap",
+                            input.getType(),
+                            new ChainAvailabilityMapOperator<>(value -> value));
+            input = input.map(value -> value);
+        } else {
+            input = input.map(value -> value);
+            input =
+                    input.transform(
+                            "ChainAvailabilityMap",
+                            input.getType(),
+                            new ChainAvailabilityMapOperator<>(value -> value));
+        }
+
+        input.map(value -> value)
+                .startNewChain()
+                .addSink(
+                        new SinkFunction<Integer>() {
+                            @Override
+                            public void invoke(Integer value, Context ctx) {}
+                        });
+
+        JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        assertThat(jobGraph.getVerticesSortedTopologicallyFromSources()).hasSize(3);
+        return jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
+    }
+
+    private static SupportsChainAvailability findSingleChainAvailabilityOperator(
+            OperatorChain<?, ?> chain) {
+        SupportsChainAvailability found = null;
+        for (StreamOperatorWrapper<?, ?> wrapper : chain.getAllOperators()) {
+            if (wrapper.getStreamOperator() instanceof SupportsChainAvailability) {
+                assertThat(found)
+                        .as("Expected exactly one SupportsChainAvailability operator in chain")
+                        .isNull();
+                found = (SupportsChainAvailability) wrapper.getStreamOperator();
+            }
+        }
+        assertThat(found).as("Expected a SupportsChainAvailability operator in chain").isNotNull();
+        return found;
+    }
+
+    /**
+     * A {@link StreamMap} that also implements {@link SupportsChainAvailability} for testing
+     * OperatorChain availability-provider wiring without depending on flink-streaming-java
+     * operators.
+     */
+    private static class ChainAvailabilityMapOperator<IN, OUT> extends StreamMap<IN, OUT>
+            implements SupportsChainAvailability {
+
+        private static final long serialVersionUID = 1L;
+
+        ChainAvailabilityMapOperator(MapFunction<IN, OUT> mapper) {
+            super(mapper);
+        }
+
+        @Override
+        public void setDownstreamAvailabilityProvider(AvailabilityProvider provider) {}
+
+        @Override
+        public CompletableFuture<?> getAvailableFuture() {
+            return AvailabilityProvider.AVAILABLE;
         }
     }
 

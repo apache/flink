@@ -40,7 +40,8 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
             InternalTypeInfo<RowData> rightType,
             IntervalJoinFunction joinFunc,
             int leftTimeIdx,
-            int rightTimeIdx) {
+            int rightTimeIdx,
+            long earlyFireDelay) {
         super(
                 joinType,
                 leftLowerBound,
@@ -49,7 +50,8 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
                 minCleanUpInterval,
                 leftType,
                 rightType,
-                joinFunc);
+                joinFunc,
+                earlyFireDelay);
         this.leftTimeIdx = leftTimeIdx;
         this.rightTimeIdx = rightTimeIdx;
     }

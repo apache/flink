@@ -37,6 +37,8 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
+import org.apache.flink.types.variant.BinaryVariant;
+import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
@@ -167,6 +169,8 @@ public class JsonParserToRowDataConverters implements Serializable {
             case BINARY:
             case VARBINARY:
                 return JsonParser::getBinaryValue;
+            case VARIANT:
+                return this::convertToVariant;
             case DECIMAL:
                 return createDecimalConverter((DecimalType) type);
             case ARRAY:
@@ -321,6 +325,10 @@ public class JsonParserToRowDataConverters implements Serializable {
         } else {
             return StringData.fromString(jp.getText());
         }
+    }
+
+    private BinaryVariant convertToVariant(JsonParser jp) throws IOException {
+        return BinaryVariantInternalBuilder.parseJson(jp.readValueAsTree().toString(), false);
     }
 
     private JsonParserToRowDataConverter createDecimalConverter(DecimalType decimalType) {

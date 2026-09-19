@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.Path;
+
+import javax.annotation.Nullable;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -52,7 +55,10 @@ public class MetadataV1Serializer implements MetadataSerializer {
     }
 
     @Override
-    public void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
+    public void serialize(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream dos,
+            @Nullable Path exclusiveDirPath)
             throws IOException {
         throw new UnsupportedOperationException(
                 "Serialization in v" + getVersion() + " is no longer supported");

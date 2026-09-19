@@ -57,9 +57,12 @@ public class SqlMapTypeNameSpec extends SqlTypeNameSpec {
 
     @Override
     public RelDataType deriveType(SqlValidator validator) {
-        return validator
-                .getTypeFactory()
-                .createMapType(keyType.deriveType(validator), valType.deriveType(validator));
+        boolean keyCanBeNullable =
+                validator.getTypeFactory().getTypeSystem().mapKeysCanBeNullable();
+        RelDataType kType = keyType.deriveType(validator, keyCanBeNullable);
+
+        RelDataType valueType = valType.deriveType(validator, true);
+        return validator.getTypeFactory().createMapType(kType, valueType);
     }
 
     @Override

@@ -26,6 +26,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexNodeAndFieldIndex;
 
 /** Utility class for working with async function calls in RexNodes. */
 public class AsyncUtil {
@@ -134,6 +135,11 @@ public class AsyncUtil {
             return findAsyncCall == isImmediateAsyncCall
                     || (recursive
                             && call.getOperands().stream().anyMatch(node -> node.accept(this)));
+        }
+
+        @Override
+        public Boolean visitNodeAndFieldIndex(RexNodeAndFieldIndex nodeAndFieldIndex) {
+            throw new UnsupportedOperationException("not supported yet");
         }
     }
 

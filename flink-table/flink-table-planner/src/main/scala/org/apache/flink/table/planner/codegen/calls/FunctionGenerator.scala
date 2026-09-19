@@ -442,77 +442,53 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
     Seq(VARCHAR, CHAR, SYMBOL, SYMBOL, SYMBOL),
     BuiltInMethods.JSON_QUERY)
 
-  addSqlFunctionMethod(IS_JSON_VALUE, Seq(CHAR), BuiltInMethods.IS_JSON_VALUE, argsNullable = true)
-  addSqlFunctionMethod(
-    IS_JSON_VALUE,
-    Seq(VARCHAR),
-    BuiltInMethods.IS_JSON_VALUE,
-    argsNullable = true)
+  addSqlFunctionMethod(IS_JSON_VALUE, Seq(CHAR), BuiltInMethods.IS_JSON_VALUE)
+  addSqlFunctionMethod(IS_JSON_VALUE, Seq(VARCHAR), BuiltInMethods.IS_JSON_VALUE)
 
-  addSqlFunctionMethod(
-    IS_JSON_OBJECT,
-    Seq(CHAR),
-    BuiltInMethods.IS_JSON_OBJECT,
-    argsNullable = true)
-  addSqlFunctionMethod(
-    IS_JSON_OBJECT,
-    Seq(VARCHAR),
-    BuiltInMethods.IS_JSON_OBJECT,
-    argsNullable = true)
+  addSqlFunctionMethod(IS_JSON_OBJECT, Seq(CHAR), BuiltInMethods.IS_JSON_OBJECT)
+  addSqlFunctionMethod(IS_JSON_OBJECT, Seq(VARCHAR), BuiltInMethods.IS_JSON_OBJECT)
 
-  addSqlFunctionMethod(IS_JSON_ARRAY, Seq(CHAR), BuiltInMethods.IS_JSON_ARRAY, argsNullable = true)
-  addSqlFunctionMethod(
-    IS_JSON_ARRAY,
-    Seq(VARCHAR),
-    BuiltInMethods.IS_JSON_ARRAY,
-    argsNullable = true)
+  addSqlFunctionMethod(IS_JSON_ARRAY, Seq(CHAR), BuiltInMethods.IS_JSON_ARRAY)
+  addSqlFunctionMethod(IS_JSON_ARRAY, Seq(VARCHAR), BuiltInMethods.IS_JSON_ARRAY)
 
-  addSqlFunctionMethod(
-    IS_JSON_SCALAR,
-    Seq(CHAR),
-    BuiltInMethods.IS_JSON_SCALAR,
-    argsNullable = true)
-  addSqlFunctionMethod(
-    IS_JSON_SCALAR,
-    Seq(VARCHAR),
-    BuiltInMethods.IS_JSON_SCALAR,
-    argsNullable = true)
+  addSqlFunctionMethod(IS_JSON_SCALAR, Seq(CHAR), BuiltInMethods.IS_JSON_SCALAR)
+  addSqlFunctionMethod(IS_JSON_SCALAR, Seq(VARCHAR), BuiltInMethods.IS_JSON_SCALAR)
 
   addSqlFunction(
     IS_NOT_JSON_VALUE,
     Seq(CHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_VALUE, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_VALUE)))
   addSqlFunction(
     IS_NOT_JSON_VALUE,
     Seq(VARCHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_VALUE, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_VALUE)))
 
   addSqlFunction(
     IS_NOT_JSON_OBJECT,
     Seq(CHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_OBJECT, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_OBJECT)))
   addSqlFunction(
     IS_NOT_JSON_OBJECT,
     Seq(VARCHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_OBJECT, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_OBJECT)))
 
   addSqlFunction(
     IS_NOT_JSON_ARRAY,
     Seq(CHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_ARRAY, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_ARRAY)))
   addSqlFunction(
     IS_NOT_JSON_ARRAY,
     Seq(VARCHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_ARRAY, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_ARRAY)))
 
   addSqlFunction(
     IS_NOT_JSON_SCALAR,
     Seq(CHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_SCALAR, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_SCALAR)))
   addSqlFunction(
     IS_NOT_JSON_SCALAR,
     Seq(VARCHAR),
-    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_SCALAR, argsNullable = true)))
+    new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_SCALAR)))
 
   FlinkSqlOperatorTable
     .dynamicFunctions(!isStreamingMode)
@@ -599,9 +575,8 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
   private def addSqlFunctionMethod(
       sqlOperator: SqlOperator,
       operandTypes: Seq[LogicalTypeRoot],
-      method: Method,
-      argsNullable: Boolean = false): Unit = {
-    sqlFunctions((sqlOperator, operandTypes)) = new MethodCallGen(method, argsNullable)
+      method: Method): Unit = {
+    sqlFunctions((sqlOperator, operandTypes)) = new MethodCallGen(method)
   }
 
   private def addSqlFunction(

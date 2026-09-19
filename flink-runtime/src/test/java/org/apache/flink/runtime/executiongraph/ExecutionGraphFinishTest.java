@@ -25,39 +25,33 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the finish behaviour of the {@link ExecutionGraph}. */
 class ExecutionGraphFinishTest {
 
-    @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorExtension();
-
     @Test
     void testJobFinishes() throws Exception {
-
         JobGraph jobGraph =
                 JobGraphTestUtils.streamingJobGraph(
                         ExecutionGraphTestUtils.createJobVertex("Task1", 2, NoOpInvokable.class),
                         ExecutionGraphTestUtils.createJobVertex("Task2", 2, NoOpInvokable.class));
 
+        // Use a direct future executor so the asynchronous deployment callbacks complete inline
+        // before the manual state transitions below, avoiding the FLINK-38536 race.
         SchedulerBase scheduler =
                 new DefaultSchedulerBuilder(
                                 jobGraph,
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
-                                EXECUTOR_RESOURCE.getExecutor())
+                                new DirectScheduledExecutorService())
                         .build();
 
         ExecutionGraph eg = scheduler.getExecutionGraph();

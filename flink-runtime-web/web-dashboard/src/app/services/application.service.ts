@@ -36,7 +36,10 @@ import { ConfigService } from './config.service';
   providedIn: 'root'
 })
 export class ApplicationService {
-  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
+  constructor(
+    private readonly httpClient: HttpClient,
+    private readonly configService: ConfigService
+  ) {}
 
   public cancelApplication(applicationId: string): Observable<void> {
     return this.httpClient.post<void>(`${this.configService.BASE_URL}/applications/${applicationId}/cancel`, {});

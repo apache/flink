@@ -15,7 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
 import unittest
+
+from py4j.protocol import Py4JJavaError
 
 from pyflink.table import DataTypes
 from pyflink.table.expression import TimeIntervalUnit, TimePointUnit, JsonExistsOnError, \
@@ -27,7 +30,7 @@ from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date
                                        rand, rand_integer, atan2, negative, concat, concat_ws, uuid,
                                        null_of, log, if_then_else, with_columns, call,
                                        to_timestamp_ltz, from_unixtime, to_date, to_timestamp,
-                                       convert_tz, unix_timestamp)
+                                       convert_tz, unix_timestamp, uuid_v4, uuid_v7)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -53,7 +56,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('and(a, b)', str(expr1 & expr2))
         self.assertEqual('or(a, b)', str(expr1 | expr2))
         self.assertEqual('isNotTrue(a)', str(expr1.is_not_true))
-        self.assertEqual('isNotTrue(a)', str(~expr1))
+        self.assertEqual('not(a)', str(~expr1))
 
         # arithmetic functions
         self.assertEqual('plus(a, b)', str(expr1 + expr2))
@@ -372,11 +375,87 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('concat(a, b, c)', str(concat(expr1, expr2, expr3)))
         self.assertEqual("concat_ws(', ', b, c)", str(concat_ws(', ', expr2, expr3)))
         self.assertEqual('uuid()', str(uuid()))
+        self.assertEqual('UUID_V4()', str(uuid_v4()))
+        self.assertEqual('UUID_V7()', str(uuid_v7()))
         self.assertEqual('null', str(null_of(DataTypes.BIGINT())))
         self.assertEqual('log(a)', str(log(expr1)))
         self.assertEqual('ifThenElse(a, b, c)', str(if_then_else(expr1, expr2, expr3)))
         self.assertEqual('withColumns(a, b, c)', str(with_columns(expr1, expr2, expr3)))
         self.assertEqual('a.b.c(a)', str(call('a.b.c', expr1)))
+
+    def test_lit_converts_python_values_to_declared_data_types(self):
+        test_cases = [
+            (1, DataTypes.TINYINT().not_null(), "TINYINT"),
+            (1, DataTypes.SMALLINT().not_null(), "SMALLINT"),
+            (1, DataTypes.BIGINT().not_null(), "BIGINT"),
+            (1.25, DataTypes.FLOAT().not_null(), "FLOAT"),
+            (datetime.date(2026, 8, 3), DataTypes.DATE().not_null(), "DATE"),
+            (datetime.time(1, 2, 3, 4000), DataTypes.TIME(6).not_null(),
+             "TIME_WITHOUT_TIME_ZONE"),
+            (datetime.datetime(2026, 8, 3, 1, 2, 3, 4000),
+             DataTypes.TIMESTAMP(6).not_null(), "TIMESTAMP_WITHOUT_TIME_ZONE"),
+            (datetime.datetime(2026, 8, 3, 1, 2, 3, 4000, datetime.timezone.utc),
+             DataTypes.TIMESTAMP_LTZ(6).not_null(), "TIMESTAMP_WITH_LOCAL_TIME_ZONE"),
+            (datetime.timedelta(days=1, seconds=2, microseconds=3000),
+             DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND(6)).not_null(),
+             "INTERVAL_DAY_TIME"),
+        ]
+
+        for value, data_type, expected_type_root in test_cases:
+            with self.subTest(value=value, data_type=data_type):
+                literal = lit(value, data_type)._j_expr.toExpr()
+                actual_type_root = literal.getOutputDataType() \
+                    .getLogicalType().getTypeRoot().name()
+                self.assertEqual(expected_type_root, actual_type_root)
+
+    def test_lit_converts_python_values_for_inferred_data_types(self):
+        test_cases = [
+            (datetime.date(2026, 8, 3), "DATE NOT NULL"),
+            (datetime.time(1, 2, 3, 4000), "TIME(3) NOT NULL"),
+            (datetime.datetime(2026, 8, 3, 1, 2, 3, 4000),
+             "TIMESTAMP(3) NOT NULL"),
+            (datetime.datetime(2026, 8, 3, 1, 2, 3, 4000, datetime.timezone.utc),
+             "TIMESTAMP(3) NOT NULL"),
+            (datetime.timedelta(days=1, seconds=2, microseconds=3000),
+             "INTERVAL DAY(1) TO SECOND(3) NOT NULL"),
+        ]
+
+        for value, expected_data_type in test_cases:
+            with self.subTest(value=value):
+                literal = lit(value)._j_expr.toExpr()
+                self.assertEqual(expected_data_type, str(literal.getOutputDataType()))
+
+    def test_lit_rejects_unsupported_data_type_before_value_conversion(self):
+        with self.assertRaisesRegex(TypeError, "Unsupported data type: INT"):
+            lit(1, "INT")
+
+    def test_lit_rejects_binary_scalar_as_constructed_value(self):
+        array_type = DataTypes.ARRAY(DataTypes.TINYINT()).not_null()
+        row_type = DataTypes.ROW(
+            [
+                DataTypes.FIELD("a", DataTypes.TINYINT()),
+                DataTypes.FIELD("b", DataTypes.TINYINT()),
+            ]
+        ).not_null()
+        for value in [b"a", bytearray(b"a")]:
+            with self.subTest(value=value):
+                with self.assertRaises(Py4JJavaError):
+                    lit([value, []])
+                with self.assertRaises(Py4JJavaError):
+                    lit([[value], [[]]])
+                with self.assertRaises(Py4JJavaError):
+                    lit(value, array_type)
+                with self.assertRaises(Py4JJavaError):
+                    lit(value, row_type)
+
+    def test_lit_rejects_out_of_range_integer_values(self):
+        for value, data_type in [
+            (128, DataTypes.TINYINT().not_null()),
+            (32768, DataTypes.SMALLINT().not_null()),
+        ]:
+            with self.subTest(value=value, data_type=data_type):
+                with self.assertRaises(Py4JJavaError):
+                    lit(value, data_type)
 
 
 if __name__ == "__main__":

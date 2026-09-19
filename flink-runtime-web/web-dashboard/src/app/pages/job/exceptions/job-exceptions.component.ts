@@ -155,8 +155,8 @@ export class JobExceptionsComponent implements OnInit, OnDestroy {
       });
   }
 
-  public navigateTo(taskManagerId: string | null): void {
-    if (taskManagerId !== null) {
+  public navigateTo(taskManagerId?: string): void {
+    if (taskManagerId) {
       this.router.navigate(['task-manager', taskManagerId, 'metrics']).then();
     }
   }

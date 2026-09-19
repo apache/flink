@@ -55,7 +55,6 @@ class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayD
         return CastRuleProvider.resolve(innerInputType, innerTargetType) != null;
     }
 
-    @SuppressWarnings("rawtypes")
     @Override
     protected String generateCodeBlockInternal(
             CodeGeneratorCastRule.Context context,
@@ -67,16 +66,17 @@ class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayD
         final LogicalType innerTargetType = ((ArrayType) targetLogicalType).getElementType();
 
         final String innerTargetTypeTerm = arrayElementType(innerTargetType);
-        final String arraySize = methodCall(inputTerm, "size");
+        final String arraySizeTerm = newName(context.getCodeGeneratorContext(), "arraySize");
         final String objArrayTerm = newName(context.getCodeGeneratorContext(), "objArray");
 
         return new CastRuleUtils.CodeWriter()
+                .declStmt(int.class, arraySizeTerm, methodCall(inputTerm, "size"))
                 .declStmt(
                         innerTargetTypeTerm + "[]",
                         objArrayTerm,
-                        newArray(innerTargetTypeTerm, arraySize))
+                        newArray(innerTargetTypeTerm, arraySizeTerm))
                 .forStmt(
-                        arraySize,
+                        arraySizeTerm,
                         (index, loopWriter) -> {
                             CastCodeBlock codeBlock =
                                     // Null check is done at the array access level
@@ -97,10 +97,18 @@ class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayD
                                                                 index,
                                                                 codeBlock.getReturnTerm()));
                             } else {
-                                loopWriter
-                                        .append(codeBlock)
-                                        .assignArrayStmt(
-                                                objArrayTerm, index, codeBlock.getReturnTerm());
+                                loopWriter.ifStmt(
+                                        "!" + methodCall(inputTerm, "isNullAt", index),
+                                        thenWriter ->
+                                                thenWriter
+                                                        .append(codeBlock)
+                                                        .assignArrayStmt(
+                                                                objArrayTerm,
+                                                                index,
+                                                                codeBlock.getReturnTerm()),
+                                        elseWriter ->
+                                                elseWriter.throwStmt(
+                                                        "new org.apache.flink.table.api.TableRuntimeException(\"Target is not nullable but a NULL was found.\")"));
                             }
                         },
                         context.getCodeGeneratorContext())

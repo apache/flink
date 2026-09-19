@@ -17,7 +17,7 @@
 ################################################################################
 import struct
 
-from avro.errors import AvroTypeException, SchemaResolutionException
+from avro.errors import AvroOutOfScaleException, AvroTypeException, SchemaResolutionException
 from avro.io import (
     BinaryDecoder,
     BinaryEncoder,
@@ -86,6 +86,23 @@ class FlinkAvroDecoder(BinaryDecoder):
         nbytes = self.read_int()
         assert (nbytes >= 0), nbytes
         return self.read(nbytes)
+
+    def read_decimal_from_bytes(self, precision, scale):
+        # avro's implementation sizes the payload with read_long, which is an Avro zig-zag long
+        # upstream but a fixed 8-byte long here. On the JVM a bytes-backed decimal is framed like
+        # any other bytes field, so the size is a 4-byte int.
+        size = self.read_int()
+        if size == 0:
+            # Data written before this fix sized the payload with the fixed 8-byte write_long, so
+            # what was just read is the always-zero high half of that prefix and the size is in the
+            # next int. Such data can still be sitting in Python state written by an earlier
+            # version, so it stays readable.
+            #
+            # The two framings are unambiguous: avro writes at least one byte of unscaled value for
+            # every decimal, zero included, so a payload length of zero never occurs in the current
+            # framing and can only be the historical one.
+            size = self.read_int()
+        return self.read_decimal_from_fixed(precision, scale, size)
 
     def skip_int(self):
         self.skip(4)
@@ -197,6 +214,28 @@ class FlinkAvroEncoder(BinaryEncoder):
     def write_bytes(self, datum):
         self.write_int(len(datum))
         self.write(datum)
+
+    def write_decimal_bytes(self, datum, scale):
+        # avro's implementation sizes the payload with write_long, which is an Avro zig-zag long
+        # upstream but a fixed 8-byte long here, so the JVM reader consumed the size as the whole
+        # bytes field and every field after it shifted. Frame it as a bytes field instead; the
+        # payload itself is the same two's-complement big-endian unscaled value.
+        sign, digits, exp = datum.as_tuple()
+        if (-1 * int(exp)) > scale:
+            raise AvroOutOfScaleException(scale, datum, exp)
+
+        unscaled_datum = 0
+        for digit in digits:
+            unscaled_datum = (unscaled_datum * 10) + digit
+
+        bits_req = unscaled_datum.bit_length() + 1
+        if sign:
+            unscaled_datum = -unscaled_datum
+
+        bytes_req = bits_req // 8
+        bytes_req += 1 if (bytes_req << 3) < bits_req else 0
+
+        self.write_bytes(unscaled_datum.to_bytes(bytes_req, 'big', signed=True))
 
 
 class FlinkAvroDatumWriter(DatumWriter):

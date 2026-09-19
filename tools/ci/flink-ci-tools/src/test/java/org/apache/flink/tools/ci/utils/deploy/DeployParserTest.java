@@ -35,6 +35,17 @@ class DeployParserTest {
                 .containsExactly("flink-parent");
     }
 
+    /** Maven 3.9+ logs plugins by their goal prefix instead of their artifactId. */
+    @Test
+    void testParseDeployOutputDetectsDeploymentWithGoalPrefixedPluginName() {
+        assertThat(
+                        DeployParser.parseDeployOutput(
+                                Stream.of(
+                                        "[INFO] --- deploy:2.8.2:deploy (default-deploy) @ flink-parent ---",
+                                        "[INFO] ")))
+                .containsExactly("flink-parent");
+    }
+
     @Test
     void testParseDeployOutputDetectsDeploymentWithAltRepository() {
         assertThat(

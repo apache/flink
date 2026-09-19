@@ -41,15 +41,21 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.variant.BinaryVariant;
+import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantBuilder;
 
+import org.assertj.core.api.AbstractThrowableAssert;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -61,6 +67,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -93,8 +100,10 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.apache.flink.table.api.DataTypes.UUID;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.data.DecimalData.fromBigDecimal;
 import static org.apache.flink.table.data.StringData.fromString;
@@ -158,6 +167,185 @@ class CastRulesTest {
 
     private static final Bitmap DEFAULT_BITMAP = Bitmap.fromArray(new int[] {0, 1, 2});
 
+    private static final String UUID_STRING = "550e8400-e29b-41d4-a716-446655440000";
+    private static final UUID UUID_VALUE = UUID.fromString(UUID_STRING);
+    private static final byte[] UUID_BYTES = uuidBytes(UUID_STRING);
+
+    private static byte[] uuidBytes(String uuid) {
+        final UUID value = UUID.fromString(uuid);
+        final byte[] result = new byte[16];
+        ByteBuffer.wrap(result)
+                .putLong(value.getMostSignificantBits())
+                .putLong(value.getLeastSignificantBits());
+        return result;
+    }
+
+    /** A two-byte lead followed by a byte that is not a continuation byte. */
+    private static final byte[] INVALID_UTF8 = new byte[] {(byte) 0xC3, (byte) 0x28};
+
+    /** U+1D54F, one code point but two UTF-16 units and four UTF-8 bytes. */
+    private static final String NON_BMP = "𝕏";
+
+    private static final VariantBuilder VARIANT_BUILDER = Variant.newBuilder();
+    private static final Variant VARIANT_ARRAY =
+            VARIANT_BUILDER
+                    .array()
+                    .add(VARIANT_BUILDER.of(1))
+                    .add(VARIANT_BUILDER.of("two"))
+                    .add(VARIANT_BUILDER.of(false))
+                    .add(VARIANT_BUILDER.ofNull())
+                    .build();
+
+    private static final Variant VARIANT_OBJECT =
+            VARIANT_BUILDER
+                    .object()
+                    .add(
+                            "k",
+                            VARIANT_BUILDER
+                                    .array()
+                                    .add(VARIANT_BUILDER.of(1))
+                                    .add(VARIANT_BUILDER.of(2))
+                                    .build())
+                    .build();
+
+    /** {@code [1, 2, 3]}, the design's running array value. */
+    private static final Variant VARIANT_INT_ARRAY =
+            VARIANT_BUILDER
+                    .array()
+                    .add(VARIANT_BUILDER.of(1))
+                    .add(VARIANT_BUILDER.of(2))
+                    .add(VARIANT_BUILDER.of(3))
+                    .build();
+
+    /** {@code [1, null, 3]}, an array carrying a VARIANT null element. */
+    private static final Variant VARIANT_INT_ARRAY_WITH_NULL =
+            VARIANT_BUILDER
+                    .array()
+                    .add(VARIANT_BUILDER.of(1))
+                    .add(VARIANT_BUILDER.ofNull())
+                    .add(VARIANT_BUILDER.of(3))
+                    .build();
+
+    /**
+     * {@code ["1", "22", "333"]}, stored strings of different lengths a numeric leaf must not
+     * parse.
+     */
+    private static final Variant VARIANT_STRING_ARRAY =
+            VARIANT_BUILDER
+                    .array()
+                    .add(VARIANT_BUILDER.of("1"))
+                    .add(VARIANT_BUILDER.of("22"))
+                    .add(VARIANT_BUILDER.of("333"))
+                    .build();
+
+    /** {@code [1, "a", 2, "b"]}, a heterogeneous array of integers and strings. */
+    private static final Variant VARIANT_MIXED_ARRAY =
+            VARIANT_BUILDER
+                    .array()
+                    .add(VARIANT_BUILDER.of(1))
+                    .add(VARIANT_BUILDER.of("a"))
+                    .add(VARIANT_BUILDER.of(2))
+                    .add(VARIANT_BUILDER.of("b"))
+                    .build();
+
+    /** {@code [[1, 2], [3]]}, a nested array of arrays. */
+    private static final Variant VARIANT_NESTED_ARRAY =
+            VARIANT_BUILDER
+                    .array()
+                    .add(
+                            VARIANT_BUILDER
+                                    .array()
+                                    .add(VARIANT_BUILDER.of(1))
+                                    .add(VARIANT_BUILDER.of(2))
+                                    .build())
+                    .add(VARIANT_BUILDER.array().add(VARIANT_BUILDER.of(3)).build())
+                    .build();
+
+    private static final Variant VARIANT_EMPTY_ARRAY = VARIANT_BUILDER.array().build();
+
+    /** {@code {"id": 7, "name": "ada", "active": true}}, the design's running object value. */
+    private static final Variant VARIANT_RECORD =
+            Variant.newBuilder()
+                    .object()
+                    .add("id", Variant.newBuilder().of(7))
+                    .add("name", Variant.newBuilder().of("ada"))
+                    .add("active", Variant.newBuilder().of(true))
+                    .build();
+
+    /**
+     * {@code {"id": 7, "email": null}}, an object with a field explicitly set to a VARIANT null.
+     */
+    private static final Variant VARIANT_RECORD_WITH_NULL =
+            Variant.newBuilder()
+                    .object()
+                    .add("id", Variant.newBuilder().of(7))
+                    .add("email", Variant.newBuilder().ofNull())
+                    .build();
+
+    /** {@code {"user": {"id": 1, "since": "2020-01-01"}, "tags": ["x", "y"]}}, a nested value. */
+    private static final Variant VARIANT_NESTED =
+            Variant.newBuilder()
+                    .object()
+                    .add(
+                            "user",
+                            Variant.newBuilder()
+                                    .object()
+                                    .add("id", Variant.newBuilder().of(1))
+                                    .add("since", Variant.newBuilder().of("2020-01-01"))
+                                    .build())
+                    .add(
+                            "tags",
+                            Variant.newBuilder()
+                                    .array()
+                                    .add(Variant.newBuilder().of("x"))
+                                    .add(Variant.newBuilder().of("y"))
+                                    .build())
+                    .build();
+
+    /** {@code {"f0": 7, "f1": "ada"}}, an object keyed by the default {@code ROW} field names. */
+    private static final Variant VARIANT_POSITIONAL_RECORD =
+            VARIANT_BUILDER
+                    .object()
+                    .add("f0", VARIANT_BUILDER.of(7))
+                    .add("f1", VARIANT_BUILDER.of("ada"))
+                    .build();
+
+    /**
+     * {@code {"a": 1, "b": 2, "c": "x", "d": ["p", "q"]}}, shaped for {@link #MY_STRUCTURED_TYPE}.
+     */
+    private static final Variant VARIANT_STRUCT_RECORD =
+            VARIANT_BUILDER
+                    .object()
+                    .add("a", VARIANT_BUILDER.of(1L))
+                    .add("b", VARIANT_BUILDER.of(2L))
+                    .add("c", VARIANT_BUILDER.of("x"))
+                    .add(
+                            "d",
+                            VARIANT_BUILDER
+                                    .array()
+                                    .add(VARIANT_BUILDER.of("p"))
+                                    .add(VARIANT_BUILDER.of("q"))
+                                    .build())
+                    .build();
+
+    /** {@code {"a": 1, "b": 2}}, an all-numeric object. */
+    private static final Variant VARIANT_NUM_OBJECT =
+            VARIANT_BUILDER
+                    .object()
+                    .add("a", VARIANT_BUILDER.of(1))
+                    .add("b", VARIANT_BUILDER.of(2))
+                    .build();
+
+    private static final Variant VARIANT_EMPTY_OBJECT = VARIANT_BUILDER.object().build();
+
+    /** {@code {"a": 1, "b": "x"}}, an object with a mixed integer and string value. */
+    private static final Variant VARIANT_MIXED_OBJECT =
+            VARIANT_BUILDER
+                    .object()
+                    .add("a", VARIANT_BUILDER.of(1))
+                    .add("b", VARIANT_BUILDER.of("x"))
+                    .build();
+
     private static final DataType MY_STRUCTURED_TYPE =
             STRUCTURED(
                     MyStructuredType.class,
@@ -179,6 +367,13 @@ class CastRulesTest {
                                             new StructuredType.StructuredAttribute(
                                                     "d", ARRAY(STRING()).getLogicalType())))
                             .build());
+
+    // Rebuilds a variant object field at position 0, matching the form a ROW cast produces when it
+    // serializes each field with BinaryRowWriter.writeVariant and reads it back.
+    private static Variant rowFieldVariant(Variant fieldView) {
+        final BinaryVariant view = (BinaryVariant) fieldView;
+        return new BinaryVariant(view.getValue(), view.getMetadata());
+    }
 
     Stream<CastTestSpecBuilder> testCases() {
         return Stream.of(
@@ -1349,6 +1544,21 @@ class CastRulesTest {
                                             null,
                                             fromString("2021-09-24 14:34:56.123456")
                                         })),
+                CastTestSpecBuilder.testCastTo(ARRAY(VARBINARY(1)))
+                        .fromCase(ARRAY(BYTES()), null, null)
+                        .fromCase(
+                                ARRAY(BYTES()),
+                                new GenericArrayData(new byte[][] {}),
+                                new GenericArrayData(new byte[][] {}))
+                        .fromCase(
+                                ARRAY(BYTES()),
+                                new GenericArrayData(new byte[][] {{1}, {2, 3}, null, {}}),
+                                new GenericArrayData(new byte[][] {{1}, {2}, null, {}})),
+                CastTestSpecBuilder.testCastTo(ARRAY(BINARY(2).notNull()))
+                        .fromCase(
+                                ARRAY(BYTES().notNull()),
+                                new GenericArrayData(new byte[][] {{1}, {2, 3, 4}}),
+                                new GenericArrayData(new byte[][] {{1, 0}, {2, 3}})),
                 CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().nullable()))
                         .fromCase(
                                 ARRAY(INT().nullable()),
@@ -1367,7 +1577,7 @@ class CastRulesTest {
                                             new GenericArrayData(new Integer[] {1, 2, null}),
                                             new GenericArrayData(new Integer[] {3})
                                         }),
-                                NullPointerException.class)
+                                TableRuntimeException.class)
                         .fromCase(
                                 ARRAY(ARRAY(INT().nullable())),
                                 new GenericArrayData(
@@ -1427,12 +1637,12 @@ class CastRulesTest {
                         .fail(
                                 MAP(INT().nullable(), DOUBLE().nullable()),
                                 mapData(entry(null, 1d)),
-                                NullPointerException.class),
+                                TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(MAP(STRING().notNull(), STRING().notNull()))
                         .fail(
                                 MAP(INT().nullable(), DOUBLE().nullable()),
                                 mapData(entry(123, null)),
-                                NullPointerException.class),
+                                TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(MULTISET(DOUBLE().notNull()))
                         .fromCase(
                                 MULTISET(INT().nullable()),
@@ -1452,7 +1662,7 @@ class CastRulesTest {
                         .fail(
                                 MULTISET(INT().nullable()),
                                 mapData(entry(null, 1)),
-                                NullPointerException.class),
+                                TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(
                                 ROW(BIGINT().notNull(), BIGINT(), STRING(), ARRAY(STRING())))
                         .fromCase(
@@ -1540,7 +1750,754 @@ class CastRulesTest {
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(BITMAP(), DEFAULT_BITMAP, DEFAULT_BITMAP.toBytes())
                         .fromCase(BITMAP(), Bitmap.empty(), Bitmap.empty().toBytes())
-                        .fromCase(BITMAP(), null, null));
+                        .fromCase(BITMAP(), null, null),
+                // UUID cast rules. A UUID renders as its canonical lower-case 8-4-4-4-12 form and
+                // maps to its 16-byte big-endian encoding.
+                CastTestSpecBuilder.testCastTo(STRING())
+                        .fromCase(UUID(), UUID_BYTES, fromString(UUID_STRING))
+                        .fromCase(UUID(), null, null),
+                // a bounded character target trims, and CHAR pads to its fixed width
+                CastTestSpecBuilder.testCastTo(VARCHAR(8))
+                        .fromCase(UUID(), UUID_BYTES, fromString("550e8400")),
+                CastTestSpecBuilder.testCastTo(CHAR(38))
+                        .fromCase(UUID(), UUID_BYTES, fromString(UUID_STRING + "  ")),
+                CastTestSpecBuilder.testCastTo(BINARY(16))
+                        .fromCase(UUID(), UUID_BYTES, UUID_BYTES)
+                        .fromCase(UUID(), null, null),
+                // a VARBINARY(n) with n >= 16 holds the value without trimming
+                CastTestSpecBuilder.testCastTo(VARBINARY(16))
+                        .fromCase(UUID(), UUID_BYTES, UUID_BYTES)
+                        .fromCase(UUID(), null, null),
+                CastTestSpecBuilder.testCastTo(BYTES())
+                        .fromCase(UUID(), UUID_BYTES, UUID_BYTES)
+                        .fromCase(UUID(), null, null),
+                // a UUID is parsed leniently from a string, following PostgreSQL conventions
+                CastTestSpecBuilder.testCastTo(UUID())
+                        .fromCase(STRING(), fromString(UUID_STRING), UUID_BYTES)
+                        .fromCase(STRING(), fromString(UUID_STRING.toUpperCase()), UUID_BYTES)
+                        .fromCase(STRING(), fromString("{" + UUID_STRING + "}"), UUID_BYTES)
+                        .fromCase(STRING(), fromString(UUID_STRING.replace("-", "")), UUID_BYTES)
+                        // a hyphen may follow any group of four digits, PostgreSQL style
+                        .fromCase(
+                                STRING(),
+                                fromString("550e-8400-e29b-41d4-a716-4466-5544-0000"),
+                                UUID_BYTES)
+                        .fromCase(STRING(), null, null)
+                        // a malformed value fails, and yields null for TRY_CAST
+                        .fail(
+                                STRING(),
+                                fromString("not-a-uuid"),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits")
+                        .fail(
+                                STRING(),
+                                fromString("550e8400"),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits")
+                        // too many hexadecimal digits
+                        .fail(
+                                STRING(),
+                                fromString(UUID_STRING + "00"),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits")
+                        // a hyphen inside a four-digit group is rejected
+                        .fail(
+                                STRING(),
+                                fromString("5-50e8400e29b41d4a716446655440000"),
+                                TableRuntimeException.class,
+                                "32 hexadecimal digits"),
+                // a binary value is reinterpreted, and has to be exactly 16 bytes long
+                CastTestSpecBuilder.testCastTo(UUID())
+                        .fromCase(BYTES(), UUID_BYTES, UUID_BYTES)
+                        .fromCase(BINARY(16), UUID_BYTES, UUID_BYTES)
+                        .fromCase(BYTES(), null, null)
+                        .fail(
+                                BYTES(),
+                                new byte[] {1, 2, 3},
+                                TableRuntimeException.class,
+                                "requires exactly 16 bytes"),
+                // From VARIANT to primitive types. A cast succeeds only when the target holds the
+                // stored value unaltered, except for the approximate FLOAT and DOUBLE.
+                // A character string renders like a regular cast of the stored kind, so these
+                // expectations reuse the constants of the native cases above.
+                CastTestSpecBuilder.testCastTo(STRING())
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(true), fromString("TRUE"))
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(false), fromString("FALSE"))
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of("foo"), fromString("foo"))
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(42), fromString("42"))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(new BigDecimal("123.456")),
+                                fromString("123.456"))
+                        // a small scale stays plain instead of turning into scientific notation
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(new BigDecimal("0.0000000001")),
+                                fromString("0.0000000001"))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(LocalDate.parse("2021-09-24")),
+                                DATE_STRING)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(TIMESTAMP.toLocalDateTime()),
+                                TIMESTAMP_STRING)
+                        .fromCase(
+                                VARIANT(),
+                                CET_CONTEXT,
+                                VARIANT_BUILDER.of(TIMESTAMP.toInstant()),
+                                TIMESTAMP_STRING_CET)
+                        // a time renders at millisecond resolution, the same as a regular TIME to
+                        // string cast, so the stored microseconds are truncated
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(LocalTime.of(12, 34, 56, 123_456_000)),
+                                fromString("12:34:56.123"))
+                        // a nanosecond timestamp keeps its full precision when rendered
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123_456_789)),
+                                fromString("2021-09-24 12:34:56.123456789"))
+                        .fromCase(
+                                VARIANT(),
+                                CET_CONTEXT,
+                                Variant.newBuilder()
+                                        .of(Instant.parse("2021-09-24T12:34:56.123456789Z")),
+                                fromString("2021-09-24 14:34:56.123456789"))
+                        // a UUID renders in its canonical lower-case 8-4-4-4-12 form, the same as
+                        // a regular UUID to string cast
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(UUID_VALUE),
+                                fromString(UUID_STRING))
+                        // a binary value is read as UTF-8, like a regular BINARY to string cast
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of("hello".getBytes(StandardCharsets.UTF_8)),
+                                fromString("hello"))
+                        // a multi-byte sequence passes the well-formedness check unchanged
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of("héllo".getBytes(StandardCharsets.UTF_8)),
+                                fromString("héllo"))
+                        // bytes that are not valid UTF-8 are rejected rather than decoded into
+                        // the U+FFFD replacement character
+                        .fail(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(INVALID_UTF8),
+                                TableRuntimeException.class)
+                        // a byte value nested in a container is rendered unbounded, so its error
+                        // names STRING rather than the container's target; the same holds for an
+                        // object field value
+                        .fail(
+                                VARIANT(),
+                                VARIANT_BUILDER
+                                        .array()
+                                        .add(VARIANT_BUILDER.of(INVALID_UTF8))
+                                        .build(),
+                                TableRuntimeException.class,
+                                "binary value to STRING")
+                        .fail(
+                                VARIANT(),
+                                VARIANT_BUILDER
+                                        .object()
+                                        .add("k", VARIANT_BUILDER.of(INVALID_UTF8))
+                                        .build(),
+                                TableRuntimeException.class,
+                                "binary value to STRING")
+                        // an object or an array has no scalar form, so it renders like a regular
+                        // ARRAY or MAP to string cast, with strings unquoted and a nested null
+                        // shown as NULL
+                        .fromCase(VARIANT(), VARIANT_ARRAY, fromString("[1, two, FALSE, NULL]"))
+                        .fromCase(VARIANT(), VARIANT_OBJECT, fromString("{k=[1, 2]}"))
+                        // printing renders every variant as JSON instead, so a nested string is
+                        // quoted and a null is the JSON null
+                        .fromCasePrinting(
+                                VARIANT(), VARIANT_ARRAY, fromString("[1,\"two\",false,null]"))
+                        .fromCasePrinting(VARIANT(), VARIANT_OBJECT, fromString("{\"k\":[1,2]}"))
+                        .fromCasePrinting(
+                                VARIANT(), VARIANT_BUILDER.of("foo"), fromString("\"foo\""))
+                        .fromCasePrinting(VARIANT(), VARIANT_BUILDER.of(42), fromString("42")),
+                // A bounded character target pads and trims like any other cast into it, and its
+                // length counts code points, so a character outside the BMP fills one position
+                // even though it occupies two UTF-16 units.
+                CastTestSpecBuilder.testCastTo(CHAR(1))
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of("x"), fromString("x"))
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(NON_BMP), fromString(NON_BMP))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(NON_BMP + NON_BMP),
+                                fromString(NON_BMP))
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of("abcdefghij"), fromString("a")),
+                CastTestSpecBuilder.testCastTo(CHAR(5))
+                        // shorter than the target, so it is padded to the fixed width
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of("ab"), fromString("ab   "))
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of("abcdefghij"), fromString("abcde")),
+                CastTestSpecBuilder.testCastTo(VARCHAR(2))
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(NON_BMP), fromString(NON_BMP))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(NON_BMP + NON_BMP),
+                                fromString(NON_BMP + NON_BMP))
+                        // longer than the target, so it is trimmed rather than rejected, and a
+                        // variable width target is not padded
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(NON_BMP + NON_BMP + NON_BMP),
+                                fromString(NON_BMP + NON_BMP))
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of("a"), fromString("a")),
+                CastTestSpecBuilder.testCastTo(BOOLEAN())
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(true), true)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(false), false)
+                        .fail(VARIANT(), VARIANT_BUILDER.of(1), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(TINYINT())
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of((byte) 42), (byte) 42)
+                        // a wider integer kind narrows while the value is in range
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(42), (byte) 42)
+                        // out of range is rejected instead of wrapping
+                        .fail(VARIANT(), VARIANT_BUILDER.of(1000), TableRuntimeException.class)
+                        .fail(VARIANT(), VARIANT_BUILDER.of("x"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(SMALLINT())
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of((short) 42), (short) 42)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of((byte) 42), (short) 42)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(1000), (short) 1000)
+                        .fail(VARIANT(), VARIANT_BUILDER.of(40000), TableRuntimeException.class)
+                        .fail(VARIANT(), VARIANT_BUILDER.of(true), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(INT())
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(42), 42)
+                        // every integer kind converts as long as the value fits
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of((byte) 42), 42)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of((short) 42), 42)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(42L), 42)
+                        .fail(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(2147483648L),
+                                TableRuntimeException.class)
+                        // an approximate or decimal kind converts when the value is integral
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(7.0d), 7)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(new BigDecimal("7.0")), 7)
+                        // a fractional value would have to be rounded away, so it is rejected
+                        .fail(VARIANT(), VARIANT_BUILDER.of(7.2d), TableRuntimeException.class)
+                        .fail(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(new BigDecimal("7.2")),
+                                TableRuntimeException.class)
+                        // a non-numeric variant cannot be cast to a number
+                        .fail(VARIANT(), VARIANT_BUILDER.of("foo"), TableRuntimeException.class)
+                        .fail(VARIANT(), VARIANT_BUILDER.of(true), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(BIGINT())
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(42L), 42L)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(42), 42L)
+                        .fail(VARIANT(), VARIANT_BUILDER.of("x"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(FLOAT())
+                        // every numeric kind reaches an approximate target
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(1.5f), 1.5f)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(1.5d), 1.5f)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(3), 3.0f)
+                        .fromCase(
+                                VARIANT(), VARIANT_BUILDER.of(new BigDecimal("123.456")), 123.456f)
+                        // a magnitude a FLOAT cannot represent is still rejected
+                        .fail(VARIANT(), VARIANT_BUILDER.of(1e40d), TableRuntimeException.class)
+                        .fail(VARIANT(), VARIANT_BUILDER.of("x"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(DOUBLE())
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(1.5d), 1.5d)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(1.5f), 1.5d)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(3), 3.0d)
+                        .fromCase(
+                                VARIANT(), VARIANT_BUILDER.of(new BigDecimal("123.456")), 123.456d)
+                        .fail(VARIANT(), VARIANT_BUILDER.of("x"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(DECIMAL(5, 2))
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(new BigDecimal("123.45")),
+                                DecimalData.fromBigDecimal(new BigDecimal("123.45"), 5, 2))
+                        // trailing zeros may be appended to reach the target scale
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(new BigDecimal("123.4")),
+                                DecimalData.fromBigDecimal(new BigDecimal("123.40"), 5, 2))
+                        // an integer is exact, so it converts when it fits
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(42),
+                                DecimalData.fromBigDecimal(new BigDecimal("42.00"), 5, 2))
+                        // a scale that would have to round is rejected
+                        .fail(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(new BigDecimal("123.456")),
+                                TableRuntimeException.class)
+                        // an approximate kind is not read as a decimal
+                        .fail(VARIANT(), VARIANT_BUILDER.of(1.5d), TableRuntimeException.class)
+                        .fail(VARIANT(), VARIANT_BUILDER.of("x"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(BYTES())
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(new byte[] {1, 2, 3}),
+                                new byte[] {1, 2, 3})
+                        // the raw bytes stay reachable when the character string cast rejects
+                        // them, which is what makes this the way to inspect such a value
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(INVALID_UTF8), INVALID_UTF8)
+                        .fail(VARIANT(), VARIANT_BUILDER.of("foo"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(UUID())
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(VARIANT(), Variant.newBuilder().of(UUID_VALUE), UUID_BYTES)
+                        .fail(VARIANT(), VARIANT_BUILDER.of("foo"), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(DATE())
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(LocalDate.of(2020, 1, 1)),
+                                (int) LocalDate.of(2020, 1, 1).toEpochDay())
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
+                // A variant keeps microseconds for TIME, so fractional seconds beyond the target
+                // precision are truncated, matching a regular cast into a narrower TIME.
+                CastTestSpecBuilder.testCastTo(TIME(3))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalTime.of(12, 0, 0).plus(Duration.ofMillis(123))),
+                                DateTimeUtils.toInternal(
+                                        LocalTime.of(12, 0, 0).plus(Duration.ofMillis(123))))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(LocalTime.of(12, 0, 0, 123_456_000)),
+                                DateTimeUtils.toInternal(LocalTime.of(12, 0, 0, 123_000_000)))
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class),
+                // TIME has no runtime representation finer than milliseconds, so a target
+                // precision above 3 truncates no further than TIME(3) already does.
+                CastTestSpecBuilder.testCastTo(TIME(6))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder().of(LocalTime.of(12, 0, 0, 123_456_789)),
+                                DateTimeUtils.toInternal(LocalTime.of(12, 0, 0, 123_000_000))),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP())
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0)))
+                        // the default precision keeps microseconds, truncating the nanoseconds
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)))
+                        .fail(VARIANT(), Variant.newBuilder().of(1), TableRuntimeException.class)
+                        // a TIMESTAMP_LTZ is a different kind and is not read as a TIMESTAMP
+                        .fail(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(Instant.ofEpochSecond(1_600_000_000L)),
+                                TableRuntimeException.class),
+                // A variant keeps microseconds, so fractional seconds beyond the target precision
+                // are truncated, matching a regular cast into a narrower TIMESTAMP.
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(3))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0)))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000))),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(0))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123000000)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0))),
+                // A fraction with leading zeros (.000123456) is still truncated to the precision.
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(6))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123_456)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123_000))),
+                // The cast accepts either storage kind: TIMESTAMP_NS for a value that needs
+                // nanosecond precision, plain TIMESTAMP when microseconds already hold it exactly.
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(9))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789)))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456000)))
+                        // a TIMESTAMP_LTZ_NS is a different kind and is not read as a TIMESTAMP
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(Instant.ofEpochSecond(1_600_000_000L, 123456789)),
+                                TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ())
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(Instant.ofEpochSecond(1_600_000_000L)),
+                                TimestampData.fromInstant(Instant.ofEpochSecond(1_600_000_000L)))
+                        .fail(VARIANT(), VARIANT_BUILDER.of(1), TableRuntimeException.class)
+                        // a TIMESTAMP is not read as a TIMESTAMP_LTZ either
+                        .fail(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(LocalDateTime.of(2020, 1, 1, 12, 0, 0)),
+                                TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(3))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(
+                                        Instant.ofEpochSecond(1_600_000_000L, 123456000)),
+                                TimestampData.fromInstant(
+                                        Instant.ofEpochSecond(1_600_000_000L, 123000000))),
+                // The cast accepts either storage kind: TIMESTAMP_LTZ_NS for a value that needs
+                // nanosecond precision, plain TIMESTAMP_LTZ when microseconds already hold it
+                // exactly.
+                CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(Instant.ofEpochSecond(1_600_000_000L, 123456789)),
+                                TimestampData.fromInstant(
+                                        Instant.ofEpochSecond(1_600_000_000L, 123456789)))
+                        .fromCase(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(Instant.ofEpochSecond(1_600_000_000L, 123456000)),
+                                TimestampData.fromInstant(
+                                        Instant.ofEpochSecond(1_600_000_000L, 123456000)))
+                        // a TIMESTAMP_NS is a different kind and is not read as a TIMESTAMP_LTZ
+                        .fail(
+                                VARIANT(),
+                                Variant.newBuilder()
+                                        .of(LocalDateTime.of(2020, 1, 1, 12, 0, 0, 123456789)),
+                                TableRuntimeException.class),
+                // A binary target pads a shorter value and truncates a longer one, matching a
+                // regular cast into the same type.
+                CastTestSpecBuilder.testCastTo(BINARY(4))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(new byte[] {1, 2, 3, 4}),
+                                new byte[] {1, 2, 3, 4})
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(new byte[] {1, 2}),
+                                new byte[] {1, 2, 0, 0})
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(new byte[] {1, 2, 3, 4, 5, 6}),
+                                new byte[] {1, 2, 3, 4}),
+                CastTestSpecBuilder.testCastTo(VARBINARY(4))
+                        // a variable width target is trimmed but never padded
+                        .fromCase(
+                                VARIANT(), VARIANT_BUILDER.of(new byte[] {1, 2}), new byte[] {1, 2})
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(new byte[] {1, 2, 3, 4, 5, 6}),
+                                new byte[] {1, 2, 3, 4}),
+                // From VARIANT to a constructed target. A constructed cast is the scalar cast
+                // applied to every leaf plus a shape check at each level.
+                CastTestSpecBuilder.testCastTo(ARRAY(INT()))
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                new GenericArrayData(new Integer[] {1, 2, 3}))
+                        // a VARIANT null element maps to SQL NULL for a nullable element type
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY_WITH_NULL,
+                                new GenericArrayData(new Integer[] {1, null, 3}))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_EMPTY_ARRAY,
+                                new GenericArrayData(new Integer[] {}))
+                        // a stored string is never parsed into an integer
+                        .fail(VARIANT(), VARIANT_STRING_ARRAY, TableRuntimeException.class)
+                        // a heterogeneous array fails on an element that is not an integer
+                        .fail(VARIANT(), VARIANT_MIXED_ARRAY, TableRuntimeException.class)
+                        // an object or a scalar is not an array
+                        .fail(VARIANT(), VARIANT_OBJECT, TableRuntimeException.class)
+                        .fail(VARIANT(), VARIANT_BUILDER.of(1), TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(ARRAY(INT().notNull()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                new GenericArrayData(new int[] {1, 2, 3}))
+                        // a VARIANT null element fails a NOT NULL element type
+                        .fail(VARIANT(), VARIANT_INT_ARRAY_WITH_NULL, TableRuntimeException.class),
+                CastTestSpecBuilder.testCastTo(ARRAY(BYTES()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER
+                                        .array()
+                                        .add(VARIANT_BUILDER.of(new byte[] {1}))
+                                        .add(VARIANT_BUILDER.of(new byte[] {2, 3}))
+                                        .add(VARIANT_BUILDER.ofNull())
+                                        .build(),
+                                new GenericArrayData(new byte[][] {{1}, {2, 3}, null})),
+                CastTestSpecBuilder.testCastTo(ARRAY(STRING()))
+                        // each element renders to string like the scalar cast
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                new GenericArrayData(
+                                        new Object[] {
+                                            fromString("1"), fromString("2"), fromString("3")
+                                        }))
+                        // a heterogeneous array renders every element to string
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_MIXED_ARRAY,
+                                new GenericArrayData(
+                                        new Object[] {
+                                            fromString("1"),
+                                            fromString("a"),
+                                            fromString("2"),
+                                            fromString("b")
+                                        }))
+                        // stored strings of different lengths render unchanged
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_STRING_ARRAY,
+                                new GenericArrayData(
+                                        new Object[] {
+                                            fromString("1"), fromString("22"), fromString("333")
+                                        })),
+                CastTestSpecBuilder.testCastTo(ARRAY(DOUBLE()))
+                        // an approximate leaf takes any numeric kind
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                new GenericArrayData(new Double[] {1.0, 2.0, 3.0})),
+                // the recursion composes: an array of arrays with no special case
+                CastTestSpecBuilder.testCastTo(ARRAY(ARRAY(INT())))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_NESTED_ARRAY,
+                                new GenericArrayData(
+                                        new GenericArrayData[] {
+                                            new GenericArrayData(new Integer[] {1, 2}),
+                                            new GenericArrayData(new Integer[] {3})
+                                        })),
+                // an ARRAY<VARIANT> leaf is the identity cast, keeping each element as a variant
+                CastTestSpecBuilder.testCastTo(ARRAY(VARIANT()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                new GenericArrayData(
+                                        new Variant[] {
+                                            VARIANT_INT_ARRAY.getElement(0),
+                                            VARIANT_INT_ARRAY.getElement(1),
+                                            VARIANT_INT_ARRAY.getElement(2)
+                                        }))
+                        // the identity cast keeps a VARIANT null element as a variant null, not a
+                        // SQL NULL
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY_WITH_NULL,
+                                new GenericArrayData(
+                                        new Variant[] {
+                                            VARIANT_INT_ARRAY_WITH_NULL.getElement(0),
+                                            VARIANT_INT_ARRAY_WITH_NULL.getElement(1),
+                                            VARIANT_INT_ARRAY_WITH_NULL.getElement(2)
+                                        })),
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("id", INT()), FIELD("name", STRING())))
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(), VARIANT_RECORD, GenericRowData.of(7, fromString("ada")))
+                        // an array or a scalar is not an object
+                        .fail(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                TableRuntimeException.class,
+                                "requires an object"),
+                // field order of the target is free, since matching is by name
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("name", STRING()), FIELD("id", INT())))
+                        .fromCase(
+                                VARIANT(), VARIANT_RECORD, GenericRowData.of(fromString("ada"), 7)),
+                // a field absent from the object fails the cast, nullable or not
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("id", INT()), FIELD("email", STRING())))
+                        .fail(
+                                VARIANT(),
+                                VARIANT_RECORD,
+                                TableRuntimeException.class,
+                                "is not present in the VARIANT"),
+                CastTestSpecBuilder.testCastTo(
+                                ROW(FIELD("id", INT()), FIELD("email", STRING().notNull())))
+                        .fail(
+                                VARIANT(),
+                                VARIANT_RECORD,
+                                TableRuntimeException.class,
+                                "is not present in the VARIANT"),
+                // a field present but set to a VARIANT null maps to NULL when nullable
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("id", INT()), FIELD("email", STRING())))
+                        .fromCase(VARIANT(), VARIANT_RECORD_WITH_NULL, GenericRowData.of(7, null)),
+                // and fails when the field is NOT NULL
+                CastTestSpecBuilder.testCastTo(
+                                ROW(FIELD("id", INT()), FIELD("email", STRING().notNull())))
+                        .fail(
+                                VARIANT(),
+                                VARIANT_RECORD_WITH_NULL,
+                                TableRuntimeException.class,
+                                "does not accept NULL"),
+                // extra object fields are dropped, so the row is a projection
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("id", INT())))
+                        .fromCase(VARIANT(), VARIANT_RECORD, GenericRowData.of(7)),
+                // a ROW<VARIANT> field is the identity: each field is kept as a variant, one level
+                // shredded
+                CastTestSpecBuilder.testCastTo(
+                                ROW(FIELD("id", VARIANT()), FIELD("name", VARIANT())))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD,
+                                GenericRowData.of(
+                                        rowFieldVariant(VARIANT_RECORD.getField("id")),
+                                        rowFieldVariant(VARIANT_RECORD.getField("name")))),
+                // a VARIANT target field keeps a variant null as a variant null, not SQL NULL
+                CastTestSpecBuilder.testCastTo(
+                                ROW(FIELD("id", VARIANT()), FIELD("email", VARIANT())))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD_WITH_NULL,
+                                GenericRowData.of(
+                                        rowFieldVariant(VARIANT_RECORD_WITH_NULL.getField("id")),
+                                        rowFieldVariant(
+                                                VARIANT_RECORD_WITH_NULL.getField("email")))),
+                // a typed field beside a VARIANT field keeps the variant null only on the VARIANT
+                // side
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("id", INT()), FIELD("email", VARIANT())))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD_WITH_NULL,
+                                GenericRowData.of(
+                                        7,
+                                        rowFieldVariant(
+                                                VARIANT_RECORD_WITH_NULL.getField("email")))),
+                // a ROW without declared field names uses the default names f0, f1, ...; matching
+                // is
+                // still by name, not by position
+                CastTestSpecBuilder.testCastTo(ROW(INT(), STRING()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_POSITIONAL_RECORD,
+                                GenericRowData.of(7, fromString("ada")))
+                        // an object without the default names fails, position is never used
+                        .fail(
+                                VARIANT(),
+                                VARIANT_RECORD,
+                                TableRuntimeException.class,
+                                "is not present in the VARIANT"),
+                // a STRUCTURED target is served by the same rule, matching attributes to object
+                // fields by name
+                CastTestSpecBuilder.testCastTo(MY_STRUCTURED_TYPE)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_STRUCT_RECORD,
+                                GenericRowData.of(
+                                        1L,
+                                        2L,
+                                        fromString("x"),
+                                        new GenericArrayData(
+                                                new Object[] {fromString("p"), fromString("q")}))),
+                // the recursion composes: a row of a row and an array with no special case
+                CastTestSpecBuilder.testCastTo(
+                                ROW(
+                                        FIELD(
+                                                "user",
+                                                ROW(FIELD("id", INT()), FIELD("since", STRING()))),
+                                        FIELD("tags", ARRAY(STRING()))))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_NESTED,
+                                GenericRowData.of(
+                                        GenericRowData.of(1, fromString("2020-01-01")),
+                                        new GenericArrayData(
+                                                new Object[] {fromString("x"), fromString("y")}))),
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), STRING()))
+                        .fromCase(VARIANT(), null, null)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD,
+                                mapData(
+                                        entry(fromString("id"), fromString("7")),
+                                        entry(fromString("name"), fromString("ada")),
+                                        entry(fromString("active"), fromString("TRUE"))))
+                        // an empty object casts to an empty map
+                        .fromCase(VARIANT(), VARIANT_EMPTY_OBJECT, mapData())
+                        // a value present but set to a variant null maps to SQL NULL when nullable
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD_WITH_NULL,
+                                mapData(
+                                        entry(fromString("id"), fromString("7")),
+                                        entry(fromString("email"), null)))
+                        // a mixed object renders every value to STRING
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_MIXED_OBJECT,
+                                mapData(
+                                        entry(fromString("a"), fromString("1")),
+                                        entry(fromString("b"), fromString("x"))))
+                        // an array is not an object
+                        .fail(
+                                VARIANT(),
+                                VARIANT_INT_ARRAY,
+                                TableRuntimeException.class,
+                                "requires an object"),
+                // a NOT NULL value type rejects a variant null value
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), STRING().notNull()))
+                        .fail(
+                                VARIANT(),
+                                VARIANT_RECORD_WITH_NULL,
+                                TableRuntimeException.class,
+                                "NOT NULL map value type"),
+                // MAP<STRING, VARIANT> keeps each value a variant, one level shredded
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), VARIANT()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_NUM_OBJECT,
+                                mapData(
+                                        entry(fromString("a"), VARIANT_NUM_OBJECT.getField("a")),
+                                        entry(fromString("b"), VARIANT_NUM_OBJECT.getField("b"))))
+                        // a VARIANT value keeps a variant null as a variant null, not SQL NULL
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_RECORD_WITH_NULL,
+                                mapData(
+                                        entry(
+                                                fromString("id"),
+                                                VARIANT_RECORD_WITH_NULL.getField("id")),
+                                        entry(
+                                                fromString("email"),
+                                                VARIANT_RECORD_WITH_NULL.getField("email")))),
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), INT()))
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_NUM_OBJECT,
+                                mapData(entry(fromString("a"), 1), entry(fromString("b"), 2)))
+                        // a value that is not an integer fails the cast
+                        .fail(
+                                VARIANT(),
+                                VARIANT_MIXED_OBJECT,
+                                TableRuntimeException.class,
+                                "does not change the type"));
     }
 
     @TestFactory
@@ -1728,6 +2685,14 @@ class CastRulesTest {
 
         private CastTestSpecBuilder fail(
                 DataType dataType, Object src, Class<? extends Throwable> exception) {
+            return fail(dataType, src, exception, null);
+        }
+
+        private CastTestSpecBuilder fail(
+                DataType dataType,
+                Object src,
+                Class<? extends Throwable> exception,
+                String messageSubstring) {
             return fail(
                     dataType,
                     CastRule.Context.create(
@@ -1737,7 +2702,8 @@ class CastRulesTest {
                             Thread.currentThread().getContextClassLoader(),
                             CTX),
                     src,
-                    exception);
+                    exception,
+                    messageSubstring);
         }
 
         private CastTestSpecBuilder fail(
@@ -1745,10 +2711,25 @@ class CastRulesTest {
                 CastRule.Context castContext,
                 Object src,
                 Class<? extends Throwable> exception) {
+            return fail(dataType, castContext, src, exception, null);
+        }
+
+        private CastTestSpecBuilder fail(
+                DataType dataType,
+                CastRule.Context castContext,
+                Object src,
+                Class<? extends Throwable> exception,
+                String messageSubstring) {
             this.inputTypes.add(dataType);
             this.assertionExecutors.add(
-                    executor ->
-                            assertThatThrownBy(() -> executor.cast(src)).isInstanceOf(exception));
+                    executor -> {
+                        final AbstractThrowableAssert<?, ?> thrown =
+                                assertThatThrownBy(() -> executor.cast(src))
+                                        .isInstanceOf(exception);
+                        if (messageSubstring != null) {
+                            thrown.hasStackTraceContaining(messageSubstring);
+                        }
+                    });
             this.descriptions.add("{" + src + " => " + exception.getName() + "}");
             this.castContexts.add(castContext);
             return this;

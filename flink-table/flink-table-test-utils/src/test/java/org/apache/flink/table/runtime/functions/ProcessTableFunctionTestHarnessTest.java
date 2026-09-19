@@ -23,15 +23,23 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.TableSemantics;
+import org.apache.flink.table.runtime.functions.ProcessTableFunctionTestHarness.TableArgument;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
 
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -108,6 +116,14 @@ class ProcessTableFunctionTestHarnessTest {
     public static class PartitionedPTF extends ProcessTableFunction<Row> {
         public void eval(@ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
             collect(Row.of((Integer) input.getFieldAs("value")));
+        }
+    }
+
+    /** PTF with a non-Row (atomic) output, for testing the EXPR$0 wrap in getOutput(). */
+    public static class AtomicOutputPTF extends ProcessTableFunction<Integer> {
+        public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
+            int value = input.getFieldAs("value");
+            collect(value * 2);
         }
     }
 
@@ -193,6 +209,20 @@ class ProcessTableFunctionTestHarnessTest {
         @Override
         public int hashCode() {
             return Objects.hash(name, age);
+        }
+    }
+
+    public static class TimedEvent {
+        public String key;
+
+        @DataTypeHint("TIMESTAMP(3)")
+        public LocalDateTime ts;
+
+        public TimedEvent() {}
+
+        public TimedEvent(String key, LocalDateTime ts) {
+            this.key = key;
+            this.ts = ts;
         }
     }
 
@@ -299,11 +329,26 @@ class ProcessTableFunctionTestHarnessTest {
         }
     }
 
-    /** PTF with Context parameter - should be rejected by test harness. */
-    @DataTypeHint("ROW<value INT>")
-    public static class PTFWithContext extends ProcessTableFunction<Row> {
-        public void eval(Context ctx, @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
-            collect(input);
+    /** PTF with primitive scalar arguments. */
+    @DataTypeHint("ROW<sum INT>")
+    public static class PrimitiveScalarPTF extends ProcessTableFunction<Row> {
+        public void eval(int a, int b) {
+            collect(Row.of(a + b));
+        }
+    }
+
+    /**
+     * Scalar-only PTF whose eval() takes a {@link ProcessTableFunction.Context}. With no table
+     * arguments, we expect there to be no time/watermark, so both resolve to null.
+     */
+    @DataTypeHint("ROW<ts INT, watermark INT, value INT>")
+    public static class ScalarOnlyContextPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint(ArgumentTrait.SCALAR) Integer a,
+                @ArgumentHint(ArgumentTrait.SCALAR) Integer b) {
+            final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            collect(Row.of(timeCtx.time(), timeCtx.currentWatermark(), a + b));
         }
     }
 
@@ -409,7 +454,10 @@ class ProcessTableFunctionTestHarnessTest {
                         IllegalArgumentException.class,
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(FilterPTF.class)
-                                    .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                                    .withTableArgument(
+                                            TableArgument.forName("input")
+                                                    .type(DataTypes.of("ROW<value INT>"))
+                                                    .build())
                                     .withScalarArgument("threshold", 50)
                                     .withScalarArgument("threshold", 100);
                         });
@@ -425,9 +473,13 @@ class ProcessTableFunctionTestHarnessTest {
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(MultiTableUnionPTF.class)
                                     .withTableArgument(
-                                            "leftTable", DataTypes.of("ROW<id INT, name STRING>"))
+                                            TableArgument.forName("leftTable")
+                                                    .type(DataTypes.of("ROW<id INT, name STRING>"))
+                                                    .build())
                                     .withTableArgument(
-                                            "leftTable", DataTypes.of("ROW<id INT, value INT>"));
+                                            TableArgument.forName("leftTable")
+                                                    .type(DataTypes.of("ROW<id INT, value INT>"))
+                                                    .build());
                         });
 
         assertThat(exception.getMessage()).contains("leftTable");
@@ -440,7 +492,10 @@ class ProcessTableFunctionTestHarnessTest {
                         IllegalArgumentException.class,
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(FilterPTF.class)
-                                    .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                                    .withTableArgument(
+                                            TableArgument.forName("input")
+                                                    .type(DataTypes.of("ROW<value INT>"))
+                                                    .build())
                                     .withScalarArgument("input", 42);
                         });
 
@@ -452,7 +507,10 @@ class ProcessTableFunctionTestHarnessTest {
         // We should reject PTFs that use reserved argument name "on_time"
         ProcessTableFunctionTestHarness.Builder harnessBuilder =
                 ProcessTableFunctionTestHarness.ofClass(InvalidReservedArgOnTimePTF.class)
-                        .withTableArgument("on_time", DataTypes.of("ROW<id INT>"));
+                        .withTableArgument(
+                                TableArgument.forName("on_time")
+                                        .type(DataTypes.of("ROW<id INT>"))
+                                        .build());
 
         ValidationException exception =
                 assertThrows(
@@ -471,7 +529,10 @@ class ProcessTableFunctionTestHarnessTest {
         // We should reject PTFs that use reserved argument name "uid"
         ProcessTableFunctionTestHarness.Builder harnessBuilder =
                 ProcessTableFunctionTestHarness.ofClass(InvalidReservedArgUidPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<id INT>"))
+                                        .build())
                         .withScalarArgument("uid", "my-id");
 
         ValidationException exception =
@@ -497,7 +558,10 @@ class ProcessTableFunctionTestHarnessTest {
 
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(ExplicitNamePTF.class)
-                        .withTableArgument("customName", DataTypes.of("ROW<value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("customName")
+                                        .type(DataTypes.of("ROW<value INT>"))
+                                        .build())
                         .build()) {
 
             harness.processElement(Row.of(42));
@@ -529,6 +593,40 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
+    void testPrimitiveScalarArguments() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PrimitiveScalarPTF.class)
+                        .withScalarArgument("a", 10)
+                        .withScalarArgument("b", 20)
+                        .build()) {
+
+            harness.process();
+
+            List<Row> output = harness.getOutput();
+            assertThat(output).hasSize(1);
+            assertThat(output.get(0).getField("sum")).isEqualTo(30);
+        }
+    }
+
+    @Test
+    void testScalarOnlyPTFInjectsContext() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ScalarOnlyContextPTF.class)
+                        .withScalarArgument("a", 10)
+                        .withScalarArgument("b", 20)
+                        .build()) {
+
+            harness.process();
+
+            List<Row> output = harness.getOutput();
+            assertThat(output).hasSize(1);
+            assertThat(output.get(0).getField("ts")).isNull();
+            assertThat(output.get(0).getField("watermark")).isNull();
+            assertThat(output.get(0).getField("value")).isEqualTo(30);
+        }
+    }
+
+    @Test
     void testScalarOnlyPTFWithWrongArgumentTypes() {
         Exception exception =
                 assertThrows(
@@ -550,7 +648,10 @@ class ProcessTableFunctionTestHarnessTest {
         // Verify that invoke() rejects PTFs with table arguments
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(FilterPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<value INT>"))
+                                        .build())
                         .withScalarArgument("threshold", 50)
                         .build()) {
 
@@ -570,7 +671,10 @@ class ProcessTableFunctionTestHarnessTest {
         // Test a PTF that uses a scalar parameter
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(FilterPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<value INT>"))
+                                        .build())
                         .withScalarArgument("threshold", 50) // Scalar argument: threshold = 50
                         .build()) {
 
@@ -596,7 +700,10 @@ class ProcessTableFunctionTestHarnessTest {
                         IllegalStateException.class,
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(FilterPTF.class)
-                                    .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                                    .withTableArgument(
+                                            TableArgument.forName("input")
+                                                    .type(DataTypes.of("ROW<value INT>"))
+                                                    .build())
                                     .withScalarArgument("threshold", "not_an_integer")
                                     .build();
                         });
@@ -615,7 +722,10 @@ class ProcessTableFunctionTestHarnessTest {
         // Verify RowKind is preserved through processing (ROW_SEMANTIC_TABLE)
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<value INT>"))
+                                        .build())
                         .build()) {
 
             harness.processElement(RowKind.INSERT, 10);
@@ -641,8 +751,11 @@ class ProcessTableFunctionTestHarnessTest {
         // Verify PASS_COLUMNS_THROUGH prepends ALL input columns (not just partition keys)
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PassColumnsThroughPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
-                        .withPartitionBy("input", "key")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .partitionBy("key")
+                                        .build())
                         .build()) {
 
             harness.processElement(Row.of("A", 10));
@@ -661,7 +774,10 @@ class ProcessTableFunctionTestHarnessTest {
         // Verify OPTIONAL_PARTITION_BY allows omitting partition configuration
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(OptionalPartitionPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .build())
                         .build()) {
 
             harness.processElement(Row.of("A", 10));
@@ -682,8 +798,11 @@ class ProcessTableFunctionTestHarnessTest {
         // Verify OPTIONAL_PARTITION_BY still works when partition is configured
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(OptionalPartitionPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
-                        .withPartitionBy("input", "key")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .partitionBy("key")
+                                        .build())
                         .build()) {
 
             harness.processElement(Row.of("A", 10));
@@ -703,7 +822,10 @@ class ProcessTableFunctionTestHarnessTest {
     void testOptionalPartitionByWithStateNoPartition() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(StatefulOptionalPartitionPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .build())
                         .build()) {
 
             harness.processElement(Row.of("A", 10));
@@ -726,8 +848,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testOptionalPartitionByWithStateAndPartition() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(StatefulOptionalPartitionPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
-                        .withPartitionBy("input", "key")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .partitionBy("key")
+                                        .build())
                         .build()) {
 
             harness.processElement(Row.of("A", 10));
@@ -757,7 +882,10 @@ class ProcessTableFunctionTestHarnessTest {
 
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(StatefulOptionalPartitionPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .build())
                         .withInitialStateForKey("state", Row.of(), initialState)
                         .build()) {
 
@@ -794,7 +922,10 @@ class ProcessTableFunctionTestHarnessTest {
         // Test what happens when Row field order differs from DataType schema order
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(UserValuePassthroughPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<user STRING, value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<user STRING, value INT>"))
+                                        .build())
                         .build()) {
 
             Row rowA = Row.withNames();
@@ -819,7 +950,10 @@ class ProcessTableFunctionTestHarnessTest {
         // Verify that type mismatches are caught when Row values don't match schema types
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(UserValuePassthroughPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<user STRING, value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<user STRING, value INT>"))
+                                        .build())
                         .build()) {
 
             Row wrongOrderRow = Row.of(10, "Alice");
@@ -841,7 +975,7 @@ class ProcessTableFunctionTestHarnessTest {
         // that type.
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(UserPTF.class)
-                        .withTableArgument("user")
+                        .withTableArgument(TableArgument.forName("user").build())
                         .build()) {
 
             harness.processElement(Row.of("Alice", 25));
@@ -861,18 +995,21 @@ class ProcessTableFunctionTestHarnessTest {
         // Test PTF with structured type inputs and outputs
         try (ProcessTableFunctionTestHarness<User> harness =
                 ProcessTableFunctionTestHarness.ofClass(UserTransformPTF.class)
-                        .withTableArgument("user")
+                        .withTableArgument(TableArgument.forName("user").build())
                         .build()) {
 
             harness.processElement(Row.of("Alice", 25));
 
-            List<User> output = harness.getOutput();
+            List<User> output = harness.getFunctionOutput();
             assertThat(output).hasSize(1);
 
             User result = output.get(0);
             assertThat(result.getClass()).isEqualTo(User.class);
             assertThat(result.name).isEqualTo("Alice");
             assertThat(result.age).isEqualTo(26);
+
+            // getOutput() flattens the POJO into its attributes.
+            assertThat(harness.getOutput()).containsExactly(Row.of("Alice", 26));
         }
     }
 
@@ -899,7 +1036,10 @@ class ProcessTableFunctionTestHarnessTest {
         // types, the harness builds successfully
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(InlineTypePTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<value INT>"))
+                                        .build())
                         .build()) {
 
             harness.processElement(Row.of(7));
@@ -919,8 +1059,11 @@ class ProcessTableFunctionTestHarnessTest {
         // Verify set-semantic table with partition configuration by column name
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PartitionedPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
-                        .withPartitionBy("input", "key") // Partition by "key" column name
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .partitionBy("key")
+                                        .build())
                         .build()) {
 
             harness.processElement(Row.of("X", 10));
@@ -941,9 +1084,12 @@ class ProcessTableFunctionTestHarnessTest {
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PartitionedPTF.class)
                         .withTableArgument(
-                                "input",
-                                DataTypes.of("ROW<region STRING, country STRING, value INT>"))
-                        .withPartitionBy("input", "region", "country")
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<region STRING, country STRING, value INT>"))
+                                        .partitionBy("region", "country")
+                                        .build())
                         .build()) {
 
             harness.processElement(Row.of("EU", "DE", 100));
@@ -966,10 +1112,12 @@ class ProcessTableFunctionTestHarnessTest {
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PartitionedPTF.class)
                         .withTableArgument(
-                                "input",
-                                DataTypes.of(
-                                        "ROW<id INT, region STRING, country STRING, city STRING, value INT>"))
-                        .withPartitionBy("input", "region")
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<id INT, region STRING, country STRING, city STRING, value INT>"))
+                                        .partitionBy("region")
+                                        .build())
                         .build()) {
 
             harness.processElement(Row.of(1, "EU", "DE", "Berlin", 100));
@@ -986,11 +1134,16 @@ class ProcessTableFunctionTestHarnessTest {
     void testMultipleSetSemanticTablesWithMatchingPartitionKeys() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(MultiTableUnionPTF.class)
-                        .withTableArgument("leftTable", DataTypes.of("ROW<name STRING, score INT>"))
-                        .withPartitionBy("leftTable", "name")
                         .withTableArgument(
-                                "rightTable", DataTypes.of("ROW<name STRING, city STRING>"))
-                        .withPartitionBy("rightTable", "name")
+                                TableArgument.forName("leftTable")
+                                        .type(DataTypes.of("ROW<name STRING, score INT>"))
+                                        .partitionBy("name")
+                                        .build())
+                        .withTableArgument(
+                                TableArgument.forName("rightTable")
+                                        .type(DataTypes.of("ROW<name STRING, city STRING>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build()) {
 
             harness.processElementForTable("leftTable", Row.of("Alice", 100));
@@ -1026,11 +1179,13 @@ class ProcessTableFunctionTestHarnessTest {
         // and another is a Row, both partitioned by the same field type
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(MixedTypeMultiTablePTF.class)
-                        .withTableArgument("userTable")
-                        .withPartitionBy("userTable", "age")
                         .withTableArgument(
-                                "rowTable", DataTypes.of("ROW<name STRING, age INT NOT NULL>"))
-                        .withPartitionBy("rowTable", "age")
+                                TableArgument.forName("userTable").partitionBy("age").build())
+                        .withTableArgument(
+                                TableArgument.forName("rowTable")
+                                        .type(DataTypes.of("ROW<name STRING, age INT NOT NULL>"))
+                                        .partitionBy("age")
+                                        .build())
                         .build()) {
 
             harness.processElementForTable("userTable", Row.of("Alice", 25));
@@ -1052,12 +1207,17 @@ class ProcessTableFunctionTestHarnessTest {
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(MultiTableUnionPTF.class)
                                     .withTableArgument(
-                                            "leftTable", DataTypes.of("ROW<id INT, name STRING>"))
-                                    .withPartitionBy("leftTable", "id")
+                                            TableArgument.forName("leftTable")
+                                                    .type(DataTypes.of("ROW<id INT, name STRING>"))
+                                                    .partitionBy("id")
+                                                    .build())
                                     .withTableArgument(
-                                            "rightTable",
-                                            DataTypes.of("ROW<key STRING, city STRING>"))
-                                    .withPartitionBy("rightTable", "key")
+                                            TableArgument.forName("rightTable")
+                                                    .type(
+                                                            DataTypes.of(
+                                                                    "ROW<key STRING, city STRING>"))
+                                                    .partitionBy("key")
+                                                    .build())
                                     .build();
                         });
 
@@ -1073,12 +1233,17 @@ class ProcessTableFunctionTestHarnessTest {
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(MultiTableUnionPTF.class)
                                     .withTableArgument(
-                                            "leftTable",
-                                            DataTypes.of("ROW<id INT, region STRING, name STRING>"))
-                                    .withPartitionBy("leftTable", "id", "region")
+                                            TableArgument.forName("leftTable")
+                                                    .type(
+                                                            DataTypes.of(
+                                                                    "ROW<id INT, region STRING, name STRING>"))
+                                                    .partitionBy("id", "region")
+                                                    .build())
                                     .withTableArgument(
-                                            "rightTable", DataTypes.of("ROW<id INT, city STRING>"))
-                                    .withPartitionBy("rightTable", "id")
+                                            TableArgument.forName("rightTable")
+                                                    .type(DataTypes.of("ROW<id INT, city STRING>"))
+                                                    .partitionBy("id")
+                                                    .build())
                                     .build();
                         });
 
@@ -1094,8 +1259,14 @@ class ProcessTableFunctionTestHarnessTest {
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(
                                             InvalidPassColumnsThroughMultiTablePTF.class)
-                                    .withTableArgument("leftTable", DataTypes.of("ROW<a INT>"))
-                                    .withTableArgument("rightTable", DataTypes.of("ROW<b INT>"))
+                                    .withTableArgument(
+                                            TableArgument.forName("leftTable")
+                                                    .type(DataTypes.of("ROW<a INT>"))
+                                                    .build())
+                                    .withTableArgument(
+                                            TableArgument.forName("rightTable")
+                                                    .type(DataTypes.of("ROW<b INT>"))
+                                                    .build())
                                     .build();
                         });
 
@@ -1112,10 +1283,16 @@ class ProcessTableFunctionTestHarnessTest {
     void testProcessElementOnMultiTableThrows() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(MultiTableUnionPTF.class)
-                        .withTableArgument("leftTable", DataTypes.of("ROW<id INT, name STRING>"))
-                        .withTableArgument("rightTable", DataTypes.of("ROW<id INT, value STRING>"))
-                        .withPartitionBy("leftTable", "id")
-                        .withPartitionBy("rightTable", "id")
+                        .withTableArgument(
+                                TableArgument.forName("leftTable")
+                                        .type(DataTypes.of("ROW<id INT, name STRING>"))
+                                        .partitionBy("id")
+                                        .build())
+                        .withTableArgument(
+                                TableArgument.forName("rightTable")
+                                        .type(DataTypes.of("ROW<id INT, value STRING>"))
+                                        .partitionBy("id")
+                                        .build())
                         .build()) {
 
             Exception exception =
@@ -1136,18 +1313,64 @@ class ProcessTableFunctionTestHarnessTest {
     void testClearOutput() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<value INT>"))
+                                        .build())
                         .build()) {
 
             harness.processElement(Row.of(10));
             harness.processElement(Row.of(20));
             assertThat(harness.getOutput()).hasSize(2);
+            assertThat(harness.getFunctionOutput()).hasSize(2);
 
             harness.clearOutput();
             assertThat(harness.getOutput()).isEmpty();
+            assertThat(harness.getFunctionOutput()).isEmpty();
 
             harness.processElement(Row.of(30));
             assertThat(harness.getOutput()).hasSize(1);
+            assertThat(harness.getFunctionOutput()).hasSize(1);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Function Output Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testFunctionOutputReturnsUnwrappedAtomicValue() throws Exception {
+        try (ProcessTableFunctionTestHarness<Integer> harness =
+                ProcessTableFunctionTestHarness.ofClass(AtomicOutputPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<value INT>"))
+                                        .build())
+                        .build()) {
+
+            harness.processElement(Row.of(21));
+
+            assertThat(harness.getFunctionOutput()).containsExactly(42);
+            assertThat(harness.getOutput()).containsExactly(Row.of(42));
+        }
+    }
+
+    @Test
+    void testFunctionOutputExcludesPrependedPartitionKey() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PartitionedPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .partitionBy("key")
+                                        .build())
+                        .build()) {
+
+            harness.processElement(Row.of("X", 10));
+            harness.processElement(Row.of("Y", 20));
+
+            assertThat(harness.getFunctionOutput()).containsExactly(Row.of(10), Row.of(20));
+            assertThat(harness.getOutput()).containsExactly(Row.of("X", 10), Row.of("Y", 20));
         }
     }
 
@@ -1159,7 +1382,10 @@ class ProcessTableFunctionTestHarnessTest {
     void testProcessElementForTableWithInvalidName() throws Exception {
         try (ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
-                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<value INT>"))
+                                        .build())
                         .build()) {
 
             Exception exception =
@@ -1171,22 +1397,6 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
-    void testContextParameterRejected() {
-        Exception exception =
-                assertThrows(
-                        IllegalStateException.class,
-                        () ->
-                                ProcessTableFunctionTestHarness.ofClass(PTFWithContext.class)
-                                        .withTableArgument("input", DataTypes.of("ROW<value INT>"))
-                                        .build());
-
-        assertThat(exception.getMessage())
-                .contains("does not yet support Context parameters")
-                .contains("Context parameter")
-                .contains("position 0");
-    }
-
-    @Test
     void testSetSemanticMissingPartitionConfigThrows() {
         Exception exception =
                 assertThrows(
@@ -1194,12 +1404,16 @@ class ProcessTableFunctionTestHarnessTest {
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(PartitionedPTF.class)
                                     .withTableArgument(
-                                            "input", DataTypes.of("ROW<key STRING, value INT>"))
+                                            TableArgument.forName("input")
+                                                    .type(
+                                                            DataTypes.of(
+                                                                    "ROW<key STRING, value INT>"))
+                                                    .build())
                                     .build();
                         });
 
         assertThat(exception.getMessage()).contains("No partition configuration found");
-        assertThat(exception.getMessage()).contains("withPartitionBy");
+        assertThat(exception.getMessage()).contains("TableArgument.forName");
     }
 
     @Test
@@ -1210,8 +1424,12 @@ class ProcessTableFunctionTestHarnessTest {
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(PartitionedPTF.class)
                                     .withTableArgument(
-                                            "input", DataTypes.of("ROW<key STRING, value INT>"))
-                                    .withPartitionBy("input", "nonexistent")
+                                            TableArgument.forName("input")
+                                                    .type(
+                                                            DataTypes.of(
+                                                                    "ROW<key STRING, value INT>"))
+                                                    .partitionBy("nonexistent")
+                                                    .build())
                                     .build();
                         });
 
@@ -1220,19 +1438,31 @@ class ProcessTableFunctionTestHarnessTest {
     }
 
     @Test
-    void testPartitionByDuplicateConfigThrows() {
+    void testBuilderRejectsDuplicateTableArgumentWithPartitioning() {
+        // Configuring the same table argument twice is rejected, even when the second
+        // configuration only differs in its partitioning.
         Exception exception =
                 assertThrows(
                         IllegalArgumentException.class,
                         () -> {
                             ProcessTableFunctionTestHarness.ofClass(PartitionedPTF.class)
-                                    .withTableArgument(
-                                            "input", DataTypes.of("ROW<key STRING, value INT>"))
-                                    .withPartitionBy("input", "key") // First config
-                                    .withPartitionBy("input", "key"); // Duplicate - should fail
+                                    .withTableArgument( // First config
+                                            TableArgument.forName("input")
+                                                    .type(
+                                                            DataTypes.of(
+                                                                    "ROW<key STRING, value INT>"))
+                                                    .partitionBy("key")
+                                                    .build())
+                                    .withTableArgument( // Duplicate - should fail
+                                            TableArgument.forName("input")
+                                                    .type(
+                                                            DataTypes.of(
+                                                                    "ROW<key STRING, value INT>"))
+                                                    .partitionBy("key")
+                                                    .build());
                         });
 
-        assertThat(exception.getMessage()).contains("Partition config already exists");
+        assertThat(exception.getMessage()).contains("Argument already configured");
     }
 
     // -------------------------------------------------------------------------
@@ -1243,8 +1473,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testValueState() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         harness.processElementForTable("input", Row.of("Alice", 10));
@@ -1266,8 +1499,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testValueStatePartitionIsolation() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         harness.processElementForTable("input", Row.of("Alice", 10));
@@ -1291,8 +1527,11 @@ class ProcessTableFunctionTestHarnessTest {
 
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
-                        .withPartitionBy("input", "id")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<id INT>"))
+                                        .partitionBy("id")
+                                        .build())
                         .withInitialStateForKey("state", Row.of(1), initialState)
                         .build();
 
@@ -1312,8 +1551,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testGetStateKeys() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         harness.processElementForTable("input", Row.of("Alice", 10));
@@ -1331,8 +1573,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testGetAllState() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         harness.processElementForTable("input", Row.of("Alice", 10));
@@ -1352,8 +1597,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testListViewState() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithListViewState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
-                        .withPartitionBy("input", "key")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .partitionBy("key")
+                                        .build())
                         .build();
 
         harness.processElementForTable("input", Row.of("A", 1));
@@ -1373,8 +1621,10 @@ class ProcessTableFunctionTestHarnessTest {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithMapViewState.class)
                         .withTableArgument(
-                                "input", DataTypes.of("ROW<partition STRING, key STRING>"))
-                        .withPartitionBy("input", "partition")
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<partition STRING, key STRING>"))
+                                        .partitionBy("partition")
+                                        .build())
                         .build();
 
         harness.processElementForTable("input", Row.of("P1", "foo"));
@@ -1397,8 +1647,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testRowState() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithRowState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         harness.processElementForTable("input", Row.of("Alice", 10));
@@ -1417,8 +1670,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testEmptyState() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         PTFWithValueState.CounterState state = harness.getStateForKey("state", Row.of("Alice"));
@@ -1432,8 +1688,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testClearAllStatesForKey() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         harness.processElementForTable("input", Row.of("Alice", 10));
@@ -1458,8 +1717,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testClearStateForKey() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         harness.processElementForTable("input", Row.of("Alice", 10));
@@ -1484,8 +1746,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testMultipleStateParameters() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithMultipleStates.class)
-                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
-                        .withPartitionBy("input", "key")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .partitionBy("key")
+                                        .build())
                         .build();
 
         harness.processElementForTable("input", Row.of("A", 10));
@@ -1513,8 +1778,11 @@ class ProcessTableFunctionTestHarnessTest {
 
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithListViewState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<key STRING, value INT>"))
-                        .withPartitionBy("input", "key")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .partitionBy("key")
+                                        .build())
                         .withInitialStateForKey("listState", Row.of("A"), initialList)
                         .build();
 
@@ -1535,8 +1803,10 @@ class ProcessTableFunctionTestHarnessTest {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithMapViewState.class)
                         .withTableArgument(
-                                "input", DataTypes.of("ROW<partition STRING, key STRING>"))
-                        .withPartitionBy("input", "partition")
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<partition STRING, key STRING>"))
+                                        .partitionBy("partition")
+                                        .build())
                         .withInitialStateForKey("mapState", Row.of("P1"), initialMap)
                         .build();
 
@@ -1557,9 +1827,12 @@ class ProcessTableFunctionTestHarnessTest {
                         () ->
                                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
                                         .withTableArgument(
-                                                "input",
-                                                DataTypes.of("ROW<name STRING, value INT>"))
-                                        .withPartitionBy("input", "name")
+                                                TableArgument.forName("input")
+                                                        .type(
+                                                                DataTypes.of(
+                                                                        "ROW<name STRING, value INT>"))
+                                                        .partitionBy("name")
+                                                        .build())
                                         .withInitialStateForKey(
                                                 "state",
                                                 Row.of("Alice", 42),
@@ -1579,9 +1852,12 @@ class ProcessTableFunctionTestHarnessTest {
                         () ->
                                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
                                         .withTableArgument(
-                                                "input",
-                                                DataTypes.of("ROW<name STRING, value INT>"))
-                                        .withPartitionBy("input", "name")
+                                                TableArgument.forName("input")
+                                                        .type(
+                                                                DataTypes.of(
+                                                                        "ROW<name STRING, value INT>"))
+                                                        .partitionBy("name")
+                                                        .build())
                                         .withInitialStateForKey(
                                                 "state",
                                                 Row.of(42),
@@ -1598,8 +1874,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testSetStateForKey() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         harness.processElementForTable("input", Row.of("Alice", 10));
@@ -1628,8 +1907,11 @@ class ProcessTableFunctionTestHarnessTest {
                         IllegalArgumentException.class,
                         () ->
                                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                                        .withTableArgument("input", DataTypes.of("ROW<id INT>"))
-                                        .withPartitionBy("input", "id")
+                                        .withTableArgument(
+                                                TableArgument.forName("input")
+                                                        .type(DataTypes.of("ROW<id INT>"))
+                                                        .partitionBy("id")
+                                                        .build())
                                         .withInitialStateForKey(
                                                 "nonExistentState", Row.of(1), "value")
                                         .build());
@@ -1648,8 +1930,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testPartitionKeyValidationWrongArity() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         Exception exception =
@@ -1666,8 +1951,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testPartitionKeyValidationWrongType() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         Exception exception =
@@ -1685,8 +1973,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testPartitionKeyValidationOnSetState() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         PTFWithValueState.CounterState state = new PTFWithValueState.CounterState();
@@ -1703,8 +1994,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testPartitionKeyValidationOnClearAllStates() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         assertThrows(
@@ -1718,8 +2012,11 @@ class ProcessTableFunctionTestHarnessTest {
     void testPartitionKeyValidationOnClearState() throws Exception {
         ProcessTableFunctionTestHarness<Row> harness =
                 ProcessTableFunctionTestHarness.ofClass(PTFWithValueState.class)
-                        .withTableArgument("input", DataTypes.of("ROW<name STRING, value INT>"))
-                        .withPartitionBy("input", "name")
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<name STRING, value INT>"))
+                                        .partitionBy("name")
+                                        .build())
                         .build();
 
         assertThrows(
@@ -1727,5 +2024,1065 @@ class ProcessTableFunctionTestHarnessTest {
                 () -> harness.clearStateForKey("state", Row.of(42)));
 
         harness.close();
+    }
+
+    // -------------------------------------------------------------------------
+    // Timer PTFs
+    // -------------------------------------------------------------------------
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class TimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            String name = input.getFieldAs("name");
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("timeout-" + name, timeCtx.time().plus(Duration.ofSeconds(5)));
+            collect(Row.of("registered-" + name));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("timer-fired-" + ctx.currentTimer()));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class UnnamedTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
+            timeCtx.registerOnTime(timeCtx.time().plus(Duration.ofSeconds(5)));
+            collect(Row.of("registered"));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            String timerName = ctx.currentTimer();
+            collect(Row.of("fired-unnamed-" + (timerName == null ? "null" : timerName)));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class TimerWithStatePTF extends ProcessTableFunction<Row> {
+        public static class CounterState {
+            public long count = 0L;
+        }
+
+        public void eval(
+                Context ctx,
+                @StateHint CounterState state,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            state.count++;
+            TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            timeCtx.registerOnTime("check", timeCtx.time() + 5000L);
+        }
+
+        public void onTimer(OnTimerContext ctx, @StateHint CounterState state) {
+            collect(Row.of("count=" + state.count));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class PassThroughTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({
+                            ArgumentTrait.SET_SEMANTIC_TABLE,
+                            ArgumentTrait.PASS_COLUMNS_THROUGH,
+                            ArgumentTrait.REQUIRE_ON_TIME
+                        })
+                        Row input) {
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("timer", timeCtx.time().plus(Duration.ofSeconds(5)));
+            collect(Row.of("registered"));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("fired"));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class NoOnTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("timer", timeCtx.time().plus(Duration.ofSeconds(10)));
+            collect(Row.of("registered"));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class MultipleOnTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("timer", timeCtx.time().plus(Duration.ofSeconds(5)));
+            collect(Row.of("registered"));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("fired-no-state"));
+        }
+
+        public void onTimer(OnTimerContext ctx, @StateHint String state) {
+            collect(Row.of("fired-with-state"));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class CascadingTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TimeContext<Timestamp> timeCtx = ctx.timeContext(Timestamp.class);
+            timeCtx.registerOnTime("first", new Timestamp(timeCtx.time().getTime() + 5000));
+            collect(Row.of("eval"));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            String name = ctx.currentTimer();
+            collect(Row.of("fired-" + name));
+            if ("first".equals(name)) {
+                TimeContext<Timestamp> timeCtx = ctx.timeContext(Timestamp.class);
+                timeCtx.registerOnTime("second", new Timestamp(timeCtx.time().getTime() - 2000));
+            }
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class MultiTableTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row leftTable,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row rightTable) {
+            if (leftTable != null) {
+                TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+                timeCtx.registerOnTime("check", timeCtx.time().plus(Duration.ofSeconds(5)));
+                collect(Row.of("left"));
+            }
+            if (rightTable != null) {
+                collect(Row.of("right"));
+            }
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("timer-fired"));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class ContextClearStatePTF extends ProcessTableFunction<Row> {
+        public static class CounterState {
+            public long count = 0L;
+        }
+
+        public void eval(
+                Context ctx,
+                @StateHint CounterState state,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            String action = input.getFieldAs("action");
+            if ("increment".equals(action)) {
+                state.count++;
+                collect(Row.of("count=" + state.count));
+            } else if ("clear-state".equals(action)) {
+                ctx.clearState("state");
+                collect(Row.of("cleared"));
+            } else if ("clear-all-state".equals(action)) {
+                ctx.clearAllState();
+                collect(Row.of("cleared-all"));
+            } else if ("clear-all".equals(action)) {
+                ctx.clearAll();
+                collect(Row.of("cleared-everything"));
+            } else if ("register-timer".equals(action)) {
+                TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+                timeCtx.registerOnTime("t", timeCtx.time().plus(Duration.ofHours(1)));
+                collect(Row.of("timer-registered"));
+            }
+        }
+
+        public void onTimer(OnTimerContext ctx, @StateHint CounterState state) {
+            collect(Row.of("timer-fired"));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class PojoTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        TimedEvent input) {
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("check", timeCtx.time().plus(Duration.ofSeconds(5)));
+            collect(Row.of("registered-" + input.key));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("fired-" + ctx.currentTimer()));
+        }
+    }
+
+    @DataTypeHint("ROW<partitionCols STRING, timeCol INT, changelogMode STRING>")
+    public static class ContextSemanticsIntrospectionPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TableSemantics semantics = ctx.tableSemanticsFor("input");
+            collect(
+                    Row.of(
+                            java.util.Arrays.toString(semantics.partitionByColumns()),
+                            semantics.timeColumn(),
+                            ctx.getChangelogMode().toString()));
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            timeCtx.registerOnTime("check", timeCtx.time().plus(Duration.ofSeconds(5)));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            TableSemantics semantics = ctx.tableSemanticsFor("input");
+            collect(
+                    Row.of(
+                            java.util.Arrays.toString(semantics.partitionByColumns()),
+                            semantics.timeColumn(),
+                            ctx.getChangelogMode().toString()));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class ClearTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            TimeContext<LocalDateTime> timeCtx = ctx.timeContext(LocalDateTime.class);
+            String action = input.getFieldAs("action");
+            if ("register-named".equals(action)) {
+                timeCtx.registerOnTime("myTimer", timeCtx.time().plus(Duration.ofSeconds(5)));
+            } else if ("register-unnamed".equals(action)) {
+                timeCtx.registerOnTime(timeCtx.time().plus(Duration.ofSeconds(5)));
+            } else if ("clear-by-name".equals(action)) {
+                timeCtx.clearTimer("myTimer");
+            } else if ("clear-by-timestamp".equals(action)) {
+                timeCtx.clearTimer(timeCtx.time().plus(Duration.ofSeconds(4)));
+            } else if ("clear-all".equals(action)) {
+                ctx.clearAllTimers();
+            }
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(
+                    Row.of(
+                            "fired-"
+                                    + (ctx.currentTimer() != null
+                                            ? ctx.currentTimer()
+                                            : "unnamed")));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class WatermarkOnlyTimerPTF extends ProcessTableFunction<Row> {
+        public void eval(Context ctx, @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
+            TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            Long wm = timeCtx.currentWatermark();
+            long timer = wm == null || wm < 0 ? 1 : wm + 1;
+            timeCtx.registerOnTime("t", timer);
+            collect(Row.of("registered"));
+        }
+
+        public void onTimer(OnTimerContext ctx) {
+            collect(Row.of("fired-" + ctx.currentTimer()));
+        }
+    }
+
+    @DataTypeHint("ROW<message STRING>")
+    public static class OnTimePTF extends ProcessTableFunction<Row> {
+        public void eval(
+                Context ctx,
+                @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME})
+                        Row input) {
+            String name = input.getFieldAs("name");
+            collect(Row.of("hello-" + name));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Context Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testPerTableWatermarkTimerFiring() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(MultiTableTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("leftTable")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withTableArgument(
+                                TableArgument.forName("rightTable")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            // Register a timer at t=5000 via the left table
+            harness.processElementForTable(
+                    "leftTable", Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            // Advance both watermarks, but the right table will not advance enough to trigger the
+            // timer at 6s
+            harness.setWatermarkForTable("rightTable", LocalDateTime.of(2025, 1, 1, 0, 0, 3));
+            harness.setWatermarkForTable("leftTable", LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+            assertThat(harness.getFiredTimers()).isEmpty();
+
+            // Now advance right table past the timer. Global watermark catches up, timer fires
+            harness.setWatermarkForTable("rightTable", LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+            assertThat(harness.getFiredTimers()).hasSize(1);
+            assertThat(harness.getFiredTimers().get(0).getName()).isEqualTo("check");
+            assertThat(harness.getFiredTimers().get(0).getTimestampAs(LocalDateTime.class))
+                    .isEqualTo(LocalDateTime.of(2025, 1, 1, 0, 0, 6));
+            // Both tables' partition keys are prepended (one "P1" per table)
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "P1",
+                                    "timer-fired",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+        }
+    }
+
+    @Test
+    void testContextClearState() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ContextClearStatePTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "count=1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)),
+                            Row.of("P1", "count=2", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            harness.clearOutput();
+
+            harness.processElement(
+                    Row.of("P1", "clear-state", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 4)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "cleared", LocalDateTime.of(2025, 1, 1, 0, 0, 3)),
+                            Row.of("P1", "count=1", LocalDateTime.of(2025, 1, 1, 0, 0, 4)));
+        }
+    }
+
+    @Test
+    void testContextClearAllState() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ContextClearStatePTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            harness.processElement(
+                    Row.of("P1", "clear-all-state", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "cleared-all", LocalDateTime.of(2025, 1, 1, 0, 0, 2)),
+                            Row.of("P1", "count=1", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+        }
+    }
+
+    @Test
+    void testContextClearAll() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ContextClearStatePTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(
+                    Row.of("P1", "register-timer", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("t");
+            harness.clearOutput();
+
+            harness.processElement(
+                    Row.of("P1", "clear-all", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+            assertThat(harness.getPendingTimers()).isEmpty();
+
+            harness.processElement(
+                    Row.of("P1", "increment", LocalDateTime.of(2025, 1, 1, 0, 0, 4)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "cleared-everything",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 3)),
+                            Row.of("P1", "count=1", LocalDateTime.of(2025, 1, 1, 0, 0, 4)));
+        }
+    }
+
+    @Test
+    void testContextTableSemanticsAndChangelogMode() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ContextSemanticsIntrospectionPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+
+            assertThat(harness.getOutput()).hasSize(1);
+            Row evalResult = harness.getOutput().get(0);
+            assertThat(evalResult.getFieldAs(0).toString()).isEqualTo("P1");
+            assertThat(evalResult.getFieldAs(1).toString()).isEqualTo("[0]");
+            assertThat((int) evalResult.getFieldAs(2)).isEqualTo(1);
+            assertThat(evalResult.getFieldAs(3).toString())
+                    .isEqualTo(ChangelogMode.insertOnly().toString());
+
+            harness.clearOutput();
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+
+            assertThat(harness.getOutput()).hasSize(1);
+            Row timerResult = harness.getOutput().get(0);
+            assertThat(timerResult.getFieldAs(0).toString()).isEqualTo("P1");
+            assertThat(timerResult.getFieldAs(1).toString()).isEqualTo("[0]");
+            assertThat((int) timerResult.getFieldAs(2)).isEqualTo(1);
+            assertThat(timerResult.getFieldAs(3).toString())
+                    .isEqualTo(ChangelogMode.insertOnly().toString());
+        }
+    }
+
+    @Test
+    void testPojoInputWithOnTimeColumn() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PojoTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input").partitionBy("key").build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "registered-P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            harness.clearOutput();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+            assertThat(harness.getFiredTimers()).hasSize(1);
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "fired-check", LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Time / On-Time Column Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testOnTimeColumnAppendedToEvalOutput() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(OnTimePTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "hello-Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+        }
+    }
+
+    @Test
+    void testWatermarkAdvancesWithoutTimers() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(OnTimePTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+
+            // Advancing watermark without timers registered should not produce additional output
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+            assertThat(harness.getOutput()).hasSize(1);
+        }
+    }
+
+    @Test
+    void testWatermarkAdvancesWithoutOnTimeColumn() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PassthroughPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<value INT>"))
+                                        .build())
+                        .build()) {
+
+            harness.processElement(Row.of(42));
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 10));
+            assertThat(harness.getOutput()).containsExactly(Row.of(42));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Timer Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void testNamedTimerRegistrationAndFiring() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "registered-Alice",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            Timer timer = harness.getPendingTimers().get(0);
+            assertThat(timer.getName()).isEqualTo("timeout-Alice");
+            assertThat(timer.getTimestampAs(LocalDateTime.class))
+                    .isEqualTo(LocalDateTime.of(2025, 1, 1, 0, 0, 6));
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 7));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "timer-fired-timeout-Alice",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+
+            assertThat(harness.getPendingTimers()).isEmpty();
+            assertThat(harness.getFiredTimers()).hasSize(1);
+            assertThat(harness.getFiredTimers().get(0).getName()).isEqualTo("timeout-Alice");
+            assertThat(harness.getFiredTimers().get(0).getTimestampAs(LocalDateTime.class))
+                    .isEqualTo(LocalDateTime.of(2025, 1, 1, 0, 0, 6));
+        }
+    }
+
+    @Test
+    void testUnnamedTimerFiring() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(UnnamedTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            harness.setWatermark(Instant.parse("2025-01-01T00:00:07Z"));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "fired-unnamed-null",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+        }
+    }
+
+    @Test
+    void testTimerReplacementSemantics() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            // First eval: event at T+1s → timer at T+6s
+            // Second eval: event at T+6s → replaces timer to T+11s
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+            harness.clearOutput();
+
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("timeout-Alice");
+            assertThat(harness.getPendingTimers().get(0).getTimestampAs(LocalDateTime.class))
+                    .isEqualTo(LocalDateTime.of(2025, 1, 1, 0, 0, 11));
+
+            // Watermark at T+7s — timer at T+11s should NOT fire
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 7));
+            assertThat(harness.getOutput()).isEmpty();
+
+            // Watermark at T+12s — timer at T+11s should fire
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 12));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "timer-fired-timeout-Alice",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 11)));
+        }
+    }
+
+    @Test
+    void testMultipleTimersFiringOrder() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", "Charlie", LocalDateTime.of(2025, 1, 1, 0, 0, 5)));
+            harness.processElement(Row.of("P1", "Alice", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(Row.of("P1", "Bob", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+            harness.clearOutput();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 11));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of(
+                                    "P1",
+                                    "timer-fired-timeout-Alice",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 6)),
+                            Row.of(
+                                    "P1",
+                                    "timer-fired-timeout-Bob",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 8)),
+                            Row.of(
+                                    "P1",
+                                    "timer-fired-timeout-Charlie",
+                                    LocalDateTime.of(2025, 1, 1, 0, 0, 10)));
+        }
+    }
+
+    @Test
+    void testStateAccessInOnTimer() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerWithStatePTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(Row.of("P2", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 8));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "count=3", LocalDateTime.of(2025, 1, 1, 0, 0, 6)),
+                            Row.of("P2", "count=1", LocalDateTime.of(2025, 1, 1, 0, 0, 7)));
+
+            assertThat(harness.getFiredTimers(Row.of("P1"))).hasSize(1);
+            assertThat(harness.getFiredTimers(Row.of("P1")).get(0).getName()).isEqualTo("check");
+            assertThat(harness.getFiredTimers(Row.of("P2"))).hasSize(1);
+            assertThat(harness.getFiredTimers(Row.of("P2")).get(0).getName()).isEqualTo("check");
+            assertThat(harness.getPendingTimers(Row.of("P1"))).isEmpty();
+            assertThat(harness.getPendingTimers(Row.of("P2"))).isEmpty();
+        }
+    }
+
+    @Test
+    void testWatermarkCannotMoveBackward() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, name STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 5));
+            IllegalArgumentException e =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () -> harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(e.getMessage()).contains("Cannot move watermark backward", "input");
+
+            IllegalArgumentException e2 =
+                    assertThrows(
+                            IllegalArgumentException.class,
+                            () ->
+                                    harness.setWatermarkForTable(
+                                            "input", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(e2.getMessage()).contains("Cannot move watermark backward", "input");
+        }
+    }
+
+    @Test
+    void testPassThroughWithTimersIsRejected() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PassThroughTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            TableRuntimeException e =
+                    assertThrows(
+                            TableRuntimeException.class,
+                            () ->
+                                    harness.processElement(
+                                            Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1))));
+            assertThat(e.getMessage()).contains("Timers are not supported");
+        }
+    }
+
+    @Test
+    void testNoOnTimerMethodThrows() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(NoOnTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+
+            IllegalStateException e =
+                    assertThrows(
+                            IllegalStateException.class,
+                            () -> harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 1)));
+            assertThat(e.getMessage()).contains("no valid onTimer() method", "NoOnTimerPTF");
+        }
+    }
+
+    @Test
+    void testRequireOnTimeWithoutOnTimeColumnIsRejected() {
+        ValidationException e =
+                assertThrows(
+                        ValidationException.class,
+                        () ->
+                                ProcessTableFunctionTestHarness.ofClass(TimerPTF.class)
+                                        .withTableArgument(
+                                                TableArgument.forName("input")
+                                                        .type(
+                                                                DataTypes.of(
+                                                                        "ROW<partition STRING, ts TIMESTAMP(3)>"))
+                                                        .partitionBy("partition")
+                                                        .build())
+                                        .build());
+        assertThat(e.getMessage()).contains("requires a time attribute", "on_time");
+    }
+
+    @Test
+    void testMultipleOnTimerMethods() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(MultipleOnTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 7));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "fired-no-state", LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+        }
+    }
+
+    @Test
+    void testCascadingTimerFromOnTimer() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(CascadingTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(Row.of("P1", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getOutput())
+                    .containsExactly(Row.of("P1", "eval", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.clearOutput();
+
+            // "first" fires, registers "second" at 3000ms (past time),
+            // "second" should cascade and fire in the same advance
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 0, 7));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "fired-first", LocalDateTime.of(2025, 1, 1, 0, 0, 6)),
+                            Row.of("P1", "fired-second", LocalDateTime.of(2025, 1, 1, 0, 0, 4)));
+            assertThat(harness.getPendingTimers()).isEmpty();
+            assertThat(harness.getFiredTimers()).hasSize(2);
+            assertThat(harness.getFiredTimers())
+                    .extracting(Timer::getName)
+                    .containsExactly("first", "second");
+        }
+    }
+
+    @Test
+    void testClearTimerByName() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ClearTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "register-named", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("myTimer");
+
+            harness.processElement(
+                    Row.of("P1", "clear-by-name", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getPendingTimers()).isEmpty();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 1));
+            assertThat(harness.getOutput()).isEmpty();
+        }
+    }
+
+    @Test
+    void testClearTimerByTimestamp() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ClearTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "register-unnamed", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isNull();
+            assertThat(harness.getPendingTimers().get(0).getTimestampAs(LocalDateTime.class))
+                    .isEqualTo(LocalDateTime.of(2025, 1, 1, 0, 0, 6));
+
+            harness.processElement(
+                    Row.of("P1", "clear-by-timestamp", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getPendingTimers()).isEmpty();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 1));
+            assertThat(harness.getOutput()).isEmpty();
+        }
+    }
+
+    @Test
+    void testClearTimerByTimestampDoesNotClearNamedTimers() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ClearTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "register-named", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("myTimer");
+
+            harness.processElement(
+                    Row.of("P1", "clear-by-timestamp", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("myTimer");
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 1));
+            assertThat(harness.getOutput())
+                    .containsExactly(
+                            Row.of("P1", "fired-myTimer", LocalDateTime.of(2025, 1, 1, 0, 0, 6)));
+        }
+    }
+
+    @Test
+    void testClearAllTimers() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(ClearTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(
+                                                DataTypes.of(
+                                                        "ROW<partition STRING, action STRING, ts TIMESTAMP(3)>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .withOnTimeColumn("ts")
+                        .build()) {
+
+            harness.processElement(
+                    Row.of("P1", "register-named", LocalDateTime.of(2025, 1, 1, 0, 0, 1)));
+            harness.processElement(
+                    Row.of("P1", "register-unnamed", LocalDateTime.of(2025, 1, 1, 0, 0, 2)));
+            assertThat(harness.getPendingTimers()).hasSize(2);
+
+            harness.processElement(
+                    Row.of("P1", "clear-all", LocalDateTime.of(2025, 1, 1, 0, 0, 3)));
+            assertThat(harness.getPendingTimers()).isEmpty();
+
+            harness.setWatermark(LocalDateTime.of(2025, 1, 1, 0, 1));
+            assertThat(harness.getOutput()).isEmpty();
+        }
+    }
+
+    @Test
+    void testTimersWithoutOnTimeColumn() throws Exception {
+        try (ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(WatermarkOnlyTimerPTF.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<partition STRING, value INT>"))
+                                        .partitionBy("partition")
+                                        .build())
+                        .build()) {
+
+            harness.setWatermark(Instant.ofEpochMilli(1000));
+
+            harness.processElement(Row.of("P1", 42));
+            assertThat(harness.getOutput()).containsExactly(Row.of("P1", "registered"));
+            harness.clearOutput();
+
+            assertThat(harness.getPendingTimers()).hasSize(1);
+            assertThat(harness.getPendingTimers().get(0).getName()).isEqualTo("t");
+            assertThat(harness.getPendingTimers().get(0).getTimestamp()).isEqualTo(1001);
+
+            // Advance watermark to fire the timer
+            harness.setWatermark(Instant.ofEpochMilli(1001));
+            assertThat(harness.getFiredTimers()).hasSize(1);
+            assertThat(harness.getFiredTimers().get(0).getName()).isEqualTo("t");
+
+            // Row collected from onTimer should have no on_time column
+            assertThat(harness.getOutput()).containsExactly(Row.of("P1", "fired-t"));
+        }
     }
 }

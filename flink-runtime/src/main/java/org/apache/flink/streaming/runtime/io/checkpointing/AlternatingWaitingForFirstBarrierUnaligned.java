@@ -72,9 +72,7 @@ final class AlternatingWaitingForFirstBarrierUnaligned implements BarrierHandler
 
         CheckpointBarrier unalignedBarrier = checkpointBarrier.asUnaligned();
         controller.initInputsCheckpoint(unalignedBarrier);
-        for (CheckpointableInput input : channelState.getInputs()) {
-            input.checkpointStarted(unalignedBarrier);
-        }
+        channelState.onCheckpointStartedForAllInputs(unalignedBarrier);
         controller.triggerGlobalCheckpoint(unalignedBarrier);
         if (controller.allBarriersReceived()) {
             for (CheckpointableInput input : channelState.getInputs()) {

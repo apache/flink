@@ -1092,7 +1092,7 @@ The type can be declared using the above combinations where `p1` is the number o
 and `9` (both inclusive). If no `p1` is specified, it is equal to `2` by default. If no `p2` is
 specified, it is equal to `6` by default.
 
-### Constructured Data Types
+### Constructed Data Types
 
 #### `ARRAY`
 
@@ -1513,13 +1513,162 @@ close to the semantics of JSON. Compared to `ROW` and `STRUCTURED` type, `VARIAN
 flexibility to support highly nested and evolving schema.
 
 `VARIANT` allows for deeply nested data structures, such as arrays within arrays, maps within maps,
-or combinations of both.This capability makes `VARIANT` ideal for scenarios where data complexity
+or combinations of both. This capability makes `VARIANT` ideal for scenarios where data complexity
 and nesting are significant.
 
 `VARIANT` allows schema evolution, enabling the storage of data with changing or unknown schemas
 without requiring upfront schema definition. For example, if a new field is added to the data, it
 can be directly incorporated into the `VARIANT` data without modifying the table schema. This is
 particularly useful in dynamic environments where schemas may evolve over time.
+
+A `VARIANT` stores a single value of one of the following kinds: `NULL`, `BOOLEAN`, `TINYINT`,
+`SMALLINT`, `INT`, `BIGINT`, `FLOAT`, `DOUBLE`, `DECIMAL` (up to precision 38), `STRING`, `DATE`,
+`TIMESTAMP`, `TIMESTAMP_LTZ`, `BYTES`, or a nested array or object. `TIMESTAMP` and `TIMESTAMP_LTZ`
+are stored with microsecond precision.
+
+The `PARSE_JSON` function produces only the kinds that JSON syntax can express:
+
+| JSON input                                          | Stored `VARIANT` kind                           |
+|-----------------------------------------------------|-------------------------------------------------|
+| `null`                                              | `NULL`                                          |
+| `true` / `false`                                    | `BOOLEAN`                                       |
+| Integer within the 64-bit signed range              | smallest of `TINYINT`/`SMALLINT`/`INT`/`BIGINT` |
+| Integer beyond 64-bit, up to 38 significant digits  | `DECIMAL`                                       |
+| Decimal in plain notation, up to precision/scale 38 | `DECIMAL`                                       |
+| Number in scientific notation, e.g. `1.5e3`         | `DOUBLE`                                        |
+| Number exceeding 38 digits of precision or scale    | `DOUBLE`                                        |
+| String                                              | `STRING`                                        |
+| Array                                               | array (elements encoded by the same rules)      |
+| Object                                              | object (values encoded by the same rules)       |
+
+Because JSON has no literal for them, `PARSE_JSON` never produces `FLOAT`, `DATE`, `TIMESTAMP`,
+`TIMESTAMP_LTZ`, or `BYTES`.
+
+The JSON specification has no `NaN` or infinity literals, so `PARSE_JSON('NaN')`,
+`PARSE_JSON('Infinity')`, and `PARSE_JSON('-Infinity')` fail. `PARSE_JSON('1e400')` fails as well
+because a value outside the `DOUBLE` range cannot be stored as a finite number. In all of these
+cases `TRY_PARSE_JSON` returns `NULL`.
+A `VARIANT` has no dedicated kind for these values. To keep one, store it as a JSON string and cast
+it back out, for example `CAST(CAST(PARSE_JSON('"Infinity"') AS STRING) AS FLOAT)`.
+
+A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
+the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded
+to make it fit. Otherwise `CAST` fails and `TRY_CAST` returns `NULL`.
+
+| Stored kind     | Succeeds for                                        |
+|-----------------|-----------------------------------------------------|
+| numeric kinds   | any numeric target that holds the value             |
+| `BOOLEAN`       | `BOOLEAN`                                           |
+| `DATE`          | `DATE`                                              |
+| `TIME`          | `TIME(p)`                                           |
+| `TIMESTAMP`     | `TIMESTAMP(p)`                                      |
+| `TIMESTAMP_LTZ` | `TIMESTAMP_LTZ(p)`                                  |
+| `BYTES`         | `BINARY(n)`, `VARBINARY(n)`, and a character string |
+| `UUID`          | `UUID`                                              |
+| any scalar      | `STRING`, `CHAR(n)`, `VARCHAR(n)`                   |
+| `NULL`          | SQL `NULL` for any nullable target                  |
+
+The conditions above mean:
+
+- An **integer target** needs the value in range and without a fractional part, so
+  `PARSE_JSON('7.0')` reaches `INT` as `7` while `PARSE_JSON('7.2')` does not, and
+  `CAST(PARSE_JSON('1000') AS TINYINT)` fails instead of wrapping.
+- A **`DECIMAL`** target has to fit the precision and the scale. Trailing zeros may be appended, so
+  `42` reaches `DECIMAL(5, 2)` as `42.00`, but a scale that would have to round is rejected.
+- **`FLOAT`** and **`DOUBLE`** are approximate by definition, so they take any numeric kind and drop
+  decimal digits, rejecting only a magnitude out of range such as `1e40` to a `FLOAT`.
+- A **length or precision** is adjusted the same way a regular cast into that type would: a value
+  longer than the target is trimmed, fractional seconds beyond the target precision are truncated,
+  and the fixed width types `CHAR(n)` and `BINARY(n)` pad a shorter value.
+- A **`TIME`** value keeps only millisecond precision, the resolution Flink's runtime `TIME` type
+  supports, so `TIME(4)` through `TIME(9)` behave like `TIME(3)`.
+
+To reach a type the table does not list, wrap the cast in a regular cast. Only the inner cast is a
+`VARIANT` cast, so the outer one applies the usual rules and may round, truncate, or overflow:
+
+```sql
+CAST(CAST(PARSE_JSON('1000') AS SMALLINT) AS TINYINT)     -- returns -24 (after overflow)
+CAST(CAST(PARSE_JSON('3.9') AS DECIMAL(2, 1)) AS INT)     -- returns 3 (truncated)
+```
+
+A cast to a character string renders the value exactly as a regular SQL cast of the stored kind
+would, so a boolean becomes `TRUE`, a timestamp uses the SQL format, a `TIMESTAMP_LTZ` is shifted into
+the session time zone, and a binary value is read as UTF-8. An object or an array has no scalar
+form, so it renders like a regular `ARRAY` or `MAP` cast to a string: an array as `[e1, e2]` and an
+object as `{k1=v1, k2=v2}`, with each value rendered by these same rules and a nested variant null
+shown as `NULL`. A string is never quoted, at any depth. Use `JSON_STRING` for the JSON form with
+quoted strings. A variant that stores a JSON `null` casts to SQL `NULL`.
+
+A `VARIANT` can also be cast to a constructed target, which imposes a schema on it. A variant array
+casts to `ARRAY<T>`. The variant must be an array, otherwise the cast fails. Each element is itself a
+`VARIANT`, so it casts to the element type `T` by the same rules, recursively. A leaf is never parsed
+either, so a stored string does not reach an integer target. Cast the leaf to `STRING` first and
+convert with a regular cast.
+
+- Each element casts to `T`. A variant null element maps to SQL `NULL` when `T` is nullable and fails
+  the cast when `T` is `NOT NULL`. An empty array casts to an empty `ARRAY<T>`.
+- `ARRAY<VARIANT>` is the identity element: it shreds one level and keeps each element as a variant. A
+  null element stays a variant null rather than becoming SQL `NULL`.
+
+If any element cast fails, the whole cast fails, and `TRY_CAST` returns `NULL` for the entire value
+rather than a partial result. An element type with no variant counterpart, such as
+`ARRAY<INTERVAL YEAR TO MONTH>`, is rejected at validation.
+
+The following examples use `a` for `PARSE_JSON('[1, 2, 3]')` and `m` for the mixed array
+`PARSE_JSON('[1, "a"]')`:
+
+```sql
+CAST(a AS ARRAY<INT>)      -- [1, 2, 3]
+CAST(a AS ARRAY<STRING>)   -- ['1', '2', '3'], each element rendered like the scalar cast
+CAST(m AS ARRAY<INT>)      -- fails on "a", a stored string is not parsed into an integer
+CAST(m AS ARRAY<STRING>)   -- ['1', 'a'], a heterogeneous array still renders each element
+CAST(m AS ARRAY<VARIANT>)  -- [1, "a"] as variants, one level shredded
+```
+
+A variant object casts to `ROW` or `STRUCTURED`, which likewise imposes a schema on it. The variant
+must be an object, otherwise the cast fails. Each field is itself a `VARIANT`, so it casts to its
+declared type by the same rules, recursively. Fields match by name and name matching is case
+sensitive. A `ROW` declared without field names uses the default names `f0`, `f1`, and so on, which
+must then be present in the object.
+
+- A field absent from the object fails the cast, whether the target field is nullable or not.
+- A field present but set to a variant null maps to SQL `NULL` when the field is nullable and fails
+  the cast when the target is `NOT NULL`.
+- Object fields the target does not name are dropped, so the row is a projection.
+- A `ROW` or `STRUCTURED` whose fields are `VARIANT` is the identity on those fields: it shreds one
+  level and keeps the rest semi-structured. A field set to a variant null stays a variant null
+  rather than becoming SQL `NULL`.
+
+If any field cast fails, the whole cast fails, and `TRY_CAST` returns `NULL` for the entire value
+rather than a partial result.
+
+The following examples use `o` for `PARSE_JSON('{"id": 7, "name": "ada", "email": null}')`:
+
+```sql
+CAST(o AS ROW<`id` INT, `name` STRING>)         -- (7, 'ada')
+CAST(o AS ROW<`name` STRING, `id` INT>)         -- ('ada', 7), the order of target fields is free
+CAST(o AS ROW<`id` INT, `email` STRING>)        -- (7, NULL), a field present as a variant null maps to NULL
+CAST(o AS ROW<`id` INT, `phone` STRING>)        -- fails, the field 'phone' is not present in the VARIANT
+CAST(o AS ROW<`id` VARIANT, `email` VARIANT>)   -- (7, null), each field kept as a variant, the variant null preserved
+```
+
+A variant object also casts to `MAP<STRING, V>`, the schemaless read of an object. Each field name
+becomes a key and each value casts to `V` by the same rules, recursively. The key type must be a
+character string, since a variant object's keys are always strings, and a non-string key type is
+rejected at validation. This is the way to read an object whose keys are not known in advance.
+
+- A value present but set to a variant null maps to SQL `NULL` when `V` is nullable and fails the
+  cast when `V` is `NOT NULL`. An empty object casts to an empty map.
+- A `MAP<STRING, VARIANT>` is the identity on its values: it shreds one level and keeps each value a
+  variant, a variant null included.
+
+The following examples reuse `o` for `PARSE_JSON('{"id": 7, "name": "ada", "email": null}')`:
+
+```sql
+CAST(o AS MAP<STRING, STRING>)   -- {id=7, name=ada, email=NULL}, each value rendered like the scalar cast
+CAST(o AS MAP<STRING, VARIANT>)  -- values kept as variants, the variant null included
+CAST(o AS MAP<INT, STRING>)      -- fails at validation, a MAP key must be a character string
+```
 
 **Declaration**
 
@@ -1735,7 +1884,7 @@ COALESCE(TRY_CAST('non-number' AS INT), 0) --- 结果返回数字 0 的 INT 格�
 | `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |     N     |    N     |
 | `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |     N     |    N     |
 | `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |     N     |    N     |
-| `VARIANT`                              |                   N                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
+| `VARIANT`                              |                   !                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   !    |      !      |        !        |     N      |   !³    |     N      |  !³   |  !³   |      !³      |   N   |     Y     |    N     |
 | `BITMAP`                               |                   Y                   |                   Y⁷                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |     N     |    N     |
 
 备注：

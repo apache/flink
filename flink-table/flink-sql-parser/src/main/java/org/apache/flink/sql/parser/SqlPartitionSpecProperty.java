@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -41,7 +42,17 @@ import static java.util.Objects.requireNonNull;
 public class SqlPartitionSpecProperty extends SqlCall {
 
     /** Use this operator only if you don't have a better one. */
-    protected static final SqlOperator OPERATOR = new SqlSpecialOperator("Pair", SqlKind.OTHER);
+    protected static final SqlOperator OPERATOR =
+            new SqlSpecialOperator("Pair", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlPartitionSpecProperty(
+                            (SqlIdentifier) operands[0],
+                            operands.length > 1 ? operands[1] : null,
+                            pos);
+                }
+            };
 
     private final SqlIdentifier key;
     private final @Nullable SqlNode value;

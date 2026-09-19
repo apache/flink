@@ -97,7 +97,10 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
     this.closed.emit(this.title);
   }
 
-  constructor(private cdr: ChangeDetectorRef, private jobChartService: JobChartService) {}
+  constructor(
+    private cdr: ChangeDetectorRef,
+    private jobChartService: JobChartService
+  ) {}
 
   ngAfterViewInit(): void {
     this.cdr.detach();

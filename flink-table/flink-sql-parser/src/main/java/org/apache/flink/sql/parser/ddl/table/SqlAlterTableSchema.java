@@ -27,6 +27,7 @@ import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
@@ -67,7 +68,8 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
                 getTableName(),
                 columnList,
                 new SqlNodeList(constraints, SqlParserPos.ZERO),
-                watermark);
+                watermark,
+                SqlLiteral.createBoolean(ifTableExists, SqlParserPos.ZERO));
     }
 
     @Override

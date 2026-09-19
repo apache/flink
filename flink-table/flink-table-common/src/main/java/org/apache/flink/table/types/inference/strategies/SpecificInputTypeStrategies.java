@@ -96,6 +96,11 @@ public final class SpecificInputTypeStrategies {
     public static final ArgumentTypeStrategy JSON_QUERY_ON_EMPTY_ERROR_BEHAVIOUR =
             new JsonQueryOnErrorEmptyArgumentTypeStrategy();
 
+    /** See {@link JsonPathInputTypeStrategy}. */
+    public static InputTypeStrategy plainJsonPath(final InputTypeStrategy signatures) {
+        return new JsonPathInputTypeStrategy(signatures);
+    }
+
     /** Argument type derived from the array element type. */
     public static final ArgumentTypeStrategy ARRAY_ELEMENT_ARG =
             new ArrayElementArgumentTypeStrategy();
@@ -103,6 +108,13 @@ public final class SpecificInputTypeStrategies {
     /** Argument type representing the array is comparable. */
     public static final ArgumentTypeStrategy ARRAY_FULLY_COMPARABLE =
             new ArrayComparableElementArgumentTypeStrategy(StructuredComparison.FULL);
+
+    /** See {@link ArrayOfEntriesArgumentTypeStrategy}. */
+    public static final ArgumentTypeStrategy ARRAY_OF_ENTRIES_ARG =
+            new ArrayOfEntriesArgumentTypeStrategy();
+
+    /** Argument type derived from the map key type. */
+    public static final ArgumentTypeStrategy MAP_KEY_ARG = new MapKeyArgumentTypeStrategy();
 
     /**
      * Input strategy for {@link BuiltInFunctionDefinitions#JSON_OBJECT}.
@@ -129,6 +141,10 @@ public final class SpecificInputTypeStrategies {
     /** Input strategy for {@link BuiltInFunctionDefinitions#FROM_CHANGELOG}. */
     public static final InputTypeStrategy FROM_CHANGELOG_INPUT_TYPE_STRATEGY =
             FromChangelogTypeStrategy.INPUT_TYPE_STRATEGY;
+
+    /** Input strategy for {@link BuiltInFunctionDefinitions#SNAPSHOT}. */
+    public static final InputTypeStrategy LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY =
+            LateralSnapshotTypeStrategy.INPUT_TYPE_STRATEGY;
 
     /** See {@link ExtractInputTypeStrategy}. */
     public static final InputTypeStrategy EXTRACT = new ExtractInputTypeStrategy();

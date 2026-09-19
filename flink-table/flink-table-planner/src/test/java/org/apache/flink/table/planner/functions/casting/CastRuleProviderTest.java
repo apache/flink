@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.CharType;
@@ -27,14 +28,27 @@ import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.jupiter.api.Test;
 
+import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.BYTES;
+import static org.apache.flink.table.api.DataTypes.DATE;
+import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.INTERVAL;
+import static org.apache.flink.table.api.DataTypes.MAP;
+import static org.apache.flink.table.api.DataTypes.MONTH;
+import static org.apache.flink.table.api.DataTypes.MULTISET;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.STRUCTURED;
 import static org.apache.flink.table.api.DataTypes.TIME;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.apache.flink.table.api.DataTypes.UUID;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,6 +62,7 @@ class CastRuleProviderTest {
                     .build();
     private static final LogicalType INT = INT().getLogicalType();
     private static final LogicalType TINYINT = TINYINT().getLogicalType();
+    private static final LogicalType VARIANT = VARIANT().getLogicalType();
     private static final LogicalType ROW =
             ROW(FIELD("a", INT()), FIELD("b", TINYINT().notNull())).getLogicalType();
     private static final LogicalType STRUCTURED =
@@ -106,6 +121,74 @@ class CastRuleProviderTest {
         assertThat(CastRuleProvider.canFail(inputType, ROW(INT(), TIME()).getLogicalType()))
                 .isTrue();
         assertThat(CastRuleProvider.canFail(inputType, ROW(INT(), STRING()).getLogicalType()))
+                .isFalse();
+    }
+
+    @Test
+    void testResolveVariantToPrimitive() {
+        assertThat(CastRuleProvider.resolve(VARIANT, INT))
+                .isSameAs(VariantToPrimitiveCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(VARIANT, BOOLEAN().getLogicalType()))
+                .isSameAs(VariantToPrimitiveCastRule.INSTANCE);
+        assertThat(CastRuleProvider.exists(VARIANT, DECIMAL(10, 2).getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, DATE().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, TIMESTAMP().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, TIMESTAMP_LTZ().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, TIME().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, BYTES().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, UUID().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.canFail(VARIANT, INT)).isTrue();
+
+        // INTERVAL has no VARIANT counterpart, so it is not a castable target
+        assertThat(CastRuleProvider.exists(VARIANT, INTERVAL(DataTypes.DAY()).getLogicalType()))
+                .isFalse();
+        // character strings keep going through the display-oriented rule
+        assertThat(CastRuleProvider.resolve(VARIANT, STRING_TYPE))
+                .isSameAs(VariantToStringCastRule.INSTANCE);
+    }
+
+    @Test
+    void testResolveVariantToArray() {
+        assertThat(CastRuleProvider.resolve(VARIANT, ARRAY(INT()).getLogicalType()))
+                .isSameAs(VariantToArrayCastRule.INSTANCE);
+
+        // the element recurses through the VARIANT rules, including the identity leaf and nesting
+        assertThat(CastRuleProvider.exists(VARIANT, ARRAY(VARIANT()).getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.exists(VARIANT, ARRAY(ARRAY(INT())).getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.canFail(VARIANT, ARRAY(INT()).getLogicalType())).isTrue();
+
+        // an element with no variant counterpart makes the whole cast unresolvable
+        assertThat(CastRuleProvider.exists(VARIANT, ARRAY(INTERVAL(MONTH())).getLogicalType()))
+                .isFalse();
+        // MULTISET has no variant counterpart
+        assertThat(CastRuleProvider.exists(VARIANT, MULTISET(STRING()).getLogicalType())).isFalse();
+    }
+
+    @Test
+    void testResolveVariantToRow() {
+        assertThat(CastRuleProvider.resolve(VARIANT, ROW(FIELD("f0", INT())).getLogicalType()))
+                .isSameAs(VariantToRowCastRule.INSTANCE);
+        // a structured target shares the ROW rule
+        assertThat(CastRuleProvider.resolve(VARIANT, STRUCTURED))
+                .isSameAs(VariantToRowCastRule.INSTANCE);
+
+        // a field with no variant counterpart makes the whole cast unresolvable
+        assertThat(
+                        CastRuleProvider.exists(
+                                VARIANT, ROW(FIELD("f0", MULTISET(STRING()))).getLogicalType()))
+                .isFalse();
+    }
+
+    @Test
+    void testResolveVariantToMap() {
+        assertThat(CastRuleProvider.resolve(VARIANT, MAP(STRING(), INT()).getLogicalType()))
+                .isSameAs(VariantToMapCastRule.INSTANCE);
+        // the value recurses through the VARIANT rules, including the identity leaf
+        assertThat(CastRuleProvider.exists(VARIANT, MAP(STRING(), VARIANT()).getLogicalType()))
+                .isTrue();
+
+        // a non-string map key is rejected
+        assertThat(CastRuleProvider.exists(VARIANT, MAP(INT(), STRING()).getLogicalType()))
                 .isFalse();
     }
 }

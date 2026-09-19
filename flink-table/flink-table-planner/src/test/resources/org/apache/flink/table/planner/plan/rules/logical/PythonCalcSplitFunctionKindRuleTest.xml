@@ -1,0 +1,67 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testBatchComposition">
+    <Resource name="sql">
+      <![CDATA[SELECT arrow_udf(a), pandas_udf(a), general_udf(a), arrow_udf(arrow_udf(a)), arrow_udf(pandas_udf(a)), pandas_udf(arrow_udf(a)), arrow_udf(general_udf(a)), general_udf(arrow_udf(a)) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[arrow_udf($0)], EXPR$1=[pandas_udf($0)], EXPR$2=[general_udf($0)], EXPR$3=[arrow_udf(arrow_udf($0))], EXPR$4=[arrow_udf(pandas_udf($0))], EXPR$5=[pandas_udf(arrow_udf($0))], EXPR$6=[arrow_udf(general_udf($0))], EXPR$7=[general_udf(arrow_udf($0))])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[f0 AS EXPR$0, f1 AS EXPR$1, f00 AS EXPR$2, f2 AS EXPR$3, f3 AS EXPR$4, f4 AS EXPR$5, f5 AS EXPR$6, f10 AS EXPR$7])
++- PythonCalc(select=[f0, f1, f2, f3, f4, f5, general_udf(a) AS f00, general_udf(f6) AS f10])
+   +- Calc(select=[a, f0, f00 AS f1, f1 AS f2, f2 AS f3, f10 AS f4, f4 AS f5, f5 AS f6])
+      +- PythonCalc(select=[a, f0, f1, f2, f4, f5, pandas_udf(a) AS f00, pandas_udf(f3) AS f10])
+         +- Calc(select=[f0 AS a, f1 AS f0, f2 AS f1, f3 AS f2, f1 AS f3, f4, f1 AS f5])
+            +- PythonCalc(select=[a AS f0, arrow_udf(a) AS f1, arrow_udf(arrow_udf(a)) AS f2, arrow_udf(f0) AS f3, arrow_udf(f1) AS f4])
+               +- PythonCalc(select=[a, f0, general_udf(a) AS f1])
+                  +- PythonCalc(select=[a, pandas_udf(a) AS f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamingComposition">
+    <Resource name="sql">
+      <![CDATA[SELECT arrow_udf(a), pandas_udf(a), general_udf(a), arrow_udf(arrow_udf(a)), arrow_udf(pandas_udf(a)), pandas_udf(arrow_udf(a)), arrow_udf(general_udf(a)), general_udf(arrow_udf(a)) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[arrow_udf($0)], EXPR$1=[pandas_udf($0)], EXPR$2=[general_udf($0)], EXPR$3=[arrow_udf(arrow_udf($0))], EXPR$4=[arrow_udf(pandas_udf($0))], EXPR$5=[pandas_udf(arrow_udf($0))], EXPR$6=[arrow_udf(general_udf($0))], EXPR$7=[general_udf(arrow_udf($0))])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[f0 AS EXPR$0, f1 AS EXPR$1, f00 AS EXPR$2, f2 AS EXPR$3, f3 AS EXPR$4, f4 AS EXPR$5, f5 AS EXPR$6, f10 AS EXPR$7])
++- PythonCalc(select=[f0, f1, f2, f3, f4, f5, general_udf(a) AS f00, general_udf(f6) AS f10])
+   +- Calc(select=[a, f0, f00 AS f1, f1 AS f2, f2 AS f3, f10 AS f4, f4 AS f5, f5 AS f6])
+      +- PythonCalc(select=[a, f0, f1, f2, f4, f5, pandas_udf(a) AS f00, pandas_udf(f3) AS f10])
+         +- Calc(select=[f0 AS a, f1 AS f0, f2 AS f1, f3 AS f2, f1 AS f3, f4, f1 AS f5])
+            +- PythonCalc(select=[a AS f0, arrow_udf(a) AS f1, arrow_udf(arrow_udf(a)) AS f2, arrow_udf(f0) AS f3, arrow_udf(f1) AS f4])
+               +- PythonCalc(select=[a, f0, general_udf(a) AS f1])
+                  +- PythonCalc(select=[a, pandas_udf(a) AS f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -31,7 +31,7 @@ import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.GeneratedMessage;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.graph.TimerReference;
+import org.apache.beam.sdk.util.construction.graph.TimerReference;
 
 import java.util.Collections;
 import java.util.List;
@@ -95,7 +95,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
                                 RunnerApi.FunctionSpec.newBuilder()
                                         .setUrn(functionUrn)
                                         .setPayload(
-                                                org.apache.beam.vendor.grpc.v1p60p1.com.google
+                                                org.apache.beam.vendor.grpc.v1p69p0.com.google
                                                         .protobuf.ByteString.copyFrom(
                                                         userDefinedFunctionProto.toByteArray()))
                                         .build())

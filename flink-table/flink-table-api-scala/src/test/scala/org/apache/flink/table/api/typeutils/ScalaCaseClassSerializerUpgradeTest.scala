@@ -27,12 +27,10 @@ import org.apache.flink.table.types.CustomCaseClass
 import org.apache.flink.test.util.MigrationTest
 
 import org.assertj.core.api.Condition
-import org.junit.jupiter.api.Disabled
 
 import java.util
 
 /** A [[TypeSerializerUpgradeTestBase]] for [[ScalaCaseClassSerializer]]. */
-@Disabled("FLINK-36334")
 class ScalaCaseClassSerializerUpgradeTest
   extends TypeSerializerUpgradeTestBase[CustomCaseClass, CustomCaseClass] {
 

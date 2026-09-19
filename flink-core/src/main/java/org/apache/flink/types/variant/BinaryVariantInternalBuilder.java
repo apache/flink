@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.UUID;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.ARRAY;
 import static org.apache.flink.types.variant.BinaryVariantUtil.BASIC_TYPE_MASK;
@@ -58,8 +59,11 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.MAX_SHORT_STR_SIZ
 import static org.apache.flink.types.variant.BinaryVariantUtil.NULL;
 import static org.apache.flink.types.variant.BinaryVariantUtil.OBJECT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIME;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ_NS;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_NS;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TRUE;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U16_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U24_MAX;
@@ -91,6 +95,7 @@ public class BinaryVariantInternalBuilder {
             new VariantTypeException("VARIANT_SIZE_LIMIT");
     public static final VariantTypeException VARIANT_DUPLICATE_KEY_EXCEPTION =
             new VariantTypeException("VARIANT_DUPLICATE_KEY");
+    private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
     public BinaryVariantInternalBuilder(boolean allowDuplicateKeys) {
         this.allowDuplicateKeys = allowDuplicateKeys;
@@ -103,7 +108,7 @@ public class BinaryVariantInternalBuilder {
      */
     public static BinaryVariant parseJson(String json, boolean allowDuplicateKeys)
             throws IOException {
-        try (JsonParser parser = new JsonFactory().createParser(json)) {
+        try (JsonParser parser = JSON_FACTORY.createParser(json)) {
             parser.nextToken();
             return parseJson(parser, allowDuplicateKeys);
         }
@@ -287,6 +292,27 @@ public class BinaryVariantInternalBuilder {
         writePos += 8;
     }
 
+    public void appendTime(long microsSinceMidnight) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIME);
+        writeLong(writeBuffer, writePos, microsSinceMidnight, 8);
+        writePos += 8;
+    }
+
+    public void appendTimestampLtzNanos(long nanosSinceEpoch) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP_LTZ_NS);
+        writeLong(writeBuffer, writePos, nanosSinceEpoch, 8);
+        writePos += 8;
+    }
+
+    public void appendTimestampNanos(long nanosSinceEpoch) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP_NS);
+        writeLong(writeBuffer, writePos, nanosSinceEpoch, 8);
+        writePos += 8;
+    }
+
     public void appendFloat(float f) {
         checkCapacity(1 + 4);
         writeBuffer[writePos++] = primitiveHeader(FLOAT);
@@ -301,6 +327,18 @@ public class BinaryVariantInternalBuilder {
         writePos += U32_SIZE;
         System.arraycopy(binary, 0, writeBuffer, writePos, binary.length);
         writePos += binary.length;
+    }
+
+    public void appendUuid(UUID uuid) {
+        checkCapacity(1 + 16);
+        writeBuffer[writePos++] = primitiveHeader(BinaryVariantUtil.UUID);
+        // The variant spec stores UUIDs as 16 big-endian bytes: the most significant 8 bytes
+        // followed by the least significant 8 bytes. UUID is the only primitive that is not
+        // little-endian, so we use the big-endian writer instead of writeLong.
+        BinaryVariantUtil.writeLongBigEndian(writeBuffer, writePos, uuid.getMostSignificantBits());
+        BinaryVariantUtil.writeLongBigEndian(
+                writeBuffer, writePos + 8, uuid.getLeastSignificantBits());
+        writePos += 16;
     }
 
     // Add a key to the variant dictionary. If the key already exists, the dictionary is not
@@ -622,7 +660,17 @@ public class BinaryVariantInternalBuilder {
 
     private void parseFloatingPoint(JsonParser parser) throws IOException {
         if (!tryParseDecimal(parser.getText())) {
-            appendDouble(parser.getDoubleValue());
+            final double d = parser.getDoubleValue();
+            // Jackson coerces out-of-range numbers like 1e400 to +/-Infinity. Reject them instead
+            // of storing a non-finite double that toJson() could not render as valid JSON.
+            if (Double.isInfinite(d) || Double.isNaN(d)) {
+                throw new JsonParseException(
+                        parser,
+                        String.format(
+                                "Numeric value '%s' is out of the range of double precision and cannot be stored as a Variant.",
+                                parser.getText()));
+            }
+            appendDouble(d);
         }
     }
 

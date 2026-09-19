@@ -29,7 +29,7 @@ import org.apache.calcite.util.mapping.Mappings
 
 import java.util
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
  * Description of the physical distribution of a relational expression. See [[RelDistribution]] for
@@ -98,7 +98,7 @@ class FlinkRelDistribution private (
   override def apply(mapping: Mappings.TargetMapping): FlinkRelDistribution = {
     if (distributionType == Type.HASH_DISTRIBUTED) {
       val newKeys = new util.ArrayList[Integer]
-      keys.foreach {
+      keys.asScala.foreach {
         key =>
           try {
             val i = mapping.getTargetOpt(key)
@@ -114,7 +114,7 @@ class FlinkRelDistribution private (
       FlinkRelDistribution.hash(newKeys, requireStrict)
     } else if (distributionType == Type.RANGE_DISTRIBUTED) {
       val newFieldCollations = new util.ArrayList[RelFieldCollation]
-      fieldCollations.get.foreach {
+      fieldCollations.get.asScala.foreach {
         fieldCollation =>
           try {
             val i = mapping.getTargetOpt(fieldCollation.getFieldIndex)
@@ -235,7 +235,7 @@ object FlinkRelDistribution {
 
   /** Creates a range distribution. */
   def range(collations: util.List[RelFieldCollation]): FlinkRelDistribution = {
-    val keys = collations.map(i => Integer.valueOf(i.getFieldIndex)).toList
+    val keys = collations.asScala.map(i => Integer.valueOf(i.getFieldIndex)).toList
     val fieldCollations = ImmutableList.copyOf[RelFieldCollation](collations)
     canonize(
       new FlinkRelDistribution(
@@ -244,12 +244,12 @@ object FlinkRelDistribution {
         Some(fieldCollations)))
   }
 
-  def range(collations: RelFieldCollation*): FlinkRelDistribution = range(collations)
+  def range(collations: RelFieldCollation*): FlinkRelDistribution = range(collations.asJava)
 
   def range(columns: util.Collection[_ <: Number]): FlinkRelDistribution = {
     val keys = ImmutableIntList.copyOf(columns)
     val collations = new util.ArrayList[RelFieldCollation]()
-    columns.foreach(f => collations.add(FlinkRelOptUtil.ofRelFieldCollation(f.intValue())))
+    columns.asScala.foreach(f => collations.add(FlinkRelOptUtil.ofRelFieldCollation(f.intValue())))
     val fieldCollations = ImmutableList.copyOf[RelFieldCollation](collations)
     canonize(
       new FlinkRelDistribution(RelDistribution.Type.RANGE_DISTRIBUTED, keys, Some(fieldCollations)))

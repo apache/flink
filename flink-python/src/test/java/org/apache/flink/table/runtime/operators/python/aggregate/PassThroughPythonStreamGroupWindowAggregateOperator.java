@@ -36,6 +36,7 @@ import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.functions.python.InputRef;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
@@ -164,7 +165,7 @@ public class PassThroughPythonStreamGroupWindowAggregateOperator<K>
                                 windowSerializer,
                                 this.mockPythonWindowOperator);
         this.groupKeyProjection = createProjection("GroupKey", grouping);
-        int inputFieldIndex = (int) aggregateFunction.getInputs()[0];
+        int inputFieldIndex = ((InputRef) aggregateFunction.getInputs()[0]).getOffset();
         this.aggExtracter =
                 input -> {
                     GenericRowData aggResult = new GenericRowData(1);

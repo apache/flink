@@ -220,6 +220,19 @@ public class TableTestProgram {
     }
 
     /**
+     * A helper method to avoid boilerplate code. It assumes that only a single Table API statement
+     * is tested.
+     */
+    public TableApiTestStep getRunTableApiTestStep() {
+        final List<TestStep> tableApiSteps =
+                runSteps.stream()
+                        .filter(s -> s.getKind() == TestKind.TABLE_API)
+                        .collect(Collectors.toList());
+        Preconditions.checkArgument(tableApiSteps.size() == 1, "Single Table API step expected.");
+        return (TableApiTestStep) tableApiSteps.get(0);
+    }
+
+    /**
      * A helper method to avoid boilerplate code. It assumes that only a single SQL statement is
      * tested.
      */

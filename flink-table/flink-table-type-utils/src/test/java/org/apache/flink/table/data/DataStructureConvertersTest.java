@@ -57,6 +57,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 import static java.util.Arrays.asList;
@@ -108,6 +109,10 @@ class DataStructureConvertersTest {
                         .convertedTo(byte[].class, new byte[] {1, 2, 3, 4, 5}),
                 TestSpec.forDataType(VARBINARY(100))
                         .convertedTo(byte[].class, new byte[] {1, 2, 3, 4, 5}),
+                TestSpec.forDataType(DataTypes.UUID())
+                        .convertedTo(
+                                UUID.class,
+                                UUID.fromString("550e8400-e29b-41d4-a716-446655440000")),
                 TestSpec.forDataType(DECIMAL(3, 2))
                         .convertedTo(BigDecimal.class, new BigDecimal("1.23"))
                         .convertedTo(DecimalData.class, DecimalData.fromUnscaledLong(123, 3, 2)),

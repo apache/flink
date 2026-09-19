@@ -1,0 +1,14 @@
+== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.MyMTTable], fields=[b, a])
++- LogicalProject(b=[$1], a=[CAST($0):BIGINT])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.MyMTTable], fields=[b, a])
++- Calc(select=[b, CAST(a AS BIGINT) AS a])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, a], metadata=[]]], fields=[b, a])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.MyMTTable], fields=[b, a])
++- Calc(select=[b, CAST(a AS BIGINT) AS a])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, a], metadata=[]]], fields=[b, a])

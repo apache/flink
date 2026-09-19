@@ -52,6 +52,7 @@ import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -373,7 +374,33 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
             String relativePath = mappingFile.substring(pathStr.length());
             int slashIndex = relativePath.indexOf('/');
             if (slashIndex == -1) { // direct child
-                fileStatuses.add(getFileStatus(new Path(mappingFile)));
+                try {
+                    fileStatuses.add(getFileStatus(new Path(mappingFile)));
+                } catch (FileNotFoundException e) {
+                    // The physical object backing this mapping entry is gone,
+                    // we handle this case by removing the mapping. If the entry is
+                    // NOT_OWNED, ownership of that object was handed to the JobManager.
+                    // The JM's SharedStateRegistry may have deleted it once the last
+                    // checkpoint referencing it was removed.
+                    // Since nothing else prunes the now-deleted mapping entry,
+                    // every subsequent full listing would hit this missing object and fail
+                    // This bug is documented in (FLINK-37686), the block attempts to
+                    // drop the stale entry and skip it rather than failing.
+                    MappingEntry staleEntry = fileMappingManager.mappingEntry(mappingFile);
+                    if (staleEntry != null
+                            && staleEntry.getFileOwnership() == FileOwnership.NOT_OWNED) {
+                        LOG.warn(
+                                "Source object for mapping file {} (resolved source: {}, ownership: NOT_OWNED) "
+                                        + "is missing. Its physical object was owned and deleted by the "
+                                        + "JobManager, the now-deleted mapping is being removed",
+                                mappingFile,
+                                staleEntry.getSourcePath());
+                        fileMappingManager.deleteFileOrDirectory(new Path(mappingFile), false);
+                    } else {
+                        // for all other cases, continue to bubble up the failure
+                        throw e;
+                    }
+                }
             }
         }
         return fileStatuses.toArray(new FileStatus[0]);

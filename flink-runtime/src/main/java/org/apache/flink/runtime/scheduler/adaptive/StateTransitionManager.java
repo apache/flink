@@ -89,5 +89,12 @@ public interface StateTransitionManager {
          * @return the {@link JobID} of the job
          */
         JobID getJobId();
+
+        /**
+         * Requests the context to actively trigger a checkpoint to expedite rescaling. The
+         * implementation decides whether to actually trigger based on its own guard conditions.
+         * Multiple calls are safe; guards prevent redundant triggers.
+         */
+        default void requestActiveCheckpointTrigger() {}
     }
 }

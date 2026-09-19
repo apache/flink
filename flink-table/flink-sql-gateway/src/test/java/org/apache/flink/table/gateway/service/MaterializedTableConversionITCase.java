@@ -57,6 +57,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind.TABLE;
 import static org.apache.flink.table.catalog.CommonCatalogOptions.TABLE_CATALOG_STORE_KIND;
 import static org.apache.flink.table.factories.FactoryUtil.WORKFLOW_SCHEDULER_TYPE;
 import static org.apache.flink.table.gateway.service.MaterializedTableTestUtils.executeStatement;
@@ -291,6 +292,44 @@ class MaterializedTableConversionITCase {
                 getTable(service, sessionHandle, userShopsIdentifier);
         assertThat(suspendedMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);
         assertThat(suspendedMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.SUSPENDED);
+    }
+
+    @Test
+    void testExplainConvertTableToMaterializedTable() throws Exception {
+        // pre-create a regular table that CREATE OR ALTER would convert in place.
+        String createRegularTableDDL =
+                "CREATE TABLE users_shops (\n"
+                        + "  user_id BIGINT,\n"
+                        + "  shop_id BIGINT,\n"
+                        + "  payment_amount_cents BIGINT\n"
+                        + ")\n"
+                        + "WITH ('connector' = 'values')";
+        OperationHandle createTableHandle =
+                executeStatement(service, sessionHandle, createRegularTableDDL);
+        awaitOperationTermination(service, sessionHandle, createTableHandle);
+
+        String explainDDL =
+                "EXPLAIN CREATE OR ALTER MATERIALIZED TABLE users_shops"
+                        + " FRESHNESS = INTERVAL '30' SECOND"
+                        + " AS SELECT user_id, shop_id, payment_amount_cents FROM datagenSource";
+
+        OperationHandle explainHandle = executeStatement(service, sessionHandle, explainDDL);
+        awaitOperationTermination(service, sessionHandle, explainHandle);
+        List<RowData> explainResults = fetchAllResults(service, sessionHandle, explainHandle);
+        assertThat(explainResults).hasSize(1);
+        assertThat(explainResults.get(0).getString(0).toString())
+                .contains(
+                        "== Abstract Syntax Tree ==",
+                        "== Optimized Physical Plan ==",
+                        "== Optimized Execution Plan ==",
+                        "Sink(table=[",
+                        "users_shops");
+
+        // EXPLAIN is side-effect-free: the entry is still a regular table, not converted.
+        assertThat(
+                        service.getTable(sessionHandle, getObjectIdentifier("users_shops"))
+                                .getTableKind())
+                .isSameAs(TABLE);
     }
 
     private SessionHandle initializeSession() {

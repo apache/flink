@@ -105,9 +105,7 @@ public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
                             rowData.setField(
                                     outputColumnIndex,
                                     new GenericArrayData(
-                                            embedding.embedding().stream()
-                                                    .map(Double::floatValue)
-                                                    .toArray(Float[]::new)));
+                                            embedding.embedding().stream().toArray(Float[]::new)));
                             return rowData;
                         })
                 .collect(Collectors.toList());

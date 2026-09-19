@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
@@ -42,7 +43,14 @@ import static java.util.Objects.requireNonNull;
 public class SqlShowPartitions extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("SHOW PARTITIONS", SqlKind.OTHER);
+            new SqlSpecialOperator("SHOW PARTITIONS", SqlKind.OTHER) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlShowPartitions(
+                            pos, (SqlIdentifier) operands[0], (SqlNodeList) operands[1]);
+                }
+            };
 
     private final SqlIdentifier tableIdentifier;
     @Nullable private final SqlNodeList partitionSpec;

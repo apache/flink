@@ -258,6 +258,20 @@ abstract class ChannelStateWriteRequest {
         return new CheckpointAbortRequest(jobVertexID, subtaskIndex, checkpointId, cause);
     }
 
+    static ChannelStateWriteRequest replayInputDataFromSpill(
+            JobVertexID jobVertexID,
+            int subtaskIndex,
+            long checkpointId,
+            FetchedChannelStateReader reader) {
+        return new CheckpointInProgressRequest(
+                "writeInputFromSpill",
+                jobVertexID,
+                subtaskIndex,
+                checkpointId,
+                writer -> writer.writeInputFromSpill(jobVertexID, subtaskIndex, reader),
+                throwable -> reader.close());
+    }
+
     static ChannelStateWriteRequest registerSubtask(JobVertexID jobVertexID, int subtaskIndex) {
         return new SubtaskRegisterRequest(jobVertexID, subtaskIndex);
     }

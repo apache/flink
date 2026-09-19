@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -55,6 +56,7 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
+import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
@@ -483,6 +485,134 @@ public class AsyncWaitOperatorTest {
                     expectedOutput,
                     testHarness.getOutput(),
                     new StreamRecordComparator());
+        }
+    }
+
+    /**
+     * Tests that the OperatorChain availability provider exposed to {@link
+     * org.apache.flink.streaming.runtime.tasks.StreamTask} flips to unavailable when an {@link
+     * AsyncWaitOperator}'s queue is full, and recovers once a slot is freed by an emitted result.
+     * This is the integration that drives the chain-availability path in {@code
+     * StreamTask#processInput}.
+     */
+    @Test
+    void testStreamTaskChainAvailabilityFlipsWithAsyncQueueCapacity() throws Exception {
+        SharedReference<List<ResultFuture<?>>> resultFutures = sharedObjects.add(new ArrayList<>());
+
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+
+        try (StreamTaskMailboxTestHarness<Integer> harness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        new CollectableFuturesAsyncFunction<>(resultFutures),
+                                        TIMEOUT,
+                                        2,
+                                        AsyncDataStream.OutputMode.ORDERED))
+                        .build()) {
+
+            AvailabilityProvider chainAvailability =
+                    harness.getOperatorChain().getChainAvailabilityProvider();
+            assertThat(chainAvailability)
+                    .as("Singleton AsyncWait chain must expose an availability provider")
+                    .isNotNull();
+            assertThat(chainAvailability.isAvailable())
+                    .as("Empty async queue starts available")
+                    .isTrue();
+
+            // Fill the capacity-2 queue. The async function never auto-completes.
+            harness.processElement(new StreamRecord<>(1, 0L));
+            harness.processElement(new StreamRecord<>(2, 1L));
+
+            assertThat(chainAvailability.isAvailable())
+                    .as(
+                            "After filling capacity, chain availability must drop to false so"
+                                    + " StreamTask#processInput enters the chain-availability"
+                                    + " branch")
+                    .isFalse();
+
+            // Complete one entry; the head emits and frees a slot, restoring availability.
+            completeWithSingle(resultFutures.get().get(0), 10);
+            harness.processAll();
+
+            assertThat(chainAvailability.isAvailable())
+                    .as("Freeing one slot must restore chain availability")
+                    .isTrue();
+
+            // Drain the rest to keep the harness clean.
+            completeWithSingle(resultFutures.get().get(1), 20);
+            harness.processAll();
+            assertThat(harness.getOutput())
+                    .containsExactly(new StreamRecord<>(10, 0L), new StreamRecord<>(20, 1L));
+        }
+    }
+
+    /**
+     * Tests that {@link AsyncWaitOperator} defers element emission while the configured downstream
+     * {@link AvailabilityProvider} is unavailable, and that completing the downstream's future
+     * schedules a deferred mail that finally drains the buffered element.
+     */
+    @Test
+    void testOutputCompletedElementDefersWhenDownstreamUnavailable() throws Exception {
+        final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarness(
+                        new ImmediateAsyncFunction(),
+                        TIMEOUT,
+                        2,
+                        AsyncDataStream.OutputMode.ORDERED);
+
+        testHarness.open();
+
+        final AsyncWaitOperator<Integer, Integer> operator =
+                (AsyncWaitOperator<Integer, Integer>) testHarness.getOneInputOperator();
+        final CompletableFuture<Void> downstreamFuture = new CompletableFuture<>();
+        operator.setDownstreamAvailabilityProvider(() -> downstreamFuture);
+
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.processElement(new StreamRecord<>(7, 0L));
+        }
+
+        // ImmediateAsyncFunction completes synchronously; draining runs the resulting
+        // outputCompletedElement mail, which must observe the unavailable downstream
+        // and register a thenRun callback instead of emitting.
+        drainMailbox(testHarness);
+        assertThat(testHarness.getOutput())
+                .as("Element must not be emitted while downstream is unavailable")
+                .isEmpty();
+
+        // Signal downstream availability. The thenRun callback runs synchronously on
+        // this thread and enqueues a deferred outputCompletedElement mail.
+        downstreamFuture.complete(null);
+        drainMailbox(testHarness);
+        assertThat(testHarness.getOutput()).containsExactly(new StreamRecord<>(7, 0L));
+
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.endInput();
+            testHarness.close();
+        }
+    }
+
+    private static void drainMailbox(OneInputStreamOperatorTestHarness<?, ?> testHarness)
+            throws Exception {
+        for (Mail mail : testHarness.getTaskMailbox().drain()) {
+            mail.run();
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void completeWithSingle(ResultFuture<?> resultFuture, Object value) {
+        ((ResultFuture) resultFuture).complete(Collections.singletonList(value));
+    }
+
+    /** A synchronous {@link AsyncFunction} that completes the result on the calling thread. */
+    private static class ImmediateAsyncFunction implements AsyncFunction<Integer, Integer> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            resultFuture.complete(Collections.singletonList(input));
         }
     }
 
@@ -1267,6 +1397,66 @@ public class AsyncWaitOperatorTest {
     @Test
     void testProcessingTimeWithTimeoutFunctionUnorderedWithRetry() throws Exception {
         testProcessingTimeAlwaysTimeoutFunctionWithRetry(AsyncDataStream.OutputMode.UNORDERED);
+    }
+
+    /** A timeout firing while a retry is already queued must still emit its result. */
+    @Test
+    void testTimeoutRaceWithRetry() throws Exception {
+        ControllableExceptionThenTimeoutFunction.releaseCompletion = new CountDownLatch(1);
+        ControllableExceptionThenTimeoutFunction.completionEnqueued = new CountDownLatch(1);
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithRetry(
+                        new ControllableExceptionThenTimeoutFunction(),
+                        TIMEOUT,
+                        1,
+                        AsyncDataStream.OutputMode.UNORDERED,
+                        exceptionRetryStrategy)) {
+
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
+
+            // start the async call; its timeout timer is now registered at TIMEOUT
+            synchronized (testHarness.getCheckpointLock()) {
+                testHarness.processElement(new StreamRecord<>(1, 1L));
+            }
+
+            // let the async call complete exceptionally, then wait until the resulting retry mail
+            // is actually enqueued in the mailbox
+            ControllableExceptionThenTimeoutFunction.releaseCompletion.countDown();
+            ControllableExceptionThenTimeoutFunction.completionEnqueued.await();
+
+            // fire the timeout while the retry mail is still queued, then run both mails in order
+            testHarness.setProcessingTime(TIMEOUT + 1L);
+            drainMailbox(testHarness);
+
+            assertThat(testHarness.getOutput()).containsExactly(new StreamRecord<>(-1, 1L));
+        }
+    }
+
+    private static class ControllableExceptionThenTimeoutFunction
+            extends AlwaysTimeoutWithDefaultValueAsyncFunction {
+        private static final long serialVersionUID = 2L;
+
+        // released by the test to let the async call complete exceptionally
+        static CountDownLatch releaseCompletion;
+        // counted down once the exceptional completion has been enqueued into the mailbox
+        static CountDownLatch completionEnqueued;
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            tryCounts.merge(input, 1, Integer::sum);
+            CompletableFuture.runAsync(
+                    () -> {
+                        try {
+                            releaseCompletion.await();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        resultFuture.completeExceptionally(new Exception("Dummy error"));
+                        completionEnqueued.countDown();
+                    });
+        }
     }
 
     /**

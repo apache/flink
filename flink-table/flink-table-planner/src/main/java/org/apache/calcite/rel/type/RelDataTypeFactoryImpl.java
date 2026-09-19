@@ -58,8 +58,8 @@ import static org.apache.calcite.util.ReflectUtil.isStatic;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after fixing CALCITE-5199: Lines 242-244
- *   <li>Added in FLINK-39695 (backport of CALCITE-6764): Lines 407 ~ 438
+ *   <li>Added in FLINK-39695 (backport of CALCITE-6764): Lines 406 ~ 432
+ *   <li>Keep Flink FLOAT precision: Lines 592 ~ 594
  * </ol>
  */
 public abstract class RelDataTypeFactoryImpl implements RelDataTypeFactory {
@@ -238,9 +238,7 @@ public abstract class RelDataTypeFactoryImpl implements RelDataTypeFactory {
 
         // recursively compute column-wise least restrictive
         // preserve the struct kind from type0
-        // FLINK MODIFICATION BEGIN
         final Builder builder = builder().kind(type0.getStructKind());
-        // FLINK MODIFICATION END
         for (int j = 0; j < fieldCount; ++j) {
             // REVIEW jvs 22-Jan-2004:  Always use the field name from the
             // first type?
@@ -277,9 +275,11 @@ public abstract class RelDataTypeFactoryImpl implements RelDataTypeFactory {
         if (type == null) {
             return null;
         }
-        return sqlTypeName == SqlTypeName.ARRAY
-                ? new ArraySqlType(type, isNullable)
-                : new MultisetSqlType(type, isNullable);
+        RelDataType collection =
+                sqlTypeName == SqlTypeName.ARRAY
+                        ? createArrayType(type, -1)
+                        : createMultisetType(type, -1);
+        return createTypeWithNullability(collection, isNullable);
     }
 
     protected @Nullable RelDataType leastRestrictiveMapType(
@@ -302,7 +302,7 @@ public abstract class RelDataTypeFactoryImpl implements RelDataTypeFactory {
         if (valueType == null) {
             return null;
         }
-        return new MapSqlType(keyType, valueType, isNullable);
+        return createTypeWithNullability(createMapType(keyType, valueType), isNullable);
     }
 
     protected RelDataType leastRestrictiveIntervalDatetimeType(
@@ -403,10 +403,7 @@ public abstract class RelDataTypeFactoryImpl implements RelDataTypeFactory {
         return canonize(newType);
     }
 
-    // ----- FLINK MODIFICATION BEGIN -----
-    // Backport from Calcite (CALCITE-6764): creates a type with specified nullability
-    // without deep-copying record field types. For record types, makes the struct
-    // itself nullable/not-nullable while keeping field types unchanged.
+    @Override
     public RelDataType enforceTypeWithNullability(final RelDataType type, final boolean nullable) {
         requireNonNull(type, "type");
         RelDataType newType;
@@ -433,8 +430,6 @@ public abstract class RelDataTypeFactoryImpl implements RelDataTypeFactory {
         }
         return canonize(newType);
     }
-
-    // ----- FLINK MODIFICATION END -----
 
     /**
      * Registers a type, or returns the existing type if it is already registered.
@@ -672,6 +667,13 @@ public abstract class RelDataTypeFactoryImpl implements RelDataTypeFactory {
         protected void generateTypeString(StringBuilder sb, boolean withDetail) {
             sb.append("JavaType(");
             sb.append(clazz);
+            if (clazz == String.class
+                    && charset != null
+                    && !SqlCollation.IMPLICIT.getCharset().equals(charset)) {
+                sb.append(" CHARACTER SET \"");
+                sb.append(charset.name());
+                sb.append("\"");
+            }
             sb.append(")");
         }
 

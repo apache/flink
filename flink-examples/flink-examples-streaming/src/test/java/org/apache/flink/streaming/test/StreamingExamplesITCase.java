@@ -34,34 +34,24 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.test.examples.join.WindowJoinData;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.Collection;
 
 import static org.apache.flink.test.util.TestBaseUtils.checkLinesAgainstRegexp;
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** Integration test for streaming programs in Java examples. */
-@RunWith(Parameterized.class)
-public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
-
-    @Parameterized.Parameter public boolean asyncState;
-
-    @Parameterized.Parameters
-    public static Collection<Boolean> setup() {
-        return Arrays.asList(false, true);
-    }
+class StreamingExamplesITCase extends AbstractTestBase {
 
     @Test
-    public void testWindowJoin() throws Exception {
+    void testWindowJoin() throws Exception {
 
         final String resultPath = Files.createTempDirectory("result-path").toUri().toString();
 
@@ -111,7 +101,7 @@ public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testSessionWindowing() throws Exception {
+    void testSessionWindowing() throws Exception {
         final String resultPath = getTempDirPath("result");
         org.apache.flink.streaming.examples.windowing.SessionWindowing.main(
                 new String[] {"--output", resultPath});
@@ -120,8 +110,9 @@ public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
         // state here.
     }
 
-    @Test
-    public void testWindowWordCount() throws Exception {
+    @ParameterizedTest(name = "asyncState: {0}")
+    @ValueSource(booleans = {false, true})
+    void testWindowWordCount(boolean asyncState) throws Exception {
         final String windowSize = "25";
         final String slideSize = "15";
         final String textPath = createTempFile("text.txt", WordCountData.TEXT);
@@ -153,8 +144,9 @@ public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
         checkLinesAgainstRegexp(resultPath, "^\\([a-z]+,(\\d)+\\)");
     }
 
-    @Test
-    public void testWordCount() throws Exception {
+    @ParameterizedTest(name = "asyncState: {0}")
+    @ValueSource(booleans = {false, true})
+    void testWordCount(boolean asyncState) throws Exception {
         final String textPath = createTempFile("text.txt", WordCountData.TEXT);
         final String resultPath = getTempDirPath("result");
 

@@ -47,7 +47,7 @@ class MetadataV4SerializerTest {
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
                 DataOutputStream dos = new DataOutputStream(out)) {
-            instance.serialize(metadata, dos);
+            instance.serialize(metadata, dos, null);
 
             try (DataInputStream dis =
                     new DataInputStream(new ByteArrayInputStream(out.toByteArray()))) {

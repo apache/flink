@@ -282,6 +282,12 @@ public class MergeTableLikeUtil {
                 } else if (sourceColumn instanceof UnresolvedMetadataColumn) {
                     if (mergingStrategies.get(FeatureOption.METADATA)
                             != MergingStrategy.EXCLUDING) {
+                        UnresolvedMetadataColumn metadataColumn =
+                                (UnresolvedMetadataColumn) sourceColumn;
+                        LogicalType columnType = getLogicalType(dataTypeFactory, metadataColumn);
+                        metadataFieldNamesToTypes.put(
+                                sourceColumn.getName(),
+                                typeFactory.createFieldTypeFromLogicalType(columnType));
                         columns.put(sourceColumn.getName(), sourceColumn);
                     }
                 }

@@ -21,6 +21,7 @@ package org.apache.flink.sql.parser.ddl.view;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.SqlCreateObject;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -39,7 +40,23 @@ import static java.util.Objects.requireNonNull;
 /** CREATE VIEW DDL sql call. */
 public class SqlCreateView extends SqlCreateObject {
     private static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("CREATE_VIEW", SqlKind.CREATE_VIEW);
+            new SqlSpecialOperator("CREATE_VIEW", SqlKind.CREATE_VIEW) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlCreateView(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            (SqlNodeList) operands[1],
+                            operands[2],
+                            ((SqlLiteral) operands[3]).booleanValue(),
+                            ((SqlLiteral) operands[4]).booleanValue(),
+                            ((SqlLiteral) operands[5]).booleanValue(),
+                            (SqlCharStringLiteral) operands[6],
+                            (SqlNodeList) operands[7],
+                            SqlParserPos.ZERO);
+                }
+            };
 
     private final SqlNodeList fieldList;
     private final SqlNode query;
@@ -69,6 +86,10 @@ public class SqlCreateView extends SqlCreateObject {
         ops.add(fieldList);
         ops.add(query);
         ops.add(SqlLiteral.createBoolean(getReplace(), SqlParserPos.ZERO));
+        ops.add(SqlLiteral.createBoolean(isTemporary(), SqlParserPos.ZERO));
+        ops.add(SqlLiteral.createBoolean(isIfNotExists(), SqlParserPos.ZERO));
+        ops.add(comment);
+        ops.add(properties);
         return ops;
     }
 

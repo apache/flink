@@ -18,7 +18,10 @@
 package org.apache.flink.runtime.checkpoint.metadata;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
+
+import javax.annotation.Nullable;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -50,9 +53,12 @@ public class MetadataV4Serializer extends MetadataV3Serializer {
     }
 
     @Override
-    public void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
+    public void serialize(
+            CheckpointMetadata checkpointMetadata,
+            DataOutputStream dos,
+            @Nullable Path exclusiveDirPath)
             throws IOException {
-        super.serialize(checkpointMetadata, dos);
+        super.serialize(checkpointMetadata, dos, exclusiveDirPath);
         serializeProperties(checkpointMetadata.getCheckpointProperties(), dos);
     }
 

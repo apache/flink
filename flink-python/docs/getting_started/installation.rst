@@ -23,13 +23,13 @@ Environment Requirements
 ------------------------
 
 .. note::
-   Python version (3.9, 3.10, 3.11 or 3.12) is required for PyFlink. Please run the following command
+   Python version (3.9, 3.10, 3.11, 3.12 or 3.13) is required for PyFlink. Please run the following command
    to make sure that it meets the requirements:
 
 .. code-block:: bash
 
    $ python --version
-   # the version printed here must be 3.9, 3.10, 3.11 or 3.12
+   # the version printed here must be 3.9, 3.10, 3.11, 3.12 or 3.13
 
 Environment Setup
 -----------------

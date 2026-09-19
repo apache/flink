@@ -505,7 +505,10 @@ public final class TypeInferenceUtil {
                                             final DataType actualType =
                                                     castCallContext.getArgumentDataTypes().get(pos);
                                             if (expectedType == null) {
-                                                return actualType;
+                                                return expectedArg
+                                                        .getConversionClass()
+                                                        .map(actualType::bridgedTo)
+                                                        .orElse(actualType);
                                             }
                                             if (!supportsImplicitCast(
                                                     actualType.getLogicalType(),

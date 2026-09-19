@@ -30,7 +30,7 @@ class RowStateConverter implements StateConverter {
     private final DataStructureConverter<Object, Object> converter;
     private final RowType rowType;
 
-    RowStateConverter(DataStructureConverter<Object, Object> converter, RowType rowType) {
+    RowStateConverter(RowType rowType, DataStructureConverter<Object, Object> converter) {
         this.converter = converter;
         this.rowType = rowType;
     }

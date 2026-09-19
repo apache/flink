@@ -18,7 +18,7 @@
 import { registerLocaleData } from '@angular/common';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import en from '@angular/common/locales/en';
-import { enableProdMode, inject, provideAppInitializer } from '@angular/core';
+import { enableProdMode, inject, provideAppInitializer, provideZoneChangeDetection } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, withHashLocation } from '@angular/router';
@@ -46,6 +46,7 @@ const ngZorroConfig: NzConfig = {
 
 bootstrapApplication(AppComponent, {
   providers: [
+    provideZoneChangeDetection(),
     {
       provide: HTTP_INTERCEPTORS,
       useClass: AppInterceptor,

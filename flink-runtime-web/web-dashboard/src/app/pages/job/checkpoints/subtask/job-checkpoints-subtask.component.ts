@@ -135,8 +135,7 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges, OnDest
           ) {
             map.set(obj.subtask, obj);
             return map;
-          },
-          new Map());
+          }, new Map());
           this.subTaskCheckPoint = checkpointSubTasks;
           this.listOfSubTaskCheckPoint = (checkpointSubTasks && checkpointSubTasks.subtasks) || [];
           this.isLoading = false;

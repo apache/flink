@@ -654,9 +654,10 @@ object ScalarOperatorGens {
           case _ => throw new CodeGenException(s"Unsupported boolean comparison '$operator'.")
         }
       }
-      // both sides are binary type
+      // both sides are binary type or UUID (both are backed by a byte[] and order by the same
+      // unsigned byte-wise comparison)
       else if (
-        isBinaryString(left.resultType) &&
+        (isBinaryString(left.resultType) || isUuid(left.resultType)) &&
         isInteroperable(left.resultType, right.resultType)
       ) {
         val utilName = classOf[SqlFunctionUtils].getCanonicalName

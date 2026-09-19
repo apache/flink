@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil.IntermediateCompatibilityResult;
+import org.apache.flink.api.common.typeutils.CustomRestoreSerializerFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -34,10 +35,12 @@ import org.apache.flink.util.LinkedOptionalMap;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -143,6 +146,11 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
     @Override
     @SuppressWarnings("unchecked")
     public TypeSerializer<T> restoreSerializer() {
+        if (snapshotData.getPojoClass() == null) {
+            return CustomRestoreSerializerFactory.restoreFallbackSerializer(
+                    this, snapshotData.getPojoClassName());
+        }
+
         final int numFields = snapshotData.getFieldSerializerSnapshots().size();
 
         final ArrayList<Field> restoredFields = new ArrayList<>(numFields);
@@ -255,6 +263,56 @@ public class PojoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
         }
 
         return TypeSerializerSchemaCompatibility.compatibleAsIs();
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    //  Schema extraction support
+    // ---------------------------------------------------------------------------------------------
+
+    /**
+     * Returns {@code true} if the POJO class could be loaded from the classloader that read this
+     * snapshot. When {@code false}, {@link #restoreSerializer()} delegates to the serializer
+     * supplied via {@link CustomRestoreSerializerFactory} instead of building a {@link
+     * PojoSerializer}.
+     */
+    @Internal
+    public boolean isPojoClassAvailable() {
+        return snapshotData.getPojoClass() != null;
+    }
+
+    /**
+     * Returns the POJO class name as stored in the snapshot. Available even when the class cannot
+     * be loaded.
+     */
+    @Internal
+    public String getPojoClassName() {
+        return snapshotData.getPojoClassName();
+    }
+
+    /**
+     * Returns an ordered list of (field name, field serializer snapshot) pairs. Field names are
+     * always present; snapshot values may be {@code null} when the field snapshot could not be
+     * read.
+     */
+    @Internal
+    public List<SimpleEntry<String, TypeSerializerSnapshot<?>>> getFieldSnapshotEntries() {
+        List<SimpleEntry<String, TypeSerializerSnapshot<?>>> result = new ArrayList<>();
+        snapshotData
+                .getFieldSerializerSnapshots()
+                .forEach(
+                        (fieldName, field, fieldSnapshot) ->
+                                result.add(new SimpleEntry<>(fieldName, fieldSnapshot)));
+        return result;
+    }
+
+    /**
+     * Returns the registered subclass serializer snapshots in tag order (tag 0, 1, 2, …). Values
+     * may be {@code null} if a subclass snapshot was not readable.
+     */
+    @Internal
+    public List<TypeSerializerSnapshot<?>> getRegisteredSubclassSnapshotsOrdered() {
+        return new ArrayList<>(
+                snapshotData.getRegisteredSubclassSerializerSnapshots().unwrapOptionals().values());
     }
 
     // ---------------------------------------------------------------------------------------------

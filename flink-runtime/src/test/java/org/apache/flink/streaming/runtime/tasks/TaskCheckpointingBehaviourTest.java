@@ -94,6 +94,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -112,6 +113,7 @@ import static org.mockito.Mockito.mock;
  * checks correct working of different policies how tasks deal with checkpoint failures (fail task,
  * decline checkpoint and continue).
  */
+@Timeout(120)
 class TaskCheckpointingBehaviourTest {
 
     private static final OneShotLatch IN_CHECKPOINT_LATCH = new OneShotLatch();

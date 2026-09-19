@@ -131,6 +131,32 @@ class MailboxExecutorImplTest {
     }
 
     @Test
+    void testTryYieldIgnoringDeferrable() throws Exception {
+        int priority = 42;
+        MailboxExecutorImpl localExecutor =
+                (MailboxExecutorImpl) mailboxProcessor.getMailboxExecutor(priority);
+
+        AtomicBoolean deferrableMailExecuted = new AtomicBoolean();
+
+        localExecutor.execute(
+                MailboxExecutor.MailOptions.deferrable(),
+                () -> deferrableMailExecuted.set(true),
+                "deferrable mail");
+        // the deferrable mail keeps its original priority, so it stays hidden from executors
+        // with a higher priority
+        assertThat(
+                        ((MailboxExecutorImpl) mailboxProcessor.getMailboxExecutor(priority + 1))
+                                .tryYieldIgnoringDeferrable())
+                .isFalse();
+        assertThat(deferrableMailExecuted.get()).isFalse();
+        assertThat(localExecutor.tryYield()).isFalse();
+        assertThat(deferrableMailExecuted.get()).isFalse();
+
+        assertThat(localExecutor.tryYieldIgnoringDeferrable()).isTrue();
+        assertThat(deferrableMailExecuted.get()).isTrue();
+    }
+
+    @Test
     void testClose() throws Exception {
         final TestRunnable yieldRun = new TestRunnable();
         final TestRunnable leftoverRun = new TestRunnable();

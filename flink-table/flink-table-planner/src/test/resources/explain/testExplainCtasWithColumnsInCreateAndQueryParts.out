@@ -1,14 +1,14 @@
 == Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.MyCtasTable], fields=[EXPR$0, a, b])
-+- LogicalProject(EXPR$0=[null:INTEGER], a=[$0], b=[$1])
+LogicalSink(table=[default_catalog.default_database.MyCtasTable], fields=[votes, a, b, metadata_col])
++- LogicalProject(votes=[null:INTEGER], a=[$0], b=[$1], metadata_col=[null:BIGINT])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.MyCtasTable], fields=[EXPR$0, a, b])
-+- Calc(select=[null:INTEGER AS EXPR$0, a, b])
-   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.MyCtasTable], fields=[votes, a, b, metadata_col])
++- Calc(select=[null:INTEGER AS votes, a, b, null:BIGINT AS metadata_col])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.MyCtasTable], fields=[EXPR$0, a, b])
-+- Calc(select=[null:INTEGER AS EXPR$0, a, b])
-   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.MyCtasTable], fields=[votes, a, b, metadata_col])
++- Calc(select=[null:INTEGER AS votes, a, b, null:BIGINT AS metadata_col])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])

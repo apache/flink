@@ -265,7 +265,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
     private void transferAllStateHandles(List<StateHandleTransferSpec> specs) throws Exception {
         try (ForStStateDataTransfer transfer =
                 new ForStStateDataTransfer(
-                        ForStStateDataTransfer.DEFAULT_THREAD_NUM,
+                        optionsContainer.getDataTransferThreadNum(),
                         optionsContainer.getFileSystem())) {
             transfer.transferAllStateDataToDirectory(
                     optionsContainer.getPathContainer(),

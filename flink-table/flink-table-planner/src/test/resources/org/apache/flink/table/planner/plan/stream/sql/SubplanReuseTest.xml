@@ -905,6 +905,125 @@ Union(all=[true], union=[a, b])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSubplanReuseOnTemporalJoinWithUnnest">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.Sink1], fields=[k, v])
++- LogicalProject(k=[$0], v=[$1])
+   +- LogicalProject(k=[$0], v=[$3])
+      +- LogicalProject(k=[$0], p_ts=[$2], x=[$3], v=[$5], d_ts=[$6])
+         +- LogicalCorrelate(correlation=[$cor7], joinType=[inner], requiredColumns=[{0, 2}])
+            :- LogicalCorrelate(correlation=[$cor6], joinType=[inner], requiredColumns=[{1}])
+            :  :- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+            :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Probe]])
+            :  +- Uncollect
+            :     +- LogicalProject(arr=[$cor6.arr])
+            :        +- LogicalValues(tuples=[[{ 0 }]])
+            +- LogicalFilter(condition=[=($cor7.k, $0)])
+               +- LogicalSnapshot(period=[$cor7.ts])
+                  +- LogicalProject(k=[$0], v=[$1], ts=[$2])
+                     +- LogicalFilter(condition=[=($3, 1)])
+                        +- LogicalProject(k=[$0], v=[$1], ts=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                           +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+                              +- LogicalTableScan(table=[[default_catalog, default_database, Versioned]])
+
+LogicalSink(table=[default_catalog.default_database.Sink2], fields=[x, v])
++- LogicalProject(x=[$0], v=[$1])
+   +- LogicalProject(x=[$2], v=[$3])
+      +- LogicalProject(k=[$0], p_ts=[$2], x=[$3], v=[$5], d_ts=[$6])
+         +- LogicalCorrelate(correlation=[$cor9], joinType=[inner], requiredColumns=[{0, 2}])
+            :- LogicalCorrelate(correlation=[$cor8], joinType=[inner], requiredColumns=[{1}])
+            :  :- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+            :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Probe]])
+            :  +- Uncollect
+            :     +- LogicalProject(arr=[$cor8.arr])
+            :        +- LogicalValues(tuples=[[{ 0 }]])
+            +- LogicalFilter(condition=[=($cor9.k, $0)])
+               +- LogicalSnapshot(period=[$cor9.ts])
+                  +- LogicalProject(k=[$0], v=[$1], ts=[$2])
+                     +- LogicalFilter(condition=[=($3, 1)])
+                        +- LogicalProject(k=[$0], v=[$1], ts=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                           +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+                              +- LogicalTableScan(table=[[default_catalog, default_database, Versioned]])
+
+LogicalSink(table=[default_catalog.default_database.Sink3], fields=[k, EXPR$1, x, v, EXPR$4])
++- LogicalProject(k=[$0], EXPR$1=[CAST($1):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL], x=[$2], v=[$3], EXPR$4=[CAST($4):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL])
+   +- LogicalProject(k=[$0], p_ts=[$2], x=[$3], v=[$5], d_ts=[$6])
+      +- LogicalCorrelate(correlation=[$cor11], joinType=[inner], requiredColumns=[{0, 2}])
+         :- LogicalCorrelate(correlation=[$cor10], joinType=[inner], requiredColumns=[{1}])
+         :  :- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Probe]])
+         :  +- Uncollect
+         :     +- LogicalProject(arr=[$cor10.arr])
+         :        +- LogicalValues(tuples=[[{ 0 }]])
+         +- LogicalFilter(condition=[=($cor11.k, $0)])
+            +- LogicalSnapshot(period=[$cor11.ts])
+               +- LogicalProject(k=[$0], v=[$1], ts=[$2])
+                  +- LogicalFilter(condition=[=($3, 1)])
+                     +- LogicalProject(k=[$0], v=[$1], ts=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                        +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+                           +- LogicalTableScan(table=[[default_catalog, default_database, Versioned]])
+
+LogicalSink(table=[default_catalog.default_database.Sink4], fields=[k, EXPR$1, x, v, EXPR$4])
++- LogicalProject(k=[$0], EXPR$1=[CAST($1):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL], x=[$2], v=[$3], EXPR$4=[CAST($4):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL])
+   +- LogicalProject(k=[$0], p_ts=[$2], x=[$3], v=[$5], d_ts=[$6])
+      +- LogicalCorrelate(correlation=[$cor13], joinType=[inner], requiredColumns=[{0, 2}])
+         :- LogicalCorrelate(correlation=[$cor12], joinType=[inner], requiredColumns=[{1}])
+         :  :- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Probe]])
+         :  +- Uncollect
+         :     +- LogicalProject(arr=[$cor12.arr])
+         :        +- LogicalValues(tuples=[[{ 0 }]])
+         +- LogicalFilter(condition=[=($cor13.k, $0)])
+            +- LogicalSnapshot(period=[$cor13.ts])
+               +- LogicalProject(k=[$0], v=[$1], ts=[$2])
+                  +- LogicalFilter(condition=[=($3, 1)])
+                     +- LogicalProject(k=[$0], v=[$1], ts=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+                        +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+                           +- LogicalTableScan(table=[[default_catalog, default_database, Versioned]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Correlate(invocation=[$UNNEST_ROWS$1($cor2.arr)], correlate=[table($UNNEST_ROWS$1($cor2.arr))], select=[k,arr,ts,x], rowType=[RecordType(BIGINT k, RecordType:peek_no_expand(BIGINT x) ARRAY arr, TIMESTAMP_LTZ(3) *ROWTIME* ts, BIGINT x)], joinType=[INNER])(reuse_id=[1])
++- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+   +- TableSourceScan(table=[[default_catalog, default_database, Probe]], fields=[k, arr, ts])
+
+Exchange(distribution=[hash[k]])(reuse_id=[2])
++- Deduplicate(keep=[LastRow], key=[k], order=[ROWTIME], outputInsertOnly=[false])
+   +- Exchange(distribution=[hash[k]])
+      +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, Versioned]], fields=[k, v, ts])
+
+Sink(table=[default_catalog.default_database.Sink1], fields=[k, v])
++- Calc(select=[k, v])
+   +- TemporalJoin(joinType=[InnerJoin], where=[((k = k0) AND __TEMPORAL_JOIN_CONDITION(ts, ts0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(k0), __TEMPORAL_JOIN_LEFT_KEY(k), __TEMPORAL_JOIN_RIGHT_KEY(k0)))], select=[k, ts, k0, v, ts0])
+      :- Exchange(distribution=[hash[k]])
+      :  +- Calc(select=[k, ts])
+      :     +- Reused(reference_id=[1])
+      +- Reused(reference_id=[2])
+
+TemporalJoin(joinType=[InnerJoin], where=[((k = k0) AND __TEMPORAL_JOIN_CONDITION(ts, ts0, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(k0), __TEMPORAL_JOIN_LEFT_KEY(k), __TEMPORAL_JOIN_RIGHT_KEY(k0)))], select=[k, ts, x, k0, v, ts0])(reuse_id=[3])
+:- Exchange(distribution=[hash[k]])
+:  +- Calc(select=[k, ts, x])
+:     +- Reused(reference_id=[1])
++- Reused(reference_id=[2])
+
+Sink(table=[default_catalog.default_database.Sink2], fields=[x, v])
++- Calc(select=[x, v])
+   +- Reused(reference_id=[3])
+
+Calc(select=[k, CAST(ts AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS EXPR$1, x, v, CAST(ts0 AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) AS EXPR$4])(reuse_id=[4])
++- Reused(reference_id=[3])
+
+Sink(table=[default_catalog.default_database.Sink3], fields=[k, EXPR$1, x, v, EXPR$4])
++- Reused(reference_id=[4])
+
+Sink(table=[default_catalog.default_database.Sink4], fields=[k, EXPR$1, x, v, EXPR$4])
++- Reused(reference_id=[4])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSubplanReuseWithDynamicFunction">
     <Resource name="ast">
       <![CDATA[

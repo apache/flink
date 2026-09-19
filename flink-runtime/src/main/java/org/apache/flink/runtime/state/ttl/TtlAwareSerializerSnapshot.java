@@ -110,22 +110,22 @@ public class TtlAwareSerializerSnapshot<T> implements TypeSerializerSnapshot<T> 
             // Check compatibility from disabling to enabling ttl
             TtlStateFactory.TtlSerializerSnapshot<T> newSerializerSnapshot =
                     (TtlStateFactory.TtlSerializerSnapshot<T>)
-                            this.getOrinalTypeSerializerSnapshot();
+                            this.getOriginalTypeSerializerSnapshot();
             TypeSerializerSchemaCompatibility<T> compatibility =
                     newSerializerSnapshot
                             .getValueSerializerSnapshot()
                             .resolveSchemaCompatibility(
                                     oldTtlAwareSerializerSnapshot
-                                            .getOrinalTypeSerializerSnapshot());
+                                            .getOriginalTypeSerializerSnapshot());
 
             return resolveCompatibilityForTtlMigration(compatibility);
         } else if (oldTtlAwareSerializerSnapshot.isTtlEnabled() && !this.isTtlEnabled()) {
             // Check compatibility from enabling to disabling ttl
             TtlStateFactory.TtlSerializerSnapshot<T> oldTtlSerializerSnapshot =
                     (TtlStateFactory.TtlSerializerSnapshot<T>)
-                            oldTtlAwareSerializerSnapshot.getOrinalTypeSerializerSnapshot();
+                            oldTtlAwareSerializerSnapshot.getOriginalTypeSerializerSnapshot();
             TypeSerializerSchemaCompatibility<T> compatibility =
-                    this.getOrinalTypeSerializerSnapshot()
+                    this.getOriginalTypeSerializerSnapshot()
                             .resolveSchemaCompatibility(
                                     oldTtlSerializerSnapshot.getValueSerializerSnapshot());
 
@@ -133,16 +133,16 @@ public class TtlAwareSerializerSnapshot<T> implements TypeSerializerSnapshot<T> 
         }
 
         // Check compatibility with the same ttl config
-        return this.getOrinalTypeSerializerSnapshot()
+        return this.getOriginalTypeSerializerSnapshot()
                 .resolveSchemaCompatibility(
-                        oldTtlAwareSerializerSnapshot.getOrinalTypeSerializerSnapshot());
+                        oldTtlAwareSerializerSnapshot.getOriginalTypeSerializerSnapshot());
     }
 
     public boolean isTtlEnabled() {
         return isTtlEnabled;
     }
 
-    public TypeSerializerSnapshot<T> getOrinalTypeSerializerSnapshot() {
+    public TypeSerializerSnapshot<T> getOriginalTypeSerializerSnapshot() {
         return typeSerializerSnapshot;
     }
 

@@ -41,6 +41,7 @@ import scala.collection.JavaConverters._
 abstract class WindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
+    hints: util.List[RelHint],
     child: RelNode,
     groupSet: ImmutableBitSet,
     aggCalls: util.List[AggregateCall],
@@ -49,7 +50,7 @@ abstract class WindowAggregate(
   extends Aggregate(
     cluster,
     traitSet,
-    new util.ArrayList[RelHint],
+    hints,
     child,
     groupSet,
     ImmutableList.of(groupSet),

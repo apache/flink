@@ -134,9 +134,10 @@ public class WindowGroupReorderRule
             LogicalProject project =
                     LogicalProject.create(
                             newLogicalWindow,
-                            Collections.emptyList(),
+                            window.getHints(),
                             projects,
-                            window.getRowType());
+                            window.getRowType(),
+                            window.getVariablesSet());
             call.transformTo(project);
         }
     }

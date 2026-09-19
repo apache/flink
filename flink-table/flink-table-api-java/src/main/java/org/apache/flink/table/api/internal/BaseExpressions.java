@@ -140,8 +140,10 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NUL
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_VALID_UTF8;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_EXISTS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_LENGTH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUERY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_QUOTE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_TYPE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_UNQUOTE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LAST_VALUE;
@@ -159,7 +161,9 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LPAD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LTRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAKE_VALID_UTF8;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_CONTAINS_KEY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_ENTRIES;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_FROM_ENTRIES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_KEYS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_UNION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_VALUES;
@@ -177,6 +181,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_DESC;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVERLAY;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_JSON;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_URL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PERCENTILE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
@@ -229,6 +234,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRANSL
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_PARSE_JSON;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UNHEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE;
@@ -1364,6 +1370,56 @@ public abstract class BaseExpressions<InType, OutType> {
         return toApiSpecificExpression(unresolvedCall(JSON_UNQUOTE, objectToExpression(toExpr())));
     }
 
+    /**
+     * Parses a JSON string into a value of type {@link DataTypes#VARIANT()}. If the JSON string is
+     * invalid, an error is thrown. To return {@code NULL} instead of an error, use {@link
+     * #tryParseJson()}.
+     *
+     * <p>This is a shortcut for {@code parseJson(false)}. See {@link #parseJson(boolean)}.
+     */
+    public OutType parseJson() {
+        return toApiSpecificExpression(unresolvedCall(PARSE_JSON, objectToExpression(toExpr())));
+    }
+
+    /**
+     * Parses a JSON string into a value of type {@link DataTypes#VARIANT()}. If the JSON string is
+     * invalid, an error is thrown. To return {@code NULL} instead of an error, use {@link
+     * #tryParseJson(boolean)}.
+     *
+     * <p>If there are duplicate keys in the input, {@code allowDuplicateKeys} controls whether the
+     * parser keeps the last occurrence of each duplicated key ({@code true}) or throws an error
+     * ({@code false}).
+     */
+    public OutType parseJson(boolean allowDuplicateKeys) {
+        return toApiSpecificExpression(
+                unresolvedCall(PARSE_JSON, toExpr(), valueLiteral(allowDuplicateKeys)));
+    }
+
+    /**
+     * Parses a JSON string into a value of type {@link DataTypes#VARIANT()}. If the JSON string is
+     * invalid, {@code NULL} is returned. To throw an error instead, use {@link #parseJson()}.
+     *
+     * <p>This is a shortcut for {@code tryParseJson(false)}. See {@link #tryParseJson(boolean)}.
+     */
+    public OutType tryParseJson() {
+        return toApiSpecificExpression(
+                unresolvedCall(TRY_PARSE_JSON, objectToExpression(toExpr())));
+    }
+
+    /**
+     * Parses a JSON string into a value of type {@link DataTypes#VARIANT()}. If the JSON string is
+     * invalid, {@code NULL} is returned. To throw an error instead, use {@link
+     * #parseJson(boolean)}.
+     *
+     * <p>If there are duplicate keys in the input, {@code allowDuplicateKeys} controls whether the
+     * parser keeps the last occurrence of each duplicated key ({@code true}) or returns {@code
+     * NULL} ({@code false}).
+     */
+    public OutType tryParseJson(boolean allowDuplicateKeys) {
+        return toApiSpecificExpression(
+                unresolvedCall(TRY_PARSE_JSON, toExpr(), valueLiteral(allowDuplicateKeys)));
+    }
+
     /** Returns the base string decoded with base64. */
     public OutType fromBase64() {
         return toApiSpecificExpression(unresolvedCall(FROM_BASE64, toExpr()));
@@ -1967,6 +2023,46 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
+     * Returns {@code TRUE} if the given key exists in the map, {@code FALSE} otherwise. Returns
+     * {@code NULL} if the map is {@code NULL}.
+     *
+     * <p>If the search key is {@code NULL}, the function returns {@code TRUE} when the map contains
+     * a {@code NULL} key. The given key is cast implicitly to the map's key type where Flink's
+     * implicit casting rules allow it; otherwise the call fails validation.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * map("a", 1, "b", 2).mapContainsKey("a") // TRUE
+     * map("a", 1, "b", 2).mapContainsKey("z") // FALSE
+     * map(1, "a").mapContainsKey(lit(1).cast(DataTypes.TINYINT())) // TRUE
+     * }</pre>
+     */
+    public OutType mapContainsKey(InType key) {
+        return toApiSpecificExpression(
+                unresolvedCall(MAP_CONTAINS_KEY, toExpr(), objectToExpression(key)));
+    }
+
+    /**
+     * Returns a map created from the given array of entries. Each entry must be a row with exactly
+     * two fields, where the first field becomes the key and the second one the value.
+     *
+     * <p>If there are duplicate keys, the value of the last entry with that key wins; null keys are
+     * treated as equal and collapse into a single entry. If the array itself or any of its entries
+     * is null, null is returned.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * array(row(1, "one"), row(2, "two")).mapFromEntries() // {1=one, 2=two}
+     * array(row(1, "one"), row(2, "two"), row(1, "uno")).mapFromEntries() // {1=uno, 2=two}
+     * }</pre>
+     */
+    public OutType mapFromEntries() {
+        return toApiSpecificExpression(unresolvedCall(MAP_FROM_ENTRIES, toExpr()));
+    }
+
+    /**
      * Returns a map created by merging at least one map. These maps should have a common map type.
      * If there are overlapping keys, the value from 'map2' will overwrite the value from 'map1',
      * the value from 'map3' will overwrite the value from 'map2', the value from 'mapn' will
@@ -2179,7 +2275,7 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * lit("\"abc\"").isJson() // true
      * lit("abc").isJson() // false
-     * nullOf(DataTypes.STRING()).isJson() // false
+     * nullOf(DataTypes.STRING()).isJson() // null
      *
      * lit("1").isJson(JsonType.SCALAR) // true
      * lit("1").isJson(JsonType.ARRAY) // false
@@ -2192,7 +2288,7 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * @param type The type of JSON object to validate against.
      * @return {@code true} if the string is a valid JSON of the given {@param type}, {@code false}
-     *     otherwise.
+     *     otherwise, or {@code NULL} if the input is {@code NULL}.
      */
     public OutType isJson(JsonType type) {
         return toApiSpecificExpression(unresolvedCall(IS_JSON, toExpr(), valueLiteral(type)));
@@ -2203,7 +2299,8 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * <p>This is a shortcut for {@code isJson(JsonType.VALUE)}. See {@link #isJson(JsonType)}.
      *
-     * @return {@code true} if the string is a valid JSON value, {@code false} otherwise.
+     * @return {@code true} if the string is a valid JSON value, {@code false} otherwise, or {@code
+     *     NULL} if the input is {@code NULL}.
      */
     public OutType isJson() {
         return toApiSpecificExpression(unresolvedCall(IS_JSON, toExpr()));
@@ -2506,6 +2603,53 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
+     * Returns a string value indicating the type of the input.
+     *
+     * <p>Potential outputs are as following
+     *
+     * <ul>
+     *   <li>object
+     *   <li>array
+     *   <li>string
+     *   <li>number
+     *   <li>boolean
+     *   <li>null, for the JSON null literal
+     * </ul>
+     *
+     * <p>Every number is reported as number, whatever its magnitude or precision.
+     *
+     * <p>Returns SQL NULL if the input is NULL or is not valid JSON.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("{\"a\": true}").jsonType() // "object"
+     * lit("[1, 2]").jsonType() // "array"
+     * lit("null").jsonType() // "null"
+     * lit("\"Hello, World!\"").jsonType() // "string"
+     * lit("\"2015-01-01\"").jsonType() // "string"
+     * lit("66").jsonType() // "number"
+     * lit("11.1").jsonType() // "number"
+     * lit("68s").jsonType() // SQL NULL, not valid JSON
+     * }</pre>
+     */
+    public OutType jsonType() {
+        return toApiSpecificExpression(unresolvedCall(JSON_TYPE, toExpr()));
+    }
+
+    /**
+     * Like {@link #jsonType()}, but reads the type at {@code path} instead of the root. A path that
+     * does not resolve to exactly one value returns SQL NULL.
+     *
+     * <pre>{@code
+     * lit("{\"a\": [1, 2]}").jsonType("$.a") // "array"
+     * }</pre>
+     */
+    public OutType jsonType(String path) {
+        return toApiSpecificExpression(unresolvedCall(JSON_TYPE, toExpr(), valueLiteral(path)));
+    }
+
+    /**
      * Extracts JSON values from a JSON string.
      *
      * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
@@ -2522,6 +2666,93 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType jsonQuery(String path, JsonQueryWrapper wrappingBehavior) {
         return jsonQuery(
                 path, wrappingBehavior, JsonQueryOnEmptyOrError.NULL, JsonQueryOnEmptyOrError.NULL);
+    }
+
+    /**
+     * Returns the number of elements in a JSON document.
+     *
+     * <p>The result is returned as a {@link DataTypes#INT()}.
+     *
+     * <p>See also {@link #jsonLength(String)} for determining the length of the value at a given
+     * path.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("{\"1\": \"hello\", \"2\": \"bye bye\"}").jsonLength() // 2
+     * lit("[1,2,3,4,5]").jsonLength() // 5
+     * lit("\"hello\"").jsonLength() // 1
+     * nullOf(DataTypes.STRING()).jsonLength() // NULL
+     * lit("invalid").jsonLength() // NULL
+     * }</pre>
+     *
+     * @return The number of elements in the JSON document.
+     */
+    public OutType jsonLength() {
+        return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr()));
+    }
+
+    /**
+     * Returns the number of elements in a JSON document, or the length of the value at the
+     * specified path if one is provided.
+     *
+     * <p>The input can be a JSON STRING or a VARIANT. Returns {@code NULL} if the argument is
+     * {@code NULL}, the json is invalid, or the path is empty, malformed or does not locate a
+     * value.
+     *
+     * <p>The path must be a plain path literal such as {@code '$.a.b'}. A path carrying a {@code
+     * 'lax'}/{@code 'strict'} path mode prefix raises an error.
+     *
+     * <p>The length is determined as follows:
+     *
+     * <ul>
+     *   <li>Scalar values (number, string, boolean) have length 1.
+     *   <li>Arrays have a length equal to the number of their elements.
+     *   <li>Objects have a length equal to the number of their key-value pairs.
+     * </ul>
+     *
+     * <p>When provided with a path that uses a wildcard and resolves to 2 or more paths, {@code
+     * JSON_LENGTH} resolves to {@code NULL}.
+     *
+     * <p>JSON_LENGTH also supports input of the VARIANT type; you can pass the output of PARSE_JSON
+     * into JSON_LENGTH.
+     *
+     * <p>Because a {@code NULL} result can mean several different things (the input is not valid
+     * JSON, the path does not match anything, or a wildcard path matched 2 or more nodes), it is
+     * recommended to pair {@code JSON_LENGTH} with a helper function so invalid input is handled
+     * explicitly rather than silently returning {@code NULL}:
+     *
+     * <ul>
+     *   <li>Without a path, guard the call with {@code IS JSON} to separate malformed input from a
+     *       real result.
+     *   <li>With a path, use {@code JSON_EXISTS} to tell "the path is absent" apart from "the path
+     *       matched but was ambiguous / matched 2 or more nodes".
+     * </ul>
+     *
+     * <pre>{@code
+     * // returns the length only for valid JSON, otherwise NULL means "invalid input"
+     * lit("[1,2,3]").isJson().then(lit("[1,2,3]").jsonLength(), nullOf(DataTypes.INT()))
+     *
+     * // pathPresent is true even when jsonLength is NULL because of a multi-match wildcard
+     * lit("{}").jsonExists("$.items[*]")
+     * lit("{}").jsonLength("$.items[*]")
+     * }</pre>
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * lit("{\"1\": \"hello\", \"2\": \"bye bye\"}").jsonLength("$.1") // 1
+     * lit("{\"1\": [1,2,3], \"2\": \"bye bye\"}").jsonLength("$.1") // 3
+     * lit("[1,2,3,4,5]").jsonLength("$[3]") // 1
+     *
+     * lit("[1,2,3,4,5]").jsonLength("$[7]") // NULL
+     * }</pre>
+     *
+     * @param path JSON path to search for.
+     * @return The number of elements in the value located at the given path.
+     */
+    public OutType jsonLength(String path) {
+        return toApiSpecificExpression(unresolvedCall(JSON_LENGTH, toExpr(), valueLiteral(path)));
     }
 
     /**

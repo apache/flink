@@ -39,7 +39,7 @@ class FlinkSqlUnParserTest extends FlinkSqlParserImplTest {
 
     public SqlParserFixture fixture() {
         return super.fixture()
-                .withTester(new UnparsingTesterImpl())
+                .withTester(new DeepCopyUnparsingTesterImpl())
                 .withConfig(c -> c.withParserFactory(FlinkSqlParserImpl.FACTORY));
     }
 }

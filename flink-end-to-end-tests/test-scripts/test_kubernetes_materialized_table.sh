@@ -46,7 +46,7 @@ fi
 
 # setup materialized table data dir
 echo "[INFO] Start S3 env"
-source "$(dirname "$0")"/common_s3_minio.sh
+source "$(dirname "$0")"/common_s3_seaweedfs.sh
 s3_setup hadoop
 S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/"
 MATERIALIZED_TABLE_DATA_DIR="${S3_TEST_DATA_WORDS_URI}/test_materialized_table-$(uuidgen)"

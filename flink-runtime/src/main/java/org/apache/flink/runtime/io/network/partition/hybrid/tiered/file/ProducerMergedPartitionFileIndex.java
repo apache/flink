@@ -87,7 +87,7 @@ public class ProducerMergedPartitionFileIndex {
                                 regionGroupSizeInBytes,
                                 numRetainedInMemoryRegionsMax,
                                 FixedSizeRegion.REGION_SIZE,
-                                ProducerMergedPartitionFileDataIndexRegionHelper.INSTANCE));
+                                new ProducerMergedPartitionFileDataIndexRegionHelper()));
     }
 
     /**
@@ -233,9 +233,6 @@ public class ProducerMergedPartitionFileIndex {
         /** Reusable buffer used to read and write the immutable part of region. */
         private final ByteBuffer regionBuffer =
                 allocateAndConfigureBuffer(FixedSizeRegion.REGION_SIZE);
-
-        static final ProducerMergedPartitionFileDataIndexRegionHelper INSTANCE =
-                new ProducerMergedPartitionFileDataIndexRegionHelper();
 
         private ProducerMergedPartitionFileDataIndexRegionHelper() {}
 

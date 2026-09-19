@@ -16,6 +16,7 @@
  */
 package org.apache.calcite.sql.type;
 
+import org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec;
 import org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec;
 
 import com.google.common.collect.ImmutableList;
@@ -31,7 +32,6 @@ import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlCollation;
-import org.apache.calcite.sql.SqlCollectionTypeNameSpec;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlMapTypeNameSpec;
@@ -42,6 +42,7 @@ import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.util.NumberUtil;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
@@ -50,6 +51,7 @@ import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.nio.charset.Charset;
 import java.util.AbstractList;
@@ -75,8 +77,9 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1092-1096
- *   <li>Should be removed after fixing CALCITE-7062: Lines 1116-1118
+ *   <li>We should use ExtendedSqlCollectionTypeNameSpec for rows: Lines 1291-1300
+ *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1312-1316
+ *   <li>Should be removed after fixing CALCITE-7062: Lines 1336
  * </ol>
  */
 public abstract class SqlTypeUtil {
@@ -89,7 +92,7 @@ public abstract class SqlTypeUtil {
      *     same charset and collation of same charset
      */
     public static boolean isCharTypeComparable(List<RelDataType> argTypes) {
-        assert argTypes != null;
+        requireNonNull(argTypes, "argTypes");
         assert argTypes.size() >= 2;
 
         // Filter out ANY and NULL elements.
@@ -121,6 +124,40 @@ public abstract class SqlTypeUtil {
     }
 
     /**
+     * True if there are literals with the specified data type. Some data types do not have literals
+     * (e.g., UNSIGNED, ROW).
+     *
+     * @param type Type for literals.
+     */
+    public static boolean hasLiterals(RelDataType type) {
+        switch (type.getSqlTypeName()) {
+            case UTINYINT:
+            case USMALLINT:
+            case UINTEGER:
+            case UBIGINT:
+            case ANY:
+            case SYMBOL:
+            case MULTISET:
+            case ARRAY:
+            case MAP:
+            case DISTINCT:
+            case STRUCTURED:
+            case ROW:
+            case OTHER:
+            case CURSOR:
+            case COLUMN_LIST:
+            case DYNAMIC_STAR:
+            case GEOMETRY:
+            case MEASURE:
+            case FUNCTION:
+            case SARG:
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    /**
      * Returns whether the operands to a call are char type-comparable.
      *
      * @param binding Binding of call to operands
@@ -146,11 +183,57 @@ public abstract class SqlTypeUtil {
     }
 
     /**
+     * A namespace may contain multiple fields with the same name. However, a proper ROW type
+     * cannot; this function will assign unique names to fields when they are used to build a
+     * concrete ROW type.
+     *
+     * @param type A type for which type.isStruct() is true.
+     * @return A new version of this type where all fields have unique names.
+     *     <p>Note: the same rule to rename fields is used by the {@link SqlToRelConverter} later,
+     *     in convertNonAggregateSelectList (a private method). This ensures that the generated
+     *     field names there will match with the inferred field names here.
+     */
+    private static RelDataType uniquify(RelDataTypeFactory factory, RelDataType type) {
+        List<String> unique = SqlValidatorUtil.uniquify(type.getFieldNames(), true);
+        List<RelDataType> types =
+                type.getFieldList().stream()
+                        .map(RelDataTypeField::getType)
+                        .collect(Collectors.toList());
+        return factory.createStructType(type.getStructKind(), types, unique);
+    }
+
+    /**
+     * Derives component type for ARRAY, MULTISET, MAP when input is sub-query.
+     *
+     * @param factory Type factory used to generate new types if necessary
+     * @param origin original component type
+     * @return component type
+     */
+    public static RelDataType deriveCollectionQueryComponentType(
+            RelDataTypeFactory factory, SqlTypeName collectionType, RelDataType origin) {
+        switch (collectionType) {
+            case ARRAY:
+            case MULTISET:
+                return origin.isStruct() && origin.getFieldCount() == 1
+                        ? origin.getFieldList().get(0).getType()
+                        : uniquify(factory, origin);
+            case MAP:
+                return origin;
+            default:
+                throw new AssertionError(
+                        "Impossible to derive component type for " + collectionType);
+        }
+    }
+
+    /**
      * Derives component type for ARRAY, MULTISET, MAP when input is sub-query.
      *
      * @param origin original component type
      * @return component type
+     * @deprecated Use {@link SqlTypeUtil#deriveCollectionQueryComponentType(RelDataTypeFactory,
+     *     SqlTypeName, RelDataType)}
      */
+    @Deprecated
     public static RelDataType deriveCollectionQueryComponentType(
             SqlTypeName collectionType, RelDataType origin) {
         switch (collectionType) {
@@ -464,6 +547,10 @@ public abstract class SqlTypeUtil {
             case SMALLINT:
             case INTEGER:
             case BIGINT:
+            case UTINYINT:
+            case USMALLINT:
+            case UINTEGER:
+            case UBIGINT:
                 return true;
             default:
                 return false;
@@ -490,6 +577,10 @@ public abstract class SqlTypeUtil {
             case SMALLINT:
             case INTEGER:
             case BIGINT:
+            case UTINYINT:
+            case USMALLINT:
+            case UINTEGER:
+            case UBIGINT:
             case DECIMAL:
                 return true;
             default:
@@ -497,12 +588,88 @@ public abstract class SqlTypeUtil {
         }
     }
 
+    /**
+     * Returns whether {@code container} can represent every value produced by {@code content}
+     * without loss of information.
+     *
+     * <p>The {@code container} type must be one of the integer types (signed or unsigned). The
+     * {@code content} type can be integer, or a DECIMAL with scale {@code 0}. For all other types
+     * this method returns {@code false}.
+     *
+     * @throws IllegalArgumentException if {@code container} is not an integer type
+     */
+    public static boolean integerRangeContains(RelDataType container, RelDataType content) {
+        checkArgument(isIntType(container), "container must be an integer type: %s", container);
+
+        final SqlTypeName contentType = content.getSqlTypeName();
+        final boolean contentIsDecimal = contentType == SqlTypeName.DECIMAL;
+        if (!isIntType(content) && (!contentIsDecimal || content.getScale() != 0)) {
+            return false;
+        }
+
+        final BigInteger containerMin = integerBound(container, false);
+        final BigInteger containerMax = integerBound(container, true);
+        if (containerMin == null || containerMax == null) {
+            return false;
+        }
+
+        final BigInteger contentMin = integerBound(content, false);
+        final BigInteger contentMax = integerBound(content, true);
+        if (contentMin == null || contentMax == null) {
+            return false;
+        }
+
+        return containerMin.compareTo(contentMin) <= 0 && containerMax.compareTo(contentMax) >= 0;
+    }
+
+    /**
+     * Returns the numeric bound for an integer or zero-scale decimal type.
+     *
+     * @param type Type whose bounds should be computed
+     * @param upper If {@code true}, returns the maximum inclusive bound; otherwise returns the
+     *     minimum bound
+     * @return Bound as {@link BigInteger}, or {@code null} if the bound cannot be determined (for
+     *     example, type is not integer or has non-zero scale)
+     */
+    public static @Nullable BigInteger integerBound(RelDataType type, boolean upper) {
+        final SqlTypeName typeName = type.getSqlTypeName();
+
+        final boolean isDecimal = typeName == SqlTypeName.DECIMAL;
+        if (!isDecimal && !isIntType(type)) {
+            return null;
+        }
+        if (isDecimal && type.getScale() != 0) {
+            return null;
+        }
+
+        final int precision = isDecimal ? type.getPrecision() : -1;
+        final int scale = isDecimal ? type.getScale() : -1;
+        final Object limit =
+                typeName.getLimit(upper, SqlTypeName.Limit.OVERFLOW, false, precision, scale);
+        if (limit == null) {
+            return null;
+        }
+        if (limit instanceof BigDecimal) {
+            try {
+                return ((BigDecimal) limit).toBigIntegerExact();
+            } catch (ArithmeticException ignored) {
+                return null;
+            }
+        }
+        if (limit instanceof Number) {
+            return BigInteger.valueOf(((Number) limit).longValue());
+        }
+        return null;
+    }
+
     /** Returns whether a type's scale is set. */
     public static boolean hasScale(RelDataType type) {
         return type.getScale() != Integer.MIN_VALUE;
     }
 
-    /** Returns the maximum value of an integral type, as a long value. */
+    /**
+     * Returns the maximum value of an integral type, as a long value. DOES NOT WORK FOR UBIGINT.
+     */
     public static long maxValue(RelDataType type) {
         assert SqlTypeUtil.isIntType(type);
         switch (type.getSqlTypeName()) {
@@ -512,6 +679,12 @@ public abstract class SqlTypeUtil {
                 return Short.MAX_VALUE;
             case INTEGER:
                 return Integer.MAX_VALUE;
+            case UTINYINT:
+                return 255;
+            case USMALLINT:
+                return 65535;
+            case UINTEGER:
+                return (1L << 32) - 1;
             case BIGINT:
                 return Long.MAX_VALUE;
             default:
@@ -574,17 +747,34 @@ public abstract class SqlTypeUtil {
             }
             return true;
         }
-        RelDataType comp1 = t1.getComponentType();
-        RelDataType comp2 = t2.getComponentType();
-        if ((comp1 != null) || (comp2 != null)) {
-            if ((comp1 == null) || (comp2 == null)) {
+        SqlTypeName t1Name = t1.getSqlTypeName();
+        SqlTypeName t2Name = t2.getSqlTypeName();
+        if (t1Name == SqlTypeName.ARRAY || t1Name == SqlTypeName.MULTISET) {
+            if (t1Name != t2Name) {
                 return false;
             }
-            if (!sameNamedType(comp1, comp2)) {
-                return false;
-            }
+
+            RelDataType comp1 = requireNonNull(t1.getComponentType());
+            RelDataType comp2 = requireNonNull(t2.getComponentType());
+            return sameNamedType(comp1, comp2);
         }
-        return t1.getSqlTypeName() == t2.getSqlTypeName();
+
+        if (t1Name == SqlTypeName.MAP) {
+            if (t1Name != t2Name) {
+                return false;
+            }
+
+            RelDataType keyType1 = requireNonNull(t1.getKeyType());
+            RelDataType keyType2 = requireNonNull(t2.getKeyType());
+            if (!sameNamedType(keyType1, keyType2)) {
+                return false;
+            }
+            RelDataType valueType1 = requireNonNull(t1.getValueType());
+            RelDataType valueType2 = requireNonNull(t2.getValueType());
+            return sameNamedType(valueType1, valueType2);
+        }
+
+        return t1Name == t2Name;
     }
 
     /**
@@ -631,8 +821,9 @@ public abstract class SqlTypeUtil {
     /**
      * Returns the minimum unscaled value of a numeric type.
      *
-     * @param type a numeric type
+     * @deprecated Use {@link #integerBound(RelDataType, boolean)} with {@code upper = false}
      */
+    @Deprecated // to be removed before 2.0
     public static long getMinValue(RelDataType type) {
         SqlTypeName typeName = type.getSqlTypeName();
         switch (typeName) {
@@ -642,6 +833,11 @@ public abstract class SqlTypeUtil {
                 return Short.MIN_VALUE;
             case INTEGER:
                 return Integer.MIN_VALUE;
+            case UTINYINT:
+            case USMALLINT:
+            case UINTEGER:
+            case UBIGINT:
+                return 0;
             case BIGINT:
             case DECIMAL:
                 return NumberUtil.getMinUnscaled(type.getPrecision()).longValue();
@@ -651,17 +847,25 @@ public abstract class SqlTypeUtil {
     }
 
     /**
-     * Returns the maximum unscaled value of a numeric type.
+     * Returns the maximum unscaled value of a numeric type. DOES NOT WORK CORRECTLY FOR U/BIGINT
+     * and many DECIMAL types.
      *
-     * @param type a numeric type
+     * @deprecated Use {@link #integerBound(RelDataType, boolean)} with {@code upper = true}
      */
+    @Deprecated // to be removed before 2.0
     public static long getMaxValue(RelDataType type) {
         SqlTypeName typeName = type.getSqlTypeName();
         switch (typeName) {
+            case UTINYINT:
+                return 255;
             case TINYINT:
                 return Byte.MAX_VALUE;
+            case USMALLINT:
+                return (1 << 16) - 1;
             case SMALLINT:
                 return Short.MAX_VALUE;
+            case UINTEGER:
+                return (1L << 32) - 1;
             case INTEGER:
                 return Integer.MAX_VALUE;
             case BIGINT:
@@ -749,6 +953,10 @@ public abstract class SqlTypeUtil {
 
     private static boolean isAny(RelDataType t) {
         return t.getFamily() == SqlTypeFamily.ANY;
+    }
+
+    private static boolean isVariant(RelDataType t) {
+        return t.getFamily() == SqlTypeFamily.VARIANT;
     }
 
     public static boolean isMeasure(RelDataType t) {
@@ -861,7 +1069,7 @@ public abstract class SqlTypeUtil {
             return canCastFrom(
                     toType, requireNonNull(fromType.getMeasureElementType()), typeMappingRule);
         }
-        if (isAny(toType) || isAny(fromType)) {
+        if (isAny(toType) || isAny(fromType) || isVariant(toType) || isVariant(fromType)) {
             return true;
         }
 
@@ -869,6 +1077,12 @@ public abstract class SqlTypeUtil {
         final SqlTypeName toTypeName = toType.getSqlTypeName();
         if (toTypeName == SqlTypeName.UNKNOWN) {
             return true;
+        }
+        if (toType.getSqlTypeName() == SqlTypeName.UUID) {
+            return fromType.getSqlTypeName() == SqlTypeName.NULL
+                    || fromType.getSqlTypeName() == SqlTypeName.UUID
+                    || fromType.getFamily() == SqlTypeFamily.CHARACTER
+                    || fromType.getFamily() == SqlTypeFamily.BINARY;
         }
         if (toType.isStruct() || fromType.isStruct()) {
             if (toTypeName == SqlTypeName.DISTINCT) {
@@ -1049,13 +1263,14 @@ public abstract class SqlTypeUtil {
 
         // TODO jvs 28-Dec-2004:  support row types, user-defined types,
         // interval types, multiset types, etc
-        assert typeName != null;
+        requireNonNull(typeName, "typeName");
 
         final SqlTypeNameSpec typeNameSpec;
         if (isAtomic(type)
                 || isNull(type)
                 || type.getSqlTypeName() == SqlTypeName.UNKNOWN
-                || type.getSqlTypeName() == SqlTypeName.GEOMETRY) {
+                || type.getSqlTypeName() == SqlTypeName.GEOMETRY
+                || SqlTypeUtil.isInterval(type)) {
             int precision =
                     typeName.allowsPrec()
                             ? type.getPrecision()
@@ -1073,11 +1288,16 @@ public abstract class SqlTypeUtil {
                     new SqlBasicTypeNameSpec(
                             typeName, precision, scale, charSetName, SqlParserPos.ZERO);
         } else if (isCollection(type)) {
+            // FLINK MODIFICATION BEGIN
+            final RelDataType componentType = getComponentTypeOrThrow(type);
             typeNameSpec =
-                    new SqlCollectionTypeNameSpec(
-                            convertTypeToSpec(getComponentTypeOrThrow(type)).getTypeNameSpec(),
+                    new ExtendedSqlCollectionTypeNameSpec(
+                            convertTypeToSpec(componentType).getTypeNameSpec(),
+                            componentType.isNullable(),
                             typeName,
+                            true,
                             SqlParserPos.ZERO);
+            // FLINK MODIFICATION END
         } else if (isRow(type)) {
             RelRecordType recordType = (RelRecordType) type;
             List<RelDataTypeField> fields = recordType.getFieldList();
@@ -1113,9 +1333,7 @@ public abstract class SqlTypeUtil {
         // REVIEW angel 11-Jan-2006:
         // Use neg numbers to indicate unspecified precision/scale
 
-        // FLINK MODIFICATION BEGIN
         return new SqlDataTypeSpec(typeNameSpec, SqlParserPos.ZERO).withNullable(type.isNullable());
-        // FLINK MODIFICATION END
     }
 
     /**
@@ -1432,6 +1650,14 @@ public abstract class SqlTypeUtil {
      * @return Whether types are comparable
      */
     public static boolean isComparable(RelDataType type1, RelDataType type2) {
+        final RelDataTypeFamily family1 = family(type1);
+        final RelDataTypeFamily family2 = family(type2);
+
+        // If one of the arguments is of type 'NULL', return true.
+        if (family1 == SqlTypeFamily.NULL || family2 == SqlTypeFamily.NULL) {
+            return true;
+        }
+
         if (type1.isStruct() != type2.isStruct()) {
             return false;
         }
@@ -1450,8 +1676,28 @@ public abstract class SqlTypeUtil {
             return true;
         }
 
-        final RelDataTypeFamily family1 = family(type1);
-        final RelDataTypeFamily family2 = family(type2);
+        SqlTypeName type1Name = type1.getSqlTypeName();
+        SqlTypeName type2Name = type2.getSqlTypeName();
+        if (type1Name == SqlTypeName.ARRAY || type1Name == SqlTypeName.MULTISET) {
+            if (type2Name != type1Name) {
+                return false;
+            }
+            RelDataType elementType1 = requireNonNull(type1.getComponentType());
+            RelDataType elementType2 = requireNonNull(type2.getComponentType());
+            return isComparable(elementType1, elementType2);
+        }
+
+        if (type1Name == SqlTypeName.MAP) {
+            if (type2Name != type1Name) {
+                return false;
+            }
+            RelDataType keyType1 = requireNonNull(type1.getKeyType());
+            RelDataType keyType2 = requireNonNull(type2.getKeyType());
+            RelDataType valueType1 = requireNonNull(type1.getValueType());
+            RelDataType valueType2 = requireNonNull(type2.getValueType());
+            return isComparable(keyType1, keyType2) && isComparable(valueType1, valueType2);
+        }
+
         if (family1 == family2) {
             return true;
         }
@@ -1461,18 +1707,9 @@ public abstract class SqlTypeUtil {
             return true;
         }
 
-        // If one of the arguments is of type 'NULL', return true.
-        if (family1 == SqlTypeFamily.NULL || family2 == SqlTypeFamily.NULL) {
-            return true;
-        }
-
         // We can implicitly convert from character to date
-        if (family1 == SqlTypeFamily.CHARACTER && canConvertStringInCompare(family2)
-                || family2 == SqlTypeFamily.CHARACTER && canConvertStringInCompare(family1)) {
-            return true;
-        }
-
-        return false;
+        return family1 == SqlTypeFamily.CHARACTER && canConvertStringInCompare(family2)
+                || family2 == SqlTypeFamily.CHARACTER && canConvertStringInCompare(family1);
     }
 
     /**
@@ -1756,10 +1993,12 @@ public abstract class SqlTypeUtil {
         return SqlTypeUtil.isDatetime(type)
                 || SqlTypeUtil.isNumeric(type)
                 || SqlTypeUtil.isString(type)
-                || SqlTypeUtil.isBoolean(type);
+                || SqlTypeUtil.isBoolean(type)
+                || typeName == SqlTypeName.UUID;
     }
 
     /** Returns a DECIMAL type with the maximum precision for the current type system. */
+    @SuppressWarnings("deprecation") // [CALCITE-6598]
     public static RelDataType getMaxPrecisionScaleDecimal(RelDataTypeFactory factory) {
         int maxPrecision = factory.getTypeSystem().getMaxNumericPrecision();
         int maxScale = factory.getTypeSystem().getMaxNumericScale();

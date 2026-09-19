@@ -43,6 +43,7 @@ import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.state.forst.ForStOptions.CACHE_DIRECTORY;
 import static org.apache.flink.state.forst.ForStOptions.CACHE_RESERVED_SIZE;
 import static org.apache.flink.state.forst.ForStOptions.CACHE_SIZE_BASE_LIMIT;
+import static org.apache.flink.state.forst.ForStOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_COORDINATOR_INLINE;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_READ_IO_PARALLELISM;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_WRITE_IO_INLINE;
@@ -379,6 +380,7 @@ public class ForStConfigurableOptions implements Serializable {
                 LOG_MAX_FILE_SIZE,
                 LOG_FILE_NUM,
                 LOG_DIR,
+                CHECKPOINT_TRANSFER_THREAD_NUM,
 
                 // configurable ColumnFamilyOptions
                 COMPACTION_STYLE,
@@ -408,7 +410,8 @@ public class ForStConfigurableOptions implements Serializable {
                             MAX_BACKGROUND_THREADS,
                             LOG_FILE_NUM,
                             MAX_WRITE_BUFFER_NUMBER,
-                            MIN_WRITE_BUFFER_NUMBER_TO_MERGE));
+                            MIN_WRITE_BUFFER_NUMBER_TO_MERGE,
+                            CHECKPOINT_TRANSFER_THREAD_NUM));
 
     private static final Set<ConfigOption<?>> SIZE_CONFIG_SET =
             new HashSet<>(

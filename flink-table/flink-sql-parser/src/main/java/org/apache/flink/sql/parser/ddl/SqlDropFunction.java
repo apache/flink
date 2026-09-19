@@ -18,17 +18,33 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+
+import java.util.List;
 
 /** DROP FUNCTION DDL sql call. */
 public class SqlDropFunction extends SqlDropObject {
 
     private static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("DROP FUNCTION", SqlKind.DROP_FUNCTION);
+            new SqlSpecialOperator("DROP FUNCTION", SqlKind.DROP_FUNCTION) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlDropFunction(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            ((SqlLiteral) operands[1]).booleanValue(),
+                            ((SqlLiteral) operands[2]).booleanValue(),
+                            ((SqlLiteral) operands[3]).booleanValue());
+                }
+            };
 
     private final boolean isTemporary;
 
@@ -59,6 +75,15 @@ public class SqlDropFunction extends SqlDropObject {
             writer.keyword("IF EXISTS");
         }
         name.unparse(writer, leftPrec, rightPrec);
+    }
+
+    @Override
+    public List<SqlNode> getOperandList() {
+        return List.of(
+                name,
+                SqlLiteral.createBoolean(ifExists, SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isTemporary, SqlParserPos.ZERO),
+                SqlLiteral.createBoolean(isSystemFunction, SqlParserPos.ZERO));
     }
 
     public boolean isTemporary() {

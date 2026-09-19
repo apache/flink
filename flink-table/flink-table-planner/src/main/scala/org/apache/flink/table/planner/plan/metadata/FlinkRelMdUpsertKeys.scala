@@ -74,9 +74,10 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       mq: RelMetadataQuery): JSet[ImmutableBitSet] =
     FlinkRelMdUniqueKeys.INSTANCE.getProjectUniqueKeys(
       projects,
-      input.getCluster.getTypeFactory,
+      input,
       () => FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(input),
-      ignoreNulls = false)
+      ignoreNulls = false
+    )
 
   def getUpsertKeys(rel: Expand, mq: RelMetadataQuery): JSet[ImmutableBitSet] =
     FlinkRelMdUniqueKeys.INSTANCE.getExpandUniqueKeys(

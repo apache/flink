@@ -51,6 +51,7 @@ final class S3BucketConfig {
     @Nullable private final String assumeRoleSessionName;
     @Nullable private final Integer assumeRoleSessionDurationSeconds;
     @Nullable private final String credentialsProvider;
+    @Nullable private final Boolean deleteBatchEnabled;
 
     private S3BucketConfig(Builder builder) {
         this.bucketName = builder.bucketName;
@@ -66,6 +67,7 @@ final class S3BucketConfig {
         this.assumeRoleSessionName = builder.assumeRoleSessionName;
         this.assumeRoleSessionDurationSeconds = builder.assumeRoleSessionDurationSeconds;
         this.credentialsProvider = builder.credentialsProvider;
+        this.deleteBatchEnabled = builder.deleteBatchEnabled;
     }
 
     String getBucketName() {
@@ -132,6 +134,11 @@ final class S3BucketConfig {
         return credentialsProvider;
     }
 
+    @Nullable
+    Boolean getDeleteBatchEnabled() {
+        return deleteBatchEnabled;
+    }
+
     boolean hasAnyOverride() {
         return region != null
                 || endpoint != null
@@ -144,7 +151,8 @@ final class S3BucketConfig {
                 || assumeRoleExternalId != null
                 || assumeRoleSessionName != null
                 || assumeRoleSessionDurationSeconds != null
-                || credentialsProvider != null;
+                || credentialsProvider != null
+                || deleteBatchEnabled != null;
     }
 
     @Override
@@ -169,7 +177,8 @@ final class S3BucketConfig {
                 && Objects.equals(assumeRoleSessionName, that.assumeRoleSessionName)
                 && Objects.equals(
                         assumeRoleSessionDurationSeconds, that.assumeRoleSessionDurationSeconds)
-                && Objects.equals(credentialsProvider, that.credentialsProvider);
+                && Objects.equals(credentialsProvider, that.credentialsProvider)
+                && Objects.equals(deleteBatchEnabled, that.deleteBatchEnabled);
     }
 
     @Override
@@ -187,7 +196,8 @@ final class S3BucketConfig {
                 assumeRoleExternalId,
                 assumeRoleSessionName,
                 assumeRoleSessionDurationSeconds,
-                credentialsProvider);
+                credentialsProvider,
+                deleteBatchEnabled);
     }
 
     @Override
@@ -228,6 +238,9 @@ final class S3BucketConfig {
         if (credentialsProvider != null) {
             sb.append(", credentialsProvider='").append(credentialsProvider).append("'");
         }
+        if (deleteBatchEnabled != null) {
+            sb.append(", deleteBatchEnabled=").append(deleteBatchEnabled);
+        }
         sb.append('}');
         return sb.toString();
     }
@@ -253,6 +266,7 @@ final class S3BucketConfig {
         @Nullable private String assumeRoleSessionName;
         @Nullable private Integer assumeRoleSessionDurationSeconds;
         @Nullable private String credentialsProvider;
+        @Nullable private Boolean deleteBatchEnabled;
 
         private Builder(String bucketName) {
             this.bucketName = bucketName;
@@ -319,6 +333,11 @@ final class S3BucketConfig {
 
         Builder credentialsProvider(String credentialsProvider) {
             this.credentialsProvider = credentialsProvider;
+            return this;
+        }
+
+        Builder deleteBatchEnabled(boolean deleteBatchEnabled) {
+            this.deleteBatchEnabled = deleteBatchEnabled;
             return this;
         }
 

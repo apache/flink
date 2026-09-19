@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for model table value function in stream mode. */
@@ -76,8 +77,7 @@ public class MLPredictTableFunctionTest extends MLPredictTableFunctionTestBase {
     @Test
     public void testInputTableIsInsertOnlyStream() {
         String sql =
-                "SELECT *\n"
-                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b)))";
+                "SELECT *\n" + "FROM ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b))";
         util.verifyRelPlan(
                 sql,
                 JavaScalaConversionUtil.toScala(
@@ -102,5 +102,31 @@ public class MLPredictTableFunctionTest extends MLPredictTableFunctionTestBase {
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         "StreamPhysicalMLPredictTableFunction doesn't support consuming update and delete changes which is produced by node TableSourceScan(table=[[default_catalog, default_database, CdcTable]], fields=[a, b])");
+    }
+
+    @Test
+    void testOnTimeArgumentNotAllowed() {
+        // ML_PREDICT disables the implicit system arguments. Supplying `on_time` must be rejected
+        // at the SQL level even though ML_PREDICT is handled by a dedicated optimizer rule.
+        String sql =
+                "SELECT * FROM ML_PREDICT(INPUT => TABLE MyTable, MODEL => MODEL MyModel, "
+                        + "ARGS => DESCRIPTOR(a, b), on_time => DESCRIPTOR(rowtime))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        anyCauseMatches(
+                                "The 'on_time' argument is not supported because function "
+                                        + "'ML_PREDICT' does not use system arguments."));
+    }
+
+    @Test
+    void testUidArgumentNotAllowed() {
+        String sql =
+                "SELECT * FROM ML_PREDICT(INPUT => TABLE MyTable, MODEL => MODEL MyModel, "
+                        + "ARGS => DESCRIPTOR(a, b), uid => 'my-uid')";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        anyCauseMatches(
+                                "The 'uid' argument is not supported because function "
+                                        + "'ML_PREDICT' does not use system arguments."));
     }
 }

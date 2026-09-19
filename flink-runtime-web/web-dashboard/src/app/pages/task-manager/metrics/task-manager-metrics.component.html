@@ -16,7 +16,7 @@
   ~ limitations under the License.
   -->
 
-<nz-card nzTitle="Memory" nzSize="small" class="flink-memory-model">
+<nz-card *ngIf="taskManagerDetail" nzTitle="Memory" nzSize="small" class="flink-memory-model">
   <nz-table
     nzBordered
     *ngIf="metrics"
@@ -164,7 +164,7 @@
     </tbody>
   </nz-table>
 </nz-card>
-<nz-card nzTitle="Advanced" nzSize="small" class="flink-memory-model">
+<nz-card *ngIf="taskManagerDetail" nzTitle="Advanced" nzSize="small" class="flink-memory-model">
   <div nz-row [nzGutter]="16">
     <div nz-col [nzSpan]="12">
       <nz-table
@@ -312,13 +312,13 @@
         "
         nzStatus="normal"
       ></nz-progress>
-      {{ detail?.freeResource[property] | number }} /
-      {{ detail?.totalResource[property] | number }} {{ unit }}
+      {{ detail?.freeResource[property] | number }} / {{ detail?.totalResource[property] | number }}
+      {{ unit }}
     </td>
   </tr>
 </ng-template>
 
-<nz-card nzTitle="Resources" nzSize="small" class="flink-memory-model">
+<nz-card *ngIf="taskManagerDetail" nzTitle="Resources" nzSize="small" class="flink-memory-model">
   <nz-table
     nzBordered
     nzTitle="Unassigned resources"

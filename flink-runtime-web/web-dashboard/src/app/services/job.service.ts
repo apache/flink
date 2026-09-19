@@ -58,7 +58,10 @@ import { ConfigService } from './config.service';
   providedIn: 'root'
 })
 export class JobService {
-  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
+  constructor(
+    private readonly httpClient: HttpClient,
+    private readonly configService: ConfigService
+  ) {}
 
   /**
    * Uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
@@ -91,9 +94,10 @@ export class JobService {
   }
 
   public loadJob(jobId: string): Observable<JobDetailCorrect> {
-    return this.httpClient
-      .get<JobDetail>(`${this.configService.BASE_URL}/jobs/${jobId}`)
-      .pipe(map(job => this.convertJob(job)));
+    return this.httpClient.get<JobDetail>(`${this.configService.BASE_URL}/jobs/${jobId}`).pipe(
+      map(job => this.convertJob(job)),
+      catchError(() => EMPTY)
+    );
   }
 
   public loadAccumulators(jobId: string, vertexId: string): Observable<JobAccumulators> {

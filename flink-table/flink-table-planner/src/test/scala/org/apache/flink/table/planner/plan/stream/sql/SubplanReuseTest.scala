@@ -443,6 +443,98 @@ class SubplanReuseTest extends TableTestBase {
   }
 
   @Test
+  def testSubplanReuseOnTemporalJoinWithUnnest(): Unit = {
+    util.tableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      Boolean.box(true))
+
+    util.addTable("""
+                    |CREATE TABLE Versioned (
+                    |  k BIGINT NOT NULL,
+                    |  v BIGINT NOT NULL,
+                    |  ts TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
+                    |  WATERMARK FOR ts AS ts
+                    |) WITH ('connector' = 'values')
+    """.stripMargin)
+
+    util.addTable("""
+                    |CREATE TABLE Probe (
+                    |  k BIGINT NOT NULL,
+                    |  arr ARRAY<ROW<x BIGINT NOT NULL> NOT NULL> NOT NULL,
+                    |  ts TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
+                    |  WATERMARK FOR ts AS ts
+                    |) WITH ('connector' = 'values')
+    """.stripMargin)
+
+    util.addTable(
+      """
+        |CREATE VIEW Dedup AS
+        |SELECT k, v, ts FROM (
+        |  SELECT *, ROW_NUMBER() OVER (PARTITION BY k ORDER BY ts DESC) AS rn FROM Versioned
+        |) WHERE rn = 1
+    """.stripMargin)
+
+    util.addTable("""
+                    |CREATE VIEW Joined AS
+                    |SELECT p.k, p.ts AS p_ts, e.x, d.v, d.ts AS d_ts
+                    |FROM Probe AS p
+                    |  CROSS JOIN UNNEST(p.arr) AS e(x)
+                    |  INNER JOIN Dedup FOR SYSTEM_TIME AS OF p.ts AS d ON p.k = d.k
+    """.stripMargin)
+
+    util.addTable("""
+                    |CREATE VIEW Out1 AS SELECT k, v FROM Joined
+    """.stripMargin)
+    util.addTable("""
+                    |CREATE VIEW Out2 AS SELECT x, v FROM Joined
+    """.stripMargin)
+
+    util.addTable("""
+                    |CREATE TABLE Sink1 (k BIGINT, v BIGINT) WITH ('connector' = 'values')
+    """.stripMargin)
+    util.addTable("""
+                    |CREATE TABLE Sink2 (x BIGINT, v BIGINT) WITH ('connector' = 'values')
+    """.stripMargin)
+    util.addTable("""
+                    |CREATE TABLE Sink3 (
+                    |  k BIGINT,
+                    |  p_ts TIMESTAMP(3) WITH LOCAL TIME ZONE,
+                    |  x BIGINT,
+                    |  v BIGINT,
+                    |  d_ts TIMESTAMP(3) WITH LOCAL TIME ZONE
+                    |) WITH ('connector' = 'values')
+    """.stripMargin)
+    util.addTable("""
+                    |CREATE TABLE Sink4 (
+                    |  k BIGINT,
+                    |  p_ts TIMESTAMP(3) WITH LOCAL TIME ZONE,
+                    |  x BIGINT,
+                    |  v BIGINT,
+                    |  d_ts TIMESTAMP(3) WITH LOCAL TIME ZONE
+                    |) WITH ('connector' = 'values')
+    """.stripMargin)
+
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO Sink1 SELECT * FROM Out1")
+    stmtSet.addInsertSql("INSERT INTO Sink2 SELECT * FROM Out2")
+    stmtSet.addInsertSql("""
+                           |INSERT INTO Sink3 SELECT k,
+                           |       CAST(p_ts AS TIMESTAMP(3) WITH LOCAL TIME ZONE),
+                           |       x, v,
+                           |       CAST(d_ts AS TIMESTAMP(3) WITH LOCAL TIME ZONE)
+                           |FROM Joined
+      """.stripMargin)
+    stmtSet.addInsertSql("""
+                           |INSERT INTO Sink4 SELECT k,
+                           |       CAST(p_ts AS TIMESTAMP(3) WITH LOCAL TIME ZONE),
+                           |       x, v,
+                           |       CAST(d_ts AS TIMESTAMP(3) WITH LOCAL TIME ZONE)
+                           |FROM Joined
+      """.stripMargin)
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
   def testSourceReuseWithEmptyFilterCondAndIgnoreEmptyFilter(): Unit = {
     util.addTable(s"""
                      |create table MyTable(

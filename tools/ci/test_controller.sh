@@ -81,7 +81,7 @@ export LOG4J_PROPERTIES=${HERE}/log4j.properties
 MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
 
 MVN_COMMON_OPTIONS="-Dfast -Pskip-webui-build $MVN_LOGGING_OPTIONS"
-MVN_COMPILE_OPTIONS="-DskipTests"
+MVN_COMPILE_OPTIONS="-DskipTests -T1C"
 MVN_COMPILE_MODULES=$(get_compile_modules_for_stage ${STAGE})
 
 CALLBACK_ON_TIMEOUT="print_stacktraces | tee ${DEBUG_FILES_OUTPUT_DIR}/jps-traces.out"

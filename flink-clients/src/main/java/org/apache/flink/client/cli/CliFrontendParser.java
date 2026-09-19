@@ -20,7 +20,6 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
@@ -275,7 +274,7 @@ public class CliFrontendParser {
                     true,
                     "Specify the path of the python interpreter used to execute the python UDF worker "
                             + "(e.g.: --pyExecutable /usr/local/bin/python3). "
-                            + "The python UDF worker depends on Python 3.9+, Apache Beam (version >= 2.54.0, <= 2.61.0), "
+                            + "The python UDF worker depends on Python 3.9+, Apache Beam (version >= 2.69.0, <= 2.75.0), "
                             + "Pip (version >= 20.3) and SetupTools (version >= 37.0.0). "
                             + "Please ensure that the specified environment meets the above requirements.");
 
@@ -654,9 +653,11 @@ public class CliFrontendParser {
 
     public static SavepointRestoreSettings createSavepointRestoreSettings(CommandLine commandLine) {
         if (commandLine.hasOption(SAVEPOINT_PATH_OPTION.getOpt())) {
-            String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
-            boolean allowNonRestoredState =
-                    commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
+            final String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
+            final Boolean allowNonRestoredState =
+                    commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt())
+                            ? Boolean.TRUE
+                            : null;
             final RecoveryClaimMode recoveryClaimMode;
             if (commandLine.hasOption(SAVEPOINT_CLAIM_MODE)) {
                 recoveryClaimMode =
@@ -672,7 +673,7 @@ public class CliFrontendParser {
                         "The option '%s' is deprecated. Please use '%s' instead.%n",
                         SAVEPOINT_RESTORE_MODE.getLongOpt(), SAVEPOINT_CLAIM_MODE.getLongOpt());
             } else {
-                recoveryClaimMode = StateRecoveryOptions.RESTORE_MODE.defaultValue();
+                recoveryClaimMode = null;
             }
             return SavepointRestoreSettings.forPath(
                     savepointPath, allowNonRestoredState, recoveryClaimMode);

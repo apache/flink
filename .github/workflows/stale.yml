@@ -28,6 +28,10 @@ on:
         default: 20
         type: number
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
 permissions:
   issues: write
   pull-requests: write
@@ -38,7 +42,7 @@ jobs:
     if: github.repository_owner == 'apache'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@v11
         with:
           operations-per-run: ${{ inputs.operationsPerRun || 500 }}
           ascending: true

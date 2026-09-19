@@ -18,12 +18,16 @@
 
 package org.apache.flink.sql.parser.ddl.table;
 
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -38,14 +42,31 @@ import java.util.List;
  */
 public class SqlAlterTableDropDistribution extends SqlAlterTable {
 
+    private static final SqlSpecialOperator DROP_DISTRIBUTION_OPERATOR =
+            new SqlSpecialOperator("ALTER TABLE DROP DISTRIBUTION", SqlKind.ALTER_TABLE) {
+                @Override
+                public SqlCall createCall(
+                        SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
+                    return new SqlAlterTableDropDistribution(
+                            pos,
+                            (SqlIdentifier) operands[0],
+                            ((SqlLiteral) operands[1]).booleanValue());
+                }
+            };
+
     public SqlAlterTableDropDistribution(
             SqlParserPos pos, SqlIdentifier tableName, boolean ifTableExists) {
         super(pos, tableName, ifTableExists);
     }
 
     @Override
+    public SqlOperator getOperator() {
+        return DROP_DISTRIBUTION_OPERATOR;
+    }
+
+    @Override
     public List<SqlNode> getOperandList() {
-        return Collections.emptyList();
+        return List.of(tableIdentifier, SqlLiteral.createBoolean(ifTableExists, SqlParserPos.ZERO));
     }
 
     @Override

@@ -18,7 +18,11 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.FetchedChannelStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 
@@ -28,6 +32,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -35,6 +40,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * and {@link AbstractAlternatingAlignedBarrierHandlerState}.
  */
 final class ChannelState {
+
     private final Map<InputChannelInfo, Integer> sequenceNumberInAnnouncedChannels =
             new HashMap<>();
 
@@ -47,8 +53,21 @@ final class ChannelState {
 
     private final CheckpointableInput[] inputs;
 
+    private final RecoveryCheckpointTrigger recoveryCheckpointTrigger;
+
+    private final ChannelStateWriter channelStateWriter;
+
     public ChannelState(CheckpointableInput[] inputs) {
+        this(inputs, RecoveryCheckpointTrigger.NO_OP, ChannelStateWriter.NO_OP);
+    }
+
+    public ChannelState(
+            CheckpointableInput[] inputs,
+            RecoveryCheckpointTrigger recoveryCheckpointTrigger,
+            ChannelStateWriter channelStateWriter) {
         this.inputs = inputs;
+        this.recoveryCheckpointTrigger = checkNotNull(recoveryCheckpointTrigger);
+        this.channelStateWriter = checkNotNull(channelStateWriter);
     }
 
     public void blockChannel(InputChannelInfo channelInfo) {
@@ -97,5 +116,22 @@ final class ChannelState {
                 blockedChannels);
         sequenceNumberInAnnouncedChannels.clear();
         return this;
+    }
+
+    /**
+     * Transfers spill-snapshot ownership to the writer after all inputs observe checkpoint start.
+     */
+    public void onCheckpointStartedForAllInputs(CheckpointBarrier barrier)
+            throws CheckpointException, IOException {
+        long cpId = barrier.getId();
+        // The snapshot is closed either way: closing is a no-op once the reader below was opened
+        // (the writer owns and closes it), and releases the grant if we never got that far.
+        try (FetchedChannelStateSnapshot snapshot =
+                recoveryCheckpointTrigger.snapshotAndInsertBarriers(cpId)) {
+            for (CheckpointableInput input : inputs) {
+                input.checkpointStarted(barrier);
+            }
+            channelStateWriter.addInputDataFromSpill(cpId, snapshot.reader());
+        }
     }
 }

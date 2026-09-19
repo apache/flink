@@ -58,9 +58,19 @@ echo "==========================================================================
 
 EXIT_CODE=0
 
-# run with -T1 because our maven output parsers don't support multi-threaded builds
-$MVN clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence \
-    -Dmaven.javadoc.skip=true -U -DskipTests -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=DEBUG "${@}" -T1 | tee $MVN_CLEAN_COMPILE_OUT
+# Maven QA-check args: dependency convergence, the deploy that stages jars for the license check, and the shade DEBUG log the bundled-optional check parses. Default runs full QA; the fast compile job and e2e pass MVN_LICENSE_CHECK_ARGS="" to build only (QA runs in the license_check job). Non-empty also enables the structural QA + license blocks below.
+MVN_LICENSE_CHECK_ARGS="${MVN_LICENSE_CHECK_ARGS-deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins.shade=DEBUG}"
+if [[ -n "$MVN_LICENSE_CHECK_ARGS" ]]; then
+    BUILD_GOAL_ARGS="$MVN_LICENSE_CHECK_ARGS"
+    MVN_COMPILE_THREADS="${MVN_COMPILE_THREADS:-1}"
+else
+    BUILD_GOAL_ARGS="install"
+    MVN_COMPILE_THREADS="${MVN_COMPILE_THREADS:-1C}"
+fi
+
+# Default -T1 because our output parsers (bundled-optional/shade) don't support multi-threaded builds; the fast compile job sets MVN_COMPILE_THREADS=1C together with MVN_LICENSE_CHECK_ARGS="" so those parsing checks are skipped.
+$MVN clean ${BUILD_GOAL_ARGS} \
+    -Dmaven.javadoc.skip=true -U -DskipTests "${@}" -T${MVN_COMPILE_THREADS} | tee $MVN_CLEAN_COMPILE_OUT
 
 EXIT_CODE=${PIPESTATUS[0]}
 
@@ -78,6 +88,9 @@ if [ $EXIT_CODE != 0 ]; then
 
     exit $EXIT_CODE
 fi
+
+# Structural QA (javadoc/scala/shaded/bundled) runs only in QA mode (MVN_LICENSE_CHECK_ARGS non-empty); the fast compile job and e2e skip it.
+if [[ -n "$MVN_LICENSE_CHECK_ARGS" ]]; then
 
 echo "============ Checking Javadocs ============"
 
@@ -111,10 +124,17 @@ EXIT_CODE=$(($EXIT_CODE+$?))
 check_shaded_artifacts_s3_fs presto
 EXIT_CODE=$(($EXIT_CODE+$?))
 
+fi
+
+# License check needs the staged deploy dir; runs only in QA mode (MVN_LICENSE_CHECK_ARGS non-empty).
+if [[ -n "$MVN_LICENSE_CHECK_ARGS" ]]; then
+
 echo "============ Run license check ============"
 
 find $MVN_VALIDATION_DIR
 MVN=$MVN ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $MVN_VALIDATION_DIR || exit $?
+
+fi
 
 exit $EXIT_CODE
 

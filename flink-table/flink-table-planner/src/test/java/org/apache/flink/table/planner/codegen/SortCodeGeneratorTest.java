@@ -69,6 +69,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
@@ -109,6 +110,7 @@ class SortCodeGeneratorTest {
                 new DecimalType(18, 2),
                 new DecimalType(38, 18),
                 new VarBinaryType(VarBinaryType.MAX_LENGTH),
+                new UuidType(),
                 new ArrayType(new TinyIntType()),
                 RowType.of(new IntType()),
                 RowType.of(RowType.of(new IntType())),
@@ -282,6 +284,11 @@ class SortCodeGeneratorTest {
                                 TimestampData.fromEpochMillis(rnd.nextLong(), rnd.nextInt(1000000));
                     }
                     break;
+                case UUID:
+                    byte[] uuidBytes = new byte[UuidType.BYTE_LENGTH];
+                    rnd.nextBytes(uuidBytes);
+                    seeds[i] = uuidBytes;
+                    break;
                 case ARRAY:
                 case VARBINARY:
                     byte[] bytes = new byte[rnd.nextInt(16) + 1];
@@ -353,6 +360,9 @@ class SortCodeGeneratorTest {
                 byte[] bytes2 = new byte[rnd.nextInt(7) + 1];
                 rnd.nextBytes(bytes2);
                 return bytes2;
+            case UUID:
+                // all-zero: the smallest UUID under unsigned big-endian byte ordering
+                return new byte[UuidType.BYTE_LENGTH];
             case ROW:
                 return GenericRowData.of(new Object[] {null});
             case RAW:
@@ -393,6 +403,12 @@ class SortCodeGeneratorTest {
                 return type instanceof VarBinaryType
                         ? bytes
                         : BinaryArrayData.fromPrimitiveArray(bytes);
+            case UUID:
+                // high bit set in the leading byte: greater than value1 but less than value3 only
+                // under unsigned ordering (signed byte ordering would rank it as the smallest)
+                byte[] uuidMid = new byte[UuidType.BYTE_LENGTH];
+                uuidMid[0] = (byte) 0x80;
+                return uuidMid;
             case ROW:
                 RowType rowType = (RowType) type;
                 if (rowType.getFields().get(0).getType().getTypeRoot() == INTEGER) {
@@ -440,6 +456,11 @@ class SortCodeGeneratorTest {
                 return type instanceof VarBinaryType
                         ? bytes
                         : BinaryArrayData.fromPrimitiveArray(bytes);
+            case UUID:
+                // all-ones: the largest UUID under unsigned big-endian byte ordering
+                byte[] uuidMax = new byte[UuidType.BYTE_LENGTH];
+                Arrays.fill(uuidMax, (byte) 0xFF);
+                return uuidMax;
             case ROW:
                 RowType rowType = (RowType) type;
                 if (rowType.getFields().get(0).getType().getTypeRoot() == INTEGER) {
@@ -553,7 +574,8 @@ class SortCodeGeneratorTest {
                                 } else if (leftArray.size() > rightArray.size()) {
                                     return order ? 1 : -1;
                                 }
-                            } else if (t.getTypeRoot() == LogicalTypeRoot.VARBINARY) {
+                            } else if (t.getTypeRoot() == LogicalTypeRoot.VARBINARY
+                                    || t.getTypeRoot() == LogicalTypeRoot.UUID) {
                                 int comp =
                                         org.apache.flink.table.runtime.operators.sort.SortUtil
                                                 .compareBinary((byte[]) first, (byte[]) second);
@@ -617,7 +639,7 @@ class SortCodeGeneratorTest {
                             RowData.createFieldGetter(keyTypes[j], keys[j]);
                     Object o1 = fieldGetter.getFieldOrNull(data.get(i));
                     Object o2 = fieldGetter.getFieldOrNull(result.get(i));
-                    if (keyTypes[j] instanceof VarBinaryType) {
+                    if (keyTypes[j] instanceof VarBinaryType || keyTypes[j] instanceof UuidType) {
                         assertThat((byte[]) o2).as(msg).isEqualTo((byte[]) o1);
                     } else if (keyTypes[j] instanceof TypeInformationRawType) {
                         assertThat((RawValueData) o1)

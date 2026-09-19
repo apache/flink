@@ -73,8 +73,8 @@ import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 public class MaterializedTableUtils {
 
     private static final String PERSISTED_COLUMN_NOT_USED_IN_QUERY =
-            "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                    + "Invalid schema change. All persisted (physical and metadata) columns "
+            "Failed to execute %s statement.\n"
+                    + "Invalid schema. All persisted (physical and metadata) columns "
                     + "in the schema part need to be present in the query part.\n"
                     + "However, %s column `%s` could not be found in the query.";
 
@@ -262,91 +262,6 @@ public class MaterializedTableUtils {
         }
     }
 
-    // Used to build changes introduced by changed query like
-    // ALTER MATERIALIZED TABLE ... AS ...
-    public static List<TableChange> buildSchemaTableChanges(
-            ResolvedSchema oldSchema, ResolvedSchema newSchema) {
-        if (!isSchemaChanged(oldSchema, newSchema)) {
-            return List.of();
-        }
-
-        final List<Column> oldColumns = oldSchema.getColumns();
-        final Map<String, Tuple2<Column, Integer>> oldColumnSet = new HashMap<>();
-        for (int i = 0; i < oldColumns.size(); i++) {
-            Column column = oldColumns.get(i);
-            oldColumnSet.put(column.getName(), Tuple2.of(oldColumns.get(i), i));
-        }
-        // Schema retrieved from query doesn't count existing non persisted columns
-        final List<Column> newColumns = newSchema.getColumns();
-
-        List<TableChange> changes = new ArrayList<>();
-        for (int i = 0; i < newColumns.size(); i++) {
-            Column newColumn = newColumns.get(i);
-            Tuple2<Column, Integer> oldColumnToPosition = oldColumnSet.get(newColumn.getName());
-
-            if (oldColumnToPosition == null) {
-                changes.add(TableChange.add(newColumn.copy(newColumn.getDataType().nullable())));
-                continue;
-            }
-
-            // Check if position changed
-            applyPositionChanges(newColumns, oldColumnToPosition, i, changes);
-
-            Column oldColumn = oldColumnToPosition.f0;
-            // Check if column changed
-            // Note: it could be unchanged while the position is changed
-            if (oldColumn.equals(newColumn)) {
-                // no changes
-                continue;
-            }
-
-            // Check if kind changed
-            if (oldColumn.getClass() != newColumn.getClass()) {
-                changes.add(TableChange.dropColumn(oldColumn.getName()));
-                changes.add(TableChange.add(newColumn.copy(newColumn.getDataType().nullable())));
-                continue;
-            }
-
-            // Check if comment is changed
-            if (!Objects.equals(
-                    oldColumn.getComment().orElse(null), newColumn.getComment().orElse(null))) {
-                changes.add(
-                        TableChange.modifyColumnComment(
-                                oldColumn, newColumn.getComment().orElse(null)));
-            }
-
-            // Check if physical column type changed
-            if (oldColumn.isPhysical()
-                    && newColumn.isPhysical()
-                    && !oldColumn.getDataType().equals(newColumn.getDataType())) {
-                changes.add(
-                        TableChange.modifyPhysicalColumnType(oldColumn, newColumn.getDataType()));
-            }
-
-            // Check if metadata fields changed
-            if (oldColumn instanceof MetadataColumn) {
-                applyMetadataColumnChanges(
-                        (MetadataColumn) oldColumn, (MetadataColumn) newColumn, changes);
-            }
-
-            // Check if computed expression changed
-            if (oldColumn instanceof ComputedColumn) {
-                applyComputedColumnChanges(
-                        (ComputedColumn) oldColumn, (ComputedColumn) newColumn, changes);
-            }
-        }
-
-        for (Column newColumn : newColumns) {
-            oldColumnSet.remove(newColumn.getName());
-        }
-
-        for (Map.Entry<String, Tuple2<Column, Integer>> entry : oldColumnSet.entrySet()) {
-            changes.add(TableChange.dropColumn(entry.getKey()));
-        }
-
-        return changes;
-    }
-
     private static boolean isDateTimeInterval(SqlTypeName typeName) {
         return typeName == SqlTypeName.INTERVAL_DAY
                 || typeName == SqlTypeName.INTERVAL_HOUR
@@ -374,33 +289,6 @@ public class MaterializedTableUtils {
         }
     }
 
-    // Since it is only for query change, then check only persisted columns which could be
-    // changed/added/dropped with such change
-    private static boolean isSchemaChanged(ResolvedSchema oldSchema, ResolvedSchema newSchema) {
-        List<Column> oldPersistedColumns =
-                oldSchema.getColumns().stream()
-                        .filter(Column::isPersisted)
-                        .collect(Collectors.toList());
-        if (oldPersistedColumns.size() != newSchema.getColumnCount()) {
-            return true;
-        }
-        for (int i = 0; i < oldPersistedColumns.size(); i++) {
-            Column oldColumn = oldPersistedColumns.get(i);
-            Column newColumn = newSchema.getColumn(i).get();
-            if (!oldColumn.getName().equals(newColumn.getName())) {
-                return true;
-            }
-            if (!newColumn
-                    .getDataType()
-                    .getLogicalType()
-                    .equals(oldColumn.getDataType().getLogicalType())) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static void applyPositionChanges(
             List<Column> newColumns,
             Tuple2<Column, Integer> oldColumnToPosition,
@@ -417,42 +305,46 @@ public class MaterializedTableUtils {
         }
     }
 
-    private static void applyComputedColumnChanges(
-            ComputedColumn oldColumn, ComputedColumn newColumn, List<TableChange> changes) {
-        if (!oldColumn
-                        .getExpression()
-                        .asSerializableString()
-                        .equals(newColumn.getExpression().asSerializableString())
-                && !Objects.equals(
-                        oldColumn.explainExtras().orElse(null),
-                        newColumn.explainExtras().orElse(null))) {
-            // for now there is no dedicated table change
-            changes.add(TableChange.dropColumn(oldColumn.getName()));
-            changes.add(TableChange.add(newColumn.copy(newColumn.getDataType().nullable())));
-        }
-    }
-
-    private static void applyMetadataColumnChanges(
-            MetadataColumn oldColumn, MetadataColumn newColumn, List<TableChange> changes) {
-        if (oldColumn.isVirtual() != newColumn.isVirtual()
-                || !Objects.equals(
-                        oldColumn.getMetadataKey().orElse(null),
-                        newColumn.getMetadataKey().orElse(null))) {
-            // for now there is no dedicated table change
-            changes.add(TableChange.dropColumn(oldColumn.getName()));
-            changes.add(TableChange.add(newColumn.copy(newColumn.getDataType().nullable())));
-        }
-    }
-
+    /**
+     * Computes the column-level {@link TableChange}s between a materialized table's current schema
+     * and its new schema (query-derived, or DDL-defined when {@code schemaDefinedInQuery}). The
+     * result feeds the append-only enforcement in {@code
+     * AlterMaterializedTableChangeOperation#validateChanges}. Per column it emits:
+     *
+     * <ul>
+     *   <li>{@code add} — a column absent from the old schema (nullable when query-derived);
+     *   <li>{@code modifyColumnPosition} — an existing column the query moved; the query order is
+     *       authoritative, so a reorder surfaces here (and is later rejected). A DDL column list
+     *       keeps its own order and emits no reposition;
+     *   <li>{@code modifyPhysicalColumnType} — a physical-type change. For a query-derived schema a
+     *       tightening nullability flip (nullable to NOT NULL) is tolerated as an inference
+     *       artifact, while a loosening flip is surfaced; a DDL-defined schema surfaces any
+     *       difference;
+     *   <li>{@code modifyColumn} / {@code modifyColumnComment} — changed computed/metadata
+     *       definitions or comments;
+     *   <li>{@code dropColumn} — an old column absent from the new schema; old non-persisted
+     *       columns are retained when the schema is query-derived.
+     * </ul>
+     *
+     * <p>Existing columns are ranked among the columns that survive into the new schema, so
+     * retained non-persisted columns do not skew the position diff.
+     */
     public static List<TableChange> validateAndExtractColumnChanges(
             ResolvedSchema oldSchema, ResolvedSchema newSchema, boolean schemaDefinedInQuery) {
         final List<Column> oldColumns = oldSchema.getColumns();
+        final List<Column> newColumns = newSchema.getColumns();
+        final Set<String> newColumnNames =
+                newColumns.stream().map(Column::getName).collect(Collectors.toSet());
+        // Position each old column among the columns that survive into the new schema, so retained
+        // non-persisted columns (absent from the query projection) do not skew the position diff.
         final Map<String, Tuple2<Column, Integer>> oldByName = new HashMap<>();
-        for (int i = 0; i < oldColumns.size(); i++) {
-            oldByName.put(oldColumns.get(i).getName(), Tuple2.of(oldColumns.get(i), i));
+        int nextPosition = 0;
+        for (final Column oldColumn : oldColumns) {
+            final Integer position =
+                    newColumnNames.contains(oldColumn.getName()) ? nextPosition++ : null;
+            oldByName.put(oldColumn.getName(), Tuple2.of(oldColumn, position));
         }
         final Set<String> seen = new HashSet<>();
-        final List<Column> newColumns = newSchema.getColumns();
         final List<TableChange> changes = new ArrayList<>();
         for (int newIndex = 0; newIndex < newColumns.size(); newIndex++) {
             final Column newColumn = newColumns.get(newIndex);
@@ -463,8 +355,11 @@ public class MaterializedTableUtils {
                 continue;
             }
             final Column oldColumn = oldEntry.f0;
-            // No position diff: DDL order is arbitrary; query-driven reorders are caught by
-            // buildSchemaTableChanges on the ALTER MT AS path.
+            // The query order is authoritative, so reposition a column the query moved; a
+            // DDL-defined schema keeps the arbitrary DDL order.
+            if (!schemaDefinedInQuery) {
+                applyPositionChanges(newColumns, oldEntry, newIndex, changes);
+            }
             if (oldColumn.isPhysical()
                     && newColumn.isPhysical()
                     && typeChanged(oldColumn, newColumn, schemaDefinedInQuery)) {
@@ -541,11 +436,16 @@ public class MaterializedTableUtils {
             Column oldColumn, Column newColumn, boolean schemaDefinedInQuery) {
         final DataType oldType = oldColumn.getDataType();
         final DataType newType = newColumn.getDataType();
-        // schemaDefinedInQuery=false: schema is inferred from the query, which may flip
-        // nullability without intent — only the base type difference is a real change.
-        return schemaDefinedInQuery
-                ? !oldType.equals(newType)
-                : !oldType.nullable().equals(newType.nullable());
+        if (schemaDefinedInQuery) {
+            return !oldType.equals(newType);
+        }
+        // Query-inferred nullability is a real change only when it loosens (NOT NULL -> nullable):
+        // the stored column can no longer hold the query's possible nulls. A tightening is
+        // tolerated.
+        final boolean baseTypeChanged = !oldType.nullable().equals(newType.nullable());
+        final boolean loosened =
+                !oldType.getLogicalType().isNullable() && newType.getLogicalType().isNullable();
+        return baseTypeChanged || loosened;
     }
 
     public static ResolvedSchema getQueryOperationResolvedSchema(
@@ -563,52 +463,51 @@ public class MaterializedTableUtils {
     public static void validatePersistedColumnsUsedByQuery(
             CatalogMaterializedTable oldTable,
             SqlAlterMaterializedTableSchema alterTableSchema,
-            ConvertContext context) {
+            ConvertContext context,
+            String operationName) {
         final SqlNodeList sqlNodeList = alterTableSchema.getColumnPositions();
         if (sqlNodeList.isEmpty()) {
             return;
         }
 
         final ResolvedSchema querySchema = getQueryOperationResolvedSchema(oldTable, context);
-        validatePersistedColumnsUsedByQuery(sqlNodeList, querySchema);
+        validatePersistedColumnsUsedByQuery(sqlNodeList, querySchema, operationName);
     }
 
     public static void validatePersistedColumnsUsedByQuery(
-            SqlNodeList columnPositions, ResolvedSchema querySchema) {
+            SqlNodeList columnPositions, ResolvedSchema querySchema, String operationName) {
         final Set<String> querySchemaColumnNames = new HashSet<>(querySchema.getColumnNames());
         for (SqlNode column : columnPositions) {
-            throwIfPersistedColumnNotUsedByQuery(column, querySchemaColumnNames);
+            throwIfPersistedColumnNotUsedByQuery(column, querySchemaColumnNames, operationName);
         }
     }
 
     private static void throwIfPersistedColumnNotUsedByQuery(
-            SqlNode column, Set<String> querySchemaColumnNames) {
+            SqlNode column, Set<String> querySchemaColumnNames, String operationName) {
         if (column instanceof SqlRegularColumn) {
             String columnName = ((SqlRegularColumn) column).getName().getSimple();
             if (!querySchemaColumnNames.contains(columnName)) {
-                throwPersistedColumnNotUsedException("physical", columnName);
+                throwPersistedColumnNotUsedException(operationName, "physical", columnName);
             }
         } else if (column instanceof SqlMetadataColumn) {
             SqlMetadataColumn metadataColumn = (SqlMetadataColumn) column;
             String columnName = metadataColumn.getName().getSimple();
             if (!metadataColumn.isVirtual() && !querySchemaColumnNames.contains(columnName)) {
-                throwPersistedColumnNotUsedException("metadata persisted", columnName);
+                throwPersistedColumnNotUsedException(
+                        operationName, "metadata persisted", columnName);
             }
         } else if (column instanceof SqlTableColumnPosition) {
             throwIfPersistedColumnNotUsedByQuery(
-                    ((SqlTableColumnPosition) column).getColumn(), querySchemaColumnNames);
+                    ((SqlTableColumnPosition) column).getColumn(),
+                    querySchemaColumnNames,
+                    operationName);
         }
     }
 
-    private static List<Column> getPersistedColumns(ResolvedSchema schema) {
-        return schema.getColumns().stream()
-                .filter(Column::isPersisted)
-                .collect(Collectors.toList());
-    }
-
-    private static void throwPersistedColumnNotUsedException(String type, String columnName) {
+    private static void throwPersistedColumnNotUsedException(
+            String operationName, String type, String columnName) {
         throw new ValidationException(
-                String.format(PERSISTED_COLUMN_NOT_USED_IN_QUERY, type, columnName));
+                String.format(PERSISTED_COLUMN_NOT_USED_IN_QUERY, operationName, type, columnName));
     }
 
     private static void validateIntervalValuePositive(

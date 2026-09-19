@@ -18,19 +18,16 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DeweyNumber}. */
-public class DeweyNumberTest extends TestLogger {
+class DeweyNumberTest {
 
     @Test
-    public void testDeweyNumberGeneration() {
+    void testDeweyNumberGeneration() {
         DeweyNumber start = new DeweyNumber(1);
         DeweyNumber increased = start.increase();
         DeweyNumber increaseAddStage = increased.addStage();
@@ -38,24 +35,27 @@ public class DeweyNumberTest extends TestLogger {
         DeweyNumber startAddStageIncreased = startAddStage.increase();
         DeweyNumber startAddStageIncreasedAddStage = startAddStageIncreased.addStage();
 
-        assertEquals(DeweyNumber.fromString("1"), start);
-        assertEquals(DeweyNumber.fromString("2"), increased);
-        assertEquals(DeweyNumber.fromString("2.0"), increaseAddStage);
-        assertEquals(DeweyNumber.fromString("1.0"), startAddStage);
-        assertEquals(DeweyNumber.fromString("1.1"), startAddStageIncreased);
-        assertEquals(DeweyNumber.fromString("1.1.0"), startAddStageIncreasedAddStage);
+        assertThat(start).isEqualTo(DeweyNumber.fromString("1"));
+        assertThat(increased).isEqualTo(DeweyNumber.fromString("2"));
+        assertThat(increaseAddStage).isEqualTo(DeweyNumber.fromString("2.0"));
+        assertThat(startAddStage).isEqualTo(DeweyNumber.fromString("1.0"));
+        assertThat(startAddStageIncreased).isEqualTo(DeweyNumber.fromString("1.1"));
+        assertThat(startAddStageIncreasedAddStage).isEqualTo(DeweyNumber.fromString("1.1.0"));
 
-        assertTrue(startAddStage.isCompatibleWith(start));
-        assertTrue(startAddStageIncreased.isCompatibleWith(startAddStage));
-        assertTrue(startAddStageIncreasedAddStage.isCompatibleWith(startAddStageIncreased));
-        assertFalse(startAddStageIncreasedAddStage.isCompatibleWith(startAddStage));
-        assertFalse(increaseAddStage.isCompatibleWith(startAddStage));
-        assertFalse(startAddStage.isCompatibleWith(increaseAddStage));
-        assertFalse(startAddStageIncreased.isCompatibleWith(startAddStageIncreasedAddStage));
+        assertThat(startAddStage.isCompatibleWith(start)).isTrue();
+        assertThat(startAddStageIncreased.isCompatibleWith(startAddStage)).isTrue();
+        assertThat(startAddStageIncreasedAddStage.isCompatibleWith(startAddStageIncreased))
+                .isTrue();
+        assertThat(startAddStageIncreasedAddStage.isCompatibleWith(startAddStage)).isFalse();
+        assertThat(increaseAddStage.isCompatibleWith(startAddStage)).isFalse();
+        assertThat(startAddStage.isCompatibleWith(increaseAddStage)).isFalse();
+        assertThat(startAddStageIncreased.isCompatibleWith(startAddStageIncreasedAddStage))
+                .isFalse();
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testZeroSplitsDeweyNumber() {
-        DeweyNumber.fromString(".");
+    @Test
+    void testZeroSplitsDeweyNumber() {
+        assertThatThrownBy(() -> DeweyNumber.fromString("."))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -16,7 +16,8 @@
  */
 package org.apache.calcite.rel.rules;
 
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -556,7 +557,8 @@ public class AggregateReduceFunctionsRule extends RelRule<AggregateReduceFunctio
 
         final AggregateCall m2AggCall =
                 AggregateCall.create(
-                        FlinkSqlOperatorTable.INTERNAL_WELFORD_M2,
+                        BridgingSqlAggFunction.of(
+                                cluster, BuiltInFunctionDefinitions.INTERNAL_WELFORD_M2),
                         oldCall.isDistinct(),
                         oldCall.isApproximate(),
                         oldCall.ignoreNulls(),

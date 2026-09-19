@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -153,7 +154,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
             SimpleVersionedSerializer<SplitT> splitSerializer,
             SplitAssignmentTracker<SplitT> splitAssignmentTracker,
             boolean supportsConcurrentExecutionAttempts) {
-        this.workerExecutor = workerExecutor;
+        this.workerExecutor = MdcUtils.scopeToJob(jobID, workerExecutor);
         this.coordinatorExecutor = MdcUtils.scopeToJob(jobID, coordinatorExecutor);
         this.coordinatorThreadFactory = coordinatorThreadFactory;
         this.operatorCoordinatorContext = operatorCoordinatorContext;
@@ -169,7 +170,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                                 new ThrowableCatchingRunnable(
                                         this::handleUncaughtExceptionFromAsyncCall, runnable));
 
-        this.notifier = new ExecutorNotifier(workerExecutor, errorHandlingCoordinatorExecutor);
+        // Must be the field, not the constructor parameter: the field is the scopeToJob-wrapped
+        // executor, so the callables ExecutorNotifier schedules on it, one-shot and periodic alike,
+        // log with the job id rather than an empty MDC.
+        this.notifier = new ExecutorNotifier(this.workerExecutor, errorHandlingCoordinatorExecutor);
     }
 
     boolean isConcurrentExecutionAttemptsSupported() {
@@ -179,6 +183,11 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     @Override
     public SplitEnumeratorMetricGroup metricGroup() {
         return new InternalSplitEnumeratorMetricGroup(operatorCoordinatorContext.metricGroup());
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return operatorCoordinatorContext.getJobInfo();
     }
 
     @Override

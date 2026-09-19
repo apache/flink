@@ -30,7 +30,7 @@ import org.apache.calcite.rel.hint.RelHint
 
 import java.util
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /**
  * Relational expression that writes out data of input node into a [[DynamicTableSink]].
@@ -82,7 +82,7 @@ abstract class Sink(
           .mkString(","),
         targetColumns != null
       )
-      .item("fields", getRowType.getFieldNames.mkString(", "))
+      .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(hints), !hints.isEmpty)
   }
 }

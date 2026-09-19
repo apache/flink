@@ -18,6 +18,7 @@
 
 package org.apache.flink.sql.parser;
 
+import org.apache.flink.sql.parser.ddl.view.SqlCreateView;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
@@ -34,10 +35,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 import java.util.Locale;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
@@ -2453,6 +2456,18 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testCreateViewWithFieldNamesWithToString() throws SqlParseException {
+        final String sql = "create view v(col1, col2) as select col3, col4 from tbl";
+        final String expected =
+                "CREATE VIEW `V` (`COL1`, `COL2`)\n"
+                        + "AS\n"
+                        + "SELECT `COL3`, `COL4`\n"
+                        + "FROM `TBL`";
+        final SqlNode node = sql(sql).parser().parseQuery();
+        assertThat(node).isInstanceOf(SqlCreateView.class).hasToString(expected);
+    }
+
+    @Test
     void testCreateViewWithInvalidName() {
         final String sql = "create view v(^*^) COMMENT 'this is a view' as select col1 from tbl";
         final String expected = "(?s).*Encountered \"\\*\" at line 1, column 15.*";
@@ -3170,29 +3185,42 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .fails("(?s).*Encountered \"\\,\" at line 1, column 32.\n.*");
     }
 
-    @Test
-    void testExplainCreateTableNoSupported() {
-        this.sql("EXPLAIN CREATE TABLE t (id int^)^")
+    @ParameterizedTest
+    @ValueSource(strings = {"CREATE", "CREATE OR REPLACE"})
+    void testExplainCreateTableNotSupported(final String operation) {
+        this.sql(String.format("EXPLAIN %s TABLE t (id int^)^", operation))
                 .fails(
                         "Unsupported CREATE OR REPLACE statement for EXPLAIN\\. The statement must define a query using the AS clause \\(i\\.e\\. CTAS/RTAS statements\\)\\.");
     }
 
-    @Test
-    void testExplainCreateTableAsSelect() {
-        this.sql("EXPLAIN CREATE TABLE t AS SELECT * FROM b")
-                .ok("EXPLAIN CREATE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "ALTER MATERIALIZED TABLE t ^SUSPEND^",
+                "ALTER MATERIALIZED TABLE t ^RESUME^",
+                "ALTER MATERIALIZED TABLE t ADD category_id STRING METADATA ^VIRTUAL^",
+                "ALTER MATERIALIZED TABLE t MODIFY measurement double ^METADATA^"
+            })
+    void testExplainAlterMaterializedTableWithoutAsQueryNotSupported(
+            final String alterMaterializedTable) {
+        this.sql(String.format("EXPLAIN %s", alterMaterializedTable))
+                .fails(
+                        "Unsupported ALTER MATERIALIZED TABLE statement for EXPLAIN\\. The statement must define a query using the AS clause.");
     }
 
-    @Test
-    void testExplainCreateOrReplaceTableAsSelect() {
-        this.sql("EXPLAIN CREATE OR REPLACE TABLE t AS SELECT * FROM b")
-                .ok("EXPLAIN CREATE OR REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
-    }
-
-    @Test
-    void testExplainReplaceTableAsSelect() {
-        this.sql("EXPLAIN REPLACE TABLE t AS SELECT * FROM b")
-                .ok("EXPLAIN REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "CREATE",
+                "CREATE OR REPLACE",
+                "REPLACE",
+                "CREATE MATERIALIZED",
+                "ALTER MATERIALIZED",
+                "CREATE OR ALTER MATERIALIZED",
+            })
+    void testExplain(final String operation) {
+        this.sql(String.format("EXPLAIN %s TABLE t AS SELECT * FROM b", operation))
+                .ok(String.format("EXPLAIN %s TABLE `T`\nAS\nSELECT *\nFROM `B`", operation));
     }
 
     @Test
@@ -4019,6 +4047,146 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         final String sql = "select * from dept outer apply ramp(deptno)^)^";
         sql(sql).withConformance(SqlConformanceEnum.SQL_SERVER_2008)
                 .fails("(?s).*Encountered \"\\)\" at .*");
+    }
+
+    /**
+     * Overrides {@link org.apache.calcite.sql.parser.SqlParserTest#testLateral()}: making {@code
+     * TABLE} optional in {@code LATERAL} shifts the error position of the first (invalid) case.
+     */
+    @Test
+    void testLateral() {
+        // Differs from Calcite: LATERAL <identifier> without an argument list fails at the
+        // identifier.
+        sql("select * from lateral ^emp^").fails("(?s)Encountered \"emp <EOF>\" at .*");
+
+        sql("select * from lateral table ^emp^ as e").fails("(?s)Encountered \"emp\" at .*");
+        sql("select * from lateral table ^scott^.emp").fails("(?s)Encountered \"scott\" at .*");
+
+        final String expected = "SELECT *\n" + "FROM LATERAL TABLE(`RAMP`(1))";
+
+        // Good: LATERAL TABLE function(arg, arg)
+        sql("select * from lateral table(ramp(1))").ok(expected);
+        sql("select * from lateral table(ramp(1)) as t").ok(expected + " AS `T`");
+        sql("select * from lateral table(ramp(1)) as t(x)").ok(expected + " AS `T` (`X`)");
+        // Bad: Parentheses make it look like a sub-query
+        sql("select * from lateral (^table (ramp(1))^)").fails("Expected query or join");
+
+        // Good: LATERAL (subQuery)
+        final String expected2 = "SELECT *\n" + "FROM LATERAL (SELECT *\n" + "FROM `EMP`)";
+        sql("select * from lateral (select * from emp)").ok(expected2);
+        sql("select * from lateral (select * from emp) as t").ok(expected2 + " AS `T`");
+        sql("select * from lateral (select * from emp) as t(x)").ok(expected2 + " AS `T` (`X`)");
+    }
+
+    /**
+     * Overrides {@link org.apache.calcite.sql.parser.SqlParserTest#testTemporalTable()} for the
+     * same reason as {@link #testLateral()}: the shifted error position of the explicit-LATERAL
+     * case.
+     */
+    @Test
+    void testTemporalTable() {
+        final String sql0 =
+                "select stream * from orders, products\n"
+                        + "for system_time as of TIMESTAMP '2011-01-02 00:00:00'";
+        final String expected0 =
+                "SELECT STREAM *\n"
+                        + "FROM `ORDERS`,\n"
+                        + "`PRODUCTS` FOR SYSTEM_TIME AS OF TIMESTAMP '2011-01-02 00:00:00'";
+        sql(sql0).ok(expected0);
+
+        // Differs from Calcite: explicit LATERAL fails at the identifier (no argument list).
+        final String sql1 =
+                "select stream * from orders, LATERAL ^products_temporal^\n"
+                        + "for system_time as of TIMESTAMP '2011-01-02 00:00:00'";
+        sql(sql1).fails("(?s)Encountered \"products_temporal for\" at line .*");
+
+        // Inner join with a specific timestamp
+        final String sql2 =
+                "select stream * from orders join products_temporal\n"
+                        + "for system_time as of timestamp '2011-01-02 00:00:00'\n"
+                        + "on orders.productid = products_temporal.productid";
+        final String expected2 =
+                "SELECT STREAM *\n"
+                        + "FROM `ORDERS`\n"
+                        + "INNER JOIN `PRODUCTS_TEMPORAL` "
+                        + "FOR SYSTEM_TIME AS OF TIMESTAMP '2011-01-02 00:00:00' "
+                        + "ON (`ORDERS`.`PRODUCTID` = `PRODUCTS_TEMPORAL`.`PRODUCTID`)";
+        sql(sql2).ok(expected2);
+
+        // Left join with a timestamp field
+        final String sql3 =
+                "select stream * from orders left join products_temporal\n"
+                        + "for system_time as of orders.rowtime "
+                        + "on orders.productid = products_temporal.productid";
+        final String expected3 =
+                "SELECT STREAM *\n"
+                        + "FROM `ORDERS`\n"
+                        + "LEFT JOIN `PRODUCTS_TEMPORAL` "
+                        + "FOR SYSTEM_TIME AS OF `ORDERS`.`ROWTIME` "
+                        + "ON (`ORDERS`.`PRODUCTID` = `PRODUCTS_TEMPORAL`.`PRODUCTID`)";
+        sql(sql3).ok(expected3);
+
+        // Left join with a timestamp expression
+        final String sql4 =
+                "select stream * from orders left join products_temporal\n"
+                        + "for system_time as of orders.rowtime - INTERVAL '3' DAY "
+                        + "on orders.productid = products_temporal.productid";
+        final String expected4 =
+                "SELECT STREAM *\n"
+                        + "FROM `ORDERS`\n"
+                        + "LEFT JOIN `PRODUCTS_TEMPORAL` "
+                        + "FOR SYSTEM_TIME AS OF (`ORDERS`.`ROWTIME` - INTERVAL '3' DAY) "
+                        + "ON (`ORDERS`.`PRODUCTID` = `PRODUCTS_TEMPORAL`.`PRODUCTID`)";
+        sql(sql4).ok(expected4);
+    }
+
+    @Test
+    void testLateralImplicitTableFunction() {
+        // Implicit form: LATERAL fn(...) without the TABLE(...) wrapper.
+        sql("select * from t, lateral ramp(t.x)")
+                .ok("SELECT *\n" + "FROM `T`,\n" + "LATERAL TABLE(`RAMP`(`T`.`X`))");
+
+        // Explicit TABLE wrapper still works.
+        sql("select * from t, lateral table(ramp(t.x))")
+                .ok("SELECT *\n" + "FROM `T`,\n" + "LATERAL TABLE(`RAMP`(`T`.`X`))");
+
+        // CROSS JOIN form.
+        sql("select * from t cross join lateral ramp(t.x) on true")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM `T`\n"
+                                + "CROSS JOIN LATERAL TABLE(`RAMP`(`T`.`X`)) ON TRUE");
+
+        // LEFT JOIN form with ON condition.
+        sql("select * from t left join lateral ramp(t.x) on t.a = 1")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM `T`\n"
+                                + "LEFT JOIN LATERAL TABLE(`RAMP`(`T`.`X`)) ON (`T`.`A` = 1)");
+
+        // Named arguments and TABLE-typed arg passed to the function.
+        sql("select * from t, lateral snapshot("
+                        + "input => table s, "
+                        + "load_completed_idle_timeout => interval '10' second)")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM `T`,\n"
+                                + "LATERAL TABLE(`SNAPSHOT`("
+                                + "`INPUT` => (TABLE `S`), "
+                                + "`LOAD_COMPLETED_IDLE_TIMEOUT` => INTERVAL '10' SECOND))");
+
+        // LATERAL fn(...) as the first FROM entry (no preceding table).
+        sql("select * from lateral ramp(3)").ok("SELECT *\n" + "FROM LATERAL TABLE(`RAMP`(3))");
+
+        // Documented LATERAL SNAPSHOT join form: JOIN LATERAL fn(named TABLE arg) AS alias ON ...
+        sql("select o.order_id, r.rate from orders as o "
+                        + "join lateral snapshot(input => table currency_rates) as r "
+                        + "on o.currency = r.currency")
+                .ok(
+                        "SELECT `O`.`ORDER_ID`, `R`.`RATE`\n"
+                                + "FROM `ORDERS` AS `O`\n"
+                                + "INNER JOIN LATERAL TABLE(`SNAPSHOT`(`INPUT` => (TABLE `CURRENCY_RATES`))) AS `R` "
+                                + "ON (`O`.`CURRENCY` = `R`.`CURRENCY`)");
     }
 
     @Test

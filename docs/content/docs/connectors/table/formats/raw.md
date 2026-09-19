@@ -180,6 +180,17 @@ The table below details the SQL types the format supports, including details of 
       <td><code>RAW</code></td>
       <td>The sequence of bytes serialized by the underlying TypeSerializer of the RAW type.</td>
     </tr>
+    <tr>
+      <td><code>VARIANT</code></td>
+      <td>A UTF-8 (by default) encoded JSON document.<br>
+       The encoding charset can be configured by 'raw.charset'.<br>
+       On read, the decoded text is parsed like <code>PARSE_JSON</code>, so duplicate object keys are rejected and
+       malformed JSON fails the job. On write, the value is rendered by <code>Variant#toJson</code>. The round trip is
+       value-lossless but not byte-lossless: insignificant whitespace is dropped and object keys are ordered.</td>
+    </tr>
     </tbody>
 </table>
+
+Note: combining `VARIANT` with `raw.line-delimiter` gives you newline-delimited JSON, where each line of a message
+becomes one row.
 

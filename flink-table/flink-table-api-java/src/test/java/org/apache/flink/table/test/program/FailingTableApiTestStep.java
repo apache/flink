@@ -24,8 +24,11 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.test.program.TableApiTestStep.TableEnvAccessor;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.util.Preconditions;
@@ -102,6 +105,16 @@ public final class FailingTableApiTestStep implements TestStep {
                     @Override
                     public Table sqlQuery(String query) {
                         return env.sqlQuery(query);
+                    }
+
+                    @Override
+                    public Table createTable(QueryOperation operation) {
+                        return ((TableEnvironmentImpl) env).createTable(operation);
+                    }
+
+                    @Override
+                    public OperationTreeBuilder getOperationTreeBuilder() {
+                        return ((TableEnvironmentImpl) env).getOperationTreeBuilder();
                     }
 
                     @Override

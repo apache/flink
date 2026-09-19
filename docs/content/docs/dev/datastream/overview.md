@@ -291,7 +291,7 @@ Socket-based:
 
 Collection-based:
 
-- `fromData(Collection)` - Creates a data stream from the Java Java.util.Collection. All elements
+- `fromData(Collection)` - Creates a data stream from a Java `java.util.Collection`. All elements
   in the collection must be of the same type.
 
 - `fromData(T ...)` - Creates a data stream from the given sequence of objects. All objects must be

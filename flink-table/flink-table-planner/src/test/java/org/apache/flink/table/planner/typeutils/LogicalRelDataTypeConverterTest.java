@@ -48,8 +48,10 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
@@ -152,7 +154,12 @@ public class LogicalRelDataTypeConverterTest {
                 new MultisetType(BinaryType.ofEmptyLiteral()),
                 new MultisetType(VarBinaryType.ofEmptyLiteral()),
                 new BitmapType(),
+                new UuidType(),
+                new VariantType(),
+                new ArrayType(new VariantType()),
+                new MapType(new VarCharType(5), new VariantType()),
                 RowType.of(new BigIntType(), new IntType(false), new VarCharType(200)),
+                RowType.of(new VariantType(), new VariantType(false)),
                 RowType.of(
                         new LogicalType[] {
                             new BigIntType(), new IntType(false), new VarCharType(200)

@@ -1,0 +1,443 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "b",
+              "dataType" : "BIGINT"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`a` INT, `b` BIGINT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[a, b])",
+    "dynamicFilteringDataListenerID" : "f7b00c3e-afdd-4dfc-a6db-479041ae639e"
+  }, {
+    "id" : 2,
+    "type" : "batch-exec-sort_1",
+    "configuration" : {
+      "table.exec.resource.sort.memory" : "128 mb",
+      "table.exec.sort.async-merge-enabled" : "true",
+      "table.exec.sort.max-num-file-handles" : "128",
+      "table.exec.spill-compression.block-size" : "64 kb",
+      "table.exec.spill-compression.enabled" : "true"
+    },
+    "sortSpec" : {
+      "fields" : [ {
+        "index" : 1,
+        "isAscending" : true,
+        "nullIsLast" : false
+      } ]
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "END_INPUT",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT, `b` BIGINT>",
+    "description" : "Sort(orderBy=[b ASC])"
+  }, {
+    "id" : 9,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "KEEP_INPUT_AS_IS",
+        "inputDistribution" : {
+          "type" : "UNKNOWN"
+        },
+        "isStrict" : true
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT, `b` BIGINT>",
+    "description" : "Exchange(distribution=[forward])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 3,
+    "type" : "batch-exec-sort-aggregate_1",
+    "grouping" : [ 1 ],
+    "auxGrouping" : [ ],
+    "aggCalls" : [ {
+      "name" : "cnt",
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "name" : null,
+      "internalName" : "$WELFORD_M2$1",
+      "argList" : [ 0 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "DOUBLE"
+    }, {
+      "name" : null,
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
+      "argList" : [ 0 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "aggInputRowType" : "ROW<`a` INT, `b` BIGINT>",
+    "isMerge" : false,
+    "isFinal" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b` BIGINT, `count1$0` BIGINT, `$f2` STRUCTURED<'org.apache.flink.table.runtime.functions.aggregate.WelfordM2AggFunction$WelfordM2Accumulator', `n` BIGINT NOT NULL, `mean` DOUBLE NOT NULL, `m2` DOUBLE NOT NULL>, `count$1` BIGINT>",
+    "description" : "LocalSortAggregate(groupBy=[b], select=[b, Partial_COUNT(*) AS count1$0, Partial_$WELFORD_M2$1(a) AS $f2, Partial_COUNT(a) AS count$1])"
+  }, {
+    "id" : 4,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b` BIGINT, `count1$0` BIGINT, `$f2` STRUCTURED<'org.apache.flink.table.runtime.functions.aggregate.WelfordM2AggFunction$WelfordM2Accumulator', `n` BIGINT NOT NULL, `mean` DOUBLE NOT NULL, `m2` DOUBLE NOT NULL>, `count$1` BIGINT>",
+    "description" : "Exchange(distribution=[hash[b]])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 5,
+    "type" : "batch-exec-sort_1",
+    "configuration" : {
+      "table.exec.resource.sort.memory" : "128 mb",
+      "table.exec.sort.async-merge-enabled" : "true",
+      "table.exec.sort.max-num-file-handles" : "128",
+      "table.exec.spill-compression.block-size" : "64 kb",
+      "table.exec.spill-compression.enabled" : "true"
+    },
+    "sortSpec" : {
+      "fields" : [ {
+        "index" : 0,
+        "isAscending" : true,
+        "nullIsLast" : false
+      } ]
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "END_INPUT",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b` BIGINT, `count1$0` BIGINT, `$f2` STRUCTURED<'org.apache.flink.table.runtime.functions.aggregate.WelfordM2AggFunction$WelfordM2Accumulator', `n` BIGINT NOT NULL, `mean` DOUBLE NOT NULL, `m2` DOUBLE NOT NULL>, `count$1` BIGINT>",
+    "description" : "Sort(orderBy=[b ASC])"
+  }, {
+    "id" : 10,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "KEEP_INPUT_AS_IS",
+        "inputDistribution" : {
+          "type" : "HASH",
+          "keys" : [ 0 ]
+        },
+        "isStrict" : true
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b` BIGINT, `count1$0` BIGINT, `$f2` STRUCTURED<'org.apache.flink.table.runtime.functions.aggregate.WelfordM2AggFunction$WelfordM2Accumulator', `n` BIGINT NOT NULL, `mean` DOUBLE NOT NULL, `m2` DOUBLE NOT NULL>, `count$1` BIGINT>",
+    "description" : "Exchange(distribution=[forward])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 6,
+    "type" : "batch-exec-sort-aggregate_1",
+    "grouping" : [ 0 ],
+    "auxGrouping" : [ ],
+    "aggCalls" : [ {
+      "name" : "cnt",
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "name" : null,
+      "internalName" : "$WELFORD_M2$1",
+      "argList" : [ 0 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "DOUBLE"
+    }, {
+      "name" : null,
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
+      "argList" : [ 0 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "aggInputRowType" : "ROW<`a` INT, `b` BIGINT>",
+    "isMerge" : true,
+    "isFinal" : true,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b` BIGINT, `cnt` BIGINT NOT NULL, `$f2` DOUBLE, `$f3` BIGINT NOT NULL>",
+    "description" : "SortAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count1$0) AS cnt, Final_$WELFORD_M2$1($f2) AS $f2, Final_COUNT(count$1) AS $f3])"
+  }, {
+    "id" : 7,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "BIGINT NOT NULL"
+      } ],
+      "type" : "BIGINT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$CAST$1",
+        "operands" : [ {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$/$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 2,
+            "type" : "DOUBLE"
+          }, {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 3,
+            "type" : "BIGINT NOT NULL"
+          } ],
+          "type" : "DOUBLE"
+        } ],
+        "type" : "INT"
+      } ],
+      "type" : "DOUBLE"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$CAST$1",
+        "operands" : [ {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$/$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 2,
+            "type" : "DOUBLE"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "SPECIAL",
+            "internalName" : "$CASE$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "syntax" : "BINARY",
+              "internalName" : "$=$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 3,
+                "type" : "BIGINT NOT NULL"
+              }, {
+                "kind" : "LITERAL",
+                "value" : 1,
+                "type" : "INT NOT NULL"
+              } ],
+              "type" : "BOOLEAN NOT NULL"
+            }, {
+              "kind" : "LITERAL",
+              "value" : null,
+              "type" : "BIGINT"
+            }, {
+              "kind" : "CALL",
+              "syntax" : "BINARY",
+              "internalName" : "$-$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 3,
+                "type" : "BIGINT NOT NULL"
+              }, {
+                "kind" : "LITERAL",
+                "value" : 1,
+                "type" : "INT NOT NULL"
+              } ],
+              "type" : "BIGINT NOT NULL"
+            } ],
+            "type" : "BIGINT"
+          } ],
+          "type" : "DOUBLE"
+        } ],
+        "type" : "INT"
+      } ],
+      "type" : "DOUBLE"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b` BIGINT, `cnt` BIGINT, `var_pop_a` DOUBLE, `var_samp_a` DOUBLE>",
+    "description" : "Calc(select=[b, CAST(cnt AS BIGINT) AS cnt, CAST(CAST(($f2 / $f3) AS INTEGER) AS DOUBLE) AS var_pop_a, CAST(CAST(($f2 / CASE(($f3 = 1), null:BIGINT, ($f3 - 1))) AS INTEGER) AS DOUBLE) AS var_samp_a])"
+  }, {
+    "id" : 8,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "b",
+              "dataType" : "BIGINT NOT NULL"
+            }, {
+              "name" : "cnt",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "var_pop_a",
+              "dataType" : "DOUBLE"
+            }, {
+              "name" : "var_samp_a",
+              "dataType" : "DOUBLE"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_b",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "b" ]
+            }
+          }
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b` BIGINT, `cnt` BIGINT, `var_pop_a` DOUBLE, `var_samp_a` DOUBLE>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[b, cnt, var_pop_a, var_samp_a])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 9,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 10,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
