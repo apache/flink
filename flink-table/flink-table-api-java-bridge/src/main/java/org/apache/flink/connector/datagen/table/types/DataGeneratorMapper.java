@@ -19,46 +19,44 @@
 package org.apache.flink.connector.datagen.table.types;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.util.function.SerializableFunction;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-/** Utility for mapping the output of a {@link DataGenerator}. */
+/**
+ * Maps the output of an upstream {@link GeneratorFunction} through a {@link SerializableFunction}.
+ */
 @Internal
-public class DataGeneratorMapper<A, B> implements DataGenerator<B> {
+public class DataGeneratorMapper<A, B> implements GeneratorFunction<Long, B> {
 
-    private final DataGenerator<A> generator;
+    private static final long serialVersionUID = 1L;
+
+    private final GeneratorFunction<Long, A> generator;
 
     private final SerializableFunction<A, B> mapper;
 
     private final float nullRate;
 
     public DataGeneratorMapper(
-            DataGenerator<A> generator, SerializableFunction<A, B> mapper, float nullRate) {
+            GeneratorFunction<Long, A> generator,
+            SerializableFunction<A, B> mapper,
+            float nullRate) {
         this.generator = generator;
         this.mapper = mapper;
         this.nullRate = nullRate;
     }
 
     @Override
-    public void open(
-            String name, FunctionInitializationContext context, RuntimeContext runtimeContext)
-            throws Exception {
-        generator.open(name, context, runtimeContext);
+    public void open(SourceReaderContext readerContext) throws Exception {
+        generator.open(readerContext);
     }
 
     @Override
-    public boolean hasNext() {
-        return generator.hasNext();
-    }
-
-    @Override
-    public B next() {
+    public B map(Long value) throws Exception {
         if (nullRate == 0f || ThreadLocalRandom.current().nextFloat() > nullRate) {
-            return mapper.apply(generator.next());
+            return mapper.apply(generator.map(value));
         }
         return null;
     }
