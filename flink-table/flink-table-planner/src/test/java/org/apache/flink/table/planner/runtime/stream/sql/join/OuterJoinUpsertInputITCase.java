@@ -171,13 +171,17 @@ public class OuterJoinUpsertInputITCase extends StreamingWithStateTestBase {
 
         tEnv().executeSql(sql).await();
 
-        // C's row is gone again, so A joined with B, null-padded C and D must be re-emitted
+        // C's row is gone again, so A joined with B, null-padded C and D must be re-emitted.
+        // The nested BC join reports that as two changes, a -D of the joined row followed by a +I
+        // of the null-padded one, so the outer join against A null-pads its own row in between.
         final List<String> changelog = TestValuesTableFactory.getRawResultsAsStrings(SINK);
-        assertThat(changelog.subList(Math.max(0, changelog.size() - 3), changelog.size()))
+        assertThat(changelog.subList(Math.max(0, changelog.size() - 5), changelog.size()))
                 .as("raw changelog: %s", changelog)
                 .containsExactly(
                         "+I[1, 1, 1, 1, 1, a, b, c2, d]",
                         "-D[1, 1, 1, 1, 1, a, b, c2, d]",
+                        "+I[1, 1, 1, 1, 1, a, null, null, d]",
+                        "-D[1, 1, 1, 1, 1, a, null, null, d]",
                         "+I[1, 1, 1, 1, 1, a, b, null, d]");
         assertThat(TestValuesTableFactory.getResultsAsStrings(SINK))
                 .containsExactly("+I[1, 1, 1, 1, 1, a, b, null, d]");

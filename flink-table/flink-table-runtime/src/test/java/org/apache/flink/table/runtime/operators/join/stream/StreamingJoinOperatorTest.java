@@ -1014,6 +1014,8 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
             (testDisplayName) -> {
                 if (testDisplayName.contains("InnerJoin")) {
                     return new Boolean[] {false, false};
+                } else if (testDisplayName.contains("FullOuterJoin")) {
+                    return new Boolean[] {true, true};
                 } else if (testDisplayName.contains("LeftOuterJoin")) {
                     return new Boolean[] {true, false};
                 } else {
