@@ -81,6 +81,7 @@ stages:
           vmImage: 'ubuntu-24.04'
         steps:
           # Skip docs check if this is a pull request that doesn't contain a documentation change
+          - template: checkout-single-branch.yml
           - task: GoTool@0
             inputs:
               version: '1.18.1'
@@ -170,6 +171,7 @@ stages:
         pool:
           vmImage: 'ubuntu-24.04'
         steps:
+          - template: checkout-single-branch.yml
           - task: GoTool@0
             inputs:
               version: '1.18.1'
