@@ -221,6 +221,7 @@ class GenericIOTests(PyFlinkDataFrameUTTestCase):
         self.assertIsNone(descriptor.get_schema())
         self.assertEqual(descriptor.get_options().get("connector"), "blackhole")
         self.assertEqual(descriptor.get_options().get("sink.parallelism"), "1")
+        self.assertEqual(execute_insert.call_args.kwargs, {"overwrite": False})
 
     def test_write_generic_waits_for_local_and_minicluster_execution(self):
         dataframe = pf.from_records([(1,)], schema=["id"])

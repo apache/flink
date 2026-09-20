@@ -24,7 +24,155 @@ from pyflink.dataframe.datatype import DataType
 from pyflink.table import Schema, TableDescriptor
 from pyflink.util.api_stability_decorators import PublicEvolving
 
-__all__ = ["read_generic"]
+__all__ = ["read_generic", "read_json", "read_parquet"]
+
+
+def _build_filesystem_options(
+    path: str,
+    file_format: str,
+    options: Dict[str, Optional[str]],
+    format_options: Optional[Dict[str, str]] = None,
+) -> Dict[str, str]:
+    if not isinstance(path, str):
+        raise TypeError("path must be a string")
+    if not path:
+        raise ValueError("path must not be empty")
+
+    result = {"path": path, "format": file_format}
+    result.update({key: value for key, value in options.items() if value is not None})
+    if format_options is not None:
+        _validate_options(format_options)
+        for key, value in format_options.items():
+            option = key if key.startswith(file_format + ".") else file_format + "." + key
+            if option in result:
+                raise ValueError(f"duplicate format option: {option!r}")
+            result[option] = value
+    _validate_options(result)
+    return result
+
+
+def _build_filesystem_sink_options(
+    path: str,
+    file_format: str,
+    rolling_policy_file_size: str,
+    rolling_policy_rollover_interval: str,
+    rolling_policy_check_interval: Optional[str],
+    partition_commit_trigger: str,
+    partition_commit_delay: str,
+    partition_commit_policy_kind: Optional[str],
+    format_options: Optional[Dict[str, str]] = None,
+) -> Dict[str, str]:
+    options = {
+        "sink.rolling-policy.file-size": rolling_policy_file_size,
+        "sink.rolling-policy.rollover-interval": rolling_policy_rollover_interval,
+        "sink.partition-commit.trigger": partition_commit_trigger,
+        "sink.partition-commit.delay": partition_commit_delay,
+    }
+    _validate_options(options)
+    return _build_filesystem_options(
+        path,
+        file_format,
+        {
+            **options,
+            "sink.rolling-policy.check-interval": rolling_policy_check_interval,
+            "sink.partition-commit.policy.kind": partition_commit_policy_kind,
+        },
+        format_options,
+    )
+
+
+@PublicEvolving()
+def read_parquet(
+    path: str,
+    *,
+    schema: Dict[str, DataType],
+    monitor_interval: Optional[str] = None,
+    path_regex_pattern: Optional[str] = None,
+) -> DataFrame:
+    """
+    Read Parquet files using Flink's filesystem connector.
+
+    The filesystem connector and Parquet format must be available to Flink. By default,
+    the source reads the existing files once. Setting ``monitor_interval`` creates a
+    continuous source that discovers new files.
+
+    :param path: File or directory URI supported by Flink's filesystem implementations.
+    :param schema: Mapping of column names to DataFrame data types.
+    :param monitor_interval: Optional file discovery interval, for example ``"60s"``.
+    :param path_regex_pattern: Optional regular expression filtering source file paths.
+    :return: A DataFrame backed by the Parquet source.
+    :raises TypeError: If an argument has an invalid type.
+    :raises ValueError: If the path or schema is empty.
+
+    Example::
+
+        >>> import pyflink.dataframe as pf
+        >>> events = pf.read_parquet(
+        ...     "file:///tmp/events",
+        ...     schema={"id": pf.DataType.int64(), "name": pf.DataType.string()},
+        ... )
+
+    .. versionadded:: 2.4.0
+    """
+    options = _build_filesystem_options(
+        path,
+        "parquet",
+        {
+            "source.monitor-interval": monitor_interval,
+            "source.path.regex-pattern": path_regex_pattern,
+        },
+    )
+    return read_generic("filesystem", schema=schema, options=options)
+
+
+@PublicEvolving()
+def read_json(
+    path: str,
+    *,
+    schema: Dict[str, DataType],
+    monitor_interval: Optional[str] = None,
+    path_regex_pattern: Optional[str] = None,
+    format_options: Optional[Dict[str, str]] = None,
+) -> DataFrame:
+    """
+    Read newline-delimited JSON files using Flink's filesystem connector.
+
+    The filesystem connector and JSON format must be available to Flink. By default,
+    the source reads the existing files once. Setting ``monitor_interval`` creates a
+    continuous source that discovers new files.
+
+    :param path: File or directory URI supported by Flink's filesystem implementations.
+    :param schema: Mapping of column names to DataFrame data types.
+    :param monitor_interval: Optional file discovery interval, for example ``"60s"``.
+    :param path_regex_pattern: Optional regular expression filtering source file paths.
+    :param format_options: JSON format options with string values. Keys may include or omit
+        the ``json.`` prefix, for example ``{"ignore-parse-errors": "true"}``.
+    :return: A DataFrame backed by the JSON source.
+    :raises TypeError: If an argument has an invalid type.
+    :raises ValueError: If the path or schema is empty, or format option keys are invalid
+        or duplicated after adding the ``json.`` prefix.
+
+    Example::
+
+        >>> import pyflink.dataframe as pf
+        >>> events = pf.read_json(
+        ...     "file:///tmp/events.json",
+        ...     schema={"id": pf.DataType.int64()},
+        ...     format_options={"ignore-parse-errors": "true"},
+        ... )
+
+    .. versionadded:: 2.4.0
+    """
+    options = _build_filesystem_options(
+        path,
+        "json",
+        {
+            "source.monitor-interval": monitor_interval,
+            "source.path.regex-pattern": path_regex_pattern,
+        },
+        format_options,
+    )
+    return read_generic("filesystem", schema=schema, options=options)
 
 
 def _validate_connector(connector: str) -> None:

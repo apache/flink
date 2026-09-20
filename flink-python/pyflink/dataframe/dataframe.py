@@ -1370,6 +1370,125 @@ class DataFrame:
     # ======================== I/O ========================
 
     @PublicEvolving()
+    def write_parquet(
+        self,
+        path: str,
+        *,
+        mode: str = "overwrite",
+        compression: str = "SNAPPY",
+        rolling_policy_file_size: str = "128mb",
+        rolling_policy_rollover_interval: str = "30min",
+        rolling_policy_check_interval: Optional[str] = None,
+        partition_commit_trigger: str = "process-time",
+        partition_commit_delay: str = "0s",
+        partition_commit_policy_kind: Optional[str] = None,
+    ) -> None:
+        """
+        Write Parquet files using Flink's filesystem connector.
+
+        The filesystem connector and Parquet format must be available to Flink. The write
+        is submitted immediately and waits for completion for local or MiniCluster execution.
+        Sink columns are derived from this DataFrame's schema. Overwrite requires batch
+        execution; use ``mode="append"`` for streaming execution.
+
+        :param path: Output directory URI supported by Flink's filesystem implementations.
+        :param mode: ``"overwrite"`` (default) replaces existing data; ``"append"`` adds files.
+        :param compression: Parquet compression codec, for example ``"SNAPPY"`` or ``"GZIP"``.
+        :param rolling_policy_file_size: Maximum part file size, for example ``"128mb"``.
+        :param rolling_policy_rollover_interval: Maximum open time for a part file.
+        :param rolling_policy_check_interval: Optional interval for checking the rolling policy.
+        :param partition_commit_trigger: Partition commit trigger: ``"process-time"`` or
+            ``"partition-time"``.
+        :param partition_commit_delay: Delay before committing a partition.
+        :param partition_commit_policy_kind: Optional comma-separated partition commit policies.
+        :raises TypeError: If an argument has an invalid type.
+        :raises ValueError: If the path is empty or the write mode is unsupported.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> _ = pf.config.set("execution.runtime-mode", "batch")
+            >>> events = pf.from_records([(1, "login")], schema=["id", "event"])
+            >>> events.write_parquet("file:///tmp/events", compression="GZIP")
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.io import _build_filesystem_sink_options
+
+        options = _build_filesystem_sink_options(
+            path,
+            "parquet",
+            rolling_policy_file_size,
+            rolling_policy_rollover_interval,
+            rolling_policy_check_interval,
+            partition_commit_trigger,
+            partition_commit_delay,
+            partition_commit_policy_kind,
+            {"compression": compression},
+        )
+        self._write("filesystem", options, mode)
+
+    @PublicEvolving()
+    def write_json(
+        self,
+        path: str,
+        *,
+        mode: str = "overwrite",
+        rolling_policy_file_size: str = "128mb",
+        rolling_policy_rollover_interval: str = "30min",
+        rolling_policy_check_interval: Optional[str] = None,
+        partition_commit_trigger: str = "process-time",
+        partition_commit_delay: str = "0s",
+        partition_commit_policy_kind: Optional[str] = None,
+        format_options: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """
+        Write newline-delimited JSON files using Flink's filesystem connector.
+
+        The filesystem connector and JSON format must be available to Flink. The write
+        is submitted immediately and waits for completion for local or MiniCluster execution.
+        Sink columns are derived from this DataFrame's schema. Overwrite requires batch
+        execution; use ``mode="append"`` for streaming execution.
+
+        :param path: Output directory URI supported by Flink's filesystem implementations.
+        :param mode: ``"overwrite"`` (default) replaces existing data; ``"append"`` adds files.
+        :param rolling_policy_file_size: Maximum part file size, for example ``"128mb"``.
+        :param rolling_policy_rollover_interval: Maximum open time for a part file.
+        :param rolling_policy_check_interval: Optional interval for checking the rolling policy.
+        :param partition_commit_trigger: Partition commit trigger: ``"process-time"`` or
+            ``"partition-time"``.
+        :param partition_commit_delay: Delay before committing a partition.
+        :param partition_commit_policy_kind: Optional comma-separated partition commit policies.
+        :param format_options: JSON format options with string values. Keys may include or omit
+            the ``json.`` prefix, for example ``{"timestamp-format.standard": "ISO-8601"}``.
+        :raises TypeError: If an argument has an invalid type.
+        :raises ValueError: If the path is empty, the write mode is unsupported, or format
+            option keys are invalid or duplicated after adding the ``json.`` prefix.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> events = pf.from_records([(1, "login")], schema=["id", "event"])
+            >>> events.write_json("file:///tmp/events", mode="append")
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.io import _build_filesystem_sink_options
+
+        options = _build_filesystem_sink_options(
+            path,
+            "json",
+            rolling_policy_file_size,
+            rolling_policy_rollover_interval,
+            rolling_policy_check_interval,
+            partition_commit_trigger,
+            partition_commit_delay,
+            partition_commit_policy_kind,
+            format_options,
+        )
+        self._write("filesystem", options, mode)
+
+    @PublicEvolving()
     def write_generic(self, connector: str, *, options: Dict[str, str]) -> None:
         """
         Write this DataFrame using a connector and its raw Table connector options.
@@ -1398,10 +1517,17 @@ class DataFrame:
 
         .. versionadded:: 2.4.0
         """
+        self._write(connector, options)
+
+    def _write(self, connector: str, options: Dict[str, str], mode: str = "append") -> None:
         from pyflink.dataframe.io import _build_generic_descriptor
 
+        if not isinstance(mode, str):
+            raise TypeError("mode must be a string")
+        if mode not in ("append", "overwrite"):
+            raise ValueError("mode must be 'append' or 'overwrite'")
         descriptor = _build_generic_descriptor(connector, options)
-        result = self._table.execute_insert(descriptor)
+        result = self._table.execute_insert(descriptor, overwrite=mode == "overwrite")
         execution_target = self._table._t_env.get_config().get(
             "execution.target", None
         )

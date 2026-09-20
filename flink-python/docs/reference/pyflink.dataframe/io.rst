@@ -33,6 +33,8 @@ Readers
     :toctree: api/
 
     read_generic
+    read_json
+    read_parquet
 
 Writers
 -------
@@ -43,3 +45,39 @@ Writers
     :toctree: api/
 
     DataFrame.write_generic
+    DataFrame.write_json
+    DataFrame.write_parquet
+
+Filesystem sources and sinks
+----------------------------
+
+``read_json`` reads newline-delimited JSON; ``read_parquet`` reads Parquet files.
+Both readers require an explicit schema and use the existing filesystem connector.
+They read existing files once unless ``monitor_interval`` is set to discover new files
+continuously. ``path_regex_pattern`` optionally filters the source file paths.
+The connector and format JARs must be available to Flink. Parquet also requires
+Hadoop libraries on the classpath, which can be provided through ``HADOOP_CLASSPATH``.
+
+For example, convert JSON records to compressed Parquet files::
+
+    import pyflink.dataframe as pf
+
+    pf.config.set("execution.runtime-mode", "batch")
+    events = pf.read_json(
+        "file:///tmp/events.json",
+        schema={"id": pf.DataType.int64(), "event": pf.DataType.string()},
+        format_options={"ignore-parse-errors": "true"},
+    )
+    events.write_parquet("file:///tmp/events-parquet", compression="GZIP")
+
+The writers default to ``mode="overwrite"`` and replace existing output data through
+Flink's filesystem sink. Use ``mode="append"`` to retain existing files. Overwrite is
+supported only in batch execution; streaming execution must use append mode. Configure
+``execution.runtime-mode`` before creating the DataFrame environment. Writes wait
+for completion with local or MiniCluster execution, just like ``write_generic``.
+
+Rolling policy and partition commit parameters map to the corresponding
+``sink.rolling-policy.*`` and ``sink.partition-commit.*`` connector options. Parquet
+``compression`` maps to ``parquet.compression``. JSON ``format_options`` accepts string
+keys and values, with or without the ``json.`` prefix; specifying the same option in
+both forms is rejected. These options do not override the filesystem path or format.
