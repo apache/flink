@@ -40,7 +40,7 @@ Use :func:`pyflink.dataframe.udtf` to declare a Python function that emits zero 
 more rows per invocation. A table UDF can be used with
 :meth:`~pyflink.dataframe.DataFrame.flat_map`, which returns only the emitted columns.
 
-DataFrame table UDFs support synchronous functions, callable instances, and
+DataFrame table UDFs support synchronous functions, callable classes and instances, and
 ``TableFunction`` instances or classes. See :func:`pyflink.dataframe.udtf` for
 declaration forms, type inference, lifecycle, and examples, and
 :meth:`~pyflink.dataframe.DataFrame.flat_map` for row input and output semantics.

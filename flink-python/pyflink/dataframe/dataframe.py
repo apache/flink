@@ -26,6 +26,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     TypeVar,
     Union,
     overload,
@@ -135,57 +136,6 @@ class DataFrame:
 
     def __init__(self, table: Table):
         self._table = table
-
-    @PublicEvolving()
-    def flat_map(
-        self,
-        func: Union[Callable[[Dict[str, Any]], Any], "_DataFrameUDTFWrapper"],
-        *,
-        return_dtype: Optional["_DataTypeLike"] = None,
-    ) -> "DataFrame":
-        """
-        Apply a function to each row, emitting zero or more output rows.
-
-        A plain callable receives a dictionary keyed by column name. A declaration
-        created with :func:`pyflink.dataframe.udtf` receives a named Flink ``Row``.
-        Output column names come from a ``TypedDict`` or an explicit named struct;
-        scalar outputs use ``f0``. Multi-field outputs require named fields.
-
-        :param func: Row-based callable or a declaration created with ``pf.udtf``.
-        :param return_dtype: Emitted row type, inferred from annotations when omitted.
-                             Required if inference is not possible; must be omitted
-                             for a UDTF declaration.
-        :return: A DataFrame containing only the emitted output columns.
-
-        Example::
-
-            >>> from typing import Any, Dict, Iterator, TypedDict
-            >>> import pyflink.dataframe as pf
-            >>> class Token(TypedDict):
-            ...     word: str
-            >>> def split(row: Dict[str, Any]) -> Iterator[Token]:
-            ...     for word in row["text"].split():
-            ...         yield {"word": word}
-            >>> df = pf.from_dict({"text": ["hello world", "flink"]})
-            >>> result = df.flat_map(split)
-
-        A reusable UDTF declaration receives a named ``Row``::
-
-            >>> from pyflink.common import Row
-            >>> @pf.udtf
-            ... def split_row(row: Row) -> Iterator[Token]:
-            ...     for word in row["text"].split():
-            ...         yield {"word": word}
-            >>> result = df.flat_map(split_row)
-
-        .. versionadded:: 2.4.0
-        """
-        from pyflink.dataframe.udtf import _resolve_flat_map_udtf
-
-        expression, output_columns = _resolve_flat_map_udtf(func, return_dtype, self.columns)
-        table = self._table.flat_map(expression)
-        # Table UDTFs expose positional field names, so restore the declared names.
-        return DataFrame(table.alias(output_columns[0], *output_columns[1:]))
 
     # ======================== Core Operations ========================
 
@@ -674,6 +624,72 @@ class DataFrame:
 
     distinct = drop_duplicates
     unique = drop_duplicates
+
+    @PublicEvolving()
+    def flat_map(
+        self,
+        func: Union[Callable[[Dict[str, Any]], Any], Type, "_DataFrameUDTFWrapper"],
+        *,
+        return_dtype: Optional["_DataTypeLike"] = None,
+    ) -> "DataFrame":
+        """
+        Apply a function to each row, emitting zero or more output rows.
+
+        The function receives a dictionary keyed by column name, including when
+        declared with :func:`pyflink.dataframe.udtf`.
+        Output column names come from a ``TypedDict`` or an explicit named struct;
+        scalar outputs use ``f0``. Multi-field outputs require named fields.
+
+        :param func: Row-based callable, a callable class with a zero-argument constructor,
+                     or a declaration created with ``pf.udtf``. Callable classes are
+                     instantiated on workers.
+        :param return_dtype: Emitted row type, inferred from annotations when omitted.
+                             Required if inference is not possible; must be omitted
+                             for a UDTF declaration.
+        :return: A DataFrame containing only the emitted output columns.
+
+        Example::
+
+            >>> from typing import Any, Dict, Iterator, TypedDict
+            >>> import pyflink.dataframe as pf
+            >>> class Token(TypedDict):
+            ...     word: str
+            >>> def split(row: Dict[str, Any]) -> Iterator[Token]:
+            ...     for word in row["text"].split():
+            ...         yield {"word": word}
+            >>> df = pf.from_dict({"text": ["hello world", "flink"]})
+            >>> result = df.flat_map(split)
+            >>> result.columns
+            ['word']
+
+        A reusable UDTF declaration receives the same dictionary input::
+
+            >>> @pf.udtf
+            ... def split_row(row: Dict[str, Any]) -> Iterator[Token]:
+            ...     for word in row["text"].split():
+            ...         yield {"word": word}
+            >>> result = df.flat_map(split_row)
+
+        An explicit output type can be supplied for unannotated callables::
+
+            >>> words = df.flat_map(lambda row: row["text"].split(), return_dtype=str)
+            >>> words.columns
+            ['f0']
+            >>> named = df.flat_map(
+            ...     lambda row: row["text"].split(), return_dtype="ROW<word STRING>")
+            >>> named.columns
+            ['word']
+
+        See :func:`pyflink.dataframe.udtf` for callable class and ``TableFunction`` examples.
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.udtf import _resolve_flat_map_udtf
+
+        expression, output_columns = _resolve_flat_map_udtf(func, return_dtype, self.columns)
+        table = self._table.flat_map(expression)
+        # Table UDTFs expose positional field names, so restore the declared names.
+        return DataFrame(table.alias(output_columns[0], *output_columns[1:]))
 
     # ======================== Filtering & Ordering ========================
 

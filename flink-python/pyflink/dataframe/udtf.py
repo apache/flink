@@ -19,6 +19,7 @@
 """User-defined table functions for the DataFrame API."""
 
 import collections.abc
+import functools
 import inspect
 import types
 from dataclasses import dataclass
@@ -37,8 +38,10 @@ from pyflink.dataframe.udf import (
     _create_declaration_context,
     _create_result_normalizer,
     _data_type_from_type_hint,
+    _get_callable_inspection_target,
     _get_callable_return_type_hint,
     _is_typed_dict,
+    _preserves_method_binding,
     _resolve_callable_annotation,
     _resolve_udf,
     _validate_determinism_agreement,
@@ -46,7 +49,7 @@ from pyflink.dataframe.udf import (
 )
 from pyflink.table.expression import Expression
 from pyflink.table.expressions import col, with_columns
-from pyflink.table.types import RowType
+from pyflink.table.types import RowType, _to_java_data_type
 from pyflink.table.udf import (
     TableFunction,
     UserDefinedFunction,
@@ -57,7 +60,7 @@ from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["udtf"]
 
-_UDTFInput = Union[Callable[..., Any], TableFunction, Type[TableFunction]]
+_UDTFInput = Union[Callable[..., Any], TableFunction, Type]
 
 
 @dataclass(frozen=True)
@@ -83,7 +86,7 @@ class _DataFrameUDTFCall:
 
 @dataclass(frozen=True)
 class _DataFrameUDTFWrapper:
-    _func: Union[Callable[..., Any], TableFunction]
+    _func: _UDTFInput
     _declaration_context: _UDFDeclarationContext
     return_dtype: DataType
     _has_named_fields: bool
@@ -100,18 +103,22 @@ class _DataFrameUDTFWrapper:
         )
 
     def _create_table_wrapper(
-        self, input_columns: Optional[Tuple[str, ...]] = None, *, input_as_dict: bool = False
+        self, input_columns: Optional[Tuple[str, ...]] = None, *,
+        preserve_field_names: bool = False,
     ) -> UserDefinedTableFunctionWrapper:
         """Keep Table's mutable row-input flag local to each use of this declaration."""
+        result_types = self.return_dtype._to_table_data_type()
+        if preserve_field_names and isinstance(result_types, RowType):
+            # Table's RowType path drops field names; its SQL type declaration preserves them.
+            result_types = _to_java_data_type(result_types).getLogicalType().asSerializableString()
         return cast(UserDefinedTableFunctionWrapper, table_udtf(
             _DataFrameTableFunctionAdapter(
                 self._func,
                 self.return_dtype,
                 self._deterministic,
                 input_columns,
-                input_as_dict,
             ),
-            result_types=self.return_dtype._to_table_data_type(),
+            result_types=result_types,
             deterministic=self._deterministic,
             name=self._name,
         ))
@@ -150,34 +157,58 @@ def udtf(
     """
     Declare a synchronous function that emits zero or more rows per invocation.
 
-    Supports functions, callable instances, and ``TableFunction`` instances or
-    classes with a zero-argument constructor. Classes are instantiated on the client
-    when declared. The resulting or explicitly provided instance is serialized with
-    the job. ``TableFunction.open`` and
-    ``close`` run on workers, making ``open`` suitable for resource initialization.
+    Supports functions, callable classes and instances, and ``TableFunction``
+    classes and instances. Classes must have a zero-argument constructor. Plain
+    callable classes are instantiated on workers, as with :func:`pyflink.dataframe.udf`.
+    ``TableFunction`` classes are instantiated on the client when declared;
+    their ``open`` and ``close`` methods run on workers. Explicitly provided
+    instances are serialized with the job.
 
     The output type may be explicit or inferred from ``Iterator[T]``, ``Iterable[T]``,
     ``Generator[T, ...]``, or ``list[T]``. A ``TypedDict`` supplies output field names.
     Return ``None`` for no rows, a list/generator for multiple rows, or a scalar,
     tuple, ``Row``, or dict for one row. Nested output values follow scalar UDF rules.
 
-    A declaration passed to :meth:`DataFrame.flat_map` receives a named Flink ``Row``;
-    an undecorated callable passed to that method receives a column-name dictionary.
+    When used with :meth:`DataFrame.flat_map`, the function receives a dictionary
+    keyed by input column name. Expression and SQL calls pass the specified arguments.
 
     Example::
 
-        >>> from typing import Iterator, TypedDict
+        >>> from typing import Any, Dict, Iterator, TypedDict
         >>> import pyflink.dataframe as pf
-        >>> from pyflink.common import Row
         >>> class Output(TypedDict):
         ...     value: int
         >>> @pf.udtf
-        ... def expand(row: Row) -> Iterator[Output]:
+        ... def expand(row: Dict[str, Any]) -> Iterator[Output]:
         ...     yield {"value": row["x"]}
         ...     yield {"value": row["x"] + 1}
         >>> result = pf.from_dict({"x": [1, 2]}).flat_map(expand)
 
-    :param func: Function, callable instance, or ``TableFunction`` instance/class.
+    Callable classes and instances::
+
+        >>> class Repeat:
+        ...     def __call__(self, row: Dict[str, Any]) -> Iterator[int]:
+        ...         yield row["x"]
+        ...         yield row["x"]
+        >>> df = pf.from_dict({"x": [1, 2]})
+        >>> result = df.flat_map(Repeat)
+        >>> result = df.flat_map(pf.udtf(Repeat))
+        >>> result = df.flat_map(pf.udtf(Repeat()))
+        >>> result.columns
+        ['f0']
+
+    ``TableFunction`` classes can initialize worker resources in ``open``::
+
+        >>> from pyflink.table.udf import TableFunction
+        >>> class Expand(TableFunction):
+        ...     def open(self, context):
+        ...         self.offset = 1
+        ...     def eval(self, row: Dict[str, Any]) -> Iterator[int]:
+        ...         yield row["x"] + self.offset
+        >>> result = df.flat_map(pf.udtf(Expand))
+        >>> result = df.flat_map(pf.udtf(Expand()))
+
+    :param func: Function, callable class/instance, or ``TableFunction`` class/instance.
     :param return_dtype: Emitted row type, as a DataFrame DataType, Python type,
                          or SQL type string. Inferred from annotations when omitted.
     :param deterministic: Whether equal inputs produce equal results; must agree
@@ -202,10 +233,8 @@ def udtf(
 
 def _resolve_udtf(
     func: _UDTFInput,
-) -> Tuple[Union[Callable[..., Any], TableFunction], _UDFDeclarationContext]:
-    if inspect.isclass(func):
-        if not issubclass(func, TableFunction):
-            raise TypeError("UDTF classes must extend TableFunction; pass a callable instance.")
+) -> Tuple[_UDTFInput, _UDFDeclarationContext]:
+    if inspect.isclass(func) and issubclass(func, TableFunction):
         _validate_zero_argument_class(func)
         func = func()
         if not isinstance(func, TableFunction):
@@ -215,7 +244,9 @@ def _resolve_udtf(
             raise TypeError("TableFunction.eval must be callable.")
         context = _create_declaration_context(func.eval, partial_source=func.eval)
     else:
-        if isinstance(func, UserDefinedFunction):
+        if isinstance(func, UserDefinedFunction) or (
+            inspect.isclass(func) and issubclass(func, UserDefinedFunction)
+        ):
             raise TypeError("func must be a table UDF or a Python callable.")
         context = _resolve_udf(func).declaration_context
     target = context.annotation_target
@@ -266,17 +297,36 @@ def _infer_udtf_return_dtype(
     return dtype, has_named_fields
 
 
-def _validate_flat_map_input(declaration: _DataFrameUDTFWrapper, raw_callable: bool) -> None:
+def _validate_flat_map_input(declaration: _DataFrameUDTFWrapper) -> None:
     source = declaration._func
     target: Callable[..., Any]
-    if isinstance(source, TableFunction):
+    if inspect.isclass(source):
+        target = declaration._declaration_context.annotation_target
+    elif isinstance(source, TableFunction):
         target = source.eval
-    else:
+    elif isinstance(source, functools.partial):
         target = source
+    else:
+        target = _get_callable_inspection_target(source)
+    if inspect.ismethod(target) and hasattr(target, "__wrapped__") and not (
+        _preserves_method_binding(target, declaration._declaration_context.defining_class)
+    ):
+        target = target.__func__
     try:
         signature = inspect.signature(target)
     except (TypeError, ValueError):
         return
+    if inspect.isclass(source):
+        descriptor = inspect.getattr_static(source, "__call__")
+        binds_receiver = not isinstance(descriptor, staticmethod)
+        if hasattr(target, "__wrapped__"):
+            binds_receiver = binds_receiver and _preserves_method_binding(
+                target, declaration._declaration_context.defining_class)
+        parameters = list(signature.parameters.values())
+        if binds_receiver and parameters and parameters[0].kind in (
+            inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD
+        ):
+            signature = signature.replace(parameters=parameters[1:])
     parameters = list(signature.parameters.values())
     try:
         signature.bind(object())
@@ -288,37 +338,33 @@ def _validate_flat_map_input(declaration: _DataFrameUDTFWrapper, raw_callable: b
     if not positional:
         return
     hint = _resolve_callable_annotation(declaration._declaration_context, positional[0].name)
-    if not _is_flat_map_row_hint(hint, raw_callable):
-        row_type = "dict" if raw_callable else "Row"
-        raise ValueError(f"flat_map receives one {row_type} row argument, got annotation {hint}.")
+    if not _is_flat_map_row_hint(hint):
+        raise ValueError(f"flat_map receives one dict row argument, got annotation {hint}.")
 
 
-def _is_flat_map_row_hint(hint: Any, raw_callable: bool) -> bool:
+def _is_flat_map_row_hint(hint: Any) -> bool:
     if hint in (_UNRESOLVED_TYPE_HINT, Any, object):
         return True
     origin = get_origin(hint)
     if origin is Annotated:
-        return _is_flat_map_row_hint(get_args(hint)[0], raw_callable)
+        return _is_flat_map_row_hint(get_args(hint)[0])
     if origin in (Union, getattr(types, "UnionType", Union)):
-        return any(_is_flat_map_row_hint(member, raw_callable) for member in get_args(hint))
+        return any(_is_flat_map_row_hint(member) for member in get_args(hint))
     if _is_typed_dict(hint):
-        return raw_callable
-    target = origin or hint
-    if not raw_callable and target is tuple:
         return True
+    target = origin or hint
     try:
-        return issubclass(dict if raw_callable else Row, target)
+        return issubclass(dict, target)
     except TypeError:
         # Leave annotations that cannot be checked at runtime to the user's type checker.
         return True
 
 
 def _resolve_flat_map_udtf(
-    func: Union[Callable[..., Any], _DataFrameUDTFWrapper],
+    func: Union[Callable[..., Any], Type, _DataFrameUDTFWrapper],
     return_dtype: Optional[_DataTypeLike],
     input_columns: List[str],
 ) -> Tuple[Expression, List[str]]:
-    raw_callable = not isinstance(func, _DataFrameUDTFWrapper)
     if isinstance(func, _DataFrameUDTFWrapper):
         if return_dtype is not None:
             raise ValueError("return_dtype must not be specified for a DataFrame UDTF declaration.")
@@ -326,10 +372,12 @@ def _resolve_flat_map_udtf(
     else:
         if func is None:
             raise TypeError("flat_map requires a callable or a pf.udtf declaration.")
-        if inspect.isclass(func) or isinstance(func, UserDefinedFunction):
-            raise TypeError("flat_map accepts a callable instance or a pf.udtf declaration.")
+        if isinstance(func, UserDefinedFunction) or (
+            inspect.isclass(func) and issubclass(func, UserDefinedFunction)
+        ):
+            raise TypeError("flat_map accepts Python callables or a pf.udtf declaration.")
         declaration = udtf(func, return_dtype=return_dtype)
-    _validate_flat_map_input(declaration, raw_callable)
+    _validate_flat_map_input(declaration)
     table_type = declaration.return_dtype._to_table_data_type()
     if declaration._has_named_fields:
         output_columns = cast(RowType, table_type).field_names()
@@ -337,7 +385,7 @@ def _resolve_flat_map_udtf(
         raise ValueError("flat_map requires named output fields; use TypedDict or a named struct.")
     else:
         output_columns = ["f0"]
-    wrapper = declaration._create_table_wrapper(tuple(input_columns), input_as_dict=raw_callable)
+    wrapper = declaration._create_table_wrapper(tuple(input_columns))
     wrapper._set_takes_row_as_input()
     return wrapper(with_columns(col("*"))), output_columns
 
@@ -356,17 +404,15 @@ def _iter_user_results(result: Any) -> Iterator[Any]:
 class _DataFrameTableFunctionAdapter(TableFunction):
     def __init__(
         self,
-        func: Union[Callable[..., Any], TableFunction],
+        func: _UDTFInput,
         return_dtype: DataType,
         deterministic: bool,
         input_columns: Optional[Tuple[str, ...]],
-        input_as_dict: bool,
     ) -> None:
         self._func = func
         self._return_dtype = return_dtype
         self._deterministic = deterministic
         self._input_columns = input_columns
-        self._input_as_dict = input_as_dict
         self._bound_invocation: Optional[Callable[..., Any]] = None
         self._lifecycle_opened = False
         self.__name__ = getattr(func, "__name__", type(func).__name__)
@@ -377,7 +423,9 @@ class _DataFrameTableFunctionAdapter(TableFunction):
             self._lifecycle_opened = True
             invoke_func = self._func.eval
         else:
-            invoke_func = self._func
+            invoke_func = self._func() if inspect.isclass(self._func) else self._func
+            if not callable(invoke_func):
+                raise TypeError("UDTF class must construct a callable instance.")
         try:
             self._bound_invocation = self._bind_func(invoke_func)
         except Exception:
@@ -410,15 +458,7 @@ class _DataFrameTableFunctionAdapter(TableFunction):
         def invoke(*args: Any) -> Iterator[Row]:
             if input_columns is not None:
                 input_row = args[0]
-                row: Union[dict, Row]
-                if self._input_as_dict:
-                    row = {name: input_row[i] for i, name in enumerate(input_columns)}
-                else:
-                    # Thread mode supplies a tuple; expose the same named Row in both modes.
-                    row = Row(*input_row)
-                    row.set_field_names(input_columns)
-                    if isinstance(input_row, Row):
-                        row.set_row_kind(input_row.get_row_kind())
+                row = {name: input_row[i] for i, name in enumerate(input_columns)}
                 result = invoke_func(row)
             else:
                 result = invoke_func(*args)

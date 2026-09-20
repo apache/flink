@@ -28,7 +28,7 @@ from typing import (
 
 import cloudpickle
 import pyflink.dataframe as pf
-from pyflink.common import Row, RowKind
+from pyflink.common import Row
 from pyflink.dataframe.udtf import _resolve_flat_map_udtf
 from pyflink.table import DataTypes
 from pyflink.table.udf import ScalarFunction, TableFunction
@@ -100,9 +100,15 @@ class DataFrameUDTFDeclarationTests(unittest.TestCase):
             def eval(self, value):
                 return value
 
-        class CallableClass:
+        class NotCallable:
+            pass
+
+        class RequiresCallableArgument:
+            def __init__(self, count):
+                self.count = count
+
             def __call__(self, value):
-                return [value]
+                return [value] * self.count
 
         class RequiresArgument(TableFunction):
             def __init__(self, value):
@@ -111,7 +117,8 @@ class DataFrameUDTFDeclarationTests(unittest.TestCase):
             def eval(self, value):
                 return [value]
 
-        for func in (123, Scalar(), Scalar, CallableClass, RequiresArgument):
+        for func in (123, Scalar(), Scalar, NotCallable,
+                     RequiresCallableArgument, RequiresArgument):
             with self.subTest(func=func), self.assertRaises(TypeError):
                 pf.udtf(func, return_dtype=int)
         for hint in (Iterator, Iterator[Tuple[int, ...]], Iterator[Tuple]):
@@ -140,7 +147,7 @@ class DataFrameUDTFDeclarationTests(unittest.TestCase):
         def hidden_generator(row):
             return generator(row)
 
-        for func in (coroutine, generator, AsyncCallable(), hidden_generator):
+        for func in (coroutine, generator, AsyncCallable, AsyncCallable(), hidden_generator):
             with self.subTest(func=func), self.assertRaisesRegex(TypeError, "async"):
                 pf.udtf(func, return_dtype=int)
 
@@ -320,9 +327,6 @@ class DataFrameUDTFDeclarationTests(unittest.TestCase):
             self.assertEqual(_eval_udtf(pf.udtf(lambda: result, return_dtype=dtype)), expected)
 
     def test_flat_map_validates_row_input_before_building_expression(self):
-        def named(row: Dict[str, Any], optional=0) -> Iterator[int]:
-            yield row["x"] + optional
-
         def column(value: int) -> Iterator[int]:
             yield value
 
@@ -332,7 +336,8 @@ class DataFrameUDTFDeclarationTests(unittest.TestCase):
         def keyword(row, *, required) -> Iterator[int]:
             yield required
 
-        for func in (column, multiple, keyword, pf.udtf(column), pf.udtf(multiple), pf.udtf(named)):
+        for func in (column, multiple, keyword,
+                     pf.udtf(column), pf.udtf(multiple), pf.udtf(keyword)):
             with self.subTest(func=func), self.assertRaisesRegex(ValueError, "row argument"):
                 _resolve_flat_map_udtf(func, None, ["x"])
         with self.assertRaisesRegex(ValueError, "return_dtype"):
@@ -341,7 +346,8 @@ class DataFrameUDTFDeclarationTests(unittest.TestCase):
             _resolve_flat_map_udtf(None, int, ["x"])
 
     def test_incompatible_input_annotations(self):
-        for hint in (Optional[int], Union[int, str], Annotated[int, "column value"]):
+        for hint in (Row, Tuple[int], Optional[int], Union[int, str],
+                     Annotated[int, "column value"]):
             def expand(row) -> Iterator[int]:
                 yield row
             expand.__annotations__["row"] = hint
@@ -350,24 +356,60 @@ class DataFrameUDTFDeclarationTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "row argument"):
                         _resolve_flat_map_udtf(func, None, ["x"])
 
-    def test_flat_map_names_row_without_mutating_input(self):
+    def test_flat_map_passes_dict_without_mutating_input(self):
         received = []
 
         @pf.udtf
-        def expand(row: Row) -> Iterator[int]:
-            received.append(row)
-            yield row["x"]
+        def expand(row: Dict[str, Any]) -> Iterator[int]:
+            received.append(row.copy())
+            yield row.pop("x")
 
         adapter = expand._create_table_wrapper(("z", "x"))._func
         adapter.open(None)
         self.addCleanup(adapter.close)
-        original = Row.of_kind(RowKind.DELETE, original_z=7, original_x=3)
-        for value, kind in (((7, 3), RowKind.INSERT), (original, RowKind.DELETE)):
+        original = Row(original_z=7, original_x=3)
+        for value in ((7, 3), original):
             self.assertEqual(list(adapter.eval(value)), [Row(3)])
-            self.assertIsInstance(received[-1], Row)
-            self.assertEqual(received[-1].as_dict(), {"z": 7, "x": 3})
-            self.assertEqual(received[-1].get_row_kind(), kind)
+            self.assertEqual(received[-1], {"z": 7, "x": 3})
         self.assertEqual(original.as_dict(), {"original_z": 7, "original_x": 3})
+
+    def test_callable_class_initializes_per_worker_adapter(self):
+        events = []
+
+        class Counter:
+            def __init__(self):
+                events.append("init")
+                self.count = 0
+
+            def __call__(self, value: int) -> Iterator[int]:
+                self.count += 1
+                yield value + self.count
+
+        declaration = pf.udtf(Counter)
+        adapters = [declaration._create_table_wrapper()._func for _ in range(2)]
+        self.assertEqual(events, [])
+        for adapter in adapters:
+            adapter.open(None)
+            self.addCleanup(adapter.close)
+            self.assertEqual(list(adapter.eval(10)), [Row(11)])
+            self.assertEqual(list(adapter.eval(10)), [Row(12)])
+        self.assertEqual(events, ["init", "init"])
+        adapters[0].close()
+        with self.assertRaisesRegex(RuntimeError, "before open"):
+            adapters[0].eval(10)
+
+    def test_callable_class_constructor_failure_is_reported_on_worker(self):
+        class FailingConstructor:
+            def __init__(self):
+                raise RuntimeError("constructor failed")
+
+            def __call__(self, value) -> Iterator[int]:
+                yield value
+
+        adapter = pf.udtf(FailingConstructor)._create_table_wrapper()._func
+        with self.assertRaisesRegex(RuntimeError, "constructor failed"):
+            adapter.open(None)
+        adapter.close()
 
 
 class DataFrameUDTFPlanningTests(PyFlinkDataFrameUTTestCase):
@@ -382,14 +424,60 @@ class DataFrameUDTFPlanningTests(PyFlinkDataFrameUTTestCase):
             def expand(row) -> Iterator[int]:
                 yield row["x"]
             expand.__annotations__["row"] = hint
-            with self.subTest(hint=hint):
-                self.assertEqual(source.flat_map(expand).columns, ["f0"])
+            for func in (expand, pf.udtf(expand)):
+                with self.subTest(hint=hint, func=func):
+                    self.assertEqual(source.flat_map(func).columns, ["f0"])
 
-        @pf.udtf
-        def expand_row(row: Optional[Row]) -> Iterator[int]:
-            yield row["x"]
+    def test_callable_class_signatures_and_annotations(self):
+        class Expand:
+            def __call__(self, row: Dict[str, Any], optional=0) -> Iterator[int]:
+                yield row["x"] + optional
 
-        self.assertEqual(source.flat_map(expand_row).columns, ["f0"])
+        class ClassMethod:
+            @classmethod
+            def __call__(cls, row: Dict[str, Any]) -> Iterator[int]:
+                yield row["x"]
+
+        class StaticMethod:
+            @staticmethod
+            def __call__(row: Dict[str, Any]) -> Iterator[int]:
+                yield row["x"]
+
+        class MultipleArguments:
+            def __call__(self, left, right) -> Iterator[int]:
+                yield left + right
+
+        class ColumnArgument:
+            def __call__(self, value: int) -> Iterator[int]:
+                yield value
+
+        source = pf.from_dict({"x": [1]})
+        for cls in (Expand, ClassMethod, StaticMethod):
+            for func in (cls, pf.udtf(cls)):
+                with self.subTest(func=func):
+                    self.assertEqual(source.flat_map(func).columns, ["f0"])
+        for cls in (MultipleArguments, ColumnArgument):
+            for func in (cls, pf.udtf(cls)):
+                with self.subTest(func=func), self.assertRaisesRegex(ValueError, "row argument"):
+                    source.flat_map(func)
+
+    def test_wrapped_static_method_still_validates_input_annotations(self):
+        def transparent(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                return func(*args, **kwargs)
+            return wrapper
+
+        class Expand:
+            @staticmethod
+            @transparent
+            def __call__(value: int) -> Iterator[int]:
+                yield value
+
+        source = pf.from_dict({"x": [1]})
+        for func in (Expand, pf.udtf(Expand), Expand(), pf.udtf(Expand())):
+            with self.subTest(func=func), self.assertRaisesRegex(ValueError, "dict row argument"):
+                source.flat_map(func)
 
     def test_unnamed_multiple_fields_require_schema(self):
         def emit(row) -> Iterator[Tuple[int, str]]:
@@ -424,8 +512,8 @@ class DataFrameUDTFPlanningTests(PyFlinkDataFrameUTTestCase):
             def __init__(self):
                 events.append("init")
 
-            def eval(self, row: Row) -> Iterator[int]:
-                yield row[0]
+            def eval(self, row: Dict[str, Any]) -> Iterator[int]:
+                yield next(iter(row.values()))
 
         declaration = pf.udtf(Expand)
         self.assertEqual(events, ["init"])
@@ -459,23 +547,27 @@ class _DataFrameFlatMapTests:
         rows = result.filter(pf.col("value") >= 0).select("label", "value").collect()
         self.assertCountEqual(rows, [Row("a", 0), Row("b", 0), Row("b", 1)])
 
-    def test_wrapper_receives_named_row(self):
-        @pf.udtf(return_dtype=pf.DataType.struct({
-            "is_row": pf.DataType.bool(),
+    def test_plain_and_decorated_functions_receive_dict(self):
+        dtype = pf.DataType.struct({
+            "is_dict": pf.DataType.bool(),
             "first": pf.DataType.int64(),
             "by_name": pf.DataType.int64(),
-            "as_dict_value": pf.DataType.int64(),
-        }))
-        def expand(row: Row):
-            yield isinstance(row, Row), row[0], row["x"], row.as_dict()["z"]
+        })
+
+        def expand(row: Dict[str, Any]):
+            yield isinstance(row, dict), next(iter(row.values())), row["x"]
 
         source = pf.from_records([(7, 3)], schema=["z", "x"])
-        self.assertEqual(source.flat_map(expand).collect(), [Row(True, 7, 3, 7)])
+        plain = source.flat_map(expand, return_dtype=dtype)
+        decorated = source.flat_map(pf.udtf(expand, return_dtype=dtype))
+        self.assertEqual(plain.columns, ["is_dict", "first", "by_name"])
+        self.assertEqual(decorated.columns, plain.columns)
+        self.assertEqual(plain.union_all(decorated).collect(), [Row(True, 7, 3)] * 2)
 
     def test_wrapper_row_input_reuse_and_column_calls(self):
         @pf.udtf
         def expand(value) -> Iterator[int]:
-            value = value[0] if isinstance(value, Row) else value
+            value = next(iter(value.values())) if isinstance(value, dict) else value
             yield value
             yield value + 1
 
@@ -491,7 +583,7 @@ class _DataFrameFlatMapTests:
             combined = combined.union_all(lateral)
         self.assertCountEqual(combined.collect(), [Row(1), Row(2)] * 3 + [Row(3), Row(4)])
 
-    def test_table_function_and_callable_instance(self):
+    def test_table_function_and_callable_classes_and_instances(self):
         client_pid = os.getpid()
 
         class Expand(TableFunction):
@@ -501,10 +593,10 @@ class _DataFrameFlatMapTests:
             def open(self, context):
                 self.offset = 10
 
-            def eval(self, row: Row) -> Iterator[int]:
+            def eval(self, row: Dict[str, Any]) -> Iterator[int]:
                 if self.constructor_pid != client_pid:
                     raise AssertionError("TableFunction must be constructed on the client")
-                yield row[0] + self.offset
+                yield row["x"] + self.offset
 
         class Repeat:
             def __call__(self, row: Dict[str, Any]) -> Iterator[int]:
@@ -514,9 +606,57 @@ class _DataFrameFlatMapTests:
         source = pf.from_dict({"x": [1]})
         first = source.flat_map(pf.udtf(Expand))
         second = source.flat_map(pf.udtf(Expand()))
-        third = source.flat_map(Repeat())
-        self.assertCountEqual(first.union_all(second).union_all(third).collect(),
-                              [Row(11), Row(11), Row(1), Row(1)])
+        combined = first.union_all(second)
+        for func in (Repeat, Repeat(), pf.udtf(Repeat), pf.udtf(Repeat())):
+            combined = combined.union_all(source.flat_map(func))
+        self.assertCountEqual(combined.collect(), [Row(11)] * 2 + [Row(1)] * 8)
+
+    def test_wrapped_callable_class_methods(self):
+        def transparent(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                return func(*args, **kwargs)
+            return wrapper
+
+        class InstanceMethod:
+            @transparent
+            def __call__(self, row: Dict[str, Any]) -> Iterator[int]:
+                yield row["x"]
+
+        class StaticMethod:
+            @staticmethod
+            @transparent
+            def __call__(row: Dict[str, Any]) -> Iterator[int]:
+                yield row["x"]
+
+        class ClassMethod:
+            @classmethod
+            @transparent
+            def __call__(cls, row: Dict[str, Any]) -> Iterator[int]:
+                yield row["x"]
+
+        class InheritedStaticMethod(StaticMethod):
+            pass
+
+        def expand(row: Dict[str, Any]) -> Iterator[int]:
+            yield row["x"]
+
+        class WrappedFunction:
+            @functools.wraps(expand)
+            def __call__(self, *args, **kwargs):
+                return expand(*args, **kwargs)
+
+        source = pf.from_dict({"x": [1]})
+        combined = None
+        for cls in (InstanceMethod, StaticMethod, ClassMethod,
+                    InheritedStaticMethod, WrappedFunction):
+            self.assertEqual(list(cls()({"x": 1})), [1])
+            for func in (cls(), pf.udtf(cls())):
+                self.assertEqual(source.flat_map(func).columns, ["f0"])
+            for func in (cls, pf.udtf(cls)):
+                result = source.flat_map(func)
+                combined = result if combined is None else combined.union_all(result)
+        self.assertCountEqual(combined.collect(), [Row(1)] * 10)
 
     def test_nested_values_and_nulls(self):
         dtype = pf.DataType.struct({
