@@ -46,6 +46,11 @@ public interface JoinRecordAsyncStateView {
     /** Retract the record from the state view. */
     StateFuture<Void> retractRecord(RowData record);
 
+    /**
+     * Returns true if the state view already holds a record that {@link #addRecord} would replace
+     */
+    StateFuture<Boolean> containsRecord(RowData record);
+
     /** Find all the records matched the condition under the current context (i.e. join key). */
     StateFuture<List<OuterRecord>> findMatchedRecords(Function<RowData, Boolean> condition);
 }

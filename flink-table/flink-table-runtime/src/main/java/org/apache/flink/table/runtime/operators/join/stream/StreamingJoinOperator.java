@@ -151,13 +151,14 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      *
      * <pre>
      * if input record is accumulate
+     * |  replaces = other side is outer AND the input side's state already holds this record
      * |  if input side is outer
      * |  |  if there is no matched rows on the other side, send +I[record+null], state.add(record, 0)
      * |  |  if there are matched rows on the other side
      * |  |  | if other side is outer
      * |  |  | |  if the matched num in the matched rows == 0, send -D[null+other]
      * |  |  | |  if the matched num in the matched rows > 0, skip
-     * |  |  | |  otherState.update(other, old + 1)
+     * |  |  | |  if not replaces or the matched num == 0, otherState.update(other, old + 1)
      * |  |  | endif
      * |  |  | send +I[record+other]s, state.add(record, other.size)
      * |  |  endif
@@ -169,7 +170,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      * |  |  |  if other side is outer
      * |  |  |  |  if the matched num in the matched rows == 0, send -D[null+other]
      * |  |  |  |  if the matched num in the matched rows > 0, skip
-     * |  |  |  |  otherState.update(other, old + 1)
+     * |  |  |  |  if not replaces or the matched num == 0, otherState.update(other, old + 1)
      * |  |  |  |  send +I[record+other]s
      * |  |  |  else
      * |  |  |  |  send +I/+U[record+other]s (using input RowKind)
@@ -215,6 +216,8 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
         if (isAccumulateMsg) { // record is accumulate
+            final boolean replacesRecordInState =
+                    otherIsOuter && replacesRecordInState(inputSideStateView, inputIsLeft, input);
             if (inputIsOuter) { // input side is outer
                 Iterator<OuterRecord> associatedRecords =
                         AbstractStreamingJoinOperator.iterator(
@@ -239,9 +242,12 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                                 outputNullPadding(other, !inputIsLeft);
                             } // ignore matched number > 0
                             // otherState.update(other, old + 1)
-                            ((OuterJoinRecordStateView) otherSideStateView)
-                                    .updateNumOfAssociations(
-                                            other, outerRecord.numOfAssociations + 1);
+                            if (!replacesRecordInState
+                                    || outerRecord.numOfAssociations == 0) { // new associaiton
+                                ((OuterJoinRecordStateView) otherSideStateView)
+                                        .updateNumOfAssociations(
+                                                other, outerRecord.numOfAssociations + 1);
+                            }
                         }
                         // send +I[record+other]s
                         outRow.setRowKind(RowKind.INSERT);
@@ -271,8 +277,11 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                                 outputNullPadding(outerRecord.record, !inputIsLeft);
                             }
                             // otherState.update(other, old + 1)
-                            otherSideOuterStateView.updateNumOfAssociations(
-                                    outerRecord.record, outerRecord.numOfAssociations + 1);
+                            if (!replacesRecordInState
+                                    || outerRecord.numOfAssociations == 0) { // new association
+                                otherSideOuterStateView.updateNumOfAssociations(
+                                        outerRecord.record, outerRecord.numOfAssociations + 1);
+                            }
                             // send +I[record+other]s
                             outRow.setRowKind(RowKind.INSERT);
                             output(input, outerRecord.record, inputIsLeft);
@@ -333,6 +342,21 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
     }
 
     // -------------------------------------------------------------------------------------
+
+    // returns true if the input is a replacing change
+    private boolean replacesRecordInState(
+            JoinRecordStateView inputSideStateView, boolean inputIsLeft, RowData input)
+            throws Exception {
+        final JoinInputSideSpec inputSideSpec =
+                inputIsLeft ? leftInputSideSpec : rightInputSideSpec;
+        if (inputSideSpec.joinKeyContainsUniqueKey()) {
+            return true;
+        }
+        if (inputSideSpec.hasUniqueKey()) {
+            return inputSideStateView.containsRecord(input);
+        }
+        return false;
+    }
 
     private void output(RowData inputRow, RowData otherRow, boolean inputIsLeft) {
         if (inputIsLeft) {

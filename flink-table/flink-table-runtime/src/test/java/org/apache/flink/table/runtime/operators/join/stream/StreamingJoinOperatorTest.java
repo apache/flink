@@ -547,6 +547,8 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
                         "LineOrd#1",
                         "TRUCK"));
 
+        // LineOrd#2 was updated above, which replaced the record instead of adding a second
+        // association, so deleting it leaves Ord#1 unmatched and the null-padded row comes back
         testHarness.setStateTtlProcessingTime(8001);
         testHarness.processElement2(deleteRecord("LineOrd#2", "SHIP"));
         assertor.shouldEmit(
@@ -557,7 +559,14 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
                         "LineOrd#2",
                         "68 Manor Station Street, Honolulu, HI 96815",
                         "LineOrd#2",
-                        "SHIP"));
+                        "SHIP"),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#2",
+                        "68 Manor Station Street, Honolulu, HI 96815",
+                        null,
+                        null));
     }
 
     /**

@@ -114,6 +114,11 @@ public final class OuterJoinRecordAsyncStateViews {
         }
 
         @Override
+        public StateFuture<Boolean> containsRecord(RowData record) {
+            return recordState.asyncValue().thenApply(v -> v != null);
+        }
+
+        @Override
         public StateFuture<List<OuterRecord>> findMatchedRecordsAndNumOfAssociations(
                 Function<RowData, Boolean> condition) {
             return recordState
@@ -187,6 +192,13 @@ public final class OuterJoinRecordAsyncStateViews {
                                 RowData uniqueKey = uniqueKeySelector.getKey(record);
                                 return recordState.asyncRemove(uniqueKey);
                             });
+        }
+
+        @Override
+        public StateFuture<Boolean> containsRecord(RowData record) {
+            return StateFutureUtils.completedVoidFuture()
+                    .thenCompose(
+                            VOID -> recordState.asyncContains(uniqueKeySelector.getKey(record)));
         }
 
         @Override
@@ -277,6 +289,11 @@ public final class OuterJoinRecordAsyncStateViews {
                                 }
                                 return StateFutureUtils.completedVoidFuture();
                             });
+        }
+
+        @Override
+        public StateFuture<Boolean> containsRecord(RowData record) {
+            return recordState.asyncContains(record);
         }
 
         @Override
