@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -1762,6 +1763,114 @@ public class TypeExtractorTest {
                 TypeExtractor.getMapReturnTypes(
                         new MyQueryableMapper<Integer>(), BasicTypeInfo.STRING_TYPE_INFO);
         assertThat(ti).isEqualTo(BasicTypeInfo.INT_TYPE_INFO);
+    }
+
+    @Test
+    void testAggregateFunctionAccumulatorWithResultTypeQueryable() {
+        assertThat(
+                        TypeExtractor.getAggregateFunctionAccumulatorType(
+                                new QueryableAggregateFunction(), Types.STRING, "aggregate", false))
+                .isEqualTo(Types.LONG);
+    }
+
+    @Test
+    void testAggregateFunctionResultWithResultTypeQueryable() {
+        assertThat(
+                        TypeExtractor.getAggregateFunctionReturnType(
+                                new QueryableAggregateFunction(), Types.STRING, "aggregate", false))
+                .isEqualTo(Types.ROW(Types.LONG));
+    }
+
+    @Test
+    void testAggregateFunctionAccumulatorInferenceWithResultTypeQueryable() {
+        assertThat(
+                        TypeExtractor.getAggregateFunctionAccumulatorType(
+                                new QueryableGenericAggregateFunction<Long>(),
+                                Types.LONG,
+                                "aggregate",
+                                false))
+                .isEqualTo(Types.LONG);
+    }
+
+    @Test
+    void testAggregateFunctionMissingAccumulatorWithResultTypeQueryable() {
+        assertThat(
+                        TypeExtractor.getAggregateFunctionAccumulatorType(
+                                new QueryableGenericAggregateFunction<Long>(),
+                                null,
+                                "aggregate",
+                                true))
+                .isInstanceOf(MissingTypeInfo.class);
+    }
+
+    @Test
+    void testAggregateFunctionInvalidAccumulatorWithResultTypeQueryable() {
+        assertThatThrownBy(
+                        () ->
+                                TypeExtractor.getAggregateFunctionAccumulatorType(
+                                        new QueryableGenericAggregateFunction<Long>(),
+                                        null,
+                                        "aggregate",
+                                        false))
+                .isInstanceOf(InvalidTypesException.class);
+    }
+
+    private static class QueryableAggregateFunction
+            implements AggregateFunction<String, Long, Row>, ResultTypeQueryable<Row> {
+
+        @Override
+        public Long createAccumulator() {
+            return 0L;
+        }
+
+        @Override
+        public Long add(String value, Long accumulator) {
+            return accumulator + 1;
+        }
+
+        @Override
+        public Row getResult(Long accumulator) {
+            return Row.of(accumulator);
+        }
+
+        @Override
+        public Long merge(Long first, Long second) {
+            return first + second;
+        }
+
+        @Override
+        public TypeInformation<Row> getProducedType() {
+            return Types.ROW(Types.LONG);
+        }
+    }
+
+    private static class QueryableGenericAggregateFunction<T>
+            implements AggregateFunction<T, T, Row>, ResultTypeQueryable<Row> {
+
+        @Override
+        public T createAccumulator() {
+            return null;
+        }
+
+        @Override
+        public T add(T value, T accumulator) {
+            return value;
+        }
+
+        @Override
+        public Row getResult(T accumulator) {
+            return Row.of(accumulator);
+        }
+
+        @Override
+        public T merge(T first, T second) {
+            return first;
+        }
+
+        @Override
+        public TypeInformation<Row> getProducedType() {
+            return Types.ROW(Types.LONG);
+        }
     }
 
     @Test
