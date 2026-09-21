@@ -899,6 +899,28 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   @Test
+  def testConvertTZWithUnrecognizedTimeZone(): Unit = {
+    // an unrecognized zone must not be silently treated as GMT
+    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'asia/shanghai')", nullable)
+    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shang hai')", nullable)
+    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Not/AZone')", nullable)
+    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'Not/AZone', 'UTC')", nullable)
+    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', '')", nullable)
+  }
+
+  @Test
+  def testConvertTZWithOffsetTimeZone(): Unit = {
+    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', '+08:00')", "2018-03-14 19:00:00")
+    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'UTC+08:00')", "2018-03-14 19:00:00")
+    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'GMT+08:00')", "2018-03-14 19:00:00")
+    // the documented forms keep working
+    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'PST')", "2018-03-14 04:00:00")
+    testSqlApi(
+      "CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'America/Los_Angeles')",
+      "2018-03-14 04:00:00")
+  }
+
+  @Test
   def testFromUnixTime(): Unit = {
     val sdf1 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
     val fmt2 = "yyyy-MM-dd HH:mm:ss.SSS"
