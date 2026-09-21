@@ -31,10 +31,13 @@ import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link KubernetesUtils}. */
@@ -227,5 +230,53 @@ class KubernetesUtilsTest extends KubernetesTestBase {
                 Integer.valueOf(fallbackPort));
         assertThat(cfg.get(HighAvailabilityOptions.HA_JOB_MANAGER_PORT_RANGE))
                 .isEqualTo(expectedPort);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "11.0.18",
+                "11.0.18+10",
+                "11.0.18.1+1",
+                "11.0.17+8-LTS",
+                "11.0.11+9",
+                "12.0.2",
+                "15.0.1"
+            })
+    void testCheckJdkHttpClientSupportRejectsJdksWithoutWebSocketFix(String version) {
+        assertThatThrownBy(
+                        () ->
+                                KubernetesUtils.checkJdkHttpClientSupport(
+                                        Runtime.Version.parse(version)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(version)
+                .hasMessageContaining("11.0.19");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "11.0.19",
+                "11.0.19+7",
+                "11.0.19+7-LTS",
+                "11.0.20+8-sapmachine",
+                "11.0.20.8.1",
+                "11.0.29",
+                "16",
+                "17-ea+1-LTS",
+                "17.0.2",
+                "17.0.8.1+1",
+                "21-ea+35-2513",
+                "21.0.2+13-jvmci-23.1-b30",
+                "21.0.4",
+                "22+36-2370",
+                "25"
+            })
+    void testCheckJdkHttpClientSupportAcceptsJdksWithWebSocketFix(String version) {
+        assertThatCode(
+                        () ->
+                                KubernetesUtils.checkJdkHttpClientSupport(
+                                        Runtime.Version.parse(version)))
+                .doesNotThrowAnyException();
     }
 }
