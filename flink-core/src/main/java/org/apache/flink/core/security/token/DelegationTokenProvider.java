@@ -123,7 +123,8 @@ public interface DelegationTokenProvider {
     ObtainedDelegationTokens obtainDelegationTokens() throws Exception;
 
     /**
-     * Called when a job has started, before its tasks are scheduled, with its configuration.
+     * Called with the job's configuration when its JobMaster registers with the ResourceManager.
+     * Re-registration may occur while the job's tasks are running.
      *
      * <p>To get the job's tokens distributed without waiting for the periodic renewal, call {@link
      * DelegationTokenManagerCallback#reobtainDelegationTokens()} on the callback handed to {@link
@@ -139,10 +140,15 @@ public interface DelegationTokenProvider {
      * <p>Must be idempotent: it may be called more than once for the same {@code jobId} (e.g. on
      * JobManager or ResourceManager failover, when the JobMaster re-registers).
      *
-     * <p>Should not throw: a thrown (unchecked) exception or linkage error rejects the job's
-     * registration (the job does not start) and triggers {@link #unregisterJob(JobID)} on all
-     * providers to roll back. Prefer deferring the real fetch to the (retrying) obtain cycle over a
-     * synchronous fetch, so a transient failure does not fail the job.
+     * <p>Should not throw: an unchecked exception or linkage error rejects the current registration
+     * attempt. If the manager does not currently track a successful registration for this job, it
+     * calls {@link #unregisterJob(JobID)} on all providers to attempt rollback. Otherwise, it keeps
+     * the existing registration and does not invoke {@code unregisterJob} for that failure, because
+     * the job's tasks may still be running. Keeping the registration does not undo changes
+     * providers made during the failed attempt.
+     *
+     * <p>Prefer deferring token retrieval to the retrying {@link #obtainDelegationTokens()} cycle
+     * so transient fetch failures do not prevent registration.
      *
      * @param jobId The job id of the job.
      * @param jobConfiguration The job configuration.
@@ -150,11 +156,15 @@ public interface DelegationTokenProvider {
     default void registerJob(JobID jobId, Configuration jobConfiguration) {}
 
     /**
-     * Called when the job is being removed — it reached a globally terminal state, or its
-     * job-leader registration timed out — and its per-job state should be released. Must be
-     * idempotent. Exceptions and linkage errors are caught and logged by the framework (one
-     * provider's failure does not abort cleanup of the others), but implementations should still
-     * avoid throwing.
+     * Called to release per-job state when a job is removed, a registration attempt is rolled back,
+     * or the manager stops its current session. A job is removed when it reaches a globally
+     * terminal state or its job-leader registration times out. Must be idempotent and should not
+     * throw.
+     *
+     * <p>Exceptions and linkage errors are caught and logged, so cleanup continues for the other
+     * providers. The manager removes the job from its tracking even if cleanup fails and does not
+     * retain it for a later cleanup attempt. Providers are responsible for releasing any remaining
+     * state in {@link #close()}.
      *
      * @param jobId The job id of the job.
      */

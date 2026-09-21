@@ -91,25 +91,30 @@ public interface DelegationTokenManager {
     default void reobtainDelegationTokens() {}
 
     /**
-     * Called when a job has started. Fans the event out to all loaded {@link
-     * org.apache.flink.core.security.token.DelegationTokenProvider}s. On failure of the job's first
-     * registration, the job is unregistered from all providers and the exception is rethrown so the
-     * caller can reject the registration. A failed re-registration rethrows but keeps the job
-     * registered, so a running job's tokens are not dropped. A provider that needs the new job's
-     * tokens distributed immediately requests it via {@link
+     * Called when a JobMaster registers with the ResourceManager. Fans the event out to all loaded
+     * {@link org.apache.flink.core.security.token.DelegationTokenProvider}s. On failure, the
+     * exception is rethrown so the caller can reject the registration attempt. If no successful
+     * registration is currently tracked for the job, the manager calls {@link
+     * org.apache.flink.core.security.token.DelegationTokenProvider#unregisterJob(JobID)} on all
+     * providers to attempt rollback. Otherwise, it keeps the existing registration and does not
+     * attempt rollback, because the job's tasks may still be running. A provider that needs the
+     * job's tokens distributed immediately requests it via {@link
      * org.apache.flink.core.security.token.DelegationTokenManagerCallback#reobtainDelegationTokens()}.
      *
-     * @param jobId The job id which just started.
+     * @param jobId The ID of the job being registered.
      * @param jobConfiguration The job's configuration.
      */
     default void registerJob(JobID jobId, Configuration jobConfiguration) throws Exception {}
 
     /**
-     * Called when a job is being removed. Fans the event out to all loaded providers. Must be
-     * idempotent. Per-provider failures are caught and logged (one provider's failure does not
-     * abort cleanup of the others), so in practice this does not throw for provider failures.
+     * Called when a job is being removed. Attempts to unregister it from all loaded providers. Must
+     * be idempotent. Provider failures are caught and logged, so cleanup continues for the other
+     * providers.
      *
-     * @param jobId The job id of the job.
+     * <p>The job is removed from the manager even if cleanup fails. The manager does not retain it
+     * for a later cleanup attempt.
+     *
+     * @param jobId The ID of the job being removed.
      */
     default void unregisterJob(JobID jobId) throws Exception {}
 }

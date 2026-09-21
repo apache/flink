@@ -60,6 +60,8 @@ import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_R
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_TIME_RATIO;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_REOBTAIN_COOLDOWN;
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -989,54 +991,64 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
-    public void leftoverRollbackStateMustBeReleasedByStop() throws Exception {
-        DefaultDelegationTokenManager delegationTokenManager =
+    public void failedRegistrationIsNotTrackedUntilARetrySucceeds() throws Exception {
+        final DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(new Configuration(), null, null, null);
+        final JobID jobId = JobID.generate();
 
-        // A FIRST registration fails after the provider recorded state (add-then-throw), and
-        // the rollback's unregister fails too: the state is left behind in the provider.
+        // Registration stores job state and then fails. Rollback also fails,
+        // leaving the state in the provider.
         ExceptionThrowingDelegationTokenProvider.throwErrorInRegister.set(true);
         ExceptionThrowingDelegationTokenProvider.throwInUnregister.set(true);
-        JobID jobId = JobID.generate();
-        assertThrows(
-                NoClassDefFoundError.class,
-                () -> delegationTokenManager.registerJob(jobId, new Configuration()));
-        assertEquals(1, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+        assertThatThrownBy(() -> delegationTokenManager.registerJob(jobId, new Configuration()))
+                .isInstanceOf(NoClassDefFoundError.class);
+        assertThat(ExceptionThrowingDelegationTokenProvider.registeredJobs.get())
+                .containsExactly(jobId);
 
-        // The job must have stayed tracked despite the failed rollback, so stop() releases the
-        // leftover state once the provider recovers.
-        ExceptionThrowingDelegationTokenProvider.throwErrorInRegister.set(false);
+        // Allow cleanup to succeed, but keep registration failing. No successful registration
+        // should be tracked, so the next failed attempt must roll back the leftover state.
         ExceptionThrowingDelegationTokenProvider.throwInUnregister.set(false);
+        assertThatThrownBy(() -> delegationTokenManager.registerJob(jobId, new Configuration()))
+                .isInstanceOf(NoClassDefFoundError.class);
+        assertThat(ExceptionThrowingDelegationTokenProvider.registeredJobs.get())
+                .as("a failed registration retry removes leftover provider state")
+                .isEmpty();
+
+        // Recovery must track the successful retry so session shutdown cleans it up.
+        ExceptionThrowingDelegationTokenProvider.throwErrorInRegister.set(false);
+        delegationTokenManager.registerJob(jobId, new Configuration());
+        assertThat(ExceptionThrowingDelegationTokenProvider.registeredJobs.get())
+                .containsExactly(jobId);
+
         delegationTokenManager.stop();
-        assertEquals(
-                0,
-                ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size(),
-                "State left behind by a failed rollback must be released by stop()");
+        assertThat(ExceptionThrowingDelegationTokenProvider.registeredJobs.get())
+                .as("stop() releases the successfully registered job")
+                .isEmpty();
     }
 
     @Test
-    public void stopMustRetryFailedUnregistration() throws Exception {
-        DefaultDelegationTokenManager delegationTokenManager =
+    public void failedUnregistrationMustDropTheJob() throws Exception {
+        final DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(new Configuration(), null, null, null);
 
-        JobID jobId = JobID.generate();
+        final JobID jobId = JobID.generate();
         delegationTokenManager.registerJob(jobId, new Configuration());
-        assertEquals(1, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+        assertThat(ExceptionThrowingDelegationTokenProvider.registeredJobs.get())
+                .containsExactly(jobId);
 
-        // A provider fails its unregistration (swallowed by contract), so its per-job state
-        // survives. The manager must keep tracking the job instead of forgetting it.
+        // Cleanup fails and leaves provider state behind, but the manager must
+        // stop tracking the job.
         ExceptionThrowingDelegationTokenProvider.throwInUnregister.set(true);
         delegationTokenManager.unregisterJob(jobId);
-        assertEquals(1, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+        assertThat(ExceptionThrowingDelegationTokenProvider.registeredJobs.get())
+                .containsExactly(jobId);
 
-        // Once the provider recovers, stop() gets another attempt, without the retry
-        // the job's state would leak in the process-lifetime provider until process shutdown.
+        // Allow cleanup to succeed. stop() must not retry the failed unregistration.
         ExceptionThrowingDelegationTokenProvider.throwInUnregister.set(false);
         delegationTokenManager.stop();
-        assertEquals(
-                0,
-                ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size(),
-                "A job whose unregistration failed must be released by stop()");
+        assertThat(ExceptionThrowingDelegationTokenProvider.registeredJobs.get())
+                .as("stop() must not retry a failed unregistration")
+                .containsExactly(jobId);
     }
 
     @Test

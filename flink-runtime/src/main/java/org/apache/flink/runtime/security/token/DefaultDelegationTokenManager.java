@@ -180,11 +180,13 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     Listener listener;
 
     /**
-     * Jobs for which providers may hold per-job state. A job is added on successful registration
-     * (or when a failed rollback left provider state behind) and removed when every provider
-     * unregistered it cleanly. Lets a failed re-registration keep the previous state and lets
-     * {@link #stop()} unregister the jobs of the ending session. All checks and updates run on the
-     * ResourceManager main thread, and leadership sessions are serialized.
+     * Jobs successfully registered with all providers. A job is removed when it is unregistered,
+     * even if a provider fails to release its state.
+     *
+     * <p>Tracking successful registrations prevents a failed re-registration from rolling back an
+     * existing registration. {@link #stop()} uses this set to unregister jobs from the ending
+     * session. All checks and updates run on the ResourceManager main thread, and leadership
+     * sessions are serialized.
      */
     private final Set<JobID> registeredJobs = ConcurrentHashMap.newKeySet();
 
@@ -798,14 +800,12 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                         failedProvider == null ? "<none>" : failedProvider.serviceName(),
                         e);
             } else {
-                // First registration: roll back from all providers (unregisterJob is idempotent).
-                // The rollback must never mask the original failure.
+                // No successful registration is currently tracked for this job. Roll back
+                // all providers (unregisterJob is idempotent). Leave the job untracked,
+                // even if rollback fails, so a later failed registration attempt also
+                // triggers rollback. The rollback must never mask the original failure.
                 try {
-                    if (!unregisterJobInternal(jobId)) {
-                        // Keep the job tracked so stop() or a registration retry can release the
-                        // provider state left behind.
-                        registeredJobs.add(jobId);
-                    }
+                    unregisterJobInternal(jobId);
                 } catch (Exception | LinkageError rollbackException) {
                     LOG.error(
                             "Failed to roll back registration of job {}", jobId, rollbackException);
@@ -826,19 +826,19 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     }
 
     /**
-     * Unregisters the job from all providers, swallowing per-provider failures. The job leaves
-     * {@link #registeredJobs} only when every provider unregistered cleanly, so state a failed
-     * provider may still hold stays tracked for another attempt.
+     * Attempts to unregister the job from all providers and removes it from {@link
+     * #registeredJobs}. Provider failures are logged and swallowed, so cleanup continues for the
+     * other providers.
      *
-     * @return whether every provider unregistered the job without failure.
+     * <p>The job is removed even if cleanup fails. The manager does not retain it for a later
+     * cleanup attempt. Providers are responsible for releasing any remaining state in {@link
+     * DelegationTokenProvider#close()}.
      */
-    private boolean unregisterJobInternal(JobID jobId) {
-        boolean fullyUnregistered = true;
+    private void unregisterJobInternal(JobID jobId) {
         for (DelegationTokenProvider provider : delegationTokenProviders.values()) {
             try {
                 provider.unregisterJob(jobId);
             } catch (Exception | LinkageError e) {
-                fullyUnregistered = false;
                 LOG.error(
                         "Failed to unregister job {} for provider {}",
                         jobId,
@@ -846,9 +846,6 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                         e);
             }
         }
-        if (fullyUnregistered) {
-            registeredJobs.remove(jobId);
-        }
-        return fullyUnregistered;
+        registeredJobs.remove(jobId);
     }
 }
