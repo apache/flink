@@ -47,7 +47,7 @@ public interface JoinRecordAsyncStateView {
     StateFuture<Void> retractRecord(RowData record);
 
     /**
-     * Returns true if the state view already holds a record that {@link #addRecord} would replace
+     * Returns true if the state view already holds a record that {@link #addRecord} would replace.
      */
     StateFuture<Boolean> containsRecord(RowData record);
 
