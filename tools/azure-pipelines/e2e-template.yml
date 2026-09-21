@@ -44,6 +44,7 @@ jobs:
       .gitattributes
       .github/**
   steps:
+    - template: checkout-single-branch.yml
     # Skip e2e test execution if this is a documentation only pull request (master / release builds will still be checked regularly)
     - bash: |
         source ./tools/azure-pipelines/build_properties.sh
