@@ -63,35 +63,6 @@ public interface ResourceManagerGateway
         extends FencedRpcGateway<ResourceManagerId>, ClusterPartitionManager, BlocklistListener {
 
     /**
-     * Register a {@link JobMaster} at the resource manager.
-     *
-     * <p>Backward-compatible overload that registers without a job configuration. Equivalent to
-     * calling {@link #registerJobMaster(JobMasterId, ResourceID, String, JobID, Configuration,
-     * Duration)} with an empty configuration.
-     *
-     * @param jobMasterId The fencing token for the JobMaster leader
-     * @param jobMasterResourceId The resource ID of the JobMaster that registers
-     * @param jobMasterAddress The address of the JobMaster that registers
-     * @param jobId The Job ID of the JobMaster that registers
-     * @param timeout Timeout for the future to complete
-     * @return Future registration response
-     */
-    default CompletableFuture<RegistrationResponse> registerJobMaster(
-            JobMasterId jobMasterId,
-            ResourceID jobMasterResourceId,
-            String jobMasterAddress,
-            JobID jobId,
-            @RpcTimeout Duration timeout) {
-        return registerJobMaster(
-                jobMasterId,
-                jobMasterResourceId,
-                jobMasterAddress,
-                jobId,
-                new Configuration(),
-                timeout);
-    }
-
-    /**
      * Register a {@link JobMaster} at the resource manager, supplying the job's {@link
      * Configuration} so implementations can perform per-job initialization (e.g. obtaining
      * job-scoped delegation tokens).

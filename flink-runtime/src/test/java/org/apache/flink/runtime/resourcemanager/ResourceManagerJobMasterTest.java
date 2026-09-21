@@ -155,6 +155,7 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
                         jobId,
+                        new Configuration(),
                         TIMEOUT);
         assertThatFuture(successfulFuture)
                 .succeedsWithin(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
@@ -162,10 +163,8 @@ class ResourceManagerJobMasterTest {
     }
 
     /**
-     * FLIP-588: if the delegation token manager rejects the job (its {@code registerJob} throws),
-     * the ResourceManager must reject the JobMaster registration so the job does not start without
-     * the tokens it requires. This also exercises the widened (6-arg) {@code registerJobMaster} RPC
-     * that carries the job {@link Configuration}.
+     * Verifies that the ResourceManager rejects JobMaster registration when the delegation token
+     * manager fails to register the job.
      */
     @Test
     void testRegisterJobMasterRejectedWhenDelegationTokenRegistrationFails() throws Exception {
@@ -226,6 +225,7 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
                         jobId,
+                        new Configuration(),
                         TIMEOUT);
         assertThatFuture(successfulFuture)
                 .succeedsWithin(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
@@ -267,6 +267,7 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
                         jobId,
+                        new Configuration(),
                         TIMEOUT);
         assertThatFuture(unMatchedLeaderFuture)
                 .withFailMessage("Should fail because we are using the wrong fencing token.")
@@ -287,6 +288,7 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
                         jobId,
+                        new Configuration(),
                         TIMEOUT);
         assertThatFuture(unMatchedLeaderFuture)
                 .eventuallySucceeds()
@@ -305,6 +307,7 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         invalidAddress,
                         jobId,
+                        new Configuration(),
                         TIMEOUT);
         assertThatFuture(invalidAddressFuture)
                 .succeedsWithin(5, TimeUnit.SECONDS)
@@ -326,6 +329,7 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
                         unknownJobIDToHAServices,
+                        new Configuration(),
                         TIMEOUT);
 
         assertThatFuture(registrationFuture)
