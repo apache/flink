@@ -72,7 +72,7 @@
             <td><h5>security.ssl.protocol</h5></td>
             <td style="word-wrap: break-word;">"TLSv1.2"</td>
             <td>String</td>
-            <td>The comma separated list of SSL protocol versions to be supported for the ssl transport, e.g. <code class="highlighter-rouge">TLSv1.2,TLSv1.3</code>. The highest protocol version supported by both communication endpoints is negotiated; if none of the listed protocols has a matching cipher suite (see <code class="highlighter-rouge">security.ssl.algorithms</code>), the connection falls back to a lower listed protocol instead of failing.<br />When <code class="highlighter-rouge">security.ssl.provider</code> is set to <code class="highlighter-rouge">OPENSSL</code>, a non-contiguous list also enables the protocol version(s) in between the lowest and highest listed one, because the underlying engine only supports contiguous protocol ranges.</td>
+            <td>The comma separated list of SSL protocol versions to be supported for the ssl transport, e.g. <code class="highlighter-rouge">TLSv1.2,TLSv1.3</code>. The highest protocol version supported by both communication endpoints and for which a matching cipher suite is available (see <code class="highlighter-rouge">security.ssl.algorithms</code>) is negotiated; the connection fails only if none of the listed protocols has a matching cipher suite.</td>
         </tr>
         <tr>
             <td><h5>security.ssl.rest.authentication-enabled</h5></td>

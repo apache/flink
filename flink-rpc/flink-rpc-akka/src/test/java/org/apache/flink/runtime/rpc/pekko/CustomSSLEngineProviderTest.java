@@ -27,7 +27,8 @@ import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
-import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.MultiThreadIoEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioIoHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
@@ -115,7 +116,7 @@ class CustomSSLEngineProviderTest {
 
         final CustomSSLEngineProvider provider = new CustomSSLEngineProvider(actorSystem);
 
-        final EventLoopGroup group = new NioEventLoopGroup(2);
+        final EventLoopGroup group = new MultiThreadIoEventLoopGroup(2, NioIoHandler.newFactory());
         try {
             final CompletableFuture<SSLSession> serverSession = new CompletableFuture<>();
             final CompletableFuture<SSLSession> clientSession = new CompletableFuture<>();

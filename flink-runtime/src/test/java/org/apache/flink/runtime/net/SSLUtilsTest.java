@@ -29,7 +29,8 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
-import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.MultiThreadIoEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioIoHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.ClientAuth;
@@ -41,6 +42,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
@@ -511,6 +513,27 @@ public class SSLUtilsTest {
 
     @ParameterizedTest
     @MethodSource("parameters")
+    void testInternalSSLNonContiguousProtocolListWithoutCipherForHighest(String sslProvider)
+            throws Exception {
+        // TLSv1.3 has no usable cipher here (only TLSv1.2-style ones are configured), so Netty
+        // drops it from the min/max range calculation entirely before any OpenSSL-specific
+        // contiguous-range widening happens (ReferenceCountedOpenSslEngine's
+        // explicitDisableTLSv13 handling). That collapses the enabled set to TLSv1.1 alone on
+        // both providers, which also has no usable cipher (GCM suites are TLSv1.2+), so the
+        // handshake fails on both providers instead of widening to TLSv1.2.
+        Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
+        config.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.1,TLSv1.3");
+        config.set(SecurityOptions.SSL_ALGORITHMS, tls12Ciphers(sslProvider));
+
+        final SSLHandlerFactory server = SSLUtils.createInternalServerSSLEngineFactory(config);
+        final SSLHandlerFactory client = SSLUtils.createInternalClientSSLEngineFactory(config);
+
+        assertThatThrownBy(() -> negotiate(server, client))
+                .hasCauseInstanceOf(SSLHandshakeException.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
     void testRestSSLNegotiatesTls13WhenBothSidesSupportIt(String sslProvider) throws Exception {
         Configuration config = createRestSslConfigWithKeyAndTrustStores(sslProvider);
         config.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.2,TLSv1.3");
@@ -583,7 +606,7 @@ public class SSLUtilsTest {
             SSLHandlerFactory clientFactory,
             String clientPeerIdentity)
             throws Exception {
-        final EventLoopGroup group = new NioEventLoopGroup(2);
+        final EventLoopGroup group = new MultiThreadIoEventLoopGroup(2, NioIoHandler.newFactory());
         try {
             final CompletableFuture<SSLSession> serverSession = new CompletableFuture<>();
             final CompletableFuture<SSLSession> clientSession = new CompletableFuture<>();

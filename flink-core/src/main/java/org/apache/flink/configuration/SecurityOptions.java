@@ -514,19 +514,12 @@ public class SecurityOptions {
                                     .text(
                                             "The comma separated list of SSL protocol versions to be supported for"
                                                     + " the ssl transport, e.g. %s. The highest protocol version"
-                                                    + " supported by both communication endpoints is negotiated; if"
-                                                    + " none of the listed protocols has a matching cipher suite (see"
-                                                    + " %s), the connection falls back to a lower listed protocol"
-                                                    + " instead of failing.",
+                                                    + " supported by both communication endpoints and for which a"
+                                                    + " matching cipher suite is available (see %s) is negotiated;"
+                                                    + " the connection fails only if none of the listed protocols"
+                                                    + " has a matching cipher suite.",
                                             code("TLSv1.2,TLSv1.3"),
                                             code("security.ssl.algorithms"))
-                                    .linebreak()
-                                    .text(
-                                            "When %s is set to %s, a non-contiguous list also enables the protocol"
-                                                    + " version(s) in between the lowest and highest listed one,"
-                                                    + " because the underlying engine only supports contiguous"
-                                                    + " protocol ranges.",
-                                            code("security.ssl.provider"), code("OPENSSL"))
                                     .build());
 
     /**
