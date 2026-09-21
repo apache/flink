@@ -110,6 +110,14 @@ public class KubernetesUtils {
     private static final char LEADER_INFORMATION_SEPARATOR = ',';
 
     /**
+     * Java 16 ships the fix for JDK-8245245 (WebSocket URLs lose the encoding of query parameters);
+     * Java 11 received it in 11.0.19 via JDK-8299381. Java 12-15 never got it.
+     */
+    private static final int JDK_WEBSOCKET_FIX_FEATURE_VERSION = 16;
+
+    private static final int JDK_11_WEBSOCKET_FIX_UPDATE_VERSION = 19;
+
+    /**
      * Check whether the port config option is a fixed port. If not, the fallback port will be set
      * to configuration.
      *
@@ -692,6 +700,32 @@ public class KubernetesUtils {
     /** Generate namespaced name of the service. */
     public static String getNamespacedServiceName(Service service) {
         return service.getMetadata().getName() + "." + service.getMetadata().getNamespace();
+    }
+
+    /**
+     * Fails fast if the {@code java.net.http} WebSocket client of the given JDK mishandles URLs
+     * with percent-encoded query parameters (JDK-8245245). Flink's Kubernetes watches carry
+     * percent-encoded label and field selectors, so on such JDKs the pod watches and the Kubernetes
+     * HA leader election would break at runtime.
+     *
+     * @param version the runtime version to check, normally {@link Runtime#version()}
+     * @throws IllegalStateException if the JDK does not contain the fix
+     */
+    public static void checkJdkHttpClientSupport(Runtime.Version version) {
+        final int feature = version.feature();
+        final boolean hasWebSocketFix =
+                feature >= JDK_WEBSOCKET_FIX_FEATURE_VERSION
+                        || (feature == 11
+                                && version.update() >= JDK_11_WEBSOCKET_FIX_UPDATE_VERSION);
+        if (!hasWebSocketFix) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Flink's native Kubernetes integration requires Java 11.0.19 or newer, or Java 16 or newer, "
+                                    + "but this JVM runs Java %s. Older JDKs mishandle WebSocket URLs with percent-encoded "
+                                    + "query parameters (JDK-8245245), which breaks the Kubernetes pod watches and the "
+                                    + "Kubernetes HA leader election.",
+                            version));
+        }
     }
 
     private KubernetesUtils() {}
