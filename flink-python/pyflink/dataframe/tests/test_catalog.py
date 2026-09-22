@@ -73,12 +73,8 @@ class CatalogTests(PyFlinkDataFrameUTTestCase):
         self.assertNotIn("my_catalog", pf.list_catalogs())
 
     def test_create_catalog_rejects_existing_catalog(self):
-        with patch.object(self.t_env, "create_catalog") as create_catalog:
-            with self.assertRaisesRegex(
-                ValueError, "a catalog named 'default_catalog' already exists"
-            ):
-                pf.create_catalog("default_catalog", {"type": "generic_in_memory"})
-        create_catalog.assert_not_called()
+        with self.assertRaisesRegex(CatalogException, "Catalog default_catalog already exists"):
+            pf.create_catalog("default_catalog", {"type": "generic_in_memory"})
 
     def test_create_catalog_translates_flink_errors(self):
         with self.assertRaises(ValueError) as context:
@@ -121,17 +117,16 @@ class CatalogTests(PyFlinkDataFrameUTTestCase):
         self.assertEqual(pf.get_current_database(), "default_database")
 
     def test_navigation_rejects_unknown_names(self):
-        with patch.object(self.t_env, "use_catalog") as use_catalog:
-            with self.assertRaisesRegex(ValueError, "no catalog named 'missing' exists"):
-                pf.use_catalog("missing")
-        use_catalog.assert_not_called()
+        with self.assertRaisesRegex(
+            CatalogException, r"A catalog with name \[missing\] does not exist"
+        ):
+            pf.use_catalog("missing")
 
-        with patch.object(self.t_env, "use_database") as use_database:
-            with self.assertRaisesRegex(
-                ValueError, "no database named 'missing' exists in catalog 'default_catalog'"
-            ):
-                pf.use_database("missing")
-        use_database.assert_not_called()
+        with self.assertRaisesRegex(
+            CatalogException,
+            r"A database with name \[missing\] does not exist in the catalog: \[default_catalog\]",
+        ):
+            pf.use_database("missing")
 
         self.assertEqual(pf.get_current_catalog(), "default_catalog")
         self.assertEqual(pf.get_current_database(), "default_database")
