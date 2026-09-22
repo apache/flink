@@ -3477,8 +3477,7 @@ public final class BuiltInFunctionDefinitions {
                     .callSyntax("CAST", SqlCallSyntax.CAST)
                     .kind(SCALAR)
                     .inputTypeStrategy(SpecificInputTypeStrategies.CAST)
-                    .outputTypeStrategy(
-                            nullableIfArgs(ConstantArgumentCount.to(0), TypeStrategies.argument(1)))
+                    .outputTypeStrategy(SpecificTypeStrategies.CAST)
                     .build();
 
     public static final BuiltInFunctionDefinition TRY_CAST =
