@@ -67,10 +67,10 @@ def create_catalog(name: str, options: Dict[str, str]) -> None:
     :param name: Name under which the catalog is created.
     :param options: Catalog options, including the ``type`` option.
     :raises TypeError: If ``name`` is not a string or ``options`` is not a dict of strings.
-    :raises ValueError: If ``name`` or an option key is empty, if a catalog named ``name`` already
-        exists, or if Flink cannot create a catalog from ``options``.
-    :raises ~pyflink.util.exceptions.CatalogException: If the catalog reports an error while
-        being created.
+    :raises ValueError: If ``name`` or an option key is empty, or if Flink cannot create a catalog
+        from ``options``.
+    :raises ~pyflink.util.exceptions.CatalogException: If a catalog named ``name`` already exists,
+        or if the catalog reports an error while being created.
 
     Example::
 
@@ -83,16 +83,12 @@ def create_catalog(name: str, options: Dict[str, str]) -> None:
     """
     _validate_name(name, "name")
     _validate_catalog_options(options)
-    table_environment = get_or_create_table_environment()
-    if name in table_environment.list_catalogs():
-        raise ValueError(f"a catalog named {name!r} already exists")
-
     configuration = Configuration()
     for key, value in options.items():
         configuration.set_string(key, value)
     descriptor = CatalogDescriptor.of(name, configuration)
     try:
-        table_environment.create_catalog(name, descriptor)
+        get_or_create_table_environment().create_catalog(name, descriptor)
     except Exception as error:
         _raise_as_value_error(error)
 
@@ -134,7 +130,8 @@ def use_catalog(name: str) -> None:
 
     :param name: Name of a registered catalog.
     :raises TypeError: If ``name`` is not a string.
-    :raises ValueError: If ``name`` is empty or no catalog named ``name`` exists.
+    :raises ValueError: If ``name`` is empty.
+    :raises ~pyflink.util.exceptions.CatalogException: If no catalog named ``name`` exists.
 
     Example::
 
@@ -147,10 +144,7 @@ def use_catalog(name: str) -> None:
     .. versionadded:: 2.4.0
     """
     _validate_name(name, "name")
-    table_environment = get_or_create_table_environment()
-    if name not in table_environment.list_catalogs():
-        raise ValueError(f"no catalog named {name!r} exists")
-    table_environment.use_catalog(name)
+    get_or_create_table_environment().use_catalog(name)
 
 
 @PublicEvolving()
@@ -199,8 +193,9 @@ def use_database(name: str) -> None:
 
     :param name: Name of a database in the current catalog.
     :raises TypeError: If ``name`` is not a string.
-    :raises ValueError: If ``name`` is empty or the current catalog has no database named
-        ``name``.
+    :raises ValueError: If ``name`` is empty.
+    :raises ~pyflink.util.exceptions.CatalogException: If the current catalog has no database
+        named ``name``.
 
     Example::
 
@@ -212,13 +207,7 @@ def use_database(name: str) -> None:
     .. versionadded:: 2.4.0
     """
     _validate_name(name, "name")
-    table_environment = get_or_create_table_environment()
-    if name not in table_environment.list_databases():
-        raise ValueError(
-            f"no database named {name!r} exists in catalog "
-            f"{table_environment.get_current_catalog()!r}"
-        )
-    table_environment.use_database(name)
+    get_or_create_table_environment().use_database(name)
 
 
 @PublicEvolving()
