@@ -316,6 +316,47 @@ class SavepointFilterTranslatorTest {
         assertThat(filter.getExactKeys()).containsExactly(5L);
     }
 
+    @Test
+    void andOfExactAndRangeWithNoMatchProducesEmptyFilter() {
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(and(eq(longKeyRef(), longLit(5L)), gt(longKeyRef(), longLit(6L))));
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).isEmpty();
+    }
+
+    @Test
+    void andOfExactAndExclusionNarrowsExactSet() {
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(
+                        and(
+                                or(
+                                        eq(longKeyRef(), longLit(1L)),
+                                        eq(longKeyRef(), longLit(2L)),
+                                        eq(longKeyRef(), longLit(3L))),
+                                neq(longKeyRef(), longLit(2L))));
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).containsExactlyInAnyOrder(1L, 3L);
+    }
+
+    @Test
+    void andOfRangeAndExclusionFiltersExcludedKey() {
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(
+                        and(
+                                between(longKeyRef(), longLit(1L), longLit(10L)),
+                                neq(longKeyRef(), longLit(5L))));
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).isNull();
+        assertThat(filter.test(0L)).isFalse();
+        assertThat(filter.test(1L)).isTrue();
+        assertThat(filter.test(5L)).isFalse();
+        assertThat(filter.test(10L)).isTrue();
+        assertThat(filter.test(11L)).isFalse();
+    }
+
     // -------------------------------------------------------------------------
     //  Unsupported predicates
     // -------------------------------------------------------------------------

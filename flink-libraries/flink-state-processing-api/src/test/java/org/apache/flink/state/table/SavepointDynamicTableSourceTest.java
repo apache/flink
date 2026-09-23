@@ -454,6 +454,39 @@ class SavepointDynamicTableSourceTest {
     }
 
     @Test
+    void testFilterPushDownExactAndRangeReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k = 5 AND k > 3 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(5L);
+    }
+
+    @Test
+    void testFilterPushDownExactAndExclusionReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k IN (1, 2, 3) AND k <> 2 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(1L, 3L);
+    }
+
+    @Test
+    void testFilterPushDownRangeAndExclusionReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k BETWEEN 1 AND 10 AND k <> 5 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(1L, 2L, 3L, 4L, 6L, 7L, 8L, 9L);
+    }
+
+    @Test
     void testUnsupportedFilterIsNotPushedDownButReturnsCorrectResult() throws Exception {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
