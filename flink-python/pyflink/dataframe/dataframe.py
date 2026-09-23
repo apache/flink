@@ -1837,15 +1837,15 @@ class DataFrame:
         ``path`` is ``table_name``, ``db_name.table_name``, or ``catalog_name.db_name.table_name``.
         Missing parts are resolved against the current catalog and database, see
         :func:`~pyflink.dataframe.use_catalog` and :func:`~pyflink.dataframe.use_database`. The
-        write is submitted immediately and waits for completion when using local or MiniCluster
-        execution.
+        write runs right away. On a local or MiniCluster setup the call blocks until the write is
+        done.
 
         :param path: Path of the catalog table.
         :param overwrite: Whether existing data should be replaced, like ``INSERT OVERWRITE``.
             Not every connector supports overwriting.
         :raises TypeError: If ``path`` is not a string or ``overwrite`` is not a bool.
-        :raises ValueError: If ``path`` is empty, is not a valid table path, or does not resolve
-            to a table, or if this DataFrame's schema is not compatible with the table.
+        :raises ValueError: If ``path`` is empty, malformed, or does not name a table, or if the
+            DataFrame's columns do not match the table.
 
         Example::
 

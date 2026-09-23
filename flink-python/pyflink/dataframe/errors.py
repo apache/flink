@@ -34,13 +34,14 @@ def _is_user_error(j_exception) -> bool:
 
 def _raise_as_value_error(error: Exception) -> NoReturn:
     """
-    Re-raise ``error`` from a Flink call, translating user mistakes into :class:`ValueError`.
+    Re-raise ``error`` from a Flink call, turning user mistakes into :class:`ValueError`.
 
-    Flink reports user mistakes such as an unknown table or connector, a malformed table path, or
-    invalid options as ``ValidationException`` or ``SqlParserException``, which PyFlink surfaces as
-    a raw ``Py4JJavaError``. Both become a :class:`ValueError` carrying Flink's message, chained to
-    the original. Anything else, including the exceptions PyFlink already maps to Python classes
-    such as :class:`~pyflink.util.exceptions.CatalogException`, is re-raised unchanged.
+    When the user gets something wrong, an unknown table, a bad path, invalid options, Flink
+    throws ``ValidationException`` or ``SqlParserException``. PyFlink hands those to us as a bare
+    ``Py4JJavaError``. This turns them into a :class:`ValueError` with Flink's message, chained to
+    the original so the Java trace is still there. Anything else is re-raised as is, including
+    exceptions PyFlink already maps to Python classes such as
+    :class:`~pyflink.util.exceptions.CatalogException`.
     """
     if isinstance(error, Py4JJavaError) and _is_user_error(error.java_exception):
         raise ValueError(error.java_exception.getMessage()) from error

@@ -469,16 +469,22 @@ def _extend_catalog_table(
     watermark: Optional[Tuple[str, str]],
 ) -> Table:
     """
-    Read the catalog table behind ``table`` through an anonymous copy that carries additional
-    computed columns and an optional replacement watermark.
+    Read the catalog table behind ``table`` with extra computed columns and, optionally, a
+    different watermark.
 
-    The copy keeps everything else from the catalog table (options, partition keys, distribution,
-    snapshot, connection, comment), so the connector still sees the same table definition. This
-    mirrors what ``TableEnvironment.from(TableDescriptor)`` does in Java, but builds the
-    ``CatalogTable`` directly since ``TableDescriptor`` cannot carry a distribution or snapshot
-    as-is. Only tables that name their connector explicitly can be extended: catalogs that provide
-    the connector themselves, such as Paimon or Hive, resolve it from the catalog rather than from
-    the options, and the anonymous copy has no catalog.
+    Flink has no way to add columns to an existing table at read time, so this builds a nameless
+    copy of the table definition with the new schema and reads from that instead. Everything else
+    is copied over unchanged: options, partition keys, distribution, snapshot, connection and
+    comment. The connector sees the same table it always did, only with more columns. The real
+    catalog table is not touched.
+
+    This is the same thing ``TableEnvironment.from(TableDescriptor)`` does in Java. We build the
+    ``CatalogTable`` ourselves because ``TableDescriptor`` cannot take a distribution or snapshot
+    object directly.
+
+    Tables whose catalog supplies the connector, such as Paimon or Hive, cannot be extended this
+    way: the copy has no catalog to ask, so it would not know which connector to use. That is why
+    the ``connector`` option is required.
     """
     jvm = get_gateway().jvm
     catalog = jvm.org.apache.flink.table.catalog
@@ -489,14 +495,14 @@ def _extend_catalog_table(
     table_kind = source_table.getTableKind()
     if table_kind != catalog.CatalogBaseTable.TableKind.TABLE:
         raise ValueError(
-            f"{identifier} is a {table_kind.name().lower()}, computed columns and watermarks can "
+            f"{identifier} is a {table_kind.name().lower()}; computed columns and watermarks can "
             f"only be added to tables"
         )
     if not source_table.getOptions().get("connector"):
         raise ValueError(
-            f"{identifier} does not declare a 'connector' option, its catalog provides the "
-            f"connector itself, so computed columns and watermarks cannot be added; use "
-            f"read_generic instead"
+            f"{identifier} has no 'connector' option, so its connector comes from the catalog and "
+            f"cannot be reused for an extended copy. Read it without computed_columns and "
+            f"watermark, or use read_generic."
         )
 
     validated_columns = _validate_computed_columns(computed_columns)
@@ -507,8 +513,8 @@ def _extend_catalog_table(
     if validated_watermark is None:
         schema_builder.fromSchema(source_schema)
     else:
-        # A schema may declare only one watermark, so copy the columns and primary key without
-        # the source watermark and declare the replacement below.
+        # A schema can only have one watermark. Copy the columns and primary key by hand so the
+        # table's own watermark is left out, then add the new one below.
         schema_builder.fromColumns(source_schema.getColumns())
         primary_key = source_schema.getPrimaryKey()
         if primary_key.isPresent():
@@ -558,23 +564,24 @@ def read_catalog_table(
     :func:`~pyflink.dataframe.use_catalog` and :func:`~pyflink.dataframe.use_database`. Names that
     are reserved keywords or contain dots must be escaped with backticks.
 
-    ``computed_columns`` are appended after the table's own columns in dictionary insertion order.
-    A ``watermark`` replaces any watermark declared on the catalog table and can reference the
-    table's columns or the new computed columns. The catalog table itself is not modified. Only
-    tables that name their connector through the ``connector`` option can be extended; tables of
-    catalogs that provide the connector themselves, such as Paimon or Hive, must be read without
-    these arguments.
+    Use ``computed_columns`` and ``watermark`` to add columns or change the watermark for this read
+    only. The new columns go after the table's own columns, in the order given. The watermark
+    replaces whatever the table declares and may use the new columns. Nothing is written back to
+    the catalog.
+
+    This only works for tables that set the ``connector`` option. Tables from catalogs that supply
+    their own connector, such as Paimon or Hive, can still be read, just without these two
+    arguments.
 
     :param path: Path of the catalog table.
     :param computed_columns: Optional SQL expressions keyed by computed column name.
     :param watermark: Optional ``(column, expression)`` watermark declaration.
     :return: A DataFrame backed by the catalog table.
     :raises TypeError: If ``path`` is not a string or another argument has an invalid type.
-    :raises ValueError: If ``path`` is empty, is not a valid table path, or does not resolve to a
-        table; if a computed column or watermark value is empty; if ``computed_columns`` or
-        ``watermark`` are given for a view or for a table without a ``connector`` option; or if
-        Flink rejects the schema, such as a computed column that duplicates an existing column or
-        an invalid computed column or watermark expression.
+    :raises ValueError: If ``path`` is empty, malformed, or does not name a table. Also if
+        ``computed_columns`` or ``watermark`` contain empty strings, are used on a view or on a
+        table without a ``connector`` option, or if Flink rejects the resulting schema, for example
+        a duplicate column name or an expression that does not compile.
 
     Example::
 

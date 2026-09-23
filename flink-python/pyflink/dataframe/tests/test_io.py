@@ -395,7 +395,7 @@ class CatalogTableIOTests(PyFlinkDataFrameUTTestCase):
         self.assertEqual(watermark_spec.get_rowtime_attribute(), "event_time")
         self.assertEqual(list(resolved_schema.get_primary_key().get_columns()), ["id"])
 
-        # The anonymous source keeps everything the connector needs from the catalog table.
+        # The copy keeps everything the connector needs from the original table.
         j_source = dataframe._table._j_table.getQueryOperation().getContextResolvedTable()
         self.assertTrue(j_source.isAnonymous())
         j_catalog_table = j_source.getTable()
@@ -465,7 +465,7 @@ class CatalogTableIOTests(PyFlinkDataFrameUTTestCase):
                 "no_connector",
                 {"computed_columns": {"tripled": "id * 3"}},
                 ValueError,
-                "my_catalog.my_database.no_connector does not declare a 'connector' option",
+                "my_catalog.my_database.no_connector has no 'connector' option",
             ),
         ]
         for table, extension, error_type, message in cases:
