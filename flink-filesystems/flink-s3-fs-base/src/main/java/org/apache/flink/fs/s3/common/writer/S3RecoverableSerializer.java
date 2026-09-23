@@ -21,7 +21,7 @@ package org.apache.flink.fs.s3.common.writer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
-import com.amazonaws.services.s3.model.PartETag;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -31,7 +31,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Serializer implementation for a {@link S3Recoverable}. */
+/**
+ * Serializer implementation for a {@link S3Recoverable}.
+ *
+ * <p>Version 2 extends version 1 by persisting the per-part checksums (see {@link S3PartChecksum})
+ * so that a CompleteMultipartUpload after recovery can repeat the checksum each part was uploaded
+ * with. Version-1 state deserializes into checksum-less parts, which is correct: it was written by
+ * releases that never generated part checksums.
+ */
 @Internal
 final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recoverable> {
 
@@ -46,22 +53,24 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
 
     @Override
     public int getVersion() {
-        return 1;
+        return 2;
     }
 
     @Override
     public byte[] serialize(S3Recoverable obj) throws IOException {
-        final List<PartETag> partList = obj.parts();
-        final PartETag[] parts = partList.toArray(new PartETag[partList.size()]);
+        final List<CompletedPart> partList = obj.parts();
+        final CompletedPart[] parts = partList.toArray(new CompletedPart[0]);
 
         final byte[] keyBytes = obj.getObjectName().getBytes(CHARSET);
         final byte[] uploadIdBytes = obj.uploadId().getBytes(CHARSET);
 
         final byte[][] etags = new byte[parts.length][];
+        final byte[][] checksumBlocks = new byte[parts.length][];
         int partEtagBytes = 0;
         for (int i = 0; i < parts.length; i++) {
-            etags[i] = parts[i].getETag().getBytes(CHARSET);
-            partEtagBytes += etags[i].length + 2 * Integer.BYTES;
+            etags[i] = parts[i].eTag().getBytes(CHARSET);
+            checksumBlocks[i] = encodeChecksums(parts[i]);
+            partEtagBytes += etags[i].length + 2 * Integer.BYTES + checksumBlocks[i].length;
         }
 
         final String lastObjectKey = obj.incompleteObjectName();
@@ -93,10 +102,11 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
 
         bb.putInt(etags.length);
         for (int i = 0; i < parts.length; i++) {
-            PartETag pe = parts[i];
-            bb.putInt(pe.getPartNumber());
+            CompletedPart pe = parts[i];
+            bb.putInt(pe.partNumber());
             bb.putInt(etags[i].length);
             bb.put(etags[i]);
+            bb.put(checksumBlocks[i]);
         }
 
         bb.putLong(obj.numBytesInParts());
@@ -113,11 +123,41 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
         return targetBytes;
     }
 
+    /**
+     * Encodes the checksums of a part as: checksum count (byte, 0 for none), then per checksum its
+     * wire tag (byte) and the length-prefixed UTF-8 value exactly as the SDK returned it.
+     */
+    private static byte[] encodeChecksums(CompletedPart part) {
+        final List<S3PartChecksum> presentChecksums = new ArrayList<>();
+        final List<byte[]> values = new ArrayList<>();
+        int size = Byte.BYTES;
+        for (S3PartChecksum checksum : S3PartChecksum.values()) {
+            final String value = checksum.valueOf(part);
+            if (value != null) {
+                final byte[] valueBytes = value.getBytes(CHARSET);
+                presentChecksums.add(checksum);
+                values.add(valueBytes);
+                size += Byte.BYTES + Integer.BYTES + valueBytes.length;
+            }
+        }
+
+        final ByteBuffer bb = ByteBuffer.allocate(size).order(ByteOrder.LITTLE_ENDIAN);
+        bb.put((byte) presentChecksums.size());
+        for (int i = 0; i < presentChecksums.size(); i++) {
+            bb.put(presentChecksums.get(i).getWireTag());
+            bb.putInt(values.get(i).length);
+            bb.put(values.get(i));
+        }
+        return bb.array();
+    }
+
     @Override
     public S3Recoverable deserialize(int version, byte[] serialized) throws IOException {
         switch (version) {
             case 1:
                 return deserializeV1(serialized);
+            case 2:
+                return deserializeV2(serialized);
             default:
                 throw new IOException("Unrecognized version or corrupt state: " + version);
         }
@@ -137,14 +177,58 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
         bb.get(uploadIdBytes);
 
         final int numParts = bb.getInt();
-        final ArrayList<PartETag> parts = new ArrayList<>(numParts);
+        final ArrayList<CompletedPart> parts = new ArrayList<>(numParts);
         for (int i = 0; i < numParts; i++) {
             final int partNum = bb.getInt();
             final byte[] buffer = new byte[bb.getInt()];
             bb.get(buffer);
-            parts.add(new PartETag(partNum, new String(buffer, CHARSET)));
+            parts.add(
+                    CompletedPart.builder()
+                            .partNumber(partNum)
+                            .eTag(new String(buffer, CHARSET))
+                            .build());
         }
 
+        return deserializeTrailer(bb, keyBytes, uploadIdBytes, parts);
+    }
+
+    private static S3Recoverable deserializeV2(byte[] serialized) throws IOException {
+        final ByteBuffer bb = ByteBuffer.wrap(serialized).order(ByteOrder.LITTLE_ENDIAN);
+
+        if (bb.getInt() != MAGIC_NUMBER) {
+            throw new IOException("Corrupt data: Unexpected magic number.");
+        }
+
+        final byte[] keyBytes = new byte[bb.getInt()];
+        bb.get(keyBytes);
+
+        final byte[] uploadIdBytes = new byte[bb.getInt()];
+        bb.get(uploadIdBytes);
+
+        final int numParts = bb.getInt();
+        final ArrayList<CompletedPart> parts = new ArrayList<>(numParts);
+        for (int i = 0; i < numParts; i++) {
+            final int partNum = bb.getInt();
+            final byte[] buffer = new byte[bb.getInt()];
+            bb.get(buffer);
+            final CompletedPart.Builder partBuilder =
+                    CompletedPart.builder().partNumber(partNum).eTag(new String(buffer, CHARSET));
+            final int numChecksums = bb.get();
+            for (int c = 0; c < numChecksums; c++) {
+                final S3PartChecksum checksum = S3PartChecksum.fromWireTag(bb.get());
+                final byte[] valueBuffer = new byte[bb.getInt()];
+                bb.get(valueBuffer);
+                checksum.applyTo(partBuilder, new String(valueBuffer, CHARSET));
+            }
+            parts.add(partBuilder.build());
+        }
+
+        return deserializeTrailer(bb, keyBytes, uploadIdBytes, parts);
+    }
+
+    /** Reads the fields following the part list; identical in versions 1 and 2. */
+    private static S3Recoverable deserializeTrailer(
+            ByteBuffer bb, byte[] keyBytes, byte[] uploadIdBytes, List<CompletedPart> parts) {
         final long numBytes = bb.getLong();
 
         final String lastPart;
