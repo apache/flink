@@ -23,7 +23,8 @@ from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame, _normalize_subset
 from pyflink.dataframe.datatype import DataType
 from pyflink.dataframe.errors import _raise_as_value_error
-from pyflink.table import Schema, TableDescriptor
+from pyflink.java_gateway import get_gateway
+from pyflink.table import Schema, Table, TableDescriptor
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["read_catalog_table", "read_generic", "read_json", "read_parquet"]
@@ -298,9 +299,7 @@ def _validate_options(options: Dict[str, str]) -> None:
             raise TypeError(f"option {key!r} must have a string value")
 
 
-def _validate_computed_columns(
-    computed_columns: Optional[Dict[str, str]], physical_columns: Dict[str, DataType]
-) -> Dict[str, str]:
+def _validate_computed_columns(computed_columns: Optional[Dict[str, str]]) -> Dict[str, str]:
     if computed_columns is None:
         return {}
     if not isinstance(computed_columns, dict):
@@ -312,10 +311,6 @@ def _validate_computed_columns(
             raise TypeError("computed column names must be strings")
         if not name:
             raise ValueError("computed column names must not be empty")
-        if name in physical_columns:
-            raise ValueError(
-                f"computed column {name!r} conflicts with a physical column"
-            )
         if not isinstance(expression, str):
             raise TypeError(f"computed column {name!r} must use a string expression")
         if not expression:
@@ -360,9 +355,7 @@ def _build_source_schema(
             raise TypeError(f"schema column {name!r} must use a DataType value")
         schema_builder.column(name, data_type._to_table_data_type())
 
-    for name, expression in _validate_computed_columns(
-        computed_columns, schema
-    ).items():
+    for name, expression in _validate_computed_columns(computed_columns).items():
         schema_builder.column_by_expression(name, expression)
 
     validated_watermark = _validate_watermark(watermark)
@@ -441,8 +434,8 @@ def read_generic(
     :return: A DataFrame backed by the configured source.
     :raises TypeError: If an argument has an invalid type.
     :raises ValueError: If a connector, schema, option key, computed column, or watermark value is
-        empty, if a computed column conflicts with a physical column, or if Flink rejects a
-        computed column or watermark expression.
+        empty, or if Flink rejects the schema, such as a computed column that duplicates a
+        physical column or an invalid computed column or watermark expression.
 
     Example::
 
@@ -470,8 +463,93 @@ def read_generic(
     )
 
 
+def _extend_catalog_table(
+    table: Table,
+    computed_columns: Optional[Dict[str, str]],
+    watermark: Optional[Tuple[str, str]],
+) -> Table:
+    """
+    Read the catalog table behind ``table`` through an anonymous copy that carries additional
+    computed columns and an optional replacement watermark.
+
+    The copy keeps everything else from the catalog table (options, partition keys, distribution,
+    snapshot, connection, comment), so the connector still sees the same table definition. This
+    mirrors what ``TableEnvironment.from(TableDescriptor)`` does in Java, but builds the
+    ``CatalogTable`` directly since ``TableDescriptor`` cannot carry a distribution or snapshot
+    as-is. Only tables that name their connector explicitly can be extended: catalogs that provide
+    the connector themselves, such as Paimon or Hive, resolve it from the catalog rather than from
+    the options, and the anonymous copy has no catalog.
+    """
+    jvm = get_gateway().jvm
+    catalog = jvm.org.apache.flink.table.catalog
+
+    source = table._j_table.getQueryOperation().getContextResolvedTable()
+    identifier = source.getIdentifier().asSummaryString()
+    source_table = source.getTable()
+    table_kind = source_table.getTableKind()
+    if table_kind != catalog.CatalogBaseTable.TableKind.TABLE:
+        raise ValueError(
+            f"{identifier} is a {table_kind.name().lower()}, computed columns and watermarks can "
+            f"only be added to tables"
+        )
+    if not source_table.getOptions().get("connector"):
+        raise ValueError(
+            f"{identifier} does not declare a 'connector' option, its catalog provides the "
+            f"connector itself, so computed columns and watermarks cannot be added; use "
+            f"read_generic instead"
+        )
+
+    validated_columns = _validate_computed_columns(computed_columns)
+    validated_watermark = _validate_watermark(watermark)
+    source_schema = source_table.getUnresolvedSchema()
+
+    schema_builder = jvm.org.apache.flink.table.api.Schema.newBuilder()
+    if validated_watermark is None:
+        schema_builder.fromSchema(source_schema)
+    else:
+        # A schema may declare only one watermark, so copy the columns and primary key without
+        # the source watermark and declare the replacement below.
+        schema_builder.fromColumns(source_schema.getColumns())
+        primary_key = source_schema.getPrimaryKey()
+        if primary_key.isPresent():
+            schema_builder.primaryKeyNamed(
+                primary_key.get().getConstraintName(), primary_key.get().getColumnNames()
+            )
+    for name, expression in validated_columns.items():
+        schema_builder.columnByExpression(name, expression)
+    if validated_watermark is not None:
+        schema_builder.watermark(*validated_watermark)
+
+    catalog_table = (
+        catalog.CatalogTable.newBuilder()
+        .schema(schema_builder.build())
+        .options(source_table.getOptions())
+        .partitionKeys(source_table.getPartitionKeys())
+        .distribution(source_table.getDistribution().orElse(None))
+        .snapshot(source_table.getSnapshot().orElse(None))
+        .connection(source_table.getConnection().orElse(None))
+        .comment(source_table.getComment())
+        .build()
+    )
+
+    j_table_environment = table._t_env._j_tenv
+    try:
+        resolved_table = j_table_environment.getCatalogManager().resolveCatalogTable(catalog_table)
+    except Exception as error:
+        _raise_as_value_error(error)
+    query_operation = jvm.org.apache.flink.table.operations.SourceQueryOperation(
+        catalog.ContextResolvedTable.anonymous(resolved_table)
+    )
+    return Table(j_table_environment.createTable(query_operation), table._t_env)
+
+
 @PublicEvolving()
-def read_catalog_table(path: str) -> DataFrame:
+def read_catalog_table(
+    path: str,
+    *,
+    computed_columns: Optional[Dict[str, str]] = None,
+    watermark: Optional[Tuple[str, str]] = None,
+) -> DataFrame:
     """
     Read a table registered in a catalog.
 
@@ -480,11 +558,23 @@ def read_catalog_table(path: str) -> DataFrame:
     :func:`~pyflink.dataframe.use_catalog` and :func:`~pyflink.dataframe.use_database`. Names that
     are reserved keywords or contain dots must be escaped with backticks.
 
+    ``computed_columns`` are appended after the table's own columns in dictionary insertion order.
+    A ``watermark`` replaces any watermark declared on the catalog table and can reference the
+    table's columns or the new computed columns. The catalog table itself is not modified. Only
+    tables that name their connector through the ``connector`` option can be extended; tables of
+    catalogs that provide the connector themselves, such as Paimon or Hive, must be read without
+    these arguments.
+
     :param path: Path of the catalog table.
+    :param computed_columns: Optional SQL expressions keyed by computed column name.
+    :param watermark: Optional ``(column, expression)`` watermark declaration.
     :return: A DataFrame backed by the catalog table.
-    :raises TypeError: If ``path`` is not a string.
+    :raises TypeError: If ``path`` is not a string or another argument has an invalid type.
     :raises ValueError: If ``path`` is empty, is not a valid table path, or does not resolve to a
-        table.
+        table; if a computed column or watermark value is empty; if ``computed_columns`` or
+        ``watermark`` are given for a view or for a table without a ``connector`` option; or if
+        Flink rejects the schema, such as a computed column that duplicates an existing column or
+        an invalid computed column or watermark expression.
 
     Example::
 
@@ -494,7 +584,11 @@ def read_catalog_table(path: str) -> DataFrame:
         >>> pf.use_catalog("my_catalog")
         >>> orders = pf.read_catalog_table("default.orders")
         >>> pf.use_database("default")
-        >>> orders = pf.read_catalog_table("orders")
+        >>> orders = pf.read_catalog_table(
+        ...     "orders",
+        ...     computed_columns={"order_time": "TO_TIMESTAMP_LTZ(ts_millis, 3)"},
+        ...     watermark=("order_time", "order_time - INTERVAL '5' SECOND"),
+        ... )
 
     .. versionadded:: 2.4.0
     """
@@ -504,4 +598,6 @@ def read_catalog_table(path: str) -> DataFrame:
         table = table_environment.from_path(path)
     except Exception as error:
         _raise_as_value_error(error)
+    if computed_columns is not None or watermark is not None:
+        table = _extend_catalog_table(table, computed_columns, watermark)
     return DataFrame(table)
