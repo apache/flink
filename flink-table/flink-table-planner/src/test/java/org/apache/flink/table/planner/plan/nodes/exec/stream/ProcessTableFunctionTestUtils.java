@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
@@ -27,6 +28,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
@@ -859,6 +861,51 @@ public class ProcessTableFunctionTestUtils {
             if (count == 2) {
                 ctx.clearState("s");
             }
+        }
+    }
+
+    /** Testing function. */
+    public static class ValueViewFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint ValueView<Integer> s,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row r)
+                throws Exception {
+            collectObjects(s.getValue(), s.getClass().getSimpleName(), r);
+
+            // get
+            Integer count = s.getValue();
+            if (count == null) {
+                count = 0;
+            }
+
+            // update
+            s.setValue(count + 1);
+
+            // clear
+            if (count == 2) {
+                ctx.clearState("s");
+            }
+        }
+    }
+
+    /** Testing function with a value view of a nested composite type. */
+    public static class ComplexValueViewFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint ValueView<Tuple2<Instant, List<Integer>>> s,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row r)
+                throws Exception {
+            collectObjects(s.getValue(), s.getClass().getSimpleName(), r);
+
+            // get
+            final Tuple2<Instant, List<Integer>> current = s.getValue();
+            final List<Integer> scores =
+                    current == null ? new ArrayList<>() : new ArrayList<>(current.f1);
+
+            // update
+            scores.add(r.getFieldAs("score"));
+            s.setValue(Tuple2.of(Instant.ofEpochMilli(scores.size()), scores));
         }
     }
 

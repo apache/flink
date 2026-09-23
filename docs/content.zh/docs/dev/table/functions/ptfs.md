@@ -712,30 +712,83 @@ class CountingFunction extends ProcessTableFunction<String> {
 
 Flink's state backends provide different types of state to efficiently handle large state.
 
-Currently, PTFs support three types of state:
+Currently, PTFs support the following types of state:
 
-- **Value state**: Represents a single value.
-- **List state**: Represents a list of values, supporting operations like appending, removing, and iterating.
-- **Map state**: Represents a map (key-value pair) for efficient lookups, modifications, and removal of individual entries.
+- **Eager value state**: Represents a single value that follows a Read-Modify-Write cycle.
+- **Value view**: Represents a single value with lazy access.
+- **List view**: Represents a list of values, supporting operations like appending, removing, and iterating.
+- **Map view**: Represents a map (key-value pair) for efficient lookups, modifications, and removal of individual entries.
 
-By default, state entries in a PTF are represented as value state. This means that every state entry is fully read from
-the state backend when the evaluation method is called, and the value is written back to the state backend once the
-evaluation method finishes.
+By default, a state entry in a PTF is represented as eager value state. This means that every state entry is fully read
+from the state backend when the evaluation method is called, and the value is written back to the state backend once the
+evaluation method finishes (i.e. a Read-Modify-Write cycle). This is convenient but not optimal: the entire state entry
+is deserialized and serialized on every call, even if the function does not access or modify it.
 
-To optimize state access and avoid unnecessary (de)serialization, state entries can be declared as:
+To optimize state access and avoid unnecessary (de)serialization, state entries should be declared as:
+- `org.apache.flink.table.api.dataview.ValueView` (for a single value)
 - `org.apache.flink.table.api.dataview.ListView` (for list state)
 - `org.apache.flink.table.api.dataview.MapView` (for map state)
 
-These provide direct views to the underlying Flink state backend.
+These provide direct views to the underlying Flink state backend and are preferred over eager value state, especially
+when state is accessed conditionally.
 
-For example, when using a `MapView`, accessing a value via `MapView#get` will only deserialize the value associated with
-the specified key. This allows for efficient access to individual entries without needing to load the entire map. This
-approach is particularly useful when the map does not fit entirely into memory.
+For example, a `ValueView` only deserializes its value when `ValueView#getValue` is called and only serializes it when
+`ValueView#setValue` or `ValueView#clear` is called. Similarly, when using a `MapView`, accessing a value via
+`MapView#get` will only deserialize the value associated with the specified key. This allows for efficient access to
+individual entries without needing to load the entire map. This approach is particularly useful when the map does not fit
+entirely into memory.
 
 {{< hint info >}}
 State TTL is applied individually to each entry in a list or map, allowing for fine-grained expiration control over state
 elements.
 {{< /hint >}}
+
+The following example demonstrates how to declare and use a `ValueView` for counting events per user. In contrast to
+eager value state, the value is only read from the state backend when `getValue()` is called and only written back when
+`setValue()` (or `clear()`) is called.
+
+{{< tabs "2837eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that uses a value view for counting events per user with lazy state access
+class CountingFunction extends ProcessTableFunction<String> {
+  public void eval(
+    @StateHint ValueView<Integer> count,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
+  ) {
+    Integer currentCount = count.getValue();
+    if (currentCount == null) {
+      currentCount = 0;
+    }
+    count.setValue(currentCount + 1);
+    collect("Count for user: " + (currentCount + 1));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+The `ValueView` value type is reflectively extracted. If reflection is not feasible - such as when a `Row` object is
+involved - a type hint can be provided. In contrast to list and map views, the hint defines the value type directly.
+
+{{< tabs "2937eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that uses a value view of a row
+class CountingFunction extends ProcessTableFunction<String> {
+  public void eval(
+    @StateHint(type = @DataTypeHint("ROW<count INT>")) ValueView<Row> count,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
+  ) {
+    Row v = count.getValue();
+    Integer c = (v == null) ? 0 : v.getFieldAs("count");
+    count.setValue(Row.of(c + 1));
+    collect("Count for user: " + (c + 1));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 The following example demonstrates how to declare and use a `MapView`. It assumes the PTF processes a table with the
 schema `(userId, eventId, ...)`, partitioned by `userId`, with a high cardinality of distinct `eventId` values. For this

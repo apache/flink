@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ClearStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ComplexValueViewFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
@@ -73,6 +74,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingJoinFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ValueViewFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantTableArgFunction;
@@ -1501,6 +1503,41 @@ public class ProcessTableFunctionTestPrograms {
                             "SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))",
                             TableRuntimeException.class,
                             "Timers are not supported in the current PTF declaration.")
+                    .build();
+
+    public static final TableTestProgram PROCESS_VALUE_STATE =
+            TableTestProgram.of("process-value-state", "value view state entry")
+                    .setupTemporarySystemFunction("f", ValueViewFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {null, KeyedStateValueView, +I[Bob, 12]}]",
+                                            "+I[Alice, {null, KeyedStateValueView, +I[Alice, 42]}]",
+                                            "+I[Bob, {1, KeyedStateValueView, +I[Bob, 99]}]",
+                                            "+I[Bob, {2, KeyedStateValueView, +I[Bob, 100]}]",
+                                            "+I[Alice, {1, KeyedStateValueView, +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_COMPLEX_VALUE_STATE =
+            TableTestProgram.of(
+                            "process-complex-value-state", "value view with composite value type")
+                    .setupTemporarySystemFunction("f", ComplexValueViewFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {null, KeyedStateValueView, +I[Bob, 12]}]",
+                                            "+I[Alice, {null, KeyedStateValueView, +I[Alice, 42]}]",
+                                            "+I[Bob, {(1970-01-01T00:00:00.001Z,[12]), KeyedStateValueView, +I[Bob, 99]}]",
+                                            "+I[Bob, {(1970-01-01T00:00:00.002Z,[12, 99]), KeyedStateValueView, +I[Bob, 100]}]",
+                                            "+I[Alice, {(1970-01-01T00:00:00.001Z,[42]), KeyedStateValueView, +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
                     .build();
 
     public static final TableTestProgram PROCESS_LIST_STATE =
