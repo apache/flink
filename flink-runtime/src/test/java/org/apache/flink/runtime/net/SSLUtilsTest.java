@@ -34,10 +34,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLSocket;
 
 import java.io.File;
 import java.io.InputStream;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -175,6 +177,31 @@ public class SSLUtilsTest {
         assertThat(cipherSuites).containsExactlyInAnyOrder(testSSLAlgorithms.split(","));
     }
 
+    /**
+     * Tests that the configured cipher suites are applied to the REST <b>server</b> context even
+     * when mutual authentication is disabled ({@link ClientAuth#NONE}). Previously the server
+     * context only received the configured ciphers in the mutual-auth code path and otherwise fell
+     * back to Netty's TLS defaults.
+     */
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testRESTServerSSLConfigCipherAlgorithmsWithoutMutualAuth(String sslProvider)
+            throws Exception {
+        String testSSLAlgorithms = "test_algorithm1,test_algorithm2";
+        String testTlsVersion = "TLSv1.2,TLSv1.3";
+        Configuration config = createRestSslConfigWithKeyStore(sslProvider);
+        config.set(SecurityOptions.SSL_REST_ENABLED, true);
+        config.setString(SecurityOptions.SSL_ALGORITHMS.key(), testSSLAlgorithms);
+        config.setString(SecurityOptions.SSL_PROTOCOL.key(), testTlsVersion);
+
+        JdkSslContext nettySSLContext =
+                (JdkSslContext)
+                        SSLUtils.createRestNettySSLContext(config, false, ClientAuth.NONE, JDK);
+        List<String> cipherSuites = checkNotNull(nettySSLContext).cipherSuites();
+        assertThat(cipherSuites).hasSize(2);
+        assertThat(cipherSuites).containsExactlyInAnyOrder(testSSLAlgorithms.split(","));
+    }
+
     // ------------------------ server --------------------------
 
     /** Tests that REST Server SSL Engine is created given a valid SSL configuration. */
@@ -229,6 +256,51 @@ public class SSLUtilsTest {
 
         assertThatThrownBy(() -> SSLUtils.createRestServerSSLEngineFactory(serverConfig))
                 .isInstanceOf(KeyStoreException.class);
+    }
+
+    /**
+     * Tests that the {@link SSLHandlerFactory} produced for the REST server applies the configured
+     * protocols and cipher suites to its {@code SSLEngine} even without mutual authentication. This
+     * guards the fix where the REST server context previously fell back to Netty's TLS defaults
+     * (leading to "no cipher suites in common" against clients restricted to the configured list).
+     */
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testRESTServerSSLEngineUsesConfiguredProtocolsAndCipherSuites(String sslProvider)
+            throws Exception {
+        Configuration serverConfig = createRestSslConfigWithKeyStore(sslProvider);
+        final String[] sslAlgorithms;
+        final String[] expectedSslProtocols;
+        if (sslProvider.equalsIgnoreCase("OPENSSL")) {
+            // openSSL does not support the same set of cipher algorithms!
+            sslAlgorithms =
+                    new String[] {
+                        "TLS_RSA_WITH_AES_128_GCM_SHA256", "TLS_RSA_WITH_AES_256_GCM_SHA384"
+                    };
+            expectedSslProtocols = new String[] {"SSLv2Hello", "TLSv1"};
+        } else {
+            sslAlgorithms =
+                    new String[] {
+                        "TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"
+                    };
+            expectedSslProtocols = new String[] {"TLSv1"};
+        }
+
+        // set custom protocol and cipher suites; REST authentication stays disabled so the engine
+        // is built with ClientAuth.NONE.
+        serverConfig.set(SecurityOptions.SSL_PROTOCOL, "TLSv1");
+        serverConfig.set(SecurityOptions.SSL_ALGORITHMS, String.join(",", sslAlgorithms));
+
+        final SSLHandlerFactory restServerSSLHandlerFactory =
+                SSLUtils.createRestServerSSLEngineFactory(serverConfig);
+        final SslHandler sslHandler =
+                restServerSSLHandlerFactory.createNettySSLHandler(UnpooledByteBufAllocator.DEFAULT);
+
+        assertThat(sslHandler.engine().getEnabledProtocols()).hasSameSizeAs(expectedSslProtocols);
+        assertThat(sslHandler.engine().getEnabledProtocols()).contains(expectedSslProtocols);
+
+        assertThat(sslHandler.engine().getEnabledCipherSuites()).hasSameSizeAs(sslAlgorithms);
+        assertThat(sslHandler.engine().getEnabledCipherSuites()).contains(sslAlgorithms);
     }
 
     // ----------------------- mutual auth contexts --------------------------
@@ -373,6 +445,40 @@ public class SSLUtilsTest {
                 SSLUtils.createSSLServerSocketFactory(serverConfig).createServerSocket(0)) {
             assertThat(socket).isInstanceOf(SSLServerSocket.class);
             final SSLServerSocket sslSocket = (SSLServerSocket) socket;
+
+            String[] protocols = sslSocket.getEnabledProtocols();
+            String[] algorithms = sslSocket.getEnabledCipherSuites();
+
+            assertThat(protocols).hasSize(1);
+            assertThat(protocols[0]).isEqualTo("TLSv1.1");
+            assertThat(algorithms).hasSize(2);
+            assertThat(algorithms)
+                    .contains(
+                            "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+                            "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+        }
+    }
+
+    /**
+     * Tests that {@link SSLUtils#createSSLClientSocketFactory} applies the configured ssl version
+     * and cipher suites to the client sockets it creates. Without the {@code
+     * ConfiguringSSLClientSocketFactory} wrapper these sockets would use the JVM defaults (all
+     * protocols and ciphers) instead of the operator-configured ones.
+     */
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testSetSSLVersionAndCipherSuitesForSSLClientSocket(String sslProvider) throws Exception {
+        Configuration clientConfig = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
+
+        // set custom protocol and cipher suites
+        clientConfig.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.1");
+        clientConfig.set(
+                SecurityOptions.SSL_ALGORITHMS,
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+
+        try (Socket socket = SSLUtils.createSSLClientSocketFactory(clientConfig).createSocket()) {
+            assertThat(socket).isInstanceOf(SSLSocket.class);
+            final SSLSocket sslSocket = (SSLSocket) socket;
 
             String[] protocols = sslSocket.getEnabledProtocols();
             String[] algorithms = sslSocket.getEnabledCipherSuites();
