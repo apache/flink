@@ -60,9 +60,9 @@ def create_catalog(name: str, options: Dict[str, str]) -> None:
     """
     Create a catalog in the environment used by DataFrame operations.
 
-    The ``type`` option selects the catalog factory, which must be available through Flink's
-    factory discovery mechanism. The remaining options are passed to that factory. This mirrors the
-    ``CREATE CATALOG`` SQL statement.
+    The ``type`` option picks which kind of catalog to create, for example ``generic_in_memory``.
+    Flink has to know about that type, either built in or on the classpath. Every other option is
+    passed through to the catalog. This does the same as ``CREATE CATALOG`` in SQL.
 
     :param name: Name under which the catalog is created.
     :param options: Catalog options, including the ``type`` option.
@@ -125,8 +125,8 @@ def use_catalog(name: str) -> None:
     Set the current catalog.
 
     Table paths without a catalog part, such as ``my_table`` or ``my_database.my_table``, are
-    resolved against the current catalog. Switching the catalog also resets the current database to
-    the default database of the new catalog.
+    resolved against the current catalog. Switching catalogs also moves you to that catalog's
+    default database.
 
     :param name: Name of a registered catalog.
     :raises TypeError: If ``name`` is not a string.
