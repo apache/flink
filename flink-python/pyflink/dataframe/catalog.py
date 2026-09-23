@@ -148,11 +148,11 @@ def use_catalog(name: str) -> None:
 
 
 @PublicEvolving()
-def get_current_catalog() -> str:
+def get_current_catalog() -> Optional[str]:
     """
     Return the name of the current catalog.
 
-    :return: The current catalog name.
+    :return: The current catalog name, or ``None`` if no current catalog is set.
 
     Example::
 
@@ -211,11 +211,11 @@ def use_database(name: str) -> None:
 
 
 @PublicEvolving()
-def get_current_database() -> str:
+def get_current_database() -> Optional[str]:
     """
     Return the name of the current database.
 
-    :return: The current database name.
+    :return: The current database name, or ``None`` if no current database is set.
 
     Example::
 
@@ -234,6 +234,7 @@ def list_databases() -> List[str]:
     Return the names of all databases in the current catalog.
 
     :return: Database names.
+    :raises ValueError: If no current catalog is set.
 
     Example::
 
@@ -243,4 +244,11 @@ def list_databases() -> List[str]:
 
     .. versionadded:: 2.4.0
     """
-    return get_or_create_table_environment().list_databases()
+    table_environment = get_or_create_table_environment()
+    # TableEnvironment.list_databases() fails with a bare NoSuchElementException in this case.
+    if table_environment.get_current_catalog() is None:
+        raise ValueError(
+            "A current catalog has not been set. Set one with pf.use_catalog(), or list the "
+            "databases of a specific catalog with pf.get_catalog(name).list_databases()."
+        )
+    return table_environment.list_databases()

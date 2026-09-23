@@ -131,6 +131,18 @@ class CatalogTests(PyFlinkDataFrameUTTestCase):
         self.assertEqual(pf.get_current_catalog(), "default_catalog")
         self.assertEqual(pf.get_current_database(), "default_database")
 
+    def test_navigation_without_current_catalog(self):
+        self.t_env.use_catalog(None)
+        self.assertIsNone(pf.get_current_catalog())
+        self.assertIsNone(pf.get_current_database())
+
+        with self.assertRaisesRegex(ValueError, "A current catalog has not been set"):
+            pf.list_databases()
+        self.assertEqual(pf.get_catalog("default_catalog").list_databases(), ["default_database"])
+
+        pf.use_catalog("default_catalog")
+        self.assertEqual(pf.list_databases(), ["default_database"])
+
     def test_unexpected_errors_are_not_translated(self):
         gateway = get_gateway()
         j_error = gateway.jvm.org.apache.flink.table.api.TableException("boom")
