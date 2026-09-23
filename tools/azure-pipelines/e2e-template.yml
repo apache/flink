@@ -137,8 +137,21 @@ jobs:
 
         echo "Installing required software for netty-tcnative"
         sudo apt-get install -y bc libapr1
-        wget -r --no-parent -nd --accept=libssl1.0.0_*ubuntu5.*_amd64.deb http://security.ubuntu.com/ubuntu/pool/main/o/openssl1.0/
-        sudo apt install ./libssl1.0.0_*.deb
+
+        # flink-shaded-netty-tcnative-dynamic links against OpenSSL symbols newer than what this
+        # Ubuntu release ships (system libssl.so.3 lacks OPENSSL_3.2.0). Per netty's own guidance
+        # for this exact case (http://netty.io/wiki/forked-tomcat-native.html: "If your Linux
+        # distro's package manager doesn't provide a new enough OpenSSL, you will need to compile
+        # it by your own and set the LD_LIBRARY_PATH"), fetch a newer prebuilt libssl/libcrypto
+        # into a private directory instead of replacing the system package, so the rest of this
+        # job keeps using the OS's own OpenSSL.
+        FLINK_E2E_OPENSSL32_LIB="$(pwd)/openssl32-lib"
+        mkdir -p "${FLINK_E2E_OPENSSL32_LIB}"
+        wget -q -O /tmp/libssl3t64.deb http://security.ubuntu.com/ubuntu/pool/main/o/openssl/libssl3t64_3.5.5-1ubuntu3.5_amd64.deb
+        dpkg-deb -x /tmp/libssl3t64.deb /tmp/libssl3t64-extracted
+        cp /tmp/libssl3t64-extracted/usr/lib/x86_64-linux-gnu/libssl.so.3 /tmp/libssl3t64-extracted/usr/lib/x86_64-linux-gnu/libcrypto.so.3 "${FLINK_E2E_OPENSSL32_LIB}/"
+        rm -rf /tmp/libssl3t64.deb /tmp/libssl3t64-extracted
+        echo "##vso[task.setvariable variable=FLINK_E2E_OPENSSL32_LIB]${FLINK_E2E_OPENSSL32_LIB}"
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
     # e2e only needs the built binary; MVN_LICENSE_CHECK_ARGS="" skips all QA (convergence, license, structural) and the DEBUG shade logging, which run in the license_check job.
