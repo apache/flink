@@ -347,6 +347,41 @@ public class ToChangelogTestPrograms {
                                     + "op_mapping => MAP['INSERT,UPDATE_AFTER', 'C', 'DELETE', 'D'])")
                     .build();
 
+    public static final TableTestProgram UPSERT_PARTITION_BY_COLUMN_LIST =
+            TableTestProgram.of(
+                            "to-changelog-upsert-partition-by-column-list",
+                            "INSERT INTO with a column list that reorders and pads over PARTITION BY")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "name STRING",
+                                            "op STRING",
+                                            "score BIGINT",
+                                            "note STRING")
+                                    .consumedValues(
+                                            "+I[Alice, C, 10, null]",
+                                            "+I[Bob, C, 20, null]",
+                                            "+I[Alice, C, 30, null]",
+                                            "+I[Bob, D, 20, null]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink (score, op, name) SELECT score, op, name FROM TO_CHANGELOG("
+                                    + "input => TABLE t PARTITION BY name, "
+                                    + "op => DESCRIPTOR(op), "
+                                    + "op_mapping => MAP['INSERT,UPDATE_AFTER', 'C', 'DELETE', 'D'])")
+                    .build();
+
     public static final TableTestProgram UPSERT_PARTITION_BY_KEY_ONLY_DELETES =
             TableTestProgram.of(
                             "to-changelog-upsert-partition-by-key-only-deletes",

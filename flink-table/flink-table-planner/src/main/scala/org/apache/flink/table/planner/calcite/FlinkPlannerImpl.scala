@@ -121,7 +121,11 @@ class FlinkPlannerImpl(
 
   private def validate(sqlNode: SqlNode, validator: FlinkCalciteSqlValidator): SqlNode = {
     try {
-      sqlNode.accept(new PreValidateReWriter(validator, typeFactory))
+      // Validating the same query twice with one validator leaves the namespaces of set-semantic
+      // table arguments unvalidated, so the rewrite gets its own validator (see FLINK-40694).
+      val rewriteValidator =
+        createSqlValidator(validator.getCatalogReader.unwrap(classOf[CalciteCatalogReader]))
+      sqlNode.accept(new PreValidateReWriter(rewriteValidator, typeFactory))
       // do extended validation.
       sqlNode match {
         case node: ExtendedSqlNode =>

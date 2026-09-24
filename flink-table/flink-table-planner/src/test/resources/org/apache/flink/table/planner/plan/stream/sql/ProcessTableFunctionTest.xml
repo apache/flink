@@ -98,6 +98,100 @@ ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1) PARTITI
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInsertWithColumnListRowSemanticTable">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO t_keyed_sink (`out`) SELECT `out` FROM f(r => TABLE t, i => 1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.t_keyed_sink], targetColumns=[[1]], fields=[EXPR$0, out])
++- LogicalProject(EXPR$0=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], out=[$0])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
+      +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalProject(name=[$0], score=[$1])
+            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.t_keyed_sink], targetColumns=[[1]], fields=[EXPR$0, out])
++- Calc(select=[null:VARCHAR(2147483647) AS EXPR$0, out])
+   +- ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
+      +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInsertWithColumnListSetSemanticTable">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO t_keyed_sink (`out`, `name`) SELECT `out`, `name` FROM f(r => TABLE t PARTITION BY name, i => 1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.t_keyed_sink], targetColumns=[[1],[0]], fields=[name, out])
++- LogicalProject(name=[$0], out=[$1])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+      +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalProject(name=[$0], score=[$1])
+            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.t_keyed_sink], targetColumns=[[1],[0]], fields=[name, out])
++- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], uid=[f], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+   +- Exchange(distribution=[hash[name]])
+      +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInsertWithColumnListSetSemanticTableAndPadding">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO t_no_pk_sink (`mode`, `name`) SELECT `out`, `name` FROM f(r => TABLE t PARTITION BY name, i => 1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.t_no_pk_sink], targetColumns=[[3],[0]], fields=[name, EXPR$1, EXPR$2, out])
++- LogicalProject(name=[$0], EXPR$1=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$2=[null:BIGINT], out=[$1])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+      +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalProject(name=[$0], score=[$1])
+            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.t_no_pk_sink], targetColumns=[[3],[0]], fields=[name, EXPR$1, EXPR$2, out])
++- Calc(select=[name, null:VARCHAR(2147483647) AS EXPR$1, null:BIGINT AS EXPR$2, out])
+   +- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], uid=[f], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+      +- Exchange(distribution=[hash[name]])
+         +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInsertWithStaticPartitionSetSemanticTable">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO t_partitioned_sink PARTITION (`p` = 'x') SELECT `name`, `out` FROM f(r => TABLE t PARTITION BY name, i => 1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.t_partitioned_sink], fields=[name, out, EXPR$2])
++- LogicalProject(name=[$0], out=[$1], EXPR$2=[_UTF-16LE'x':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+      +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalProject(name=[$0], score=[$1])
+            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.t_partitioned_sink], fields=[name, out, EXPR$2])
++- Calc(select=[name, out, 'x' AS EXPR$2])
+   +- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], uid=[f], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+      +- Exchange(distribution=[hash[name]])
+         +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testIntervalDayArgs">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(d => INTERVAL '1' SECOND)]]>
