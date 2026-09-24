@@ -439,8 +439,19 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
                         .setDeclarativeSlotPool(declarativeSlotPool)
                         .setExecutionGraphFactoryDecorator(
                                 delegate ->
-                                        (jg, ccs, cc, cic, cst, plc, its, vans, vps, esul, mpfs,
-                                                epsc, log) -> {
+                                        (jg,
+                                                ccs,
+                                                cc,
+                                                cic,
+                                                cst,
+                                                plc,
+                                                its,
+                                                vans,
+                                                vps,
+                                                esul,
+                                                mpfs,
+                                                epsc,
+                                                log) -> {
                                             throw new FlinkRuntimeException(
                                                     "Failed to create checkpoint storage",
                                                     new IOException("read timed out"));
@@ -466,6 +477,61 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
     }
 
     @Test
+    void testFailureEnrichersRunOnExecutionGraphCreationFailure() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
+
+        final TestingFailureEnricher failureEnricher = new TestingFailureEnricher();
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                jobGraph,
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .setFailureEnrichers(Collections.singletonList(failureEnricher))
+                        .setExecutionGraphFactoryDecorator(
+                                delegate ->
+                                        (jg,
+                                                ccs,
+                                                cc,
+                                                cic,
+                                                cst,
+                                                plc,
+                                                its,
+                                                vans,
+                                                vps,
+                                                esul,
+                                                mpfs,
+                                                epsc,
+                                                log) -> {
+                                            throw new FlinkRuntimeException(
+                                                    "Failed to create checkpoint storage",
+                                                    new IOException("read timed out"));
+                                        })
+                        .build();
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(PARALLELISM);
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(
+                                            ResourceProfile.UNKNOWN, PARALLELISM)),
+                            taskManagerGateway);
+                });
+
+        assertThat(scheduler.getJobTerminationFuture().get()).isEqualTo(JobStatus.FAILED);
+        assertThat(failureEnricher.getSeenThrowables()).isNotEmpty();
+    }
+
+    @Test
     void testTransientExecutionGraphCreationFailureIsRetriedThenSucceeds() throws Exception {
         final JobGraph jobGraph = createJobGraph();
 
@@ -485,8 +551,19 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
                                 new TestRestartBackoffTimeStrategy(true, 0L))
                         .setExecutionGraphFactoryDecorator(
                                 delegate ->
-                                        (jg, ccs, cc, cic, cst, plc, its, vans, vps, esul, mpfs,
-                                                epsc, log) -> {
+                                        (jg,
+                                                ccs,
+                                                cc,
+                                                cic,
+                                                cst,
+                                                plc,
+                                                its,
+                                                vans,
+                                                vps,
+                                                esul,
+                                                mpfs,
+                                                epsc,
+                                                log) -> {
                                             if (executionGraphCreationAttempts.getAndIncrement()
                                                     < minimumExecutionGraphCreationFailures) {
                                                 throw new FlinkRuntimeException(
@@ -494,8 +571,8 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
                                                         new IOException("read timed out"));
                                             }
                                             return delegate.createAndRestoreExecutionGraph(
-                                                    jg, ccs, cc, cic, cst, plc, its, vans, vps, esul,
-                                                    mpfs, epsc, log);
+                                                    jg, ccs, cc, cic, cst, plc, its, vans, vps,
+                                                    esul, mpfs, epsc, log);
                                         })
                         .build();
 
@@ -540,8 +617,19 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
                         .setJobMasterConfiguration(configuration)
                         .setExecutionGraphFactoryDecorator(
                                 delegate ->
-                                        (jg, ccs, cc, cic, cst, plc, its, vans, vps, esul, mpfs,
-                                                epsc, log) -> {
+                                        (jg,
+                                                ccs,
+                                                cc,
+                                                cic,
+                                                cst,
+                                                plc,
+                                                its,
+                                                vans,
+                                                vps,
+                                                esul,
+                                                mpfs,
+                                                epsc,
+                                                log) -> {
                                             throw new SuppressRestartsException(
                                                     new FlinkException(
                                                             "fatal EG creation failure"));

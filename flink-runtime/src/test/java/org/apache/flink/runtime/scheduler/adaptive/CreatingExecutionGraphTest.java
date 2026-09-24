@@ -44,7 +44,6 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -295,8 +294,7 @@ class CreatingExecutionGraphTest {
         }
 
         @Override
-        public FailureResult howToHandleEGCreationFailure(
-                Throwable failure, CompletableFuture<Map<String, String>> failureLabels) {
+        public FailureResult howToHandleEGCreationFailure(Throwable failure) {
             return egCreationFailureResult;
         }
 

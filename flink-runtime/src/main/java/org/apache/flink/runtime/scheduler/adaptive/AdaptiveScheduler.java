@@ -1680,10 +1680,15 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public FailureResult howToHandleEGCreationFailure(
-            Throwable failure, CompletableFuture<Map<String, String>> failureLabels) {
-        FailureResult failureResult = howToHandleFailure(failure,
-                executionGraphRetryBackoffTimeStrategy);
+    public FailureResult howToHandleEGCreationFailure(Throwable failure) {
+        final FailureEnricher.Context ctx =
+                DefaultFailureEnricherContext.forGlobalFailure(
+                        jobInfo, jobManagerJobMetricGroup, ioExecutor, userCodeClassLoader);
+        final CompletableFuture<Map<String, String>> failureLabels =
+                FailureEnricherUtils.labelFailure(
+                        failure, ctx, getMainThreadExecutor(), failureEnrichers);
+        final FailureResult failureResult =
+                howToHandleFailure(failure, executionGraphRetryBackoffTimeStrategy);
         // Add reporting as callback for when the failure labeling is completed.
         failureLabels.thenAcceptAsync(
                 (labels) -> jobFailureMetricReporter.reportJobFailure(failureResult, labels),
@@ -1702,7 +1707,8 @@ public class AdaptiveScheduler
         return failureResult;
     }
 
-    private FailureResult howToHandleFailure(Throwable failure, RestartBackoffTimeStrategy strategy) {
+    private FailureResult howToHandleFailure(
+            Throwable failure, RestartBackoffTimeStrategy strategy) {
         if (ExecutionFailureHandler.isUnrecoverableError(failure)) {
             return FailureResult.canNotRestart(
                     new JobException("The failure is not recoverable", failure));
@@ -1710,12 +1716,10 @@ public class AdaptiveScheduler
 
         strategy.notifyFailure(failure);
         if (strategy.canRestart()) {
-            return FailureResult.canRestart(
-                    failure, Duration.ofMillis(strategy.getBackoffTime()));
+            return FailureResult.canRestart(failure, Duration.ofMillis(strategy.getBackoffTime()));
         } else {
             return FailureResult.canNotRestart(
-                    new JobException(
-                            "Recovery is suppressed by " + strategy, failure));
+                    new JobException("Recovery is suppressed by " + strategy, failure));
         }
     }
 
