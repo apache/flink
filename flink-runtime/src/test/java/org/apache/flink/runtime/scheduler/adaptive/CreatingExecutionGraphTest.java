@@ -31,6 +31,7 @@ import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -71,6 +73,47 @@ class CreatingExecutionGraphTest {
                 CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
                 null);
 
+        context.setExpectFinished(
+                archivedExecutionGraph ->
+                        assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.FAILED));
+
+        executionGraphWithVertexParallelismFuture.completeExceptionally(
+                new FlinkException("Test exception"));
+    }
+
+    @Test
+    void testRecoverableExecutionGraphCreationFailureTransitionsToRetrying() {
+        final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
+                executionGraphWithVertexParallelismFuture = new CompletableFuture<>();
+        new CreatingExecutionGraph(
+                context,
+                executionGraphWithVertexParallelismFuture,
+                LOG,
+                CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                null);
+
+        context.setEgCreationFailureResult(
+                FailureResult.canRestart(
+                        new FlinkRuntimeException("transient"), Duration.ofMillis(123)));
+        context.setExpectRetryingExecutionGraphCreation();
+
+        executionGraphWithVertexParallelismFuture.completeExceptionally(
+                new FlinkRuntimeException("Failed to create checkpoint storage"));
+    }
+
+    @Test
+    void testUnrecoverableExecutionGraphCreationFailureTransitionsToFinished() {
+        final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
+                executionGraphWithVertexParallelismFuture = new CompletableFuture<>();
+        new CreatingExecutionGraph(
+                context,
+                executionGraphWithVertexParallelismFuture,
+                LOG,
+                CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
+                null);
+
+        context.setEgCreationFailureResult(
+                FailureResult.canNotRestart(new FlinkException("not recoverable")));
         context.setExpectFinished(
                 archivedExecutionGraph ->
                         assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.FAILED));
@@ -169,6 +212,11 @@ class CreatingExecutionGraphTest {
                 new StateValidator<>("WaitingForResources");
         private final StateValidator<ExecutionGraph> executingStateValidator =
                 new StateValidator<>("Executing");
+        private final StateValidator<Void> retryingExecutionGraphCreationStateValidator =
+                new StateValidator<>("RetryingExecutionGraphCreation");
+
+        private FailureResult egCreationFailureResult =
+                FailureResult.canNotRestart(new RuntimeException("not recoverable (test default)"));
 
         private Function<
                         CreatingExecutionGraph.ExecutionGraphWithVertexParallelism,
@@ -199,6 +247,14 @@ class CreatingExecutionGraphTest {
 
         public void setGlobalFailureHandler(GlobalFailureHandler globalFailureHandler) {
             this.globalFailureHandler = globalFailureHandler;
+        }
+
+        public void setEgCreationFailureResult(FailureResult failureResult) {
+            this.egCreationFailureResult = failureResult;
+        }
+
+        public void setExpectRetryingExecutionGraphCreation() {
+            retryingExecutionGraphCreationStateValidator.expectInput((none) -> {});
         }
 
         @Override
@@ -239,6 +295,19 @@ class CreatingExecutionGraphTest {
         }
 
         @Override
+        public FailureResult howToHandleEGCreationFailure(
+                Throwable failure, CompletableFuture<Map<String, String>> failureLabels) {
+            return egCreationFailureResult;
+        }
+
+        @Override
+        public void goToRetryingExecutionGraphCreation(
+                @Nullable ExecutionGraph previousExecutionGraph, Duration backoffTime) {
+            retryingExecutionGraphCreationStateValidator.validateInput(null);
+            registerStateTransition();
+        }
+
+        @Override
         public Executor getIOExecutor() {
             return Executors.directExecutor();
         }
@@ -258,6 +327,7 @@ class CreatingExecutionGraphTest {
             super.afterEach(extensionContext);
             waitingForResourcesStateValidator.close();
             executingStateValidator.close();
+            retryingExecutionGraphCreationStateValidator.close();
         }
 
         @Override

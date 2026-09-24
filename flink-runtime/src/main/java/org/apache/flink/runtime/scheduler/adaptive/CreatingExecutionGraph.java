@@ -24,6 +24,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
@@ -46,6 +47,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -94,16 +96,28 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
             @Nullable ExecutionGraphWithVertexParallelism executionGraphWithVertexParallelism,
             @Nullable Throwable throwable) {
         if (throwable != null) {
-            getLogger()
-                    .info(
-                            "Failed to go from {} to {} because the ExecutionGraph creation failed.",
+            final FailureResult failureResult =
+                    context.howToHandleEGCreationFailure(
+                            throwable, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
+            if (failureResult.canRestart()) {
+                getLogger()
+                        .info(
+                                "Failed to create the ExecutionGraph; retrying after {} (backoff).",
+                                failureResult.getBackoffTime(),
+                                throwable);
+                context.goToRetryingExecutionGraphCreation(
+                        previousExecutionGraph, failureResult.getBackoffTime());
+            } else {
+                getLogger()
+                        .info(
+                                "Failed to go from {} to {} because the ExecutionGraph creation failed and is not recoverable.",
                             CreatingExecutionGraph.class.getSimpleName(),
                             Executing.class.getSimpleName(),
                             throwable);
 
             recordRescaleForException(throwable);
 
-            context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, throwable));
+            context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, throwable));}
         } else {
             for (ExecutionVertex vertex :
                     executionGraphWithVertexParallelism.executionGraph.getAllExecutionVertices()) {
@@ -198,7 +212,8 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
             extends StateWithoutExecutionGraph.Context,
                     GlobalFailureHandler,
                     StateTransitions.ToExecuting,
-                    StateTransitions.ToWaitingForResources {
+                    StateTransitions.ToWaitingForResources,
+                    StateTransitions.ToRetryingExecutionGraphCreation {
 
         /**
          * Runs the given action after a delay if the state at this time equals the expected state.
@@ -243,6 +258,16 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
          * @return the metric group
          */
         JobManagerJobMetricGroup getMetricGroup();
+
+        /**
+         * Decides how to handle a failure that occurred while creating the ExecutionGraph.
+         *
+         * @param failure the ExecutionGraph creation failure
+         * @param failureLabels labels enriching the failure (may be an already-completed empty map)
+         * @return a {@link FailureResult} describing whether and after which backoff to retry
+         */
+        FailureResult howToHandleEGCreationFailure(
+                Throwable failure, CompletableFuture<Map<String, String>> failureLabels);
     }
 
     @FunctionalInterface

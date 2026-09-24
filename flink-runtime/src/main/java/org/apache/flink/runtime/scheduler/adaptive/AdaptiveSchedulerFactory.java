@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.failover.NoRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategyFactoryLoader;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
@@ -160,7 +161,8 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 fatalErrorHandler,
                 jobStatusListener,
                 failureEnrichers,
-                executionGraphFactory);
+                executionGraphFactory,
+                NoRestartBackoffTimeStrategy.INSTANCE);
     }
 
     @Override

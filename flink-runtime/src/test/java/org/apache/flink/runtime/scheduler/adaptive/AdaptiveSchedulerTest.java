@@ -112,6 +112,7 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -417,6 +418,151 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
 
         assertThat(executionGraph.getStatusTimestamp(JobStatus.INITIALIZING))
                 .isEqualTo(initializationTimestamp);
+    }
+
+    /**
+     * With the ExecutionGraph-creation retry strategy left at its no-restart default, even a
+     * transient creation failure fails the job.
+     */
+    @Test
+    void testExecutionGraphCreationRetryDisabledByDefaultFailsJob() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                jobGraph,
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .setExecutionGraphFactoryDecorator(
+                                delegate ->
+                                        (jg, ccs, cc, cic, cst, plc, its, vans, vps, esul, mpfs,
+                                                epsc, log) -> {
+                                            throw new FlinkRuntimeException(
+                                                    "Failed to create checkpoint storage",
+                                                    new IOException("read timed out"));
+                                        })
+                        .build();
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(PARALLELISM);
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(
+                                            ResourceProfile.UNKNOWN, PARALLELISM)),
+                            taskManagerGateway);
+                });
+
+        assertThat(scheduler.getJobTerminationFuture().get()).isEqualTo(JobStatus.FAILED);
+        assertThat(taskManagerGateway.submittedTasks).isEmpty();
+    }
+
+    @Test
+    void testTransientExecutionGraphCreationFailureIsRetriedThenSucceeds() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
+
+        final int minimumExecutionGraphCreationFailures = 1;
+        final AtomicInteger executionGraphCreationAttempts = new AtomicInteger();
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                jobGraph,
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .setExecutionGraphRetryBackoffTimeStrategy(
+                                new TestRestartBackoffTimeStrategy(true, 0L))
+                        .setExecutionGraphFactoryDecorator(
+                                delegate ->
+                                        (jg, ccs, cc, cic, cst, plc, its, vans, vps, esul, mpfs,
+                                                epsc, log) -> {
+                                            if (executionGraphCreationAttempts.getAndIncrement()
+                                                    < minimumExecutionGraphCreationFailures) {
+                                                throw new FlinkRuntimeException(
+                                                        "Failed to create checkpoint storage",
+                                                        new IOException("read timed out"));
+                                            }
+                                            return delegate.createAndRestoreExecutionGraph(
+                                                    jg, ccs, cc, cic, cst, plc, its, vans, vps, esul,
+                                                    mpfs, epsc, log);
+                                        })
+                        .build();
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(PARALLELISM);
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(
+                                            ResourceProfile.UNKNOWN, PARALLELISM)),
+                            taskManagerGateway);
+                });
+
+        awaitJobReachingParallelism(taskManagerGateway, scheduler, PARALLELISM);
+        assertThat(executionGraphCreationAttempts.get())
+                .isGreaterThanOrEqualTo(minimumExecutionGraphCreationFailures + 1);
+    }
+
+    /**
+     * A non-transient ExecutionGraph-creation failure (here a {@link SuppressRestartsException})
+     * terminates the job — it is never eligible for retry.
+     */
+    @Test
+    void testUnrecoverableExecutionGraphCreationFailureFailsJob() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
+
+        final Configuration configuration = new Configuration();
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                jobGraph,
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .setJobMasterConfiguration(configuration)
+                        .setExecutionGraphFactoryDecorator(
+                                delegate ->
+                                        (jg, ccs, cc, cic, cst, plc, its, vans, vps, esul, mpfs,
+                                                epsc, log) -> {
+                                            throw new SuppressRestartsException(
+                                                    new FlinkException(
+                                                            "fatal EG creation failure"));
+                                        })
+                        .build();
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(PARALLELISM);
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(
+                                            ResourceProfile.UNKNOWN, PARALLELISM)),
+                            taskManagerGateway);
+                });
+
+        assertThat(scheduler.getJobTerminationFuture().get()).isEqualTo(JobStatus.FAILED);
     }
 
     @Test
