@@ -1174,7 +1174,7 @@ LogicalProject(c=[$0], a=[$1], b=[$2], c0=[$3], a0=[$4], b0=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-NestedLoopJoin(joinType=[InnerJoin], where=[(a = a0)], select=[c, a, b, c0, a0, b0], build=[right])
+HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[c, a, b, c0, a0, b0], isBroadcast=[true], build=[right])
 :- Exchange(distribution=[any], shuffle_mode=[BATCH])
 :  +- Calc(select=[c, a, b], where=[(a > 1)])
 :     +- SortLimit(orderBy=[a ASC, b DESC], offset=[0], fetch=[10], global=[true])(reuse_id=[1])
@@ -1362,7 +1362,7 @@ LogicalIntersect(all=[false])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(readOrder=[0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], build=[right])\n:- SortAggregate(isMerge=[false], groupBy=[random], select=[random])\n:  +- Sort(orderBy=[random ASC])\n:     +- [#2] Exchange(distribution=[hash[random]])\n+- [#1] Exchange(distribution=[broadcast])\n])
+MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], isBroadcast=[true], build=[right])\n:- SortAggregate(isMerge=[false], groupBy=[random], select=[random])\n:  +- Sort(orderBy=[random ASC])\n:     +- [#2] Exchange(distribution=[hash[random]])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])(reuse_id=[2])
 :  +- Calc(select=[random])(reuse_id=[1])
 :     +- SortLimit(orderBy=[EXPR$1 ASC], offset=[0], fetch=[1], global=[true])
@@ -1371,7 +1371,7 @@ MultipleInput(readOrder=[0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin]
 :              +- Calc(select=[a AS random, RAND() AS EXPR$1])
 :                 +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
 +- Exchange(distribution=[hash[random]])
-   +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], build=[right])
+   +- HashJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], isBroadcast=[true], build=[right])
       :- Exchange(distribution=[any], shuffle_mode=[BATCH])
       :  +- Reused(reference_id=[1])
       +- Reused(reference_id=[2])

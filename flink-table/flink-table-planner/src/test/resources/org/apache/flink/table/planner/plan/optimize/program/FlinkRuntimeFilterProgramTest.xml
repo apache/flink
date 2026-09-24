@@ -757,15 +757,15 @@ HashJoin(joinType=[LeftOuterJoin], where=[(amount = amount0)], select=[id, name,
   </TestCase>
   <TestCase name="testNestedLoopJoin">
     <Resource name="sql">
-      <![CDATA[select * from fact, dim where fact.amount = dim.amount and dim.price < 500]]>
+      <![CDATA[select /*+ NEST_LOOP(dim) */ * from fact, dim where fact.amount = dim.amount and dim.price < 500]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], fact_date_sk=[$4], id0=[$5], male=[$6], amount0=[$7], price0=[$8], dim_date_sk=[$9])
 +- LogicalFilter(condition=[AND(=($2, $7), <($8, 500))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[testCatalog, test_database, fact]])
-      +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+   +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0, 0] options:[dim]]]])
+      :- LogicalTableScan(table=[[testCatalog, test_database, fact]], hints=[[[ALIAS inheritPath:[] options:[fact]]]])
+      +- LogicalTableScan(table=[[testCatalog, test_database, dim]], hints=[[[ALIAS inheritPath:[] options:[dim]]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">

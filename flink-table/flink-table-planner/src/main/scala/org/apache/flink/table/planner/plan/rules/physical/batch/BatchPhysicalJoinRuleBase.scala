@@ -153,6 +153,14 @@ trait BatchPhysicalJoinRuleBase {
     !joinInfo.pairs().isEmpty
   }
 
+  private def hasApplicableEquivJoinStrategy(join: Join, tableConfig: TableConfig): Boolean = {
+    isEquivJoin(join) && (
+      checkSortMergeJoinApplicable(tableConfig) ||
+        checkShuffleHashApplicable(join, tableConfig, withShuffleHashHint = false)._1 ||
+        checkBroadcastApplicable(join, tableConfig, withBroadcastHint = false)._1
+    )
+  }
+
   /**
    * Decides whether the join can convert to BroadcastHashJoin.
    *
@@ -168,7 +176,18 @@ trait BatchPhysicalJoinRuleBase {
       tableConfig: TableConfig,
       withBroadcastHint: Boolean): (Boolean, Boolean) = {
 
-    if (!isEquivJoin(join) || isOperatorDisabled(tableConfig, OperatorType.BroadcastHashJoin)) {
+    if (!isEquivJoin(join)) {
+      return (false, false)
+    }
+    checkBroadcastApplicable(join, tableConfig, withBroadcastHint)
+  }
+
+  private def checkBroadcastApplicable(
+      join: Join,
+      tableConfig: TableConfig,
+      withBroadcastHint: Boolean): (Boolean, Boolean) = {
+
+    if (isOperatorDisabled(tableConfig, OperatorType.BroadcastHashJoin)) {
       return (false, false)
     }
 
@@ -235,7 +254,17 @@ trait BatchPhysicalJoinRuleBase {
       join: Join,
       tableConfig: TableConfig,
       withShuffleHashHint: Boolean): (Boolean, Boolean) = {
-    if (!isEquivJoin(join) || isOperatorDisabled(tableConfig, OperatorType.ShuffleHashJoin)) {
+    if (!isEquivJoin(join)) {
+      return (false, false)
+    }
+    checkShuffleHashApplicable(join, tableConfig, withShuffleHashHint)
+  }
+
+  private def checkShuffleHashApplicable(
+      join: Join,
+      tableConfig: TableConfig,
+      withShuffleHashHint: Boolean): (Boolean, Boolean) = {
+    if (isOperatorDisabled(tableConfig, OperatorType.ShuffleHashJoin)) {
       return (false, false)
     }
 
@@ -260,11 +289,11 @@ trait BatchPhysicalJoinRuleBase {
 
   // the sort merge join doesn't distinct the build side
   protected def checkSortMergeJoin(join: Join, tableConfig: TableConfig): Boolean = {
-    if (!isEquivJoin(join) || isOperatorDisabled(tableConfig, OperatorType.SortMergeJoin)) {
-      false
-    } else {
-      true
-    }
+    isEquivJoin(join) && checkSortMergeJoinApplicable(tableConfig)
+  }
+
+  private def checkSortMergeJoinApplicable(tableConfig: TableConfig): Boolean = {
+    !isOperatorDisabled(tableConfig, OperatorType.SortMergeJoin)
   }
 
   protected def checkNestLoopJoin(
@@ -273,6 +302,10 @@ trait BatchPhysicalJoinRuleBase {
       withNestLoopHint: Boolean): (Boolean, Boolean) = {
 
     if (isOperatorDisabled(tableConfig, OperatorType.NestedLoopJoin)) {
+      return (false, false)
+    }
+
+    if (!withNestLoopHint && hasApplicableEquivJoinStrategy(join, tableConfig)) {
       return (false, false)
     }
 
@@ -297,7 +330,11 @@ trait BatchPhysicalJoinRuleBase {
 
     }
 
-    // all join can use NEST LOOP JOIN
+    // reached only for:
+    // 1. non-equi joins
+    // 2. equi-joins with an explicit NEST_LOOP hint
+    // 3. equi-joins where no equi-capable strategy is applicable (e.g. ShuffleHashJoin/SortMergeJoin
+    // disabled and BroadcastHashJoin inapplicable, due to unknown or oversized inputs)
     (true, isLeftToBuild)
 
   }

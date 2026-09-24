@@ -1,0 +1,115 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testEquiJoinFallsBackToNestedLoopJoinWhenOnlyInapplicableBroadcastIsEnabled">
+    <Resource name="sql">
+      <![CDATA[SELECT a, d FROM LeftUnknown, RightUnknown WHERE a = d]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], d=[$2])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, LeftUnknown, source: [TestTableSource(a, b)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, RightUnknown, source: [TestTableSource(d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+NestedLoopJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, d], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- Calc(select=[a])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, LeftUnknown, source: [TestTableSource(a, b)]]], fields=[a, b])
++- Calc(select=[d])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, RightUnknown, source: [TestTableSource(d, e)]]], fields=[d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEquiJoinOnComplexKeyStillProducesValidPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT a, d FROM ArrLeft, ArrRight WHERE r = s]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], d=[$2])
++- LogicalFilter(condition=[=($1, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, ArrLeft, source: [TestTableSource(a, r)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, ArrRight, source: [TestTableSource(d, s)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, d])
++- HashJoin(joinType=[InnerJoin], where=[=(r, s)], select=[a, r, d, s], build=[left])
+   :- Exchange(distribution=[hash[r]])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, ArrLeft, source: [TestTableSource(a, r)]]], fields=[a, r])
+   +- Exchange(distribution=[hash[s]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, ArrRight, source: [TestTableSource(d, s)]]], fields=[d, s])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEquiJoinStillAvoidsNestedLoopJoinWhenBroadcastIsApplicable">
+    <Resource name="sql">
+      <![CDATA[SELECT a, d FROM TinySide, HugeSide WHERE a = d]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], d=[$2])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, TinySide, source: [TestTableSource(a, b)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, HugeSide, source: [TestTableSource(d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, d], isBroadcast=[true], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- Calc(select=[a])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, TinySide, source: [TestTableSource(a, b)]]], fields=[a, b])
++- Calc(select=[d])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, HugeSide, source: [TestTableSource(d, e)]]], fields=[d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEquiJoinWithSkewedCardinalityDoesNotUseNestedLoopJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT a, d FROM TinySide, HugeSide WHERE a = d]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], d=[$2])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, TinySide, source: [TestTableSource(a, b)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, HugeSide, source: [TestTableSource(d, e)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, d], isBroadcast=[true], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- Calc(select=[a])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, TinySide, source: [TestTableSource(a, b)]]], fields=[a, b])
++- Calc(select=[d])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, HugeSide, source: [TestTableSource(d, e)]]], fields=[d, e])
+]]>
+    </Resource>
+  </TestCase>
+</Root>
