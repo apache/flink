@@ -79,6 +79,11 @@ function _set_conf_ssl_helper {
 
     if [ "${provider}" = "OPENSSL" -a "${provider_lib}" = "dynamic" ]; then
         cp $FLINK_DIR/opt/flink-shaded-netty-tcnative-dynamic-*.jar $FLINK_DIR/lib/
+        # if the CI prepared a newer OpenSSL than the system one (see e2e-template.yml), prefer it;
+        # local/developer runs without that variable set keep using the system OpenSSL as before
+        if [ -n "${FLINK_E2E_OPENSSL32_LIB:-}" ]; then
+            export LD_LIBRARY_PATH="${FLINK_E2E_OPENSSL32_LIB}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+        fi
     elif [ "${provider}" = "OPENSSL" -a "${provider_lib}" = "static" ]; then
         # Flink is not providing the statically-linked library because of potential licensing issues
         # -> we need to build it ourselves

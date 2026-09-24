@@ -23,7 +23,16 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 
+import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
+import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
+import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.MultiThreadIoEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioIoHandler;
+import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.ClientAuth;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.JdkSslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSsl;
@@ -33,11 +42,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocket;
 
 import java.io.File;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.nio.channels.ClosedChannelException;
 import java.nio.file.Files;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -49,6 +63,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider.JDK;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -423,6 +439,301 @@ public class SSLUtilsTest {
 
         assertThat(sslHandler.engine().getEnabledCipherSuites()).hasSameSizeAs(sslAlgorithms);
         assertThat(sslHandler.engine().getEnabledCipherSuites()).contains(sslAlgorithms);
+    }
+
+    // -------------------- hostname verification (shared certificate) -------------------
+    //
+    // Internal SSL uses one shared, mutually-trusted certificate across every node in the
+    // cluster (see docs/content/docs/deployment/security/security-ssl.md: "Because internal
+    // connections are mutually authenticated with shared certificates, Flink can skip hostname
+    // verification. This makes container-based setups easier."), e.g. a Kubernetes deployment
+    // with hundreds of dynamically-scheduled, differently-named pods sharing one cert. Simulate
+    // that: the client connects to a real "localhost" socket but is told to verify a peer
+    // identity the shared certificate was never meant to cover; negotiation must still succeed.
+
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testInternalSSLIgnoresPeerHostMismatch(String sslProvider) throws Exception {
+        Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
+
+        SSLSession session =
+                negotiate(
+                        SSLUtils.createInternalServerSSLEngineFactory(config),
+                        SSLUtils.createInternalClientSSLEngineFactory(config),
+                        "some-taskmanager-42.flink-headless.flink.svc.cluster.local");
+
+        assertThat(session).isNotNull();
+    }
+
+    // -------------------- multi-protocol negotiation -----------------------
+    //
+    // Regression coverage for SecurityOptions.SSL_PROTOCOL accepting a comma-separated protocol
+    // list: every consumer below is expected to negotiate the highest protocol both sides support,
+    // and to gracefully fall back rather than fail when the higher protocol has no usable cipher.
+
+    private static final String TLS_13_CIPHERS = "TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384";
+
+    private static String tls12Ciphers(String sslProvider) {
+        // openSSL does not support the same set of cipher algorithms as the JDK provider, see
+        // testCreateSSLEngineFactory above.
+        return sslProvider.equalsIgnoreCase("OPENSSL")
+                ? "TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384"
+                : "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+    }
+
+    /**
+     * TLSv1.3 support in OpenSSL depends on {@code OpenSsl.isTlsv13Supported()} at runtime, which
+     * this branch's pinned netty-tcnative (2.0.74.Final) does not report as available in this CI
+     * environment, unlike JDK's own TLSv1.3 support. Only verified against the JDK provider here;
+     * the underlying protocol-list handling in {@link SSLUtils} itself is provider-agnostic, and is
+     * verified against the OpenSSL provider on master.
+     */
+    @Test
+    void testInternalSSLNegotiatesTls13WhenBothSidesSupportIt() throws Exception {
+        Configuration config = createInternalSslConfigWithKeyAndTrustStores("JDK");
+        config.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.2,TLSv1.3");
+        config.set(SecurityOptions.SSL_ALGORITHMS, tls12Ciphers("JDK") + "," + TLS_13_CIPHERS);
+
+        SSLSession session =
+                negotiate(
+                        SSLUtils.createInternalServerSSLEngineFactory(config),
+                        SSLUtils.createInternalClientSSLEngineFactory(config));
+
+        assertThat(session.getProtocol()).isEqualTo("TLSv1.3");
+    }
+
+    /**
+     * See {@link #testInternalSSLNegotiatesTls13WhenBothSidesSupportIt} for why this is not
+     * parameterized on this branch.
+     */
+    @Test
+    void testInternalSSLFallsBackToTls12WithoutTls13Cipher() throws Exception {
+        Configuration config = createInternalSslConfigWithKeyAndTrustStores("JDK");
+        config.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.2,TLSv1.3");
+        config.set(SecurityOptions.SSL_ALGORITHMS, tls12Ciphers("JDK"));
+
+        SSLSession session =
+                negotiate(
+                        SSLUtils.createInternalServerSSLEngineFactory(config),
+                        SSLUtils.createInternalClientSSLEngineFactory(config));
+
+        assertThat(session.getProtocol()).isEqualTo("TLSv1.2");
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testInternalSSLNonContiguousProtocolListWithoutCipherForHighest(String sslProvider)
+            throws Exception {
+        // TLSv1.3 has no usable cipher here (only TLSv1.2-style ones are configured), so Netty
+        // drops it from the min/max range calculation entirely before any OpenSSL-specific
+        // contiguous-range widening happens (ReferenceCountedOpenSslEngine's
+        // explicitDisableTLSv13 handling). That collapses the enabled set to TLSv1.1 alone on
+        // both providers, which also has no usable cipher (GCM suites are TLSv1.2+), so the
+        // handshake fails on both providers instead of widening to TLSv1.2.
+        //
+        // On this branch, OpenSSL additionally has no TLSv1.3 support at all in this CI
+        // environment (see testInternalSSLNegotiatesTls13WhenBothSidesSupportIt), so TLSv1.3 is
+        // disabled at the library level rather than per-cipher; the handshake still fails as
+        // expected, but surfaces as a plain closed channel instead of an SSLHandshakeException.
+        // Either way, nothing gets incorrectly widened to TLSv1.2, which is what this test locks
+        // in.
+        Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
+        config.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.1,TLSv1.3");
+        config.set(SecurityOptions.SSL_ALGORITHMS, tls12Ciphers(sslProvider));
+
+        final SSLHandlerFactory server = SSLUtils.createInternalServerSSLEngineFactory(config);
+        final SSLHandlerFactory client = SSLUtils.createInternalClientSSLEngineFactory(config);
+
+        assertThatThrownBy(() -> negotiate(server, client))
+                .satisfiesAnyOf(
+                        t -> assertThat(t).hasCauseInstanceOf(SSLHandshakeException.class),
+                        t -> assertThat(t).isInstanceOf(ClosedChannelException.class));
+    }
+
+    /**
+     * See {@link #testInternalSSLNegotiatesTls13WhenBothSidesSupportIt} for why this is not
+     * parameterized on this branch.
+     */
+    @Test
+    void testRestSSLNegotiatesTls13WhenBothSidesSupportIt() throws Exception {
+        Configuration config = createRestSslConfigWithKeyAndTrustStores("JDK");
+        config.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.2,TLSv1.3");
+        config.set(SecurityOptions.SSL_ALGORITHMS, tls12Ciphers("JDK") + "," + TLS_13_CIPHERS);
+
+        SSLSession session =
+                negotiate(
+                        SSLUtils.createRestServerSSLEngineFactory(config),
+                        SSLUtils.createRestClientSSLEngineFactory(config));
+
+        assertThat(session.getProtocol()).isEqualTo("TLSv1.3");
+    }
+
+    /**
+     * See {@link #testInternalSSLNegotiatesTls13WhenBothSidesSupportIt} for why this is not
+     * parameterized on this branch.
+     */
+    @Test
+    void testRestSSLFallsBackToTls12WithoutTls13Cipher() throws Exception {
+        Configuration config = createRestSslConfigWithKeyAndTrustStores("JDK");
+        config.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.2,TLSv1.3");
+        config.set(SecurityOptions.SSL_ALGORITHMS, tls12Ciphers("JDK"));
+
+        SSLSession session =
+                negotiate(
+                        SSLUtils.createRestServerSSLEngineFactory(config),
+                        SSLUtils.createRestClientSSLEngineFactory(config));
+
+        assertThat(session.getProtocol()).isEqualTo("TLSv1.2");
+    }
+
+    /**
+     * The Blob server/client socket path ({@link SSLUtils#createSSLServerSocketFactory}) always
+     * uses the JDK provider regardless of {@link SecurityOptions#SSL_PROVIDER}, so this is not
+     * parameterized.
+     */
+    @Test
+    void testBlobSocketSSLNegotiatesTls13WhenBothSidesSupportIt() throws Exception {
+        Configuration config = createInternalSslConfigWithKeyAndTrustStores("JDK");
+        config.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.2,TLSv1.3");
+        config.set(SecurityOptions.SSL_ALGORITHMS, tls12Ciphers("JDK") + "," + TLS_13_CIPHERS);
+
+        assertThat(negotiateViaSockets(config)).isEqualTo("TLSv1.3");
+    }
+
+    @Test
+    void testBlobSocketSSLFallsBackToTls12WithoutTls13Cipher() throws Exception {
+        Configuration config = createInternalSslConfigWithKeyAndTrustStores("JDK");
+        config.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.2,TLSv1.3");
+        config.set(SecurityOptions.SSL_ALGORITHMS, tls12Ciphers("JDK"));
+
+        assertThat(negotiateViaSockets(config)).isEqualTo("TLSv1.2");
+    }
+
+    /**
+     * Performs a real, socket-based TLS handshake between the given server and client {@link
+     * SSLHandlerFactory} and returns the client's negotiated session.
+     */
+    private static SSLSession negotiate(
+            SSLHandlerFactory serverFactory, SSLHandlerFactory clientFactory) throws Exception {
+        return negotiate(serverFactory, clientFactory, "localhost");
+    }
+
+    /**
+     * Like {@link #negotiate(SSLHandlerFactory, SSLHandlerFactory)}, but the client engine is told
+     * to verify the given {@code clientPeerIdentity} instead of the real TCP destination
+     * ("localhost"), so a mismatch between the two can be simulated without breaking the actual
+     * connection.
+     */
+    private static SSLSession negotiate(
+            SSLHandlerFactory serverFactory,
+            SSLHandlerFactory clientFactory,
+            String clientPeerIdentity)
+            throws Exception {
+        final EventLoopGroup group = new MultiThreadIoEventLoopGroup(2, NioIoHandler.newFactory());
+        try {
+            final CompletableFuture<SSLSession> serverSession = new CompletableFuture<>();
+            final CompletableFuture<SSLSession> clientSession = new CompletableFuture<>();
+
+            final ServerBootstrap serverBootstrap =
+                    new ServerBootstrap()
+                            .group(group)
+                            .channel(NioServerSocketChannel.class)
+                            .childHandler(
+                                    new ChannelInitializer<Channel>() {
+                                        @Override
+                                        protected void initChannel(Channel ch) {
+                                            SslHandler handler =
+                                                    serverFactory.createNettySSLHandler(
+                                                            UnpooledByteBufAllocator.DEFAULT);
+                                            ch.pipeline().addLast(handler);
+                                            completeWithSession(handler, serverSession);
+                                        }
+                                    });
+            final Channel serverChannel = serverBootstrap.bind(0).sync().channel();
+            final int port = ((InetSocketAddress) serverChannel.localAddress()).getPort();
+
+            final Bootstrap clientBootstrap =
+                    new Bootstrap()
+                            .group(group)
+                            .channel(NioSocketChannel.class)
+                            .handler(
+                                    new ChannelInitializer<Channel>() {
+                                        @Override
+                                        protected void initChannel(Channel ch) {
+                                            // Mirrors NettyClient/RestClient: the client engine
+                                            // must be created with the peer host/port, otherwise
+                                            // TLSv1.3 mutual-auth handshakes fail with
+                                            // "certificate_unknown: Hostname or IP address is
+                                            // undefined" (TLSv1.2 tolerates the hostless engine).
+                                            SslHandler handler =
+                                                    clientFactory.createNettySSLHandler(
+                                                            UnpooledByteBufAllocator.DEFAULT,
+                                                            clientPeerIdentity,
+                                                            port);
+                                            ch.pipeline().addLast(handler);
+                                            completeWithSession(handler, clientSession);
+                                        }
+                                    });
+            clientBootstrap.connect("localhost", port).sync();
+
+            final SSLSession client = clientSession.get(10, TimeUnit.SECONDS);
+            final SSLSession server = serverSession.get(10, TimeUnit.SECONDS);
+            assertThat(client.getProtocol()).isEqualTo(server.getProtocol());
+
+            serverChannel.close().sync();
+            return client;
+        } finally {
+            group.shutdownGracefully(0, 1, TimeUnit.SECONDS).sync();
+        }
+    }
+
+    private static void completeWithSession(
+            SslHandler handler, CompletableFuture<SSLSession> future) {
+        handler.handshakeFuture()
+                .addListener(
+                        f -> {
+                            if (f.isSuccess()) {
+                                future.complete(handler.engine().getSession());
+                            } else {
+                                future.completeExceptionally(f.cause());
+                            }
+                        });
+    }
+
+    /**
+     * Performs a real handshake through the raw-socket path used by the Blob server/client, and
+     * returns the negotiated protocol.
+     */
+    private static String negotiateViaSockets(Configuration config) throws Exception {
+        try (ServerSocket serverSocket =
+                SSLUtils.createSSLServerSocketFactory(config).createServerSocket(0)) {
+            final int port = serverSocket.getLocalPort();
+
+            final CompletableFuture<String> serverProtocol = new CompletableFuture<>();
+            final Thread serverThread =
+                    new Thread(
+                            () -> {
+                                try (SSLSocket socket = (SSLSocket) serverSocket.accept()) {
+                                    socket.startHandshake();
+                                    serverProtocol.complete(socket.getSession().getProtocol());
+                                } catch (Exception e) {
+                                    serverProtocol.completeExceptionally(e);
+                                }
+                            });
+            serverThread.start();
+
+            final String clientProtocol;
+            try (SSLSocket client =
+                    (SSLSocket)
+                            SSLUtils.createSSLClientSocketFactory(config)
+                                    .createSocket("localhost", port)) {
+                client.startHandshake();
+                clientProtocol = client.getSession().getProtocol();
+            }
+
+            assertThat(serverProtocol.get(10, TimeUnit.SECONDS)).isEqualTo(clientProtocol);
+            return clientProtocol;
+        }
     }
 
     @ParameterizedTest
