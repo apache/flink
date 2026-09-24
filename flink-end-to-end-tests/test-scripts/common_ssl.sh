@@ -100,7 +100,8 @@ function _set_conf_ssl_helper {
     fi
 
     # adapt config
-    set_config_key security.ssl.algorithms "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+    set_config_key security.ssl.protocol "TLSv1.2,TLSv1.3"
+    set_config_key security.ssl.algorithms "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384"
     set_config_key security.ssl.provider ${provider}
     set_config_key security.ssl.${type}.enabled true
     set_config_key security.ssl.${type}.keystore ${ssl_dir}/node.keystore

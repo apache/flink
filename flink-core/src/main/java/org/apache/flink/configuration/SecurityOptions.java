@@ -508,7 +508,7 @@ public class SecurityOptions {
     public static final ConfigOption<String> SSL_PROTOCOL =
             key("security.ssl.protocol")
                     .stringType()
-                    .defaultValue("TLSv1.2")
+                    .defaultValue("TLSv1.2,TLSv1.3")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -533,7 +533,7 @@ public class SecurityOptions {
             key("security.ssl.algorithms")
                     .stringType()
                     .defaultValue(
-                            "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
+                            "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384")
                     .withDescription(
                             Description.builder()
                                     .text(
