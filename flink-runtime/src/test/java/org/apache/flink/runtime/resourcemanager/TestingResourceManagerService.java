@@ -119,6 +119,14 @@ public class TestingResourceManagerService implements ResourceManagerService {
         leaderElection.notLeader();
     }
 
+    /**
+     * Returns the current fatal-error future. Call again after {@link #ignoreFatalErrors()}, which
+     * replaces the future.
+     */
+    public CompletableFuture<Throwable> getFatalErrorFuture() {
+        return fatalErrorHandler.getErrorFuture();
+    }
+
     public void rethrowFatalErrorIfAny() throws Exception {
         if (fatalErrorHandler.hasExceptionOccurred()) {
             fatalErrorHandler.rethrowError();
