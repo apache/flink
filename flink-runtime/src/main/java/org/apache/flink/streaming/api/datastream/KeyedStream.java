@@ -21,19 +21,12 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.EnumTypeInfo;
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.asyncprocessing.operators.AsyncKeyedProcessOperator;
 import org.apache.flink.runtime.asyncprocessing.operators.AsyncStreamFlatMap;
@@ -64,16 +57,12 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.Utils;
 
-import org.apache.commons.lang3.StringUtils;
-
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Stack;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -160,90 +149,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
         super(stream.getExecutionEnvironment(), partitionTransformation);
         this.keySelector = clean(keySelector);
-        this.keyType = validateKeyType(keyType);
-    }
-
-    /**
-     * Validates that a given type of element (as encoded by the provided {@link TypeInformation})
-     * can be used as a key in the {@code DataStream.keyBy()} operation. This is done by searching
-     * depth-first the key type and checking if each of the composite types satisfies the required
-     * conditions (see {@link #validateKeyTypeIsHashable(TypeInformation)}).
-     *
-     * @param keyType The {@link TypeInformation} of the key.
-     */
-    @SuppressWarnings("rawtypes")
-    private TypeInformation<KEY> validateKeyType(TypeInformation<KEY> keyType) {
-        Stack<TypeInformation<?>> stack = new Stack<>();
-        stack.push(keyType);
-
-        List<TypeInformation<?>> unsupportedTypes = new ArrayList<>();
-
-        while (!stack.isEmpty()) {
-            TypeInformation<?> typeInfo = stack.pop();
-
-            if (!validateKeyTypeIsHashable(typeInfo)) {
-                unsupportedTypes.add(typeInfo);
-            }
-
-            if (typeInfo instanceof TupleTypeInfoBase) {
-                for (int i = 0; i < typeInfo.getArity(); i++) {
-                    stack.push(((TupleTypeInfoBase) typeInfo).getTypeAt(i));
-                }
-            }
-        }
-
-        if (!unsupportedTypes.isEmpty()) {
-            throw new InvalidProgramException(
-                    "Type "
-                            + keyType
-                            + " cannot be used as key. Contained "
-                            + "UNSUPPORTED key types: "
-                            + StringUtils.join(unsupportedTypes, ", ")
-                            + ". Look "
-                            + "at the keyBy() documentation for the conditions a type has to satisfy in order to be "
-                            + "eligible for a key.");
-        }
-
-        return keyType;
-    }
-
-    /**
-     * Validates that a given type of element (as encoded by the provided {@link TypeInformation})
-     * can be used as a key in the {@code DataStream.keyBy()} operation.
-     *
-     * @param type The {@link TypeInformation} of the type to check.
-     * @return {@code false} if:
-     *     <ol>
-     *       <li>it is a POJO type but does not override the {@link #hashCode()} method and relies
-     *           on the {@link Object#hashCode()} implementation.
-     *       <li>it is an array of any type (see {@link PrimitiveArrayTypeInfo}, {@link
-     *           BasicArrayTypeInfo}, {@link ObjectArrayTypeInfo}).
-     *       <li>it is enum type
-     *     </ol>
-     *     , {@code true} otherwise.
-     */
-    private boolean validateKeyTypeIsHashable(TypeInformation<?> type) {
-        try {
-            return (type instanceof PojoTypeInfo)
-                    ? !type.getTypeClass()
-                            .getMethod("hashCode")
-                            .getDeclaringClass()
-                            .equals(Object.class)
-                    : !(isArrayType(type) || isEnumType(type));
-        } catch (NoSuchMethodException ignored) {
-            // this should never happen as we are just searching for the hashCode() method.
-        }
-        return false;
-    }
-
-    private static boolean isArrayType(TypeInformation<?> type) {
-        return type instanceof PrimitiveArrayTypeInfo
-                || type instanceof BasicArrayTypeInfo
-                || type instanceof ObjectArrayTypeInfo;
-    }
-
-    private static boolean isEnumType(TypeInformation<?> type) {
-        return type instanceof EnumTypeInfo;
+        this.keyType = KeySelectorUtil.validateKeyType(keyType);
     }
 
     // ------------------------------------------------------------------------
