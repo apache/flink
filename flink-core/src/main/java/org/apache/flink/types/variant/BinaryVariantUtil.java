@@ -235,7 +235,7 @@ public class BinaryVariantUtil {
     public static final DateTimeFormatter TIMESTAMP_LTZ_FORMATTER =
             new DateTimeFormatterBuilder()
                     .append(TIMESTAMP_FORMATTER)
-                    .appendOffset("+HH:MM", "+00:00")
+                    .appendOffset("+HH:MM", "Z")
                     .toFormatter(Locale.US);
 
     public static final DateTimeFormatter TIME_FORMATTER =

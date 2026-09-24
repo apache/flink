@@ -305,12 +305,12 @@ class BinaryVariantTest {
         assertThat(builder.of(10.0f).toJson()).isEqualTo("10.0");
         assertThat(builder.of(10.0d).toJson()).isEqualTo("10.0");
         assertThat(builder.of(BigDecimal.valueOf(100)).toJson()).isEqualTo("100");
-        assertThat(builder.of(instant).toJson()).isEqualTo("\"1970-01-01T00:00:00+00:00\"");
+        assertThat(builder.of(instant).toJson()).isEqualTo("\"1970-01-01T00:00:00Z\"");
         assertThat(builder.of(localDateTime).toJson()).isEqualTo("\"2000-01-01T00:00:00\"");
         assertThat(builder.of(localDate).toJson()).isEqualTo("\"2000-01-01\"");
         assertThat(builder.of(localTime).toJson()).isEqualTo("\"13:45:30.123456\"");
         assertThat(builder.of(nanoInstant).toJson())
-                .isEqualTo("\"1970-01-01T00:00:00.123456789+00:00\"");
+                .isEqualTo("\"1970-01-01T00:00:00.123456789Z\"");
         assertThat(builder.of(nanoLocalDateTime).toJson())
                 .isEqualTo("\"2000-01-01T00:00:00.123456789\"");
         assertThat(builder.of("hello".getBytes()).toJson()).isEqualTo("\"aGVsbG8=\"");
