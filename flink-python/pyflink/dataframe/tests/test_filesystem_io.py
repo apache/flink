@@ -32,7 +32,7 @@ from pyflink.dataframe import DataType
 from pyflink.dataframe.io import _build_filesystem_options
 from pyflink.datastream import RuntimeExecutionMode
 from pyflink.java_gateway import get_gateway
-from pyflink.table import EnvironmentSettings, StreamTableEnvironment, TableResult
+from pyflink.table import EnvironmentSettings, StreamTableEnvironment, TableDescriptor, TableResult
 from pyflink.testing.test_case_utils import PyFlinkDataFrameUTTestCase
 
 
@@ -44,7 +44,7 @@ class FilesystemOptionsTests(unittest.TestCase):
         }
         original = dict(format_options)
         options = _build_filesystem_options(
-            "/input", "json", {}, format_options
+            "/input", "json", extra_format_options=format_options
         )
         self.assertEqual(options, {
             "path": "/input",
@@ -56,7 +56,7 @@ class FilesystemOptionsTests(unittest.TestCase):
 
     def test_format_options_cannot_override_filesystem_options(self):
         options = _build_filesystem_options(
-            "/input", "json", {}, {"path": "/other", "format": "parquet"}
+            "/input", "json", extra_format_options={"path": "/other", "format": "parquet"}
         )
         self.assertEqual(options["path"], "/input")
         self.assertEqual(options["format"], "json")
@@ -74,14 +74,15 @@ class FilesystemOptionsTests(unittest.TestCase):
         for options, error, message in cases:
             with self.subTest(options=options):
                 with self.assertRaisesRegex(error, message):
-                    _build_filesystem_options("/input", "json", {}, options)
+                    _build_filesystem_options(
+                        "/input", "json", extra_format_options=options)
 
     def test_connector_options_are_validated_without_mutating_input(self):
         options = {"source.monitor-interval": "1s", "source.report-statistics": "NONE"}
         original = dict(options)
         actual = _build_filesystem_options(
-            "/input", "json", {"source.monitor-interval": "1s"},
-            connector_options=options,
+            "/input", "json", connector_parameters={"source.monitor-interval": "1s"},
+            extra_connector_options=options,
         )
         self.assertEqual(actual["source.report-statistics"], "NONE")
         self.assertEqual(options, original)
@@ -89,28 +90,30 @@ class FilesystemOptionsTests(unittest.TestCase):
                         {"connector": "blackhole"}, {"json.ignore-parse-errors": "true"}):
             with self.subTest(options=invalid):
                 with self.assertRaises(ValueError):
-                    _build_filesystem_options("/input", "json", {}, connector_options=invalid)
+                    _build_filesystem_options(
+                        "/input", "json", extra_connector_options=invalid)
         for invalid in ([], {1: "value"}, {"source.monitor-interval": 1}):
             with self.subTest(options=invalid):
                 with self.assertRaises(TypeError):
-                    _build_filesystem_options("/input", "json", {}, connector_options=invalid)
+                    _build_filesystem_options(
+                        "/input", "json", extra_connector_options=invalid)
 
     def test_conflicting_explicit_options_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "conflicting values.*source.monitor-interval"):
             _build_filesystem_options(
-                "/input", "json", {"source.monitor-interval": "1s"},
-                connector_options={"source.monitor-interval": "2s"},
+                "/input", "json", connector_parameters={"source.monitor-interval": "1s"},
+                extra_connector_options={"source.monitor-interval": "2s"},
             )
         for prefix in ("", "parquet."):
             with self.subTest(prefix=prefix):
                 options = {prefix + "compression": "GZIP"}
                 with self.assertRaisesRegex(ValueError, "conflicting values.*parquet.compression"):
                     _build_filesystem_options(
-                        "/input", "parquet", {}, options,
+                        "/input", "parquet", extra_format_options=options,
                         format_parameters={"compression": "SNAPPY"},
                     )
                 actual = _build_filesystem_options(
-                    "/input", "parquet", {}, options,
+                    "/input", "parquet", extra_format_options=options,
                     format_parameters={"compression": "GZIP"},
                 )
                 self.assertEqual(actual["parquet.compression"], "GZIP")
@@ -143,6 +146,10 @@ class FilesystemOptionsTests(unittest.TestCase):
             ({"partition_commit_delay": 1}, TypeError, "must have a string value"),
             ({"sink_parallelism": True}, TypeError, "sink_parallelism must be an int"),
             ({"sink_parallelism": "1"}, TypeError, "sink_parallelism must be an int"),
+            ({"sink_shuffle_by_partition": "true"}, TypeError,
+             "sink_shuffle_by_partition must be a bool"),
+            ({"auto_compaction": 1}, TypeError, "auto_compaction must be a bool"),
+            ({"compaction_file_size": 128}, TypeError, "must have a string value"),
             ({"partition_by": [1]}, TypeError, "partition_by must be a string"),
             ({"partition_by": []}, ValueError, "partition_by must not be empty"),
             ({"partition_by": ""}, ValueError, "column names must not be empty"),
@@ -161,6 +168,10 @@ class FilesystemOptionsTests(unittest.TestCase):
             dataframe.write_parquet("/output", utc_timezone="true")
         with self.assertRaisesRegex(TypeError, "ignore_parse_errors must be a bool"):
             pf.read_json("/input", schema={"id": DataType.int64()}, ignore_parse_errors=1)
+        for parameter in ("ignore_null_fields", "decimal_as_plain_number"):
+            with self.subTest(parameter=parameter):
+                with self.assertRaisesRegex(TypeError, parameter + " must be a bool"):
+                    dataframe.write_json("/output", **{parameter: "true"})
 
 
 class FilesystemIOTests(PyFlinkDataFrameUTTestCase):
@@ -263,17 +274,73 @@ class FilesystemIOTests(PyFlinkDataFrameUTTestCase):
                     descriptor = execute_insert.call_args.args[0]
                     expected = {
                         "connector": "filesystem", "path": "/output", "format": file_format,
-                        "sink.rolling-policy.file-size": "128mb",
-                        "sink.rolling-policy.rollover-interval": "30min",
-                        "sink.partition-commit.trigger": "process-time",
-                        "sink.partition-commit.delay": "0s",
                     }
-                    if file_format == "parquet":
-                        expected["parquet.compression"] = "SNAPPY"
                     self.assertEqual(dict(descriptor.get_options()), expected)
                     self.assertIsNone(descriptor.get_schema())
                     self.assertEqual(execute_insert.call_args.kwargs,
-                                     {"overwrite": mode != "append"})
+                                     {"overwrite": mode == "overwrite"})
+
+    def test_writers_forward_compaction_and_shuffle_options(self):
+        dataframe = pf.from_records([(1, "a")], schema=["id", "name"])
+        for writer in (dataframe.write_json, dataframe.write_parquet):
+            for enabled in (False, True):
+                with self.subTest(writer=writer.__name__, enabled=enabled):
+                    raw_options = {
+                        "sink.shuffle-by-partition.enable": str(enabled).lower(),
+                        "auto-compaction": str(enabled).lower(),
+                        "compaction.file-size": "64mb",
+                    }
+                    with patch.object(dataframe._table, "execute_insert") as execute_insert:
+                        writer("/output", partition_by="name",
+                               sink_shuffle_by_partition=enabled, auto_compaction=enabled,
+                               compaction_file_size="64mb", connector_options=raw_options)
+                    options = dict(execute_insert.call_args.args[0].get_options())
+                    for key, value in raw_options.items():
+                        self.assertEqual(options[key], value)
+                    self.assertNotIn("sink.rolling-policy.file-size", options)
+
+    def test_json_writer_forwards_encoding_options(self):
+        dataframe = pf.from_records([(1,)], schema=["id"])
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled):
+                raw_options = {
+                    "encode.ignore-null-fields": str(enabled).lower(),
+                    "json.encode.decimal-as-plain-number": str(enabled).lower(),
+                }
+                with patch.object(dataframe._table, "execute_insert") as execute_insert:
+                    dataframe.write_json(
+                        "/output", ignore_null_fields=enabled, decimal_as_plain_number=enabled,
+                        format_options=raw_options,
+                    )
+                options = dict(execute_insert.call_args.args[0].get_options())
+                self.assertEqual(options["json.encode.ignore-null-fields"], str(enabled).lower())
+                self.assertEqual(options["json.encode.decimal-as-plain-number"],
+                                 str(enabled).lower())
+
+    def test_writers_reject_conflicting_convenience_options_before_execution(self):
+        dataframe = pf.from_records([(1,)], schema=["id"])
+        cases = [
+            {"sink_shuffle_by_partition": True,
+             "connector_options": {"sink.shuffle-by-partition.enable": "false"}},
+            {"auto_compaction": True, "connector_options": {"auto-compaction": "false"}},
+            {"compaction_file_size": "64mb",
+             "connector_options": {"compaction.file-size": "128mb"}},
+        ]
+        for writer in (dataframe.write_json, dataframe.write_parquet):
+            for arguments in cases:
+                with self.subTest(writer=writer.__name__, arguments=arguments):
+                    with patch.object(dataframe._table, "execute_insert") as execute_insert:
+                        with self.assertRaisesRegex(ValueError, "conflicting values"):
+                            writer("/output", **arguments)
+                        execute_insert.assert_not_called()
+        for parameter, option in [("ignore_null_fields", "encode.ignore-null-fields"),
+                                  ("decimal_as_plain_number", "encode.decimal-as-plain-number")]:
+            with self.subTest(parameter=parameter):
+                with patch.object(dataframe._table, "execute_insert") as execute_insert:
+                    with self.assertRaisesRegex(ValueError, "conflicting values"):
+                        dataframe.write_json(
+                            "/output", **{parameter: True}, format_options={option: "false"})
+                    execute_insert.assert_not_called()
 
     def test_writers_forward_custom_sink_options_and_wait_locally(self):
         dataframe = pf.from_records([(1,)], schema=["id"])
@@ -344,13 +411,14 @@ class FilesystemIOITTests(PyFlinkDataFrameUTTestCase):
         self.assertEqual(sorted(tuple(row) for row in rows), [(1, "a"), (2, "b")])
 
         replacement = pf.from_records([(3, "a")], schema=["id", "name"])
-        getattr(replacement, "write_" + file_format)(output_path, partition_by=["name"])
+        getattr(replacement, "write_" + file_format)(
+            output_path, partition_by=["name"], mode="overwrite")
         rows = reader(output_path, schema=self._SCHEMA, partition_by=["name"]).collect()
         self.assertEqual(sorted(tuple(row) for row in rows), [(2, "b"), (3, "a")])
 
         additional = pf.from_records([(4, "a/b=c")], schema=["id", "name"])
         getattr(additional, "write_" + file_format)(
-            output_path, partition_by="name", mode="append")
+            output_path, partition_by="name")
         rows = reader(output_path, schema=self._SCHEMA, partition_by="name").collect()
         self.assertEqual(sorted(tuple(row) for row in rows),
                          [(2, "b"), (3, "a"), (4, "a/b=c")])
@@ -380,6 +448,59 @@ class FilesystemIOITTests(PyFlinkDataFrameUTTestCase):
     def test_json_continuous_discovery_and_partition_commit(self):
         self._check_continuous_discovery_and_partition_commit("json")
 
+    @unittest.skipIf(os.environ.get('HADOOP_CLASSPATH') is None,
+                     'Hadoop libraries are required for Parquet format tests')
+    def test_parquet_reader_discovers_new_files(self):
+        input_path = os.path.join(self.tempdir, "parquet-source")
+        output_path = os.path.join(self.tempdir, "json-sink")
+        os.makedirs(input_path)
+        staged_files = []
+        expected_rows = [(1, "first"), (2, "second")]
+        for row in expected_rows:
+            staging_path = os.path.join(self.tempdir, "parquet-staging-" + str(row[0]))
+            pf.from_records([row], schema=["id", "name"]).write_parquet(staging_path)
+            files = self._finished_files(staging_path)
+            self.assertEqual(len(files), 1)
+            staged_files.append(os.path.join(staging_path, files[0]))
+
+        # Publish only finished files so discovery cannot race with Parquet footer writes.
+        os.replace(staged_files[0], os.path.join(input_path, "first.parquet"))
+        self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
+        self.env.enable_checkpointing(100)
+        self.t_env = StreamTableEnvironment.create(self.env)
+        pf.set_table_environment(self.t_env)
+        dataframe = pf.read_parquet(input_path, schema=self._SCHEMA, monitor_interval="50ms")
+        sink = (TableDescriptor.for_connector("filesystem")
+                .option("path", output_path)
+                .option("format", "json")
+                .option("sink.rolling-policy.rollover-interval", "100ms")
+                .option("sink.rolling-policy.check-interval", "50ms")
+                .build())
+
+        def read_finished_rows():
+            rows = []
+            for filename in self._finished_files(output_path):
+                with open(os.path.join(output_path, filename), encoding="utf-8") as output:
+                    for line in output:
+                        record = json.loads(line)
+                        rows.append((record["id"], record["name"]))
+            return rows
+
+        result = dataframe.to_table().execute_insert(sink)
+        job_client = result.get_job_client()
+        execution_result = job_client.get_job_execution_result()
+        try:
+            self._wait_for(lambda: expected_rows[0] in read_finished_rows(),
+                           "initial Parquet file was not read")
+            self.assertFalse(execution_result.done(), "Parquet source stopped after initial files")
+            os.replace(staged_files[1], os.path.join(input_path, "second.parquet"))
+            self._wait_for(lambda: expected_rows[1] in read_finished_rows(),
+                           "new Parquet file was not discovered")
+            self.assertFalse(execution_result.done(), "continuous Parquet source terminated")
+        finally:
+            self._cancel_job_and_wait(job_client)
+        self.assertCountEqual(read_finished_rows(), expected_rows)
+
     def test_json_partition_time_commit(self):
         self._check_continuous_discovery_and_partition_commit("json", "partition-time")
 
@@ -392,8 +513,17 @@ class FilesystemIOITTests(PyFlinkDataFrameUTTestCase):
     def test_parquet_continuous_discovery_and_partition_commit(self):
         self._check_continuous_discovery_and_partition_commit("parquet")
 
+    def test_json_streaming_compaction(self):
+        self._check_continuous_discovery_and_partition_commit("json", auto_compaction=True)
+
+    @unittest.skipIf(os.environ.get('HADOOP_CLASSPATH') is None,
+                     'Hadoop libraries are required for Parquet format tests')
+    def test_parquet_streaming_compaction(self):
+        self._check_continuous_discovery_and_partition_commit("parquet", auto_compaction=True)
+
     def _check_continuous_discovery_and_partition_commit(
-        self, file_format, partition_commit_trigger="process-time", local_timezone="UTC"
+        self, file_format, partition_commit_trigger="process-time", local_timezone="UTC",
+        auto_compaction=None,
     ):
         self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
         self.env.enable_checkpointing(100)
@@ -428,7 +558,10 @@ class FilesystemIOITTests(PyFlinkDataFrameUTTestCase):
         with patch.object(dataframe._table, "execute_insert", side_effect=capture_result), \
                 patch.object(TableResult, "wait"):
             getattr(dataframe, "write_" + file_format)(
-                output_path, mode="append", partition_by="name",
+                output_path, partition_by="name",
+                auto_compaction=auto_compaction,
+                compaction_file_size="1mb" if auto_compaction else None,
+                sink_shuffle_by_partition=True if auto_compaction else None,
                 rolling_policy_rollover_interval="100ms", rolling_policy_check_interval="50ms",
                 partition_commit_policy_kind="success-file",
                 partition_commit_trigger=partition_commit_trigger,
@@ -451,11 +584,12 @@ class FilesystemIOITTests(PyFlinkDataFrameUTTestCase):
                 lambda: len(self._finished_files(partition_path)) >= 2,
                 "newly discovered file was not committed by a later checkpoint",
             )
+            if auto_compaction:
+                self.assertTrue(all(name.startswith("compacted-")
+                                    for name in self._finished_files(partition_path)))
             self.assertEqual(job_client.get_job_status().result(), JobStatus.RUNNING)
         finally:
-            cancellation = job_client.cancel()
-            self._wait_for(cancellation.done, "streaming job cancellation did not complete")
-            cancellation.result()
+            self._cancel_job_and_wait(job_client)
 
         self.env.set_runtime_mode(RuntimeExecutionMode.BATCH)
         self.t_env = StreamTableEnvironment.create(
@@ -477,7 +611,18 @@ class FilesystemIOITTests(PyFlinkDataFrameUTTestCase):
     def _finished_files(directory):
         if not os.path.isdir(directory):
             return []
-        return [name for name in os.listdir(directory) if name.startswith("part-")]
+        return [name for name in os.listdir(directory)
+                if name.startswith(("part-", "compacted-part-"))]
+
+    def _cancel_job_and_wait(self, job_client):
+        execution_result = job_client.get_job_execution_result()
+        # A finished job may have already shut down its MiniCluster.
+        if not execution_result.done():
+            cancellation = job_client.cancel()
+            self._wait_for(cancellation.done, "streaming job cancellation was not acknowledged")
+            cancellation.result()
+        # Cancellation acknowledges the request before the job has fully terminated.
+        self._wait_for(execution_result.done, "streaming job did not terminate")
 
     def _wait_for(self, predicate, message):
         deadline = time.monotonic() + 60
@@ -503,13 +648,13 @@ class FilesystemIOITTests(PyFlinkDataFrameUTTestCase):
 
         replacement = pf.from_records([(3, "c")], schema=["id", "name"])
         options = {"compression": "GZIP"} if file_format == "parquet" else {}
-        getattr(replacement, "write_" + file_format)(output_path, **options)
+        getattr(replacement, "write_" + file_format)(output_path, mode="overwrite", **options)
         if file_format == "parquet":
             self._assert_parquet_compression(output_path, "GZIP")
         rows = reader(output_path, schema=self._SCHEMA).collect()
         self.assertEqual([tuple(row) for row in rows], [(3, "c")])
 
-        getattr(original, "write_" + file_format)(output_path, mode="append")
+        getattr(original, "write_" + file_format)(output_path)
         rows = reader(output_path, schema=self._SCHEMA).collect()
         self.assertEqual(sorted(tuple(row) for row in rows),
                          [(1, "a"), (2, None), (3, "c")])
@@ -528,6 +673,52 @@ class FilesystemIOITTests(PyFlinkDataFrameUTTestCase):
                     codecs.update(column.getCodec().name() for column in block.getColumns())
         self.assertEqual(codecs, {expected_codec})
 
+    @unittest.skipIf(os.environ.get('HADOOP_CLASSPATH') is None,
+                     'Hadoop libraries are required for Parquet format tests')
+    def test_parquet_timestamp_encoding_options(self):
+        timestamp = datetime(1970, 1, 1, 0, 0, 1, 123456)
+        dataframe = pf.sql("SELECT TIMESTAMP '1970-01-01 00:00:01.123456' AS ts")
+        jvm = get_gateway().jvm
+        hadoop_conf = jvm.org.apache.hadoop.conf.Configuration()
+        cases = [(None, None), ("millis", 1123), ("micros", 1123456), ("nanos", 1123456000)]
+        for unit, encoded_timestamp in cases:
+            with self.subTest(unit=unit):
+                output_path = os.path.join(self.tempdir, "parquet-timestamp-" + str(unit))
+                options = {} if unit is None else {
+                    "write.int64.timestamp": "true", "timestamp.time.unit": unit,
+                }
+                dataframe.write_parquet(output_path, utc_timezone=True, format_options=options)
+                files = self._finished_files(output_path)
+                self.assertEqual(len(files), 1)
+                path = jvm.org.apache.hadoop.fs.Path(os.path.join(output_path, files[0]))
+                footer = jvm.org.apache.parquet.hadoop.ParquetFileReader.readFooter(
+                    hadoop_conf, path)
+                column_type = footer.getFileMetaData().getSchema().getType("ts").asPrimitiveType()
+                if unit is None:
+                    self.assertEqual(column_type.getPrimitiveTypeName().name(), "INT96")
+                else:
+                    self.assertEqual(column_type.getPrimitiveTypeName().name(), "INT64")
+                    self.assertEqual(column_type.getLogicalTypeAnnotation().getUnit().name(),
+                                     unit.upper())
+                    reader = (jvm.org.apache.parquet.hadoop.ParquetReader.builder(
+                        jvm.org.apache.parquet.hadoop.example.GroupReadSupport(), path)
+                        .withConf(hadoop_conf).build())
+                    try:
+                        self.assertEqual(reader.read().getLong("ts", 0), encoded_timestamp)
+                        self.assertIsNone(reader.read())
+                    finally:
+                        reader.close()
+                restored = pf.read_parquet(
+                    output_path, schema={"ts": DataType.timestamp(6)}, utc_timezone=True)
+                expected = timestamp.replace(microsecond=123000) if unit == "millis" else timestamp
+                view_name = "parquet_timestamps_" + str(unit)
+                self.t_env.create_temporary_view(view_name, restored.to_table())
+                # Compare in SQL so precision checks do not depend on Python timestamp conversion.
+                rows = pf.sql(
+                    "SELECT ts = TIMESTAMP '" + expected.isoformat(sep=" ")
+                    + "' AS is_equal FROM " + view_name).collect()
+                self.assertEqual([tuple(row) for row in rows], [(True,)])
+
     def test_json_streaming_append_and_overwrite_rejection(self):
         self._check_streaming_append_and_overwrite_rejection("json")
 
@@ -544,12 +735,51 @@ class FilesystemIOITTests(PyFlinkDataFrameUTTestCase):
         output_path = os.path.join(self.tempdir, "stream-" + file_format)
         writer = getattr(dataframe, "write_" + file_format)
         with self.assertRaisesRegex(Py4JJavaError, "Streaming mode not support overwrite"):
-            writer(output_path)
+            writer(output_path, mode="overwrite")
+        self.assertFalse(os.path.exists(output_path))
+        writer(output_path)
         writer(output_path, mode="append")
         rows = getattr(pf, "read_" + file_format)(
             output_path, schema=self._SCHEMA
         ).collect()
-        self.assertEqual([tuple(row) for row in rows], [(1, "a")])
+        self.assertEqual([tuple(row) for row in rows], [(1, "a"), (1, "a")])
+
+    def test_json_encoding_options(self):
+        dataframe = pf.sql(
+            "SELECT CAST(NULL AS STRING) AS name, CAST(0.0000001 AS DECIMAL(10, 7)) AS amount")
+        for enabled in (None, False, True):
+            with self.subTest(enabled=enabled):
+                output_path = os.path.join(self.tempdir, "json-encoding-" + str(enabled))
+                dataframe.write_json(
+                    output_path, ignore_null_fields=enabled, decimal_as_plain_number=enabled)
+                records = []
+                for filename in os.listdir(output_path):
+                    if filename.startswith("part-"):
+                        with open(os.path.join(output_path, filename), encoding="utf-8") as output:
+                            for line in output:
+                                self.assertIsInstance(json.loads(line)["amount"], float)
+                                records.append(json.loads(line, parse_float=str))
+                expected = {"amount": "0.0000001"} if enabled else {"name": None, "amount": "1E-7"}
+                self.assertEqual(records, [expected])
+
+    def test_json_map_null_keys_are_independent_of_null_fields(self):
+        dataframe = pf.sql(
+            "SELECT CAST(NULL AS STRING) AS name, "
+            "MAP[CAST(NULL AS STRING), 1, 'known', 2] AS attributes")
+        cases = [
+            ({"map-null-key.mode": "DROP"}, {"attributes": {"known": 2}}),
+            ({"map-null-key.mode": "LITERAL", "map-null-key.literal": "missing"},
+             {"attributes": {"missing": 1, "known": 2}}),
+        ]
+        for options, expected in cases:
+            with self.subTest(options=options):
+                output_path = os.path.join(self.tempdir, "json-map-" + options["map-null-key.mode"])
+                dataframe.write_json(output_path, ignore_null_fields=True, format_options=options)
+                records = []
+                for filename in self._finished_files(output_path):
+                    with open(os.path.join(output_path, filename), encoding="utf-8") as output:
+                        records.extend(json.loads(line) for line in output)
+                self.assertEqual(records, [expected])
 
     def test_json_format_options_and_path_filter(self):
         input_path = os.path.join(self.tempdir, "json-input")

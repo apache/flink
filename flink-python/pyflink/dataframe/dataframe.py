@@ -1374,11 +1374,14 @@ class DataFrame:
         self,
         path: str,
         *,
-        mode: str = "overwrite",
+        mode: str = "append",
         partition_by: Optional[Union[str, List[str]]] = None,
         compression: Optional[str] = None,
         utc_timezone: Optional[bool] = None,
         sink_parallelism: Optional[int] = None,
+        sink_shuffle_by_partition: Optional[bool] = None,
+        auto_compaction: Optional[bool] = None,
+        compaction_file_size: Optional[str] = None,
         rolling_policy_file_size: Optional[str] = None,
         rolling_policy_rollover_interval: Optional[str] = None,
         rolling_policy_inactivity_interval: Optional[str] = None,
@@ -1394,9 +1397,14 @@ class DataFrame:
 
         The filesystem connector and Parquet format must be available to Flink. The write
         is submitted immediately and waits for completion for local or MiniCluster execution.
-        Sink columns are derived from this DataFrame's schema. Overwrite requires batch
-        execution; use ``mode="append"`` for streaming execution. Partitioned overwrite replaces
-        only partitions present in the input, retaining other partitions.
+        Sink columns are derived from this DataFrame's schema. Writes default to append in both
+        batch and streaming execution. Explicit overwrite requires batch execution and is rejected
+        by the filesystem connector in streaming execution. Partitioned overwrite replaces only
+        partitions present in the input, retaining other partitions.
+
+        Optional connector and format parameters use ``None`` to leave the option unspecified.
+        If neither a parameter nor its dictionary option is set, the connector or format factory
+        supplies the default.
 
         Rolling policies apply to streaming sinks. Parquet also rolls files on checkpoints;
         continuous writes require checkpointing to finish files. Partition commit in streaming
@@ -1406,35 +1414,52 @@ class DataFrame:
         ``connector_options`` to the session time zone; its default is UTC.
 
         :param path: Output directory URI supported by Flink's filesystem implementations.
-        :param mode: ``"overwrite"`` (default) replaces existing data; ``"append"`` adds files.
+        :param mode: ``"append"`` (default) adds files; ``"overwrite"`` replaces existing data
+            in batch execution only.
         :param partition_by: Partition column name or non-empty list of names in directory order.
             Values are stored in Hive-style partition paths rather than in the Parquet records.
-        :param compression: Parquet compression codec, defaulting to ``"SNAPPY"``.
-        :param utc_timezone: Use UTC for Parquet timestamp conversion. Defaults to ``False``,
-            which uses the JVM default time zone, independently of the session time zone.
-        :param sink_parallelism: Sink parallelism; defaults to the upstream parallelism.
-        :param rolling_policy_file_size: Part file size threshold for rolling, default ``"128mb"``.
-            This is not a hard upper bound on file size.
-        :param rolling_policy_rollover_interval: Part file open-time threshold, default ``"30min"``.
-        :param rolling_policy_inactivity_interval: Part file inactivity threshold, default
-            ``"30min"``.
-        :param rolling_policy_check_interval: Interval for checking time-based rolling policies,
-            default ``"1min"``.
-        :param partition_commit_trigger: Partition commit trigger: ``"process-time"`` (default) or
-            ``"partition-time"``.
-        :param partition_commit_delay: Delay before committing a partition, default ``"0s"``.
+        :param compression: Parquet compression codec. The format default is currently
+            ``"SNAPPY"``.
+        :param utc_timezone: Use UTC for Parquet timestamp conversion. The format default is
+            currently ``False``, which uses the JVM default time zone, independently of the
+            session time zone.
+        :param sink_parallelism: Sink parallelism. The connector default is the upstream
+            parallelism.
+        :param sink_shuffle_by_partition: Shuffle rows by dynamic partition fields before writing.
+            This can reduce the number of files but may cause data skew. The connector default
+            is currently ``False``.
+        :param auto_compaction: Automatically compact files in streaming execution after
+            checkpoints complete. Files remain invisible until compaction finishes. The connector
+            default is currently ``False``.
+        :param compaction_file_size: Target file size for automatic compaction, for example
+            ``"128mb"``. The connector default is the rolling policy file size.
+        :param rolling_policy_file_size: Part file size threshold for rolling, not a hard upper
+            bound. The connector default is currently ``"128mb"``.
+        :param rolling_policy_rollover_interval: Part file open-time threshold. The connector
+            default is currently ``"30min"``.
+        :param rolling_policy_inactivity_interval: Part file inactivity threshold. The connector
+            default is currently ``"30min"``.
+        :param rolling_policy_check_interval: Interval for checking time-based rolling policies.
+            The connector default is currently ``"1min"``.
+        :param partition_commit_trigger: Partition commit trigger: ``"process-time"`` or
+            ``"partition-time"``. The connector default is currently ``"process-time"``.
+        :param partition_commit_delay: Delay before committing a partition. The connector
+            default is currently ``"0s"``.
         :param partition_commit_policy_kind: Optional comma-separated policies, such as
             ``"success-file"`` or ``"custom"``. The ``metastore`` policy requires a Hive table.
         :param connector_options: Additional filesystem options with string keys and values.
             The ``connector``, ``path`` and ``format`` keys are reserved. Format options belong in
             ``format_options``. Explicit parameter and dictionary values must agree when both
-            are set. Defaults are applied only after merging explicit settings.
+            are set. Unspecified options are left to the connector factory.
         :param format_options: Parquet options with string values, with or without the
             ``parquet.`` prefix. Duplicate normalized keys are rejected. ``None`` parameters
             leave dictionary values unchanged; conflicting explicit values are rejected.
+            For INT64 timestamp encoding, use ``{"write.int64.timestamp": "true",
+            "timestamp.time.unit": "micros"}``. The default encoding is INT96.
         :raises TypeError: If an argument has an invalid type.
-        :raises ValueError: If the path or partition keys are invalid, the write mode is
-            unsupported, or options conflict.
+        :raises ValueError: If the path is empty, the write mode is unsupported, the partition
+            specification is empty or contains empty or duplicate names, or options conflict
+            or contain reserved, empty or duplicate keys.
 
         Example::
 
@@ -1447,15 +1472,19 @@ class DataFrame:
         """
         from pyflink.dataframe.io import (
             _boolean_option,
-            _build_filesystem_sink_options,
+            _build_filesystem_options,
             _parallelism_option,
         )
 
-        options = _build_filesystem_sink_options(
+        options = _build_filesystem_options(
             path,
             "parquet",
-            {
+            connector_parameters={
                 "sink.parallelism": _parallelism_option(sink_parallelism),
+                "sink.shuffle-by-partition.enable": _boolean_option(
+                    sink_shuffle_by_partition, "sink_shuffle_by_partition"),
+                "auto-compaction": _boolean_option(auto_compaction, "auto_compaction"),
+                "compaction.file-size": compaction_file_size,
                 "sink.rolling-policy.file-size": rolling_policy_file_size,
                 "sink.rolling-policy.rollover-interval": rolling_policy_rollover_interval,
                 "sink.rolling-policy.inactivity-interval": rolling_policy_inactivity_interval,
@@ -1464,24 +1493,29 @@ class DataFrame:
                 "sink.partition-commit.delay": partition_commit_delay,
                 "sink.partition-commit.policy.kind": partition_commit_policy_kind,
             },
-            {
+            format_parameters={
                 "compression": compression,
                 "utc-timezone": _boolean_option(utc_timezone, "utc_timezone"),
             },
-            connector_options=connector_options,
-            format_options=format_options,
+            extra_connector_options=connector_options,
+            extra_format_options=format_options,
         )
-        self._write("filesystem", options, mode, partition_by)
+        self._write("filesystem", options, mode=mode, partition_by=partition_by)
 
     @PublicEvolving()
     def write_json(
         self,
         path: str,
         *,
-        mode: str = "overwrite",
+        mode: str = "append",
         partition_by: Optional[Union[str, List[str]]] = None,
         timestamp_format: Optional[str] = None,
+        ignore_null_fields: Optional[bool] = None,
+        decimal_as_plain_number: Optional[bool] = None,
         sink_parallelism: Optional[int] = None,
+        sink_shuffle_by_partition: Optional[bool] = None,
+        auto_compaction: Optional[bool] = None,
+        compaction_file_size: Optional[str] = None,
         rolling_policy_file_size: Optional[str] = None,
         rolling_policy_rollover_interval: Optional[str] = None,
         rolling_policy_inactivity_interval: Optional[str] = None,
@@ -1497,63 +1531,96 @@ class DataFrame:
 
         The filesystem connector and JSON format must be available to Flink. The write
         is submitted immediately and waits for completion for local or MiniCluster execution.
-        Sink columns are derived from this DataFrame's schema. Overwrite requires batch
-        execution; use ``mode="append"`` for streaming execution. Partitioned overwrite replaces
-        only partitions present in the input, retaining other partitions.
+        Sink columns are derived from this DataFrame's schema. Writes default to append in both
+        batch and streaming execution. Explicit overwrite requires batch execution and is rejected
+        by the filesystem connector in streaming execution. Partitioned overwrite replaces only
+        partitions present in the input, retaining other partitions.
+
+        Optional connector and format parameters use ``None`` to leave the option unspecified.
+        If neither a parameter nor its dictionary option is set, the connector or format factory
+        supplies the default.
 
         Rolling policies apply to streaming sinks. Continuous writes require both file rolling
-        and checkpointing to finish files. Partition commit in streaming requires ``partition_by``
+        and checkpointing to finish files. With automatic compaction, files also roll on
+        checkpoints. Partition commit in streaming requires ``partition_by``
         and a commit policy. ``partition-time`` additionally requires upstream watermarks and a
         partition time extractor, configured via ``connector_options``.
         For a TIMESTAMP_LTZ watermark, set ``sink.partition-commit.watermark-time-zone`` in
         ``connector_options`` to the session time zone; its default is UTC.
 
         :param path: Output directory URI supported by Flink's filesystem implementations.
-        :param mode: ``"overwrite"`` (default) replaces existing data; ``"append"`` adds files.
+        :param mode: ``"append"`` (default) adds files; ``"overwrite"`` replaces existing data
+            in batch execution only.
         :param partition_by: Partition column name or non-empty list of names in directory order.
             Values are stored in Hive-style partition paths rather than in the JSON records.
-        :param timestamp_format: Timestamp representation, ``"SQL"`` (default) or ``"ISO-8601"``.
-        :param sink_parallelism: Sink parallelism; defaults to the upstream parallelism.
-        :param rolling_policy_file_size: Part file size threshold for rolling, default ``"128mb"``.
-            This is not a hard upper bound on file size.
-        :param rolling_policy_rollover_interval: Part file open-time threshold, default ``"30min"``.
-        :param rolling_policy_inactivity_interval: Part file inactivity threshold, default
-            ``"30min"``.
-        :param rolling_policy_check_interval: Interval for checking time-based rolling policies,
-            default ``"1min"``.
-        :param partition_commit_trigger: Partition commit trigger: ``"process-time"`` (default) or
-            ``"partition-time"``.
-        :param partition_commit_delay: Delay before committing a partition, default ``"0s"``.
+        :param timestamp_format: Timestamp representation, ``"SQL"`` or ``"ISO-8601"``.
+            The format default is currently ``"SQL"``.
+        :param ignore_null_fields: Omit fields with null values from JSON objects. The format
+            default is currently ``False``. This does not control Map entries with null keys;
+            configure ``map-null-key.mode`` through ``format_options`` for those entries.
+        :param decimal_as_plain_number: Encode DECIMAL values as plain numbers rather than
+            scientific notation, retaining JSON numeric values. The format default is currently
+            ``False``.
+        :param sink_parallelism: Sink parallelism. The connector default is the upstream
+            parallelism.
+        :param sink_shuffle_by_partition: Shuffle rows by dynamic partition fields before writing.
+            This can reduce the number of files but may cause data skew. The connector default
+            is currently ``False``.
+        :param auto_compaction: Automatically compact files in streaming execution after
+            checkpoints complete. Files remain invisible until compaction finishes. The connector
+            default is currently ``False``.
+        :param compaction_file_size: Target file size for automatic compaction, for example
+            ``"128mb"``. The connector default is the rolling policy file size.
+        :param rolling_policy_file_size: Part file size threshold for rolling, not a hard upper
+            bound. The connector default is currently ``"128mb"``.
+        :param rolling_policy_rollover_interval: Part file open-time threshold. The connector
+            default is currently ``"30min"``.
+        :param rolling_policy_inactivity_interval: Part file inactivity threshold. The connector
+            default is currently ``"30min"``.
+        :param rolling_policy_check_interval: Interval for checking time-based rolling policies.
+            The connector default is currently ``"1min"``.
+        :param partition_commit_trigger: Partition commit trigger: ``"process-time"`` or
+            ``"partition-time"``. The connector default is currently ``"process-time"``.
+        :param partition_commit_delay: Delay before committing a partition. The connector
+            default is currently ``"0s"``.
         :param partition_commit_policy_kind: Optional comma-separated policies, such as
             ``"success-file"`` or ``"custom"``. The ``metastore`` policy requires a Hive table.
         :param connector_options: Additional filesystem options with string keys and values.
             The ``connector``, ``path`` and ``format`` keys are reserved. Format options belong in
             ``format_options``. Explicit parameter and dictionary values must agree when both
-            are set. Defaults are applied only after merging explicit settings.
+            are set. Unspecified options are left to the connector factory.
         :param format_options: JSON format options with string values. Keys may include or omit
             the ``json.`` prefix, for example ``{"timestamp-format.standard": "ISO-8601"}``.
             ``None`` parameters leave dictionary values unchanged; conflicting explicit values
             are rejected.
         :raises TypeError: If an argument has an invalid type.
-        :raises ValueError: If the path or partition keys are invalid, the write mode is
-            unsupported, options conflict, or format option keys are duplicated after
-            adding the ``json.`` prefix.
+        :raises ValueError: If the path is empty, the write mode is unsupported, the partition
+            specification is empty or contains empty or duplicate names, or options conflict
+            or contain reserved, empty or duplicate keys.
 
         Example::
 
             >>> import pyflink.dataframe as pf
             >>> events = pf.from_records([(1, "login")], schema=["id", "event"])
-            >>> events.write_json("file:///tmp/events", mode="append")
+            >>> events.write_json("file:///tmp/events")
 
         .. versionadded:: 2.4.0
         """
-        from pyflink.dataframe.io import _build_filesystem_sink_options, _parallelism_option
+        from pyflink.dataframe.io import (
+            _boolean_option,
+            _build_filesystem_options,
+            _parallelism_option,
+        )
 
-        options = _build_filesystem_sink_options(
+        options = _build_filesystem_options(
             path,
             "json",
-            {
+            connector_parameters={
                 "sink.parallelism": _parallelism_option(sink_parallelism),
+                "sink.shuffle-by-partition.enable": _boolean_option(
+                    sink_shuffle_by_partition, "sink_shuffle_by_partition"),
+                "auto-compaction": _boolean_option(auto_compaction, "auto_compaction"),
+                "compaction.file-size": compaction_file_size,
                 "sink.rolling-policy.file-size": rolling_policy_file_size,
                 "sink.rolling-policy.rollover-interval": rolling_policy_rollover_interval,
                 "sink.rolling-policy.inactivity-interval": rolling_policy_inactivity_interval,
@@ -1562,11 +1629,17 @@ class DataFrame:
                 "sink.partition-commit.delay": partition_commit_delay,
                 "sink.partition-commit.policy.kind": partition_commit_policy_kind,
             },
-            {"timestamp-format.standard": timestamp_format},
-            connector_options=connector_options,
-            format_options=format_options,
+            format_parameters={
+                "timestamp-format.standard": timestamp_format,
+                "encode.ignore-null-fields": _boolean_option(
+                    ignore_null_fields, "ignore_null_fields"),
+                "encode.decimal-as-plain-number": _boolean_option(
+                    decimal_as_plain_number, "decimal_as_plain_number"),
+            },
+            extra_connector_options=connector_options,
+            extra_format_options=format_options,
         )
-        self._write("filesystem", options, mode, partition_by)
+        self._write("filesystem", options, mode=mode, partition_by=partition_by)
 
     @PublicEvolving()
     def write_generic(self, connector: str, *, options: Dict[str, str]) -> None:
@@ -1603,6 +1676,7 @@ class DataFrame:
         self,
         connector: str,
         options: Dict[str, str],
+        *,
         mode: str = "append",
         partition_by: Optional[Union[str, List[str]]] = None,
     ) -> None:

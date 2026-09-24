@@ -30,11 +30,11 @@ __all__ = ["read_generic", "read_json", "read_parquet"]
 def _build_filesystem_options(
     path: str,
     file_format: str,
-    options: Dict[str, Optional[str]],
-    format_options: Optional[Dict[str, str]] = None,
     *,
-    connector_options: Optional[Dict[str, str]] = None,
+    connector_parameters: Optional[Dict[str, Optional[str]]] = None,
     format_parameters: Optional[Dict[str, Optional[str]]] = None,
+    extra_connector_options: Optional[Dict[str, str]] = None,
+    extra_format_options: Optional[Dict[str, str]] = None,
 ) -> Dict[str, str]:
     if not isinstance(path, str):
         raise TypeError("path must be a string")
@@ -42,20 +42,23 @@ def _build_filesystem_options(
         raise ValueError("path must not be empty")
 
     result = {"path": path, "format": file_format}
-    if connector_options is not None:
-        _validate_options(connector_options)
-        for key in connector_options:
+    if extra_connector_options is not None:
+        _validate_options(extra_connector_options)
+        for key in extra_connector_options:
             if key in ("path", "format"):
                 raise ValueError(f"{key!r} must not be specified in connector_options")
             if key.startswith(file_format + "."):
                 raise ValueError(f"format option {key!r} must be specified in format_options")
-        _merge_options(result, connector_options)
-    _merge_options(result, {key: value for key, value in options.items() if value is not None})
+        _merge_options(result, extra_connector_options)
+    if connector_parameters is not None:
+        _merge_options(result, {
+            key: value for key, value in connector_parameters.items() if value is not None
+        })
 
     normalized_format_options: Dict[str, str] = {}
-    if format_options is not None:
-        _validate_options(format_options)
-        for key, value in format_options.items():
+    if extra_format_options is not None:
+        _validate_options(extra_format_options)
+        for key, value in extra_format_options.items():
             option = key if key.startswith(file_format + ".") else file_format + "." + key
             if option in normalized_format_options:
                 raise ValueError(f"duplicate format option: {option!r}")
@@ -93,32 +96,6 @@ def _parallelism_option(value: Optional[int]) -> Optional[str]:
     return str(value)
 
 
-def _build_filesystem_sink_options(
-    path: str,
-    file_format: str,
-    options: Dict[str, Optional[str]],
-    format_parameters: Dict[str, Optional[str]],
-    connector_options: Optional[Dict[str, str]] = None,
-    format_options: Optional[Dict[str, str]] = None,
-) -> Dict[str, str]:
-    result = _build_filesystem_options(
-        path, file_format, options, format_options,
-        connector_options=connector_options, format_parameters=format_parameters,
-    )
-    # Apply defaults after merging explicit settings from either API entry point.
-    defaults = {
-        "sink.rolling-policy.file-size": "128mb",
-        "sink.rolling-policy.rollover-interval": "30min",
-        "sink.partition-commit.trigger": "process-time",
-        "sink.partition-commit.delay": "0s",
-    }
-    if file_format == "parquet":
-        defaults["parquet.compression"] = "SNAPPY"
-    for key, value in defaults.items():
-        result.setdefault(key, value)
-    return result
-
-
 @PublicEvolving()
 def read_parquet(
     path: str,
@@ -147,28 +124,33 @@ def read_parquet(
     partition values.
 
     :param path: File or directory URI supported by Flink's filesystem implementations.
-    :param schema: Mapping of column names to DataFrame data types.
+    :param schema: Non-empty mapping of physical column names to DataFrame data types.
     :param partition_by: Partition column name or non-empty list of names in directory order.
         These columns must be declared in ``schema`` and are read from the partition paths.
     :param monitor_interval: Positive file discovery interval, for example ``"60s"``.
-        If unset, the source performs a bounded scan.
+        If neither this parameter nor ``source.monitor-interval`` in ``connector_options``
+        is set, the source performs a bounded scan.
     :param path_regex_pattern: Java regular expression matched against the entire file path
         (excluding the URI scheme and authority), for example ``".*[.]parquet"``. This is not
         a substring or filename-only match. Hidden files are excluded.
-    :param utc_timezone: Use UTC for Parquet timestamp conversion. Defaults to ``False``,
-        which uses the JVM default time zone, independently of the session time zone.
+    :param utc_timezone: Use UTC for Parquet timestamp conversion. The format default is
+        currently ``False``, which uses the JVM default time zone, independently of the
+        session time zone.
     :param connector_options: Additional filesystem options with string keys and values.
         The ``connector``, ``path`` and ``format`` keys are reserved. Format options belong in
         ``format_options``. Explicit parameter and dictionary values must agree when both are set.
     :param format_options: Parquet options with string values, with or without the ``parquet.``
         prefix. Duplicate normalized keys are rejected. ``None`` parameters leave dictionary
-        values unchanged; conflicting explicit values are rejected.
+        values unchanged; conflicting explicit values are rejected. Unspecified options use
+        the connector or format factory defaults.
     :param computed_columns: Optional SQL expressions keyed by computed column name.
     :param watermark: Optional ``(column, expression)`` watermark declaration. The column must
         have a TIMESTAMP or TIMESTAMP_LTZ type with precision from 0 to 3.
     :return: A DataFrame backed by the Parquet source.
     :raises TypeError: If an argument has an invalid type.
-    :raises ValueError: If the path, schema or partition keys are invalid, or options conflict.
+    :raises ValueError: If the path or schema is empty, the partition specification is
+        empty or contains empty or duplicate names, or options conflict or contain
+        reserved, empty or duplicate keys.
 
     Example::
 
@@ -183,15 +165,18 @@ def read_parquet(
     options = _build_filesystem_options(
         path,
         "parquet",
-        {
+        connector_parameters={
             "source.monitor-interval": monitor_interval,
             "source.path.regex-pattern": path_regex_pattern,
         },
-        format_options,
-        connector_options=connector_options,
         format_parameters={"utc-timezone": _boolean_option(utc_timezone, "utc_timezone")},
+        extra_connector_options=connector_options,
+        extra_format_options=format_options,
     )
-    return _read("filesystem", schema, options, computed_columns, watermark, partition_by)
+    return _read(
+        "filesystem", schema=schema, options=options,
+        computed_columns=computed_columns, watermark=watermark, partition_by=partition_by,
+    )
 
 
 @PublicEvolving()
@@ -224,32 +209,36 @@ def read_json(
     partition values.
 
     :param path: File or directory URI supported by Flink's filesystem implementations.
-    :param schema: Mapping of column names to DataFrame data types.
+    :param schema: Non-empty mapping of physical column names to DataFrame data types.
     :param partition_by: Partition column name or non-empty list of names in directory order.
         These columns must be declared in ``schema`` and are read from the partition paths.
     :param monitor_interval: Positive file discovery interval, for example ``"60s"``.
-        If unset, the source performs a bounded scan.
+        If neither this parameter nor ``source.monitor-interval`` in ``connector_options``
+        is set, the source performs a bounded scan.
     :param path_regex_pattern: Java regular expression matched against the entire file path
         (excluding the URI scheme and authority), for example ``".*[.]json"``. This is not
         a substring or filename-only match. Hidden files are excluded.
-    :param ignore_parse_errors: Skip malformed fields or rows instead of failing; defaults to
-        ``False``. Invalid fields are set to null where possible.
-    :param fail_on_missing_field: Fail on missing JSON fields; defaults to ``False``.
-        Cannot be enabled together with ``ignore_parse_errors``.
-    :param timestamp_format: Timestamp representation, ``"SQL"`` (default) or ``"ISO-8601"``.
+    :param ignore_parse_errors: Skip malformed fields or rows instead of failing. Invalid fields
+        are set to null where possible. The format default is currently ``False``.
+    :param fail_on_missing_field: Fail on missing JSON fields. The format default is currently
+        ``False``. Cannot be enabled together with ``ignore_parse_errors``.
+    :param timestamp_format: Timestamp representation, ``"SQL"`` or ``"ISO-8601"``.
+        The format default is currently ``"SQL"``.
     :param connector_options: Additional filesystem options with string keys and values.
         The ``connector``, ``path`` and ``format`` keys are reserved. Format options belong in
         ``format_options``. Explicit parameter and dictionary values must agree when both are set.
     :param format_options: JSON format options with string values. Keys may include or omit
         the ``json.`` prefix, for example ``{"ignore-parse-errors": "true"}``. ``None`` parameters
-        leave dictionary values unchanged; conflicting explicit values are rejected.
+        leave dictionary values unchanged; conflicting explicit values are rejected. Unspecified
+        options use the connector or format factory defaults.
     :param computed_columns: Optional SQL expressions keyed by computed column name.
     :param watermark: Optional ``(column, expression)`` watermark declaration. The column must
         have a TIMESTAMP or TIMESTAMP_LTZ type with precision from 0 to 3.
     :return: A DataFrame backed by the JSON source.
     :raises TypeError: If an argument has an invalid type.
-    :raises ValueError: If the path, schema or partition keys are invalid, options conflict,
-        or format option keys are duplicated after adding the ``json.`` prefix.
+    :raises ValueError: If the path or schema is empty, the partition specification is
+        empty or contains empty or duplicate names, or options conflict or contain
+        reserved, empty or duplicate keys.
 
     Example::
 
@@ -265,20 +254,23 @@ def read_json(
     options = _build_filesystem_options(
         path,
         "json",
-        {
+        connector_parameters={
             "source.monitor-interval": monitor_interval,
             "source.path.regex-pattern": path_regex_pattern,
         },
-        format_options,
-        connector_options=connector_options,
         format_parameters={
             "ignore-parse-errors": _boolean_option(ignore_parse_errors, "ignore_parse_errors"),
             "fail-on-missing-field": _boolean_option(
                 fail_on_missing_field, "fail_on_missing_field"),
             "timestamp-format.standard": timestamp_format,
         },
+        extra_connector_options=connector_options,
+        extra_format_options=format_options,
     )
-    return _read("filesystem", schema, options, computed_columns, watermark, partition_by)
+    return _read(
+        "filesystem", schema=schema, options=options,
+        computed_columns=computed_columns, watermark=watermark, partition_by=partition_by,
+    )
 
 
 def _validate_connector(connector: str) -> None:
@@ -404,14 +396,17 @@ def _build_generic_descriptor(
 
 def _read(
     connector: str,
+    *,
     schema: Dict[str, DataType],
     options: Dict[str, str],
     computed_columns: Optional[Dict[str, str]],
     watermark: Optional[Tuple[str, str]],
     partition_by: Optional[Union[str, List[str]]] = None,
 ) -> DataFrame:
-    source_schema = _build_source_schema(schema, computed_columns, watermark)
-    descriptor = _build_generic_descriptor(connector, options, source_schema, partition_by)
+    source_schema = _build_source_schema(
+        schema, computed_columns=computed_columns, watermark=watermark)
+    descriptor = _build_generic_descriptor(
+        connector, options, schema=source_schema, partition_by=partition_by)
     table_environment = get_or_create_table_environment()
     return DataFrame(table_environment.from_descriptor(descriptor))
 
@@ -462,4 +457,7 @@ def read_generic(
 
     .. versionadded:: 2.4.0
     """
-    return _read(connector, schema, options, computed_columns, watermark)
+    return _read(
+        connector, schema=schema, options=options,
+        computed_columns=computed_columns, watermark=watermark,
+    )
