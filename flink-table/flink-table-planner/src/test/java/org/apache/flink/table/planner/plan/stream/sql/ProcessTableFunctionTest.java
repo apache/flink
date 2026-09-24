@@ -122,6 +122,32 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testInsertWithColumnListSetSemanticTableAndPadding() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t_no_pk_sink (`name` STRING, `name0` STRING, `count` BIGINT, `mode` STRING) "
+                                + "WITH ('connector' = 'values')");
+        // reorders the query columns and pads `name0` and `count` with NULL
+        util.verifyRelPlanInsert(
+                "INSERT INTO t_no_pk_sink (`mode`, `name`) "
+                        + "SELECT `out`, `name` FROM f(r => TABLE t PARTITION BY name, i => 1)");
+    }
+
+    @Test
+    void testInsertWithStaticPartitionSetSemanticTable() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t_partitioned_sink (`name` STRING, `out` STRING, `p` STRING) "
+                                + "PARTITIONED BY (`p`) "
+                                + "WITH ('connector' = 'filesystem', 'path' = '/non', 'format' = 'testcsv')");
+        util.verifyRelPlanInsert(
+                "INSERT INTO t_partitioned_sink PARTITION (`p` = 'x') "
+                        + "SELECT `name`, `out` FROM f(r => TABLE t PARTITION BY name, i => 1)");
+    }
+
+    @Test
     void testScalarArgsWithUid() {
         util.addTemporarySystemFunction("f", ScalarArgsFunction.class);
         // argument 'uid' is also reordered
