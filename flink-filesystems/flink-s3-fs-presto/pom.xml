@@ -33,6 +33,10 @@ under the License.
 
 	<properties>
 		<presto.version>0.272</presto.version>
+		<!-- The only @PublicEvolving classes in this jar come from flink-s3-fs-base and are
+		     also checked in flink-s3-fs-hadoop. Comparing this ~100 MB jar can run Maven out of
+		     heap on JDK 8, see FLINK-40786. -->
+		<japicmp.skip>true</japicmp.skip>
 	</properties>
 
 	<dependencies>
