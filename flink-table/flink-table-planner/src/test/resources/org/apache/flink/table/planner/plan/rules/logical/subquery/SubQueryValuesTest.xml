@@ -1,0 +1,345 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testBatchWithProjectAndFilter[EXISTS]">
+    <Resource name="sql">
+      <![CDATA[SELECT l.id, l.amount FROM (VALUES (1, 10), (1, 30), (2, 20), (3, 40), (CAST(NULL AS INT), 50)) AS l(id, amount) WHERE EXISTS (SELECT 1 FROM (SELECT raw_id + 1 AS id, limit_value FROM (VALUES (25, 0), (10, 1), (CAST(NULL AS INT), 2)) AS v(limit_value, raw_id) WHERE limit_value IS NOT NULL) AS r WHERE l.id = r.id AND l.amount < r.limit_value)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], amount=[$1])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[AND(=($cor0.id, $0), <($cor0.amount, $1))])
+  LogicalProject(id=[+($1, 1)], limit_value=[$0])
+    LogicalFilter(condition=[IS NOT NULL($0)])
+      LogicalProject(limit_value=[$0], raw_id=[$1])
+        LogicalUnion(all=[true])
+          LogicalProject(EXPR$0=[25], EXPR$1=[0])
+            LogicalValues(tuples=[[{ 0 }]])
+          LogicalProject(EXPR$0=[10], EXPR$1=[1])
+            LogicalValues(tuples=[[{ 0 }]])
+          LogicalProject(EXPR$0=[null:INTEGER], EXPR$1=[2])
+            LogicalValues(tuples=[[{ 0 }]])
+})], variablesSet=[[$cor0]])
+   +- LogicalProject(id=[$0], amount=[$1])
+      +- LogicalUnion(all=[true])
+         :- LogicalProject(EXPR$0=[1], EXPR$1=[10])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[1], EXPR$1=[30])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[2], EXPR$1=[20])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[3], EXPR$1=[40])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         +- LogicalProject(EXPR$0=[null:INTEGER], EXPR$1=[50])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[((EXPR$0 = id) AND (EXPR$1 < limit_value))], select=[EXPR$0, EXPR$1], build=[right])
+:- Union(all=[true], union=[EXPR$0, EXPR$1])
+:  :- Calc(select=[CAST(1 AS INTEGER) AS EXPR$0, 10 AS EXPR$1])
+:  :  +- Values(tuples=[[{ 0 }]], values=[ZERO])(reuse_id=[1])
+:  :- Calc(select=[CAST(1 AS INTEGER) AS EXPR$0, 30 AS EXPR$1])
+:  :  +- Reused(reference_id=[1])
+:  :- Calc(select=[CAST(2 AS INTEGER) AS EXPR$0, 20 AS EXPR$1])
+:  :  +- Reused(reference_id=[1])
+:  :- Calc(select=[CAST(3 AS INTEGER) AS EXPR$0, 40 AS EXPR$1])
+:  :  +- Reused(reference_id=[1])
+:  +- Calc(select=[null:INTEGER AS EXPR$0, 50 AS EXPR$1])
+:     +- Reused(reference_id=[1])
++- Exchange(distribution=[broadcast])
+   +- Union(all=[true], union=[id, limit_value])
+      :- Calc(select=[1 AS id, CAST(25 AS INTEGER) AS limit_value])
+      :  +- Values(tuples=[[{ 25, 0 }]], values=[EXPR$0, EXPR$1])
+      +- Calc(select=[(1 + 1) AS id, CAST(10 AS INTEGER) AS limit_value])
+         +- Values(tuples=[[{ 10, 1 }]], values=[EXPR$0, EXPR$1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testBatchWithProjectAndFilter[NOT EXISTS]">
+    <Resource name="sql">
+      <![CDATA[SELECT l.id, l.amount FROM (VALUES (1, 10), (1, 30), (2, 20), (3, 40), (CAST(NULL AS INT), 50)) AS l(id, amount) WHERE NOT EXISTS (SELECT 1 FROM (SELECT raw_id + 1 AS id, limit_value FROM (VALUES (25, 0), (10, 1), (CAST(NULL AS INT), 2)) AS v(limit_value, raw_id) WHERE limit_value IS NOT NULL) AS r WHERE l.id = r.id AND l.amount < r.limit_value)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], amount=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.id, $0), <($cor0.amount, $1))])
+  LogicalProject(id=[+($1, 1)], limit_value=[$0])
+    LogicalFilter(condition=[IS NOT NULL($0)])
+      LogicalProject(limit_value=[$0], raw_id=[$1])
+        LogicalUnion(all=[true])
+          LogicalProject(EXPR$0=[25], EXPR$1=[0])
+            LogicalValues(tuples=[[{ 0 }]])
+          LogicalProject(EXPR$0=[10], EXPR$1=[1])
+            LogicalValues(tuples=[[{ 0 }]])
+          LogicalProject(EXPR$0=[null:INTEGER], EXPR$1=[2])
+            LogicalValues(tuples=[[{ 0 }]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalProject(id=[$0], amount=[$1])
+      +- LogicalUnion(all=[true])
+         :- LogicalProject(EXPR$0=[1], EXPR$1=[10])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[1], EXPR$1=[30])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[2], EXPR$1=[20])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[3], EXPR$1=[40])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         +- LogicalProject(EXPR$0=[null:INTEGER], EXPR$1=[50])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[((EXPR$0 = id) AND (EXPR$1 < limit_value))], select=[EXPR$0, EXPR$1], build=[right])
+:- Union(all=[true], union=[EXPR$0, EXPR$1])
+:  :- Calc(select=[CAST(1 AS INTEGER) AS EXPR$0, 10 AS EXPR$1])
+:  :  +- Values(tuples=[[{ 0 }]], values=[ZERO])(reuse_id=[1])
+:  :- Calc(select=[CAST(1 AS INTEGER) AS EXPR$0, 30 AS EXPR$1])
+:  :  +- Reused(reference_id=[1])
+:  :- Calc(select=[CAST(2 AS INTEGER) AS EXPR$0, 20 AS EXPR$1])
+:  :  +- Reused(reference_id=[1])
+:  :- Calc(select=[CAST(3 AS INTEGER) AS EXPR$0, 40 AS EXPR$1])
+:  :  +- Reused(reference_id=[1])
+:  +- Calc(select=[null:INTEGER AS EXPR$0, 50 AS EXPR$1])
+:     +- Reused(reference_id=[1])
++- Exchange(distribution=[broadcast])
+   +- Union(all=[true], union=[id, limit_value])
+      :- Calc(select=[1 AS id, CAST(25 AS INTEGER) AS limit_value])
+      :  +- Values(tuples=[[{ 25, 0 }]], values=[EXPR$0, EXPR$1])
+      +- Calc(select=[(1 + 1) AS id, CAST(10 AS INTEGER) AS limit_value])
+         +- Values(tuples=[[{ 10, 1 }]], values=[EXPR$0, EXPR$1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testBatch[EXISTS]">
+    <Resource name="sql">
+      <![CDATA[SELECT l.id FROM (VALUES (1), (2)) AS l(id) WHERE EXISTS (SELECT 1 FROM (VALUES (1), (2)) AS r(right_id) WHERE l.id = r.right_id)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[=($cor0.id, $0)])
+  LogicalValues(tuples=[[{ 1 }, { 2 }]])
+})], variablesSet=[[$cor0]])
+   +- LogicalValues(tuples=[[{ 1 }, { 2 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftSemiJoin], where=[(id = right_id)], select=[id], build=[right])
+:- Values(tuples=[[{ 1 }, { 2 }]], values=[id])
++- Exchange(distribution=[broadcast])
+   +- LocalHashAggregate(groupBy=[right_id], select=[right_id])
+      +- Values(tuples=[[{ 1 }, { 2 }]], values=[right_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testBatch[NOT EXISTS]">
+    <Resource name="sql">
+      <![CDATA[SELECT l.id FROM (VALUES (1), (2)) AS l(id) WHERE NOT EXISTS (SELECT 1 FROM (VALUES (1), (2)) AS r(right_id) WHERE l.id = r.right_id)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.id, $0)])
+  LogicalValues(tuples=[[{ 1 }, { 2 }]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalValues(tuples=[[{ 1 }, { 2 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+NestedLoopJoin(joinType=[LeftAntiJoin], where=[(id = right_id)], select=[id], build=[right])
+:- Values(tuples=[[{ 1 }, { 2 }]], values=[id])
++- Exchange(distribution=[broadcast])
+   +- LocalHashAggregate(groupBy=[right_id], select=[right_id])
+      +- Values(tuples=[[{ 1 }, { 2 }]], values=[right_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamingWithProjectAndFilter[EXISTS]">
+    <Resource name="sql">
+      <![CDATA[SELECT l.id, l.amount FROM (VALUES (1, 10), (1, 30), (2, 20), (3, 40), (CAST(NULL AS INT), 50)) AS l(id, amount) WHERE EXISTS (SELECT 1 FROM (SELECT raw_id + 1 AS id, limit_value FROM (VALUES (25, 0), (10, 1), (CAST(NULL AS INT), 2)) AS v(limit_value, raw_id) WHERE limit_value IS NOT NULL) AS r WHERE l.id = r.id AND l.amount < r.limit_value)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], amount=[$1])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[AND(=($cor0.id, $0), <($cor0.amount, $1))])
+  LogicalProject(id=[+($1, 1)], limit_value=[$0])
+    LogicalFilter(condition=[IS NOT NULL($0)])
+      LogicalProject(limit_value=[$0], raw_id=[$1])
+        LogicalUnion(all=[true])
+          LogicalProject(EXPR$0=[25], EXPR$1=[0])
+            LogicalValues(tuples=[[{ 0 }]])
+          LogicalProject(EXPR$0=[10], EXPR$1=[1])
+            LogicalValues(tuples=[[{ 0 }]])
+          LogicalProject(EXPR$0=[null:INTEGER], EXPR$1=[2])
+            LogicalValues(tuples=[[{ 0 }]])
+})], variablesSet=[[$cor0]])
+   +- LogicalProject(id=[$0], amount=[$1])
+      +- LogicalUnion(all=[true])
+         :- LogicalProject(EXPR$0=[1], EXPR$1=[10])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[1], EXPR$1=[30])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[2], EXPR$1=[20])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[3], EXPR$1=[40])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         +- LogicalProject(EXPR$0=[null:INTEGER], EXPR$1=[50])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Join(joinType=[LeftSemiJoin], where=[((EXPR$0 = id) AND (EXPR$1 < limit_value))], select=[EXPR$0, EXPR$1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[EXPR$0]])
+:  +- Union(all=[true], union=[EXPR$0, EXPR$1])
+:     :- Calc(select=[CAST(1 AS INTEGER) AS EXPR$0, 10 AS EXPR$1])
+:     :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
+:     :- Calc(select=[CAST(1 AS INTEGER) AS EXPR$0, 30 AS EXPR$1])
+:     :  +- Reused(reference_id=[1])
+:     :- Calc(select=[CAST(2 AS INTEGER) AS EXPR$0, 20 AS EXPR$1])
+:     :  +- Reused(reference_id=[1])
+:     :- Calc(select=[CAST(3 AS INTEGER) AS EXPR$0, 40 AS EXPR$1])
+:     :  +- Reused(reference_id=[1])
+:     +- Calc(select=[null:INTEGER AS EXPR$0, 50 AS EXPR$1])
+:        +- Reused(reference_id=[1])
++- Exchange(distribution=[hash[id]])
+   +- Union(all=[true], union=[id, limit_value])
+      :- Calc(select=[1 AS id, CAST(25 AS INTEGER) AS limit_value])
+      :  +- Values(tuples=[[{ 25, 0 }]])
+      +- Calc(select=[(1 + 1) AS id, CAST(10 AS INTEGER) AS limit_value])
+         +- Values(tuples=[[{ 10, 1 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamingWithProjectAndFilter[NOT EXISTS]">
+    <Resource name="sql">
+      <![CDATA[SELECT l.id, l.amount FROM (VALUES (1, 10), (1, 30), (2, 20), (3, 40), (CAST(NULL AS INT), 50)) AS l(id, amount) WHERE NOT EXISTS (SELECT 1 FROM (SELECT raw_id + 1 AS id, limit_value FROM (VALUES (25, 0), (10, 1), (CAST(NULL AS INT), 2)) AS v(limit_value, raw_id) WHERE limit_value IS NOT NULL) AS r WHERE l.id = r.id AND l.amount < r.limit_value)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], amount=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.id, $0), <($cor0.amount, $1))])
+  LogicalProject(id=[+($1, 1)], limit_value=[$0])
+    LogicalFilter(condition=[IS NOT NULL($0)])
+      LogicalProject(limit_value=[$0], raw_id=[$1])
+        LogicalUnion(all=[true])
+          LogicalProject(EXPR$0=[25], EXPR$1=[0])
+            LogicalValues(tuples=[[{ 0 }]])
+          LogicalProject(EXPR$0=[10], EXPR$1=[1])
+            LogicalValues(tuples=[[{ 0 }]])
+          LogicalProject(EXPR$0=[null:INTEGER], EXPR$1=[2])
+            LogicalValues(tuples=[[{ 0 }]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalProject(id=[$0], amount=[$1])
+      +- LogicalUnion(all=[true])
+         :- LogicalProject(EXPR$0=[1], EXPR$1=[10])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[1], EXPR$1=[30])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[2], EXPR$1=[20])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         :- LogicalProject(EXPR$0=[3], EXPR$1=[40])
+         :  +- LogicalValues(tuples=[[{ 0 }]])
+         +- LogicalProject(EXPR$0=[null:INTEGER], EXPR$1=[50])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Join(joinType=[LeftAntiJoin], where=[((EXPR$0 = id) AND (EXPR$1 < limit_value))], select=[EXPR$0, EXPR$1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[EXPR$0]])
+:  +- Union(all=[true], union=[EXPR$0, EXPR$1])
+:     :- Calc(select=[CAST(1 AS INTEGER) AS EXPR$0, 10 AS EXPR$1])
+:     :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
+:     :- Calc(select=[CAST(1 AS INTEGER) AS EXPR$0, 30 AS EXPR$1])
+:     :  +- Reused(reference_id=[1])
+:     :- Calc(select=[CAST(2 AS INTEGER) AS EXPR$0, 20 AS EXPR$1])
+:     :  +- Reused(reference_id=[1])
+:     :- Calc(select=[CAST(3 AS INTEGER) AS EXPR$0, 40 AS EXPR$1])
+:     :  +- Reused(reference_id=[1])
+:     +- Calc(select=[null:INTEGER AS EXPR$0, 50 AS EXPR$1])
+:        +- Reused(reference_id=[1])
++- Exchange(distribution=[hash[id]])
+   +- Union(all=[true], union=[id, limit_value])
+      :- Calc(select=[1 AS id, CAST(25 AS INTEGER) AS limit_value])
+      :  +- Values(tuples=[[{ 25, 0 }]])
+      +- Calc(select=[(1 + 1) AS id, CAST(10 AS INTEGER) AS limit_value])
+         +- Values(tuples=[[{ 10, 1 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreaming[EXISTS]">
+    <Resource name="sql">
+      <![CDATA[SELECT l.id FROM (VALUES (1), (2)) AS l(id) WHERE EXISTS (SELECT 1 FROM (VALUES (1), (2)) AS r(right_id) WHERE l.id = r.right_id)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[=($cor0.id, $0)])
+  LogicalValues(tuples=[[{ 1 }, { 2 }]])
+})], variablesSet=[[$cor0]])
+   +- LogicalValues(tuples=[[{ 1 }, { 2 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Join(joinType=[LeftSemiJoin], where=[(id = right_id)], select=[id], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[id]])
+:  +- Values(tuples=[[{ 1 }, { 2 }]])
++- Exchange(distribution=[hash[right_id]])
+   +- Values(tuples=[[{ 1 }, { 2 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreaming[NOT EXISTS]">
+    <Resource name="sql">
+      <![CDATA[SELECT l.id FROM (VALUES (1), (2)) AS l(id) WHERE NOT EXISTS (SELECT 1 FROM (VALUES (1), (2)) AS r(right_id) WHERE l.id = r.right_id)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.id, $0)])
+  LogicalValues(tuples=[[{ 1 }, { 2 }]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalValues(tuples=[[{ 1 }, { 2 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Join(joinType=[LeftAntiJoin], where=[(id = right_id)], select=[id], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[id]])
+:  +- Values(tuples=[[{ 1 }, { 2 }]])
++- Exchange(distribution=[hash[right_id]])
+   +- Values(tuples=[[{ 1 }, { 2 }]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>
