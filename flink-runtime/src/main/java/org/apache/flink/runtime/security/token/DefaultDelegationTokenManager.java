@@ -31,6 +31,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
@@ -46,10 +47,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -86,6 +88,10 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     private static final long NO_PREVIOUS_REOBTAIN = Long.MIN_VALUE;
 
+    private static final long MIN_SUBMISSION_RETRY_DELAY_MILLIS = 1_000L;
+
+    private static final long SUBMISSION_REJECTION_WARN_INTERVAL_MILLIS = 60_000L;
+
     private final Configuration configuration;
 
     @Nullable private final PluginManager pluginManager;
@@ -114,9 +120,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private final Clock clock;
 
     /**
-     * Serializes the obtain-and-broadcast cycle so that, even though {@code cancel(true)} does not
-     * wait for an in-flight cycle and the IO executor is multi-threaded, two cycles can never run
-     * concurrently and broadcast tokens out of order.
+     * Serializes the obtain-and-broadcast cycle so that, even though cancelling a scheduled
+     * dispatch does not wait for an in-flight cycle and the IO executor is multi-threaded, two
+     * cycles can never run concurrently and broadcast tokens out of order.
      */
     private final Object renewalCycleLock = new Object();
 
@@ -132,7 +138,17 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
 
     @GuardedBy("schedulingLock")
     @Nullable
-    private ScheduledFuture<?> tokensUpdateFuture;
+    private Future<?> tokensUpdateFuture;
+
+    /** Fences dispatch and rejection handling after a pending cycle is replaced or stopped. */
+    @GuardedBy("schedulingLock")
+    private long renewalTaskGeneration;
+
+    @GuardedBy("schedulingLock")
+    private long consecutiveSubmissionRejections;
+
+    @GuardedBy("schedulingLock")
+    private long lastSubmissionRejectionWarnAtMillis;
 
     /**
      * Relative (monotonic) clock time (millis) at which {@link #tokensUpdateFuture} is scheduled to
@@ -474,6 +490,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 // Keep requests coalesced while waiting for the previous obtain, so they
                 // cannot fill the IO pool with workers blocked on renewalCycleLock.
                 reobtainScheduled = false;
+                consecutiveSubmissionRejections = 0;
+                lastSubmissionRejectionWarnAtMillis = 0;
             }
             try {
                 LOG.info("Starting tokens update task");
@@ -516,7 +534,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                                 "Next tokens update cycle is pending with {} delay",
                                 TimeUtils.formatWithHighestUnit(Duration.ofMillis(effectiveDelay)));
                     } else {
-                        LOG.info("Tokens update task not rescheduled, the manager is not running");
+                        LOG.info(
+                                "Tokens update task not rescheduled, the manager or IO executor "
+                                        + "is shutting down");
                     }
                 } else {
                     LOG.warn(
@@ -542,8 +562,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                             e);
                 } else {
                     LOG.warn(
-                            "Failed to update tokens, no retry scheduled because the manager is "
-                                    + "not running",
+                            "Failed to update tokens, no retry scheduled because the manager or "
+                                    + "IO executor is shutting down",
                             e);
                 }
             }
@@ -555,41 +575,131 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      * pending renewal. A delay of {@code 0} brings the next cycle forward to now. Must only be
      * called after {@link #start(Listener)} (the scheduled and IO executors are non-null then) and
      * while holding {@link #schedulingLock}.
+     *
+     * @return the effective delay, including a submission retry, or -1 if the IO executor is shut
+     *     down.
      */
     @GuardedBy("schedulingLock")
-    private void scheduleRenewalLocked(long delayMs) {
+    private long scheduleRenewalLocked(long delayMs) {
         stopTokensUpdate();
+        final long cycleEpoch = sessionEpoch;
+        final long generation = renewalTaskGeneration;
         nextScheduledAtMillis = clock.relativeTimeMillis() + delayMs;
         try {
-            tokensUpdateFuture =
-                    scheduledExecutor.schedule(
-                            () -> {
-                                try {
-                                    ioExecutor.execute(this::startTokensUpdate);
-                                } catch (RejectedExecutionException e) {
-                                    // IO executor is shutting down: drop the cycle but release the
-                                    // dedupe flag so it cannot get stuck if the manager is reused.
-                                    synchronized (schedulingLock) {
-                                        reobtainScheduled = false;
-                                    }
-                                    LOG.debug("Tokens update task rejected by IO executor", e);
+            try {
+                tokensUpdateFuture =
+                        scheduledExecutor.schedule(
+                                () -> dispatchTokensUpdate(cycleEpoch, generation),
+                                delayMs,
+                                TimeUnit.MILLISECONDS);
+                return delayMs;
+            } catch (RejectedExecutionException e) {
+                // The scheduler exposes no shutdown state. IO shutdown makes retrying futile
+                // because token acquisition can no longer be dispatched.
+                if (ioExecutor.isShutdown()) {
+                    reobtainScheduled = false;
+                    nextScheduledAtMillis = Long.MAX_VALUE;
+                    LOG.debug("Tokens update scheduling rejected during IO executor shutdown", e);
+                    return -1L;
+                }
+                // The scheduler may be saturated rather than shut down. Use an independent
+                // timer to retry submission, without obtaining tokens on its shared thread.
+                final long retryDelay =
+                        Math.max(
+                                delayMs,
+                                Math.max(
+                                        MIN_SUBMISSION_RETRY_DELAY_MILLIS,
+                                        renewalRetryInitialBackoff));
+                final CompletableFuture<Void> retryFuture = new CompletableFuture<>();
+                tokensUpdateFuture = retryFuture;
+                nextScheduledAtMillis = clock.relativeTimeMillis() + retryDelay;
+                retryFuture.thenRun(
+                        () -> {
+                            synchronized (schedulingLock) {
+                                if (!running
+                                        || cycleEpoch != sessionEpoch
+                                        || generation != renewalTaskGeneration
+                                        || tokensUpdateFuture != retryFuture) {
+                                    return;
                                 }
-                            },
-                            delayMs,
-                            TimeUnit.MILLISECONDS);
-        } catch (RejectedExecutionException e) {
-            // Scheduled executor is shutting down: no cycle will run, so undo the bookkeeping
-            // this method set.
-            reobtainScheduled = false;
-            nextScheduledAtMillis = Long.MAX_VALUE;
-            LOG.debug("Tokens update task rejected by scheduled executor", e);
+                                scheduleRenewalLocked(0L);
+                            }
+                        });
+                completeSchedulingRetry(retryFuture, retryDelay);
+                logSubmissionRejection("scheduled executor", retryDelay, e);
+                return retryDelay;
+            }
         } catch (Throwable t) {
-            // Undo the same bookkeeping as the rejection branch, or every later re-obtain would
-            // be coalesced against a cycle that never got scheduled. Rethrow to keep the failure
-            // visible.
+            // A failed submission must not leave later requests coalescing against missing work.
+            stopTokensUpdate();
             reobtainScheduled = false;
-            nextScheduledAtMillis = Long.MAX_VALUE;
+            // Submission may run in a future continuation that would otherwise hide the failure.
+            LOG.error("Failed to schedule tokens update task", t);
             throw t;
+        }
+    }
+
+    private void dispatchTokensUpdate(long cycleEpoch, long generation) {
+        synchronized (schedulingLock) {
+            if (!running || cycleEpoch != sessionEpoch || generation != renewalTaskGeneration) {
+                return;
+            }
+        }
+        try {
+            ioExecutor.execute(this::startTokensUpdate);
+        } catch (RejectedExecutionException e) {
+            synchronized (schedulingLock) {
+                if (!running || cycleEpoch != sessionEpoch || generation != renewalTaskGeneration) {
+                    return;
+                }
+                if (ioExecutor.isShutdown()) {
+                    stopTokensUpdate();
+                    reobtainScheduled = false;
+                    LOG.debug("Tokens update task rejected during IO executor shutdown", e);
+                    return;
+                }
+                final long retryDelay =
+                        scheduleRenewalLocked(
+                                Math.max(
+                                        MIN_SUBMISSION_RETRY_DELAY_MILLIS,
+                                        renewalRetryInitialBackoff));
+                if (retryDelay >= 0) {
+                    logSubmissionRejection("IO executor", retryDelay, e);
+                } else {
+                    LOG.debug("Tokens update retry rejected during IO executor shutdown", e);
+                }
+            }
+        }
+    }
+
+    @GuardedBy("schedulingLock")
+    private void logSubmissionRejection(
+            String executor, long retryDelay, RejectedExecutionException rejection) {
+        consecutiveSubmissionRejections++;
+        final long now = clock.relativeTimeMillis();
+        final String formattedDelay =
+                TimeUtils.formatWithHighestUnit(Duration.ofMillis(retryDelay));
+        if (consecutiveSubmissionRejections == 1) {
+            lastSubmissionRejectionWarnAtMillis = now;
+            LOG.warn(
+                    "Token update submission rejected by {}, will retry in {}",
+                    executor,
+                    formattedDelay,
+                    rejection);
+        } else if (now - lastSubmissionRejectionWarnAtMillis
+                >= SUBMISSION_REJECTION_WARN_INTERVAL_MILLIS) {
+            lastSubmissionRejectionWarnAtMillis = now;
+            LOG.warn(
+                    "Token update submissions rejected {} times without starting a cycle; "
+                            + "latest rejection from {}, will retry in {}",
+                    consecutiveSubmissionRejections,
+                    executor,
+                    formattedDelay);
+        } else {
+            LOG.debug(
+                    "Token update submission rejected again by {}, will retry in {}",
+                    executor,
+                    formattedDelay);
         }
     }
 
@@ -600,7 +710,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
      *
      * @param delayMs requested delay in millis
      * @return the delay in millis until the cycle that will actually run next, or -1 when nothing
-     *     is scheduled because the manager is not running.
+     *     is scheduled because the manager is not running or the IO executor is shut down.
      */
     @VisibleForTesting
     long maybeScheduleRenewal(long delayMs) {
@@ -619,28 +729,33 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                     // reobtainScheduled set, so coalescing still holds. Move the cooldown anchor
                     // to the time the cycle now actually runs.
                     lastReobtainAtMillis = clock.relativeTimeMillis() + delayMs;
-                    scheduleRenewalLocked(delayMs);
-                    return delayMs;
+                    return scheduleRenewalLocked(delayMs);
                 }
                 LOG.debug(
                         "An on-demand re-obtain is already pending with no greater delay, "
                                 + "leaving it in place.");
                 return pendingInMillis;
             }
-            scheduleRenewalLocked(delayMs);
-            return delayMs;
+            return scheduleRenewalLocked(delayMs);
         }
     }
 
     @VisibleForTesting
     void stopTokensUpdate() {
         synchronized (schedulingLock) {
+            renewalTaskGeneration++;
             if (tokensUpdateFuture != null) {
-                tokensUpdateFuture.cancel(true);
+                // A dispatch can reschedule itself after rejection; do not interrupt its thread.
+                tokensUpdateFuture.cancel(false);
                 tokensUpdateFuture = null;
-                nextScheduledAtMillis = Long.MAX_VALUE;
             }
+            nextScheduledAtMillis = Long.MAX_VALUE;
         }
+    }
+
+    @VisibleForTesting
+    void completeSchedulingRetry(CompletableFuture<Void> retryFuture, long delayMillis) {
+        FutureUtils.completeDelayed(retryFuture, null, Duration.ofMillis(delayMillis));
     }
 
     @VisibleForTesting
@@ -694,6 +809,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             running = false;
             stopTokensUpdate();
             reobtainScheduled = false;
+            consecutiveSubmissionRejections = 0;
+            lastSubmissionRejectionWarnAtMillis = 0;
             lastReobtainAtMillis = NO_PREVIOUS_REOBTAIN;
             // Release the listener: keeping it would pin the disposed ResourceManager of a
             // revoked leadership session, forever on a standby that never regains leadership.

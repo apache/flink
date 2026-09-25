@@ -26,18 +26,24 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.LogEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,11 +54,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -61,6 +69,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF;
@@ -79,6 +88,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link DelegationTokenManager}. */
 public class DefaultDelegationTokenManagerTest {
+
+    @RegisterExtension
+    private final LoggerAuditingExtension loggerAuditingExtension =
+            new LoggerAuditingExtension(
+                    DefaultDelegationTokenManager.class, org.slf4j.event.Level.DEBUG);
 
     @BeforeEach
     public void beforeEach() {
@@ -756,6 +770,342 @@ public class DefaultDelegationTokenManagerTest {
                 1,
                 delegate.getActiveScheduledTasks().size(),
                 "A re-obtain after a scheduler failure must schedule a fresh obtain cycle");
+    }
+
+    @ParameterizedTest(name = "configured={0}ms, submission retry={1}ms")
+    @CsvSource({"0, 1000", "100, 1000", "2500, 2500"})
+    public void submissionRetryDelayMustRespectMinimumAndConfiguredBackoff(
+            long configuredBackoffMillis, long expectedRetryMillis) throws Exception {
+        try (SchedulingRejectionTestContext context =
+                new SchedulingRejectionTestContext(
+                        false, Duration.ofMillis(configuredBackoffMillis))) {
+            context.manager.start(tokens -> {});
+            context.rejectScheduling = true;
+            context.manager.reobtainDelegationTokens();
+            assertThat(onlyScheduledDelayMillis(context.retryExecutor))
+                    .isEqualTo(expectedRetryMillis);
+
+            context.clock.advanceTime(Duration.ofMillis(expectedRetryMillis));
+            context.retryExecutor.triggerNonPeriodicScheduledTask();
+            assertThat(onlyScheduledDelayMillis(context.retryExecutor))
+                    .isEqualTo(expectedRetryMillis);
+
+            context.rejectScheduling = false;
+            context.clock.advanceTime(Duration.ofMillis(expectedRetryMillis));
+            context.retryExecutor.triggerNonPeriodicScheduledTask();
+            context.rejectIoExecution = true;
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor))
+                    .isEqualTo(expectedRetryMillis);
+
+            context.clock.advanceTime(Duration.ofMillis(expectedRetryMillis));
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor))
+                    .isEqualTo(expectedRetryMillis);
+
+            context.rejectIoExecution = false;
+            context.clock.advanceTime(Duration.ofMillis(expectedRetryMillis));
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+            context.ioExecutor.triggerAll();
+            assertThat(context.obtains).hasValue(2);
+        }
+    }
+
+    @Test
+    public void submissionRejectionsMustShareRateLimitedWarnings() throws Exception {
+        try (SchedulingRejectionTestContext context = new SchedulingRejectionTestContext(false)) {
+            context.manager.start(tokens -> {});
+            context.manager.reobtainDelegationTokens();
+            context.rejectIoExecution = true;
+            context.rejectScheduling = true;
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+
+            final List<LogEvent> initialRejections = submissionRejectionEvents();
+            assertThat(initialRejections)
+                    .extracting(LogEvent::getLevel)
+                    .containsExactly(Level.WARN, Level.DEBUG);
+            assertThat(initialRejections.get(0).getThrown())
+                    .isInstanceOf(RejectedExecutionException.class);
+            assertThat(initialRejections.get(1).getThrown()).isNull();
+
+            context.clock.advanceTime(Duration.ofMillis(59_999L));
+            context.retryExecutor.triggerNonPeriodicScheduledTask();
+            assertThat(submissionRejectionEvents())
+                    .extracting(LogEvent::getLevel)
+                    .containsExactly(Level.WARN, Level.DEBUG, Level.DEBUG);
+
+            context.clock.advanceTime(Duration.ofMillis(1L));
+            context.manager.maybeScheduleRenewal(0L);
+            final List<LogEvent> rejections = submissionRejectionEvents();
+            assertThat(rejections)
+                    .extracting(LogEvent::getLevel)
+                    .containsExactly(Level.WARN, Level.DEBUG, Level.DEBUG, Level.WARN);
+            assertThat(rejections.subList(1, rejections.size()))
+                    .allSatisfy(event -> assertThat(event.getThrown()).isNull());
+            assertThat(rejections.get(3).getMessage().getFormattedMessage()).contains("4 times");
+        }
+    }
+
+    @ParameterizedTest(name = "restart={0}")
+    @ValueSource(booleans = {false, true})
+    public void successfulCycleOrRestartMustResetSubmissionRejectionWarnings(boolean restart)
+            throws Exception {
+        try (SchedulingRejectionTestContext context = new SchedulingRejectionTestContext(false)) {
+            context.manager.start(tokens -> {});
+            context.rejectIoExecution = true;
+            context.manager.reobtainDelegationTokens();
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+            context.clock.advanceTime(
+                    Duration.ofMillis(SchedulingRejectionTestContext.RETRY_DELAY_MILLIS));
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+
+            // Accepting a retry timer is not recovery while the IO executor still rejects it.
+            assertThat(submissionRejectionEvents())
+                    .extracting(LogEvent::getLevel)
+                    .containsExactly(Level.WARN, Level.DEBUG);
+
+            context.rejectIoExecution = false;
+            if (restart) {
+                context.manager.stop();
+                context.manager.start(tokens -> {});
+                context.scheduledExecutor.triggerScheduledTasks();
+            } else {
+                context.clock.advanceTime(
+                        Duration.ofMillis(SchedulingRejectionTestContext.RETRY_DELAY_MILLIS));
+                context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+                context.ioExecutor.triggerAll();
+            }
+            assertThat(context.obtains).hasValue(2);
+
+            context.rejectIoExecution = true;
+            context.manager.reobtainDelegationTokens();
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+            assertThat(submissionRejectionEvents())
+                    .extracting(LogEvent::getLevel)
+                    .containsExactly(Level.WARN, Level.DEBUG, Level.WARN);
+            assertThat(submissionRejectionEvents().get(2).getThrown())
+                    .isInstanceOf(RejectedExecutionException.class);
+
+            context.clock.advanceTime(Duration.ofMinutes(1));
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+            final List<LogEvent> rejections = submissionRejectionEvents();
+            assertThat(rejections)
+                    .extracting(LogEvent::getLevel)
+                    .containsExactly(Level.WARN, Level.DEBUG, Level.WARN, Level.WARN);
+            assertThat(rejections.get(3).getThrown()).isNull();
+            assertThat(rejections.get(3).getMessage().getFormattedMessage()).contains("2 times");
+        }
+    }
+
+    private List<LogEvent> submissionRejectionEvents() {
+        return loggerAuditingExtension.getEvents().stream()
+                .filter(
+                        event ->
+                                event.getMessage()
+                                        .getFormattedMessage()
+                                        .startsWith("Token update submission"))
+                .collect(Collectors.toList());
+    }
+
+    @ParameterizedTest(name = "periodic={0}")
+    @ValueSource(booleans = {false, true})
+    public void schedulerRejectionMustRetryWithoutAnotherRequest(boolean periodic)
+            throws Exception {
+        try (SchedulingRejectionTestContext context =
+                new SchedulingRejectionTestContext(periodic)) {
+            context.rejectScheduling = true;
+            context.manager.start(tokens -> {});
+            if (!periodic) {
+                context.manager.reobtainDelegationTokens();
+            }
+
+            assertThat(context.obtains).hasValue(1);
+            assertThat(context.scheduledExecutor.getActiveScheduledTasks()).isEmpty();
+            final long retryDelay =
+                    periodic
+                            ? SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS
+                            : SchedulingRejectionTestContext.RETRY_DELAY_MILLIS;
+            assertThat(onlyScheduledDelayMillis(context.retryExecutor)).isEqualTo(retryDelay);
+
+            context.rejectScheduling = false;
+            context.clock.advanceTime(Duration.ofMillis(retryDelay));
+            context.retryExecutor.triggerNonPeriodicScheduledTask();
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor)).isZero();
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+            context.ioExecutor.triggerAll();
+
+            assertThat(context.obtains).hasValue(2);
+            assertThat(context.retryExecutor.getActiveScheduledTasks()).isEmpty();
+            if (periodic) {
+                assertThat(onlyScheduledDelayMillis(context.scheduledExecutor))
+                        .isEqualTo(SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS);
+            } else {
+                assertThat(context.scheduledExecutor.getActiveScheduledTasks()).isEmpty();
+            }
+        }
+    }
+
+    @Test
+    public void rejectedOnDemandReplacementMustRetainRenewalProgress() throws Exception {
+        try (SchedulingRejectionTestContext context = new SchedulingRejectionTestContext(true)) {
+            context.manager.start(tokens -> {});
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor))
+                    .isEqualTo(SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS);
+
+            context.rejectScheduling = true;
+            context.manager.reobtainDelegationTokens();
+            assertThat(context.scheduledExecutor.getActiveScheduledTasks()).isEmpty();
+            assertThat(onlyScheduledDelayMillis(context.retryExecutor))
+                    .isEqualTo(SchedulingRejectionTestContext.RETRY_DELAY_MILLIS);
+
+            context.rejectScheduling = false;
+            context.clock.advanceTime(
+                    Duration.ofMillis(SchedulingRejectionTestContext.RETRY_DELAY_MILLIS));
+            context.retryExecutor.triggerNonPeriodicScheduledTask();
+            context.scheduledExecutor.triggerScheduledTasks();
+            context.ioExecutor.triggerAll();
+
+            assertThat(context.obtains).hasValue(2);
+            assertThat(context.retryExecutor.getActiveScheduledTasks()).isEmpty();
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor))
+                    .isEqualTo(SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS);
+        }
+    }
+
+    @Test
+    public void ioRejectionMustRetryWithoutAnotherRequest() throws Exception {
+        try (SchedulingRejectionTestContext context = new SchedulingRejectionTestContext(true)) {
+            context.manager.start(tokens -> {});
+            context.rejectIoExecution = true;
+            context.clock.advanceTime(
+                    Duration.ofMillis(SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS));
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+
+            assertThat(context.obtains).hasValue(1);
+            assertThat(context.ioExecutor.numQueuedRunnables()).isZero();
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor))
+                    .isEqualTo(SchedulingRejectionTestContext.RETRY_DELAY_MILLIS);
+
+            context.rejectIoExecution = false;
+            context.clock.advanceTime(
+                    Duration.ofMillis(SchedulingRejectionTestContext.RETRY_DELAY_MILLIS));
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+            context.ioExecutor.triggerAll();
+
+            assertThat(context.obtains).hasValue(2);
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor))
+                    .isEqualTo(SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS);
+        }
+    }
+
+    @Test
+    public void staleIoRejectionMustNotReplaceNewerCycle() throws Exception {
+        try (SchedulingRejectionTestContext context = new SchedulingRejectionTestContext(true)) {
+            context.manager.start(tokens -> {});
+            context.rejectIoExecution = true;
+            context.beforeIoRejection = () -> context.manager.maybeScheduleRenewal(123L);
+            context.clock.advanceTime(
+                    Duration.ofMillis(SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS));
+
+            // Replace the cycle after dispatch begins but before the rejection is handled.
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor)).isEqualTo(123L);
+            assertThat(context.obtains).hasValue(1);
+
+            context.beforeIoRejection = () -> {};
+            context.rejectIoExecution = false;
+            context.clock.advanceTime(Duration.ofMillis(123L));
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+            context.ioExecutor.triggerAll();
+
+            assertThat(context.obtains).hasValue(2);
+            assertThat(context.retryExecutor.getActiveScheduledTasks()).isEmpty();
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor))
+                    .isEqualTo(SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS);
+        }
+    }
+
+    @Test
+    public void ioShutdownMustNotScheduleAnotherRetry() throws Exception {
+        try (SchedulingRejectionTestContext context = new SchedulingRejectionTestContext(true)) {
+            context.manager.start(tokens -> {});
+            context.ioShutdown = true;
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+
+            assertThat(context.obtains).hasValue(1);
+            assertThat(context.ioExecutor.numQueuedRunnables()).isZero();
+            assertThat(context.scheduledExecutor.getActiveScheduledTasks()).isEmpty();
+            assertThat(context.retryExecutor.getActiveScheduledTasks()).isEmpty();
+        }
+    }
+
+    @Test
+    public void repeatedSchedulerRejectionsMustKeepRequestsCoalesced() throws Exception {
+        try (SchedulingRejectionTestContext context = new SchedulingRejectionTestContext(false)) {
+            context.manager.start(tokens -> {});
+            context.rejectScheduling = true;
+            context.manager.reobtainDelegationTokens();
+            context.manager.reobtainDelegationTokens();
+            assertThat(context.schedulingRetries).hasSize(1);
+
+            context.clock.advanceTime(
+                    Duration.ofMillis(SchedulingRejectionTestContext.RETRY_DELAY_MILLIS));
+            context.retryExecutor.triggerNonPeriodicScheduledTask();
+            context.manager.reobtainDelegationTokens();
+            context.manager.reobtainDelegationTokens();
+
+            assertThat(context.schedulingRetries).hasSize(2);
+            assertThat(onlyScheduledDelayMillis(context.retryExecutor))
+                    .isEqualTo(SchedulingRejectionTestContext.RETRY_DELAY_MILLIS);
+            assertThat(context.scheduledExecutor.getActiveScheduledTasks()).isEmpty();
+            assertThat(context.obtains).hasValue(1);
+
+            context.rejectScheduling = false;
+            context.clock.advanceTime(
+                    Duration.ofMillis(SchedulingRejectionTestContext.RETRY_DELAY_MILLIS));
+            context.retryExecutor.triggerNonPeriodicScheduledTask();
+            context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+            context.ioExecutor.triggerAll();
+
+            assertThat(context.obtains).hasValue(2);
+            assertThat(context.retryExecutor.getActiveScheduledTasks()).isEmpty();
+            assertThat(context.scheduledExecutor.getActiveScheduledTasks()).isEmpty();
+        }
+    }
+
+    @ParameterizedTest(name = "restart={0}")
+    @ValueSource(booleans = {false, true})
+    public void stoppedSessionSchedulingRetryMustNotSubmitWork(boolean restart) throws Exception {
+        try (SchedulingRejectionTestContext context = new SchedulingRejectionTestContext(false)) {
+            context.manager.start(tokens -> {});
+            context.rejectScheduling = true;
+            context.manager.reobtainDelegationTokens();
+            assertThat(context.schedulingRetries).hasSize(1);
+
+            context.manager.stop();
+            assertThat(context.schedulingRetries.get(0)).isCancelled();
+            context.rejectScheduling = false;
+            if (restart) {
+                context.manager.start(tokens -> {});
+                context.manager.reobtainDelegationTokens();
+            }
+
+            // The delayed completion can still run after its logical retry was cancelled.
+            context.retryExecutor.triggerNonPeriodicScheduledTask();
+            assertThat(context.retryExecutor.getActiveScheduledTasks()).isEmpty();
+            assertThat(context.ioExecutor.numQueuedRunnables()).isZero();
+            if (restart) {
+                assertThat(context.scheduledExecutor.getAllScheduledTasks()).hasSize(1);
+                context.manager.reobtainDelegationTokens();
+                assertThat(context.scheduledExecutor.getAllScheduledTasks()).hasSize(1);
+                context.scheduledExecutor.triggerNonPeriodicScheduledTask();
+                context.ioExecutor.triggerAll();
+                assertThat(context.obtains).hasValue(3);
+            } else {
+                assertThat(context.scheduledExecutor.getActiveScheduledTasks()).isEmpty();
+                assertThat(context.obtains).hasValue(1);
+            }
+        }
     }
 
     @Test
@@ -1601,6 +1951,86 @@ public class DefaultDelegationTokenManagerTest {
                 callerConfiguration.containsKey(
                         ExceptionThrowingDelegationTokenProvider.MUTATED_KEY),
                 "A provider-side mutation must not be visible in the caller's configuration");
+    }
+
+    private static final class SchedulingRejectionTestContext implements AutoCloseable {
+        private static final long RETRY_DELAY_MILLIS = 1000L;
+        private static final long RENEWAL_DELAY_MILLIS = 10_000L;
+
+        private final ManualClock clock = new ManualClock();
+        private final AtomicInteger obtains = new AtomicInteger();
+        private final List<CompletableFuture<Void>> schedulingRetries = new ArrayList<>();
+        private final ManuallyTriggeredScheduledExecutor retryExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        private boolean rejectScheduling;
+        private boolean rejectIoExecution;
+        private boolean ioShutdown;
+        private Runnable beforeIoRejection = () -> {};
+        private final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor() {
+                    @Override
+                    public ScheduledFuture<?> schedule(
+                            Runnable command, long delay, TimeUnit unit) {
+                        if (rejectScheduling) {
+                            throw new RejectedExecutionException("scheduler is saturated");
+                        }
+                        return super.schedule(command, delay, unit);
+                    }
+                };
+        private final ManuallyTriggeredScheduledExecutorService ioExecutor =
+                new ManuallyTriggeredScheduledExecutorService() {
+                    @Override
+                    public void execute(Runnable command) {
+                        if (rejectIoExecution || ioShutdown) {
+                            beforeIoRejection.run();
+                            throw new RejectedExecutionException("IO executor is saturated");
+                        }
+                        super.execute(command);
+                    }
+
+                    @Override
+                    public boolean isShutdown() {
+                        return ioShutdown;
+                    }
+                };
+        private final DefaultDelegationTokenManager manager;
+
+        private SchedulingRejectionTestContext(boolean periodic) {
+            this(periodic, Duration.ofMillis(RETRY_DELAY_MILLIS));
+        }
+
+        private SchedulingRejectionTestContext(boolean periodic, Duration retryBackoff) {
+            final Configuration configuration = hermeticCooldownConfig(Duration.ZERO);
+            configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF, retryBackoff);
+            configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 1.0);
+            manager =
+                    new DefaultDelegationTokenManager(
+                            configuration, null, scheduledExecutor, ioExecutor, clock) {
+                        @Override
+                        protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+                                DelegationTokenContainer container) {
+                            obtains.incrementAndGet();
+                            return periodic
+                                    ? Optional.of(clock.absoluteTimeMillis() + RENEWAL_DELAY_MILLIS)
+                                    : Optional.empty();
+                        }
+
+                        @Override
+                        void completeSchedulingRetry(
+                                CompletableFuture<Void> retryFuture, long delayMillis) {
+                            schedulingRetries.add(retryFuture);
+                            retryExecutor.schedule(
+                                    () -> retryFuture.complete(null),
+                                    delayMillis,
+                                    TimeUnit.MILLISECONDS);
+                        }
+                    };
+        }
+
+        @Override
+        public void close() {
+            manager.close();
+        }
     }
 
     /**
