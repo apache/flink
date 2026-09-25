@@ -29,7 +29,6 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.ZonedTimestampType;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
@@ -300,7 +299,8 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
 
         private final LocalZonedTimestampType type;
 
-        public LocalZonedTimestampLeadLagAggFunction(int operandCount, LocalZonedTimestampType type) {
+        public LocalZonedTimestampLeadLagAggFunction(
+                int operandCount, LocalZonedTimestampType type) {
             super(operandCount);
             this.type = type;
         }
@@ -308,22 +308,6 @@ public abstract class LeadLagAggFunction extends DeclarativeAggregateFunction {
         @Override
         public DataType getResultType() {
             return DataTypes.TIMESTAMP_LTZ(type.getPrecision());
-        }
-    }
-
-    /** ZonedTimestampLeadLagAggFunction. */
-    public static class ZonedTimestampLeadLagAggFunction extends LeadLagAggFunction {
-
-        private final ZonedTimestampType type;
-
-        public ZonedTimestampLeadLagAggFunction(int operandCount, ZonedTimestampType type) {
-            super(operandCount);
-            this.type = type;
-        }
-
-        @Override
-        public DataType getResultType() {
-            return DataTypes.TIMESTAMP_WITH_TIME_ZONE(type.getPrecision());
         }
     }
 }

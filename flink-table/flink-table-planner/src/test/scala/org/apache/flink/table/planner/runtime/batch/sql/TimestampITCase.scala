@@ -191,6 +191,21 @@ class TimestampITCase extends BatchTestBase {
   }
 
   @Test
+  def testLeadLagOnLtz(): Unit = {
+    checkResult(
+      "SELECT b, h, lag(h) OVER (PARTITION BY b ORDER BY h), " +
+        "LEAD(h) OVER (PARTITION BY b ORDER BY h) FROM T",
+      Seq(
+        row(1, "1969-01-01T00:00:00.123456789Z", null, null),
+        row(2, "1970-01-01T00:00:00.123Z", null, "1970-01-01T00:00:00.123456Z"),
+        row(2, "1970-01-01T00:00:00.123456Z", "1970-01-01T00:00:00.123Z", null),
+        row(4, "1972-01-01T00:00:00Z", null, null),
+        row(null, null, null, null)
+      )
+    )
+  }
+
+  @Test
   def testJoinOn(): Unit = {
     // Join On TIMESTAMP(9)
     checkResult(
