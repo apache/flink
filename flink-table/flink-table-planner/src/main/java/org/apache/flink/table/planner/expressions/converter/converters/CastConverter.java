@@ -20,11 +20,8 @@ package org.apache.flink.table.planner.expressions.converter.converters;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
@@ -37,15 +34,10 @@ class CastConverter extends CustomizedConverter {
         checkArgumentNumber(call, 2);
 
         final RexNode child = context.toRexNode(call.getChildren().get(0));
-        final TypeLiteralExpression targetType = (TypeLiteralExpression) call.getChildren().get(1);
-        final DataType inputType = call.getResolvedChildren().get(0).getOutputDataType();
-        final DataType resultType =
-                inputType.getLogicalType().is(LogicalTypeRoot.VARIANT)
-                        ? call.getOutputDataType()
-                        : targetType.getOutputDataType();
+        // Not the literal target type: its top-level nullability must not override the input's.
         final RelDataType targetRelDataType =
                 context.getTypeFactory()
-                        .createFieldTypeFromLogicalType(resultType.getLogicalType());
+                        .createFieldTypeFromLogicalType(call.getOutputDataType().getLogicalType());
 
         return context.getRelBuilder()
                 .getRexBuilder()
