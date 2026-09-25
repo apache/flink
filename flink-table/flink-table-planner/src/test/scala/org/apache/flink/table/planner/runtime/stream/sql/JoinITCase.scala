@@ -17,12 +17,18 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy
+import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.connector.datagen.source.{DataGeneratorSource, GeneratorFunction}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
+import org.apache.flink.table.planner.runtime.stream.sql.JoinITCase.WaitForSinkThenEmit
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
@@ -31,10 +37,12 @@ import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedT
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assumptions.assumeThat
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
+import java.util.UUID
 
 import scala.collection.{mutable, Seq}
 import scala.collection.JavaConversions._
@@ -758,6 +766,82 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode, enableAsyncS
 
     val expected = Seq("1,1,1,1", "3,2,null,null", "2,2,null,null")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  /** Only a line with a new unique key adds a match for the order, an updated line does not. */
+  @TestTemplate
+  def testLeftJoinOnRowKey(): Unit = {
+    // mini-batch folds the +U/-D pair within a bundle and async state is not fixed yet
+    assumeThat(miniBatch == MiniBatchOff).isTrue
+    assumeThat(enableAsyncState).isFalse
+    env.setParallelism(1)
+    val sink = s"sink_${UUID.randomUUID().toString.replace('-', '_')}"
+
+    val order = row(1, "EU")
+    val ordersId = TestValuesTableFactory.registerData(Seq(row(order)))
+    tEnv.executeSql(s"""
+                       |CREATE TABLE orders (
+                       |  order_key ROW<id INT, region STRING> PRIMARY KEY NOT ENFORCED
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$ordersId',
+                       |  'changelog-mode' = 'I,UA,D'
+                       |)
+                       |""".stripMargin)
+
+    val lines = Seq(
+      changelogRow("+I", order, "l1", "new"),
+      changelogRow("+I", order, "l2", "new"),
+      changelogRow("+U", order, "l1", "paid"),
+      changelogRow("-D", order, "l1", "paid"),
+      changelogRow("-D", order, "l2", "new")
+    )
+    val lineType = Types.ROW_NAMED(
+      Array("order_key", "line_id", "status"),
+      Types.ROW_NAMED(Array("id", "region"), Types.INT, Types.STRING),
+      Types.STRING,
+      Types.STRING)
+    val lineSource =
+      new DataGeneratorSource(new WaitForSinkThenEmit(sink, lines), lines.size, lineType)
+    tEnv.createTemporaryView(
+      "lines",
+      tEnv.fromChangelogStream(
+        env.fromSource(lineSource, WatermarkStrategy.noWatermarks[Row](), "lines"),
+        Schema.newBuilder().primaryKey("order_key", "line_id").build(),
+        ChangelogMode.upsert(false)
+      )
+    )
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $sink (
+                       |  order_key ROW<id INT, region STRING>,
+                       |  line_order_key ROW<id INT, region STRING>,
+                       |  line_id STRING,
+                       |  status STRING
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'false',
+                       |  'sink-changelog-mode-enforced' = 'I,UA,D'
+                       |)
+                       |""".stripMargin)
+
+    val insert =
+      s"INSERT INTO $sink SELECT * FROM orders o LEFT JOIN lines l ON o.order_key = l.order_key"
+    assertThat(tEnv.explainSql(insert, ExplainDetail.CHANGELOG_MODE))
+      .contains("rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D]")
+    tEnv.executeSql(insert).await()
+
+    val expected = List(
+      "+I[+I[1, EU], null, null, null]",
+      "-D[+I[1, EU], null, null, null]",
+      "+I[+I[1, EU], +I[1, EU], l1, new]",
+      "+I[+I[1, EU], +I[1, EU], l2, new]",
+      "+I[+I[1, EU], +I[1, EU], l1, paid]",
+      "-D[+I[1, EU], +I[1, EU], l1, paid]",
+      "-D[+I[1, EU], +I[1, EU], l2, new]",
+      "+I[+I[1, EU], null, null, null]"
+    )
+    assertThat(TestValuesTableFactory.getRawResultsAsStrings(sink).toList).isEqualTo(expected)
   }
 
   @TestTemplate
@@ -1697,5 +1781,18 @@ object JoinITCase {
       Array(MiniBatchOn, ROCKSDB_BACKEND, Boolean.box(false)),
       Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(true))
     )
+  }
+
+  /**
+   * Emits the given rows once the sink received its first row, so that the other input goes first.
+   */
+  class WaitForSinkThenEmit(sink: String, rows: Seq[Row])
+    extends GeneratorFunction[java.lang.Long, Row] {
+    override def map(index: java.lang.Long): Row = {
+      while (TestValuesTableFactory.getRawResultsAsStrings(sink).isEmpty) {
+        Thread.sleep(10)
+      }
+      rows(index.toInt)
+    }
   }
 }
