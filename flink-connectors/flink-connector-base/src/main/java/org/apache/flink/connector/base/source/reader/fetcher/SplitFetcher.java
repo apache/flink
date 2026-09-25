@@ -65,6 +65,16 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
     @GuardedBy("lock")
     private boolean closed;
 
+    /**
+     * Set when a task threw out of {@link #runOnce()}, which terminates the run loop. Such a
+     * fetcher never enqueues the shutdown synchronization batch, so it must not be reported {@link
+     * #isIdle() idle}: the manager would reap it with {@code shutdown(true)} and drop it from its
+     * map without releasing {@link #recordsProcessedLatch}, stranding this thread in {@link #run()}
+     * with its {@link SplitReader} unclosed and its shutdown hook never run.
+     */
+    @GuardedBy("lock")
+    private boolean failed;
+
     @GuardedBy("lock")
     private boolean paused;
 
@@ -207,6 +217,11 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
                 this.runningTask = null;
                 if (taskRunCompleted) {
                     processTaskResultUnsafe(task, taskFinished);
+                } else {
+                    // The task threw, so the run loop is terminating without enqueuing the
+                    // synchronization batch. Keep the fetcher out of isIdle() so that it is not
+                    // reaped before its latch can be released.
+                    this.failed = true;
                 }
             } finally {
                 lock.unlock();
@@ -384,12 +399,18 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
     /**
      * Package private for unit test.
      *
+     * <p>A fetcher whose current task failed is never idle, however empty it looks: it still has to
+     * be shut down through the manager so that its {@link #recordsProcessedLatch} is released.
+     *
      * @return true if task queue is empty, false otherwise.
      */
     boolean isIdle() {
         lock.lock();
         try {
-            return assignedSplits.isEmpty() && taskQueue.isEmpty() && runningTask == null;
+            return !failed
+                    && assignedSplits.isEmpty()
+                    && taskQueue.isEmpty()
+                    && runningTask == null;
         } finally {
             lock.unlock();
         }

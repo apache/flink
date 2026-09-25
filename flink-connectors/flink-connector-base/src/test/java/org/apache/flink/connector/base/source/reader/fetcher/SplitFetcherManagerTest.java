@@ -31,6 +31,7 @@ import org.apache.flink.connector.base.source.reader.mocks.TestingSourceSplit;
 import org.apache.flink.connector.base.source.reader.mocks.TestingSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
+import org.apache.flink.connector.base.source.reader.splitreader.SplitsRemoval;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.base.source.reader.synchronization.QueueProbe;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -344,6 +345,72 @@ class SplitFetcherManagerTest {
         }
     }
 
+    /**
+     * A fetcher whose current task failed never enqueues the shutdown synchronization batch, so it
+     * must not be reaped as idle: {@code shutdown(true)} does not release its {@code
+     * recordsProcessedLatch}, and removing it from the fetcher map puts it beyond the reach of
+     * {@link SplitFetcherManager#close(long)}. The fetcher thread would then be stranded with its
+     * {@link SplitReader} unclosed and its queue state never released.
+     */
+    @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    void testFailedFetcherIsNotReapedAndIsCleanedUpOnClose() throws Exception {
+        final String splitId = "testSplit";
+        final FailOnRemoveReader<Integer> reader = new FailOnRemoveReader<>();
+        final SingleThreadFetcherManager<Integer, TestingSourceSplit> fetcherManager =
+                new SingleThreadFetcherManager<>(() -> reader, new Configuration());
+
+        boolean closed = false;
+        try {
+            fetcherManager.addSplits(Collections.singletonList(new TestingSourceSplit(splitId)));
+
+            // Drive the fetcher into the failure path with nothing left assigned: RemoveSplitsTask
+            // drops the split from assignedSplits before handing the change to the reader, which
+            // throws. The task then fails with assignedSplits, taskQueue and runningTask all empty
+            // - the exact shape isIdle() used to report as idle.
+            fetcherManager.removeSplits(Collections.singletonList(new TestingSourceSplit(splitId)));
+
+            // Wait for the failure to reach the error handler. There is no window to hit here: the
+            // state under test is the fetcher's terminal state, not a transient one.
+            waitUntil(
+                    () -> {
+                        try {
+                            fetcherManager.checkErrors();
+                            return false;
+                        } catch (RuntimeException expected) {
+                            return true;
+                        }
+                    },
+                    Duration.ofSeconds(30),
+                    "The fetcher failure should have been reported to the error handler.");
+
+            fetcherManager.maybeShutdownFinishedFetchers();
+            assertThat(fetcherManager.getNumAliveFetchers())
+                    .as("A failed fetcher must not be reaped as idle.")
+                    .isOne();
+
+            final FutureCompletingBlockingQueue<RecordsWithSplitIds<Integer>> queue =
+                    fetcherManager.getQueue();
+            final int fetcherId = fetcherManager.fetchers.keySet().iterator().next();
+            queue.wakeUpPuttingThread(fetcherId);
+            assertThat(QueueProbe.liveProducerStates(queue))
+                    .as(
+                            "The failed fetcher should have queue state for its shutdown hook to release.")
+                    .isOne();
+
+            fetcherManager.close(30_000L);
+            closed = true;
+            assertThat(reader.isClosed()).as("The split reader should have been closed.").isTrue();
+            assertThat(QueueProbe.liveProducerStates(queue))
+                    .as("The shutdown hook should have released the fetcher's queue state.")
+                    .isZero();
+        } finally {
+            if (!closed) {
+                fetcherManager.close(30_000L);
+            }
+        }
+    }
+
     // ------------------------------------------------------------------------
     //  test helpers
     // ------------------------------------------------------------------------
@@ -446,6 +513,49 @@ class SplitFetcherManagerTest {
 
         @Override
         public void close() {}
+    }
+
+    /**
+     * Accepts a split assignment but throws when asked to remove one, mirroring the many {@link
+     * SplitReader} implementations that do not support removal. {@code RemoveSplitsTask} empties
+     * {@code assignedSplits} before delegating here, so the fetcher fails with nothing assigned.
+     */
+    private static final class FailOnRemoveReader<E> implements SplitReader<E, TestingSourceSplit> {
+
+        private final OneShotLatch fetchBlocker = new OneShotLatch();
+        private volatile boolean closed;
+
+        @Override
+        public RecordsWithSplitIds<E> fetch() {
+            // Stay inside fetch() until woken up, so the fetcher does not spin on empty fetches.
+            try {
+                fetchBlocker.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return new RecordsBySplits<>(Collections.emptyMap(), Collections.emptySet());
+        }
+
+        @Override
+        public void handleSplitsChanges(SplitsChange<TestingSourceSplit> splitsChanges) {
+            if (splitsChanges instanceof SplitsRemoval) {
+                throw new UnsupportedOperationException("Split removal is not supported.");
+            }
+        }
+
+        @Override
+        public void wakeUp() {
+            fetchBlocker.trigger();
+        }
+
+        @Override
+        public void close() {
+            closed = true;
+        }
+
+        boolean isClosed() {
+            return closed;
+        }
     }
 
     private static final class AwaitingReader<E, SplitT extends SourceSplit>

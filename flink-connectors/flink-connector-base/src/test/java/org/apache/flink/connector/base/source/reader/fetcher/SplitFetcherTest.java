@@ -274,9 +274,13 @@ class SplitFetcherTest {
                     .isInstanceOf(RuntimeException.class)
                     .hasCause(failure);
 
-            assertThat(fetcher.isIdle()).isTrue();
+            // The task reference is dropped so that a late wakeUp cannot reach it and recreate
+            // the queue state the shutdown hook is about to release...
             fetcher.wakeUp(false);
             assertThat(task.getNumWakeUps()).isZero();
+            // ... but the fetcher must not advertise itself as idle, or the manager would reap it
+            // with shutdown(true) and never release recordsProcessedLatch.
+            assertThat(fetcher.isIdle()).isFalse();
         } finally {
             fetcher.shutdown();
             fetcher.run();
@@ -294,9 +298,9 @@ class SplitFetcherTest {
         try {
             assertThatThrownBy(fetcher::runOnce).isSameAs(failure);
 
-            assertThat(fetcher.isIdle()).isTrue();
             fetcher.wakeUp(false);
             assertThat(task.getNumWakeUps()).isZero();
+            assertThat(fetcher.isIdle()).isFalse();
         } finally {
             fetcher.shutdown();
             fetcher.run();
