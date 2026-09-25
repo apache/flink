@@ -39,9 +39,11 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 
     private static final long serialVersionUID = -376944622236540545L;
 
-    // whether left side is outer side, e.g. left is outer but right is not when LEFT OUTER JOIN
+    // whether left side is outer side, e.g. left is outer but right is not when
+    // LEFT OUTER JOIN
     protected final boolean leftIsOuter;
-    // whether right side is outer side, e.g. right is outer but left is not when RIGHT OUTER JOIN
+    // whether right side is outer side, e.g. right is outer but left is not when
+    // RIGHT OUTER JOIN
     protected final boolean rightIsOuter;
 
     private transient JoinedRowData outRow;
@@ -157,7 +159,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      * |  |  | if other side is outer
      * |  |  | |  if the matched num in the matched rows == 0, send -D[null+other]
      * |  |  | |  if the matched num in the matched rows > 0, skip
-     * |  |  | |  otherState.update(other, old + 1)
+     * |  |  | |  if matched num == 0 or record is an additional match, otherState.update(other, old + 1)
      * |  |  | endif
      * |  |  | send +I[record+other]s, state.add(record, other.size)
      * |  |  endif
@@ -169,7 +171,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      * |  |  |  if other side is outer
      * |  |  |  |  if the matched num in the matched rows == 0, send -D[null+other]
      * |  |  |  |  if the matched num in the matched rows > 0, skip
-     * |  |  |  |  otherState.update(other, old + 1)
+     * |  |  |  |  if matched num == 0 or record is an additional match, otherState.update(other, old + 1)
      * |  |  |  |  send +I[record+other]s
      * |  |  |  else
      * |  |  |  |  send +I/+U[record+other]s (using input RowKind)
@@ -215,6 +217,8 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
         if (isAccumulateMsg) { // record is accumulate
+            final boolean isAdditionalMatch =
+                    isAdditionalMatch(input, inputSideStateView, inputIsLeft);
             if (inputIsOuter) { // input side is outer
                 Iterator<OuterRecord> associatedRecords =
                         AbstractStreamingJoinOperator.iterator(
@@ -239,9 +243,11 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                                 outputNullPadding(other, !inputIsLeft);
                             } // ignore matched number > 0
                             // otherState.update(other, old + 1)
-                            ((OuterJoinRecordStateView) otherSideStateView)
-                                    .updateNumOfAssociations(
-                                            other, outerRecord.numOfAssociations + 1);
+                            if (outerRecord.numOfAssociations == 0 || isAdditionalMatch) {
+                                ((OuterJoinRecordStateView) otherSideStateView)
+                                        .updateNumOfAssociations(
+                                                other, outerRecord.numOfAssociations + 1);
+                            }
                         }
                         // send +I[record+other]s
                         outRow.setRowKind(RowKind.INSERT);
@@ -271,8 +277,10 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                                 outputNullPadding(outerRecord.record, !inputIsLeft);
                             }
                             // otherState.update(other, old + 1)
-                            otherSideOuterStateView.updateNumOfAssociations(
-                                    outerRecord.record, outerRecord.numOfAssociations + 1);
+                            if (outerRecord.numOfAssociations == 0 || isAdditionalMatch) {
+                                otherSideOuterStateView.updateNumOfAssociations(
+                                        outerRecord.record, outerRecord.numOfAssociations + 1);
+                            }
                             // send +I[record+other]s
                             outRow.setRowKind(RowKind.INSERT);
                             output(input, outerRecord.record, inputIsLeft);
@@ -330,6 +338,23 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 }
             }
         }
+    }
+
+    /**
+     * Returns whether the record adds a new match for other-side records, rather than replacing a
+     * stored record with the same unique key.
+     *
+     * <p>Matches are only counted when the other side is outer, so the result is false otherwise
+     * and no lookup happens. If the join key contains the unique key, there is at most one record
+     * per join key, so a match is never additional and no lookup is needed either.
+     */
+    private boolean isAdditionalMatch(RowData record, JoinRecordStateView stateView, boolean isLeft)
+            throws Exception {
+        final boolean otherIsOuter = isLeft ? rightIsOuter : leftIsOuter;
+        final JoinInputSideSpec inputSideSpec = isLeft ? leftInputSideSpec : rightInputSideSpec;
+        return otherIsOuter
+                && !inputSideSpec.joinKeyContainsUniqueKey()
+                && !stateView.hasRecord(record);
     }
 
     // -------------------------------------------------------------------------------------
