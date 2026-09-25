@@ -22,7 +22,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -31,22 +34,27 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -880,6 +888,182 @@ public class DefaultDelegationTokenManagerTest {
         delegationTokenManager.registerJob(jobId, new Configuration());
 
         assertEquals(1, ExceptionThrowingDelegationTokenProvider.registeredJobs.get().size());
+    }
+
+    @Test
+    public void waitingReobtainMustKeepFurtherRequestsCoalesced() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final List<Thread> ioThreads = new CopyOnWriteArrayList<>();
+        final ThreadPoolExecutor ioExecutor =
+                (ThreadPoolExecutor)
+                        Executors.newFixedThreadPool(
+                                3,
+                                runnable -> {
+                                    final Thread thread = new Thread(runnable);
+                                    ioThreads.add(thread);
+                                    return thread;
+                                });
+        final ManualClock clock = new ManualClock();
+        final OneShotLatch blockedObtain = new OneShotLatch();
+        final OneShotLatch releaseObtain = new OneShotLatch();
+        final OneShotLatch pendingObtain = new OneShotLatch();
+        final OneShotLatch subsequentObtain = new OneShotLatch();
+        final AtomicInteger obtainCalls = new AtomicInteger();
+        final DefaultDelegationTokenManager delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        hermeticCooldownConfig(Duration.ofMinutes(1)),
+                        null,
+                        scheduledExecutor,
+                        ioExecutor,
+                        clock) {
+                    @Override
+                    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+                            DelegationTokenContainer container) {
+                        final int obtainCall = obtainCalls.incrementAndGet();
+                        if (obtainCall == 2) {
+                            blockedObtain.trigger();
+                            releaseObtain.awaitQuietly();
+                        } else if (obtainCall == 3) {
+                            pendingObtain.trigger();
+                        } else if (obtainCall == 4) {
+                            subsequentObtain.trigger();
+                        }
+                        return Optional.empty();
+                    }
+                };
+
+        try {
+            delegationTokenManager.start(tokens -> {});
+            delegationTokenManager.reobtainDelegationTokens();
+            scheduledExecutor.triggerScheduledTasks();
+            blockedObtain.await();
+
+            clock.advanceTime(Duration.ofMinutes(1));
+            delegationTokenManager.reobtainDelegationTokens();
+            scheduledExecutor.triggerScheduledTasks();
+            // With the first obtain parked, this state identifies the second worker waiting
+            // for renewalCycleLock. Requests arriving now must remain covered by that worker.
+            CommonTestUtils.waitUntilCondition(
+                    () -> ioThreads.get(1).getState() == Thread.State.BLOCKED);
+
+            for (int request = 0; request < 5; request++) {
+                clock.advanceTime(Duration.ofMinutes(1));
+                delegationTokenManager.reobtainDelegationTokens();
+                scheduledExecutor.triggerScheduledTasks();
+            }
+
+            assertThat(ioExecutor.getTaskCount()).isEqualTo(2);
+            assertThat(ioExecutor.getQueue()).isEmpty();
+            assertThat(ioExecutor.submit(() -> "unrelated IO completed").get())
+                    .isEqualTo("unrelated IO completed");
+            assertThat(obtainCalls).hasValue(2);
+
+            releaseObtain.trigger();
+            pendingObtain.await();
+            assertThat(obtainCalls).hasValue(3);
+
+            clock.advanceTime(Duration.ofMinutes(1));
+            delegationTokenManager.reobtainDelegationTokens();
+            assertThat(scheduledExecutor.getActiveScheduledTasks()).hasSize(1);
+            scheduledExecutor.triggerScheduledTasks();
+            subsequentObtain.await();
+            assertThat(obtainCalls).hasValue(4);
+        } finally {
+            releaseObtain.trigger();
+            delegationTokenManager.close();
+            ioExecutor.shutdownNow();
+            for (Thread thread : ioThreads) {
+                thread.join();
+            }
+        }
+    }
+
+    @ParameterizedTest(name = "restart={0}")
+    @ValueSource(booleans = {false, true})
+    public void waitingCycleMustNotObtainAfterSessionEnds(boolean restart) throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService ioExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        final OneShotLatch initialObtain = new OneShotLatch();
+        final OneShotLatch releaseObtain = new OneShotLatch();
+        final AtomicInteger obtainCalls = new AtomicInteger();
+        final DefaultDelegationTokenManager manager =
+                new DefaultDelegationTokenManager(
+                        hermeticCooldownConfig(Duration.ZERO),
+                        null,
+                        scheduledExecutor,
+                        ioExecutor) {
+                    @Override
+                    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+                            DelegationTokenContainer container) {
+                        if (obtainCalls.incrementAndGet() == 1) {
+                            initialObtain.trigger();
+                            releaseObtain.awaitQuietly();
+                        }
+                        return Optional.empty();
+                    }
+                };
+        final CheckedThread initialStart =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        manager.start(tokens -> {});
+                    }
+                };
+        final CheckedThread waitingCycle =
+                new CheckedThread() {
+                    @Override
+                    public void go() {
+                        ioExecutor.trigger();
+                    }
+                };
+        final CheckedThread nextStart =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        manager.start(tokens -> {});
+                    }
+                };
+
+        try {
+            initialStart.start();
+            initialObtain.await();
+            manager.reobtainDelegationTokens();
+            scheduledExecutor.triggerScheduledTasks();
+            assertThat(ioExecutor.numQueuedRunnables()).isEqualTo(1);
+            waitingCycle.start();
+            CommonTestUtils.waitUntilCondition(
+                    () -> waitingCycle.getState() == Thread.State.BLOCKED);
+
+            manager.stop();
+            if (restart) {
+                nextStart.start();
+                // start() publishes the new epoch before waiting for the previous obtain.
+                CommonTestUtils.waitUntilCondition(
+                        () -> nextStart.getState() == Thread.State.BLOCKED);
+            }
+
+            releaseObtain.trigger();
+            initialStart.sync();
+            waitingCycle.sync();
+            if (restart) {
+                nextStart.sync();
+            }
+            assertThat(obtainCalls)
+                    .as("only each session's initial cycle obtains; the old waiting cycle skips")
+                    .hasValue(restart ? 2 : 1);
+        } finally {
+            releaseObtain.trigger();
+            manager.close();
+            for (CheckedThread thread :
+                    new CheckedThread[] {initialStart, waitingCycle, nextStart}) {
+                if (thread.getState() != Thread.State.NEW) {
+                    thread.sync();
+                }
+            }
+        }
     }
 
     @Test

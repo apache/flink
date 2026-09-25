@@ -144,7 +144,10 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     @GuardedBy("schedulingLock")
     private long nextScheduledAtMillis = Long.MAX_VALUE;
 
-    /** Whether an on-demand re-obtain is scheduled but has not started executing yet (dedupe). */
+    /**
+     * Whether an on-demand re-obtain is pending. Requests remain coalesced until a cycle of the
+     * current session acquires {@link #renewalCycleLock}.
+     */
     @GuardedBy("schedulingLock")
     private boolean reobtainScheduled;
 
@@ -165,11 +168,12 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private boolean running;
 
     /**
-     * Incremented by every {@link #start(Listener)}. An obtain cycle captures it when it begins and
-     * re-checks it before notifying, so a cycle that began under an earlier leadership session
-     * cannot deliver into a later session. The fence gates delivery only: a stale cycle's renewal
-     * state is cleared by start()'s reset, and a timer it scheduled just runs a fresh,
-     * fence-checked cycle later.
+     * Incremented when {@link #start(Listener)} starts a new session. An obtain cycle captures it
+     * before waiting for {@link #renewalCycleLock} and re-checks it before obtaining and before
+     * notifying. A waiting cycle from an earlier session therefore skips the obtain, while an
+     * already-running cycle cannot deliver into a later session. An in-flight stale cycle's renewal
+     * state is cleared by start()'s reset, and a timer it scheduled runs a fresh, fence-checked
+     * cycle later.
      */
     @GuardedBy("schedulingLock")
     private long sessionEpoch;
@@ -450,8 +454,6 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     void startTokensUpdate() {
         final long cycleEpoch;
         synchronized (schedulingLock) {
-            // Clear the dedupe flag so later on-demand requests can schedule a fresh cycle.
-            reobtainScheduled = false;
             // Stopped or never started: skip the cycle. The providers may already be closed
             // and the listener may not be set yet.
             if (!running) {
@@ -462,6 +464,17 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         // Serialize the obtain-and-broadcast so a re-obtain racing the periodic renewal cannot run
         // two cycles concurrently on the (multi-threaded) IO executor and broadcast out of order.
         synchronized (renewalCycleLock) {
+            synchronized (schedulingLock) {
+                if (!running || cycleEpoch != sessionEpoch) {
+                    LOG.debug(
+                            "Skipping tokens update cycle: the manager was stopped or the session "
+                                    + "changed while waiting.");
+                    return;
+                }
+                // Keep requests coalesced while waiting for the previous obtain, so they
+                // cannot fill the IO pool with workers blocked on renewalCycleLock.
+                reobtainScheduled = false;
+            }
             try {
                 LOG.info("Starting tokens update task");
                 DelegationTokenContainer container = new DelegationTokenContainer();
@@ -500,7 +513,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                     long effectiveDelay = maybeScheduleRenewal(renewalDelay);
                     if (effectiveDelay >= 0) {
                         LOG.info(
-                                "Tokens update task started with {} delay",
+                                "Next tokens update cycle is pending with {} delay",
                                 TimeUtils.formatWithHighestUnit(Duration.ofMillis(effectiveDelay)));
                     } else {
                         LOG.info("Tokens update task not rescheduled, the manager is not running");
@@ -610,8 +623,8 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                     return delayMs;
                 }
                 LOG.debug(
-                        "An on-demand re-obtain is already scheduled to fire sooner, leaving it "
-                                + "in place.");
+                        "An on-demand re-obtain is already pending with no greater delay, "
+                                + "leaving it in place.");
                 return pendingInMillis;
             }
             scheduleRenewalLocked(delayMs);
