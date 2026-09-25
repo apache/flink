@@ -434,6 +434,7 @@ public class AsyncWaitOperator<IN, OUT>
 
         private final ResultHandler resultHandler;
         private final ProcessingTimeService processingTimeService;
+        private final long startTs;
 
         private ScheduledFuture<?> delayedRetryTimer;
 
@@ -453,6 +454,7 @@ public class AsyncWaitOperator<IN, OUT>
                 ProcessingTimeService processingTimeService) {
             this.resultHandler = new ResultHandler(inputRecord, resultFuture);
             this.processingTimeService = processingTimeService;
+            this.startTs = processingTimeService.getCurrentProcessingTime();
         }
 
         private void registerTimeout(long timeout) {
@@ -508,6 +510,10 @@ public class AsyncWaitOperator<IN, OUT>
             mailboxExecutor.submit(() -> processRetry(results, error), "delayed retry or complete");
         }
 
+        private boolean isTimeout() {
+            return processingTimeService.getCurrentProcessingTime() - startTs > timeout;
+        }
+
         private void processRetry(Collection<OUT> results, Throwable error) {
             // ignore repeated call(s) and only called in main thread can be safe
             if (!retryAwaiting.compareAndSet(false, true)) {
@@ -518,7 +524,8 @@ public class AsyncWaitOperator<IN, OUT>
                     (null != results && retryResultPredicate.test(results))
                             || (null != error && retryExceptionPredicate.test(error));
 
-            if (satisfy
+            if (!isTimeout()
+                    && satisfy
                     && asyncRetryStrategy.canRetry(currentAttempts)
                     && !retryDisabledOnFinish.get()) {
                 long nextBackoffTimeMillis =
