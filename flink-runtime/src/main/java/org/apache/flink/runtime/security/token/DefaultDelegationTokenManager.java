@@ -168,10 +168,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     private boolean reobtainScheduled;
 
     /**
-     * Relative (monotonic) clock time (millis) at which the last on-demand re-obtain cycle was
-     * scheduled to execute, or {@link #NO_PREVIOUS_REOBTAIN}. Anchored to the execution time rather
-     * than the request time, so the cooldown spaces cycle executions. Updated only by on-demand
-     * re-obtains.
+     * Relative (monotonic) clock time (millis) at which the last cycle serving pending on-demand
+     * requests began, or {@link #NO_PREVIOUS_REOBTAIN}. Ordinary periodic renewals without pending
+     * demand do not move this cooldown anchor.
      */
     @GuardedBy("schedulingLock")
     private long lastReobtainAtMillis = NO_PREVIOUS_REOBTAIN;
@@ -487,6 +486,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                                     + "changed while waiting.");
                     return;
                 }
+                if (reobtainScheduled) {
+                    lastReobtainAtMillis = clock.relativeTimeMillis();
+                }
                 // Keep requests coalesced while waiting for the previous obtain, so they
                 // cannot fill the IO pool with workers blocked on renewalCycleLock.
                 reobtainScheduled = false;
@@ -726,9 +728,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                         Math.max(0L, nextScheduledAtMillis - clock.relativeTimeMillis());
                 if (delayMs < pendingInMillis) {
                     // Bring the pending on-demand cycle forward. scheduleRenewalLocked() leaves
-                    // reobtainScheduled set, so coalescing still holds. Move the cooldown anchor
-                    // to the time the cycle now actually runs.
-                    lastReobtainAtMillis = clock.relativeTimeMillis() + delayMs;
+                    // reobtainScheduled set, so coalescing still holds until the cycle starts.
                     return scheduleRenewalLocked(delayMs);
                 }
                 LOG.debug(
@@ -886,17 +886,14 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                     lastReobtainAtMillis == NO_PREVIOUS_REOBTAIN
                             ? 0L
                             : Math.max(0L, lastReobtainAtMillis + reobtainCooldownMillis - now);
-            // Only bring the next cycle forward, never push a pending cycle later, or a
-            // short-lived token could expire before it is renewed. The nextScheduledAtMillis >
-            // now guard skips an already-fired future, so this never bypasses the cooldown.
+            // scheduleRenewalLocked() replaces the pending cycle, so never schedule later than it:
+            // a short-lived token could expire first. The earlier cycle serves this demand too.
+            // Ignore already-fired futures when comparing delays.
             if (tokensUpdateFuture != null
                     && nextScheduledAtMillis > now
                     && nextScheduledAtMillis - now < delayMillis) {
                 delayMillis = nextScheduledAtMillis - now;
             }
-            // Anchor the cooldown to when the cycle will run, not to this request, so a request
-            // arriving right after a deferred cycle fired cannot run a second cycle back to back.
-            lastReobtainAtMillis = now + delayMillis;
             reobtainScheduled = true;
             LOG.debug(
                     "Re-obtain of delegation tokens requested, scheduling an obtain cycle in {}",

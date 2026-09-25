@@ -708,8 +708,10 @@ public class DefaultDelegationTokenManagerTest {
                 "A re-obtain before start() must not schedule an obtain cycle");
     }
 
-    @Test
-    public void schedulerFailureMustNotWedgeSubsequentReobtains() throws Exception {
+    @ParameterizedTest
+    @ValueSource(longs = {0, 60_000})
+    public void schedulerFailureMustNotWedgeSubsequentReobtains(long cooldownMillis)
+            throws Exception {
         final ManuallyTriggeredScheduledExecutor delegate =
                 new ManuallyTriggeredScheduledExecutor();
         final ManuallyTriggeredScheduledExecutorService scheduler =
@@ -755,7 +757,11 @@ public class DefaultDelegationTokenManagerTest {
 
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(
-                        hermeticCooldownConfig(Duration.ZERO), null, throwOnce, scheduler);
+                        hermeticCooldownConfig(Duration.ofMillis(cooldownMillis)),
+                        null,
+                        throwOnce,
+                        scheduler,
+                        new ManualClock());
         delegationTokenManager.start(tokens -> {});
 
         // The first re-obtain hits a scheduler that blows up with something other than the
@@ -770,6 +776,9 @@ public class DefaultDelegationTokenManagerTest {
                 1,
                 delegate.getActiveScheduledTasks().size(),
                 "A re-obtain after a scheduler failure must schedule a fresh obtain cycle");
+        assertThat(onlyScheduledDelayMillis(delegate))
+                .as("a failed scheduling attempt must not start the cooldown")
+                .isZero();
     }
 
     @ParameterizedTest(name = "configured={0}ms, submission retry={1}ms")
@@ -1675,6 +1684,236 @@ public class DefaultDelegationTokenManagerTest {
                 59_000L,
                 onlyScheduledDelayMillis(scheduledExecutor),
                 "The cooldown anchor must follow a brought-forward on-demand cycle");
+    }
+
+    @Test
+    public void failedBringForwardMustPreservePreviousCooldownAnchor() throws Exception {
+        final AtomicBoolean throwNext = new AtomicBoolean();
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor() {
+                    @Override
+                    public ScheduledFuture<?> schedule(
+                            Runnable command, long delay, TimeUnit unit) {
+                        if (throwNext.compareAndSet(true, false)) {
+                            throw new IllegalStateException("simulated scheduler failure");
+                        }
+                        return super.schedule(command, delay, unit);
+                    }
+                };
+        final ManuallyTriggeredScheduledExecutorService ioExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        final ManualClock clock = new ManualClock();
+        final DefaultDelegationTokenManager manager =
+                new DefaultDelegationTokenManager(
+                        hermeticCooldownConfig(Duration.ofMinutes(1)),
+                        null,
+                        scheduledExecutor,
+                        ioExecutor,
+                        clock);
+        try {
+            manager.start(tokens -> {});
+            manager.reobtainDelegationTokens();
+            scheduledExecutor.triggerScheduledTasks();
+            ioExecutor.triggerAll();
+
+            clock.advanceTime(Duration.ofSeconds(10));
+            manager.reobtainDelegationTokens();
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(50_000L);
+            throwNext.set(true);
+            assertThatThrownBy(() -> manager.maybeScheduleRenewal(5_000L))
+                    .isInstanceOf(IllegalStateException.class);
+
+            clock.advanceTime(Duration.ofSeconds(1));
+            manager.reobtainDelegationTokens();
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor))
+                    .as("failed rescheduling must preserve the last actual cycle start at t=0")
+                    .isEqualTo(49_000L);
+        } finally {
+            manager.close();
+        }
+    }
+
+    @ParameterizedTest(name = "previous cycle failed: {0}")
+    @ValueSource(booleans = {false, true})
+    public void queuedRenewalServingDemandMustAnchorCooldownAtCycleStart(
+            boolean previousCycleFailed) throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService ioExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        final ManualClock clock = new ManualClock();
+        final AtomicInteger obtains = new AtomicInteger();
+        final Configuration configuration = hermeticCooldownConfig(Duration.ofMinutes(1));
+        configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 1.0);
+        final DefaultDelegationTokenManager manager =
+                new DefaultDelegationTokenManager(
+                        configuration, null, scheduledExecutor, ioExecutor, clock) {
+                    @Override
+                    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+                            DelegationTokenContainer container) {
+                        if (obtains.incrementAndGet() == 2) {
+                            if (previousCycleFailed) {
+                                throw new IllegalStateException("simulated obtain failure");
+                            }
+                            return Optional.of(clock.absoluteTimeMillis() + 10_000L);
+                        }
+                        return Optional.of(clock.absoluteTimeMillis() + 300_000L);
+                    }
+
+                    @Override
+                    long calculateRetryDelay(Clock ignored) {
+                        return 10_000L;
+                    }
+                };
+        try {
+            manager.start(tokens -> {});
+            manager.reobtainDelegationTokens();
+            scheduledExecutor.triggerScheduledTasks();
+            ioExecutor.triggerAll();
+            assertThat(obtains).hasValue(2);
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(10_000L);
+
+            // Queue the periodic/retry worker before demand schedules a cycle for t=60s.
+            clock.advanceTime(Duration.ofSeconds(10));
+            scheduledExecutor.triggerScheduledTasks();
+            manager.reobtainDelegationTokens();
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(50_000L);
+            ioExecutor.triggerAll();
+            assertThat(obtains).hasValue(3);
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(300_000L);
+
+            clock.advanceTime(Duration.ofSeconds(1));
+            manager.reobtainDelegationTokens();
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor))
+                    .as("the queued worker served demand at t=10s, not the planned t=60s")
+                    .isEqualTo(59_000L);
+        } finally {
+            manager.close();
+        }
+    }
+
+    @Test
+    public void delayedReobtainMustAnchorCooldownAtCycleStart() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService ioExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        final ManualClock clock = new ManualClock();
+        final DefaultDelegationTokenManager manager =
+                new DefaultDelegationTokenManager(
+                        hermeticCooldownConfig(Duration.ofMinutes(1)),
+                        null,
+                        scheduledExecutor,
+                        ioExecutor,
+                        clock);
+        try {
+            manager.start(tokens -> {});
+            manager.reobtainDelegationTokens();
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isZero();
+            scheduledExecutor.triggerScheduledTasks();
+
+            // The timer fired immediately, but the IO worker cannot start for two minutes.
+            clock.advanceTime(Duration.ofMinutes(2));
+            ioExecutor.triggerAll();
+            clock.advanceTime(Duration.ofSeconds(1));
+            manager.reobtainDelegationTokens();
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor))
+                    .as("the cooldown starts when the IO worker begins the obtain cycle")
+                    .isEqualTo(59_000L);
+        } finally {
+            manager.close();
+        }
+    }
+
+    @Test
+    public void reobtainDuringObtainMustUseActualCycleStart() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService ioExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        final ManualClock clock = new ManualClock();
+        final AtomicInteger obtains = new AtomicInteger();
+        final Configuration configuration = hermeticCooldownConfig(Duration.ofMinutes(1));
+        configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 1.0);
+        final DefaultDelegationTokenManager manager =
+                new DefaultDelegationTokenManager(
+                        configuration, null, scheduledExecutor, ioExecutor, clock) {
+                    @Override
+                    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+                            DelegationTokenContainer container) {
+                        if (obtains.incrementAndGet() == 2) {
+                            clock.advanceTime(Duration.ofSeconds(10));
+                            reobtainDelegationTokens();
+                            assertThat(onlyScheduledDelayMillis(scheduledExecutor))
+                                    .as("demand during obtain uses the cycle start at t=120s")
+                                    .isEqualTo(50_000L);
+                        }
+                        return Optional.of(clock.absoluteTimeMillis() + 300_000L);
+                    }
+                };
+        try {
+            manager.start(tokens -> {});
+            manager.reobtainDelegationTokens();
+            scheduledExecutor.triggerScheduledTasks();
+
+            clock.advanceTime(Duration.ofMinutes(2));
+            ioExecutor.triggerAll();
+            assertThat(obtains).hasValue(2);
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor))
+                    .as("successful obtain must preserve the earlier pending demand")
+                    .isEqualTo(50_000L);
+
+            clock.advanceTime(Duration.ofSeconds(50));
+            scheduledExecutor.triggerScheduledTasks();
+            ioExecutor.triggerAll();
+            assertThat(obtains).hasValue(3);
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(300_000L);
+        } finally {
+            manager.close();
+        }
+    }
+
+    @Test
+    public void periodicRenewalWithoutDemandMustNotMoveCooldownAnchor() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService ioExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        final ManualClock clock = new ManualClock();
+        final AtomicInteger obtains = new AtomicInteger();
+        final Configuration configuration = hermeticCooldownConfig(Duration.ofMinutes(1));
+        configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 1.0);
+        final DefaultDelegationTokenManager manager =
+                new DefaultDelegationTokenManager(
+                        configuration, null, scheduledExecutor, ioExecutor, clock) {
+                    @Override
+                    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+                            DelegationTokenContainer container) {
+                        final long renewalDelay =
+                                obtains.incrementAndGet() == 2 ? 10_000L : 300_000L;
+                        return Optional.of(clock.absoluteTimeMillis() + renewalDelay);
+                    }
+                };
+        try {
+            manager.start(tokens -> {});
+            manager.reobtainDelegationTokens();
+            scheduledExecutor.triggerScheduledTasks();
+            ioExecutor.triggerAll();
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(10_000L);
+
+            clock.advanceTime(Duration.ofSeconds(10));
+            scheduledExecutor.triggerScheduledTasks();
+            ioExecutor.triggerAll();
+            assertThat(obtains).hasValue(3);
+
+            clock.advanceTime(Duration.ofSeconds(1));
+            manager.reobtainDelegationTokens();
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor))
+                    .as("ordinary periodic renewal must preserve the on-demand anchor at t=0")
+                    .isEqualTo(49_000L);
+        } finally {
+            manager.close();
+        }
     }
 
     @Test
