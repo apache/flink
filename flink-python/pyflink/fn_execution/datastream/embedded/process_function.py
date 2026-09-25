@@ -77,8 +77,10 @@ class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context,
         return self._j_context.timestamp()
 
 
-class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerContext,
+class InternalKeyedProcessFunctionOnTimerContext(ProcessFunction.OnTimerContext,
+                                                 KeyedProcessFunction.OnTimerContext,
                                                  KeyedProcessFunction.Context,
+                                                 CoProcessFunction.OnTimerContext,
                                                  KeyedCoProcessFunction.OnTimerContext,
                                                  KeyedCoProcessFunction.Context):
 
