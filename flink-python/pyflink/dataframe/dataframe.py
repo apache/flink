@@ -716,16 +716,17 @@ class DataFrame:
     def explode(
         self,
         column: Union[str, Expression],
+        *,
         output_column: Optional[Union[str, List[str]]] = None,
         ignore_empty_and_null: bool = False,
     ) -> "DataFrame":
         """
         Expand an ARRAY, MAP, or MULTISET into rows, preserving duplicate occurrences.
 
-        A referenced input column is removed. Other input columns are retained, followed by
-        the expanded fields. For a computed collection expression, all input columns are retained.
-        MAP values yield key and value fields; ROW elements yield one field per ROW field.
-        Empty and null collections produce a row with null output fields unless
+        A referenced input column is replaced in place by the expanded fields. For a computed
+        collection expression, all input columns are retained and the expanded fields are
+        appended. MAP values yield key and value fields; ROW elements yield one field per ROW
+        field. Empty and null collections produce a row with null output fields unless
         ``ignore_empty_and_null`` is true.
 
         :param column: Collection column name or row-wise expression to expand.
@@ -743,7 +744,8 @@ class DataFrame:
             >>> import pyflink.dataframe as pf
             >>> df = pf.from_dict({"id": [1, 2], "tags": [["a", "b"], []]})
             >>> result = df.explode("tags")
-            >>> result = df.explode("tags", "tag", ignore_empty_and_null=True)
+            >>> result = df.explode(
+            ...     "tags", output_column="tag", ignore_empty_and_null=True)
 
         .. versionadded:: 2.4.0
         """
@@ -790,8 +792,10 @@ class DataFrame:
         resolved = projection.getProjectList().get(0)
         # Resolve the input field by index so an alias does not hide the column to remove.
         if resolved.getClass().getSimpleName() == "FieldReferenceExpression":
-            collection_name = columns.pop(resolved.getFieldIndex())
+            output_index = resolved.getFieldIndex()
+            collection_name = columns.pop(output_index)
         else:
+            output_index = len(columns)
             taken = set(columns) | set(output_names)
             collection_name = _unique_name("__pf_explode", taken)
             table = table.add_columns(expression.alias(collection_name))
@@ -799,7 +803,9 @@ class DataFrame:
             raise ValueError("output_column names conflict with retained input columns")
 
         projections = ["src." + _quote_identifier(name) for name in columns]
-        projections.extend("expanded." + _quote_identifier(name) for name in output_names)
+        projections[output_index:output_index] = [
+            "expanded." + _quote_identifier(name) for name in output_names
+        ]
         query = "SELECT %s FROM %s AS src %s UNNEST(src.%s) AS expanded(%s)%s" % (
             ", ".join(projections),
             _quote_identifier(str(table)),
