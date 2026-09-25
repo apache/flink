@@ -76,20 +76,26 @@ jobs:
             bash -c "./build_docs.sh"
 
       - name: Build documentation
+        # The build runs as root, the upload below as the runner user, hence the chmod
         run: |
           docker run --rm \
             --volume "$PWD:/root/flink" \
             --volume "$HOME/.m2/repository:/root/.m2/repository" \
             apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_noble \
-            bash -c "apt-get update && apt-get install -y rsync && cd /root/flink && ./.github/workflows/docs.sh"
+            bash -c "apt-get update && apt-get install -y rsync && cd /root/flink && ./.github/workflows/docs.sh && chmod -R a+rX docs/target"
 
       - name: Upload documentation
-        uses: burnett01/rsync-deployments@66257cad6bfeb2171d3b6bfa6c9a22279dd9c3a1 # 8.0.5
-        with:
-          switches: --archive --compress --delete --omit-dir-times
-          path: docs/target/
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_branch }}/
-          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
-          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
-          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
-          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+        env:
+          NIGHTLIES_RSYNC_HOST: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
+          NIGHTLIES_RSYNC_KEY: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+          NIGHTLIES_RSYNC_PATH: ${{ secrets.NIGHTLIES_RSYNC_PATH }}
+          NIGHTLIES_RSYNC_PORT: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
+          NIGHTLIES_RSYNC_USER: ${{ secrets.NIGHTLIES_RSYNC_USER }}
+        run: |
+          eval "$(ssh-agent -s)"
+          trap 'ssh-agent -k > /dev/null || true' EXIT
+          printf '%s\n' "${NIGHTLIES_RSYNC_KEY}" | ssh-add -
+          unset NIGHTLIES_RSYNC_KEY
+          rsync --archive --compress --delete --omit-dir-times \
+            -e "ssh -o StrictHostKeyChecking=no -p ${NIGHTLIES_RSYNC_PORT}" \
+            docs/target/ "${NIGHTLIES_RSYNC_USER}@${NIGHTLIES_RSYNC_HOST}:${NIGHTLIES_RSYNC_PATH}/flink/flink-docs-${flink_branch}/"

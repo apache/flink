@@ -66,32 +66,33 @@ jobs:
             ${{ runner.os }}-maven-docs-
 
       - name: Build documentation
+        # The build runs as root, the upload below as the runner user, hence the chmod
         run: |
           docker run --rm \
             --volume "$PWD:/root/flink" \
             --volume "$HOME/.m2/repository:/root/.m2/repository" \
             apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_noble \
-            bash -c "cd /root/flink && ./.github/workflows/docs.sh"
+            bash -c "cd /root/flink && ./.github/workflows/docs.sh && chmod -R a+rX docs/target"
 
       - name: Upload documentation
-        uses: burnett01/rsync-deployments@66257cad6bfeb2171d3b6bfa6c9a22279dd9c3a1 # 8.0.5
-        with:
-          switches: --archive --compress --delete
-          path: docs/target/
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_branch }}/
-          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
-          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
-          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
-          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
-
-      - name: Upload documentation alias
-        if: env.flink_alias != ''
-        uses: burnett01/rsync-deployments@66257cad6bfeb2171d3b6bfa6c9a22279dd9c3a1 # 8.0.5
-        with:
-          switches: --archive --compress --delete
-          path: docs/target/
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_alias }}/
-          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
-          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
-          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
-          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+        env:
+          NIGHTLIES_RSYNC_HOST: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
+          NIGHTLIES_RSYNC_KEY: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+          NIGHTLIES_RSYNC_PATH: ${{ secrets.NIGHTLIES_RSYNC_PATH }}
+          NIGHTLIES_RSYNC_PORT: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
+          NIGHTLIES_RSYNC_USER: ${{ secrets.NIGHTLIES_RSYNC_USER }}
+        run: |
+          eval "$(ssh-agent -s)"
+          trap 'ssh-agent -k > /dev/null || true' EXIT
+          printf '%s\n' "${NIGHTLIES_RSYNC_KEY}" | ssh-add -
+          unset NIGHTLIES_RSYNC_KEY
+          upload() {
+            echo "Uploading to flink-docs-$1"
+            rsync --archive --compress --delete \
+              -e "ssh -o StrictHostKeyChecking=no -p ${NIGHTLIES_RSYNC_PORT}" \
+              docs/target/ "${NIGHTLIES_RSYNC_USER}@${NIGHTLIES_RSYNC_HOST}:${NIGHTLIES_RSYNC_PATH}/flink/flink-docs-$1/"
+          }
+          upload "${flink_branch}"
+          if [ -n "${flink_alias}" ]; then
+            upload "${flink_alias}"
+          fi
