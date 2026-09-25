@@ -28,14 +28,18 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * An implementation of {@link RateLimiter} that completes defined number of futures in-between the
- * external notification events. The first cycle completes immediately, without waiting for the
- * external notifications.
+ * external notification events. The first cycle does not wait for an external notification: its
+ * capacity is available from the start, so requests complete immediately for as long as the
+ * capacity left covers them.
  */
 @Internal
 public class GatedRateLimiter<Split extends SourceSplit> implements RateLimiter<Split> {
 
     private final int capacityPerCycle;
     private int capacityLeft;
+
+    /** Completed while the current cycle has capacity left, incomplete once it has run out. */
+    private CompletableFuture<Void> gatingFuture = CompletableFuture.completedFuture(null);
 
     /**
      * Instantiates a new GatedRateLimiter.
@@ -48,14 +52,10 @@ public class GatedRateLimiter<Split extends SourceSplit> implements RateLimiter<
         this.capacityLeft = capacityPerCycle;
     }
 
-    transient CompletableFuture<Void> gatingFuture = null;
-
     @Override
     public CompletionStage<Void> acquire(int numberOfEvents) {
-        if (gatingFuture == null) {
-            gatingFuture = CompletableFuture.completedFuture(null);
-        }
-        if (capacityLeft <= 0) {
+        checkArgument(numberOfEvents > 0, "Number of events has to be a positive number.");
+        if (capacityLeft < numberOfEvents) {
             gatingFuture = new CompletableFuture<>();
         }
         return gatingFuture.thenRun(() -> capacityLeft -= numberOfEvents);
