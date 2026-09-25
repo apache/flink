@@ -143,7 +143,7 @@ under the License.
 							<goal>compile</goal>
 						</goals>
 						<configuration>
-							<compilerArgument>-Xlint:deprecation</compilerArgument>
+							<compilerArgument>-Xlint:deprecation,-options</compilerArgument>
 							<failOnWarning>true</failOnWarning>
 						</configuration>
 					</execution>
