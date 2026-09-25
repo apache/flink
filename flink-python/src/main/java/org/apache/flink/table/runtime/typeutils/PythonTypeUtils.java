@@ -33,6 +33,7 @@ import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.serializers.python.ArrayDataSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.DecimalDataSerializer;
@@ -493,6 +494,147 @@ public final class PythonTypeUtils {
         abstract OUT toExternalImpl(INTER value);
     }
 
+    /**
+     * Converts between pemja's auto-converted {@link java.sql.Timestamp} and {@link
+     * java.time.LocalDateTime}.
+     *
+     * <p>Pemja maps Python {@code datetime} to {@link java.sql.Timestamp}. The outer {@link
+     * DataFormatConverters.RowConverter} expects {@link java.time.LocalDateTime} (the default
+     * bridge class for TIMESTAMP columns). This converter bridges the mismatch.
+     */
+    public static final class TimestampLocalDateTimeDataConverter
+            extends DataConverter<TimestampData, java.time.LocalDateTime, Object> {
+
+        TimestampLocalDateTimeDataConverter(int precision) {
+            super(new DataFormatConverters.LocalDateTimeConverter(precision));
+        }
+
+        @Override
+        java.time.LocalDateTime toInternalImpl(Object value) {
+            if (value == null) {
+                return null;
+            }
+            if (value instanceof java.time.LocalDateTime) {
+                return (java.time.LocalDateTime) value;
+            }
+            if (value instanceof java.sql.Timestamp) {
+                return ((java.sql.Timestamp) value).toLocalDateTime();
+            }
+            throw new IllegalArgumentException(
+                    "Expected LocalDateTime or Timestamp but got: "
+                            + value.getClass().getName());
+        }
+
+        @Override
+        Object toExternalImpl(java.time.LocalDateTime value) {
+            if (value == null) {
+                return null;
+            }
+            return java.sql.Timestamp.valueOf(value);
+        }
+    }
+
+    /**
+     * Converts between pemja's auto-converted {@link java.sql.Timestamp} and {@link
+     * java.time.Instant} for TIMESTAMP_WITH_LOCAL_TIME_ZONE columns.
+     */
+    public static final class TimestampInstantDataConverter
+            extends DataConverter<TimestampData, java.time.Instant, Object> {
+
+        TimestampInstantDataConverter(int precision) {
+            super(new DataFormatConverters.InstantConverter(precision));
+        }
+
+        @Override
+        java.time.Instant toInternalImpl(Object value) {
+            if (value == null) {
+                return null;
+            }
+            if (value instanceof java.time.Instant) {
+                return (java.time.Instant) value;
+            }
+            if (value instanceof java.sql.Timestamp) {
+                return ((java.sql.Timestamp) value).toInstant();
+            }
+            throw new IllegalArgumentException(
+                    "Expected Instant or Timestamp but got: "
+                            + value.getClass().getName());
+        }
+
+        @Override
+        Object toExternalImpl(java.time.Instant value) {
+            if (value == null) {
+                return null;
+            }
+            return java.sql.Timestamp.from(value);
+        }
+    }
+
+    /** Converts between pemja's auto-converted {@link java.sql.Date} and {@link java.time.LocalDate}. */
+    public static final class DateLocalDateDataConverter
+            extends DataConverter<Integer, java.time.LocalDate, Object> {
+
+        static final DateLocalDateDataConverter INSTANCE = new DateLocalDateDataConverter();
+
+        DateLocalDateDataConverter() {
+            super(DataFormatConverters.LocalDateConverter.INSTANCE);
+        }
+
+        @Override
+        java.time.LocalDate toInternalImpl(Object value) {
+            if (value == null) {
+                return null;
+            }
+            if (value instanceof java.time.LocalDate) {
+                return (java.time.LocalDate) value;
+            }
+            if (value instanceof java.sql.Date) {
+                return ((java.sql.Date) value).toLocalDate();
+            }
+            throw new IllegalArgumentException(
+                    "Expected LocalDate or Date but got: " + value.getClass().getName());
+        }
+
+        @Override
+        Object toExternalImpl(java.time.LocalDate value) {
+            if (value == null) {
+                return null;
+            }
+            return java.sql.Date.valueOf(value);
+        }
+    }
+
+    /** Converts between pemja's auto-converted {@link java.sql.Time} and {@link java.time.LocalTime}. */
+    public static final class TimeLocalTimeDataConverter
+            extends DataConverter<Integer, java.time.LocalTime, Object> {
+
+        static final TimeLocalTimeDataConverter INSTANCE = new TimeLocalTimeDataConverter();
+
+        TimeLocalTimeDataConverter() {
+            super(DataFormatConverters.LocalTimeConverter.INSTANCE);
+        }
+
+        @Override
+        java.time.LocalTime toInternalImpl(Object value) {
+            if (value == null) {
+                return null;
+            }
+            if (value instanceof java.time.LocalTime) {
+                return (java.time.LocalTime) value;
+            }
+            if (value instanceof java.sql.Time) {
+                return ((java.sql.Time) value).toLocalTime();
+            }
+            throw new IllegalArgumentException(
+                    "Expected LocalTime or Time but got: " + value.getClass().getName());
+        }
+
+        @Override
+        Object toExternalImpl(java.time.LocalTime value) {
+            return value;
+        }
+    }
+
     /** Identity data converter. */
     public static final class IdentityDataConverter<IN, OUT> extends DataConverter<IN, OUT, OUT> {
         IdentityDataConverter(
@@ -515,7 +657,7 @@ public final class PythonTypeUtils {
      * Python Long will be converted to Long in PemJa, so we need ByteDataConverter to convert Java
      * Long to internal Byte.
      */
-    public static final class ByteDataConverter extends DataConverter<Byte, Byte, Long> {
+    public static final class ByteDataConverter extends DataConverter<Byte, Byte, Number> {
 
         public static final ByteDataConverter INSTANCE = new ByteDataConverter();
 
@@ -524,12 +666,18 @@ public final class PythonTypeUtils {
         }
 
         @Override
-        Byte toInternalImpl(Long value) {
+        Byte toInternalImpl(Number value) {
+            if (value == null) {
+                return null;
+            }
             return value.byteValue();
         }
 
         @Override
-        Long toExternalImpl(Byte value) {
+        Number toExternalImpl(Byte value) {
+            if (value == null) {
+                return null;
+            }
             return value.longValue();
         }
     }
@@ -538,7 +686,7 @@ public final class PythonTypeUtils {
      * Python Long will be converted to Long in PemJa, so we need ShortDataConverter to convert Java
      * Long to internal Short.
      */
-    public static final class ShortDataConverter extends DataConverter<Short, Short, Long> {
+    public static final class ShortDataConverter extends DataConverter<Short, Short, Number> {
 
         public static final ShortDataConverter INSTANCE = new ShortDataConverter();
 
@@ -547,12 +695,18 @@ public final class PythonTypeUtils {
         }
 
         @Override
-        Short toInternalImpl(Long value) {
+        Short toInternalImpl(Number value) {
+            if (value == null) {
+                return null;
+            }
             return value.shortValue();
         }
 
         @Override
-        Long toExternalImpl(Short value) {
+        Number toExternalImpl(Short value) {
+            if (value == null) {
+                return null;
+            }
             return value.longValue();
         }
     }
@@ -561,7 +715,7 @@ public final class PythonTypeUtils {
      * Python Long will be converted to Long in PemJa, so we need IntDataConverter to convert Java
      * Long to internal Integer.
      */
-    public static final class IntDataConverter extends DataConverter<Integer, Integer, Long> {
+    public static final class IntDataConverter extends DataConverter<Integer, Integer, Number> {
 
         public static final IntDataConverter INSTANCE = new IntDataConverter();
 
@@ -570,12 +724,18 @@ public final class PythonTypeUtils {
         }
 
         @Override
-        Integer toInternalImpl(Long value) {
+        Integer toInternalImpl(Number value) {
+            if (value == null) {
+                return null;
+            }
             return value.intValue();
         }
 
         @Override
-        Long toExternalImpl(Integer value) {
+        Number toExternalImpl(Integer value) {
+            if (value == null) {
+                return null;
+            }
             return value.longValue();
         }
     }
@@ -584,7 +744,7 @@ public final class PythonTypeUtils {
      * Python Float will be converted to Double in PemJa, so we need FloatDataConverter to convert
      * Java Double to internal Float.
      */
-    public static final class FloatDataConverter extends DataConverter<Float, Float, Double> {
+    public static final class FloatDataConverter extends DataConverter<Float, Float, Number> {
 
         public static final FloatDataConverter INSTANCE = new FloatDataConverter();
 
@@ -593,36 +753,19 @@ public final class PythonTypeUtils {
         }
 
         @Override
-        Float toInternalImpl(Double value) {
+        Float toInternalImpl(Number value) {
+            if (value == null) {
+                return null;
+            }
             return value.floatValue();
         }
 
         @Override
-        Double toExternalImpl(Float value) {
+        Number toExternalImpl(Float value) {
+            if (value == null) {
+                return null;
+            }
             return value.doubleValue();
-        }
-    }
-
-    /**
-     * Python datetime.time will be converted to Time in PemJa, so we need TimeDataConverter to
-     * convert Java Double to internal Integer.
-     */
-    public static final class TimeDataConverter extends DataConverter<Integer, Integer, Time> {
-
-        public static final TimeDataConverter INSTANCE = new TimeDataConverter();
-
-        private TimeDataConverter() {
-            super(DataFormatConverters.IntConverter.INSTANCE);
-        }
-
-        @Override
-        Integer toInternalImpl(Time value) {
-            return (int) value.getTime();
-        }
-
-        @Override
-        Time toExternalImpl(Integer value) {
-            return new Time(value);
         }
     }
 
@@ -633,46 +776,35 @@ public final class PythonTypeUtils {
     public static final class RowDataConverter extends DataConverter<RowData, Row, Object[]> {
 
         private final DataConverter[] fieldDataConverters;
-        private final Row reuseRow;
-        private final Object[] reuseExternalRow;
-        private final Object[] reuseExternalRowData;
 
         RowDataConverter(
                 DataConverter[] fieldDataConverters,
                 DataFormatConverters.DataFormatConverter<RowData, Row> dataFormatConverter) {
             super(dataFormatConverter);
             this.fieldDataConverters = fieldDataConverters;
-            this.reuseRow = new Row(fieldDataConverters.length);
-            this.reuseExternalRowData = new Object[fieldDataConverters.length];
-            this.reuseExternalRow = new Object[2];
-            this.reuseExternalRow[1] = reuseExternalRowData;
         }
 
         @SuppressWarnings("unchecked")
         @Override
         Row toInternalImpl(Object[] value) {
-
             RowKind rowKind = RowKind.fromByteValue(((Long) value[0]).byteValue());
-            reuseRow.setKind(rowKind);
-
             Object[] fieldValues = (Object[]) value[1];
-
+            Row row = new Row(fieldDataConverters.length);
+            row.setKind(rowKind);
             for (int i = 0; i < fieldValues.length; i++) {
-                reuseRow.setField(i, fieldDataConverters[i].toInternalImpl(fieldValues[i]));
+                row.setField(i, fieldDataConverters[i].toInternalImpl(fieldValues[i]));
             }
-            return reuseRow;
+            return row;
         }
 
         @SuppressWarnings("unchecked")
         @Override
         Object[] toExternalImpl(Row value) {
-
-            reuseExternalRow[0] = (long) value.getKind().toByteValue();
+            Object[] fields = new Object[fieldDataConverters.length];
             for (int i = 0; i < value.getArity(); i++) {
-                reuseExternalRowData[i] = fieldDataConverters[i].toExternalImpl(value.getField(i));
+                fields[i] = fieldDataConverters[i].toExternalImpl(value.getField(i));
             }
-
-            return reuseExternalRow;
+            return new Object[] {(long) value.getKind().toByteValue(), fields};
         }
     }
 
@@ -832,25 +964,22 @@ public final class PythonTypeUtils {
 
         @Override
         public DataConverter visit(DateType dateType) {
-            return new IdentityDataConverter<>(DataFormatConverters.DateConverter.INSTANCE);
+            return DateLocalDateDataConverter.INSTANCE;
         }
 
         @Override
         public DataConverter visit(TimeType timeType) {
-            return TimeDataConverter.INSTANCE;
+            return TimeLocalTimeDataConverter.INSTANCE;
         }
 
         @Override
         public DataConverter visit(TimestampType timestampType) {
-            return new IdentityDataConverter<>(
-                    new DataFormatConverters.TimestampConverter(timestampType.getPrecision()));
+            return new TimestampLocalDateTimeDataConverter(timestampType.getPrecision());
         }
 
         @Override
         public DataConverter visit(LocalZonedTimestampType localZonedTimestampType) {
-            return new IdentityDataConverter<>(
-                    new DataFormatConverters.TimestampConverter(
-                            localZonedTimestampType.getPrecision()));
+            return new TimestampInstantDataConverter(localZonedTimestampType.getPrecision());
         }
 
         @SuppressWarnings("unchecked")
