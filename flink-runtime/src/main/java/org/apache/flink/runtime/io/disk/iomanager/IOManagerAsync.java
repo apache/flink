@@ -356,6 +356,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
                 try {
                     join(1000);
                 } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
                 }
 
                 // notify all pending write requests that the thread has been shut down
@@ -465,6 +466,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
                 try {
                     join(1000);
                 } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
                 }
 
                 // notify all pending write requests that the thread has been shut down

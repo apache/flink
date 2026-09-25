@@ -113,6 +113,7 @@ public class AsynchronousBlockReader extends AsynchronousFileIOChannel<MemorySeg
                 }
             }
         } catch (InterruptedException iex) {
+            Thread.currentThread().interrupt();
             throw new IOException(
                     "Reader was interrupted while waiting for the next returning segment.");
         }

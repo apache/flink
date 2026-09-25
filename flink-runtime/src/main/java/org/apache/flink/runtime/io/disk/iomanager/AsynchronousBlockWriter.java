@@ -75,6 +75,7 @@ public class AsynchronousBlockWriter extends AsynchronousBlockWriterWithCallback
                 }
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new IOException(
                     "Writer was interrupted while waiting for the next returning segment.");
         }
