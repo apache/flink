@@ -18,7 +18,11 @@
 from pyflink.fn_execution.embedded.operations import (OneInputFunctionOperation,
                                                       TwoInputFunctionOperation)
 
-from pyflink.fn_execution.embedded.converters import from_type_info_proto, from_schema_proto
+from pyflink.fn_execution.embedded.converters import (
+    from_row_schema_proto,
+    from_schema_proto,
+    from_type_info_proto,
+)
 
 
 def pare_user_defined_data_stream_function_proto(proto):
@@ -43,6 +47,13 @@ def parse_function_proto(proto):
     return serialized_fn
 
 
+def row_data_converter_from_coder_proto(proto, one_arg_optimization=False):
+    coder = parse_coder_proto(proto)
+    if coder.HasField("row_type"):
+        return from_row_schema_proto(coder.row_type.schema)
+    return from_schema_proto(coder.flatten_row_type.schema, one_arg_optimization)
+
+
 def create_scalar_operation_from_proto(proto,
                                        input_coder_info,
                                        output_coder_into,
@@ -52,10 +63,8 @@ def create_scalar_operation_from_proto(proto,
 
     serialized_fn = parse_function_proto(proto)
 
-    input_data_converter = (
-        from_schema_proto(
-            parse_coder_proto(input_coder_info).flatten_row_type.schema,
-            one_arg_optimization))
+    input_data_converter = row_data_converter_from_coder_proto(
+        input_coder_info, one_arg_optimization)
 
     output_data_converter = (
         from_schema_proto(
@@ -81,8 +90,7 @@ def create_table_operation_from_proto(proto, input_coder_info, output_coder_into
 
     serialized_fn = parse_function_proto(proto)
 
-    input_data_converter = (
-        from_schema_proto(parse_coder_proto(input_coder_info).flatten_row_type.schema))
+    input_data_converter = row_data_converter_from_coder_proto(input_coder_info)
     output_data_converter = (
         from_schema_proto(parse_coder_proto(output_coder_into).flatten_row_type.schema))
 

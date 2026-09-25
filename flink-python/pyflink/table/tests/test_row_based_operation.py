@@ -323,6 +323,29 @@ class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkStreamTableT
                                         columns=['a', 'c']))
 
 
+class EmbeddedThreadRowBasedOperationITTests(PyFlinkBatchTableTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super(EmbeddedThreadRowBasedOperationITTests, cls).setUpClass()
+        cls.t_env.get_config().set("python.execution-mode", "thread")
+
+    def test_map_accesses_input_fields_by_name(self):
+        t = self.t_env.from_elements(
+            [(2, 4), (0, 0)],
+            DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.BIGINT()),
+                 DataTypes.FIELD("b", DataTypes.BIGINT())]))
+
+        func = udf(
+            lambda row: Row(row.a + 1, row.b * row.b),
+            result_type=DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.BIGINT()),
+                 DataTypes.FIELD("b", DataTypes.BIGINT())]))
+
+        actual = sorted(tuple(row) for row in t.map(func).alias("a", "b").execute().collect())
+        self.assertEqual(actual, [(1, 0), (3, 16)])
+
+
 class CountAndSumAggregateFunction(AggregateFunction):
 
     def get_value(self, accumulator):
