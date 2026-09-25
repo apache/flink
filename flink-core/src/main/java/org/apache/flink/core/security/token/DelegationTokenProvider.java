@@ -126,9 +126,14 @@ public interface DelegationTokenProvider {
      * Called with the job's configuration when its JobMaster registers with the ResourceManager.
      * Re-registration may occur while the job's tasks are running.
      *
+     * <p>This notification does not gate job initialization: operator coordinators may already have
+     * started. Successful registration does not imply that tokens have been obtained or
+     * distributed.
+     *
      * <p>To get the job's tokens distributed without waiting for the periodic renewal, call {@link
      * DelegationTokenManagerCallback#reobtainDelegationTokens()} on the callback handed to {@link
-     * #init(Configuration, DelegationTokenManagerCallback)} to request an immediate obtain cycle.
+     * #init(Configuration, DelegationTokenManagerCallback)} to request an asynchronous obtain
+     * cycle, subject to the configured cooldown.
      *
      * <p>A provider that requests a re-obtain must record this job's per-job state <em>before</em>
      * invoking {@link DelegationTokenManagerCallback#reobtainDelegationTokens()}. That call merely

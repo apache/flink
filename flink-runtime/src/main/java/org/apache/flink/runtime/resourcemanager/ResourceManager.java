@@ -431,11 +431,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                             jobMasterIdFuture,
                             (JobMasterGateway jobMasterGateway, JobMasterId leadingJobMasterId) -> {
                                 if (Objects.equals(leadingJobMasterId, jobMasterId)) {
-                                    // Register with the delegation token manager first, so a
-                                    // provider failure rejects the registration and the job does
-                                    // not start without the tokens it requires. LinkageError is
-                                    // caught so a plugin classpath failure is reported the same
-                                    // way.
+                                    // Reject a failed provider registration before installing the
+                                    // JobMaster registration. Report plugin linkage errors as
+                                    // registration failures too.
                                     try {
                                         delegationTokenManager.registerJob(jobId, jobConfiguration);
                                     } catch (Exception | LinkageError e) {

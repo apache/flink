@@ -97,9 +97,11 @@ public interface DelegationTokenManager {
      * registration is currently tracked for the job, the manager calls {@link
      * org.apache.flink.core.security.token.DelegationTokenProvider#unregisterJob(JobID)} on all
      * providers to attempt rollback. Otherwise, it keeps the existing registration and does not
-     * attempt rollback, because the job's tasks may still be running. A provider that needs the
-     * job's tokens distributed immediately requests it via {@link
+     * attempt rollback, because the job's tasks may still be running. A provider can request an
+     * asynchronous obtain cycle, subject to the configured cooldown, via {@link
      * org.apache.flink.core.security.token.DelegationTokenManagerCallback#reobtainDelegationTokens()}.
+     * Successful registration does not imply that tokens have been obtained or distributed, and
+     * does not gate job initialization.
      *
      * @param jobId The ID of the job being registered.
      * @param jobConfiguration The job's configuration.
