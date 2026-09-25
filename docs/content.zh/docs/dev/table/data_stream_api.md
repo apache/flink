@@ -22,59 +22,41 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# DataStream API Integration
+# DataStream API 集成
 
-Both Table API and DataStream API are equally important when it comes to defining a data
-processing pipeline.
+在定义数据处理管道时，Table API 和 DataStream API 有着同等重要的地位。
 
-The DataStream API offers the primitives of stream processing (namely time, state, and dataflow
-management) in a relatively low-level imperative programming API. The Table API abstracts away many
-internals and provides a structured and declarative API.
+DataStream API 以相对底层的命令式编程接口的方式，提供流处理的基础构件（即时间、状态和数据流管理 ）。而 Table API 则对诸多内部细节进行了抽象封装，提供结构化且声明式的编程接口。
 
-Both APIs can work with bounded *and* unbounded streams.
+两种 API 均支持处理有界流（bounded）与无界流（unbounded）。
 
-Bounded streams need to be managed when processing historical data. Unbounded streams occur
-in real-time processing scenarios that might be initialized with historical data first.
+有界流在处理历史数据（如离线业务日志、归档交易记录等）场景中，需对这类数据边界明确的流进行管理。
+无界流常见于实时处理场景，且此类场景可能会先基于历史数据完成初始化。
 
-For efficient execution, both APIs offer processing bounded streams in an optimized batch execution
-mode. However, since batch is just a special case of streaming, it is also possible to run pipelines
-of bounded streams in regular streaming execution mode.
+两种 API 均对批模式处理有界流的行为实现了高性能的优化。但由于批处理本质上是流处理的特殊形式（即有界流处理），因此也可将有界流的数据处理管道运行在常规的流执行模式中，灵活适配不同业务的执行需求。
 
-Pipelines in one API can be defined end-to-end without dependencies on the other API. However, it
-might be useful to mix both APIs for various reasons:
+使用其中一种 API 可独立定义端到端的数据处理管道，无需依赖另一 API。但在以下场景中，混合使用两种 API 可能会很有用：
 
-- Use the table ecosystem for accessing catalogs or connecting to external systems easily, before
-implementing the main pipeline in DataStream API.
-- Access some of the SQL functions for stateless data normalization and cleansing, before
-implementing the main pipeline in DataStream API.
-- Switch to DataStream API every now and then if a more low-level operation (e.g. custom timer
-handling) is not present in Table API.
+- 基于 DataStream API 实现主处理管道前，借助 Table API 的生态体系，可便捷访问Catalog或连接外部系统。
+- 基于DataStream API 实现主管道逻辑前，利用 Table API 中的 SQL 函数，对无状态的数据进行规范化和清洗。
+- 若 Table API 未提供某类底层操作（如自定义定时器处理），可适时切换使用 DataStream API 完成此类需求。
 
-Flink provides special bridging functionalities to make the integration with DataStream API as smooth
-as possible.
+Flink 提供了专门的桥接功能，旨在尽可能简化 Table API 与 DataStream API 的集成过程。
 
 {{< hint info >}}
-Switching between DataStream and Table API adds some conversion overhead. For example, internal data
-structures of the table runtime (i.e. `RowData`) that partially work on binary data need to be converted
-to more user-friendly data structures (i.e. `Row`). Usually, this overhead can be neglected but is
-mentioned here for completeness.
+在 DataStream API 与 Table API 之间切换会增加一些转换开销。例如，Table 运行时的内部数据结构（即 `RowData`，部分基于二进制数据工作）需转换为更便于用户使用的数据结构（即 `Row`）。通常情况下，该开销可忽略不计，但为保证内容完整性，此处仍予以说明。
 {{< /hint >}}
 
 {{< top >}}
 
 <a name="converting-between-datastream-and-table"></a>
 
-Converting between DataStream and Table
+DataStream 与 Table API 间的转换
 ---------------------------------------
 
-Flink provides a specialized `StreamTableEnvironment` for integrating with the
-DataStream API. Those environments extend the regular `TableEnvironment` with additional methods
-and take the `StreamExecutionEnvironment` used in the DataStream API as a parameter.
+Flink 提供了专门的 `StreamTableEnvironment`，用于实现与 DataStream API 的集成。这类环境在常规 `TableEnvironment` 的基础上扩展了额外方法，并将 DataStream API 中使用的 `StreamExecutionEnvironment` 作为参数传入。
 
-The following code shows an example of how to go back and forth between the two APIs. Column names
-and types of the `Table` are automatically derived from the `TypeInformation` of the `DataStream`.
-Since the DataStream API does not support changelog processing natively, the code assumes
-append-only/insert-only semantics during the stream-to-table and table-to-stream conversion.
+以下代码展示了两种 API 间双向转换的示例。Table 的列名与数据类型会从 `DataStream` 的 `TypeInformation` 中自动推导。由于 DataStream API 本身不原生支持变更日志（changelog）处理，因此在流表转换（流转表、表转流）过程中，该代码默认采用仅追加（append-only）/ 仅插入（insert-only）语义。
 
 {{< tabs "6ec84aa4-d91d-4c47-9fa2-b1aae1e3cdb5" >}}
 {{< tab "Java" >}}
