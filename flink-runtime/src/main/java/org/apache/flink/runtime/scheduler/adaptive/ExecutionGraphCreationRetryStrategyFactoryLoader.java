@@ -48,10 +48,10 @@ final class ExecutionGraphCreationRetryStrategyFactoryLoader {
      */
     static RestartBackoffTimeStrategy.Factory createFactory(
             Configuration jobConfiguration, Configuration clusterConfiguration) {
-        return factoryFromConfig(prefixedCopy(jobConfiguration))
+        return factoryFromConfig(prefixed(jobConfiguration))
                 .orElseGet(
                         () ->
-                                factoryFromConfig(prefixedCopy(clusterConfiguration))
+                                factoryFromConfig(prefixed(clusterConfiguration))
                                         .orElse(
                                                 NoRestartBackoffTimeStrategy
                                                         .NoRestartBackoffTimeStrategyFactory
@@ -85,11 +85,8 @@ final class ExecutionGraphCreationRetryStrategyFactoryLoader {
                         });
     }
 
-    private static Configuration prefixedCopy(Configuration configuration) {
-        final Configuration copy = new Configuration();
-        copy.addAll(
-                new DelegatingConfiguration(
-                        configuration, AdaptiveSchedulerConstants.EG_CREATION_RETRY_CONFIG_PREFIX));
-        return copy;
+    private static Configuration prefixed(Configuration configuration) {
+        return new DelegatingConfiguration(
+                configuration, AdaptiveSchedulerConstants.EG_CREATION_RETRY_CONFIG_PREFIX);
     }
 }
