@@ -24,6 +24,9 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3native.writer.NativeS3Recoverable.PartETag;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.BufferedOutputStream;
@@ -57,6 +60,9 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 @NotThreadSafe
 class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(NativeS3RecoverableFsDataOutputStream.class);
 
     private static final int BUFFER_SIZE = 64 * 1024;
     private final ReentrantLock lock = new ReentrantLock();
@@ -238,6 +244,13 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 // checkpoint references, and aborting it would break recovery from that
                 // checkpoint. See the class-level Javadoc.
                 closed = true;
+                LOG.warn(
+                        "Failed to close multipart upload for commit (key={}, uploadId={}). The "
+                                + "upload is left open because a checkpoint may still reference "
+                                + "it; an S3 lifecycle rule is expected to remove it if unused.",
+                        key,
+                        uploadId,
+                        e);
                 try {
                     releaseLocalResources();
                 } catch (IOException cleanup) {
@@ -294,10 +307,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         }
     }
 
-    /**
-     * Closes the local buffer and deletes the local temp file. The multipart upload is never
-     * aborted here; see the class-level Javadoc.
-     */
+    /** Closes the local buffer and deletes only the local temp file. */
     private void releaseLocalResources() throws IOException {
         IOException collected = null;
         if (currentOutputStream != null) {
