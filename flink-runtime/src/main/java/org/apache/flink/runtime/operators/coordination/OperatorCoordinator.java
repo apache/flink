@@ -250,6 +250,98 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
         return false;
     }
 
+    /**
+     * Indicates whether this coordinator supports being checkpointed in a "region checkpoint" mode,
+     * where some subtasks of the operator may have failed to acknowledge the checkpoint and their
+     * state is replaced by state from the previous successful checkpoint.
+     *
+     * <p>When this returns {@code true}, the framework will invoke {@link
+     * #checkpointCoordinatorForRegionFallback} after all task responses are collected (instead of
+     * aborting the checkpoint), allowing the coordinator to produce a state snapshot that is
+     * <em>consistent</em> with the mixed view (some subtasks at checkpoint N, some at checkpoint
+     * N-1).
+     *
+     * <p>This method follows the same opt-in pattern as {@link #supportsBatchSnapshot()}.
+     */
+    default boolean supportsRegionCheckpoint() {
+        return false;
+    }
+
+    /**
+     * Takes a "region-aware" snapshot of the coordinator. Called <em>instead of</em> completing the
+     * checkpoint with the bytes produced by {@link #checkpointCoordinator} when the framework has
+     * decided to complete the checkpoint as a region checkpoint, i.e. when some subtasks failed to
+     * acknowledge and their state will be replaced by state from {@code fallbackCheckpointId}.
+     *
+     * <p>The coordinator MUST produce a state snapshot whose view is consistent with the following
+     * task-side reality:
+     *
+     * <ul>
+     *   <li>Subtasks NOT in {@code fallbackSubtaskIds} are at checkpoint {@code checkpointId}.
+     *   <li>Subtasks in {@code fallbackSubtaskIds} are effectively at checkpoint {@code
+     *       fallbackCheckpointId}.
+     * </ul>
+     *
+     * <p>Typical implementations will:
+     *
+     * <ol>
+     *   <li>Roll back any in-memory bookkeeping that pertains to the fallback subtasks since
+     *       checkpoint {@code fallbackCheckpointId} (e.g. split assignments, pending work, etc.).
+     *   <li>Persist any "to-be-replayed" information into the returned bytes so that recovery is
+     *       fully self-contained — i.e. recovery does NOT need any extra reconciliation step.
+     *   <li>Serialize and complete {@code resultFuture}.
+     * </ol>
+     *
+     * <p>After this method completes, the coordinator's in-memory state should reflect the
+     * post-rollback view, identical to what would be restored from the produced bytes.
+     *
+     * <p>The framework guarantees the following invariants when invoking this method:
+     *
+     * <ol>
+     *   <li>INVOKED AFTER {@link #checkpointCoordinator}: This method is only called after {@code
+     *       checkpointCoordinator(checkpointId, ...)} has already completed successfully for the
+     *       same {@code checkpointId}. The coordinator's in-memory state at the time of this call
+     *       reflects the view AT {@code checkpointId}.
+     *   <li>INVOKED AFTER ALL TASK RESPONSES: This method is only called after every task in the
+     *       checkpoint has either acknowledged or declined. The {@code fallbackSubtaskIds} set is
+     *       therefore final and complete.
+     *   <li>INVOKED BEFORE {@link #notifyCheckpointComplete}: This method is called before {@code
+     *       notifyCheckpointComplete(checkpointId)} for the same id. The coordinator can therefore
+     *       safely reorganize state that would normally be cleaned up on checkpoint completion.
+     *   <li>INVOKED BEFORE METADATA PERSISTENCE: The bytes produced by this method replace the
+     *       bytes produced by the original {@link #checkpointCoordinator} call in the persisted
+     *       checkpoint metadata.
+     *   <li>SERIALIZED WITH EVENT HANDLING: This method runs on the coordinator's main executor,
+     *       serially with {@link #handleEventFromOperator}, guaranteeing no concurrent event
+     *       processing.
+     * </ol>
+     *
+     * <p>The default implementation throws {@link UnsupportedOperationException}; coordinators that
+     * declare {@link #supportsRegionCheckpoint()} {@code = true} MUST override this method.
+     *
+     * @param checkpointId the id of the ongoing checkpoint (the "new" one)
+     * @param fallbackCheckpointId the id of the previous checkpoint that the failed subtasks will
+     *     effectively be restored from; {@link #NO_CHECKPOINT} if there is no prior successful
+     *     checkpoint
+     * @param fallbackSubtaskIds the subtask indices whose state will be replaced by state from
+     *     {@code fallbackCheckpointId}; never null and never empty when this method is invoked
+     * @param resultFuture the future to complete with the serialized coordinator state, or complete
+     *     exceptionally to abort the region checkpoint
+     * @throws Exception any exception thrown by this method causes the region checkpoint to be
+     *     aborted and falls back to a normal checkpoint abort
+     */
+    default void checkpointCoordinatorForRegionFallback(
+            long checkpointId,
+            long fallbackCheckpointId,
+            java.util.Set<Integer> fallbackSubtaskIds,
+            CompletableFuture<byte[]> resultFuture)
+            throws Exception {
+        throw new UnsupportedOperationException(
+                "This OperatorCoordinator does not support region checkpoints. "
+                        + "Override supportsRegionCheckpoint() to return true and implement "
+                        + "checkpointCoordinatorForRegionFallback() to enable it.");
+    }
+
     // ------------------------------------------------------------------------
     // ------------------------------------------------------------------------
 

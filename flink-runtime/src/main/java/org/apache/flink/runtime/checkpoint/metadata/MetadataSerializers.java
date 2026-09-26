@@ -30,7 +30,7 @@ import java.util.Map;
 public class MetadataSerializers {
 
     private static final Map<Integer, MetadataSerializer> SERIALIZERS =
-            CollectionUtil.newHashMapWithExpectedSize(6);
+            CollectionUtil.newHashMapWithExpectedSize(7);
 
     static {
         registerSerializer(MetadataV1Serializer.INSTANCE);
@@ -39,6 +39,7 @@ public class MetadataSerializers {
         registerSerializer(MetadataV4Serializer.INSTANCE);
         registerSerializer(MetadataV5Serializer.INSTANCE);
         registerSerializer(MetadataV6Serializer.INSTANCE);
+        registerSerializer(MetadataV7Serializer.INSTANCE);
     }
 
     private static void registerSerializer(MetadataSerializer serializer) {
