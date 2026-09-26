@@ -31,6 +31,8 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -111,7 +113,7 @@ public class DescribeConnectionOperation implements Operation, ExecutableOperati
                                 "option:" + key, maskValue(key, value, additionalSensitiveKeys)
                             });
                 });
-        if (connection.getComment() != null && !connection.getComment().isEmpty()) {
+        if (StringUtils.isNotEmpty(connection.getComment())) {
             rows.add(new Object[] {"comment", connection.getComment()});
         }
         rows.add(new Object[] {"temporary", String.valueOf(isTemporary)});
