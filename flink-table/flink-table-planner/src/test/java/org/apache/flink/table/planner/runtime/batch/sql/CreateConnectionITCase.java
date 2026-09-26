@@ -171,15 +171,12 @@ class CreateConnectionITCase extends BatchTestBase {
         List<Row> rows = collectRows("DESCRIBE CONNECTION my_conn");
 
         assertThat(rows)
-                .contains(
+                .containsExactly(
                         Row.of("type", "default"),
                         Row.of("option:comment", "option comment"),
                         Row.of("option:k", "v"),
-                        Row.of("comment", "hi there"));
-        assertThat(rows.stream().map(Row::toString))
-                .noneMatch(row -> row.contains("super-secret"))
-                .noneMatch(row -> row.contains("password"))
-                .noneMatch(row -> row.contains("__flink.encrypted-secret-key__"));
+                        Row.of("comment", "hi there"),
+                        Row.of("temporary", "true"));
     }
 
     @Test
@@ -188,14 +185,6 @@ class CreateConnectionITCase extends BatchTestBase {
 
         assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
                 .containsExactly(Row.of("type", "default"), Row.of("temporary", "true"));
-    }
-
-    @Test
-    void testDescribeTemporaryConnectionIncludesScope() {
-        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
-
-        assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
-                .contains(Row.of("temporary", "true"));
     }
 
     @Test
