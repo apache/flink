@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
@@ -32,6 +33,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.DayOfWeek;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -111,7 +113,17 @@ class TypeInfoDataTypeConverterTest {
                         .lookupExpects(DayOfWeek.class)
                         .expectDataType(dummyRaw(DayOfWeek.class)),
                 TestSpec.forType(Types.VARIANT).expectDataType(DataTypes.VARIANT()),
-                TestSpec.forType(Types.BITMAP).expectDataType(DataTypes.BITMAP()));
+                TestSpec.forType(Types.BITMAP).expectDataType(DataTypes.BITMAP()),
+                TestSpec.forType(Types.POJO(PojoWithHintedMapField.class))
+                        .rawFallback(HashMap.class)
+                        .expectDataType(
+                                DataTypes.STRUCTURED(
+                                        PojoWithHintedMapField.class,
+                                        DataTypes.FIELD(
+                                                "headers",
+                                                DataTypes.MAP(DataTypes.STRING(), DataTypes.BYTES())
+                                                        .bridgedTo(HashMap.class)),
+                                        DataTypes.FIELD("id", DataTypes.STRING()))));
     }
 
     @ParameterizedTest(name = "{index}: {0}")
@@ -148,6 +160,11 @@ class TypeInfoDataTypeConverterTest {
             return this;
         }
 
+        TestSpec rawFallback(Class<?> rawClass) {
+            typeFactory.dataType = Optional.of(dummyRaw(rawClass));
+            return this;
+        }
+
         TestSpec expectDataType(DataType expectedDataType) {
             this.expectedDataType = expectedDataType;
             return this;
@@ -180,6 +197,19 @@ class TypeInfoDataTypeConverterTest {
             this.name = name;
             this.gender = gender;
             this.age = age;
+        }
+    }
+
+    /** POJO with a field carrying a {@link DataTypeHint} that overrides reflective extraction. */
+    public static class PojoWithHintedMapField {
+
+        public String id;
+
+        @DataTypeHint("MAP<STRING, BYTES>")
+        public HashMap<String, byte[]> headers;
+
+        public PojoWithHintedMapField() {
+            // default constructor
         }
     }
 
