@@ -821,6 +821,43 @@ class ProcessDataStreamTests(DataStreamTests):
     The tests only tested in Process Mode.
     """
 
+    def test_keyed_co_process_without_on_timer_override(self):
+        self.env.set_parallelism(1)
+        ds1 = self.env.from_collection([("a", 1), ("b", 2), ("c", 3)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds2 = self.env.from_collection([("b", 2), ("c", 3), ("d", 4)],
+                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        ds1 = ds1.assign_timestamps_and_watermarks(
+            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
+                SecondColumnTimestampAssigner()))
+        ds2 = ds2.assign_timestamps_and_watermarks(
+            WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
+                SecondColumnTimestampAssigner()))
+
+        class MyCoProcessFunction(CoProcessFunction):
+
+            def __init__(self):
+                self.timer_registered = False
+
+            def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
+                if not self.timer_registered:
+                    ctx.timer_service().register_event_time_timer(3)
+                    self.timer_registered = True
+                yield value[0], value[1]
+
+            def process_element2(self, value, ctx: 'CoProcessFunction.Context'):
+                yield value[0], value[1]
+
+        ds1.connect(ds2) \
+            .key_by(lambda x: x[0], lambda x: x[0]) \
+            .process(MyCoProcessFunction(),
+                     output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+        self.env.execute('test_keyed_co_process_without_on_timer_override')
+        results = self.test_sink.get_results()
+        expected = ['(a,1)', '(b,2)', '(b,2)', '(c,3)', '(c,3)', '(d,4)']
+        self.assert_equals_sorted(expected, results)
+
     def test_basic_co_operations_with_output_type(self):
         class MyCoMapFunction(CoMapFunction):
 
