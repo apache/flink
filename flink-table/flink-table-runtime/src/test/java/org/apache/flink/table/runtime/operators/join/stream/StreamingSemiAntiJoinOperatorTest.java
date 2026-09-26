@@ -86,11 +86,9 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
         testHarness.processElement2(updateAfterRecord("LineOrd#2", "TRUCK"));
         assertor.shouldEmitNothing(testHarness);
 
+        // TRUCK replaced AIR under the same unique key above, so removing it leaves no matching
+        // row and numOfAssociations drops to 0, which retracts the record
         testHarness.processElement2(deleteRecord("LineOrd#2", "TRUCK"));
-        assertor.shouldEmitNothing(testHarness);
-
-        // numOfAssociations is reduced to 1, retract the record
-        testHarness.processElement2(deleteRecord("LineOrd#2", "AIR"));
         assertor.shouldEmit(
                 testHarness,
                 rowOfKind(
@@ -98,6 +96,10 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
                         "Ord#1",
                         "LineOrd#2",
                         "3 Bellevue Drive, Pottstown, PA 19464"));
+
+        // AIR is no longer in state, so deleting it again changes nothing
+        testHarness.processElement2(deleteRecord("LineOrd#2", "AIR"));
+        assertor.shouldEmitNothing(testHarness);
 
         // the left side state of LineOrd#1 has expired
         testHarness.setStateTtlProcessingTime(4001);
@@ -139,11 +141,9 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
         testHarness.processElement2(updateAfterRecord("LineOrd#2", "TRUCK"));
         assertor.shouldEmitNothing(testHarness);
 
+        // TRUCK replaced AIR under the same unique key above, so removing it leaves no matching
+        // row and numOfAssociations drops to 0, which retracts the record
         testHarness.processElement2(deleteRecord("LineOrd#2", "TRUCK"));
-        assertor.shouldEmitNothing(testHarness);
-
-        // numOfAssociations is reduced to 1, retract the record
-        testHarness.processElement2(deleteRecord("LineOrd#2", "AIR"));
         assertor.shouldEmit(
                 testHarness,
                 rowOfKind(
@@ -151,6 +151,10 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
                         "Ord#1",
                         "LineOrd#2",
                         "3 Bellevue Drive, Pottstown, PA 19464"));
+
+        // AIR is no longer in state, so deleting it again changes nothing
+        testHarness.processElement2(deleteRecord("LineOrd#2", "AIR"));
+        assertor.shouldEmitNothing(testHarness);
 
         testHarness.setStateTtlProcessingTime(4001);
         testHarness.processElement2(insertRecord("LineOrd#1", "SHIP"));
@@ -287,6 +291,47 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
                 updateAfterRecord(
                         "Ord#1", "LineOrd#1", "23 W. River Avenue, Port Orange, FL 32127"));
         assertor.shouldEmitNothing(testHarness);
+    }
+
+    /**
+     * The equivalent SQL is the same as {@link #testLeftAntiJoinWithDifferentStateRetentionTime()},
+     * but both inputs are upsert tables whose primary key is the join key and the downstream does
+     * not require UPDATE_BEFORE, so the right input sends a bare UPDATE_AFTER.
+     */
+    @Test
+    void testLeftAntiJoinUpdateAfterThenDeleteRestoresLeftRow() throws Exception {
+        testHarness.processElement1(
+                insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464"));
+
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464"));
+
+        // a bare UPDATE_AFTER replaces AIR with SHIP; there is still exactly one matching row
+        testHarness.processElement2(updateAfterRecord("LineOrd#1", "SHIP"));
+        assertor.shouldEmitNothing(testHarness);
+
+        // the only matching row is gone, the left row must be emitted again
+        testHarness.processElement2(deleteRecord("LineOrd#1", "SHIP"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#1",
+                        "LineOrd#1",
+                        "3 Bellevue Drive, Pottstown, PA 19464"));
     }
 
     private static final Predicate<String> ANTI_JOIN_CHECKER =

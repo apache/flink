@@ -793,6 +793,139 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
+  def testLeftJoinUpsertInputsIntoUpsertSinkWithSamePk(): Unit = {
+    // test for FLINK-40681: the join inputs and the sink share the same primary key, so the
+    // planner drops UPDATE_BEFORE on both inputs of the outer join
+    util.tableEnv.executeSql("""
+                               |create table left_t (
+                               | k int not null,
+                               | v varchar,
+                               | primary key (k) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table right_t (
+                               | k int not null,
+                               | w varchar,
+                               | primary key (k) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | k int not null,
+                               | v varchar,
+                               | w varchar,
+                               | primary key (k) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    util.verifyExplainInsert(
+      "insert into sink select l.k, l.v, r.w from left_t l left join right_t r on l.k = r.k",
+      ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testNestedLeftJoinsUpsertInputsIntoUpsertSinkOnLeftPk(): Unit = {
+    // test for FLINK-40681: the control query of FLINK-23740, all joins run without UPDATE_BEFORE
+    util.tableEnv.executeSql("""
+                               |create table src_a (
+                               | k1 int not null,
+                               | k2 int not null,
+                               | k3 int not null,
+                               | k4 int not null,
+                               | k5 int not null,
+                               | a varchar,
+                               | primary key (k1, k2, k3, k4, k5) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table src_b (
+                               | k1 int not null,
+                               | k2 int not null,
+                               | k3 int not null,
+                               | b varchar,
+                               | primary key (k1, k2, k3) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table src_c (
+                               | k1 int not null,
+                               | k2 int not null,
+                               | k3 int not null,
+                               | c varchar,
+                               | primary key (k1, k2, k3) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table src_d (
+                               | k1 int not null,
+                               | k2 int not null,
+                               | d varchar,
+                               | primary key (k1, k2) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | k1 int not null,
+                               | k2 int not null,
+                               | k3 int not null,
+                               | k4 int not null,
+                               | k5 int not null,
+                               | a varchar,
+                               | b varchar,
+                               | c varchar,
+                               | d varchar,
+                               | primary key (k1, k2, k3, k4, k5) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select A.k1, A.k2, A.k3, A.k4, A.k5, A.a, BC.b, BC.c, D.d
+        |from src_a as A
+        |left outer join (
+        |  select B.k1, B.k2, B.k3, B.b, C.c
+        |  from src_b as B left outer join src_c as C
+        |  on B.k1 = C.k1 and B.k2 = C.k2 and B.k3 = C.k3
+        |) as BC on A.k1 = BC.k1 and A.k2 = BC.k2 and A.k3 = BC.k3
+        |left outer join src_d as D on A.k1 = D.k1 and A.k2 = D.k2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
   def testMiniBatchJoinWithNegativeMiniBatchSize(): Unit = {
     util.tableEnv.getConfig.getConfiguration
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))

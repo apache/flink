@@ -922,6 +922,35 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLeftJoinUpsertInputsIntoUpsertSinkWithSamePk">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[k, v, w])
++- LogicalProject(k=[$0], v=[$1], w=[$3])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, left_t]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, right_t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[k, v, w], changelogMode=[NONE])
++- Calc(select=[k, v, w], changelogMode=[I,UA,D])
+   +- Join(joinType=[LeftOuterJoin], where=[=(k, k0)], select=[k, v, k0, w], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[k]], changelogMode=[I,UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, left_t]], fields=[k, v], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[k]], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, right_t]], fields=[k, w], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[k, v, w])
++- Calc(select=[k, v, w])
+   +- Join(joinType=[LeftOuterJoin], where=[(k = k0)], select=[k, v, k0, w], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :- Exchange(distribution=[hash[k]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, left_t]], fields=[k, v])
+      +- Exchange(distribution=[hash[k]])
+         +- TableSourceScan(table=[[default_catalog, default_database, right_t]], fields=[k, w])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testLeftJoinWithEqualPk">
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM (SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1) LEFT JOIN (SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1) ON a1 = b1]]>
@@ -1279,6 +1308,60 @@ Calc(select=[b, y])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
          +- TableSourceScan(table=[[default_catalog, default_database, s]], fields=[x, y, z])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedLeftJoinsUpsertInputsIntoUpsertSinkOnLeftPk">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[k1, k2, k3, k4, k5, a, b, c, d])
++- LogicalProject(k1=[$0], k2=[$1], k3=[$2], k4=[$3], k5=[$4], a=[$5], b=[$9], c=[$10], d=[$13])
+   +- LogicalJoin(condition=[AND(=($0, $11), =($1, $12))], joinType=[left])
+      :- LogicalJoin(condition=[AND(=($0, $6), =($1, $7), =($2, $8))], joinType=[left])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, src_a]])
+      :  +- LogicalProject(k1=[$0], k2=[$1], k3=[$2], b=[$3], c=[$7])
+      :     +- LogicalJoin(condition=[AND(=($0, $4), =($1, $5), =($2, $6))], joinType=[left])
+      :        :- LogicalTableScan(table=[[default_catalog, default_database, src_b]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, src_c]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src_d]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[k1, k2, k3, k4, k5, a, b, c, d], changelogMode=[NONE])
++- Calc(select=[k1, k2, k3, k4, k5, a, b, c, d], changelogMode=[I,UA,D])
+   +- Join(joinType=[LeftOuterJoin], where=[AND(=(k1, k10), =(k2, k20))], select=[k1, k2, k3, k4, k5, a, b, c, k10, k20, d], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
+      :- Exchange(distribution=[hash[k1, k2]], changelogMode=[I,UA,D])
+      :  +- Calc(select=[k1, k2, k3, k4, k5, a, b, c], changelogMode=[I,UA,D])
+      :     +- Join(joinType=[LeftOuterJoin], where=[AND(=(k1, k10), =(k2, k20), =(k3, k30))], select=[k1, k2, k3, k4, k5, a, k10, k20, k30, b, c], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
+      :        :- Exchange(distribution=[hash[k1, k2, k3]], changelogMode=[I,UA,D])
+      :        :  +- TableSourceScan(table=[[default_catalog, default_database, src_a]], fields=[k1, k2, k3, k4, k5, a], changelogMode=[I,UA,D])
+      :        +- Exchange(distribution=[hash[k1, k2, k3]], changelogMode=[I,UA,D])
+      :           +- Calc(select=[k1, k2, k3, b, c], changelogMode=[I,UA,D])
+      :              +- Join(joinType=[LeftOuterJoin], where=[AND(=(k1, k10), =(k2, k20), =(k3, k30))], select=[k1, k2, k3, b, k10, k20, k30, c], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
+      :                 :- Exchange(distribution=[hash[k1, k2, k3]], changelogMode=[I,UA,D])
+      :                 :  +- TableSourceScan(table=[[default_catalog, default_database, src_b]], fields=[k1, k2, k3, b], changelogMode=[I,UA,D])
+      :                 +- Exchange(distribution=[hash[k1, k2, k3]], changelogMode=[I,UA,D])
+      :                    +- TableSourceScan(table=[[default_catalog, default_database, src_c]], fields=[k1, k2, k3, c], changelogMode=[I,UA,D])
+      +- Exchange(distribution=[hash[k1, k2]], changelogMode=[I,UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, src_d]], fields=[k1, k2, d], changelogMode=[I,UA,D])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[k1, k2, k3, k4, k5, a, b, c, d])
++- Calc(select=[k1, k2, k3, k4, k5, a, b, c, d])
+   +- Join(joinType=[LeftOuterJoin], where=[((k1 = k10) AND (k2 = k20))], select=[k1, k2, k3, k4, k5, a, b, c, k10, k20, d], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :- Exchange(distribution=[hash[k1, k2]])
+      :  +- Calc(select=[k1, k2, k3, k4, k5, a, b, c])
+      :     +- Join(joinType=[LeftOuterJoin], where=[((k1 = k10) AND (k2 = k20) AND (k3 = k30))], select=[k1, k2, k3, k4, k5, a, k10, k20, k30, b, c], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :        :- Exchange(distribution=[hash[k1, k2, k3]])
+      :        :  +- TableSourceScan(table=[[default_catalog, default_database, src_a]], fields=[k1, k2, k3, k4, k5, a])
+      :        +- Exchange(distribution=[hash[k1, k2, k3]])
+      :           +- Calc(select=[k1, k2, k3, b, c])
+      :              +- Join(joinType=[LeftOuterJoin], where=[((k1 = k10) AND (k2 = k20) AND (k3 = k30))], select=[k1, k2, k3, b, k10, k20, k30, c], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :                 :- Exchange(distribution=[hash[k1, k2, k3]])
+      :                 :  +- TableSourceScan(table=[[default_catalog, default_database, src_b]], fields=[k1, k2, k3, b])
+      :                 +- Exchange(distribution=[hash[k1, k2, k3]])
+      :                    +- TableSourceScan(table=[[default_catalog, default_database, src_c]], fields=[k1, k2, k3, c])
+      +- Exchange(distribution=[hash[k1, k2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src_d]], fields=[k1, k2, d])
 ]]>
     </Resource>
   </TestCase>
