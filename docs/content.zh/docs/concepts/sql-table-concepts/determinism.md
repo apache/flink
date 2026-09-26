@@ -229,7 +229,7 @@ join dim_with_pk for system_time as of t1.proctime as t2
 -- 执行计划：声明了 pk 后的维表，通过 pk 连接时左流的 upsertKey 属性得以保留，从而节省了高开销的物化节点
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk, project=[a, c], metadata=[]], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c])
       +- DropUpdateBefore
          +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])   
 ```
@@ -246,7 +246,7 @@ join dim_without_pk for system_time as of t1.proctime as t2
 -- 不启用 `TRY_RESOLVE` 模式时在运行时可能产生错误，当启用 `TRY_RESOLVE` 时的执行计划
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c], upsertMaterialize=[true])
+   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk, project=[a, c], metadata=[]], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c], upsertMaterialize=[true])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ```
 尽管第二个查询可以通过启用 `TRY_RESOLVE` 选项（增加物化）来解决正确性问题，但成本高昂，与声明了主键的第一个查询相比，会多出两个更昂贵的物化操作。
