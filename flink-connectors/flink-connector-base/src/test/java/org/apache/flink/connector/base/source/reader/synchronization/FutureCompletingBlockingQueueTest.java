@@ -33,6 +33,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -86,24 +87,11 @@ class FutureCompletingBlockingQueueTest {
 
     @Test
     void testWakeUpPut() throws InterruptedException {
-        FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(1);
-
-        CountDownLatch latch = new CountDownLatch(1);
-        new Thread(
-                        () -> {
-                            try {
-                                assertThat(queue.put(0, 1234)).isTrue();
-                                assertThat(queue.put(0, 1234)).isFalse();
-                                latch.countDown();
-                            } catch (InterruptedException e) {
-                                fail("Interrupted unexpectedly.");
-                            }
-                        })
-                .start();
+        final FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(1);
 
         queue.wakeUpPuttingThread(0);
-        latch.await();
-        assertThat(latch.getCount()).isEqualTo(0);
+        assertThat(queue.put(1, 1234)).isTrue();
+        assertThat(queue.put(0, 1234)).isFalse();
     }
 
     /**
@@ -145,6 +133,233 @@ class FutureCompletingBlockingQueueTest {
         assertThat(genuinePutterDone.await(10, TimeUnit.SECONDS))
                 .as("A still-waiting putter must be signalled when a slot frees up")
                 .isTrue();
+    }
+
+    /**
+     * Without {@link FutureCompletingBlockingQueue#releaseProducer(int)} the queue keeps one
+     * condition per producer index it has ever seen. Because {@code SplitFetcherManager} allocates
+     * a fresh, never-recycled index per {@code SplitFetcher}, a source with short-lived fetchers
+     * accumulates them for the lifetime of the JVM.
+     */
+    @Test
+    void testReleaseProducerBoundsTheWakeupState() throws InterruptedException {
+        final FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(1);
+
+        for (int producer = 0; producer < 3; producer++) {
+            // Fill the single slot, so the next put takes the full-queue path that registers
+            // wakeup state for this producer.
+            assertThat(queue.put(producer, producer)).isTrue();
+            queue.wakeUpPuttingThread(producer);
+            assertThat(queue.put(producer, producer)).isFalse();
+            queue.poll();
+
+            assertThat(QueueProbe.liveProducerStates(queue)).isOne();
+            assertThat(QueueProbe.producerStateStorageSize(queue)).isOne();
+
+            queue.releaseProducer(producer);
+
+            assertThat(QueueProbe.liveProducerStates(queue)).isZero();
+            assertThat(QueueProbe.producerStateStorageSize(queue)).isZero();
+        }
+
+        assertThat(queue.getNumberOfQueuedPutters()).isZero();
+    }
+
+    /**
+     * The storage assertions are what separate releasing the state from merely clearing it. An
+     * implementation that kept the {@code ConditionAndFlag[]} and only nulled the released slot
+     * would satisfy every live-count assertion above while still growing its backing array to the
+     * largest index ever seen, so this pins the storage down as well.
+     */
+    @Test
+    void testSparseProducerIndexDoesNotExpandStorage() throws InterruptedException {
+        final FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(1);
+
+        assertThat(queue.put(100_000, 1)).isTrue();
+        assertThat(QueueProbe.liveProducerStates(queue)).isZero();
+        assertThat(QueueProbe.producerStateStorageSize(queue)).isZero();
+        assertThat(queue.poll()).isOne();
+
+        queue.wakeUpPuttingThread(100_000);
+
+        assertThat(QueueProbe.liveProducerStates(queue)).isOne();
+        assertThat(QueueProbe.producerStateStorageSize(queue)).isOne();
+
+        queue.releaseProducer(100_000);
+
+        assertThat(QueueProbe.liveProducerStates(queue)).isZero();
+        assertThat(QueueProbe.producerStateStorageSize(queue)).isZero();
+    }
+
+    /** Release is idempotent, tolerates unknown ids, and only removes the target state. */
+    @Test
+    void testReleaseProducerOnlyRemovesTheTargetState() {
+        final FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(1);
+
+        queue.wakeUpPuttingThread(3);
+        queue.wakeUpPuttingThread(4);
+
+        queue.releaseProducer(7);
+        queue.releaseProducer(3);
+        queue.releaseProducer(3);
+
+        assertThat(QueueProbe.containsProducerState(queue, 3)).isFalse();
+        assertThat(QueueProbe.containsProducerState(queue, 4)).isTrue();
+        assertThat(QueueProbe.liveProducerStates(queue)).isOne();
+
+        queue.releaseProducer(4);
+        assertThat(QueueProbe.liveProducerStates(queue)).isZero();
+    }
+
+    /**
+     * Releasing a producer that is currently parked in {@code waitOnPut} would discard the wakeUp
+     * flag it is about to read and could leave it parked for good, so the release must be refused
+     * while it is still waiting.
+     */
+    @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    void testReleaseProducerIsRefusedWhileTheProducerIsParked() throws Exception {
+        final FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(1);
+
+        queue.put(0, 0);
+
+        final AtomicBoolean parkedPutterResult = new AtomicBoolean(true);
+        final Thread parkedPutter =
+                new Thread(() -> parkedPutterResult.set(putUnchecked(queue, 1, 1)), "parkedPutter");
+        parkedPutter.start();
+        try {
+            CommonTestUtils.waitUntilCondition(() -> queue.getNumberOfQueuedPutters() == 1);
+
+            queue.releaseProducer(1);
+            assertThat(QueueProbe.liveProducerStates(queue))
+                    .as("must not drop wakeup state for a producer currently inside put()")
+                    .isOne();
+
+            // The graceful wakeup still reaches it, which is what the refusal protects.
+            queue.wakeUpPuttingThread(1);
+            joinWithinTimeout(parkedPutter);
+            assertThat(parkedPutterResult).isFalse();
+
+            // Once it has left put(), the release goes through.
+            queue.releaseProducer(1);
+            assertThat(QueueProbe.liveProducerStates(queue)).isZero();
+        } finally {
+            if (parkedPutter.isAlive()) {
+                queue.wakeUpPuttingThread(1);
+                parkedPutter.interrupt();
+                queue.poll();
+                parkedPutter.join(TimeUnit.SECONDS.toMillis(10));
+            }
+            queue.releaseProducer(1);
+        }
+    }
+
+    /** An interrupted wait must not leave the producer permanently marked as waiting. */
+    @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
+    void testInterruptedPutterDoesNotPreventProducerRelease() throws Exception {
+        final FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(1);
+        assertThat(queue.put(0, 0)).isTrue();
+
+        final CompletableFuture<Boolean> putInterrupted = new CompletableFuture<>();
+        final Thread putter =
+                new Thread(
+                        () -> {
+                            try {
+                                queue.put(1, 1);
+                                putInterrupted.complete(false);
+                            } catch (InterruptedException expected) {
+                                putInterrupted.complete(true);
+                            } catch (Throwable failure) {
+                                putInterrupted.completeExceptionally(failure);
+                            }
+                        },
+                        "interruptedPutter");
+        putter.start();
+        try {
+            CommonTestUtils.waitUntilCondition(() -> queue.getNumberOfQueuedPutters() == 1);
+
+            putter.interrupt();
+            assertThat(putInterrupted.get(10, TimeUnit.SECONDS)).isTrue();
+            joinWithinTimeout(putter);
+            assertThat(queue.getNumberOfQueuedPutters()).isZero();
+            assertThat(QueueProbe.containsProducerState(queue, 1)).isTrue();
+
+            queue.releaseProducer(1);
+            assertThat(QueueProbe.containsProducerState(queue, 1)).isFalse();
+        } finally {
+            if (putter.isAlive()) {
+                putter.interrupt();
+                queue.poll();
+                putter.join(TimeUnit.SECONDS.toMillis(10));
+            }
+            queue.releaseProducer(1);
+        }
+    }
+
+    /**
+     * The companion to the test above, for the window that makes membership of {@code notFull} an
+     * unreliable answer to "is this producer still inside {@code put()}?".
+     *
+     * <p>{@code signalNextPutter()} removes a condition from {@code notFull} at signal time, not
+     * when its producer resumes, so between the signal and that producer reacquiring the lock it is
+     * still inside {@code put()} while absent from {@code notFull}. A release in that window would
+     * drop the state together with a wakeUp flag the producer has not read yet, and the producer
+     * would then build fresh state with no flag and park again. The {@code waitingPutters} counter
+     * spans the whole of {@code cond.await()} and therefore covers it.
+     *
+     * <p>The window is driven deterministically rather than raced for: the test thread takes the
+     * queue's own lock, so the signalled producer cannot reacquire it and cannot leave {@code
+     * put()} until the test releases it.
+     */
+    @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
+    void testReleaseProducerIsRefusedAfterSignalBeforePutterReacquiresLock() throws Exception {
+        final FutureCompletingBlockingQueue<Integer> queue = new FutureCompletingBlockingQueue<>(1);
+        assertThat(queue.put(0, 0)).isTrue();
+
+        final AtomicBoolean putterResult = new AtomicBoolean(true);
+        final Thread putter =
+                new Thread(() -> putterResult.set(putUnchecked(queue, 1, 1)), "signalledPutter");
+        putter.start();
+        try {
+            CommonTestUtils.waitUntilCondition(() -> queue.getNumberOfQueuedPutters() == 1);
+
+            final ReentrantLock queueLock = QueueProbe.queueLock(queue);
+            queueLock.lock();
+            try {
+                assertThat(queue.poll()).isZero();
+                assertThat(QueueProbe.queuedPutters(queue)).isZero();
+
+                queue.wakeUpPuttingThread(1);
+                queue.releaseProducer(1);
+                assertThat(QueueProbe.containsProducerState(queue, 1)).isTrue();
+
+                assertThat(queue.put(2, 2)).isTrue();
+            } finally {
+                queueLock.unlock();
+            }
+
+            joinWithinTimeout(putter);
+            assertThat(putterResult).isFalse();
+
+            queue.releaseProducer(1);
+            assertThat(QueueProbe.liveProducerStates(queue)).isZero();
+        } finally {
+            if (putter.isAlive()) {
+                queue.wakeUpPuttingThread(1);
+                putter.interrupt();
+                queue.poll();
+                putter.join(TimeUnit.SECONDS.toMillis(10));
+            }
+            queue.releaseProducer(1);
+            queue.poll();
+        }
+    }
+
+    private static void joinWithinTimeout(Thread thread) throws InterruptedException {
+        thread.join(TimeUnit.SECONDS.toMillis(10));
+        assertThat(thread.isAlive()).as("The putting thread should have terminated").isFalse();
     }
 
     private static boolean putUnchecked(

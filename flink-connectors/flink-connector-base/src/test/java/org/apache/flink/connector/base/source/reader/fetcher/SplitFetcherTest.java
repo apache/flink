@@ -31,6 +31,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static java.lang.Thread.State.WAITING;
 import static org.apache.flink.test.util.TestUtils.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit test for {@link SplitFetcher}. */
 class SplitFetcherTest {
@@ -260,6 +262,52 @@ class SplitFetcherTest {
     }
 
     @Test
+    void testRunningTaskIsClearedWhenTaskThrowsException() {
+        final SplitFetcher<Object, TestingSourceSplit> fetcher =
+                createFetcher(new TestingSplitReader<>());
+        final IOException failure = new IOException("test failure");
+        final FailingFetcherTask task = new FailingFetcherTask(failure);
+        fetcher.enqueueTask(task);
+
+        try {
+            assertThatThrownBy(fetcher::runOnce)
+                    .isInstanceOf(RuntimeException.class)
+                    .hasCause(failure);
+
+            // The task reference is dropped so that a late wakeUp cannot reach it and recreate
+            // the queue state the shutdown hook is about to release...
+            fetcher.wakeUp(false);
+            assertThat(task.getNumWakeUps()).isZero();
+            // ... but the fetcher must not advertise itself as idle, or the manager would reap it
+            // with shutdown(true) and never release recordsProcessedLatch.
+            assertThat(fetcher.isIdle()).isFalse();
+        } finally {
+            fetcher.shutdown();
+            fetcher.run();
+        }
+    }
+
+    @Test
+    void testRunningTaskIsClearedWhenTaskThrowsError() {
+        final SplitFetcher<Object, TestingSourceSplit> fetcher =
+                createFetcher(new TestingSplitReader<>());
+        final AssertionError failure = new AssertionError("test failure");
+        final FailingFetcherTask task = new FailingFetcherTask(failure);
+        fetcher.enqueueTask(task);
+
+        try {
+            assertThatThrownBy(fetcher::runOnce).isSameAs(failure);
+
+            fetcher.wakeUp(false);
+            assertThat(task.getNumWakeUps()).isZero();
+            assertThat(fetcher.isIdle()).isFalse();
+        } finally {
+            fetcher.shutdown();
+            fetcher.run();
+        }
+    }
+
+    @Test
     void testCloseAfterPause() throws InterruptedException {
         final FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
                 new FutureCompletingBlockingQueue<>();
@@ -317,6 +365,33 @@ class SplitFetcherTest {
 
     private static <E> RecordsBySplits<E> finishedSplitFetch(String splitId) {
         return new RecordsBySplits<>(Collections.emptyMap(), Collections.singleton(splitId));
+    }
+
+    private static final class FailingFetcherTask implements SplitFetcherTask {
+
+        private final Throwable failure;
+        private final AtomicInteger numWakeUps = new AtomicInteger();
+
+        private FailingFetcherTask(Throwable failure) {
+            this.failure = failure;
+        }
+
+        @Override
+        public boolean run() throws IOException {
+            if (failure instanceof IOException) {
+                throw (IOException) failure;
+            }
+            throw (Error) failure;
+        }
+
+        @Override
+        public void wakeUp() {
+            numWakeUps.incrementAndGet();
+        }
+
+        private int getNumWakeUps() {
+            return numWakeUps.get();
+        }
     }
 
     private static <E> SplitFetcher<E, TestingSourceSplit> createFetcher(
