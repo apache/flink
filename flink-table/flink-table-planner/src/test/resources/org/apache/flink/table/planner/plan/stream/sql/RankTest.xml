@@ -265,10 +265,10 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], rank_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, count_c, w0$o0_0 AS w0$o0], changelogMode=[I,UA,D])
-+- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0, w0$o0_0], changelogMode=[I,UA,D])
+Calc(select=[a, b, count_c, rank_num], changelogMode=[I,UA,D])
++- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[count_c DESC], select=[a, b, count_c, row_num, rank_num], changelogMode=[I,UA,D])
    +- Exchange(distribution=[single], changelogMode=[I,UA,D])
-      +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
+      +- Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, row_num], changelogMode=[I,UA,D])
          +- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
             +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
                +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
@@ -298,7 +298,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c, 1 AS w0$o0])
+Calc(select=[a, b, c, 1 AS row_num])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[b DESC], select=[a, b, c])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
@@ -342,17 +342,17 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[a, c, rn])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[a, c, w0$o0], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
-+- Calc(select=[a, c, w0$o0], changelogMode=[I,UB,UA,D])
-   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, w0$o0], changelogMode=[I,UB,UA,D])
+Sink(table=[default_catalog.default_database.sink], fields=[a, c, rn], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
++- Calc(select=[a, c, rn], changelogMode=[I,UB,UA,D])
+   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, rn], changelogMode=[I,UB,UA,D])
       +- Exchange(distribution=[hash[b]], changelogMode=[I])
          +- Calc(select=[a, b, c], changelogMode=[I])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[a, c, w0$o0], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
-+- Calc(select=[a, c, w0$o0])
-   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, w0$o0])
+Sink(table=[default_catalog.default_database.sink], fields=[a, c, rn], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
++- Calc(select=[a, c, rn])
+   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, rn])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[a, b, c])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -435,10 +435,10 @@ LogicalProject(rn1=[CAST($5):INTEGER NOT NULL], rn2=[CAST($6):INTEGER NOT NULL])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(w0$o0 AS INTEGER) AS rn1, CAST(w0$o0_0 AS INTEGER) AS rn2])
-+- Rank(strategy=[UpdateFastStrategy[0,2,3]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=200], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0, w0$o0_0])
+Calc(select=[CAST(rna AS INTEGER) AS rn1, CAST(rnb AS INTEGER) AS rn2])
++- Rank(strategy=[UpdateFastStrategy[0,2,3]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=200], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, rna, rnb])
    +- Exchange(distribution=[hash[a]])
-      +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a, c], orderBy=[b DESC], select=[a, b, c, w0$o0])
+      +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a, c], orderBy=[b DESC], select=[a, b, c, rna])
          +- Exchange(distribution=[hash[a, c]])
             +- Calc(select=[a, b, c])
                +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -709,7 +709,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], changelogMode=[I,UA,D])
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, row_num], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[a]], changelogMode=[I])
    +- Calc(select=[a, b, c], changelogMode=[I])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
@@ -737,7 +737,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0], changelogMode=[I,UA,D])
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, row_num], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[a]], changelogMode=[I])
    +- Calc(select=[a, b, c], changelogMode=[I])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
@@ -771,7 +771,7 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, row_num], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], changelogMode=[I,UB,UA])
       +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
@@ -850,7 +850,7 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC, a ASC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[count_c DESC, a ASC], select=[a, b, count_c, row_num], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[b]], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
@@ -886,7 +886,7 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, row_num])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM($f2) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
@@ -924,7 +924,7 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, row_num], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[b]], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) AS sum_c], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
@@ -960,7 +960,7 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, row_num])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
@@ -996,7 +996,7 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c ASC], select=[a, b, sum_c, w0$o0])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c ASC], select=[a, b, sum_c, row_num])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM(c) FILTER $f3 AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
@@ -1032,7 +1032,7 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, row_num])
 +- Exchange(distribution=[hash[b]])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, SUM($f2) AS sum_c])
       +- Exchange(distribution=[hash[a, b]])
@@ -1104,7 +1104,7 @@ LogicalProject(a=[$0], b=[$1], count_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, w0$o0], changelogMode=[I,UA,D])
+Rank(strategy=[UpdateFastStrategy[0,1]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[count_c DESC], select=[a, b, count_c, row_num], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[a]], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[a, b], select=[a, b, COUNT(*) AS count_c], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
@@ -1140,7 +1140,7 @@ LogicalProject(a=[$0], b=[$1], sum_c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, w0$o0], changelogMode=[I,UA,D])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[sum_c DESC], select=[a, b, sum_c, row_num], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA])
    +- GroupAggregate(groupBy=[a], select=[a, LAST_VALUE(b) AS b, SUM(c) AS sum_c], changelogMode=[I,UB,UA])
       +- Exchange(distribution=[hash[a]], changelogMode=[I])
@@ -1170,7 +1170,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, 10 AS $3], changelogMode=[I,UA,D])
+Calc(select=[a, b, c, 10 AS row_num], changelogMode=[I,UA,D])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=10, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[a]], changelogMode=[I])
       +- Calc(select=[a, b, c], changelogMode=[I])
@@ -1204,7 +1204,7 @@ LogicalProject(category=[$0], shopId=[$1], max_price=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, w0$o0], changelogMode=[I,UA,D])
+Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[category], orderBy=[max_price ASC], select=[category, shopId, max_price, row_num], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[category]], changelogMode=[I,UB,UA])
    +- GroupAggregate(groupBy=[category, shopId], select=[category, shopId, MAX(price) AS max_price], changelogMode=[I,UB,UA])
       +- Exchange(distribution=[hash[category, shopId]], changelogMode=[I])
@@ -1279,7 +1279,7 @@ LogicalProject(name=[$0], ids=[$1], rank_num=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Rank(strategy=[UpdateFastStrategy[0]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[name], orderBy=[ids DESC], select=[name, ids, w0$o0])
+Rank(strategy=[UpdateFastStrategy[0]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[name], orderBy=[ids DESC], select=[name, ids, rank_num])
 +- Exchange(distribution=[hash[name]])
    +- GroupAggregate(groupBy=[name], select=[name, SUM(id) FILTER $f2 AS ids])
       +- Exchange(distribution=[hash[name]])
