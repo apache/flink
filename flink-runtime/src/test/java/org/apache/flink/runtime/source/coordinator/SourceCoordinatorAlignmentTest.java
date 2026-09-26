@@ -117,6 +117,70 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
     }
 
     @Test
+    void testWatermarkAlignmentStatePrunedAfterSubtaskFailureAndReset() throws Exception {
+        try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
+            SourceCoordinator<?, ?> sourceCoordinator1 =
+                    getAndStartNewSourceCoordinator(
+                            new WatermarkAlignmentParams(1000L, "group1", Long.MAX_VALUE),
+                            closeableRegistry);
+
+            int subtask0 = 0;
+            int subtask1 = 1;
+
+            // baseline sanity: the group is constrained by the lowest reported watermark
+            reportWatermarkEvent(sourceCoordinator1, subtask0, 100);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1100);
+
+            reportWatermarkEvent(sourceCoordinator1, subtask1, 200);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1100);
+            assertLatestWatermarkAlignmentEvent(subtask1, 1100);
+
+            // the subtask holding the group back fails and is reset
+            sourceCoordinator1.executionAttemptFailed(
+                    subtask0, 0, new RuntimeException("Artificial failure for subtask 0"));
+            sourceCoordinator1.subtaskReset(subtask0, 1L);
+            CoordinatorTestUtils.waitForCoordinatorToProcessActions(
+                    sourceCoordinator1.getContext());
+
+            sourceCoordinator1.announceCombinedWatermark();
+
+            // CORRECT expectation: with the failed subtask's state pruned, the group should now
+            // only be constrained by the surviving subtask (200 + 1000 drift). The failed subtask
+            // will re-report its watermark after restart anyway.
+            assertLatestWatermarkAlignmentEvent(subtask1, 1200);
+        }
+    }
+
+    @Test
+    void testSubtaskThatNeverReportedReceivesNoAlignmentEvents() throws Exception {
+        try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
+            SourceCoordinator<?, ?> sourceCoordinator1 =
+                    getAndStartNewSourceCoordinator(
+                            new WatermarkAlignmentParams(1000L, "group1", Long.MAX_VALUE),
+                            closeableRegistry);
+
+            int subtask0 = 0;
+            int subtask2 = 2;
+
+            // subtask0 reports; subtask2 is ready (gateway registered) but never reports a
+            // watermark (e.g. idle from birth)
+            reportWatermarkEvent(sourceCoordinator1, subtask0, 100);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1100);
+
+            sourceCoordinator1.announceCombinedWatermark();
+            sourceCoordinator1.announceCombinedWatermark();
+
+            // characterization: announceCombinedWatermark only iterates over subtasks that have
+            // reported (combinedWatermark.keySet()), so a never-reporting subtask never receives
+            // any WatermarkAlignmentEvent
+            List<OperatorEvent> eventsForSilentSubtask =
+                    receivingTasks.getSentEventsForSubtask(subtask2);
+            assertThat(eventsForSilentSubtask)
+                    .noneMatch(event -> event instanceof WatermarkAlignmentEvent);
+        }
+    }
+
+    @Test
     void testWatermarkAlignmentWithTwoGroups() throws Exception {
         try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
             long maxDrift = 1000L;
