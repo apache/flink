@@ -115,7 +115,9 @@ public class EmbeddedPythonScalarFunctionOperator
     public void open() throws Exception {
         takesRowAsInput =
                 Arrays.stream(scalarFunctions)
-                        .anyMatch(pythonFunctionInfo -> pythonFunctionInfo.getPythonFunction().takesRowAsInput());
+                        .anyMatch(
+                                pythonFunctionInfo ->
+                                        pythonFunctionInfo.getPythonFunction().takesRowAsInput());
         hasOnlyOneInputArgument = takesRowAsInput || udfInputOffsets.length == 1;
         hasOnlyOneUserDefinedFunction = udfOutputType.getFieldCount() == 1;
 
