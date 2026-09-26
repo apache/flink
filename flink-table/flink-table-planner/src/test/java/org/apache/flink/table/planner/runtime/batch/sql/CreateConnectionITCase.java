@@ -200,6 +200,24 @@ class CreateConnectionITCase extends BatchTestBase {
     }
 
     @Test
+    void testDescribePermanentConnectionIncludesScope() throws Exception {
+        ObjectIdentifier identifier = connectionIdentifier("my_conn");
+        catalogManager()
+                .getCatalog(catalogManager().getCurrentCatalog())
+                .orElseThrow()
+                .createConnection(
+                        identifier.toObjectPath(),
+                        CatalogConnection.of(Map.of("k", "v"), null),
+                        false);
+
+        assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
+                .containsExactly(
+                        Row.of("type", "default"),
+                        Row.of("option:k", "v"),
+                        Row.of("temporary", "false"));
+    }
+
+    @Test
     void testDescribeMissingConnectionRejected() {
         assertThatThrownBy(() -> tEnv().executeSql("DESCRIBE CONNECTION missing_conn"))
                 .isInstanceOf(ValidationException.class)
