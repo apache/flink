@@ -19,9 +19,7 @@
 package org.apache.flink.connector.datagen.table.types;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.util.Preconditions;
 
@@ -32,7 +30,9 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /** Generates random {@link DecimalData} values. */
 @Internal
-public class DecimalDataRandomGenerator implements DataGenerator<DecimalData> {
+public class DecimalDataRandomGenerator implements GeneratorFunction<Long, DecimalData> {
+
+    private static final long serialVersionUID = 1L;
 
     private final int precision;
 
@@ -57,17 +57,7 @@ public class DecimalDataRandomGenerator implements DataGenerator<DecimalData> {
     }
 
     @Override
-    public void open(
-            String name, FunctionInitializationContext context, RuntimeContext runtimeContext)
-            throws Exception {}
-
-    @Override
-    public boolean hasNext() {
-        return true;
-    }
-
-    @Override
-    public DecimalData next() {
+    public DecimalData map(Long value) {
         if (nullRate == 0f || ThreadLocalRandom.current().nextFloat() > nullRate) {
             BigDecimal decimal =
                     new BigDecimal(
