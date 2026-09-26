@@ -25,8 +25,7 @@ import org.apache.flink.table.operations.DescribeConnectionOperation;
 import org.apache.flink.table.operations.Operation;
 
 /** A converter for {@link SqlRichDescribeConnection}. */
-public class SqlRichDescribeConnectionConverter
-        implements SqlNodeConverter<SqlRichDescribeConnection> {
+public class SqlDescribeConnectionConverter implements SqlNodeConverter<SqlRichDescribeConnection> {
 
     @Override
     public Operation convertSqlNode(
