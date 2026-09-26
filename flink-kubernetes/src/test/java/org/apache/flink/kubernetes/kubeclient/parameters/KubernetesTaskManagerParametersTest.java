@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 /** General tests for the {@link KubernetesTaskManagerParameters}. */
@@ -43,6 +44,7 @@ class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
     private static final int TASK_MANAGER_MEMORY = 1024;
     private static final double TASK_MANAGER_CPU = 1.2;
     private static final double TASK_MANAGER_CPU_LIMIT_FACTOR = 2.0;
+    private static final double TASK_MANAGER_MEMORY_REQUEST_FACTOR = 0.5;
     private static final double TASK_MANAGER_MEMORY_LIMIT_FACTOR = 2.0;
     private static final int RPC_PORT = 13001;
 
@@ -148,6 +150,39 @@ class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
     void testGetTaskManagerCPULimitFactor() {
         assertThat(kubernetesTaskManagerParameters.getTaskManagerCPULimitFactor())
                 .isEqualTo(TASK_MANAGER_CPU_LIMIT_FACTOR, within(0.00001));
+    }
+
+    @Test
+    void testGetDefaultTaskManagerMemoryRequestFactor() {
+        assertThat(kubernetesTaskManagerParameters.getTaskManagerMemoryRequestFactor())
+                .isEqualTo(1.0, within(0.00001));
+    }
+
+    @Test
+    void testGetTaskManagerMemoryRequestFactor() {
+        flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_MEMORY_REQUEST_FACTOR,
+                TASK_MANAGER_MEMORY_REQUEST_FACTOR);
+        assertThat(kubernetesTaskManagerParameters.getTaskManagerMemoryRequestFactor())
+                .isEqualTo(TASK_MANAGER_MEMORY_REQUEST_FACTOR, within(0.00001));
+    }
+
+    @Test
+    void testGetTaskManagerMemoryRequestFactorShouldFailIfGreaterThanOne() {
+        flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_MEMORY_REQUEST_FACTOR, 1.1);
+
+        assertThatThrownBy(kubernetesTaskManagerParameters::getTaskManagerMemoryRequestFactor)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("greater than 0 and less than or equal to 1");
+    }
+
+    @Test
+    void testGetTaskManagerMemoryRequestFactorShouldFailIfLessThanOrEqualToZero() {
+        flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_MEMORY_REQUEST_FACTOR, 0.0);
+
+        assertThatThrownBy(kubernetesTaskManagerParameters::getTaskManagerMemoryRequestFactor)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("greater than 0 and less than or equal to 1");
     }
 
     @Test
