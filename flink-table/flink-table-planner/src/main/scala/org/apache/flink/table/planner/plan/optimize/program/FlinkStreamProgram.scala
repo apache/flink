@@ -36,6 +36,7 @@ object FlinkStreamProgram {
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val JOIN_REORDER = "join_reorder"
   val MULTI_JOIN = "multi_join"
+  val BINARY_MULTI_JOIN = "binary_multi_join"
   val PROJECT_REWRITE = "project_rewrite"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
@@ -244,6 +245,21 @@ object FlinkStreamProgram {
             .add(FlinkStreamRuleSets.MULTI_JOIN_RULES)
             .build(),
           "merge binary regular joins into MultiJoin"
+        )
+        .build()
+    )
+
+    chainedProgram.addLast(
+      BINARY_MULTI_JOIN,
+      FlinkGroupProgramBuilder
+        .newBuilder[StreamOptimizeContext]
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.BINARY_MULTI_JOIN_RULES)
+            .build(),
+          "transform binary multi joins back into regular join"
         )
         .build()
     )
