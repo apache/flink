@@ -20,6 +20,7 @@ package org.apache.flink.metrics.otel;
 
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.Base58;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
@@ -27,6 +28,7 @@ import org.testcontainers.utility.MountableFile;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Locale;
 
 /** {@link OtelTestContainer} provides an {@code Otel} test instance. */
@@ -53,6 +55,14 @@ class OtelTestContainer extends GenericContainer<OtelTestContainer> {
                         new File(outputDir.toFile(), LOG_FILE).getAbsolutePath(), 755),
                 getOutputLogPath().toString());
         withCommand("--config", "otel-config.yaml");
+        // The default HostPortWaitStrategy reports this shell-less image as ready before the OTLP
+        // receiver accepts connections; the readiness log line is only emitted after all
+        // components, including the receivers, have started.
+        waitingFor(
+                Wait.forLogMessage(
+                                ".*Everything is ready\\. Begin running and processing data\\..*",
+                                1)
+                        .withStartupTimeout(Duration.ofMinutes(1)));
     }
 
     public Path getOutputLogPath() {
