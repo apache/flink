@@ -38,6 +38,7 @@ from pyflink.dataframe.datatype import DataType
 from pyflink.table import (
     DataTypes as TableDataTypes,
     EnvironmentSettings,
+    Table,
     TableEnvironment,
     TableSchema,
 )
@@ -330,6 +331,112 @@ class DataFrameSetOperationTests(PyFlinkDataFrameUTTestCase):
             with self.subTest(method=method):
                 with self.assertRaisesRegex(Py4JJavaError, "currently not supported"):
                     getattr(left, method)(right)
+
+
+class DataFrameExplodeTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.df = pf.from_table(self.t_env.sql_query(
+            "SELECT 1 AS id, ARRAY[1, 2] AS items, 'A' AS label"))
+
+    def test_explode_is_lazy_and_preserves_input(self):
+        table = self.df.to_table()
+        with patch.object(Table, "execute") as execute:
+            result = self.df.explode("items")
+            execute.assert_not_called()
+        self.assertIsNot(result, self.df)
+        self.assertIs(result.to_table()._t_env, self.t_env)
+        self.assertIs(self.df.to_table(), table)
+        self.assert_dataframe_schema(self.df, ["id", "items", "label"])
+        self.assert_dataframe_schema(result, ["id", "items", "label"], [
+            TableDataTypes.INT().not_null(), TableDataTypes.INT(),
+            TableDataTypes.CHAR(1).not_null(),
+        ])
+
+    def test_explode_supports_column_expressions_and_aliases(self):
+        for column, output, expected in [
+            ("items", None, "items"),
+            (pf.col("items"), None, "items"),
+            (self.df["items"], "item", "item"),
+            (pf.col("items").alias("renamed"), None, "renamed"),
+            ("items", ["item"], "item"),
+        ]:
+            with self.subTest(column=str(column), output=output):
+                self.assert_dataframe_schema(
+                    self.df.explode(column, output_column=output), ["id", expected, "label"])
+
+    def test_explode_supports_computed_collection_expressions(self):
+        from pyflink.table.expressions import array
+
+        result = self.df.explode(
+            array(pf.col("id"), pf.lit(2)), output_column="value")
+        self.assert_dataframe_schema(result, ["id", "items", "label", "value"])
+
+    def test_explode_quotes_identifiers(self):
+        df = pf.from_table(self.t_env.sql_query(
+            "SELECT 1 AS `select`, ARRAY[2] AS `a``b`, 3 AS `value`"))
+
+        result = df.explode(pf.col("a`b"), output_column="value` name")
+
+        self.assert_dataframe_schema(result, ["select", "value` name", "value"])
+
+    def test_explode_resolves_collection_output_types(self):
+        for sql, names, types in [
+            ("SELECT MAP['a', 1] AS items", ["key", "value"],
+             [TableDataTypes.CHAR(1), TableDataTypes.INT()]),
+            ("SELECT ARRAY[ROW(1, 'a')] AS items", ["number", "text"],
+             [TableDataTypes.INT(), TableDataTypes.CHAR(1)]),
+            ("SELECT ARRAY[ROW(1)] AS items", None, [TableDataTypes.INT()]),
+            ("SELECT MULTISET[1, 1, 2] AS items", None, [TableDataTypes.INT()]),
+        ]:
+            with self.subTest(sql=sql):
+                df = pf.from_table(self.t_env.sql_query(sql))
+                self.assert_dataframe_schema(
+                    df.explode("items", output_column=names), names or ["items"], types)
+
+    def test_explode_rejects_invalid_arguments(self):
+        for column in [None, 1, ["items"]]:
+            with self.subTest(column=column):
+                with self.assertRaisesRegex(TypeError, "column"):
+                    self.df.explode(column)
+        for flag in [None, 1, "true"]:
+            with self.subTest(flag=flag):
+                with self.assertRaisesRegex(TypeError, "ignore_empty_and_null"):
+                    self.df.explode("items", ignore_empty_and_null=flag)
+        for output in [1, ("item",), [1]]:
+            with self.subTest(output=output):
+                with self.assertRaisesRegex(TypeError, "output_column"):
+                    self.df.explode("items", output_column=output)
+        with self.assertRaisesRegex(TypeError, "positional argument"):
+            self.df.explode("items", "item")
+
+    def test_explode_rejects_missing_and_non_collection_columns(self):
+        for column in ["missing", pf.col("missing")]:
+            with self.subTest(column=str(column)):
+                with self.assertRaisesRegex(Py4JJavaError, "missing"):
+                    self.df.explode(column)
+        with self.assertRaisesRegex(TypeError, "ARRAY, MAP, or MULTISET"):
+            self.df.explode("id")
+        with self.assertRaisesRegex(ValueError, "single column"):
+            self.df.explode(pf.col("*"))
+
+    def test_explode_rejects_aggregate_expressions(self):
+        df = pf.from_table(self.t_env.sql_query("SELECT ARRAY[9] AS items, 1 AS id"))
+        with self.assertRaisesRegex(ValueError, "row-wise"):
+            df.explode(pf.col("id").collect, output_column="value")
+
+    def test_explode_rejects_invalid_output_names(self):
+        for output in [[], ["a", "b"], "", [""]]:
+            with self.subTest(output=output):
+                with self.assertRaisesRegex(ValueError, "output_column"):
+                    self.df.explode("items", output_column=output)
+        with self.assertRaisesRegex(ValueError, "conflict"):
+            self.df.explode("items", output_column="id")
+        df = pf.from_table(self.t_env.sql_query("SELECT MAP['a', 1] AS items"))
+        for output in [None, "item", ["item"], ["item", "item"]]:
+            with self.subTest(output=output):
+                with self.assertRaisesRegex(ValueError, "output_column"):
+                    df.explode("items", output_column=output)
 
 
 class DataFrameSortingTests(PyFlinkDataFrameUTTestCase):
@@ -2684,6 +2791,60 @@ class DataFrameSetOperationStreamITTests(PyFlinkStreamDataFrameTestCase):
             left.union_all(right).collect(),
             [Row(1), Row(2), Row(2), Row(2), Row(3)],
         )
+
+
+class DataFrameExplodeITTests(PyFlinkITTestCase):
+    def setUp(self):
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+
+    def test_explode_direct_column_with_both_empty_collection_modes(self):
+        df = pf.from_table(self.t_env.from_elements(
+            [(1, [2, 2, None], "a"), (2, [], "b"), (3, None, "c")],
+            TableDataTypes.ROW([
+                TableDataTypes.FIELD("id", TableDataTypes.INT()),
+                TableDataTypes.FIELD("items", TableDataTypes.ARRAY(TableDataTypes.INT())),
+                TableDataTypes.FIELD("label", TableDataTypes.STRING()),
+            ])))
+        for ignore in [False, True]:
+            with self.subTest(ignore=ignore):
+                expected = [Row(1, 2, "a"), Row(1, 2, "a"), Row(1, None, "a")]
+                if not ignore:
+                    expected += [Row(2, None, "b"), Row(3, None, "c")]
+                self.assertCountEqual(
+                    df.explode("items", ignore_empty_and_null=ignore).collect(), expected)
+
+    def test_explode_multi_field_output_replaces_middle_column(self):
+        df = pf.from_table(self.t_env.from_elements(
+            [(1, {"a": 2, "b": 3}, "x")],
+            TableDataTypes.ROW([
+                TableDataTypes.FIELD("id", TableDataTypes.INT()),
+                TableDataTypes.FIELD("items", TableDataTypes.MAP(
+                    TableDataTypes.STRING(), TableDataTypes.INT())),
+                TableDataTypes.FIELD("label", TableDataTypes.STRING()),
+            ])))
+        result = df.explode("items", output_column=["key", "value"])
+        self.assertEqual(result.columns, ["id", "key", "value", "label"])
+        self.assertCountEqual(result.collect(), [Row(1, "a", 2, "x"), Row(1, "b", 3, "x")])
+
+    def test_explode_computed_expression_appends_output(self):
+        from pyflink.table.expressions import array
+
+        df = pf.from_table(self.t_env.sql_query("SELECT 1 AS __pf_explode"))
+        result = df.explode(
+            array(pf.col("__pf_explode"), pf.lit(2)).alias("pair"), output_column="value")
+        self.assertEqual(result.columns, ["__pf_explode", "value"])
+        self.assertCountEqual(result.collect(), [Row(1, 1), Row(1, 2)])
+
+
+class DataFrameExplodeStreamITTests(PyFlinkStreamDataFrameTestCase):
+    def test_explode_in_streaming_mode(self):
+        df = pf.from_table(self.t_env.from_elements(
+            [(1, [2, 3])],
+            TableDataTypes.ROW([
+                TableDataTypes.FIELD("id", TableDataTypes.INT()),
+                TableDataTypes.FIELD("items", TableDataTypes.ARRAY(TableDataTypes.INT())),
+            ])))
+        self.assertCountEqual(df.explode("items").collect(), [Row(1, 2), Row(1, 3)])
 
 
 class DataFrameWindowITTests(PyFlinkStreamDataFrameTestCase):

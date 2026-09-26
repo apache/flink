@@ -66,6 +66,7 @@ Transformations
     DataFrame.rename
     DataFrame.filter
     DataFrame.where
+    DataFrame.explode
     DataFrame.drop_duplicates
     DataFrame.distinct
     DataFrame.unique
