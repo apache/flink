@@ -152,7 +152,11 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
         // runtime filter will not succeed
         setupTableRowCount("dim", 1L);
         setupTableRowCount("fact", SUITABLE_FACT_ROW_COUNT);
-        String query = "select * from fact, dim where fact.amount = dim.amount and dim.price < 500";
+        // force nested loop join explicitly using a hint
+        // with an equi-condition, the CBO now prefers a hash join over nested loop join
+        String query =
+                "select /*+ NEST_LOOP(dim) */ * from fact, dim"
+                        + " where fact.amount = dim.amount and dim.price < 500";
         util.verifyPlan(query);
     }
 

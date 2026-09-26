@@ -449,14 +449,14 @@ LogicalProject(a=[$0], c=[$2], c0=[$9])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, c, c0])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[left])
-   :- Exchange(distribution=[broadcast])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], isBroadcast=[true], build=[right])
+   :- Exchange(distribution=[any], shuffle_mode=[BATCH])
    :  +- Calc(select=[a, c])(reuse_id=[1])
    :     +- Limit(offset=[0], fetch=[10], global=[true])
    :        +- Exchange(distribution=[single])
    :           +- Limit(offset=[0], fetch=[10], global=[false])
    :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[10]]], fields=[a, b, c, nested, metadata_1, metadata_2])
-   +- Exchange(distribution=[any], shuffle_mode=[BATCH])
+   +- Exchange(distribution=[broadcast])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -888,7 +888,7 @@ LogicalProject(a=[$0], c=[$2], c0=[$9])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, c, c0])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], build=[right])
++- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, c, a0, c0], isBroadcast=[true], build=[right])
    :- Calc(select=[a, c])
    :  +- Limit(offset=[0], fetch=[11], global=[true])
    :     +- Exchange(distribution=[single])
