@@ -29,10 +29,35 @@ LOCAL_LOGS_PATH="${TEST_DATA_DIR}/log"
 IMAGE_BUILD_RETRIES=3
 IMAGE_BUILD_BACKOFF=2
 
-# copy test-filesystem jar & hadoop plugin
+JM_LOG_CAPTURE="${LOCAL_LOGS_PATH}/jobmanager-captured.log"
+JM_LOG_CAPTURE_PID=""
+
+function start_jm_log_capture {
+  local jm_pod_name=$1
+  mkdir -p "${LOCAL_LOGS_PATH}"
+  if [ -n "${JM_LOG_CAPTURE_PID}" ]; then
+    kill "${JM_LOG_CAPTURE_PID}" 2> /dev/null || true
+  fi
+  echo "[INFO] Streaming JobManager logs of ${jm_pod_name} to ${JM_LOG_CAPTURE}"
+  ( kubectl logs -f "${jm_pod_name}" >> "${JM_LOG_CAPTURE}" 2>&1 ) &
+  JM_LOG_CAPTURE_PID=$!
+}
+
+function dump_captured_jm_logs_on_failure {
+  if [ -n "${JM_LOG_CAPTURE_PID}" ]; then
+    kill "${JM_LOG_CAPTURE_PID}" 2> /dev/null || true
+  fi
+  if [ "${TRAPPED_EXIT_CODE}" != "0" ] && [ -s "${JM_LOG_CAPTURE}" ]; then
+    echo "[INFO] Captured JobManager logs before teardown:"
+    cat "${JM_LOG_CAPTURE}"
+  fi
+}
+on_exit dump_captured_jm_logs_on_failure
+
+# copy test-filesystem jar and enable the native S3 plugin
 TEST_FILE_SYSTEM_JAR=`ls ${END_TO_END_DIR}/../flink-test-utils-parent/flink-table-filesystem-test-utils/target/flink-table-filesystem-test-utils-*.jar`
 cp $TEST_FILE_SYSTEM_JAR ${FLINK_DIR}/lib/
-add_optional_plugin "s3-fs-hadoop"
+add_optional_plugin "s3-fs-native"
 
 # start kubernetes
 start_kubernetes
@@ -47,7 +72,7 @@ fi
 # setup materialized table data dir
 echo "[INFO] Start S3 env"
 source "$(dirname "$0")"/common_s3_seaweedfs.sh
-s3_setup hadoop
+s3_setup
 S3_TEST_DATA_WORDS_URI="s3://$IT_CASE_S3_BUCKET/"
 MATERIALIZED_TABLE_DATA_DIR="${S3_TEST_DATA_WORDS_URI}/test_materialized_table-$(uuidgen)"
 
@@ -218,6 +243,7 @@ create_materialized_table_in_continous_mode $session_handle "my_materialized_tab
 echo "[INFO] Wait deployment ${APPLICATION_CLUSTER_ID} Available"
 kubectl wait --for=condition=Available --timeout=30s deploy/${APPLICATION_CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${APPLICATION_CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
+start_jm_log_capture $jm_pod_name
 echo "[INFO] Wait first checkpoint finished"
 wait_num_checkpoints $jm_pod_name 1
 
@@ -232,6 +258,7 @@ echo "[INFO] Resume materialized table"
 execute_statement $session_handle "alter materialized table my_materialized_table_in_continuous_mode resume"
 kubectl wait --for=condition=Available --timeout=30s deploy/${APPLICATION_CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${APPLICATION_CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
+start_jm_log_capture $jm_pod_name
 echo "[INFO] Wait resumed job finished the first checkpoint"
 wait_num_checkpoints $jm_pod_name 1
 
