@@ -19,6 +19,7 @@
 package org.apache.flink.core.security.token;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 
 import java.util.Optional;
@@ -28,6 +29,19 @@ import java.util.Optional;
  * DelegationTokenManager through service loader. Basically the implementation of this interface is
  * responsible to produce the serialized form of tokens which will be handled by {@link
  * DelegationTokenReceiver} instances both on JobManager and TaskManager side.
+ *
+ * <p><b>Threading contract.</b> A single instance per provider implementation is created and {@link
+ * #init(Configuration, DelegationTokenManagerCallback) initialized} once and then shared for the
+ * lifetime of the manager. {@link #obtainDelegationTokens()} usually runs on the manager's IO
+ * executor, but the first cycle runs on the thread that starts the manager (the ResourceManager
+ * main thread) and one-shot obtains run on the caller's thread, so implementations must not assume
+ * a particular thread. {@link #registerJob(JobID, Configuration)} and {@link #unregisterJob(JobID)}
+ * are invoked from the ResourceManager main thread. These can therefore run concurrently with
+ * {@link #obtainDelegationTokens()}. {@link
+ * DelegationTokenManagerCallback#reobtainDelegationTokens()} may be invoked from any thread.
+ * Implementations must keep any per-job state thread-safe, and {@code registerJob}/{@code
+ * unregisterJob} must be non-blocking so they do not stall the ResourceManager — defer real work to
+ * {@link #obtainDelegationTokens()}.
  */
 @Experimental
 public interface DelegationTokenProvider {
@@ -76,6 +90,25 @@ public interface DelegationTokenProvider {
     void init(Configuration configuration) throws Exception;
 
     /**
+     * Called by DelegationTokenManager to initialize the provider after construction, additionally
+     * handing it a {@link DelegationTokenManagerCallback} it can use to request a token re-obtain.
+     *
+     * <p>This is the entry point the manager actually calls. The default implementation ignores the
+     * callback and delegates to {@link #init(Configuration)}, so providers that do not need to
+     * trigger re-obtains keep implementing only {@link #init(Configuration)}. A provider that wants
+     * to request re-obtains overrides this method, retains the callback, and invokes {@link
+     * DelegationTokenManagerCallback#reobtainDelegationTokens()} when needed.
+     *
+     * @param configuration Configuration to initialize the provider.
+     * @param callback Used to ask the manager to re-obtain tokens. May be retained and called
+     *     later.
+     */
+    default void init(Configuration configuration, DelegationTokenManagerCallback callback)
+            throws Exception {
+        init(configuration);
+    }
+
+    /**
      * Return whether delegation tokens are required for this service.
      *
      * @return true if delegation tokens are required.
@@ -88,4 +121,69 @@ public interface DelegationTokenProvider {
      * @return the obtained delegation tokens.
      */
     ObtainedDelegationTokens obtainDelegationTokens() throws Exception;
+
+    /**
+     * Called with the job's configuration when its JobMaster registers with the ResourceManager.
+     * Re-registration may occur while the job's tasks are running.
+     *
+     * <p>This notification does not gate job initialization: operator coordinators may already have
+     * started. Successful registration does not imply that tokens have been obtained or
+     * distributed.
+     *
+     * <p>To get the job's tokens distributed without waiting for the periodic renewal, call {@link
+     * DelegationTokenManagerCallback#reobtainDelegationTokens()} on the callback handed to {@link
+     * #init(Configuration, DelegationTokenManagerCallback)} to request an asynchronous obtain
+     * cycle, subject to the configured cooldown.
+     *
+     * <p>A provider that requests a re-obtain must record this job's per-job state <em>before</em>
+     * invoking {@link DelegationTokenManagerCallback#reobtainDelegationTokens()}. That call merely
+     * schedules (or coalesces into) an obtain cycle that runs later on another thread. Recording
+     * first establishes the happens-before that lets the serving cycle observe this job's state.
+     * Recording afterwards races with the cycle and the job's tokens may be skipped until the next
+     * periodic renewal.
+     *
+     * <p>Must be idempotent: it may be called more than once for the same {@code jobId} (e.g. on
+     * JobManager or ResourceManager failover, when the JobMaster re-registers).
+     *
+     * <p>Should not throw: an unchecked exception or linkage error rejects the current registration
+     * attempt. If the manager does not currently track a successful registration for this job, it
+     * calls {@link #unregisterJob(JobID)} on all providers to attempt rollback. Otherwise, it keeps
+     * the existing registration and does not invoke {@code unregisterJob} for that failure, because
+     * the job's tasks may still be running. Keeping the registration does not undo changes
+     * providers made during the failed attempt.
+     *
+     * <p>Prefer deferring token retrieval to the retrying {@link #obtainDelegationTokens()} cycle
+     * so transient fetch failures do not prevent registration.
+     *
+     * @param jobId The job id of the job.
+     * @param jobConfiguration The job configuration.
+     */
+    default void registerJob(JobID jobId, Configuration jobConfiguration) {}
+
+    /**
+     * Called to release per-job state when a job is removed, a registration attempt is rolled back,
+     * or the manager stops its current session. A job is removed when it reaches a globally
+     * terminal state or its job-leader registration times out. Must be idempotent and should not
+     * throw.
+     *
+     * <p>Exceptions and linkage errors are caught and logged, so cleanup continues for the other
+     * providers. The manager removes the job from its tracking even if cleanup fails and does not
+     * retain it for a later cleanup attempt. Providers are responsible for releasing any remaining
+     * state in {@link #close()}.
+     *
+     * @param jobId The job id of the job.
+     */
+    default void unregisterJob(JobID jobId) {}
+
+    /**
+     * Closes the provider. Any resources should be released.
+     *
+     * <p>Called at most once, when the manager is closed at process shutdown. It is not called on
+     * ResourceManager leadership changes, those only stop and restart the manager's obtain session
+     * and the provider instance stays in use. An obtain cycle started just before shutdown may
+     * still be running, so {@code close()} may overlap an in-flight {@link
+     * #obtainDelegationTokens()} and implementations must release resources in a way that is safe
+     * with respect to that overlap.
+     */
+    default void close() {}
 }

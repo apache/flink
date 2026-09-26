@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
@@ -303,6 +304,7 @@ class ResourceManagerTest {
                         ResourceID.generate(),
                         jobMasterGateway.getAddress(),
                         jobId,
+                        new Configuration(),
                         TIMEOUT)
                 .get();
 
@@ -363,6 +365,7 @@ class ResourceManagerTest {
                         ResourceID.generate(),
                         jobMasterGateway.getAddress(),
                         jobId,
+                        new Configuration(),
                         TIMEOUT)
                 .get();
 
@@ -421,6 +424,7 @@ class ResourceManagerTest {
                                     jobMasterResourceId,
                                     jobMasterGateway.getAddress(),
                                     jobId,
+                                    new Configuration(),
                                     TIMEOUT);
 
                     assertThatFuture(registrationFuture)
@@ -483,6 +487,7 @@ class ResourceManagerTest {
                                     jobMasterResourceId,
                                     jobMasterGateway.getAddress(),
                                     jobId,
+                                    new Configuration(),
                                     TIMEOUT);
 
                     assertThatFuture(registrationFuture)
@@ -813,6 +818,7 @@ class ResourceManagerTest {
                         ResourceID.generate(),
                         jobMasterGateway.getAddress(),
                         jobId,
+                        new Configuration(),
                         TIMEOUT)
                 .get();
     }
@@ -852,6 +858,7 @@ class ResourceManagerTest {
                 ResourceID.generate(),
                 jobMasterGateway.getAddress(),
                 jobId,
+                new Configuration(),
                 TIMEOUT);
 
         jobAdded.await();
