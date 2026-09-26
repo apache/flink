@@ -251,6 +251,12 @@ def from_schema_proto(schema, one_arg_optimized=False):
         return FlattenRowDataConverter(field_converters)
 
 
+def from_row_schema_proto(schema):
+    return RowDataConverter(
+        [from_field_type_proto(f.type) for f in schema.fields],
+        [f.name for f in schema.fields])
+
+
 def from_field_type_proto(field_type):
     from pyflink.fn_execution import flink_fn_execution_pb2
 
