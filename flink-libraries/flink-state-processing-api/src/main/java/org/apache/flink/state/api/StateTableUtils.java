@@ -32,6 +32,8 @@ import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.state.api.schema.KeyedStateSchemaInfo;
+import org.apache.flink.state.api.schema.NonKeyedStateSchemaInfo;
+import org.apache.flink.state.api.schema.OperatorStateSchemaInfo;
 import org.apache.flink.state.api.schema.SerializerSnapshotToLogicalTypeConverter;
 import org.apache.flink.state.api.schema.StateSchemaExtractor;
 import org.apache.flink.state.api.schema.StateSchemaInfo;
@@ -46,6 +48,7 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 
@@ -67,8 +70,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * High-level utility for inspecting and reading keyed state from a checkpoint / savepoint without
- * requiring user POJO classes on the classpath.
+ * High-level utility for inspecting and reading keyed and non-keyed state from a checkpoint /
+ * savepoint without requiring user POJO classes on the classpath.
  */
 @Internal
 public final class StateTableUtils {
@@ -78,15 +81,11 @@ public final class StateTableUtils {
     private StateTableUtils() {}
 
     /**
-     * Returns the {@link OperatorIdentifier}s of all operators present in the given checkpoint
-     * metadata that have at least one non-internal keyed state.
-     *
-     * @param metadata the checkpoint metadata to inspect
-     * @return list of operator identifiers; never null, may be empty
+     * Returns identifiers of all operators with at least one non-internal keyed or non-keyed state.
      */
     public static List<OperatorIdentifier> getOperatorIdentifiers(CheckpointMetadata metadata) {
         return metadata.getOperatorStates().stream()
-                .filter(StateTableUtils::hasNonInternalKeyedState)
+                .filter(op -> hasNonInternalKeyedState(op) || hasNonInternalOperatorState(op))
                 .map(
                         op ->
                                 op.getOperatorUid()
@@ -113,15 +112,21 @@ public final class StateTableUtils {
         }
     }
 
-    /**
-     * Returns the names of all keyed states registered by the given operator.
-     *
-     * @param metadata the checkpoint metadata to inspect
-     * @param operatorId identifies the operator
-     * @param classLoader the class loader used when reading serializer snapshots
-     * @return list of state names; never null, may be empty
-     * @throws IOException if the state header cannot be read
-     */
+    private static boolean hasNonInternalOperatorState(OperatorState op) {
+        try {
+            List<OperatorStateSchemaInfo> schemas = StateSchemaExtractor.extractOperatorSchema(op);
+            return schemas.stream().anyMatch(info -> !isInternalState(info.stateName));
+        } catch (Exception e) {
+            LOG.error(
+                    "Could not extract non-keyed state schema for operator '{}': {}. "
+                            + "Excluding from catalog.",
+                    op.getOperatorID(),
+                    e.getMessage());
+            return false;
+        }
+    }
+
+    /** Returns the names of all keyed states registered by the given operator. */
     public static List<String> getKeyedStates(
             CheckpointMetadata metadata, OperatorIdentifier operatorId) throws IOException {
         OperatorState opState = findOperatorState(metadata, operatorId);
@@ -133,16 +138,10 @@ public final class StateTableUtils {
     }
 
     /**
-     * Returns the {@link KeyedStateSchemaInfo} for the plain per-key (void-namespace) states of the
-     * given operator — the ones exposed by the {@code _keyed}/{@code _keyed_flat} tables.
-     *
-     * <p>Schema extraction is lenient: POJO field names and types are derived from the serializer
-     * snapshot and do not require the user POJO class to be on the classpath.
-     *
-     * @param metadata the checkpoint metadata to inspect
-     * @param operatorId identifies the operator
-     * @return schema information covering the key type and all registered state entries
-     * @throws IOException if the state header cannot be read
+     * Returns schema info for the plain per-key (void-namespace) states of the given operator — the
+     * ones exposed by the {@code _keyed}/{@code _keyed_flat} tables. Extraction is lenient: field
+     * names/types come from the serializer snapshot, so the user POJO class need not be on the
+     * classpath.
      */
     public static KeyedStateSchemaInfo getKeyedStateSchema(
             CheckpointMetadata metadata, OperatorIdentifier operatorId) throws IOException {
@@ -204,11 +203,7 @@ public final class StateTableUtils {
     }
 
     /**
-     * Logs that a single state's schema could not be extracted and will therefore be excluded from
-     * the table schema, shared by {@link #buildKeyedStateSchemaInfo}.
-     *
-     * @param label a prefix inserted before "state" in the log message (e.g. {@code "non-keyed "}
-     *     or {@code ""}), distinguishing which caller excluded the state
+     * Logs that a state's schema extraction failed and it will be excluded from the table schema.
      */
     private static void logSchemaExtractionFailure(
             String label,
@@ -226,21 +221,10 @@ public final class StateTableUtils {
     }
 
     /**
-     * Builds a {@link CatalogTable} representing all keyed states of an operator.
-     *
-     * <p>The resulting table has one column named {@code "state_key"} for the key and one column
-     * per keyed state. The connector options are pre-populated so the table can be registered
-     * directly in a {@link org.apache.flink.table.catalog.CatalogManager}.
-     *
-     * <p>When the state backend that produced the operator's keyed state can be unambiguously
-     * determined from the checkpoint metadata, {@link SavepointConnectorOptions#STATE_BACKEND_TYPE}
-     * is pre-populated as well, so callers don't need to specify it themselves.
-     *
-     * @param metadata the checkpoint metadata the operator belongs to
-     * @param schemaInfo the schema information returned by {@link #getKeyedStateSchema}
-     * @param statePath the path to the savepoint / checkpoint
-     * @param operatorIdentifier identifies the operator whose state to read
-     * @return a {@link CatalogTable} ready for registration
+     * Builds a {@link CatalogTable} for all keyed states of an operator: one {@code "state_key"}
+     * column plus one column per keyed state. Pre-populates {@link
+     * SavepointConnectorOptions#STATE_BACKEND_TYPE} when it can be unambiguously determined from
+     * the checkpoint metadata.
      */
     public static CatalogTable getStateCatalogTable(
             CheckpointMetadata metadata,
@@ -252,25 +236,13 @@ public final class StateTableUtils {
 
     /**
      * Builds a {@link CatalogTable} exposing a single keyed LIST or MAP state flattened into one
-     * row per list element / map entry, rather than one row per key.
-     *
-     * <p>The resulting table has 3 columns, with a composite primary key on {@code state_key} and
-     * the sub-key column (the {@code state_key} value repeats across rows belonging to the same
-     * key, but the pair uniquely identifies a row). The third column has a fixed name — not the
-     * state's own name, to avoid collisions with other (reserved) column names:
+     * row per list element / map entry, rather than one row per key. Value column names are fixed
+     * rather than the state's own name to avoid collisions with reserved columns:
      *
      * <ul>
-     *   <li>LIST: {@code (state_key, list_index, list_value)}, primary key {@code (state_key,
-     *       list_index)}
-     *   <li>MAP: {@code (state_key, map_key, map_value)}, primary key {@code (state_key, map_key)}
+     *   <li>LIST: {@code (state_key, list_index, list_value)}, PK {@code (state_key, list_index)}
+     *   <li>MAP: {@code (state_key, map_key, map_value)}, PK {@code (state_key, map_key)}
      * </ul>
-     *
-     * @param metadata the checkpoint metadata the operator belongs to
-     * @param schemaInfo the schema information returned by {@link #getKeyedStateSchema}
-     * @param stateName the name of the LIST or MAP state to flatten
-     * @param statePath the path to the savepoint / checkpoint
-     * @param operatorIdentifier identifies the operator whose state to read
-     * @return a {@link CatalogTable} ready for registration
      */
     public static CatalogTable getFlattenedStateCatalogTable(
             CheckpointMetadata metadata,
@@ -466,16 +438,161 @@ public final class StateTableUtils {
         return subKeyColumnName;
     }
 
+    /**
+     * Returns schema info for the non-keyed (operator) states of the given operator — {@code
+     * ListState}, {@code UnionState}, {@code BroadcastState} — exposed by the {@code _list}/{@code
+     * _union}/{@code _broadcast} tables. Extraction is lenient (no user POJO class required on the
+     * classpath); states whose schema can't be determined are excluded with a logged error.
+     */
+    public static NonKeyedStateSchemaInfo getNonKeyedStateSchema(
+            CheckpointMetadata metadata, OperatorIdentifier operatorId) throws IOException {
+        OperatorState opState = findOperatorState(metadata, operatorId);
+        List<OperatorStateSchemaInfo> schemas = StateSchemaExtractor.extractOperatorSchema(opState);
+
+        LinkedHashMap<String, NonKeyedStateSchemaInfo.StateEntryInfo> stateSchemas =
+                new LinkedHashMap<>();
+        for (OperatorStateSchemaInfo info : schemas) {
+            if (isInternalState(info.stateName)) {
+                continue;
+            }
+            try {
+                LogicalType valueLogicalType =
+                        SerializerSnapshotToLogicalTypeConverter.convert(info.valueSnapshot);
+                LogicalType mapKeyLogicalType =
+                        info.keySnapshot == null
+                                ? null
+                                : SerializerSnapshotToLogicalTypeConverter.convert(
+                                        info.keySnapshot);
+                stateSchemas.put(
+                        info.stateName,
+                        new NonKeyedStateSchemaInfo.StateEntryInfo(
+                                info.kind, valueLogicalType, mapKeyLogicalType));
+            } catch (Exception e) {
+                logSchemaExtractionFailure("non-keyed ", info.stateName, info.valueSnapshot, e);
+            }
+        }
+
+        return new NonKeyedStateSchemaInfo(stateSchemas);
+    }
+
+    /**
+     * Builds a {@link CatalogTable} exposing a single {@code ListState} or {@code UnionState}, with
+     * one row per list element: a ROW-typed value contributes one column per field, a scalar value
+     * gets a single column named after the state. No ordering column and no primary key, since no
+     * column is guaranteed unique across rows. Unlike the keyed table builders, this does not set
+     * {@link SavepointConnectorOptions#STATE_BACKEND_TYPE} since non-keyed state isn't part of a
+     * state backend.
+     */
+    public static CatalogTable getOperatorStateCatalogTable(
+            NonKeyedStateSchemaInfo schemaInfo,
+            String stateName,
+            String statePath,
+            OperatorIdentifier operatorIdentifier) {
+
+        NonKeyedStateSchemaInfo.StateEntryInfo entryInfo =
+                findNonKeyedStateEntry(schemaInfo, stateName, operatorIdentifier);
+        if (entryInfo.kind != SavepointConnectorOptions.StateReaderMode.LIST
+                && entryInfo.kind != SavepointConnectorOptions.StateReaderMode.UNION) {
+            throw new IllegalArgumentException(
+                    "Operator state tables are only supported for LIST and UNION states, but '"
+                            + stateName
+                            + "' is "
+                            + entryInfo.kind
+                            + ".");
+        }
+
+        Schema.Builder schemaBuilder = Schema.newBuilder();
+        if (entryInfo.valueLogicalType instanceof RowType) {
+            for (RowType.RowField field : ((RowType) entryInfo.valueLogicalType).getFields()) {
+                schemaBuilder.column(
+                        field.getName(), LogicalTypeDataTypeConverter.toDataType(field.getType()));
+            }
+        } else {
+            schemaBuilder.column(
+                    stateName, LogicalTypeDataTypeConverter.toDataType(entryInfo.valueLogicalType));
+        }
+
+        Map<String, String> options =
+                buildBaseConnectorOptions(statePath, operatorIdentifier, entryInfo.kind);
+        options.put(SavepointConnectorOptions.FLATTENED_STATE_NAME.key(), stateName);
+
+        return CatalogTable.newBuilder().schema(schemaBuilder.build()).options(options).build();
+    }
+
+    /**
+     * Builds a {@link CatalogTable} exposing a single {@code BroadcastState}, one row per map
+     * entry: {@code (map_key NOT NULL, map_value)} with PK {@code map_key}. Column names are fixed
+     * rather than the state's own name to avoid collisions with reserved columns. Like {@link
+     * #getOperatorStateCatalogTable}, this does not set {@link
+     * SavepointConnectorOptions#STATE_BACKEND_TYPE}.
+     */
+    public static CatalogTable getBroadcastStateCatalogTable(
+            NonKeyedStateSchemaInfo schemaInfo,
+            String stateName,
+            String statePath,
+            OperatorIdentifier operatorIdentifier) {
+
+        NonKeyedStateSchemaInfo.StateEntryInfo entryInfo =
+                findNonKeyedStateEntry(schemaInfo, stateName, operatorIdentifier);
+        if (entryInfo.kind != SavepointConnectorOptions.StateReaderMode.BROADCAST) {
+            throw new IllegalArgumentException(
+                    "Broadcast state tables are only supported for BROADCAST states, but '"
+                            + stateName
+                            + "' is "
+                            + entryInfo.kind
+                            + ".");
+        }
+
+        Schema schema =
+                Schema.newBuilder()
+                        .column(
+                                "map_key",
+                                LogicalTypeDataTypeConverter.toDataType(entryInfo.mapKeyLogicalType)
+                                        .notNull())
+                        .column(
+                                "map_value",
+                                LogicalTypeDataTypeConverter.toDataType(entryInfo.valueLogicalType))
+                        .primaryKeyNamed("PK_map_key", "map_key")
+                        .build();
+
+        Map<String, String> options =
+                buildBaseConnectorOptions(
+                        statePath,
+                        operatorIdentifier,
+                        SavepointConnectorOptions.StateReaderMode.BROADCAST);
+        options.put(SavepointConnectorOptions.FLATTENED_STATE_NAME.key(), stateName);
+
+        return CatalogTable.newBuilder().schema(schema).options(options).build();
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
 
     /**
-     * Resolves the SQL column {@link org.apache.flink.table.types.DataType} for a single state's
-     * value column, forcing it nullable for VALUE-shaped state: unlike LIST/MAP (which always have
-     * a value, possibly empty), a {@code ValueState}/{@code ReducingState}/{@code AggregatingState}
-     * can legitimately hold no value (e.g. never written, or cleared by a trigger such as {@code
-     * CountTrigger}), in which case a read returns {@code null}.
+     * Looks up a single non-keyed state entry, failing rather than returning {@code null} when the
+     * operator has no such state.
+     */
+    private static NonKeyedStateSchemaInfo.StateEntryInfo findNonKeyedStateEntry(
+            NonKeyedStateSchemaInfo schemaInfo,
+            String stateName,
+            OperatorIdentifier operatorIdentifier) {
+        NonKeyedStateSchemaInfo.StateEntryInfo entryInfo = schemaInfo.stateSchemas.get(stateName);
+        if (entryInfo == null) {
+            throw new IllegalArgumentException(
+                    "State '"
+                            + stateName
+                            + "' not found for operator '"
+                            + operatorIdentifier
+                            + "'.");
+        }
+        return entryInfo;
+    }
+
+    /**
+     * Resolves the value column's {@link org.apache.flink.table.types.DataType}, forcing it
+     * nullable for VALUE-shaped state: unlike LIST/MAP, a {@code ValueState} can legitimately hold
+     * no value (never written, or cleared by a trigger), so a read may return {@code null}.
      */
     private static DataType stateValueColumnDataType(
             KeyedStateSchemaInfo.StateEntryInfo entryInfo) {
@@ -497,13 +614,9 @@ public final class StateTableUtils {
     }
 
     /**
-     * Returns the base connector options ({@link FactoryUtil#CONNECTOR}, {@link
-     * SavepointConnectorOptions#STATE_PATH}, {@link SavepointConnectorOptions#STATE_READER_MODE},
-     * and the operator identifier option) shared by every savepoint-backed {@link CatalogTable}.
-     *
-     * <p>{@code readerMode} is always set explicitly rather than relying on {@link
-     * SavepointConnectorOptions#STATE_READER_MODE}'s default value, so that every catalog table's
-     * options unambiguously reflect its schema.
+     * Returns the base connector options shared by every savepoint-backed {@link CatalogTable}.
+     * {@code readerMode} is always set explicitly rather than relying on the option's default, so
+     * every table's options unambiguously reflect its schema.
      */
     private static Map<String, String> buildBaseConnectorOptions(
             String statePath,
@@ -525,10 +638,9 @@ public final class StateTableUtils {
     }
 
     /**
-     * Adds {@link SavepointConnectorOptions#STATE_BACKEND_TYPE} to {@code options} when it can be
-     * unambiguously determined from the checkpoint metadata. Only meaningful for keyed state
-     * tables: non-keyed (list/union/broadcast) state isn't stored in a state backend, so callers
-     * for those table kinds must not call this.
+     * Adds {@link SavepointConnectorOptions#STATE_BACKEND_TYPE} when it can be unambiguously
+     * determined. Only meaningful for keyed state tables — non-keyed state isn't stored in a state
+     * backend.
      */
     private static void withStateBackendType(
             Map<String, String> options,
@@ -543,16 +655,12 @@ public final class StateTableUtils {
     }
 
     /**
-     * Attempts to determine the state backend (shortcut name, see {@link
-     * StateBackendLoader#HASHMAP_STATE_BACKEND_NAME} / {@link
-     * StateBackendLoader#ROCKSDB_STATE_BACKEND_NAME}) that produced the operator's keyed state, by
-     * inspecting the concrete {@link KeyedStateHandle} subtype found in the checkpoint metadata:
-     * heap/HashMap backends produce {@link KeyGroupsStateHandle}, RocksDB/ForSt backends produce
-     * {@link IncrementalKeyedStateHandle}.
-     *
-     * <p>Canonical-format savepoints rewrite keyed state into the backend-agnostic {@link
-     * KeyGroupsSavepointStateHandle}, in which case the originating backend can no longer be
-     * determined from the handle alone; an empty result is returned rather than guessing.
+     * Attempts to determine the state backend that produced the operator's keyed state, from the
+     * concrete {@link KeyedStateHandle} subtype: heap/HashMap backends produce {@link
+     * KeyGroupsStateHandle}, RocksDB/ForSt produce {@link IncrementalKeyedStateHandle}.
+     * Canonical-format savepoints rewrite state into the backend-agnostic {@link
+     * KeyGroupsSavepointStateHandle}, in which case the backend can't be told and an empty result
+     * is returned.
      */
     static Optional<String> detectStateBackendType(OperatorState opState) {
         Set<String> detectedTypes = new HashSet<>();
@@ -584,8 +692,7 @@ public final class StateTableUtils {
             } else if (handle instanceof IncrementalKeyedStateHandle) {
                 detectedTypes.add(StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME);
             } else if (handle instanceof KeyGroupsSavepointStateHandle) {
-                // Canonical-format savepoints rewrite keyed state into a backend-agnostic
-                // format; the originating backend can no longer be told apart from the handle.
+                // backend-agnostic format; origin can't be told apart from the handle
             } else if (handle instanceof KeyGroupsStateHandle) {
                 detectedTypes.add(StateBackendLoader.HASHMAP_STATE_BACKEND_NAME);
             } else {
@@ -601,11 +708,9 @@ public final class StateTableUtils {
     }
 
     /**
-     * Returns {@code true} if a state is plain per-key state (registered with {@code
-     * VoidNamespace}) and {@code false} if it is scoped by some other namespace (e.g. a window).
-     *
-     * <p>A missing namespace snapshot (e.g. from an older savepoint format) is treated as void,
-     * matching pre-existing behavior.
+     * Returns {@code true} for plain per-key state (registered with {@code VoidNamespace}), {@code
+     * false} if scoped by another namespace (e.g. a window). A missing snapshot (older savepoint
+     * format) is treated as void.
      */
     private static boolean isVoidNamespace(TypeSerializerSnapshot<?> namespaceSnapshot) {
         return namespaceSnapshot == null
@@ -633,16 +738,10 @@ public final class StateTableUtils {
     }
 
     /**
-     * Partitions the user-registered states of a single operator into plain per-key
-     * (void-namespace) states and namespaced states, resolving the namespaced states' shared {@link
-     * LogicalType} along the way.
-     *
-     * <p>An operator may register states under more than one distinct namespace <em>type</em> only
-     * via hand-rolled state access (no built-in windowing API does this); when that happens, the
-     * first namespace type whose schema can be determined is kept, and every other group is
-     * excluded with a logged warning.
-     *
-     * @param operatorLabel a human-readable operator identifier, used only for log messages
+     * Partitions user-registered states into plain per-key (void-namespace) and namespaced states,
+     * resolving the namespaced states' shared {@link LogicalType}. An operator can register more
+     * than one namespace type only via hand-rolled state access; when that happens, the first
+     * resolvable namespace type is kept and the rest excluded with a warning.
      */
     private static ClassifiedStates classifyStates(
             String operatorLabel, List<StateSchemaInfo> schemas) {
