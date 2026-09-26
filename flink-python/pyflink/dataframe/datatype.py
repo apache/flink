@@ -16,13 +16,10 @@
 # limitations under the License.
 ################################################################################
 
-import datetime
-import decimal
-import types
-from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, get_args, get_origin
+from typing import Any, Dict, List, Tuple, Union
 
 from pyflink.table.types import DataType as TableDataType, DataTypes, NullType
+from pyflink.table.typehints import _from_python_type
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["DataType"]
@@ -31,21 +28,6 @@ _INT_MIN = -(1 << 31)
 _INT_MAX = (1 << 31) - 1
 _BIGINT_MIN = -(1 << 63)
 _BIGINT_MAX = (1 << 63) - 1
-_PEP_604_UNION_TYPE = getattr(types, "UnionType", None)
-
-_BASIC_TYPE_HINT_FACTORIES: Dict[Any, Callable[[], TableDataType]] = {
-    bool: DataTypes.BOOLEAN,
-    int: DataTypes.BIGINT,
-    float: DataTypes.DOUBLE,
-    str: DataTypes.STRING,
-    bytes: DataTypes.BYTES,
-    bytearray: DataTypes.BYTES,
-    decimal.Decimal: partial(DataTypes.DECIMAL, 38, 18),
-    datetime.date: DataTypes.DATE,
-    datetime.time: DataTypes.TIME,
-    datetime.datetime: DataTypes.TIMESTAMP,
-    Any: DataTypes.STRING,
-}
 
 
 @PublicEvolving()
@@ -382,61 +364,7 @@ class DataType:
 
     @classmethod
     def _from_type_hint(cls, type_hint: Any) -> "DataType":
-        def infer_union_type(hint: Any, arguments: Tuple[Any, ...]) -> "DataType":
-            non_none_types = [
-                argument for argument in arguments if argument is not type(None)
-            ]
-            if len(non_none_types) == 1:
-                return infer(non_none_types[0]).nullable()
-
-            raise TypeError(
-                f"Cannot infer DataType from type hint '{hint}'. "
-                "Please specify the data type explicitly."
-            )
-
-        def infer_basic_type(hint: Any) -> Optional["DataType"]:
-            factory = _BASIC_TYPE_HINT_FACTORIES.get(hint)
-            return cls(factory()) if factory is not None else None
-
-        def infer(hint: Any) -> "DataType":
-            origin = get_origin(hint)
-            arguments = get_args(hint)
-
-            if origin is Union or (
-                _PEP_604_UNION_TYPE is not None
-                and origin is _PEP_604_UNION_TYPE
-            ):
-                return infer_union_type(hint, arguments)
-
-            if origin is list:
-                if not arguments:
-                    raise TypeError(
-                        "Cannot infer DataType from list without type argument. "
-                        "Use list[T], for example list[int]."
-                    )
-                return cls.list(infer(arguments[0]))
-
-            if origin is dict:
-                if len(arguments) != 2:
-                    raise TypeError(
-                        "Cannot infer DataType from dict without key and value type arguments. "
-                        "Use dict[K, V], for example dict[str, int]."
-                    )
-                return cls.map(
-                    infer(arguments[0]),
-                    infer(arguments[1]),
-                )
-
-            data_type = infer_basic_type(hint)
-            if data_type is not None:
-                return data_type
-
-            raise TypeError(
-                f"Cannot infer DataType from type hint '{hint}'. "
-                "Please specify the data type explicitly."
-            )
-
-        return infer(type_hint)
+        return cls(_from_python_type(type_hint))
 
     @classmethod
     def _from_sql(cls, sql_type: str) -> "DataType":

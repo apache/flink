@@ -240,19 +240,28 @@ class DataTypeTests(unittest.TestCase):
             bytearray: pf.DataType.binary(),
             decimal.Decimal: pf.DataType.decimal(38, 18),
             datetime.date: pf.DataType.date(),
-            datetime.time: pf.DataType.time(),
+            datetime.time: pf.DataType.time(3),
             datetime.datetime: pf.DataType.timestamp(),
-            Any: pf.DataType.string(),
         }
 
         for python_type, expected_type in expected_types.items():
             with self.subTest(python_type=python_type):
                 self.assertEqual(
                     pf.DataType._from_type_hint(python_type),
-                    expected_type,
+                    expected_type.not_null(),
                 )
 
+        # `Any` opts out of the type system, so it stays nullable STRING.
+        self.assertEqual(
+            pf.DataType._from_type_hint(Any),
+            pf.DataType.string(),
+        )
+
     def test_from_optional_type_hint(self):
+        self.assertEqual(
+            pf.DataType._from_type_hint(int),
+            pf.DataType.int64().not_null(),
+        )
         self.assertEqual(
             pf.DataType._from_type_hint(Optional[int]),
             pf.DataType.int64(),
@@ -269,7 +278,7 @@ class DataTypeTests(unittest.TestCase):
         )
         self.assertEqual(
             pf.DataType._from_type_hint(list[int | None]),
-            pf.DataType.list(dtype=pf.DataType.int64()),
+            pf.DataType.list(dtype=pf.DataType.int64()).not_null(),
         )
         with self.assertRaises(TypeError):
             pf.DataType._from_type_hint(int | str)
@@ -277,16 +286,16 @@ class DataTypeTests(unittest.TestCase):
     def test_from_list_type_hint(self):
         self.assertEqual(
             pf.DataType._from_type_hint(list[int]),
-            pf.DataType.list(dtype=pf.DataType.int64()),
+            pf.DataType.list(dtype=pf.DataType.int64().not_null()).not_null(),
         )
 
     def test_from_dict_type_hint(self):
         self.assertEqual(
             pf.DataType._from_type_hint(dict[str, float]),
             pf.DataType.map(
-                key_type=pf.DataType.string(),
-                value_type=pf.DataType.float64(),
-            ),
+                key_type=pf.DataType.string().not_null(),
+                value_type=pf.DataType.float64().not_null(),
+            ).not_null(),
         )
 
     def test_from_type_hint_rejects_ambiguous_or_incomplete_hints(self):
