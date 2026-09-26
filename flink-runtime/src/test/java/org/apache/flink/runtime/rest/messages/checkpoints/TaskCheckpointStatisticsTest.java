@@ -37,6 +37,6 @@ class TaskCheckpointStatisticsTest
     @Override
     protected TaskCheckpointStatistics getTestResponseInstance() throws Exception {
         return new TaskCheckpointStatistics(
-                1L, CheckpointStatsStatus.FAILED, 42L, 1L, 1L, 23L, 1337L, 1338, 1339, 9, 8);
+                1L, CheckpointStatsStatus.FAILED, 42L, 1L, 1L, 23L, 1337L, 1338, 1339, 9, 8, null);
     }
 }

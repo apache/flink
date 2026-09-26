@@ -23,7 +23,10 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
 
 import java.util.Objects;
 
@@ -58,6 +61,8 @@ public class TaskCheckpointStatistics implements ResponseBody {
 
     public static final String FIELD_NAME_NUM_ACK_SUBTASKS = "num_acknowledged_subtasks";
 
+    public static final String FIELD_NAME_OLDEST_REF_CHECKPOINT_ID = "oldest_ref_checkpoint_id";
+
     @JsonProperty(FIELD_NAME_ID)
     private final long checkpointId;
 
@@ -91,6 +96,11 @@ public class TaskCheckpointStatistics implements ResponseBody {
     @JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS)
     private final int numAckSubtasks;
 
+    @JsonProperty(FIELD_NAME_OLDEST_REF_CHECKPOINT_ID)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Nullable
+    private final Long oldestRefCheckpointId;
+
     @JsonCreator
     public TaskCheckpointStatistics(
             @JsonProperty(FIELD_NAME_ID) long checkpointId,
@@ -103,7 +113,9 @@ public class TaskCheckpointStatistics implements ResponseBody {
             @JsonProperty(FIELD_NAME_PROCESSED_DATA) long processedData,
             @JsonProperty(FIELD_NAME_PERSISTED_DATA) long persistedData,
             @JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
-            @JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks) {
+            @JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
+            @JsonProperty(FIELD_NAME_OLDEST_REF_CHECKPOINT_ID) @Nullable
+                    Long oldestRefCheckpointId) {
 
         this.checkpointId = checkpointId;
         this.checkpointStatus = Preconditions.checkNotNull(checkpointStatus);
@@ -116,6 +128,7 @@ public class TaskCheckpointStatistics implements ResponseBody {
         this.persistedData = persistedData;
         this.numSubtasks = numSubtasks;
         this.numAckSubtasks = numAckSubtasks;
+        this.oldestRefCheckpointId = oldestRefCheckpointId;
     }
 
     public long getLatestAckTimestamp() {
@@ -150,6 +163,11 @@ public class TaskCheckpointStatistics implements ResponseBody {
         return checkpointStatus;
     }
 
+    @Nullable
+    public Long getOldestRefCheckpointId() {
+        return oldestRefCheckpointId;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -169,7 +187,8 @@ public class TaskCheckpointStatistics implements ResponseBody {
                 && persistedData == that.persistedData
                 && numSubtasks == that.numSubtasks
                 && numAckSubtasks == that.numAckSubtasks
-                && checkpointStatus == that.checkpointStatus;
+                && checkpointStatus == that.checkpointStatus
+                && Objects.equals(oldestRefCheckpointId, that.oldestRefCheckpointId);
     }
 
     @Override
@@ -185,6 +204,7 @@ public class TaskCheckpointStatistics implements ResponseBody {
                 processedData,
                 persistedData,
                 numSubtasks,
-                numAckSubtasks);
+                numAckSubtasks,
+                oldestRefCheckpointId);
     }
 }
