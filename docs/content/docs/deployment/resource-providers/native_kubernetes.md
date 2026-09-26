@@ -48,6 +48,7 @@ For more information, please refer to the [Flink Kubernetes Operator documentati
 The *Getting Started* section assumes a running Kubernetes cluster fulfilling the following requirements:
 
 - Kubernetes >= 1.9.
+- Java 11.0.19 or newer when running Flink on Java 11; Java 17 and later are unaffected (see [Java compatibility]({{< ref "docs/deployment/java_compatibility" >}}#native-kubernetes-minimum-version)).
 - KubeConfig, which has access to list, create, delete pods and services, configurable via `~/.kube/config`. You can verify permissions by running `kubectl auth can-i <list|create|edit|delete> pods`.
 - Enabled Kubernetes DNS.
 - `default` service account with [RBAC](#rbac) permissions to create, delete pods.

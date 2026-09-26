@@ -170,6 +170,8 @@ under the License.
 									<include>io.opentelemetry:*</include>
 									<include>com.squareup.okhttp3:*</include>
 									<include>com.squareup.okio:*</include>
+									<!-- OkHttp 4.x is written in Kotlin and requires the Kotlin stdlib at runtime -->
+									<include>org.jetbrains.kotlin:*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
