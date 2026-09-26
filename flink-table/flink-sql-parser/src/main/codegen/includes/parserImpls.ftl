@@ -3233,16 +3233,19 @@ SqlNode SqlCompileAndExecutePlan() :
 SqlNode SqlCompilePlan() :
 {
     SqlParserPos startPos;
-    SqlNode filePath;
+    SqlNode filePath = null;
     boolean ifNotExists;
     SqlNode operand;
 }
 {
     <COMPILE> <PLAN> { startPos = getPos(); }
 
-    filePath = StringLiteral()
-
-    ifNotExists = IfNotExistsOpt()
+    (
+        filePath = StringLiteral()
+        ifNotExists = IfNotExistsOpt()
+    |
+        { ifNotExists = false; }
+    )
 
     <FOR>
 
