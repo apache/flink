@@ -37,7 +37,7 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.CompressedSerializedValue;
 
@@ -48,7 +48,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
@@ -56,9 +55,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CachedShuffleDescriptors}. */
 class CachedShuffleDescriptorsTest {
+    /**
+     * Future executor that runs the deployment callbacks inline on the test thread instead of
+     * racing it from another thread (FLINK-40682).
+     */
     @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorExtension();
+    static final TestExecutorExtension<DirectScheduledExecutorService> EXECUTOR_RESOURCE =
+            new TestExecutorExtension<>(DirectScheduledExecutorService::new);
 
     @Test
     void testCreateAndGet() throws Exception {
