@@ -23,14 +23,16 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.operators.Order;
+import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -46,10 +48,12 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorAttributes;
 import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.MutableObjectIterator;
+
+import java.util.Arrays;
 
 /**
  * The {@link KeyedSortPartitionOperator} sorts records of a partition on {@link KeyedStream}. It
@@ -92,10 +96,11 @@ public class KeyedSortPartitionOperator<INPUT, KEY> extends AbstractStreamOperat
     /**
      * The sorter to sort both key and record if the record is not sorted by {@link KeySelector}.
      */
-    private PushSorter<Tuple2<byte[], INPUT>> recordSorter = null;
+    private PushSorter<Tuple2<byte[], StreamRecord<INPUT>>> recordSorter = null;
 
     /** The sorter to sort both key and record if the record is sorted by {@link KeySelector}. */
-    private PushSorter<Tuple2<byte[], Tuple2<?, INPUT>>> recordSorterForSelector = null;
+    private PushSorter<Tuple2<byte[], Tuple2<?, StreamRecord<INPUT>>>> recordSorterForSelector =
+            null;
 
     private TypeSerializer<KEY> recordKeySerializer;
 
@@ -145,63 +150,32 @@ public class KeyedSortPartitionOperator<INPUT, KEY> extends AbstractStreamOperat
         recordKeySerializer = config.getStateKeySerializer(userCodeClassLoader);
         int keyLength = recordKeySerializer.getLength();
         createDataOutputSerializer(keyLength);
+        TypeSerializer<StreamRecord<INPUT>> streamRecordSerializer =
+                createStreamRecordSerializer(
+                        inputType.createSerializer(executionConfig.getSerializerConfig()));
         if (sortFieldSelector != null) {
-            TypeInformation<Tuple2<?, INPUT>> valueType =
-                    Types.TUPLE(
-                            TypeExtractor.getKeySelectorTypes(sortFieldSelector, inputType),
-                            inputType);
-            KeyAndValueSerializer<Tuple2<?, INPUT>> valueSerializer =
-                    new KeyAndValueSerializer<>(
-                            valueType.createSerializer(getExecutionConfig().getSerializerConfig()),
-                            keyLength);
-            TypeComparator<Tuple2<byte[], Tuple2<?, INPUT>>> sortTypeComparator;
-            if (keyLength > 0) {
-                sortTypeComparator =
-                        new FixedLengthByteKeyAndValueComparator<>(
-                                keyLength,
-                                ((CompositeType<Tuple2<?, INPUT>>) valueType)
-                                        .createComparator(
-                                                getSortFieldIndex(),
-                                                getSortOrderIndicator(),
-                                                0,
-                                                executionConfig));
-            } else {
-                sortTypeComparator =
-                        new VariableLengthByteKeyAndValueComparator<>(
-                                ((CompositeType<Tuple2<?, INPUT>>) valueType)
-                                        .createComparator(
-                                                getSortFieldIndex(),
-                                                getSortOrderIndicator(),
-                                                0,
-                                                executionConfig));
-            }
-            recordSorterForSelector =
-                    getSorter(valueSerializer, sortTypeComparator, containingTask);
+            setupRecordSorterForKeySelector(
+                    executionConfig, containingTask, keyLength, streamRecordSerializer);
         } else {
-            KeyAndValueSerializer<INPUT> valueSerializer =
-                    new KeyAndValueSerializer<>(
-                            inputType.createSerializer(getExecutionConfig().getSerializerConfig()),
-                            keyLength);
-            TypeComparator<Tuple2<byte[], INPUT>> sortTypeComparator;
+            KeyAndValueSerializer<StreamRecord<INPUT>> valueSerializer =
+                    new KeyAndValueSerializer<>(streamRecordSerializer, keyLength);
+            StreamRecordComparator<INPUT> streamRecordComparator =
+                    new StreamRecordComparator<>(
+                            ((CompositeType<INPUT>) inputType)
+                                    .createComparator(
+                                            getSortFieldIndex(),
+                                            getSortOrderIndicator(),
+                                            0,
+                                            executionConfig),
+                            streamRecordSerializer);
+            TypeComparator<Tuple2<byte[], StreamRecord<INPUT>>> sortTypeComparator;
             if (keyLength > 0) {
                 sortTypeComparator =
                         new FixedLengthByteKeyAndValueComparator<>(
-                                keyLength,
-                                ((CompositeType<INPUT>) inputType)
-                                        .createComparator(
-                                                getSortFieldIndex(),
-                                                getSortOrderIndicator(),
-                                                0,
-                                                executionConfig));
+                                keyLength, streamRecordComparator);
             } else {
                 sortTypeComparator =
-                        new VariableLengthByteKeyAndValueComparator<>(
-                                ((CompositeType<INPUT>) inputType)
-                                        .createComparator(
-                                                getSortFieldIndex(),
-                                                getSortOrderIndicator(),
-                                                0,
-                                                executionConfig));
+                        new VariableLengthByteKeyAndValueComparator<>(streamRecordComparator);
             }
             recordSorter = getSorter(valueSerializer, sortTypeComparator, containingTask);
         }
@@ -217,37 +191,97 @@ public class KeyedSortPartitionOperator<INPUT, KEY> extends AbstractStreamOperat
             recordSorterForSelector.writeRecord(
                     Tuple2.of(
                             serializedKey,
-                            Tuple2.of(
-                                    sortFieldSelector.getKey(element.getValue()),
-                                    element.getValue())));
+                            Tuple2.of(sortFieldSelector.getKey(element.getValue()), element)));
         } else {
-            recordSorter.writeRecord(Tuple2.of(serializedKey, element.getValue()));
+            recordSorter.writeRecord(Tuple2.of(serializedKey, element));
         }
     }
 
     @Override
     public void endInput() throws Exception {
-        TimestampedCollector<INPUT> outputCollector = new TimestampedCollector<>(output);
         if (sortFieldSelector != null) {
             recordSorterForSelector.finishReading();
-            MutableObjectIterator<Tuple2<byte[], Tuple2<?, INPUT>>> iterator =
+            MutableObjectIterator<Tuple2<byte[], Tuple2<?, StreamRecord<INPUT>>>> iterator =
                     recordSorterForSelector.getIterator();
-            Tuple2<byte[], Tuple2<?, INPUT>> record = iterator.next();
+            Tuple2<byte[], Tuple2<?, StreamRecord<INPUT>>> record = iterator.next();
             while (record != null) {
-                outputCollector.collect(record.f1.f1);
+                output.collect(record.f1.f1);
                 record = iterator.next();
             }
             recordSorterForSelector.close();
         } else {
             recordSorter.finishReading();
-            MutableObjectIterator<Tuple2<byte[], INPUT>> iterator = recordSorter.getIterator();
-            Tuple2<byte[], INPUT> record = iterator.next();
+            MutableObjectIterator<Tuple2<byte[], StreamRecord<INPUT>>> iterator =
+                    recordSorter.getIterator();
+            Tuple2<byte[], StreamRecord<INPUT>> record = iterator.next();
             while (record != null) {
-                outputCollector.collect(record.f1);
+                output.collect(record.f1);
                 record = iterator.next();
             }
             recordSorter.close();
         }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private <K> void setupRecordSorterForKeySelector(
+            ExecutionConfig executionConfig,
+            StreamTask<?, ?> containingTask,
+            int keyLength,
+            TypeSerializer<StreamRecord<INPUT>> streamRecordSerializer) {
+        KeySelector<INPUT, K> typedSortFieldSelector = (KeySelector<INPUT, K>) sortFieldSelector;
+        TypeInformation<K> keyType =
+                TypeExtractor.getKeySelectorTypes(typedSortFieldSelector, inputType);
+        TypeSerializer<K> keySerializer =
+                keyType.createSerializer(executionConfig.getSerializerConfig());
+        TupleSerializer<Tuple2<K, StreamRecord<INPUT>>> tupleSerializer =
+                new TupleSerializer<>(
+                        (Class<Tuple2<K, StreamRecord<INPUT>>>) (Class<?>) Tuple2.class,
+                        new TypeSerializer<?>[] {keySerializer, streamRecordSerializer});
+        TupleComparator<Tuple2<K, StreamRecord<INPUT>>> tupleComparator =
+                new TupleComparator<>(
+                        new int[] {0},
+                        new TypeComparator<?>[] {
+                            createKeyComparator(keyType, typedSortFieldSelector, executionConfig)
+                        },
+                        new TypeSerializer<?>[] {keySerializer, streamRecordSerializer});
+        KeyAndValueSerializer<Tuple2<K, StreamRecord<INPUT>>> valueSerializer =
+                new KeyAndValueSerializer<>(tupleSerializer, keyLength);
+        TypeComparator<Tuple2<byte[], Tuple2<K, StreamRecord<INPUT>>>> sortTypeComparator;
+        if (keyLength > 0) {
+            sortTypeComparator =
+                    new FixedLengthByteKeyAndValueComparator<>(keyLength, tupleComparator);
+        } else {
+            sortTypeComparator = new VariableLengthByteKeyAndValueComparator<>(tupleComparator);
+        }
+        recordSorterForSelector =
+                (PushSorter) getSorter(valueSerializer, sortTypeComparator, containingTask);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <K> TypeComparator<K> createKeyComparator(
+            TypeInformation<K> keyType,
+            KeySelector<INPUT, K> keySelector,
+            ExecutionConfig executionConfig) {
+        boolean ascending = sortOrder == Order.ASCENDING;
+        if (keyType instanceof CompositeType) {
+            Keys.SelectorFunctionKeys<INPUT, K> sortKey =
+                    new Keys.SelectorFunctionKeys<>(keySelector, inputType, keyType);
+            int[] sortFieldIndex = sortKey.computeLogicalKeyPositions();
+            boolean[] sortOrderIndicator = new boolean[sortFieldIndex.length];
+            Arrays.fill(sortOrderIndicator, ascending);
+            return ((CompositeType<K>) keyType)
+                    .createComparator(sortFieldIndex, sortOrderIndicator, 0, executionConfig);
+        } else if (keyType instanceof AtomicType) {
+            return ((AtomicType<K>) keyType).createComparator(ascending, executionConfig);
+        }
+        throw new UnsupportedOperationException(
+                "Partition sorting does not support key type " + keyType + " yet.");
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static <T> TypeSerializer<StreamRecord<T>> createStreamRecordSerializer(
+            TypeSerializer<T> valueSerializer) {
+        return (TypeSerializer) new StreamElementSerializer<>(valueSerializer);
     }
 
     @Override
