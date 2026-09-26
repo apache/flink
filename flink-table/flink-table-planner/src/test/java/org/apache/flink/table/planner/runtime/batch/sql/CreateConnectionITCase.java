@@ -165,13 +165,17 @@ class CreateConnectionITCase extends BatchTestBase {
     void testDescribeTemporaryConnection() {
         tEnv().executeSql(
                         "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
-                                + "WITH ('type' = 'default', 'k' = 'v', 'password' = 'super-secret')");
+                                + "WITH ('type' = 'default', 'k' = 'v', 'comment' = 'option comment', "
+                                + "'password' = 'super-secret')");
 
         List<Row> rows = collectRows("DESCRIBE CONNECTION my_conn");
 
         assertThat(rows)
                 .contains(
-                        Row.of("k", "v"), Row.of("type", "default"), Row.of("comment", "hi there"));
+                        Row.of("type", "default"),
+                        Row.of("option:comment", "option comment"),
+                        Row.of("option:k", "v"),
+                        Row.of("comment", "hi there"));
         assertThat(rows.stream().map(Row::toString))
                 .noneMatch(row -> row.contains("super-secret"))
                 .noneMatch(row -> row.contains("password"))

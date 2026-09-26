@@ -99,9 +99,17 @@ public class DescribeConnectionOperation implements Operation, ExecutableOperati
                         ShowCreateUtil.withoutConnectionInternalOptions(connection.getOptions()));
         options.putIfAbsent(
                 FactoryUtil.CONNECTION_TYPE.key(), FactoryUtil.CONNECTION_TYPE.defaultValue());
+        rows.add(
+                new Object[] {
+                    FactoryUtil.CONNECTION_TYPE.key(),
+                    options.remove(FactoryUtil.CONNECTION_TYPE.key())
+                });
         options.forEach(
                 (key, value) -> {
-                    rows.add(new Object[] {key, maskValue(key, value, additionalSensitiveKeys)});
+                    rows.add(
+                            new Object[] {
+                                "option:" + key, maskValue(key, value, additionalSensitiveKeys)
+                            });
                 });
         if (connection.getComment() != null && !connection.getComment().isEmpty()) {
             rows.add(new Object[] {"comment", connection.getComment()});
