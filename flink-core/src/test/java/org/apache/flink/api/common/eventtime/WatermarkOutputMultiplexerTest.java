@@ -20,6 +20,8 @@ package org.apache.flink.api.common.eventtime;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -442,6 +444,111 @@ class WatermarkOutputMultiplexerTest {
         multiplexer.onPeriodicEmit();
         assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(emittedWatermark);
         assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
+    }
+
+    @Test
+    void whenIdleImmediateOutputsBecomeActiveUnderlyingOutputIsMarkedActive() {
+        TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        WatermarkOutput watermarkOutput1 = createImmediateOutput(multiplexer);
+        WatermarkOutput watermarkOutput2 = createImmediateOutput(multiplexer);
+
+        watermarkOutput1.emitWatermark(new Watermark(5));
+        watermarkOutput2.emitWatermark(new Watermark(2));
+        watermarkOutput1.markIdle();
+        watermarkOutput2.markIdle();
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
+
+        watermarkOutput1.markActive();
+
+        assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
+    }
+
+    @Test
+    void whenIdleDeferredOutputResumesUnderlyingOutputIsMarkedActive() {
+        TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        WatermarkOutput watermarkOutput1 = createDeferredOutput(multiplexer);
+        WatermarkOutput watermarkOutput2 = createDeferredOutput(multiplexer);
+
+        watermarkOutput1.emitWatermark(new Watermark(5));
+        watermarkOutput2.emitWatermark(new Watermark(2));
+        watermarkOutput1.markIdle();
+        watermarkOutput2.markIdle();
+
+        multiplexer.onPeriodicEmit();
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
+
+        // the resumed output only has backlog that does not advance the combined watermark
+        watermarkOutput1.emitWatermark(new Watermark(3));
+        multiplexer.onPeriodicEmit();
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
+        assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
+    }
+
+    @Test
+    void whenThereAreNoOutputsNothingIsReported() {
+        final RecordingWatermarkOutput underlyingWatermarkOutput = new RecordingWatermarkOutput();
+        final WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        multiplexer.onPeriodicEmit();
+
+        assertThat(underlyingWatermarkOutput.watermarks)
+                .as("without any output there is no combined status to report")
+                .isEmpty();
+        assertThat(underlyingWatermarkOutput.idleUpdates).isZero();
+        assertThat(underlyingWatermarkOutput.activeUpdates).isZero();
+    }
+
+    @Test
+    void whenRegisteredOutputReportsNothingNothingIsReported() {
+        final RecordingWatermarkOutput underlyingWatermarkOutput = new RecordingWatermarkOutput();
+        final WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        // an output is registered for every assigned split, even when the reader never reports
+        // anything through it, for example when it emits everything through the main output
+        multiplexer.registerNewOutput("silent-output");
+        multiplexer.onPeriodicEmit();
+
+        assertThat(underlyingWatermarkOutput.watermarks)
+                .as("an output that never reported anything must not keep the stream active")
+                .isEmpty();
+        assertThat(underlyingWatermarkOutput.idleUpdates).isZero();
+        assertThat(underlyingWatermarkOutput.activeUpdates).isZero();
+    }
+
+    /** A {@link WatermarkOutput} that records everything it is asked to report. */
+    private static final class RecordingWatermarkOutput implements WatermarkOutput {
+
+        private final List<Watermark> watermarks = new ArrayList<>();
+        private int idleUpdates;
+        private int activeUpdates;
+
+        @Override
+        public void emitWatermark(Watermark watermark) {
+            watermarks.add(watermark);
+        }
+
+        @Override
+        public void markIdle() {
+            idleUpdates++;
+        }
+
+        @Override
+        public void markActive() {
+            activeUpdates++;
+        }
     }
 
     /**
