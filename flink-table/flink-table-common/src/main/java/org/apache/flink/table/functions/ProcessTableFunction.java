@@ -24,8 +24,10 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
@@ -297,33 +299,51 @@ import java.time.LocalDateTime;
  *
  * <p>Flink's state backends provide different types of state to efficiently handle large state.
  *
- * <p>Currently, PTFs support three types of state:
+ * <p>Currently, PTFs support the following types of state:
  *
  * <ul>
- *   <li><b>Value state</b>: Represents a single value.
- *   <li><b>List state</b>: Represents a list of values, supporting operations like appending,
- *       removing, and iterating.
- *   <li><b>Map state</b>: Represents a map (key-value pair) for efficient lookups, modifications,
- *       and removal of individual entries.
+ *   <li><b>Eager value state</b>: Represents a single value that follows a Read-Modify-Write cycle.
+ *   <li><b>Value view</b>: Represents a single value with lazy access via {@link ValueView}.
+ *   <li><b>List view</b>: Represents a list of values via {@link ListView}, supporting operations
+ *       like appending, removing, and iterating.
+ *   <li><b>Map view</b>: Represents a map (key-value pair) via {@link MapView} for efficient
+ *       lookups, modifications, and removal of individual entries.
  * </ul>
  *
- * <p>By default, state entries in a PTF are represented as value state. This means that every state
- * entry is fully read from the state backend when the evaluation method is called, and the value is
- * written back to the state backend once the evaluation method finishes.
+ * <p>By default, a state entry in a PTF is represented as eager value state. This means that every
+ * state entry is fully read from the state backend when the evaluation method is called, and the
+ * value is written back to the state backend once the evaluation method finishes (i.e. a
+ * Read-Modify-Write cycle). This is convenient but not optimal: the entire state entry is
+ * deserialized and serialized on every call, even if the function does not access or modify it.
  *
- * <p>To optimize state access and avoid unnecessary (de)serialization, state entries can be
- * declared as {@link ListView} or {@link MapView}. These provide direct views to the underlying
- * Flink state backend.
+ * <p>To optimize state access and avoid unnecessary (de)serialization, state entries should be
+ * declared as {@link ValueView}, {@link ListView}, or {@link MapView}. These provide direct views
+ * to the underlying Flink state backend and are preferred over eager value state, especially when
+ * state is accessed conditionally.
  *
- * <p>For example, when using a {@link MapView}, accessing a value via {@link MapView#get(Object)}
- * will only deserialize the value associated with the specified key. This allows for efficient
- * access to individual entries without needing to load the entire map. This approach is
- * particularly useful when the map does not fit entirely into memory.
+ * <p>For example, a {@link ValueView} only deserializes its value when {@link ValueView#getValue()}
+ * is called and only serializes it when {@link ValueView#setValue(Object)} or {@link
+ * ValueView#clear()} is called. Similarly, when using a {@link MapView}, accessing a value via
+ * {@link MapView#get(Object)} will only deserialize the value associated with the specified key.
+ * This allows for efficient access to individual entries without needing to load the entire map.
+ * This approach is particularly useful when the map does not fit entirely into memory.
  *
  * <p>State TTL is applied individually to each entry in a list or map, allowing for fine-grained
  * expiration control over state elements.
  *
  * <pre>{@code
+ * // Function that uses a value view for counting events per user with lazy state access
+ * class CountingFunction extends ProcessTableFunction<String> {
+ *   public void eval(@StateHint ValueView<Integer> count, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
+ *     Integer currentCount = count.getValue();
+ *     if (currentCount == null) {
+ *       currentCount = 0;
+ *     }
+ *     count.setValue(currentCount + 1);
+ *     collect("Count for user: " + (currentCount + 1));
+ *   }
+ * }
+ *
  * // Function that uses a map view for storing a large map for an event history per user
  * class HistoryFunction extends ProcessTableFunction<String> {
  *   public void eval(@StateHint MapView<String, Integer> largeMemory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
@@ -543,8 +563,9 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
         /**
          * Clears the given state entry within the virtual partition once the eval() method returns.
          *
-         * <p>Semantically this is equal to setting all fields of the state entry to null shortly
-         * before the eval() method returns.
+         * <p>Semantically, this is equal to calling {@link DataView#clear()} on the state entry if
+         * backed by a data view. For eager value state, semantically this is equal to setting all
+         * fields of the state entry to null shortly before the eval() method returns.
          *
          * @param stateName name of the state entry; either reflectively extracted or manually
          *     defined via {@link StateHint#name()}.
