@@ -368,6 +368,12 @@ public final class DataTypeExtractor {
             return resultDataType;
         }
 
+        // handle enum types as STRING bridged to the enum class
+        resultDataType = extractEnumType(type);
+        if (resultDataType != null) {
+            return resultDataType;
+        }
+
         // MAP
         resultDataType = extractMapType(template, typeHierarchy, type);
         if (resultDataType != null) {
@@ -542,6 +548,15 @@ public final class DataTypeExtractor {
         }
 
         return ClassDataTypeConverter.extractDataType(clazz).orElse(null);
+    }
+
+    /** Maps an {@link Enum} class to STRING bridged to the enum class. */
+    private @Nullable DataType extractEnumType(Type type) {
+        final Class<?> clazz = toClass(type);
+        if (clazz == null || !clazz.isEnum()) {
+            return null;
+        }
+        return DataTypes.STRING().bridgedTo(clazz);
     }
 
     private @Nullable DataType extractMapType(
