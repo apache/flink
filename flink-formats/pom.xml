@@ -30,7 +30,7 @@ under the License.
 	</parent>
 
 	<properties>
-		<flink.format.parquet.version>1.15.2</flink.format.parquet.version>
+		<flink.format.parquet.version>1.16.0</flink.format.parquet.version>
 	</properties>
 
 	<artifactId>flink-formats</artifactId>
@@ -92,3 +92,4 @@ under the License.
 	</profiles>
 
 </project>
+
