@@ -691,7 +691,7 @@ public class KubernetesUtils {
 
     /** Generate namespaced name of the service. */
     public static String getNamespacedServiceName(Service service) {
-        return service.getMetadata().getName() + "." + service.getMetadata().getNamespace();
+        return service.getMetadata().getName() + "." + service.getMetadata().getNamespace() + ".svc";
     }
 
     private KubernetesUtils() {}
