@@ -305,6 +305,11 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
         if (closed) {
             return;
         }
+        // Unregister from the cache entry right away. FileCacheEntry#doRemoveFile only drops
+        // closed streams when the file itself is evicted or deleted, so while a file stays cached
+        // every open/close cycle of a stream on it would otherwise leave a closed stream (and the
+        // remote stream it wraps) on the heap. Done first so that a failing close cannot skip it.
+        cacheEntry.openedStreams.remove(this);
         closed = true;
         closeCachedStream();
     }
