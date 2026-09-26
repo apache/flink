@@ -154,17 +154,28 @@ public interface TaskExecutorGateway
      * Confirm a checkpoint for the given task. The checkpoint is identified by the checkpoint ID
      * and the checkpoint timestamp.
      *
+     * <p>When {@code fallbackCheckpointId} is not {@link
+     * org.apache.flink.runtime.checkpoint.CheckpointStoreUtil#INVALID_CHECKPOINT_ID}, this
+     * notification indicates that a regional checkpoint has completed but this task's region fell
+     * back to the given historical checkpoint. The task should invoke {@code
+     * notifyRegionalCheckpointFallback} to clean up stale local state, instead of the normal {@code
+     * notifyCheckpointComplete} path.
+     *
      * @param executionAttemptID identifying the task
      * @param completedCheckpointId unique id for the completed checkpoint
      * @param completedCheckpointTimestamp is the timestamp when the checkpoint has been initiated
      * @param lastSubsumedCheckpointId unique id for the checkpoint to be subsumed
+     * @param fallbackCheckpointId the historical checkpoint id this task fell back to, or {@link
+     *     org.apache.flink.runtime.checkpoint.CheckpointStoreUtil#INVALID_CHECKPOINT_ID} if this is
+     *     a normal (non-regional-fallback) completion
      * @return Future acknowledge if the checkpoint has been successfully confirmed
      */
     CompletableFuture<Acknowledge> confirmCheckpoint(
             ExecutionAttemptID executionAttemptID,
             long completedCheckpointId,
             long completedCheckpointTimestamp,
-            long lastSubsumedCheckpointId);
+            long lastSubsumedCheckpointId,
+            long fallbackCheckpointId);
 
     /**
      * Abort a checkpoint for the given task. The checkpoint is identified by the checkpoint ID and

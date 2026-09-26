@@ -35,6 +35,7 @@ import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointStoreUtil;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -1125,19 +1126,28 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             ExecutionAttemptID executionAttemptID,
             long completedCheckpointId,
             long completedCheckpointTimestamp,
-            long lastSubsumedCheckpointId) {
+            long lastSubsumedCheckpointId,
+            long fallbackCheckpointId) {
         final Task task = taskSlotTable.getTask(executionAttemptID);
         if (task != null) {
             try (MdcCloseable ignored =
                     MdcUtils.withContext(MdcUtils.asContextData(task.getJobID()))) {
                 log.debug(
-                        "Confirm completed checkpoint {}@{} and last subsumed checkpoint {} for {}.",
+                        "Confirm completed checkpoint {}@{} and last subsumed checkpoint {} for {} "
+                                + "(fallbackCheckpointId={}).",
                         completedCheckpointId,
                         completedCheckpointTimestamp,
                         lastSubsumedCheckpointId,
-                        executionAttemptID);
-                task.notifyCheckpointComplete(completedCheckpointId);
-
+                        executionAttemptID,
+                        fallbackCheckpointId);
+                if (fallbackCheckpointId != CheckpointStoreUtil.INVALID_CHECKPOINT_ID) {
+                    // Regional checkpoint fallback notification: this task's region fell back to
+                    // the historical checkpoint. Notify the task to clean up stale local state.
+                    task.notifyRegionalCheckpointFallback(
+                            completedCheckpointId, fallbackCheckpointId);
+                } else {
+                    task.notifyCheckpointComplete(completedCheckpointId);
+                }
                 task.notifyCheckpointSubsumed(lastSubsumedCheckpointId);
                 return CompletableFuture.completedFuture(Acknowledge.get());
             }
