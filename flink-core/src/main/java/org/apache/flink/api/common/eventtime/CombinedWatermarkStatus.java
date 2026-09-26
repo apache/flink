@@ -46,6 +46,20 @@ final class CombinedWatermarkStatus {
         return idle;
     }
 
+    /**
+     * Returns true if any output has reported that it is active, which is what makes it safe to
+     * announce activity downstream. An output that has not said anything yet, or that only reported
+     * idleness, is not evidence that anything is producing.
+     */
+    public boolean hasActiveOutput() {
+        for (PartialWatermark partialWatermark : partialWatermarks) {
+            if (partialWatermark.isActive()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean remove(PartialWatermark o) {
         return partialWatermarks.remove(o);
     }
@@ -108,8 +122,24 @@ final class CombinedWatermarkStatus {
 
     /** Per-output watermark state. */
     static class PartialWatermark {
+
+        /**
+         * The idleness the output has reported, if any.
+         *
+         * <p>A newly registered output is {@link #UNKNOWN}. It holds the combined watermark back
+         * the same way an active output does, but it is not evidence that anything is producing
+         * yet: outputs are registered for every assigned split, even when the reader never reports
+         * anything through them (for example when it emits everything through the main output, or
+         * when the watermark strategy does not use idleness at all).
+         */
+        enum IdlenessState {
+            UNKNOWN,
+            ACTIVE,
+            IDLE
+        }
+
         private long watermark = Long.MIN_VALUE;
-        private boolean idle = false;
+        private IdlenessState idlenessState = IdlenessState.UNKNOWN;
         private final WatermarkOutputMultiplexer.WatermarkUpdateListener onWatermarkUpdate;
 
         public PartialWatermark(
@@ -139,11 +169,16 @@ final class CombinedWatermarkStatus {
         }
 
         private boolean isIdle() {
-            return idle;
+            return idlenessState == IdlenessState.IDLE;
+        }
+
+        /** Returns true if this output has reported that it is active. */
+        private boolean isActive() {
+            return idlenessState == IdlenessState.ACTIVE;
         }
 
         public void setIdle(boolean idle) {
-            this.idle = idle;
+            this.idlenessState = idle ? IdlenessState.IDLE : IdlenessState.ACTIVE;
             this.onWatermarkUpdate.onIdleUpdate(idle);
         }
     }
