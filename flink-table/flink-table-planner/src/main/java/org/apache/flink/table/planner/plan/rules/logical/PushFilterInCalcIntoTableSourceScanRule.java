@@ -18,10 +18,8 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
@@ -31,6 +29,10 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.tools.RelBuilder;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import scala.Tuple2;
 
@@ -63,8 +65,7 @@ public class PushFilterInCalcIntoTableSourceScanRule extends PushFilterIntoSourc
 
         FlinkLogicalTableSourceScan scan = call.rel(1);
         TableSourceTable tableSourceTable = scan.getTable().unwrap(TableSourceTable.class);
-        // we can not push filter twice
-        return canPushdownFilter(tableSourceTable);
+        return canPushdownFilter(tableSourceTable) || canPushdownMetadataFilter(tableSourceTable);
     }
 
     @Override
@@ -79,7 +80,7 @@ public class PushFilterInCalcIntoTableSourceScanRule extends PushFilterIntoSourc
             RelOptRuleCall call,
             Calc calc,
             FlinkLogicalTableSourceScan scan,
-            FlinkPreparingTableBase relOptTable) {
+            TableSourceTable tableSourceTable) {
 
         RexProgram originProgram = calc.getProgram();
 
@@ -94,33 +95,29 @@ public class PushFilterInCalcIntoTableSourceScanRule extends PushFilterIntoSourc
         RexNode[] convertiblePredicates = extractedPredicates._1;
         RexNode[] unconvertedPredicates = extractedPredicates._2;
         if (convertiblePredicates.length == 0) {
-            // no condition can be translated to expression
             return;
         }
 
-        Tuple2<SupportsFilterPushDown.Result, TableSourceTable> pushdownResultWithScan =
-                resolveFiltersAndCreateTableSourceTable(
-                        convertiblePredicates,
-                        relOptTable.unwrap(TableSourceTable.class),
-                        scan,
-                        relBuilder);
+        FilterClassificationResult result =
+                classifyAndPushFilters(convertiblePredicates, tableSourceTable, scan, relBuilder);
+        if (result == null) {
+            return;
+        }
 
-        SupportsFilterPushDown.Result result = pushdownResultWithScan._1;
-        TableSourceTable tableSourceTable = pushdownResultWithScan._2;
+        List<RexNode> allRemainingRexNodes = new ArrayList<>(result.remainingPredicates);
+        allRemainingRexNodes.addAll(Arrays.asList(unconvertedPredicates));
 
         FlinkLogicalTableSourceScan newScan =
                 FlinkLogicalTableSourceScan.create(
-                        scan.getCluster(), scan.getHints(), tableSourceTable);
+                        scan.getCluster(), scan.getHints(), result.updatedTable);
 
         // build new calc program
         RexProgramBuilder programBuilder =
                 RexProgramBuilder.forProgram(originProgram, call.builder().getRexBuilder(), true);
         programBuilder.clearCondition();
 
-        if (!result.getRemainingFilters().isEmpty() || unconvertedPredicates.length != 0) {
-            RexNode remainingCondition =
-                    createRemainingCondition(
-                            relBuilder, result.getRemainingFilters(), unconvertedPredicates);
+        if (!allRemainingRexNodes.isEmpty()) {
+            RexNode remainingCondition = relBuilder.and(allRemainingRexNodes);
             RexNode simplifiedRemainingCondition =
                     FlinkRexUtil.simplify(
                             relBuilder.getRexBuilder(),
