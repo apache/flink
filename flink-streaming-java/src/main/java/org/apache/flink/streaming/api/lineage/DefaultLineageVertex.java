@@ -20,12 +20,14 @@ package org.apache.flink.streaming.api.lineage;
 
 import org.apache.flink.annotation.Internal;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 /** Default implementation for {@link LineageVertex}. */
 @Internal
-public class DefaultLineageVertex implements LineageVertex {
+public class DefaultLineageVertex implements LineageVertex, Serializable {
+    private static final long serialVersionUID = 1L;
     private List<LineageDataset> lineageDatasets;
 
     public DefaultLineageVertex() {

@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.lineage;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -28,7 +29,7 @@ import java.util.List;
  * relationship between jobs and tables.
  */
 @PublicEvolving
-public interface LineageGraph {
+public interface LineageGraph extends Serializable {
     /* Source lineage vertex list. */
     List<SourceLineageVertex> sources();
 
