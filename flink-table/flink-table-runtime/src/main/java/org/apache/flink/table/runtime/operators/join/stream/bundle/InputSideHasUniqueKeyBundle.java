@@ -25,6 +25,7 @@ import org.apache.flink.types.RowKind;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,8 +34,23 @@ import java.util.Set;
 /** For the case that input has uniqueKey which is not contained by joinKey. */
 public class InputSideHasUniqueKeyBundle extends BufferBundle<Map<RowData, List<RowData>>> {
 
+    /**
+     * Tracks (joinKey → set of uniqueKeys) whose first accumulate record (+I) was folded away with
+     * a retract in the same batch. A subsequent +U for such a unique key must be treated as +I.
+     */
+    private final Map<RowData, Set<RowData>> insertedAndCleared = new HashMap<>();
+
     @Override
     public int addRecord(RowData joinKey, RowData uniqueKey, RowData record) {
+        Set<RowData> clearedKeys = insertedAndCleared.get(joinKey);
+        if (clearedKeys != null && clearedKeys.remove(uniqueKey)) {
+            if (clearedKeys.isEmpty()) {
+                insertedAndCleared.remove(joinKey);
+            }
+            if (record.getRowKind() == RowKind.UPDATE_AFTER) {
+                record.setRowKind(RowKind.INSERT);
+            }
+        }
         bundle.computeIfAbsent(joinKey, k -> new HashMap<>())
                 .computeIfAbsent(uniqueKey, k -> new ArrayList<>());
         if (!foldRecord(joinKey, uniqueKey, record)) {
@@ -44,6 +60,12 @@ public class InputSideHasUniqueKeyBundle extends BufferBundle<Map<RowData, List<
                     .add(record);
         }
         return ++count;
+    }
+
+    @Override
+    public void clear() {
+        super.clear();
+        insertedAndCleared.clear();
     }
 
     @Override
@@ -70,13 +92,16 @@ public class InputSideHasUniqueKeyBundle extends BufferBundle<Map<RowData, List<
     // +--------------------------+----------------------------+----------------------------+
     // |   Before the last        |       Last record          |          Result            |
     // |--------------------------|----------------------------|----------------------------|
-    // |    +I/+U                 |        +U/+I               |    Only keep the last      |
-    // |                          |                            |       (+U/+I) record       |
+    // |    +I                    |        +U                  |    Keep +U as +I           |
+    // |    +I/+U                 |        +I                  |    Only keep the last (+I) |
+    // |    +U                    |        +U                  |    Only keep the last (+U) |
     // |--------------------------|----------------------------|----------------------------|
     // |    -D/-U                 |        -D/-U               |    Only keep the last      |
     // |                          |                            |       (-D/-U) record       |
     // |--------------------------|----------------------------|----------------------------|
-    // |    +I/+U                 |        -U/-D               |       Clear both           |
+    // |    +I                    |        -U/-D               |    Clear both; mark key    |
+    // |                          |                            |    in insertedAndCleared   |
+    // |    +U                    |        -U/-D               |       Clear both           |
     // +--------------------------+----------------------------+----------------------------+
 
     /**
@@ -96,6 +121,16 @@ public class InputSideHasUniqueKeyBundle extends BufferBundle<Map<RowData, List<
             if (RowDataUtil.isAccumulateMsg(last)) {
                 if (RowDataUtil.isRetractMsg(record)) {
                     shouldFoldRecord = true;
+                    if (last.getRowKind() == RowKind.INSERT) {
+                        // State was empty before this batch; track so a later +U is corrected.
+                        insertedAndCleared
+                                .computeIfAbsent(joinKey, k -> new HashSet<>())
+                                .add(uniqueKey);
+                    }
+                } else if (last.getRowKind() == RowKind.INSERT
+                        && record.getRowKind() == RowKind.UPDATE_AFTER) {
+                    // +I followed by +U within one batch: the net effect is an INSERT.
+                    record.setRowKind(RowKind.INSERT);
                 }
                 actualSize--;
                 list.remove(list.size() - 1);
