@@ -22,10 +22,12 @@ import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContex
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.rel.logical.LogicalMinus
+import org.apache.calcite.rel.rules.MinusToAntiJoinRule
 import org.apache.calcite.tools.RuleSets
 import org.junit.jupiter.api.{BeforeEach, Test}
 
-/** Test for [[ReplaceMinusWithAntiJoinRule]]. */
+/** Test for [[MinusToAntiJoinRule]]. */
 class ReplaceMinusWithAntiJoinRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -38,7 +40,9 @@ class ReplaceMinusWithAntiJoinRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(ReplaceMinusWithAntiJoinRule.INSTANCE))
+        .add(RuleSets.ofList(
+          MinusToAntiJoinRule.Config.DEFAULT.withOperandFor(classOf[LogicalMinus]).toRule,
+          SimplifyJoinConditionRule.INSTANCE))
         .build()
     )
     util.replaceBatchProgram(programs)
