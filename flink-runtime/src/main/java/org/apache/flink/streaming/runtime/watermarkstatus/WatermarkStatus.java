@@ -28,15 +28,16 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 /**
  * A Watermark Status element informs stream tasks whether or not they should continue to expect
- * watermarks from the input stream that sent them. There are 2 kinds of status, namely {@link
- * WatermarkStatus#IDLE} and {@link WatermarkStatus#ACTIVE}. Watermark Status elements are generated
- * at the sources, and may be propagated through the tasks of the topology. They directly infer the
- * current status of the emitting task; a {@link SourceStreamTask} or {@link StreamTask} emits a
- * {@link WatermarkStatus#IDLE} if it will temporarily halt to emit any watermarks (i.e. is idle),
- * and emits a {@link WatermarkStatus#ACTIVE} once it resumes to do so (i.e. is active). Tasks are
- * responsible for propagating their status further downstream once they toggle between being idle
- * and active. The cases that source tasks and downstream tasks are considered either idle or active
- * is explained below:
+ * watermarks from the input stream that sent them. There are 3 kinds of status, namely {@link
+ * WatermarkStatus#IDLE}, {@link WatermarkStatus#ACTIVE} and {@link WatermarkStatus#FINISHED}.
+ * Watermark Status elements are generated at the sources, and may be propagated through the tasks
+ * of the topology. They directly infer the current status of the emitting task; a {@link
+ * SourceStreamTask} or {@link StreamTask} emits a {@link WatermarkStatus#IDLE} if it will
+ * temporarily halt to emit any watermarks (i.e. is idle), and emits a {@link
+ * WatermarkStatus#ACTIVE} once it resumes to do so (i.e. is active). Tasks are responsible for
+ * propagating their status further downstream once they toggle between being idle and active. The
+ * cases that source tasks and downstream tasks are considered either idle or active is explained
+ * below:
  *
  * <ul>
  *   <li>Source tasks: A source task is considered to be idle if its head operator, i.e. a {@link
@@ -71,31 +72,39 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  *       advance the watermark and propagated through the operator chain.
  * </ul>
  *
- * <p>Note that to notify downstream tasks that a source task is permanently closed and will no
- * longer send any more elements, the source should still send a {@link Watermark#MAX_WATERMARK}
- * instead of {@link WatermarkStatus#IDLE}. Watermark Status elements only serve as markers for
- * temporary status.
+ * <p>{@link WatermarkStatus#IDLE} and {@link WatermarkStatus#ACTIVE} describe a temporary condition
+ * that a task can toggle between. {@link WatermarkStatus#FINISHED} is terminal: a source task emits
+ * it when it is permanently closed and will send no further elements, alongside the {@link
+ * Watermark#MAX_WATERMARK} it already emits so that downstream timers fire. Marking such an input
+ * IDLE would be wrong, because an idle input is still expected to resume, while leaving it ACTIVE
+ * lets its {@link Watermark#MAX_WATERMARK} dominate the aggregated minimum once every other input
+ * goes idle. A finished input is therefore excluded from watermark aggregation until every input is
+ * finished, at which point the aggregation yields {@link Watermark#MAX_WATERMARK}.
  */
 @Internal
 public final class WatermarkStatus extends StreamElement {
 
     public static final int IDLE_STATUS = -1;
     public static final int ACTIVE_STATUS = 0;
+    public static final int FINISHED_STATUS = 1;
 
     public static final WatermarkStatus IDLE = new WatermarkStatus(IDLE_STATUS);
     public static final WatermarkStatus ACTIVE = new WatermarkStatus(ACTIVE_STATUS);
+    public static final WatermarkStatus FINISHED = new WatermarkStatus(FINISHED_STATUS);
 
     public final int status;
 
     public WatermarkStatus(int status) {
-        if (status != IDLE_STATUS && status != ACTIVE_STATUS) {
+        if (status != IDLE_STATUS && status != ACTIVE_STATUS && status != FINISHED_STATUS) {
             throw new IllegalArgumentException(
                     "Invalid status value for WatermarkStatus; "
                             + "allowed values are "
                             + ACTIVE_STATUS
-                            + " (for ACTIVE) and "
+                            + " (for ACTIVE), "
                             + IDLE_STATUS
-                            + " (for IDLE).");
+                            + " (for IDLE), and "
+                            + FINISHED_STATUS
+                            + " (for FINISHED).");
         }
 
         this.status = status;
@@ -106,7 +115,11 @@ public final class WatermarkStatus extends StreamElement {
     }
 
     public boolean isActive() {
-        return !isIdle();
+        return this.status == ACTIVE_STATUS;
+    }
+
+    public boolean isFinished() {
+        return this.status == FINISHED_STATUS;
     }
 
     public int getStatus() {
@@ -128,7 +141,20 @@ public final class WatermarkStatus extends StreamElement {
 
     @Override
     public String toString() {
-        String statusStr = (status == ACTIVE_STATUS) ? "ACTIVE" : "IDLE";
+        String statusStr;
+        switch (status) {
+            case ACTIVE_STATUS:
+                statusStr = "ACTIVE";
+                break;
+            case IDLE_STATUS:
+                statusStr = "IDLE";
+                break;
+            case FINISHED_STATUS:
+                statusStr = "FINISHED";
+                break;
+            default:
+                statusStr = "UNKNOWN";
+        }
         return "WatermarkStatus(" + statusStr + ")";
     }
 }
