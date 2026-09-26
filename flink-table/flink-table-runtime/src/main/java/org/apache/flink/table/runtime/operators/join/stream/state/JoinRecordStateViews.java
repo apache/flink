@@ -100,6 +100,11 @@ public final class JoinRecordStateViews {
         }
 
         @Override
+        public boolean hasRecord(RowData record) throws Exception {
+            return recordState.value() != null;
+        }
+
+        @Override
         public Iterable<RowData> getRecords() throws Exception {
             reusedList.clear();
             RowData record = recordState.value();
@@ -147,6 +152,11 @@ public final class JoinRecordStateViews {
         }
 
         @Override
+        public boolean hasRecord(RowData record) throws Exception {
+            return recordState.contains(uniqueKeySelector.getKey(record));
+        }
+
+        @Override
         public Iterable<RowData> getRecords() throws Exception {
             return recordState.values();
         }
@@ -191,6 +201,12 @@ public final class JoinRecordStateViews {
                 }
             }
             // ignore cnt == null, which means state may be expired
+        }
+
+        @Override
+        public boolean hasRecord(RowData record) {
+            // without a unique key, an equal record is a second record and not an update
+            return false;
         }
 
         @Override

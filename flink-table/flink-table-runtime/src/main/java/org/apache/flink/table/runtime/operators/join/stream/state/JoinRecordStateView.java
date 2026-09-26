@@ -40,4 +40,10 @@ public interface JoinRecordStateView {
 
     /** Gets all the records under the current context (i.e. join key). */
     Iterable<RowData> getRecords() throws Exception;
+
+    /**
+     * Returns whether a record with the same unique key as the given record is stored under the
+     * current join key.
+     */
+    boolean hasRecord(RowData record) throws Exception;
 }
