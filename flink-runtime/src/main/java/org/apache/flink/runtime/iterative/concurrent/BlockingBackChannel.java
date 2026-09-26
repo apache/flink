@@ -51,6 +51,9 @@ public class BlockingBackChannel {
         try {
             return queue.take().switchBuffers();
         } catch (InterruptedException | IOException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             throw new RuntimeException(e);
         }
     }

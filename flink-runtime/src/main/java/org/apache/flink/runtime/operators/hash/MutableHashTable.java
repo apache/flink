@@ -780,6 +780,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
             try {
                 this.availableMemory.add(this.writeBehindBuffers.take());
             } catch (InterruptedException iex) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException("Hashtable closing was interrupted");
             }
         }
@@ -1467,6 +1468,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
                 this.writeBehindBuffersAvailable--;
             }
         } catch (InterruptedException iex) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException("Hash Join was interrupted.");
         }
     }
@@ -1492,6 +1494,7 @@ public class MutableHashTable<BT, PT> implements MemorySegmentSource {
             try {
                 toReturn = this.writeBehindBuffers.take();
             } catch (InterruptedException iex) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(
                         "Hybrid Hash Join was interrupted while taking a buffer.");
             }
