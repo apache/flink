@@ -54,7 +54,7 @@ See [JdbcCatalog documentation]({{< ref "docs/connectors/table/jdbc" >}}) for mo
 ### HiveCatalog
 
 The `HiveCatalog` serves two purposes; as persistent storage for pure Flink metadata, and as an interface for reading and writing existing Hive metadata. 
-Flink's [Hive documentation]({{< ref "docs/connectors/table/hive/overview" >}}) provides full details on setting up the catalog and interfacing with an existing Hive installation.
+Flink's Hive documentation provides full details on setting up the catalog and interfacing with an existing Hive installation.
 
 
 {{< hint warning >}} The Hive Metastore stores all meta-object names in lower case. This is unlike `GenericInMemoryCatalog` which is case-sensitive
