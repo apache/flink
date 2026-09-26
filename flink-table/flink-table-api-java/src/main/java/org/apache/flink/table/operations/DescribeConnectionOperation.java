@@ -19,8 +19,6 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.ShowCreateUtil;
@@ -85,16 +83,10 @@ public class DescribeConnectionOperation implements Operation, ExecutableOperati
         return buildTableResult(
                 new String[] {"name", "value"},
                 new DataType[] {DataTypes.STRING(), DataTypes.STRING()},
-                buildRows(
-                        resolvedConnection.getConnection(),
-                        resolvedConnection.isTemporary(),
-                        ctx.getTableConfig().get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS)));
+                buildRows(resolvedConnection.getConnection(), resolvedConnection.isTemporary()));
     }
 
-    private Object[][] buildRows(
-            CatalogConnection connection,
-            boolean isTemporary,
-            List<String> additionalSensitiveKeys) {
+    private Object[][] buildRows(CatalogConnection connection, boolean isTemporary) {
         List<Object[]> rows = new ArrayList<>();
         TreeMap<String, String> options =
                 new TreeMap<>(
@@ -106,23 +98,11 @@ public class DescribeConnectionOperation implements Operation, ExecutableOperati
                     FactoryUtil.CONNECTION_TYPE.key(),
                     options.remove(FactoryUtil.CONNECTION_TYPE.key())
                 });
-        options.forEach(
-                (key, value) -> {
-                    rows.add(
-                            new Object[] {
-                                "option:" + key, maskValue(key, value, additionalSensitiveKeys)
-                            });
-                });
+        options.forEach((key, value) -> rows.add(new Object[] {"option:" + key, value}));
         if (StringUtils.isNotEmpty(connection.getComment())) {
             rows.add(new Object[] {"comment", connection.getComment()});
         }
         rows.add(new Object[] {"temporary", String.valueOf(isTemporary)});
         return rows.toArray(new Object[0][]);
-    }
-
-    private String maskValue(String key, String value, List<String> additionalSensitiveKeys) {
-        return GlobalConfiguration.isSensitive(key, additionalSensitiveKeys)
-                ? GlobalConfiguration.HIDDEN_CONTENT
-                : value;
     }
 }
