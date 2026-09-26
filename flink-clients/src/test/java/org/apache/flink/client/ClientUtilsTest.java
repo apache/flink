@@ -123,4 +123,79 @@ class ClientUtilsTest {
                 },
                 ClassLoader.getSystemClassLoader());
     }
+
+    /**
+     * Ensure that waitUntilSafeJobInitializationFinished() throws JobInitializationException
+     * without deserializing, using only the safe, text-only fields.
+     */
+    @Test
+    void testWaitUntilSafeJobInitializationFinished_throwsInitializationException() {
+        Iterator<JobStatus> statusSequenceIterator =
+                Arrays.asList(JobStatus.INITIALIZING, JobStatus.INITIALIZING, JobStatus.FAILED)
+                        .iterator();
+
+        assertThatThrownBy(
+                        () ->
+                                ClientUtils.waitUntilSafeJobInitializationFinished(
+                                        statusSequenceIterator::next,
+                                        () -> {
+                                            Throwable throwable =
+                                                    new JobInitializationException(
+                                                            TESTING_JOB_ID,
+                                                            "Something is wrong",
+                                                            new RuntimeException("Err"));
+                                            return buildJobResult(throwable);
+                                        }))
+                .isInstanceOf(JobInitializationException.class)
+                .hasMessage("Something is wrong");
+    }
+
+    /**
+     * Ensure that waitUntilSafeJobInitializationFinished() does not throw non-initialization
+     * exceptions.
+     */
+    @Test
+    void testWaitUntilSafeJobInitializationFinished_doesNotThrowRuntimeException()
+            throws Exception {
+        Iterator<JobStatus> statusSequenceIterator =
+                Arrays.asList(JobStatus.INITIALIZING, JobStatus.INITIALIZING, JobStatus.FAILED)
+                        .iterator();
+        ClientUtils.waitUntilSafeJobInitializationFinished(
+                statusSequenceIterator::next, () -> buildJobResult(new RuntimeException("Err")));
+    }
+
+    /** Ensure that other errors are thrown. */
+    @Test
+    void testWaitUntilSafeJobInitializationFinished_throwsOtherErrors() {
+        assertThatThrownBy(
+                        () ->
+                                ClientUtils.waitUntilSafeJobInitializationFinished(
+                                        () -> {
+                                            throw new RuntimeException("other error");
+                                        },
+                                        () -> {
+                                            Throwable throwable =
+                                                    new JobInitializationException(
+                                                            TESTING_JOB_ID,
+                                                            "Something is wrong",
+                                                            new RuntimeException("Err"));
+                                            return buildJobResult(throwable);
+                                        }))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Error while waiting for job to be initialized");
+    }
+
+    /** Test normal operation. */
+    @Test
+    void testWaitUntilSafeJobInitializationFinished_regular() throws Exception {
+        Iterator<JobStatus> statusSequenceIterator =
+                Arrays.asList(JobStatus.INITIALIZING, JobStatus.INITIALIZING, JobStatus.RUNNING)
+                        .iterator();
+        ClientUtils.waitUntilSafeJobInitializationFinished(
+                statusSequenceIterator::next,
+                () -> {
+                    fail("unexpected call");
+                    return null;
+                });
+    }
 }
