@@ -399,29 +399,91 @@ class SavepointDynamicTableSourceTest {
     }
 
     @Test
-    void testOrOfExactAndRangeOnKeyIsNotPushedDownButReturnsCorrectResult() throws Exception {
-        // The planner hands this over intact as or(equals(k, 1), greaterThan(k, 5)), but OR only
-        // merges finite key sets, so a range branch makes the whole disjunction non-pushable.
+    void testFilterPushDownOrOfExactAndRangeReturnsCorrectResult() throws Exception {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
 
         String sql = "SELECT k FROM state_table WHERE k = 1 OR k > 5 ORDER BY k";
 
-        assertThat(hasPushedDownFilter(tEnv, sql)).isFalse();
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
         assertThat(collectKeys(tEnv, sql)).containsExactly(1L, 6L, 7L, 8L, 9L);
     }
 
     @Test
-    void testOrOfTwoRangesOnKeyIsNotPushedDownButReturnsCorrectResult() throws Exception {
-        // Same limitation for "outside a range". This is also the shape the planner produces
-        // when it expands a Sarg, which is why a range combined with <> is not pushed either.
+    void testFilterPushDownOrOfTwoRangesReturnsCorrectResult() throws Exception {
         StreamTableEnvironment tEnv = createBatchTableEnv();
         tEnv.executeSql(STATE_TABLE_DDL);
 
         String sql = "SELECT k FROM state_table WHERE k < 2 OR k > 7 ORDER BY k";
 
-        assertThat(hasPushedDownFilter(tEnv, sql)).isFalse();
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
         assertThat(collectKeys(tEnv, sql)).containsExactly(0L, 1L, 8L, 9L);
+    }
+
+    @Test
+    void testFilterPushDownNotEqualsReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k <> 5 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(0L, 1L, 2L, 3L, 4L, 6L, 7L, 8L, 9L);
+    }
+
+    @Test
+    void testFilterPushDownNotInReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k NOT IN (3, 7) ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(0L, 1L, 2L, 4L, 5L, 6L, 8L, 9L);
+    }
+
+    @Test
+    void testFilterPushDownNotBetweenReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k NOT BETWEEN 3 AND 7 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(0L, 1L, 2L, 8L, 9L);
+    }
+
+    @Test
+    void testFilterPushDownExactAndRangeReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k = 5 AND k > 3 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(5L);
+    }
+
+    @Test
+    void testFilterPushDownExactAndExclusionReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k IN (1, 2, 3) AND k <> 2 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(1L, 3L);
+    }
+
+    @Test
+    void testFilterPushDownRangeAndExclusionReturnsCorrectResult() throws Exception {
+        StreamTableEnvironment tEnv = createBatchTableEnv();
+        tEnv.executeSql(STATE_TABLE_DDL);
+
+        String sql = "SELECT k FROM state_table WHERE k BETWEEN 1 AND 10 AND k <> 5 ORDER BY k";
+
+        assertThat(hasPushedDownFilter(tEnv, sql)).isTrue();
+        assertThat(collectKeys(tEnv, sql)).containsExactly(1L, 2L, 3L, 4L, 6L, 7L, 8L, 9L);
     }
 
     @Test
