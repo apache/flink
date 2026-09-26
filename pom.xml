@@ -1081,6 +1081,10 @@ under the License.
 			<activation>
 				<jdk>[11,)</jdk>
 			</activation>
+
+			<properties>
+				<aosp.version>1.24.0</aosp.version>
+			</properties>
 		</profile>
 
 		<profile>
@@ -1088,7 +1092,6 @@ under the License.
 
 			<properties>
 				<target.java.version>11</target.java.version>
-				<aosp.version>1.24.0</aosp.version>
 			</properties>
 
 			<build>
@@ -1113,6 +1116,7 @@ under the License.
 
 			<properties>
 				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava17,</surefire.excludedGroups.jdk>
+				<aosp.version>1.28.0</aosp.version>
 			</properties>
 
 			<build>
@@ -2344,7 +2348,7 @@ under the License.
 				<plugin>
 					<groupId>com.github.siom79.japicmp</groupId>
 					<artifactId>japicmp-maven-plugin</artifactId>
-					<version>0.18.5</version>
+					<version>0.26.2</version>
 					<configuration>
 						<oldVersion>
 							<dependency>

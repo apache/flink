@@ -54,9 +54,10 @@ from pyflink.dataframe.context import (
 from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit
 from pyflink.dataframe.dataframe_config import config
 from pyflink.dataframe.datatype import DataType
-from pyflink.dataframe.io import read_generic
+from pyflink.dataframe.io import read_generic, read_json, read_parquet
 from pyflink.dataframe.sql import sql
 from pyflink.dataframe.udf import udf
+from pyflink.dataframe.udtf import udtf
 
 __all__ = [
     "DataFrame",
@@ -65,6 +66,7 @@ __all__ = [
     "col",
     "lit",
     "udf",
+    "udtf",
     "from_arrow",
     "from_dict",
     "from_pandas",
@@ -72,6 +74,8 @@ __all__ = [
     "from_table",
     "range",
     "read_generic",
+    "read_json",
+    "read_parquet",
     "sql",
     "config",
     "set_table_environment",

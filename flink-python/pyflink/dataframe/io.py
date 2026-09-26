@@ -16,15 +16,261 @@
 # limitations under the License.
 ################################################################################
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from pyflink.dataframe.context import get_or_create_table_environment
-from pyflink.dataframe.dataframe import DataFrame
+from pyflink.dataframe.dataframe import DataFrame, _normalize_subset
 from pyflink.dataframe.datatype import DataType
 from pyflink.table import Schema, TableDescriptor
 from pyflink.util.api_stability_decorators import PublicEvolving
 
-__all__ = ["read_generic"]
+__all__ = ["read_generic", "read_json", "read_parquet"]
+
+
+def _build_filesystem_options(
+    path: str,
+    file_format: str,
+    *,
+    connector_parameters: Optional[Dict[str, Optional[str]]] = None,
+    format_parameters: Optional[Dict[str, Optional[str]]] = None,
+    extra_connector_options: Optional[Dict[str, str]] = None,
+    extra_format_options: Optional[Dict[str, str]] = None,
+) -> Dict[str, str]:
+    if not isinstance(path, str):
+        raise TypeError("path must be a string")
+    if not path:
+        raise ValueError("path must not be empty")
+
+    result = {"path": path, "format": file_format}
+    if extra_connector_options is not None:
+        _validate_options(extra_connector_options)
+        for key in extra_connector_options:
+            if key in ("path", "format"):
+                raise ValueError(f"{key!r} must not be specified in connector_options")
+            if key.startswith(file_format + "."):
+                raise ValueError(f"format option {key!r} must be specified in format_options")
+        _merge_options(result, extra_connector_options)
+    if connector_parameters is not None:
+        _merge_options(result, {
+            key: value for key, value in connector_parameters.items() if value is not None
+        })
+
+    normalized_format_options: Dict[str, str] = {}
+    if extra_format_options is not None:
+        _validate_options(extra_format_options)
+        for key, value in extra_format_options.items():
+            option = key if key.startswith(file_format + ".") else file_format + "." + key
+            if option in normalized_format_options:
+                raise ValueError(f"duplicate format option: {option!r}")
+            normalized_format_options[option] = value
+    if format_parameters is not None:
+        _merge_options(normalized_format_options, {
+            file_format + "." + key: value
+            for key, value in format_parameters.items() if value is not None
+        })
+    _merge_options(result, normalized_format_options)
+    return result
+
+
+def _merge_options(target: Dict[str, str], options: Dict[str, str]) -> None:
+    _validate_options(options)
+    for key, value in options.items():
+        if key in target and target[key] != value:
+            raise ValueError(f"conflicting values for option {key!r}")
+        target[key] = value
+
+
+def _boolean_option(value: Optional[bool], name: str) -> Optional[str]:
+    if value is None:
+        return None
+    if not isinstance(value, bool):
+        raise TypeError(f"{name} must be a bool or None")
+    return str(value).lower()
+
+
+def _parallelism_option(value: Optional[int]) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError("sink_parallelism must be an int or None")
+    return str(value)
+
+
+@PublicEvolving()
+def read_parquet(
+    path: str,
+    *,
+    schema: Dict[str, DataType],
+    partition_by: Optional[Union[str, List[str]]] = None,
+    monitor_interval: Optional[str] = None,
+    path_regex_pattern: Optional[str] = None,
+    utc_timezone: Optional[bool] = None,
+    connector_options: Optional[Dict[str, str]] = None,
+    format_options: Optional[Dict[str, str]] = None,
+    computed_columns: Optional[Dict[str, str]] = None,
+    watermark: Optional[Tuple[str, str]] = None,
+) -> DataFrame:
+    """
+    Read Parquet files using Flink's filesystem connector.
+
+    The filesystem connector and Parquet format must be available to Flink. By default,
+    the source reads the existing files once. Setting ``monitor_interval`` creates an
+    unbounded source that discovers new files; it requires streaming execution. Files are
+    identified by path and processed once, rather than tailed for appended data.
+    With ``partition_by``, monitoring is limited to the partitions discovered during planning;
+    new partition directories are not discovered, and an initially empty partitioned source
+    remains empty.
+    The current filesystem connector cannot read default partitions representing null or empty
+    partition values.
+
+    :param path: File or directory URI supported by Flink's filesystem implementations.
+    :param schema: Non-empty mapping of physical column names to DataFrame data types.
+    :param partition_by: Partition column name or non-empty list of names in directory order.
+        These columns must be declared in ``schema`` and are read from the partition paths.
+    :param monitor_interval: Positive file discovery interval, for example ``"60s"``.
+        If neither this parameter nor ``source.monitor-interval`` in ``connector_options``
+        is set, the source performs a bounded scan.
+    :param path_regex_pattern: Java regular expression matched against the entire file path
+        (excluding the URI scheme and authority), for example ``".*[.]parquet"``. This is not
+        a substring or filename-only match. Hidden files are excluded.
+    :param utc_timezone: Use UTC for Parquet timestamp conversion. The format default is
+        currently ``False``, which uses the JVM default time zone, independently of the
+        session time zone.
+    :param connector_options: Additional filesystem options with string keys and values.
+        The ``connector``, ``path`` and ``format`` keys are reserved. Format options belong in
+        ``format_options``. Explicit parameter and dictionary values must agree when both are set.
+    :param format_options: Parquet options with string values, with or without the ``parquet.``
+        prefix. Duplicate normalized keys are rejected. ``None`` parameters leave dictionary
+        values unchanged; conflicting explicit values are rejected. Unspecified options use
+        the connector or format factory defaults.
+    :param computed_columns: Optional SQL expressions keyed by computed column name.
+    :param watermark: Optional ``(column, expression)`` watermark declaration. The column must
+        have a TIMESTAMP or TIMESTAMP_LTZ type with precision from 0 to 3.
+    :return: A DataFrame backed by the Parquet source.
+    :raises TypeError: If an argument has an invalid type.
+    :raises ValueError: If the path or schema is empty, the partition specification is
+        empty or contains empty or duplicate names, or options conflict or contain
+        reserved, empty or duplicate keys.
+
+    Example::
+
+        >>> import pyflink.dataframe as pf
+        >>> events = pf.read_parquet(
+        ...     "file:///tmp/events",
+        ...     schema={"id": pf.DataType.int64(), "name": pf.DataType.string()},
+        ... )
+
+    .. versionadded:: 2.4.0
+    """
+    options = _build_filesystem_options(
+        path,
+        "parquet",
+        connector_parameters={
+            "source.monitor-interval": monitor_interval,
+            "source.path.regex-pattern": path_regex_pattern,
+        },
+        format_parameters={"utc-timezone": _boolean_option(utc_timezone, "utc_timezone")},
+        extra_connector_options=connector_options,
+        extra_format_options=format_options,
+    )
+    return _read(
+        "filesystem", schema=schema, options=options,
+        computed_columns=computed_columns, watermark=watermark, partition_by=partition_by,
+    )
+
+
+@PublicEvolving()
+def read_json(
+    path: str,
+    *,
+    schema: Dict[str, DataType],
+    partition_by: Optional[Union[str, List[str]]] = None,
+    monitor_interval: Optional[str] = None,
+    path_regex_pattern: Optional[str] = None,
+    ignore_parse_errors: Optional[bool] = None,
+    fail_on_missing_field: Optional[bool] = None,
+    timestamp_format: Optional[str] = None,
+    connector_options: Optional[Dict[str, str]] = None,
+    format_options: Optional[Dict[str, str]] = None,
+    computed_columns: Optional[Dict[str, str]] = None,
+    watermark: Optional[Tuple[str, str]] = None,
+) -> DataFrame:
+    """
+    Read newline-delimited JSON files using Flink's filesystem connector.
+
+    The filesystem connector and JSON format must be available to Flink. By default,
+    the source reads the existing files once. Setting ``monitor_interval`` creates an
+    unbounded source that discovers new files; it requires streaming execution. Files are
+    identified by path and processed once, rather than tailed for appended data.
+    With ``partition_by``, monitoring is limited to the partitions discovered during planning;
+    new partition directories are not discovered, and an initially empty partitioned source
+    remains empty.
+    The current filesystem connector cannot read default partitions representing null or empty
+    partition values.
+
+    :param path: File or directory URI supported by Flink's filesystem implementations.
+    :param schema: Non-empty mapping of physical column names to DataFrame data types.
+    :param partition_by: Partition column name or non-empty list of names in directory order.
+        These columns must be declared in ``schema`` and are read from the partition paths.
+    :param monitor_interval: Positive file discovery interval, for example ``"60s"``.
+        If neither this parameter nor ``source.monitor-interval`` in ``connector_options``
+        is set, the source performs a bounded scan.
+    :param path_regex_pattern: Java regular expression matched against the entire file path
+        (excluding the URI scheme and authority), for example ``".*[.]json"``. This is not
+        a substring or filename-only match. Hidden files are excluded.
+    :param ignore_parse_errors: Skip malformed fields or rows instead of failing. Invalid fields
+        are set to null where possible. The format default is currently ``False``.
+    :param fail_on_missing_field: Fail on missing JSON fields. The format default is currently
+        ``False``. Cannot be enabled together with ``ignore_parse_errors``.
+    :param timestamp_format: Timestamp representation, ``"SQL"`` or ``"ISO-8601"``.
+        The format default is currently ``"SQL"``.
+    :param connector_options: Additional filesystem options with string keys and values.
+        The ``connector``, ``path`` and ``format`` keys are reserved. Format options belong in
+        ``format_options``. Explicit parameter and dictionary values must agree when both are set.
+    :param format_options: JSON format options with string values. Keys may include or omit
+        the ``json.`` prefix, for example ``{"ignore-parse-errors": "true"}``. ``None`` parameters
+        leave dictionary values unchanged; conflicting explicit values are rejected. Unspecified
+        options use the connector or format factory defaults.
+    :param computed_columns: Optional SQL expressions keyed by computed column name.
+    :param watermark: Optional ``(column, expression)`` watermark declaration. The column must
+        have a TIMESTAMP or TIMESTAMP_LTZ type with precision from 0 to 3.
+    :return: A DataFrame backed by the JSON source.
+    :raises TypeError: If an argument has an invalid type.
+    :raises ValueError: If the path or schema is empty, the partition specification is
+        empty or contains empty or duplicate names, or options conflict or contain
+        reserved, empty or duplicate keys.
+
+    Example::
+
+        >>> import pyflink.dataframe as pf
+        >>> events = pf.read_json(
+        ...     "file:///tmp/events.json",
+        ...     schema={"id": pf.DataType.int64()},
+        ...     format_options={"ignore-parse-errors": "true"},
+        ... )
+
+    .. versionadded:: 2.4.0
+    """
+    options = _build_filesystem_options(
+        path,
+        "json",
+        connector_parameters={
+            "source.monitor-interval": monitor_interval,
+            "source.path.regex-pattern": path_regex_pattern,
+        },
+        format_parameters={
+            "ignore-parse-errors": _boolean_option(ignore_parse_errors, "ignore_parse_errors"),
+            "fail-on-missing-field": _boolean_option(
+                fail_on_missing_field, "fail_on_missing_field"),
+            "timestamp-format.standard": timestamp_format,
+        },
+        extra_connector_options=connector_options,
+        extra_format_options=format_options,
+    )
+    return _read(
+        "filesystem", schema=schema, options=options,
+        computed_columns=computed_columns, watermark=watermark, partition_by=partition_by,
+    )
 
 
 def _validate_connector(connector: str) -> None:
@@ -128,16 +374,41 @@ def _build_generic_descriptor(
     connector: str,
     options: Dict[str, str],
     schema: Optional[Schema] = None,
+    partition_by: Optional[Union[str, List[str]]] = None,
 ) -> TableDescriptor:
     _validate_connector(connector)
     _validate_options(options)
+    partition_keys = _normalize_subset(partition_by, "partition_by") or []
+    if any(not key for key in partition_keys):
+        raise ValueError("partition_by column names must not be empty")
+    if len(set(partition_keys)) != len(partition_keys):
+        raise ValueError("partition_by column names must not be duplicated")
 
     descriptor_builder = TableDescriptor.for_connector(connector)
     if schema is not None:
         descriptor_builder.schema(schema)
+    if partition_keys:
+        descriptor_builder.partitioned_by(*partition_keys)
     for key, value in options.items():
         descriptor_builder.option(key, value)
     return descriptor_builder.build()
+
+
+def _read(
+    connector: str,
+    *,
+    schema: Dict[str, DataType],
+    options: Dict[str, str],
+    computed_columns: Optional[Dict[str, str]],
+    watermark: Optional[Tuple[str, str]],
+    partition_by: Optional[Union[str, List[str]]] = None,
+) -> DataFrame:
+    source_schema = _build_source_schema(
+        schema, computed_columns=computed_columns, watermark=watermark)
+    descriptor = _build_generic_descriptor(
+        connector, options, schema=source_schema, partition_by=partition_by)
+    table_environment = get_or_create_table_environment()
+    return DataFrame(table_environment.from_descriptor(descriptor))
 
 
 @PublicEvolving()
@@ -186,7 +457,7 @@ def read_generic(
 
     .. versionadded:: 2.4.0
     """
-    source_schema = _build_source_schema(schema, computed_columns, watermark)
-    descriptor = _build_generic_descriptor(connector, options, source_schema)
-    table_environment = get_or_create_table_environment()
-    return DataFrame(table_environment.from_descriptor(descriptor))
+    return _read(
+        connector, schema=schema, options=options,
+        computed_columns=computed_columns, watermark=watermark,
+    )

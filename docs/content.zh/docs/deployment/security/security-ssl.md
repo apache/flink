@@ -156,10 +156,12 @@ In response to evolving security standards and to ensure compatibility with mode
 
 To support these secure-by-default JDK versions and align with best practices, Flink's default value for `security.ssl.algorithms` is now:
 
-`TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`
+`TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384`
 
 This default provides strong security and wide compatibility. You can customize the cipher suites using the `security.ssl.algorithms` configuration option if your environment has different requirements.
 If these cipher suites are not supported on your setup, you will see that Flink processes will not be able to connect to each other.
+
+Flink's default `security.ssl.protocol` also includes TLS 1.3 (`TLSv1.2,TLSv1.3`), and the default cipher list above includes TLS 1.3's own suites (`TLS_AES_128_GCM_SHA256`, `TLS_AES_256_GCM_SHA384`) alongside the TLS 1.2 suites. Both endpoints negotiate the highest protocol version they have in common that also has a matching cipher suite, so deployments use TLS 1.3 automatically when possible and fall back to TLS 1.2 when a peer does not support it. No configuration change is required for this, and any `security.ssl.protocol` or `security.ssl.algorithms` values you have already customized are unaffected.
 
 ### Complete List of SSL Options
 

@@ -17,6 +17,7 @@
 ################################################################################
 
 import datetime
+import keyword
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -26,6 +27,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Type,
     TypeVar,
     Union,
     overload,
@@ -33,6 +35,8 @@ from typing import (
 
 if TYPE_CHECKING:
     import pandas
+    from pyflink.dataframe.udf import _DataTypeLike
+    from pyflink.dataframe.udtf import _DataFrameUDTFWrapper
     from pyflink.table.table_schema import TableSchema
 
 from pyflink.common import Row
@@ -621,6 +625,91 @@ class DataFrame:
 
     distinct = drop_duplicates
     unique = drop_duplicates
+
+    @PublicEvolving()
+    def flat_map(
+        self,
+        func: Union[Callable[[Dict[str, Any]], Any], Type, "_DataFrameUDTFWrapper"],
+        *,
+        return_dtype: Optional["_DataTypeLike"] = None,
+    ) -> "DataFrame":
+        """
+        Apply a function to each row, emitting zero or more output rows.
+
+        The function receives a dictionary keyed by column name, including when
+        declared with :func:`pyflink.dataframe.udtf`.
+        Output column names come from a ``TypedDict`` or an explicit named struct;
+        scalar outputs use ``f0``. Multi-field outputs require named fields.
+
+        :param func: Row-based callable, a callable class with a zero-argument constructor,
+                     or a declaration created with ``pf.udtf``. Callable classes are
+                     instantiated on workers.
+        :param return_dtype: Emitted row type, inferred from annotations when omitted.
+                             Required if inference is not possible; must be omitted
+                             for a UDTF declaration.
+        :return: A DataFrame containing only the emitted output columns.
+
+        Example::
+
+            >>> from typing import Any, Dict, Iterator, TypedDict
+            >>> import pyflink.dataframe as pf
+            >>> class Token(TypedDict):
+            ...     word: str
+            >>> def split(record: Dict[str, Any]) -> Iterator[Token]:
+            ...     for word in record["text"].split():
+            ...         yield {"word": word}
+            >>> df = pf.from_dict({"text": ["hello world", "flink"]})
+            >>> result = df.flat_map(split)
+            >>> result.columns
+            ['word']
+
+        The decorator is optional for plain callables. Use it to attach reusable
+        metadata, such as the output schema, instead of repeating it in each
+        ``flat_map`` call::
+
+            >>> @pf.udtf(return_dtype="ROW<word STRING>")
+            ... def tokenize(record: Dict[str, Any]):
+            ...     yield from record["text"].split()
+            >>> result = df.flat_map(tokenize)
+            >>> result.columns
+            ['word']
+
+        An explicit output type can be supplied for unannotated callables::
+
+            >>> words = df.flat_map(lambda record: record["text"].split(), return_dtype=str)
+            >>> words.columns
+            ['f0']
+            >>> named = df.flat_map(
+            ...     lambda record: record["text"].split(),
+            ...     return_dtype="ROW<word STRING>")
+            >>> named.columns
+            ['word']
+
+        Callable classes can be passed directly and are instantiated on workers::
+
+            >>> class SplitWords:
+            ...     def __call__(self, record: Dict[str, Any]) -> Iterator[str]:
+            ...         yield from record["text"].split()
+            >>> words = df.flat_map(SplitWords)
+
+        ``TableFunction`` classes are declared with :func:`pyflink.dataframe.udtf`::
+
+            >>> from pyflink.table.udf import TableFunction
+            >>> class SplitWordsFunction(TableFunction):
+            ...     def eval(self, record: Dict[str, Any]) -> Iterator[str]:
+            ...         yield from record["text"].split()
+            >>> words = df.flat_map(pf.udtf(SplitWordsFunction))
+
+        See :func:`pyflink.dataframe.udtf` for more details.
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.udtf import _resolve_flat_map_udtf
+
+        expression, output_columns = _resolve_flat_map_udtf(func, return_dtype, self.columns)
+        table = self._table.flat_map(expression)
+        # Table UDTFs expose positional field names, so restore the declared names.
+        return DataFrame(table.alias(output_columns[0], *output_columns[1:]))
 
     # ======================== Filtering & Ordering ========================
 
@@ -1230,6 +1319,52 @@ class DataFrame:
             return self.filter(key)
         raise TypeError("key must be a string, list, tuple, or Expression")
 
+    @PublicEvolving()
+    def __getattr__(self, name: str) -> Expression:
+        """
+        Return a column expression for an attribute name.
+
+        The name must be a valid Python identifier, must not start with an underscore, must not be
+        a Python keyword, and must identify an existing column. Existing DataFrame attributes take
+        precedence over columns. Use ``df["column name"]`` for names that cannot be accessed as
+        attributes, or ``df["select"]`` for columns that conflict with existing attributes.
+
+        This method resolves the schema without executing a Flink job.
+
+        :param name: Name of the referenced column.
+        :return: An expression referencing the column.
+        :raises AttributeError: If the name is invalid, private, or does not identify an existing
+            column.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"id": 1, "name": "Alice"}])
+            >>> selected = df.select(df.name)
+            >>> filtered = df.filter(df.id > 0)
+
+        .. versionadded:: 2.4.0
+        """
+        if (
+            name.startswith("_")
+            or not name.isidentifier()
+            or keyword.iskeyword(name)
+            or any(name in cls.__dict__ for cls in type(self).__mro__)
+        ):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+
+        # Avoid re-entering __getattr__ if the underlying table has not been initialized.
+        try:
+            table = object.__getattribute__(self, "_table")
+        except AttributeError:
+            raise AttributeError(
+                f"'{type(self).__name__}' object has no attribute '{name}'"
+            ) from None
+
+        if name not in table.get_resolved_schema().get_column_names():
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        return table_col(name)
+
     # ======================== Composition ========================
 
     @PublicEvolving()
@@ -1370,6 +1505,278 @@ class DataFrame:
     # ======================== I/O ========================
 
     @PublicEvolving()
+    def write_parquet(
+        self,
+        path: str,
+        *,
+        mode: str = "append",
+        partition_by: Optional[Union[str, List[str]]] = None,
+        compression: Optional[str] = None,
+        utc_timezone: Optional[bool] = None,
+        sink_parallelism: Optional[int] = None,
+        sink_shuffle_by_partition: Optional[bool] = None,
+        auto_compaction: Optional[bool] = None,
+        compaction_file_size: Optional[str] = None,
+        rolling_policy_file_size: Optional[str] = None,
+        rolling_policy_rollover_interval: Optional[str] = None,
+        rolling_policy_inactivity_interval: Optional[str] = None,
+        rolling_policy_check_interval: Optional[str] = None,
+        partition_commit_trigger: Optional[str] = None,
+        partition_commit_delay: Optional[str] = None,
+        partition_commit_policy_kind: Optional[str] = None,
+        connector_options: Optional[Dict[str, str]] = None,
+        format_options: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """
+        Write Parquet files using Flink's filesystem connector.
+
+        The filesystem connector and Parquet format must be available to Flink. The write
+        is submitted immediately and waits for completion for local or MiniCluster execution.
+        Sink columns are derived from this DataFrame's schema. Writes default to append in both
+        batch and streaming execution. Explicit overwrite requires batch execution and is rejected
+        by the filesystem connector in streaming execution. Partitioned overwrite replaces only
+        partitions present in the input, retaining other partitions.
+
+        Optional connector and format parameters use ``None`` to leave the option unspecified.
+        If neither a parameter nor its dictionary option is set, the connector or format factory
+        supplies the default.
+
+        Rolling policies apply to streaming sinks. Parquet also rolls files on checkpoints;
+        continuous writes require checkpointing to finish files. Partition commit in streaming
+        requires ``partition_by`` and a commit policy. ``partition-time`` additionally requires
+        upstream watermarks and a partition time extractor, configured via ``connector_options``.
+        For a TIMESTAMP_LTZ watermark, set ``sink.partition-commit.watermark-time-zone`` in
+        ``connector_options`` to the session time zone; its default is UTC.
+
+        :param path: Output directory URI supported by Flink's filesystem implementations.
+        :param mode: ``"append"`` (default) adds files; ``"overwrite"`` replaces existing data
+            in batch execution only.
+        :param partition_by: Partition column name or non-empty list of names in directory order.
+            Values are stored in Hive-style partition paths rather than in the Parquet records.
+        :param compression: Parquet compression codec. The format default is currently
+            ``"SNAPPY"``.
+        :param utc_timezone: Use UTC for Parquet timestamp conversion. The format default is
+            currently ``False``, which uses the JVM default time zone, independently of the
+            session time zone.
+        :param sink_parallelism: Sink parallelism. The connector default is the upstream
+            parallelism.
+        :param sink_shuffle_by_partition: Shuffle rows by dynamic partition fields before writing.
+            This can reduce the number of files but may cause data skew. The connector default
+            is currently ``False``.
+        :param auto_compaction: Automatically compact files in streaming execution after
+            checkpoints complete. Files remain invisible until compaction finishes. The connector
+            default is currently ``False``.
+        :param compaction_file_size: Target file size for automatic compaction, for example
+            ``"128mb"``. The connector default is the rolling policy file size.
+        :param rolling_policy_file_size: Part file size threshold for rolling, not a hard upper
+            bound. The connector default is currently ``"128mb"``.
+        :param rolling_policy_rollover_interval: Part file open-time threshold. The connector
+            default is currently ``"30min"``.
+        :param rolling_policy_inactivity_interval: Part file inactivity threshold. The connector
+            default is currently ``"30min"``.
+        :param rolling_policy_check_interval: Interval for checking time-based rolling policies.
+            The connector default is currently ``"1min"``.
+        :param partition_commit_trigger: Partition commit trigger: ``"process-time"`` or
+            ``"partition-time"``. The connector default is currently ``"process-time"``.
+        :param partition_commit_delay: Delay before committing a partition. The connector
+            default is currently ``"0s"``.
+        :param partition_commit_policy_kind: Optional comma-separated policies, such as
+            ``"success-file"`` or ``"custom"``. The ``metastore`` policy requires a Hive table.
+        :param connector_options: Additional filesystem options with string keys and values.
+            The ``connector``, ``path`` and ``format`` keys are reserved. Format options belong in
+            ``format_options``. Explicit parameter and dictionary values must agree when both
+            are set. Unspecified options are left to the connector factory.
+        :param format_options: Parquet options with string values, with or without the
+            ``parquet.`` prefix. Duplicate normalized keys are rejected. ``None`` parameters
+            leave dictionary values unchanged; conflicting explicit values are rejected.
+            For INT64 timestamp encoding, use ``{"write.int64.timestamp": "true",
+            "timestamp.time.unit": "micros"}``. The default encoding is INT96.
+        :raises TypeError: If an argument has an invalid type.
+        :raises ValueError: If the path is empty, the write mode is unsupported, the partition
+            specification is empty or contains empty or duplicate names, or options conflict
+            or contain reserved, empty or duplicate keys.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> _ = pf.config.set("execution.runtime-mode", "batch")
+            >>> events = pf.from_records([(1, "login")], schema=["id", "event"])
+            >>> events.write_parquet("file:///tmp/events", compression="GZIP")
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.io import (
+            _boolean_option,
+            _build_filesystem_options,
+            _parallelism_option,
+        )
+
+        options = _build_filesystem_options(
+            path,
+            "parquet",
+            connector_parameters={
+                "sink.parallelism": _parallelism_option(sink_parallelism),
+                "sink.shuffle-by-partition.enable": _boolean_option(
+                    sink_shuffle_by_partition, "sink_shuffle_by_partition"),
+                "auto-compaction": _boolean_option(auto_compaction, "auto_compaction"),
+                "compaction.file-size": compaction_file_size,
+                "sink.rolling-policy.file-size": rolling_policy_file_size,
+                "sink.rolling-policy.rollover-interval": rolling_policy_rollover_interval,
+                "sink.rolling-policy.inactivity-interval": rolling_policy_inactivity_interval,
+                "sink.rolling-policy.check-interval": rolling_policy_check_interval,
+                "sink.partition-commit.trigger": partition_commit_trigger,
+                "sink.partition-commit.delay": partition_commit_delay,
+                "sink.partition-commit.policy.kind": partition_commit_policy_kind,
+            },
+            format_parameters={
+                "compression": compression,
+                "utc-timezone": _boolean_option(utc_timezone, "utc_timezone"),
+            },
+            extra_connector_options=connector_options,
+            extra_format_options=format_options,
+        )
+        self._write("filesystem", options, mode=mode, partition_by=partition_by)
+
+    @PublicEvolving()
+    def write_json(
+        self,
+        path: str,
+        *,
+        mode: str = "append",
+        partition_by: Optional[Union[str, List[str]]] = None,
+        timestamp_format: Optional[str] = None,
+        ignore_null_fields: Optional[bool] = None,
+        decimal_as_plain_number: Optional[bool] = None,
+        sink_parallelism: Optional[int] = None,
+        sink_shuffle_by_partition: Optional[bool] = None,
+        auto_compaction: Optional[bool] = None,
+        compaction_file_size: Optional[str] = None,
+        rolling_policy_file_size: Optional[str] = None,
+        rolling_policy_rollover_interval: Optional[str] = None,
+        rolling_policy_inactivity_interval: Optional[str] = None,
+        rolling_policy_check_interval: Optional[str] = None,
+        partition_commit_trigger: Optional[str] = None,
+        partition_commit_delay: Optional[str] = None,
+        partition_commit_policy_kind: Optional[str] = None,
+        connector_options: Optional[Dict[str, str]] = None,
+        format_options: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """
+        Write newline-delimited JSON files using Flink's filesystem connector.
+
+        The filesystem connector and JSON format must be available to Flink. The write
+        is submitted immediately and waits for completion for local or MiniCluster execution.
+        Sink columns are derived from this DataFrame's schema. Writes default to append in both
+        batch and streaming execution. Explicit overwrite requires batch execution and is rejected
+        by the filesystem connector in streaming execution. Partitioned overwrite replaces only
+        partitions present in the input, retaining other partitions.
+
+        Optional connector and format parameters use ``None`` to leave the option unspecified.
+        If neither a parameter nor its dictionary option is set, the connector or format factory
+        supplies the default.
+
+        Rolling policies apply to streaming sinks. Continuous writes require both file rolling
+        and checkpointing to finish files. With automatic compaction, files also roll on
+        checkpoints. Partition commit in streaming requires ``partition_by``
+        and a commit policy. ``partition-time`` additionally requires upstream watermarks and a
+        partition time extractor, configured via ``connector_options``.
+        For a TIMESTAMP_LTZ watermark, set ``sink.partition-commit.watermark-time-zone`` in
+        ``connector_options`` to the session time zone; its default is UTC.
+
+        :param path: Output directory URI supported by Flink's filesystem implementations.
+        :param mode: ``"append"`` (default) adds files; ``"overwrite"`` replaces existing data
+            in batch execution only.
+        :param partition_by: Partition column name or non-empty list of names in directory order.
+            Values are stored in Hive-style partition paths rather than in the JSON records.
+        :param timestamp_format: Timestamp representation, ``"SQL"`` or ``"ISO-8601"``.
+            The format default is currently ``"SQL"``.
+        :param ignore_null_fields: Omit fields with null values from JSON objects. The format
+            default is currently ``False``. This does not control Map entries with null keys;
+            configure ``map-null-key.mode`` through ``format_options`` for those entries.
+        :param decimal_as_plain_number: Encode DECIMAL values as plain numbers rather than
+            scientific notation, retaining JSON numeric values. The format default is currently
+            ``False``.
+        :param sink_parallelism: Sink parallelism. The connector default is the upstream
+            parallelism.
+        :param sink_shuffle_by_partition: Shuffle rows by dynamic partition fields before writing.
+            This can reduce the number of files but may cause data skew. The connector default
+            is currently ``False``.
+        :param auto_compaction: Automatically compact files in streaming execution after
+            checkpoints complete. Files remain invisible until compaction finishes. The connector
+            default is currently ``False``.
+        :param compaction_file_size: Target file size for automatic compaction, for example
+            ``"128mb"``. The connector default is the rolling policy file size.
+        :param rolling_policy_file_size: Part file size threshold for rolling, not a hard upper
+            bound. The connector default is currently ``"128mb"``.
+        :param rolling_policy_rollover_interval: Part file open-time threshold. The connector
+            default is currently ``"30min"``.
+        :param rolling_policy_inactivity_interval: Part file inactivity threshold. The connector
+            default is currently ``"30min"``.
+        :param rolling_policy_check_interval: Interval for checking time-based rolling policies.
+            The connector default is currently ``"1min"``.
+        :param partition_commit_trigger: Partition commit trigger: ``"process-time"`` or
+            ``"partition-time"``. The connector default is currently ``"process-time"``.
+        :param partition_commit_delay: Delay before committing a partition. The connector
+            default is currently ``"0s"``.
+        :param partition_commit_policy_kind: Optional comma-separated policies, such as
+            ``"success-file"`` or ``"custom"``. The ``metastore`` policy requires a Hive table.
+        :param connector_options: Additional filesystem options with string keys and values.
+            The ``connector``, ``path`` and ``format`` keys are reserved. Format options belong in
+            ``format_options``. Explicit parameter and dictionary values must agree when both
+            are set. Unspecified options are left to the connector factory.
+        :param format_options: JSON format options with string values. Keys may include or omit
+            the ``json.`` prefix, for example ``{"timestamp-format.standard": "ISO-8601"}``.
+            ``None`` parameters leave dictionary values unchanged; conflicting explicit values
+            are rejected.
+        :raises TypeError: If an argument has an invalid type.
+        :raises ValueError: If the path is empty, the write mode is unsupported, the partition
+            specification is empty or contains empty or duplicate names, or options conflict
+            or contain reserved, empty or duplicate keys.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> events = pf.from_records([(1, "login")], schema=["id", "event"])
+            >>> events.write_json("file:///tmp/events")
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.io import (
+            _boolean_option,
+            _build_filesystem_options,
+            _parallelism_option,
+        )
+
+        options = _build_filesystem_options(
+            path,
+            "json",
+            connector_parameters={
+                "sink.parallelism": _parallelism_option(sink_parallelism),
+                "sink.shuffle-by-partition.enable": _boolean_option(
+                    sink_shuffle_by_partition, "sink_shuffle_by_partition"),
+                "auto-compaction": _boolean_option(auto_compaction, "auto_compaction"),
+                "compaction.file-size": compaction_file_size,
+                "sink.rolling-policy.file-size": rolling_policy_file_size,
+                "sink.rolling-policy.rollover-interval": rolling_policy_rollover_interval,
+                "sink.rolling-policy.inactivity-interval": rolling_policy_inactivity_interval,
+                "sink.rolling-policy.check-interval": rolling_policy_check_interval,
+                "sink.partition-commit.trigger": partition_commit_trigger,
+                "sink.partition-commit.delay": partition_commit_delay,
+                "sink.partition-commit.policy.kind": partition_commit_policy_kind,
+            },
+            format_parameters={
+                "timestamp-format.standard": timestamp_format,
+                "encode.ignore-null-fields": _boolean_option(
+                    ignore_null_fields, "ignore_null_fields"),
+                "encode.decimal-as-plain-number": _boolean_option(
+                    decimal_as_plain_number, "decimal_as_plain_number"),
+            },
+            extra_connector_options=connector_options,
+            extra_format_options=format_options,
+        )
+        self._write("filesystem", options, mode=mode, partition_by=partition_by)
+
+    @PublicEvolving()
     def write_generic(self, connector: str, *, options: Dict[str, str]) -> None:
         """
         Write this DataFrame using a connector and its raw Table connector options.
@@ -1398,10 +1805,24 @@ class DataFrame:
 
         .. versionadded:: 2.4.0
         """
+        self._write(connector, options)
+
+    def _write(
+        self,
+        connector: str,
+        options: Dict[str, str],
+        *,
+        mode: str = "append",
+        partition_by: Optional[Union[str, List[str]]] = None,
+    ) -> None:
         from pyflink.dataframe.io import _build_generic_descriptor
 
-        descriptor = _build_generic_descriptor(connector, options)
-        result = self._table.execute_insert(descriptor)
+        if not isinstance(mode, str):
+            raise TypeError("mode must be a string")
+        if mode not in ("append", "overwrite"):
+            raise ValueError("mode must be 'append' or 'overwrite'")
+        descriptor = _build_generic_descriptor(connector, options, partition_by=partition_by)
+        result = self._table.execute_insert(descriptor, overwrite=mode == "overwrite")
         execution_target = self._table._t_env.get_config().get(
             "execution.target", None
         )

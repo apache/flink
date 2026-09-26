@@ -41,6 +41,9 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.SimpleUdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
+import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -178,9 +181,21 @@ public class StateBootstrapTransformation<T> {
         BootstrapStreamTaskRunner<T> operatorRunner =
                 new BootstrapStreamTaskRunner<>(config, localMaxParallelism);
 
+        // Partition by key group directly instead of stream.keyBy(...), so
+        // BootstrapStreamTaskRunner isn't marked as keyed and doesn't claim managed memory that
+        // the nested bootstrapped operator needs.
         DataStream<T> input = stream;
         if (keySelector != null) {
-            input = stream.keyBy(this.keySelector);
+            // keyBy() used to reject key types that cannot be hashed reliably; keep that check
+            // here now that the partitioning is built directly.
+            KeySelectorUtil.validateKeyType(keyType);
+            input =
+                    new DataStream<>(
+                            stream.getExecutionEnvironment(),
+                            new PartitionTransformation<>(
+                                    stream.getTransformation(),
+                                    new KeyGroupStreamPartitioner<>(
+                                            this.keySelector, localMaxParallelism)));
         }
 
         SingleOutputStreamOperator<TaggedOperatorSubtaskState> subtaskStates =
