@@ -163,48 +163,88 @@ under the License.
 								</includes>
 								<excludes>
 									<exclude>com.google.code.findbugs:jsr305</exclude>
+									<!--
+									Contribute no classes to a JVM uber jar: kotlin-stdlib-jdk7 and -jdk8 have been empty
+									since Kotlin 1.8 (their contents moved into kotlin-stdlib), and kotlin-stdlib-common
+									and com.squareup.okio:okio are multiplatform metadata artifacts holding only
+									.kotlin_metadata resources. okio-jvm carries the actual okio code.
+									-->
+									<exclude>org.jetbrains.kotlin:kotlin-stdlib-jdk7</exclude>
+									<exclude>org.jetbrains.kotlin:kotlin-stdlib-jdk8</exclude>
+									<exclude>org.jetbrains.kotlin:kotlin-stdlib-common</exclude>
+									<exclude>com.squareup.okio:okio</exclude>
 								</excludes>
 							</artifactSet>
 							<relocations combine.children="append">
+								<!--
+								Patterns are Java packages, not Maven groupIds, and carry a trailing dot: the shade
+								plugin matches them as a bare prefix against string constants too, so "kotlin"
+								would also rewrite "kotlinx" and ".kotlin_builtins".
+								-->
+								<!--
+								com.openai and kotlin deliberately stay unrelocated. openai-java is written in Kotlin
+								and reflects over its own classes through jackson-module-kotlin. Relocating com.openai
+								makes kotlin-reflect fail with "Could not compute caller for function: private
+								constructor Body(...)"; relocating kotlin moves kotlin/*.kotlin_builtins away from the
+								path kotlin-reflect builds from the bare literal "kotlin", giving "Built-in class
+								kotlin.Any is not found". Measured against the shaded jar: the module's own tests go
+								22/22 to 10/22 with com.openai relocated, and a jar-only reflection probe fails
+								outright with kotlin relocated.
+								-->
 								<relocation>
-									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.model.openai.com.fasterxml.jackson</shadedPattern>
+									<pattern>com.fasterxml.jackson.</pattern>
+									<shadedPattern>org.apache.flink.model.openai.shaded.com.fasterxml.jackson.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml.classmate.</pattern>
+									<shadedPattern>org.apache.flink.model.openai.shaded.com.fasterxml.classmate.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.knuddels.</pattern>
+									<shadedPattern>org.apache.flink.model.openai.shaded.com.knuddels.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.github.victools.</pattern>
+									<shadedPattern>org.apache.flink.model.openai.shaded.com.github.victools.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google.errorprone.</pattern>
+									<shadedPattern>org.apache.flink.model.openai.shaded.com.google.errorprone.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.swagger.</pattern>
+									<shadedPattern>org.apache.flink.model.openai.shaded.io.swagger.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>okhttp3.</pattern>
+									<shadedPattern>org.apache.flink.model.openai.shaded.okhttp3.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>okio.</pattern>
+									<shadedPattern>org.apache.flink.model.openai.shaded.okio.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.jetbrains.</pattern>
+									<shadedPattern>org.apache.flink.model.openai.shaded.org.jetbrains.</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.intellij.</pattern>
+									<shadedPattern>org.apache.flink.model.openai.shaded.org.intellij.</shadedPattern>
 								</relocation>
 								<!--
 								Manually relocate multi-release classes to the correct shaded package. This is needed
 								due to a bug in the Maven Shade plugin, which only relocates the content but not
-								the package structure itself, see https://github.com/apache/maven-shade-plugin/issues/652
+								the package structure itself, see https://github.com/apache/maven-shade-plugin/issues/652.
+								Only listed for the dependencies that actually ship META-INF/versions entries; the
+								check_shaded_artifacts_model CI check fails if a bump adds another one.
 								-->
 								<relocation>
 									<pattern>META-INF/versions/(\d+)/com/fasterxml/jackson/</pattern>
-									<shadedPattern>META-INF/versions/$1/org/apache/flink/model/openai/com/fasterxml/jackson/</shadedPattern>
+									<shadedPattern>META-INF/versions/$1/org/apache/flink/model/openai/shaded/com/fasterxml/jackson/</shadedPattern>
 									<rawString>true</rawString>
-								</relocation>
-								<!--
-								Same maven-shade-plugin#652 workaround as the jackson relocation above, extended to every
-								relocated package: keep each dependency's multi-release (META-INF/versions/N) classes aligned
-								with its relocated base classes. No-op for non-multi-release jars.
-								-->
-								<relocation>
-									<pattern>META-INF/versions/(\d+)/org/apache/httpcomponents/</pattern>
-									<shadedPattern>META-INF/versions/$1/org/apache/flink/model/openai/org/apache/httpcomponents/</shadedPattern>
-									<rawString>true</rawString>
-								</relocation>
-								<relocation>
-									<pattern>META-INF/versions/(\d+)/com/squareup/</pattern>
-									<shadedPattern>META-INF/versions/$1/org/apache/flink/model/openai/com/squareup/</shadedPattern>
-									<rawString>true</rawString>
-								</relocation>
-								<relocation>
-									<pattern>org.apache.httpcomponents</pattern>
-									<shadedPattern>org.apache.flink.model.openai.org.apache.httpcomponents</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.squareup</pattern>
-									<shadedPattern>org.apache.flink.model.openai.com.squareup</shadedPattern>
 								</relocation>
 							</relocations>
-							<filters>
+							<filters combine.children="append">
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
