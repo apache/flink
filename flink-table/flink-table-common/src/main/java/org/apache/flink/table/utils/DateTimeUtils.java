@@ -164,9 +164,24 @@ public class DateTimeUtils {
     private static final ThreadLocalCache<String, DateTimeFormatter> DATETIME_FORMATTER_CACHE =
             ThreadLocalCache.of(DateTimeFormatter::ofPattern);
 
-    /** A ThreadLocal cache map for TimeZone. (string_zone_id) => TimeZone */
+    /** A ThreadLocal cache map for TimeZone. (string_zone_id) => TimeZone, null if unrecognized */
     private static final ThreadLocalCache<String, TimeZone> TIMEZONE_CACHE =
-            ThreadLocalCache.of(TimeZone::getTimeZone);
+            ThreadLocalCache.of(DateTimeUtils::resolveTimeZone);
+
+    /**
+     * Resolves a time zone id, or returns null if it is not a recognized zone. {@link
+     * TimeZone#getTimeZone(String)} is not used directly because it falls back to GMT for anything
+     * it cannot parse, which turns a mistyped zone into a silently wrong conversion. Resolving
+     * through {@link ZoneId} also accepts offset ids such as "+08:00" that the string overload does
+     * not understand.
+     */
+    private static TimeZone resolveTimeZone(String tzStr) {
+        try {
+            return TimeZone.getTimeZone(ZoneId.of(tzStr, ZoneId.SHORT_IDS));
+        } catch (DateTimeException e) {
+            return null;
+        }
+    }
 
     // --------------------------------------------------------------------------------------------
     // java.sql Date/Time/Timestamp --> internal data types
@@ -540,18 +555,6 @@ public class DateTimeUtils {
         SimpleDateFormat formatter = FORMATTER_CACHE.get(format);
         formatter.setTimeZone(tz);
         return formatter.parse(dateStr).getTime();
-    }
-
-    /**
-     * Parse date time string to timestamp based on the given time zone string and format. Returns
-     * null if parsing failed.
-     *
-     * @param dateStr the date time string
-     * @param tzStr the time zone id string
-     */
-    private static long parseTimestampTz(String dateStr, String tzStr) throws ParseException {
-        TimeZone tz = TIMEZONE_CACHE.get(tzStr);
-        return parseTimestampMillis(dateStr, DateTimeUtils.TIMESTAMP_FORMAT_STRING, tz);
     }
 
     /** Returns the epoch days since 1970-01-01. */
@@ -1457,16 +1460,17 @@ public class DateTimeUtils {
      * @param tzTo the target time zone
      */
     public static String convertTz(String dateStr, String tzFrom, String tzTo) {
+        final TimeZone from = TIMEZONE_CACHE.get(tzFrom);
+        final TimeZone to = TIMEZONE_CACHE.get(tzTo);
+        if (from == null || to == null) {
+            return null;
+        }
         try {
-            return formatTimestampTz(parseTimestampTz(dateStr, tzFrom), tzTo);
+            final long ts = parseTimestampMillis(dateStr, TIMESTAMP_FORMAT_STRING, from);
+            return formatTimestampMillis(ts, TIMESTAMP_FORMAT_STRING, to);
         } catch (ParseException e) {
             return null;
         }
-    }
-
-    private static String formatTimestampTz(long ts, String tzStr) {
-        TimeZone tz = TIMEZONE_CACHE.get(tzStr);
-        return formatTimestampMillis(ts, DateTimeUtils.TIMESTAMP_FORMAT_STRING, tz);
     }
 
     // --------------------------------------------------------------------------------------------
