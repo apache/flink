@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.TraceOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -455,6 +456,142 @@ class CheckpointCoordinatorTest {
         assertThat(checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints()).isZero();
 
         checkpointCoordinator.shutdown();
+    }
+
+    // ------------------------------------------------------------------------
+    //  Checkpoint failure reason delivery to the CheckpointStatsListener.
+    //
+    //  Integration coverage for FLINK-36512: the adaptive scheduler's
+    //  rescale-on-failed-checkpoints countdown consumes the reason handed to
+    //  CheckpointStatsListener#onFailedCheckpoint and must only advance for
+    //  reasons attributable to in-flight checkpoint execution. These tests
+    //  drive a real CheckpointCoordinator so the reason under assertion is the
+    //  one production code actually generates (rather than a hand-supplied one),
+    //  covering both listener paths: reportFailedCheckpointsWithoutInProgress
+    //  (pre-flight / IO trigger failures) and reportFailedCheckpoint (declines).
+    // ------------------------------------------------------------------------
+
+    @Test
+    void testPreFlightFailureReasonDeliveredToStatsListenerIsNotRescaleRelevant() throws Exception {
+        // A checkpoint triggered while not all tasks are running fails before any
+        // PendingCheckpoint exists and must surface NOT_ALL_REQUIRED_TASKS_RUNNING, which the
+        // adaptive scheduler ignores for rescaling.
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(new JobVertexID())
+                        .setTransitToRunning(false)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        List<CheckpointFailureReason> observedFailureReasons = new ArrayList<>();
+        CheckpointCoordinator coordinator =
+                createCoordinatorWithFailureReasonListener(graph, null, observedFailureReasons);
+
+        CompletableFuture<CompletedCheckpoint> future = coordinator.triggerCheckpoint(false);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+
+        assertThat(future).isCompletedExceptionally();
+        assertThat(observedFailureReasons)
+                .containsExactly(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+        assertThat(
+                        CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING
+                                .isCountedAgainstFailureThreshold())
+                .as("Pre-flight failures must not advance the adaptive rescale countdown.")
+                .isFalse();
+
+        coordinator.shutdown();
+    }
+
+    @Test
+    void testIOExceptionFailureReasonDeliveredToStatsListenerIsRescaleRelevant() throws Exception {
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(new JobVertexID())
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        List<CheckpointFailureReason> observedFailureReasons = new ArrayList<>();
+        CheckpointCoordinator coordinator =
+                createCoordinatorWithFailureReasonListener(
+                        graph, new IOExceptionCheckpointStorage(), observedFailureReasons);
+
+        CompletableFuture<CompletedCheckpoint> future = coordinator.triggerCheckpoint(false);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+
+        assertThat(future).isCompletedExceptionally();
+        assertThat(observedFailureReasons).containsExactly(IO_EXCEPTION);
+        assertThat(IO_EXCEPTION.isCountedAgainstFailureThreshold())
+                .as("In-flight IO failures must advance the adaptive rescale countdown.")
+                .isTrue();
+
+        coordinator.shutdown();
+    }
+
+    @Test
+    void testDeclineFailureReasonDeliveredToStatsListenerIsRescaleRelevant() throws Exception {
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        ExecutionAttemptID attemptID =
+                graph.getJobVertex(jobVertexID)
+                        .getTaskVertices()[0]
+                        .getCurrentExecutionAttempt()
+                        .getAttemptId();
+
+        List<CheckpointFailureReason> observedFailureReasons = new ArrayList<>();
+        CheckpointCoordinator coordinator =
+                createCoordinatorWithFailureReasonListener(graph, null, observedFailureReasons);
+
+        // A declined in-flight checkpoint reaches the listener via the reportFailedCheckpoint
+        // path (a PendingCheckpoint exists).
+        CompletableFuture<CompletedCheckpoint> future = coordinator.triggerCheckpoint(false);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        FutureUtils.throwIfCompletedExceptionally(future);
+
+        long checkpointId =
+                coordinator.getPendingCheckpoints().entrySet().iterator().next().getKey();
+        coordinator.receiveDeclineMessage(
+                new DeclineCheckpoint(
+                        graph.getJobID(),
+                        attemptID,
+                        checkpointId,
+                        new CheckpointException(CHECKPOINT_DECLINED)),
+                TASK_MANAGER_LOCATION_INFO);
+
+        assertThat(observedFailureReasons).containsExactly(CHECKPOINT_DECLINED);
+        assertThat(CHECKPOINT_DECLINED.isCountedAgainstFailureThreshold())
+                .as("Declined checkpoints must advance the adaptive rescale countdown.")
+                .isTrue();
+
+        coordinator.shutdown();
+    }
+
+    private CheckpointCoordinator createCoordinatorWithFailureReasonListener(
+            ExecutionGraph graph,
+            @Nullable CheckpointStorage checkpointStorage,
+            List<CheckpointFailureReason> observedFailureReasons)
+            throws Exception {
+        CheckpointStatsListener listener =
+                new CheckpointStatsListener() {
+                    @Override
+                    public void onFailedCheckpoint(@Nullable CheckpointFailureReason reason) {
+                        observedFailureReasons.add(reason);
+                    }
+                };
+        DefaultCheckpointStatsTracker statsTracker =
+                new DefaultCheckpointStatsTracker(
+                        Integer.MAX_VALUE,
+                        UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
+                        TraceOptions.CheckpointSpanDetailLevel.SPAN_PER_CHECKPOINT,
+                        listener);
+        CheckpointCoordinatorBuilder builder =
+                new CheckpointCoordinatorBuilder()
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointStatsTracker(statsTracker);
+        if (checkpointStorage != null) {
+            builder.setCheckpointStorage(checkpointStorage);
+        }
+        return builder.build(graph);
     }
 
     @Test
