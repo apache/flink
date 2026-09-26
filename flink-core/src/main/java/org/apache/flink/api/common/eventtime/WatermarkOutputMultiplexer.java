@@ -153,14 +153,27 @@ public class WatermarkOutputMultiplexer {
      *
      * <p>It also handles scenarios where both emitting a watermark and entering the idle state
      * occur within the same invocation.
+     *
+     * <p>Idleness is propagated in both directions: the combined status is reported to the {@link
+     * #underlyingOutput} whenever it is idle or active. An output that is active but whose
+     * watermark does not advance produces neither a watermark nor an idle update, so without
+     * reporting the active state the underlying output would never learn that it is active again.
+     *
+     * <p>Activity is only announced for outputs that reported being active. An output is registered
+     * for every assigned split, even when the reader never reports anything through it, and
+     * reporting idleness on one output says nothing about the others: such outputs hold the
+     * combined watermark back, but they must not keep the downstream output active.
      */
     private void updateCombinedWatermark() {
         if (combinedWatermarkStatus.updateCombinedWatermark()) {
             underlyingOutput.emitWatermark(
                     new Watermark(combinedWatermarkStatus.getCombinedWatermark()));
         }
+
         if (combinedWatermarkStatus.isIdle()) {
             underlyingOutput.markIdle();
+        } else if (combinedWatermarkStatus.hasActiveOutput()) {
+            underlyingOutput.markActive();
         }
     }
 
