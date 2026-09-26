@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql;
 
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -159,6 +160,68 @@ class CreateConnectionITCase extends BatchTestBase {
                         connection ->
                                 assertThat(connection.getOptions())
                                         .containsOnly(entry("type", "default")));
+    }
+
+    @Test
+    void testDescribeTemporaryConnection() {
+        tEnv().executeSql(
+                        "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
+                                + "WITH ('type' = 'default', 'k' = 'v', 'comment' = 'option comment', "
+                                + "'password' = 'super-secret')");
+
+        List<Row> rows = collectRows("DESCRIBE CONNECTION my_conn");
+
+        assertThat(rows)
+                .containsExactly(
+                        Row.of("type", "default"),
+                        Row.of("option:comment", "option comment"),
+                        Row.of("option:k", "v"),
+                        Row.of("comment", "hi there"),
+                        Row.of("temporary", "true"));
+    }
+
+    @Test
+    void testDescribeSecretOnlyConnectionIncludesDefaultType() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'secret')");
+
+        assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
+                .containsExactly(Row.of("type", "default"), Row.of("temporary", "true"));
+    }
+
+    @Test
+    void testDescribeMasksSensitiveOption() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('db.password' = 'secret')");
+
+        assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
+                .containsExactly(
+                        Row.of("type", "default"),
+                        Row.of("option:db.password", GlobalConfiguration.HIDDEN_CONTENT),
+                        Row.of("temporary", "true"));
+    }
+
+    @Test
+    void testDescribePermanentConnectionIncludesScope() throws Exception {
+        ObjectIdentifier identifier = connectionIdentifier("my_conn");
+        catalogManager()
+                .getCatalog(catalogManager().getCurrentCatalog())
+                .orElseThrow()
+                .createConnection(
+                        identifier.toObjectPath(),
+                        CatalogConnection.of(Map.of("k", "v"), null),
+                        false);
+
+        assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
+                .containsExactly(
+                        Row.of("type", "default"),
+                        Row.of("option:k", "v"),
+                        Row.of("temporary", "false"));
+    }
+
+    @Test
+    void testDescribeMissingConnectionRejected() {
+        assertThatThrownBy(() -> tEnv().executeSql("DESCRIBE CONNECTION missing_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Connection with identifier");
     }
 
     private List<Row> collectRows(String sql) {
