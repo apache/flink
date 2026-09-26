@@ -22,6 +22,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.rest.handler.AbstractSqlGatewayRestHandler;
@@ -191,13 +192,14 @@ class SessionRelatedITCase extends RestAPIITCaseBase {
 
         long lastAccessTime = session.getLastAccessTime();
 
+        CommonTestUtils.waitUntilCondition(() -> System.currentTimeMillis() > lastAccessTime);
         CompletableFuture<EmptyResponseBody> future =
                 sendRequest(
                         TriggerSessionHeartbeatHeaders.getInstance(),
                         sessionMessageParameters,
                         emptyRequestBody);
         future.get();
-        assertThat(session.getLastAccessTime()).isGreaterThanOrEqualTo(lastAccessTime);
+        assertThat(session.getLastAccessTime()).isGreaterThan(lastAccessTime);
     }
 
     @Test
