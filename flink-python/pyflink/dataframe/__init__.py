@@ -73,6 +73,7 @@ from pyflink.dataframe.io import (
     read_parquet,
 )
 from pyflink.dataframe.iteration import CloseableIterator
+from pyflink.dataframe.over_window import following, preceding
 from pyflink.dataframe.sql import sql
 from pyflink.dataframe.udf import udf
 from pyflink.dataframe.udtf import udtf
@@ -107,6 +108,8 @@ __all__ = [
     "list_databases",
     "sql",
     "config",
+    "preceding",
+    "following",
     "set_table_environment",
     "get_table_environment",
     "get_or_create_table_environment",

@@ -1018,6 +1018,9 @@ public final class OperationTreeBuilder {
 
         @Override
         public Void visit(UnresolvedCallExpression call) {
+            if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
+                return null;
+            }
             if (isFunctionOfKind(call, FunctionKind.AGGREGATE)) {
                 throw new ValidationException(exceptionMessage);
             }

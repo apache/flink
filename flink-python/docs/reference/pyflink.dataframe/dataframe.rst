@@ -203,3 +203,49 @@ Functions for constructing column references and literal expressions.
 
     col
     lit
+
+OVER windows
+------------
+
+An aggregate expression can define an inline OVER window. The ordering column may be a column
+name or expression. Use the keyword ``order_by=`` to define an inline window; a single positional
+argument such as ``over(col("w"))`` or ``over(alias=col("w"))`` refers to a Table API named window.
+If neither ``rows`` nor ``range`` is provided, the default frame is unbounded RANGE through the
+current range. A scalar ``rows`` bound includes that many preceding rows and the current row, so
+``rows=10`` covers up to 11 rows. RANGE frames include all peers with the same ordering value.
+
+``rows`` uses integer row offsets. ``range`` accepts ``datetime.timedelta`` or a Flink duration
+string such as ``"1 hour"`` or ``"1 h"``; this is not SQL ``INTERVAL '1' HOUR`` syntax. Duration
+values are converted to milliseconds, truncating sub-millisecond precision. Use Table API frame
+constants from ``pyflink.table.expressions`` when matched to the frame type: ``*_ROW`` with
+``rows`` and ``*_RANGE`` with ``range``.
+
+The current expression layer requires a single time attribute in ``order_by``. Streaming OVER
+windows additionally require ascending order, and all OVER aggregates in the same projection must
+use the same frame. The upper bound must be the current row/range; FOLLOWING bounds are not
+supported in streaming. Without ``partition_by``, streaming OVER uses a singleton distribution and
+therefore runs with parallelism one, which can limit throughput. Batch plans support multiple
+different OVER frames in the same projection.
+
+.. code-block:: python
+
+    import pyflink.dataframe as pf
+
+    running = pf.col("amount").sum.over(
+        order_by="event_time",
+        partition_by="user_id",
+        rows=10,
+    )
+    explicit = pf.col("amount").sum.over(
+        order_by="event_time",
+        rows=(pf.preceding(2), pf.following(1)),
+    )
+
+The public frame-bound descriptor and helpers are:
+
+.. autosummary::
+    :toctree: api/
+
+    over_window.FrameBoundary
+    preceding
+    following
