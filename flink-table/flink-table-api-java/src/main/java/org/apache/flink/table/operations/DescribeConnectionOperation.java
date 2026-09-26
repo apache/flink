@@ -28,6 +28,7 @@ import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogConnection;
 import org.apache.flink.table.catalog.ContextResolvedConnection;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 
 import java.util.ArrayList;
@@ -93,14 +94,15 @@ public class DescribeConnectionOperation implements Operation, ExecutableOperati
             boolean isTemporary,
             List<String> additionalSensitiveKeys) {
         List<Object[]> rows = new ArrayList<>();
-        new TreeMap<>(ShowCreateUtil.withoutConnectionInternalOptions(connection.getOptions()))
-                .forEach(
-                        (key, value) -> {
-                            rows.add(
-                                    new Object[] {
-                                        key, maskValue(key, value, additionalSensitiveKeys)
-                                    });
-                        });
+        TreeMap<String, String> options =
+                new TreeMap<>(
+                        ShowCreateUtil.withoutConnectionInternalOptions(connection.getOptions()));
+        options.putIfAbsent(
+                FactoryUtil.CONNECTION_TYPE.key(), FactoryUtil.CONNECTION_TYPE.defaultValue());
+        options.forEach(
+                (key, value) -> {
+                    rows.add(new Object[] {key, maskValue(key, value, additionalSensitiveKeys)});
+                });
         if (connection.getComment() != null && !connection.getComment().isEmpty()) {
             rows.add(new Object[] {"comment", connection.getComment()});
         }

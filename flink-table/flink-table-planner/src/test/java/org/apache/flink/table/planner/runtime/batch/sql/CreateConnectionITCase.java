@@ -179,6 +179,14 @@ class CreateConnectionITCase extends BatchTestBase {
     }
 
     @Test
+    void testDescribeSecretOnlyConnectionIncludesDefaultType() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'secret')");
+
+        assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
+                .containsExactly(Row.of("type", "default"));
+    }
+
+    @Test
     void testDescribeTemporaryConnectionExtended() {
         tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
 
