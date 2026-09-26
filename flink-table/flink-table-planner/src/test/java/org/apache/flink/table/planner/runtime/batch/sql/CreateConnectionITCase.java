@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql;
 
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -185,6 +186,17 @@ class CreateConnectionITCase extends BatchTestBase {
 
         assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
                 .containsExactly(Row.of("type", "default"), Row.of("temporary", "true"));
+    }
+
+    @Test
+    void testDescribeMasksSensitiveOption() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('db.password' = 'secret')");
+
+        assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
+                .containsExactly(
+                        Row.of("type", "default"),
+                        Row.of("option:db.password", GlobalConfiguration.HIDDEN_CONTENT),
+                        Row.of("temporary", "true"));
     }
 
     @Test
