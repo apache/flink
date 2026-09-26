@@ -228,6 +228,19 @@ class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
     }
 
     @Test
+    void testSqlExecuteWithStatementSetAndColumnList() {
+        final String sql =
+                "execute statement set begin "
+                        + "insert into t1 select a, b, c, d from t2 where a > 1;"
+                        + "insert into t1 (a, b) select a, b from t2 where a > 2;"
+                        + "end";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(StatementSetOperation.class);
+    }
+
+    @Test
     void testSqlRichExplainWithExecuteStatementSet() {
         final String sql =
                 "EXPLAIN EXECUTE STATEMENT SET BEGIN "
