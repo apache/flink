@@ -27,11 +27,12 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureCompl
 import java.io.IOException;
 import java.util.Collection;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** The default fetch task that fetches the records into the element queue. */
 @Internal
 class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
-    private final SplitReader<E, SplitT> splitReader;
+    private final Supplier<SplitReader<E, SplitT>> splitReaderSupplier;
     private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
     private final Consumer<Collection<String>> splitFinishedCallback;
     private final int fetcherIndex;
@@ -39,11 +40,11 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
     private volatile boolean wakeup;
 
     FetchTask(
-            SplitReader<E, SplitT> splitReader,
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Consumer<Collection<String>> splitFinishedCallback,
             int fetcherIndex) {
-        this.splitReader = splitReader;
+        this.splitReaderSupplier = splitReaderSupplier;
         this.elementsQueue = elementsQueue;
         this.splitFinishedCallback = splitFinishedCallback;
         this.lastRecords = null;
@@ -55,7 +56,7 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
     public boolean run() throws IOException {
         try {
             if (!isWakenUp() && lastRecords == null) {
-                lastRecords = splitReader.fetch();
+                lastRecords = splitReaderSupplier.get().fetch();
             }
 
             if (!isWakenUp()) {
@@ -95,7 +96,7 @@ class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
             // 2. The records has been enqueued and set to null.
             // In case 1, we just wakeup the split reader. In case 2, the next run might be skipped.
             // In any case, the records won't be enqueued in the ongoing run().
-            splitReader.wakeUp();
+            splitReaderSupplier.get().wakeUp();
         } else {
             // The task might be blocking on enqueuing the records, just interrupt.
             elementsQueue.wakeUpPuttingThread(fetcherIndex);
