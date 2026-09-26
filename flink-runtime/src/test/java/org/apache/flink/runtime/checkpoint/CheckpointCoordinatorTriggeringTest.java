@@ -29,6 +29,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
@@ -39,6 +40,7 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
@@ -181,6 +183,139 @@ class CheckpointCoordinatorTriggeringTest {
 
             lastId = checkpoint.checkpointId;
             lastTs = checkpoint.timestamp;
+        }
+    }
+
+    /**
+     * Tests that no periodic checkpoint is triggered while a source is processing backlog and
+     * {@code execution.checkpointing.interval-during-backlog} is disabled, even if the first
+     * periodic trigger was already scheduled before the source reported the backlog (FLINK-39108).
+     */
+    @Test
+    void testFirstScheduledCheckpointNotTriggeredWhenBacklogCheckpointingDisabled()
+            throws Exception {
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTaskManagerGateway(gateway)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        ExecutionVertex vertex = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+        ExecutionAttemptID attemptID = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+        CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                new CheckpointCoordinatorConfigurationBuilder()
+                        .setCheckpointInterval(10)
+                        .setCheckpointIntervalDuringBacklog(
+                                CheckpointCoordinatorConfiguration.DISABLED_CHECKPOINT_INTERVAL)
+                        .setCheckpointTimeout(200000)
+                        .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                        .build();
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(checkpointCoordinatorConfiguration)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setClock(new ManualClock())
+                        .build(graph);
+
+        try {
+            checkpointCoordinator.startCheckpointScheduler();
+
+            // a source reports isProcessingBacklog=true before the first periodic checkpoint
+            // has been triggered; with a disabled backlog interval no checkpoint may be
+            // triggered until the backlog is processed
+            OperatorID operatorID = new OperatorID();
+            checkpointCoordinator.setIsProcessingBacklog(operatorID, true);
+            assertThat(checkpointCoordinator.isCurrentPeriodicTriggerAvailable())
+                    .as("the armed periodic trigger is cancelled right away")
+                    .isFalse();
+
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+
+            assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints())
+                    .as(
+                            "No checkpoint should be triggered during backlog if the checkpoint "
+                                    + "interval during backlog is disabled")
+                    .isZero();
+            assertThat(gateway.getTriggeredCheckpoints(attemptID)).isEmpty();
+
+            // the backlog ends: the periodic trigger is re-armed and checkpointing resumes
+            checkpointCoordinator.setIsProcessingBacklog(operatorID, false);
+            assertThat(checkpointCoordinator.isCurrentPeriodicTriggerAvailable()).isTrue();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+            assertThat(gateway.getTriggeredCheckpoints(attemptID)).hasSize(1);
+        } finally {
+            checkpointCoordinator.shutdown();
+        }
+    }
+
+    /**
+     * Tests that a periodic trigger armed while a source is already processing backlog does not
+     * trigger a checkpoint if {@code execution.checkpointing.interval-during-backlog} is disabled,
+     * and that checkpointing resumes once the backlog is processed (FLINK-39108).
+     */
+    @Test
+    void testSchedulerStartedDuringBacklogDoesNotTriggerWhenBacklogCheckpointingDisabled()
+            throws Exception {
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTaskManagerGateway(gateway)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        ExecutionVertex vertex = graph.getJobVertex(jobVertexID).getTaskVertices()[0];
+        ExecutionAttemptID attemptID = vertex.getCurrentExecutionAttempt().getAttemptId();
+
+        CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                new CheckpointCoordinatorConfigurationBuilder()
+                        .setCheckpointInterval(10)
+                        .setCheckpointIntervalDuringBacklog(
+                                CheckpointCoordinatorConfiguration.DISABLED_CHECKPOINT_INTERVAL)
+                        .setCheckpointTimeout(200000)
+                        .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                        .build();
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(checkpointCoordinatorConfiguration)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setClock(new ManualClock())
+                        .build(graph);
+
+        try {
+            // the source reports backlog first, the scheduler is started afterwards (this is the
+            // order in a running job: the enumerator reports on start, the scheduler starts once
+            // all tasks are running)
+            OperatorID operatorID = new OperatorID();
+            checkpointCoordinator.setIsProcessingBacklog(operatorID, true);
+            checkpointCoordinator.startCheckpointScheduler();
+
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+
+            assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isZero();
+            assertThat(gateway.getTriggeredCheckpoints(attemptID)).isEmpty();
+            assertThat(checkpointCoordinator.isCurrentPeriodicTriggerAvailable()).isFalse();
+
+            checkpointCoordinator.setIsProcessingBacklog(operatorID, false);
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+            assertThat(gateway.getTriggeredCheckpoints(attemptID)).hasSize(1);
+        } finally {
+            checkpointCoordinator.shutdown();
         }
     }
 
