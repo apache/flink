@@ -305,6 +305,68 @@ public class PipelineOptions {
         CASCADING
     }
 
+    public static final ConfigOption<ForwardEdgeParallelismMismatchMode>
+            FORWARD_EDGE_PARALLELISM_MISMATCH_MODE =
+                    key("pipeline.forward-edge.parallelism-mismatch-mode")
+                            .enumType(ForwardEdgeParallelismMismatchMode.class)
+                            .defaultValue(ForwardEdgeParallelismMismatchMode.REBALANCE)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Determines how the runtime handles a FORWARD (pointwise) edge whose"
+                                                            + " producer and consumer parallelism no longer match, which can happen"
+                                                            + " when the parallelism of connected operators is changed"
+                                                            + " independently (for example via the AdaptiveScheduler or %s). A"
+                                                            + " FORWARD edge is only valid at equal parallelism; on a mismatch one"
+                                                            + " of the following strategies is applied:",
+                                                    code(PARALLELISM_OVERRIDES.key()))
+                                            .list(
+                                                    text(
+                                                            "%s: replace the forward partitioner with a rebalance (round-robin)"
+                                                                    + " partitioner. This preserves throughput but reorders records,"
+                                                                    + " which is safe for append-only streams but corrupts"
+                                                                    + " order-sensitive (changelog) streams.",
+                                                            code(
+                                                                    ForwardEdgeParallelismMismatchMode
+                                                                            .REBALANCE
+                                                                            .name())),
+                                                    text(
+                                                            "%s: fail the job with an exception instead of silently changing"
+                                                                    + " the data distribution.",
+                                                            code(
+                                                                    ForwardEdgeParallelismMismatchMode
+                                                                            .FAIL
+                                                                            .name())),
+                                                    text(
+                                                            "%s: keep the forward partitioner. Record order is preserved but"
+                                                                    + " the records are funneled to a single consumer subtask, so the"
+                                                                    + " remaining consumer subtasks stay idle.",
+                                                            code(
+                                                                    ForwardEdgeParallelismMismatchMode
+                                                                            .KEEP_FORWARD
+                                                                            .name())))
+                                            .build());
+
+    /**
+     * The strategy applied when a FORWARD (pointwise) edge connects a producer and consumer with
+     * mismatched parallelism.
+     */
+    @PublicEvolving
+    public enum ForwardEdgeParallelismMismatchMode {
+        /**
+         * Replace the forward partitioner with a rebalance partitioner. Reorders records; safe only
+         * for append-only streams.
+         */
+        REBALANCE,
+        /** Fail the job with an exception. */
+        FAIL,
+        /**
+         * Keep the forward partitioner. Preserves record order but funnels records to a single
+         * consumer subtask.
+         */
+        KEEP_FORWARD
+    }
+
     public static final ConfigOption<Boolean> VERTEX_NAME_INCLUDE_INDEX_PREFIX =
             key("pipeline.vertex-name-include-index-prefix")
                     .booleanType()
