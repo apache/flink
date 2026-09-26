@@ -925,7 +925,8 @@ class Table(object):
         """
         Converts the table to a pandas DataFrame. It will collect the content of the table to
         the client side and so please make sure that the content of the table could fit in memory
-        before calling this method.
+        before calling this method. Nested rows are supported, but nested TIMESTAMP_LTZ values
+        are not supported.
 
         Example:
         ::
@@ -950,7 +951,8 @@ class Table(object):
             timezone = pytz.timezone(
                 self._j_table.getTableEnvironment().getConfig().getLocalTimeZone().getId())
             serializer = ArrowSerializer(
-                create_arrow_schema(schema.get_field_names(), schema.get_field_data_types()),
+                create_arrow_schema(schema.get_field_names(), schema.get_field_data_types(),
+                                    allow_nested_rows=True),
                 schema.to_row_data_type(),
                 timezone)
             import pyarrow as pa
