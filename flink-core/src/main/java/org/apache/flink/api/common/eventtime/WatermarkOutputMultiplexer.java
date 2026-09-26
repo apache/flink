@@ -161,6 +161,11 @@ public class WatermarkOutputMultiplexer {
         }
         if (combinedWatermarkStatus.isIdle()) {
             underlyingOutput.markIdle();
+        } else if (combinedWatermarkStatus.hasOutputs()) {
+            // Idleness has to be propagated in both directions: an output that is active but whose
+            // watermark does not advance produces neither an emitWatermark nor a markIdle call, so
+            // without this the underlying output would never learn that it is active again.
+            underlyingOutput.markActive();
         }
     }
 

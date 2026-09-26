@@ -444,6 +444,48 @@ class WatermarkOutputMultiplexerTest {
         assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
     }
 
+    @Test
+    void testEmittingActiveWhenOutputResumesWithoutAdvancingItsWatermark() {
+        final TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        final WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        final WatermarkOutput output = createDeferredOutput(multiplexer);
+
+        output.emitWatermark(new Watermark(5));
+        multiplexer.onPeriodicEmit();
+
+        output.markIdle();
+        multiplexer.onPeriodicEmit();
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
+
+        // the output is producing again but stays behind the watermark it had already reached, so
+        // there is no watermark update that could carry the activity downstream
+        output.emitWatermark(new Watermark(3));
+        multiplexer.onPeriodicEmit();
+
+        assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
+    }
+
+    @Test
+    void testNotEmittingActiveAfterAllSplitsRemoved() {
+        final TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        final WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        final String id = UUID.randomUUID().toString();
+        multiplexer.registerNewOutput(id);
+        multiplexer.getImmediateOutput(id).markIdle();
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
+
+        multiplexer.unregisterOutput(id);
+        multiplexer.onPeriodicEmit();
+
+        assertThat(underlyingWatermarkOutput.isIdle())
+                .as("without any output there is no combined status to report")
+                .isTrue();
+    }
+
     /**
      * Convenience method so we don't have to go through the output ID dance when we only want an
      * immediate output for a given output ID.
