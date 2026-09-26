@@ -114,9 +114,7 @@ public class DescribeConnectionOperation implements Operation, ExecutableOperati
         if (connection.getComment() != null && !connection.getComment().isEmpty()) {
             rows.add(new Object[] {"comment", connection.getComment()});
         }
-        if (isExtended) {
-            rows.add(new Object[] {"temporary", String.valueOf(isTemporary)});
-        }
+        rows.add(new Object[] {"temporary", String.valueOf(isTemporary)});
         return rows.toArray(new Object[0][]);
     }
 

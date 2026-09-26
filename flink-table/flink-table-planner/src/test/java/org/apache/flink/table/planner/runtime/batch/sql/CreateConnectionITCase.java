@@ -187,14 +187,14 @@ class CreateConnectionITCase extends BatchTestBase {
         tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'secret')");
 
         assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
-                .containsExactly(Row.of("type", "default"));
+                .containsExactly(Row.of("type", "default"), Row.of("temporary", "true"));
     }
 
     @Test
-    void testDescribeTemporaryConnectionExtended() {
+    void testDescribeTemporaryConnectionIncludesScope() {
         tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
 
-        assertThat(collectRows("DESCRIBE CONNECTION EXTENDED my_conn"))
+        assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
                 .contains(Row.of("temporary", "true"));
     }
 
