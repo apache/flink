@@ -32,6 +32,7 @@ Readers
 .. autosummary::
     :toctree: api/
 
+    read_catalog_table
     read_generic
     read_json
     read_parquet
@@ -44,6 +45,7 @@ Writers
 .. autosummary::
     :toctree: api/
 
+    DataFrame.write_catalog_table
     DataFrame.write_generic
     DataFrame.write_json
     DataFrame.write_parquet

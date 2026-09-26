@@ -50,6 +50,7 @@ from pyflink.table.expressions import (
     lit as table_lit,
 )
 from pyflink.table.table import Table
+from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["DataFrame", "GroupedDataFrame", "col", "lit"]
@@ -1788,8 +1789,8 @@ class DataFrame:
         :param connector: Factory identifier used as the ``connector`` Table option.
         :param options: Connector options, excluding the reserved ``connector`` option.
         :raises TypeError: If an argument has an invalid type.
-        :raises ValueError: If the connector or an option key is empty, or if ``options`` contains
-            the reserved ``connector`` key.
+        :raises ValueError: If the connector or an option key is empty, if ``options`` contains
+            the reserved ``connector`` key, or if Flink rejects the connector or its options.
 
         Example::
 
@@ -1815,6 +1816,7 @@ class DataFrame:
         mode: str = "append",
         partition_by: Optional[Union[str, List[str]]] = None,
     ) -> None:
+        from pyflink.dataframe.errors import _raise_as_value_error
         from pyflink.dataframe.io import _build_generic_descriptor
 
         if not isinstance(mode, str):
@@ -1822,7 +1824,54 @@ class DataFrame:
         if mode not in ("append", "overwrite"):
             raise ValueError("mode must be 'append' or 'overwrite'")
         descriptor = _build_generic_descriptor(connector, options, partition_by=partition_by)
-        result = self._table.execute_insert(descriptor, overwrite=mode == "overwrite")
+        try:
+            self._execute_insert(descriptor, mode == "overwrite")
+        except Exception as error:
+            _raise_as_value_error(error)
+
+    @PublicEvolving()
+    def write_catalog_table(self, path: str, *, overwrite: bool = False) -> None:
+        """
+        Write this DataFrame to a table registered in a catalog.
+
+        ``path`` is ``table_name``, ``db_name.table_name``, or ``catalog_name.db_name.table_name``.
+        Missing parts are resolved against the current catalog and database, see
+        :func:`~pyflink.dataframe.use_catalog` and :func:`~pyflink.dataframe.use_database`. The
+        write runs right away. On a local or MiniCluster setup the call blocks until the write is
+        done.
+
+        :param path: Path of the catalog table.
+        :param overwrite: Whether existing data should be replaced, like ``INSERT OVERWRITE``.
+            Not every connector supports overwriting.
+        :raises TypeError: If ``path`` is not a string or ``overwrite`` is not a bool.
+        :raises ValueError: If ``path`` is empty, malformed, or does not name a table, or if the
+            DataFrame's columns do not match the table.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> events = pf.from_records([(1, "login")], schema=["id", "event"])
+            >>> events.write_catalog_table("my_catalog.my_database.events")
+            >>> pf.use_catalog("my_catalog")
+            >>> events.write_catalog_table("my_database.events", overwrite=True)
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.catalog import _validate_name
+        from pyflink.dataframe.errors import _raise_as_value_error
+
+        _validate_name(path, "path")
+        if not isinstance(overwrite, bool):
+            raise TypeError("overwrite must be a bool")
+        try:
+            self._execute_insert(path, overwrite)
+        except Exception as error:
+            _raise_as_value_error(error)
+
+    def _execute_insert(
+        self, target: Union[str, TableDescriptor], overwrite: bool = False
+    ) -> None:
+        result = self._table.execute_insert(target, overwrite=overwrite)
         execution_target = self._table._t_env.get_config().get(
             "execution.target", None
         )
