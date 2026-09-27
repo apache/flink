@@ -243,10 +243,11 @@ def _normalize_frame(
     if isinstance(value, tuple):
         if len(value) != 2:
             raise TypeError("frame tuple must contain exactly two-element bounds")
-        _validate_explicit_bound_kinds(value, kind)
+        lower_bound, upper_bound = value
+        _validate_explicit_bound_kinds((lower_bound, upper_bound), kind)
         return (
-            _normalize_bound(value[0], kind, "lower"),
-            _normalize_bound(value[1], kind, "upper"),
+            _normalize_bound(lower_bound, kind, "lower"),
+            _normalize_bound(upper_bound, kind, "upper"),
         )
     return _normalize_scalar_frame(value, kind)
 
