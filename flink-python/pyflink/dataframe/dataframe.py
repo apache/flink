@@ -18,6 +18,7 @@
 
 import datetime
 import keyword
+from contextlib import ExitStack
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
     import pandas
     from pyflink.dataframe.udf import _DataTypeLike
     from pyflink.dataframe.udtf import _DataFrameUDTFWrapper
+    from pyflink.table.table_environment import TableEnvironment
     from pyflink.table.table_schema import TableSchema
 
 from pyflink.common import Row
@@ -728,8 +730,9 @@ class DataFrame:
         Join this DataFrame with another DataFrame.
 
         Use ``on`` when both sides share the same named join keys, or pass a boolean expression as
-        the complete join predicate. A predicate must contain at least one equality condition
-        between the inputs. Use ``left_on`` and ``right_on`` together when the key names differ.
+        the complete join predicate. Use ``left_on`` and ``right_on`` together when the key names
+        differ. In streaming mode, a join without equality keys may use singleton distribution
+        (a single parallel instance) and can be expensive.
         Shared named keys occur once in the result; other duplicate column names must be renamed
         before joining. ``semi`` and ``anti`` joins return only columns from this DataFrame, while
         ``cross`` performs a Cartesian product and accepts no join keys. A ``semi`` join requires
@@ -751,12 +754,30 @@ class DataFrame:
             >>> import pyflink.dataframe as pf
             >>> orders = pf.from_records([(1, 10)], schema=["customer_id", "amount"])
             >>> customers = pf.from_records([(1, "Alice")], schema=["customer_id", "name"])
-            >>> orders.join(customers, on="customer_id")
-            >>> orders.join(
+            >>> matched = orders.join(customers, on="customer_id")
+            >>> matched = orders.join(
             ...     customers.rename_columns({"customer_id": "id"}),
             ...     left_on="customer_id",
             ...     right_on="id",
             ...     how="left",
+            ... )
+
+        Expression-based predicates support equality, compound conditions, and non-equi joins::
+
+            >>> customers_by_id = customers.rename_columns({"customer_id": "id"})
+            >>> matched = orders.join(
+            ...     customers_by_id, on=pf.col("customer_id") == pf.col("id"))
+            >>> rules = pf.from_records([(1, 5)], schema=["rule_customer_id", "min_amount"])
+            >>> matched = orders.join(
+            ...     rules,
+            ...     on=(pf.col("customer_id") == pf.col("rule_customer_id"))
+            ...     & (pf.col("amount") >= pf.col("min_amount")),
+            ... )
+            >>> matched = orders.join(rules, on=pf.col("amount") >= pf.col("min_amount"))
+            >>> unmatched = orders.join(
+            ...     customers_by_id,
+            ...     on=pf.col("customer_id") == pf.col("id"),
+            ...     how="anti",
             ... )
 
         .. versionadded:: 2.4.0
@@ -803,27 +824,30 @@ class DataFrame:
                     right_key_names,
                 )
             )
-        if join_type == "anti":
+        with _JoinSqlFactory(self._table._t_env) as sql_factory:
+            if join_type == "anti":
+                return DataFrame(
+                    _build_anti_join_sql(
+                        left_table,
+                        right_table,
+                        predicate,
+                        self.columns,
+                        sql_factory,
+                    )
+                )
+
             return DataFrame(
-                _build_anti_join_sql(
+                _build_regular_join_sql(
                     left_table,
                     right_table,
                     predicate,
                     self.columns,
+                    other.columns,
+                    shared_keys,
+                    join_type,
+                    sql_factory,
                 )
             )
-
-        return DataFrame(
-            _build_regular_join_sql(
-                left_table,
-                right_table,
-                predicate,
-                self.columns,
-                other.columns,
-                shared_keys,
-                join_type,
-            )
-        )
 
     # ======================== Filtering & Ordering ========================
 
@@ -2156,10 +2180,41 @@ def _prepare_join(
     )
 
 
+class _JoinSqlFactory:
+    """Keep inline UDFs registered until the join SQL has been resolved."""
+
+    def __init__(self, t_env: "TableEnvironment"):
+        self._t_env = t_env
+        self._functions: Dict[Any, str] = {}
+        self._taken_names: Optional[Set[str]] = None
+        self._cleanup = ExitStack()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return self._cleanup.__exit__(*exc_info)
+
+    def serializeInlineFunction(self, definition):
+        if definition not in self._functions:
+            if self._taken_names is None:
+                self._taken_names = {name.lower() for name in self._t_env.list_functions()}
+            name = _unique_name("__pf_join_udf", self._taken_names)
+            self._t_env._j_tenv.createTemporarySystemFunction(name, definition)
+            self._cleanup.callback(self._t_env.drop_temporary_system_function, name)
+            self._taken_names.add(name)
+            self._functions[definition] = name
+        return _quote_identifier(self._functions[definition])
+
+    class Java:
+        implements = ["org.apache.flink.table.expressions.SqlFactory"]
+
+
 def _serialize_join_predicate(
     left_table: Table,
     right_table: Table,
     predicate: Expression,
+    sql_factory: _JoinSqlFactory,
 ) -> Tuple[str, str, str]:
     left_alias, right_alias = "__pf_join_left", "__pf_join_right"
     operation_tree_builder = (
@@ -2185,7 +2240,7 @@ def _serialize_join_predicate(
     )
     predicate_sql = operation_expression_utils.scopeReferencesWithAlias(
         aliases, resolved_predicate
-    ).asSerializableString()
+    ).asSerializableString(sql_factory)
     return left_alias, right_alias, predicate_sql
 
 
@@ -2197,9 +2252,10 @@ def _build_regular_join_sql(
     right_output_columns: List[str],
     shared_keys: Dict[str, str],
     join_type: str,
+    sql_factory: _JoinSqlFactory,
 ) -> Table:
     left_alias, right_alias, predicate_sql = _serialize_join_predicate(
-        left_table, right_table, predicate
+        left_table, right_table, predicate, sql_factory
     )
     left_alias_sql = _quote_identifier(left_alias)
     right_alias_sql = _quote_identifier(right_alias)
@@ -2288,32 +2344,28 @@ def _build_anti_join_sql(
     right_table: Table,
     predicate: Expression,
     output_columns: List[str],
+    sql_factory: _JoinSqlFactory,
 ) -> Table:
     left_alias, right_alias, predicate_sql = _serialize_join_predicate(
-        left_table, right_table, predicate
+        left_table, right_table, predicate, sql_factory
     )
     left_alias_sql = _quote_identifier(left_alias)
     right_alias_sql = _quote_identifier(right_alias)
     select_list = ", ".join(
         "%s.%s" % (left_alias_sql, _quote_identifier(name)) for name in output_columns
     )
-    right_columns = list(right_table.get_resolved_schema().get_column_names())
-    match_marker = _unique_name("__pf_join_match", set(right_columns))
-    match_marker_sql = _quote_identifier(match_marker)
+    left_source_sql = _quote_identifier(str(left_table))
+    right_source_sql = _quote_identifier(str(right_table))
     query = (
-        "SELECT %s FROM %s AS %s LEFT OUTER JOIN ("
-        "SELECT *, TRUE AS %s FROM %s"
-        ") AS %s ON %s WHERE %s.%s IS NULL"
+        "SELECT %s FROM %s AS %s WHERE NOT EXISTS ("
+        "SELECT 1 FROM %s AS %s WHERE %s)"
         % (
             select_list,
-            _quote_identifier(str(left_table)),
+            left_source_sql,
             left_alias_sql,
-            match_marker_sql,
-            _quote_identifier(str(right_table)),
+            right_source_sql,
             right_alias_sql,
             predicate_sql,
-            right_alias_sql,
-            match_marker_sql,
         )
     )
     return left_table._t_env.sql_query(query)
