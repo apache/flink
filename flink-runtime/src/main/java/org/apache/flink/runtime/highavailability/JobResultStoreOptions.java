@@ -26,6 +26,8 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
+import java.time.Duration;
+
 /** The set of configuration options relating to the Job Result Store. */
 @PublicEvolving
 public class JobResultStoreOptions {
@@ -71,4 +73,21 @@ public class JobResultStoreOptions {
                                     + "are, instead, marked as clean to indicate their state. In this "
                                     + "case, Flink no longer has ownership and the resources need to "
                                     + "be cleaned up by the user.");
+
+    @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY_JOB_RESULT_STORE)
+    public static final ConfigOption<Duration> CLEAN_JOB_RESULT_TTL =
+            ConfigOptions.key("job-result-store.clean-job-result.ttl")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Determines how long the job results of the embedded (in-memory) job "
+                                    + "result store are retained after they transitioned into a "
+                                    + "clean state. If no value is configured, the clean job "
+                                    + "results are retained indefinitely. Configuring a value "
+                                    + "bounds the memory consumption of long-running sessions at "
+                                    + "the cost of no longer being able to answer whether a job "
+                                    + "result was marked as clean. This option does not affect the "
+                                    + "file system based job result store which removes the job "
+                                    + "results on commit unless "
+                                    + "job-result-store.delete-on-commit is disabled.");
 }

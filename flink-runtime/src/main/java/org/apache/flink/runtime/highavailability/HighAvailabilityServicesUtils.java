@@ -128,7 +128,7 @@ public class HighAvailabilityServicesUtils {
                         getWebMonitorAddress(configuration, addressResolution);
 
                 return new StandaloneHaServices(
-                        resourceManagerRpcUrl, dispatcherRpcUrl, webMonitorAddress);
+                        resourceManagerRpcUrl, dispatcherRpcUrl, webMonitorAddress, configuration);
             case ZOOKEEPER:
                 return createZooKeeperHaServices(configuration, executor, fatalErrorHandler);
             case KUBERNETES:
