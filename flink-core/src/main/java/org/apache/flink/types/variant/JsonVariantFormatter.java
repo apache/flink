@@ -50,15 +50,13 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.unexpectedType;
  * data as {@code "<INVALID>"}.
  */
 @Internal
-public final class JsonVariantFormatter implements VariantFormatter {
+public final class JsonVariantFormatter {
 
     public static final JsonVariantFormatter STRICT = new JsonVariantFormatter(false);
 
     public static final JsonVariantFormatter LENIENT = new JsonVariantFormatter(true);
 
-    private static final String UNKNOWN_NODE = "<UNKNOWN>";
-
-    private static final String INVALID_NODE = "<INVALID>";
+    private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
     private final boolean lenient;
 
@@ -66,11 +64,9 @@ public final class JsonVariantFormatter implements VariantFormatter {
         this.lenient = lenient;
     }
 
-    @Override
-    public String format(final Variant variant) {
-        final BinaryVariant binary = (BinaryVariant) variant;
+    public String format(final BinaryVariant variant) {
         final StringBuilder sb = new StringBuilder();
-        append(binary.rawValue(), binary.getMetadata(), binary.getPos(), sb);
+        append(variant.rawValue(), variant.getMetadata(), variant.getPos(), sb);
         return sb.toString();
     }
 
@@ -85,8 +81,7 @@ public final class JsonVariantFormatter implements VariantFormatter {
             }
             // Drop the node's partial output, such as a dangling key.
             sb.setLength(start);
-            appendQuoted(
-                    sb, BinaryVariantUtil.isUnknownType(value, pos) ? UNKNOWN_NODE : INVALID_NODE);
+            appendQuoted(sb, BinaryVariantUtil.undecodableNode(value, pos));
         }
     }
 
@@ -145,6 +140,7 @@ public final class JsonVariantFormatter implements VariantFormatter {
             case SMALLINT:
             case INT:
             case BIGINT:
+                // Reads the 1, 2, 4 or 8 bytes the header declares and widens them to a long.
                 sb.append(BinaryVariantUtil.getLong(value, pos));
                 break;
             case STRING:
@@ -242,7 +238,7 @@ public final class JsonVariantFormatter implements VariantFormatter {
     // (4 characters).
     private static String escapeJson(String str) {
         try (CharArrayWriter writer = new CharArrayWriter();
-                JsonGenerator gen = new JsonFactory().createGenerator(writer)) {
+                JsonGenerator gen = JSON_FACTORY.createGenerator(writer)) {
             gen.writeString(str);
             gen.flush();
             return writer.toString();

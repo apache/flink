@@ -22,8 +22,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.primitiveHeader;
 import static org.apache.flink.types.variant.BinaryVariantUtil.shortStrHeader;
-import static org.apache.flink.types.variant.JsonVariantFormatter.LENIENT;
-import static org.apache.flink.types.variant.JsonVariantFormatter.STRICT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -32,7 +30,7 @@ class JsonVariantFormatterTest {
     private static final BinaryVariantBuilder BUILDER = new BinaryVariantBuilder();
 
     @Test
-    void testValidValueIsTheSameInBothFormatters() {
+    void testValidValueIsTheSameInToJsonAndToString() {
         final Variant variant =
                 BUILDER.object()
                         .add("a", BUILDER.of("x"))
@@ -41,9 +39,9 @@ class JsonVariantFormatterTest {
                                 BUILDER.array().add(BUILDER.of(1)).add(BUILDER.ofNull()).build())
                         .build();
 
-        assertThat(STRICT.format(variant)).isEqualTo("{\"a\":\"x\",\"list\":[1,null]}");
-        assertThat(LENIENT.format(variant)).isEqualTo(STRICT.format(variant));
-        assertThat(STRICT.format(variant.getField("list"))).isEqualTo("[1,null]");
+        assertThat(variant.toJson()).isEqualTo("{\"a\":\"x\",\"list\":[1,null]}");
+        assertThat(variant.toString()).isEqualTo(variant.toJson());
+        assertThat(variant.getField("list").toJson()).isEqualTo("[1,null]");
     }
 
     @Test
@@ -55,8 +53,8 @@ class JsonVariantFormatterTest {
                         .add(BUILDER.of(Float.POSITIVE_INFINITY))
                         .build();
 
-        assertThat(LENIENT.format(variant)).isEqualTo("[\"NaN\",\"-Infinity\",\"Infinity\"]");
-        assertThatThrownBy(() -> STRICT.format(variant))
+        assertThat(variant.toString()).isEqualTo("[\"NaN\",\"-Infinity\",\"Infinity\"]");
+        assertThatThrownBy(variant::toJson)
                 .hasMessage("Non-finite value NaN cannot be serialized to JSON.");
     }
 
@@ -66,9 +64,8 @@ class JsonVariantFormatterTest {
                 (BinaryVariant) BUILDER.array().add(BUILDER.of(1)).add(BUILDER.of(2)).build();
         final Variant variant = withHeader(array, primitiveHeader(31));
 
-        assertThat(LENIENT.format(variant)).isEqualTo("[1,\"<UNKNOWN>\"]");
-        assertThatThrownBy(() -> STRICT.format(variant))
-                .hasMessage("UNKNOWN_PRIMITIVE_TYPE_IN_VARIANT, id: 31");
+        assertThat(variant.toString()).isEqualTo("[1,\"<UNKNOWN>\"]");
+        assertThatThrownBy(variant::toJson).hasMessage("UNKNOWN_PRIMITIVE_TYPE_IN_VARIANT, id: 31");
     }
 
     @Test
@@ -78,8 +75,8 @@ class JsonVariantFormatterTest {
         // Claim a longer string than the buffer holds.
         final Variant variant = withHeader(array, shortStrHeader(63));
 
-        assertThat(LENIENT.format(variant)).isEqualTo("[1,\"<INVALID>\"]");
-        assertThatThrownBy(() -> STRICT.format(variant)).hasMessage("MALFORMED_VARIANT");
+        assertThat(variant.toString()).isEqualTo("[1,\"<INVALID>\"]");
+        assertThatThrownBy(variant::toJson).hasMessage("MALFORMED_VARIANT");
     }
 
     @Test
@@ -94,7 +91,7 @@ class JsonVariantFormatterTest {
         final byte[] noKeys = ((BinaryVariant) BUILDER.of(1)).getMetadata();
         final Variant variant = new BinaryVariant(array.getValue(), noKeys);
 
-        assertThat(LENIENT.format(variant)).isEqualTo("[1,\"<INVALID>\"]");
+        assertThat(variant.toString()).isEqualTo("[1,\"<INVALID>\"]");
     }
 
     /** Replaces the header of the array's second element. */

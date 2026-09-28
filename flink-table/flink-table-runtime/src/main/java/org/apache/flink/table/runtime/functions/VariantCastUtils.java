@@ -71,12 +71,6 @@ public final class VariantCastUtils {
 
     private static final String NULL_NODE = "NULL";
 
-    /** Display text for a node whose type this version does not know. */
-    private static final String UNKNOWN_NODE = "<UNKNOWN>";
-
-    /** Display text for any other node that cannot be decoded. */
-    private static final String INVALID_NODE = "<INVALID>";
-
     private VariantCastUtils() {}
 
     /**
@@ -315,7 +309,7 @@ public final class VariantCastUtils {
      * use {@code JSON_STRING} for the JSON form. A value longer than {@code targetLength} is
      * trimmed and a {@code CHAR} target pads a shorter one, both counted in code points rather than
      * UTF-16 units. A binary value must be well-formed UTF-8, and is rejected rather than decoded
-     * into {@code U+FFFD}. Printing uses {@link #toDisplayString} instead.
+     * into {@code U+FFFD}. Printing uses {@link #toPrintString} instead.
      *
      * @param sessionZone the session time zone, applied to a {@code TIMESTAMP_LTZ} value
      */
@@ -332,22 +326,22 @@ public final class VariantCastUtils {
      * {@code <UNKNOWN>}, other undecodable data as {@code <INVALID>}, bytes as {@code x'..'}, and a
      * variant null as {@code NULL}.
      */
-    static String toDisplayString(final Variant variant, final TimeZone sessionZone) {
+    public static String toPrintString(final Variant variant, final TimeZone sessionZone) {
         return renderValue(variant, sessionZone, Integer.MAX_VALUE, false, true);
     }
 
-    /** Renders a variant. For display, an undecodable node becomes a placeholder instead. */
+    /** Renders a variant. For printing, an undecodable node becomes a placeholder instead. */
     private static String renderValue(
             final Variant variant,
             final TimeZone sessionZone,
             final int targetLength,
             final boolean charTarget,
-            final boolean display) {
-        if (display) {
+            final boolean printing) {
+        if (printing) {
             try {
                 return renderNode(variant, sessionZone, targetLength, charTarget, true);
             } catch (VariantTypeException e) {
-                return BinaryVariantUtil.isUnknownType(variant) ? UNKNOWN_NODE : INVALID_NODE;
+                return BinaryVariantUtil.undecodableNode(variant);
             }
         }
         return renderNode(variant, sessionZone, targetLength, charTarget, false);
@@ -364,7 +358,7 @@ public final class VariantCastUtils {
             final TimeZone sessionZone,
             final int targetLength,
             final boolean charTarget,
-            final boolean display) {
+            final boolean printing) {
         if (variant.isArray()) {
             final int size = variant.getArraySize();
             final StringBuilder sb = new StringBuilder();
@@ -373,7 +367,7 @@ public final class VariantCastUtils {
                 if (i > 0) {
                     sb.append(", ");
                 }
-                sb.append(renderElement(variant.getElement(i), sessionZone, display));
+                sb.append(renderElement(variant.getElement(i), sessionZone, printing));
             }
             return sb.append(']').toString();
         }
@@ -388,17 +382,17 @@ public final class VariantCastUtils {
                 first = false;
                 sb.append(fieldName)
                         .append('=')
-                        .append(renderElement(variant.getField(fieldName), sessionZone, display));
+                        .append(renderElement(variant.getField(fieldName), sessionZone, printing));
             }
             return sb.append('}').toString();
         }
-        return renderScalar(variant, sessionZone, targetLength, charTarget, display);
+        return renderScalar(variant, sessionZone, targetLength, charTarget, printing);
     }
 
     /** Renders one array element or object field value; a nested null shows as {@code NULL}. */
     private static String renderElement(
-            final Variant element, final TimeZone sessionZone, final boolean display) {
-        if (display) {
+            final Variant element, final TimeZone sessionZone, final boolean printing) {
+        if (printing) {
             // renderValue shows a null and catches an undecodable element itself.
             return renderValue(element, sessionZone, Integer.MAX_VALUE, false, true);
         }
@@ -412,7 +406,7 @@ public final class VariantCastUtils {
             final TimeZone sessionZone,
             final int targetLength,
             final boolean charTarget,
-            final boolean display) {
+            final boolean printing) {
         final String value;
         switch (variant.getType()) {
             case BOOLEAN:
@@ -435,7 +429,7 @@ public final class VariantCastUtils {
                 value = variant.getString();
                 break;
             case BYTES:
-                if (display) {
+                if (printing) {
                     // Printing must not fail on invalid UTF-8, so show hex like a BYTES column.
                     value = "x'" + EncodingUtils.hex(variant.getBytes()) + "'";
                     break;
@@ -498,7 +492,7 @@ public final class VariantCastUtils {
                 value = variant.getUuid().toString();
                 break;
             case NULL:
-                if (display) {
+                if (printing) {
                     value = NULL_NODE;
                     break;
                 }

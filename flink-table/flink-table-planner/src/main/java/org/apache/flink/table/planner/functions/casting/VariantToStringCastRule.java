@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.runtime.functions.SqlStringVariantFormatter;
 import org.apache.flink.table.runtime.functions.VariantCastUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -28,7 +27,6 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.variant.Variant;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
@@ -51,7 +49,8 @@ import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.sta
  * than by {@link CharVarCharTrimPadCastRule}, so that a variant storing a JSON {@code null} still
  * reaches SQL {@code NULL} and so that trimming counts code points rather than UTF-16 units.
  *
- * <p>Printing uses {@link SqlStringVariantFormatter}, which renders the same way but never fails.
+ * <p>Printing uses {@link VariantCastUtils#toPrintString}, which renders the same way but never
+ * fails.
  */
 class VariantToStringCastRule extends AbstractExpressionCodeGeneratorCastRule<Variant, StringData> {
 
@@ -101,12 +100,15 @@ class VariantToStringCastRule extends AbstractExpressionCodeGeneratorCastRule<Va
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         if (context.isPrinting()) {
-            // Created inline because expression rules cannot declare class fields.
-            final String formatter =
-                    constructorCall(
-                            SqlStringVariantFormatter.class, context.getSessionTimeZoneTerm());
+            // toPrintString returns a String, so it needs the wrap that toStringValue applies
+            // itself.
             return staticCall(
-                    BINARY_STRING_DATA_FROM_STRING(), methodCall(formatter, "format", inputTerm));
+                    BINARY_STRING_DATA_FROM_STRING(),
+                    staticCall(
+                            VariantCastUtils.class,
+                            "toPrintString",
+                            inputTerm,
+                            context.getSessionTimeZoneTerm()));
         }
         return staticCall(
                 VariantCastUtils.class,

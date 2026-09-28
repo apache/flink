@@ -440,10 +440,24 @@ public class BinaryVariantUtil {
     }
 
     /**
-     * Returns whether {@code value[pos]} is a primitive whose type id this version does not know,
-     * such as one written by a newer version. Never throws.
+     * Returns the placeholder for a node that cannot be decoded: {@code <UNKNOWN>} for a type id
+     * this version does not know, such as one written by a newer version, and {@code <INVALID>}
+     * otherwise. Never throws.
      */
-    public static boolean isUnknownType(byte[] value, int pos) {
+    public static String undecodableNode(byte[] value, int pos) {
+        return isUnknownType(value, pos) ? "<UNKNOWN>" : "<INVALID>";
+    }
+
+    /** Same as {@link #undecodableNode(byte[], int)} for a {@link BinaryVariant} node. */
+    public static String undecodableNode(Variant variant) {
+        if (!(variant instanceof BinaryVariant)) {
+            return "<INVALID>";
+        }
+        final BinaryVariant binary = (BinaryVariant) variant;
+        return undecodableNode(binary.rawValue(), binary.getPos());
+    }
+
+    private static boolean isUnknownType(byte[] value, int pos) {
         if (pos < 0 || pos >= value.length || (value[pos] & BASIC_TYPE_MASK) != PRIMITIVE) {
             return false;
         }
@@ -454,15 +468,6 @@ public class BinaryVariantUtil {
         } catch (VariantTypeException e) {
             return true;
         }
-    }
-
-    /** Same as {@link #isUnknownType(byte[], int)} for a {@link BinaryVariant} node. */
-    public static boolean isUnknownType(Variant variant) {
-        if (!(variant instanceof BinaryVariant)) {
-            return false;
-        }
-        final BinaryVariant binary = (BinaryVariant) variant;
-        return isUnknownType(binary.rawValue(), binary.getPos());
     }
 
     /**
