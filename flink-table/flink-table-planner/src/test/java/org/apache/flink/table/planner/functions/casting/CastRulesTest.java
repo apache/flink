@@ -1911,14 +1911,13 @@ class CastRulesTest {
                         // shown as NULL
                         .fromCase(VARIANT(), VARIANT_ARRAY, fromString("[1, two, FALSE, NULL]"))
                         .fromCase(VARIANT(), VARIANT_OBJECT, fromString("{k=[1, 2]}"))
-                        // printing renders every variant as JSON instead, so a nested string is
-                        // quoted and a null is the JSON null
+                        // printing renders the same way but never fails
                         .fromCasePrinting(
-                                VARIANT(), VARIANT_ARRAY, fromString("[1,\"two\",false,null]"))
-                        .fromCasePrinting(VARIANT(), VARIANT_OBJECT, fromString("{\"k\":[1,2]}"))
-                        .fromCasePrinting(
-                                VARIANT(), VARIANT_BUILDER.of("foo"), fromString("\"foo\""))
-                        .fromCasePrinting(VARIANT(), VARIANT_BUILDER.of(42), fromString("42")),
+                                VARIANT(), VARIANT_ARRAY, fromString("[1, two, FALSE, NULL]"))
+                        .fromCasePrinting(VARIANT(), VARIANT_OBJECT, fromString("{k=[1, 2]}"))
+                        .fromCasePrinting(VARIANT(), VARIANT_BUILDER.of("foo"), fromString("foo"))
+                        .fromCasePrinting(VARIANT(), VARIANT_BUILDER.of(42), fromString("42"))
+                        .fromCasePrinting(VARIANT(), VARIANT_BUILDER.ofNull(), fromString("NULL")),
                 // A bounded character target pads and trims like any other cast into it, and its
                 // length counts code points, so a character outside the BMP fills one position
                 // even though it occupies two UTF-16 units.
