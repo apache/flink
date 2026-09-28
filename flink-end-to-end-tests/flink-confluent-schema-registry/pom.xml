@@ -31,6 +31,8 @@ under the License.
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<!-- Keep in sync with flink-avro-confluent-registry. -->
+		<confluent.version>7.5.3</confluent.version>
 	</properties>
 
 	<repositories>
@@ -47,18 +49,11 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.apache.flink/flink-connector-kafka -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka</artifactId>
-			<version>3.0.0-1.17</version>
-		</dependency>
-		<!-- Make sure that Shaded Guava matches the one used in the flink-connector-kafka,
-		 or remove when FLINK-32462 is resolved -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-guava</artifactId>
-			<version>30.1.1-jre-16.1</version>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -69,6 +64,58 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-avro-confluent-registry</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<!-- Copied into sql-jars; declared so that the reactor builds it first. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-avro-confluent-registry</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-end-to-end-tests-common</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers-kafka</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.confluent</groupId>
+			<artifactId>kafka-avro-serializer</artifactId>
+			<version>${confluent.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<!-- Otherwise Maven puts it into the job jar, although
+					flink-avro-confluent-registry excludes it for users. -->
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>failureaccess</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<!-- Needed by the Confluent serializer on the test side only. -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>failureaccess</artifactId>
+			<version>1.0.1</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- Testcontainers' image builder uses commons-compress, which needs commons-codec. -->
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -91,6 +138,57 @@ under the License.
 									<mainClass>org.apache.flink.schema.registry.test.TestAvroConsumerConfluent</mainClass>
 								</transformer>
 							</transformers>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<!-- flink-test-utils pulls in flink-runtime, flink-clients and JUnit, so only
+							the sink classes go into the job jar. They only depend on flink-core. -->
+						<id>unpack-upsert-test-sink</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>unpack</goal>
+						</goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-test-utils</artifactId>
+									<version>${project.version}</version>
+									<type>jar</type>
+									<includes>org/apache/flink/connector/upserttest/sink/**</includes>
+									<outputDirectory>${project.build.outputDirectory}</outputDirectory>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-sql-jars</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/sql-jars</outputDirectory>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-sql-avro-confluent-registry</artifactId>
+									<version>${project.version}</version>
+									<type>jar</type>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-test-utils</artifactId>
+									<version>${project.version}</version>
+									<type>jar</type>
+								</artifactItem>
+							</artifactItems>
 						</configuration>
 					</execution>
 				</executions>
