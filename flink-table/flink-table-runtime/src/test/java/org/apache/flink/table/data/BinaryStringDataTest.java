@@ -896,6 +896,34 @@ class BinaryStringDataTest {
             assertThat(fromBytes(new byte[] {(byte) wrongFirstByte}).numChars()).isEqualTo(1);
         }
 
+        @Test
+        void testEncodeUnpairedSurrogateProducesQuestionMark() {
+            // Unpaired surrogates aren't representable in UTF-8; the JDK encoder substitutes '?'
+            // (0x3F).
+            assertThat(StringUtf8Utils.encodeUTF8("a\uD800b"))
+                    .containsExactly((byte) 'a', (byte) '?', (byte) 'b');
+            assertThat(StringUtf8Utils.encodeUTF8("a\uD800"))
+                    .containsExactly((byte) 'a', (byte) '?');
+            assertThat(StringUtf8Utils.encodeUTF8("a\uDC00b"))
+                    .containsExactly((byte) 'a', (byte) '?', (byte) 'b');
+        }
+
+        @Test
+        void testDecodeMalformedUtf8UsesReplacementChar() {
+            // Malformed UTF-8 (0xC3 lead + non-continuation byte; stray continuation 0x80) ->
+            // U+FFFD.
+            byte[] bytes = {(byte) 'a', (byte) 0xC3, (byte) 'b', (byte) 0x80, (byte) 'c'};
+            String expected = "a�b�c";
+            assertThat(new String(bytes, StandardCharsets.UTF_8)).isEqualTo(expected);
+
+            assertThat(StringUtf8Utils.decodeUTF8(bytes, 0, bytes.length)).isEqualTo(expected);
+            assertThat(
+                            StringUtf8Utils.decodeUTF8(
+                                    MemorySegmentFactory.wrap(bytes), 0, bytes.length))
+                    .isEqualTo(expected);
+            assertThat(BinaryStringData.fromBytes(bytes).toString()).isEqualTo(expected);
+        }
+
         private Stream<Arguments> utf8Decoders() {
             return Stream.of(
                     arguments(
