@@ -123,7 +123,10 @@ CREATE TABLE hive_table2 (
   'streaming-source.enable' = 'true'
 );
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.sql.parser.impl.ParseException: Encountered "STRING" at line 10, column 27.
+org.apache.flink.table.api.SqlParserException: SQL parse failed. From line 10, column 27 to line 10, column 32:
+    ) PARTITIONED BY (pt_year STRING, pt_month STRING, pt_day STRING) TBLPROP...
+                              ^^^^^^
+Encountered "STRING" at line 10, column 27.
 Was expecting one of:
     ")" ...
     "," ...

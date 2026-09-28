@@ -27,11 +27,28 @@ import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Utility class that contains all strings for CLI commands and messages. */
 public final class CliStrings {
+
+    /**
+     * A cause caption at the start of a line; a caption inside a message does not count, and only a
+     * line feed starts a line, since a message may carry other separators in echoed SQL.
+     */
+    private static final Pattern CAUSED_BY =
+            Pattern.compile("^Caused by: ", Pattern.MULTILINE | Pattern.UNIX_LINES);
+
+    /** The first frame line of a stack trace segment, "\tat ..." or "\t... n more". */
+    private static final Pattern FIRST_FRAME = Pattern.compile("\\R\\t");
 
     private CliStrings() {
         // private
@@ -313,25 +330,85 @@ public final class CliStrings {
     }
 
     public static AttributedString messageError(String message, Throwable t, boolean isVerbose) {
-        while (t.getCause() != null
-                && t.getCause().getMessage() != null
-                && !t.getCause().getMessage().isEmpty()) {
-            t = t.getCause();
-        }
-
+        final Throwable reason = findReason(t);
         if (isVerbose) {
-            return messageError(message, ExceptionUtils.stringifyException(t));
+            return messageError(message, ExceptionUtils.stringifyException(reason));
+        } else if (reason instanceof RestClientException) {
+            // TODO: Remove this after RestClientException supports to get RootCause.
+            return messageError(message, findReasonInStackTrace(reason.getMessage()));
         } else {
-            if (t instanceof RestClientException) {
-                // TODO: Remove this after RestClientException supports to get RootCause.
-                String[] splitExceptions = t.getMessage().split("Caused by: ");
-                return messageError(
-                        message,
-                        splitExceptions[splitExceptions.length - 1].split("\tat ")[0].trim());
-            } else {
-                return messageError(message, t.getClass().getName() + ": " + t.getMessage());
+            return messageError(message, reason.getClass().getName() + ": " + reason.getMessage());
+        }
+    }
+
+    /**
+     * The root cause, unless an enclosing exception ends with the root message and adds context in
+     * front of it, as Flink and Calcite do with the position and the echoed line; then the
+     * outermost such exception says the most without losing anything. A message that is only its
+     * cause's {@code toString()}, or one that puts the cause in the middle such as a planning
+     * rejection followed by the plan, does not count. The search starts at a {@link
+     * RestClientException}, whose message is the whole server trace, so no wrapper around it can
+     * win with that text.
+     */
+    private static Throwable findReason(Throwable t) {
+        final List<Throwable> chain = new ArrayList<>();
+        final Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        int outermost = 0;
+        for (Throwable current = t;
+                current != null && seen.add(current);
+                current = current.getCause()) {
+            chain.add(current);
+            if (current instanceof RestClientException) {
+                outermost = chain.size() - 1;
+            }
+            final Throwable cause = current.getCause();
+            if (cause == null || cause.getMessage() == null || cause.getMessage().isEmpty()) {
+                break;
             }
         }
+        final Throwable root = chain.get(chain.size() - 1);
+        for (int i = outermost; i < chain.size() - 1; i++) {
+            final Throwable candidate = chain.get(i);
+            if (addsContext(candidate.getMessage(), root.getMessage())
+                    && !candidate.getMessage().equals(candidate.getCause().toString())) {
+                return candidate;
+            }
+        }
+        return root;
+    }
+
+    /** Applies the rule of {@link #findReason} to a stringified stack trace. */
+    private static String findReasonInStackTrace(String stackTrace) {
+        final String[] segments = CAUSED_BY.split(stackTrace);
+        final String root = headline(segments[segments.length - 1]);
+        // The first segment is the response preamble, never a cause worth showing on its own.
+        for (int i = 1; i < segments.length - 1; i++) {
+            final String candidate = headline(segments[i]);
+            if (addsContext(messageOf(candidate), messageOf(root))
+                    && !messageOf(candidate).equals(headline(segments[i + 1]))) {
+                return candidate;
+            }
+        }
+        return root;
+    }
+
+    private static boolean addsContext(String outer, String inner) {
+        return outer != null
+                && inner != null
+                && !inner.isEmpty()
+                && outer.length() > inner.length()
+                && outer.endsWith(inner);
+    }
+
+    /** The exception line of a stack trace segment, without its frames. */
+    private static String headline(String segment) {
+        final Matcher frame = FIRST_FRAME.matcher(segment);
+        return (frame.find() ? segment.substring(0, frame.start()) : segment).trim();
+    }
+
+    private static String messageOf(String headline) {
+        final int separator = headline.indexOf(": ");
+        return separator < 0 ? "" : headline.substring(separator + 2);
     }
 
     public static AttributedString messageError(String message) {
