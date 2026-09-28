@@ -24,8 +24,10 @@ import org.apache.flink.types.variant.Variant.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.UUID;
@@ -719,6 +721,14 @@ public class BinaryVariantUtil {
         long msb = readLongBigEndian(value, pos + 1);
         long lsb = readLongBigEndian(value, pos + 9);
         return new UUID(msb, lsb);
+    }
+
+    static Instant microsToInstant(long timestamp) {
+        return Instant.EPOCH.plus(timestamp, ChronoUnit.MICROS);
+    }
+
+    static Instant nanosToInstant(long timestamp) {
+        return Instant.EPOCH.plus(timestamp, ChronoUnit.NANOS);
     }
 
     /** A handler that receives the decoded header fields of a variant object. */
