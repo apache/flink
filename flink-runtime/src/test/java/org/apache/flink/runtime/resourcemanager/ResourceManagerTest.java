@@ -20,7 +20,13 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.core.plugin.TestingPluginManager;
+import org.apache.flink.core.security.token.DelegationTokenProvider;
+import org.apache.flink.core.security.token.DelegationTokenReceiver;
+import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.blocklist.BlocklistHandler;
@@ -31,6 +37,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
+import org.apache.flink.runtime.heartbeat.NoOpHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -52,7 +59,11 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
+import org.apache.flink.runtime.security.token.DefaultDelegationTokenManager;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
+import org.apache.flink.runtime.security.token.TestDelegationTokenProvider;
+import org.apache.flink.runtime.security.token.TestDelegationTokenReceiver;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -80,7 +91,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -122,6 +136,8 @@ class ResourceManagerTest {
 
     private TestingResourceManager resourceManager;
 
+    private DefaultDelegationTokenManager delegationTokenManager;
+
     private ResourceManagerId resourceManagerId;
 
     @BeforeAll
@@ -142,6 +158,10 @@ class ResourceManagerTest {
     void after() throws Exception {
         if (resourceManager != null) {
             RpcUtils.terminateRpcEndpoint(resourceManager);
+        }
+
+        if (delegationTokenManager != null) {
+            delegationTokenManager.close();
         }
 
         if (highAvailabilityServices != null) {
@@ -591,6 +611,83 @@ class ResourceManagerTest {
     }
 
     @Test
+    void testFinishedJobUnregistersDelegationTokenProvider() throws Exception {
+        final JobID jobId = JobID.generate();
+        final JobMasterGateway jobMasterGateway = createJobMasterGateway(new ArrayList<>());
+        final RecordingDelegationTokenProvider provider = new RecordingDelegationTokenProvider();
+        final JobLeaderIdService jobLeaderIdService =
+                TestingJobLeaderIdService.newBuilder()
+                        .setGetLeaderIdFunction(
+                                ignored ->
+                                        CompletableFuture.completedFuture(
+                                                jobMasterGateway.getFencingToken()))
+                        .build();
+        createResourceManagerWithDelegationTokenProvider(provider, jobLeaderIdService);
+        final ResourceManagerGateway resourceManagerGateway =
+                resourceManager.getSelfGateway(ResourceManagerGateway.class);
+
+        registerJobMasterToResourceManager(resourceManagerGateway, jobMasterGateway, jobId);
+        assertDelegationTokenProviderState(provider, List.of(jobId), Collections.emptyList());
+
+        resourceManagerGateway.disconnectJobManager(
+                jobId, JobStatus.FINISHED, new FlinkException("Job finished"));
+
+        assertDelegationTokenProviderState(provider, Collections.emptyList(), List.of(jobId));
+    }
+
+    @Test
+    void testJobTimeoutUnregistersDelegationTokenProviderAfterDisconnect() throws Exception {
+        final JobID jobId = JobID.generate();
+        final UUID validTimeoutId = new UUID(0L, 1L);
+        final JobMasterGateway jobMasterGateway = createJobMasterGateway(new ArrayList<>());
+        final RecordingDelegationTokenProvider provider = new RecordingDelegationTokenProvider();
+        final CompletableFuture<JobLeaderIdActions> jobLeaderIdActionsFuture =
+                new CompletableFuture<>();
+        final JobLeaderIdService jobLeaderIdService =
+                TestingJobLeaderIdService.newBuilder()
+                        .setStartConsumer(jobLeaderIdActionsFuture::complete)
+                        .setGetLeaderIdFunction(
+                                ignored ->
+                                        CompletableFuture.completedFuture(
+                                                jobMasterGateway.getFencingToken()))
+                        .setIsValidTimeoutFunction(
+                                (requestedJobId, timeoutId) ->
+                                        jobId.equals(requestedJobId)
+                                                && validTimeoutId.equals(timeoutId))
+                        .build();
+        createResourceManagerWithDelegationTokenProvider(provider, jobLeaderIdService);
+        final ResourceManagerGateway resourceManagerGateway =
+                resourceManager.getSelfGateway(ResourceManagerGateway.class);
+        final JobLeaderIdActions jobLeaderIdActions =
+                jobLeaderIdActionsFuture.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+
+        registerJobMasterToResourceManager(resourceManagerGateway, jobMasterGateway, jobId);
+        resourceManagerGateway.disconnectJobManager(
+                jobId, JobStatus.FAILING, new FlinkException("Job restarting"));
+
+        assertThatThrownBy(
+                        () ->
+                                resourceManagerGateway
+                                        .declareRequiredResources(
+                                                jobMasterGateway.getFencingToken(),
+                                                ResourceRequirements.create(
+                                                        jobId,
+                                                        jobMasterGateway.getAddress(),
+                                                        Collections.emptyList()),
+                                                TIMEOUT)
+                                        .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS))
+                .hasCauseInstanceOf(ResourceManagerException.class)
+                .hasStackTraceContaining("Could not find registered job manager");
+        assertDelegationTokenProviderState(provider, List.of(jobId), Collections.emptyList());
+
+        jobLeaderIdActions.notifyJobTimeout(jobId, new UUID(0L, 0L));
+        assertDelegationTokenProviderState(provider, List.of(jobId), Collections.emptyList());
+
+        jobLeaderIdActions.notifyJobTimeout(jobId, validTimeoutId);
+        assertDelegationTokenProviderState(provider, Collections.emptyList(), List.of(jobId));
+    }
+
+    @Test
     void testDisconnectTaskManager() throws Exception {
         final ResourceID taskExecutorId = ResourceID.generate();
         final CompletableFuture<Exception> disconnectFuture = new CompletableFuture<>();
@@ -877,6 +974,58 @@ class ResourceManagerTest {
         }
     }
 
+    private void createResourceManagerWithDelegationTokenProvider(
+            RecordingDelegationTokenProvider provider, JobLeaderIdService jobLeaderIdService)
+            throws Exception {
+        final Configuration configuration = new Configuration();
+        for (final String serviceName : List.of("hadoopfs", "hbase", "test", "throw")) {
+            SecurityOptions.forProvider(configuration, serviceName)
+                    .set(SecurityOptions.DELEGATION_TOKEN_PROVIDER_ENABLED, false);
+        }
+        final DelegationTokenReceiver receiver =
+                new TestDelegationTokenReceiver() {
+                    @Override
+                    public String serviceName() {
+                        return provider.serviceName();
+                    }
+                };
+        delegationTokenManager =
+                new DefaultDelegationTokenManager(
+                        configuration,
+                        new TestingPluginManager(
+                                Map.of(
+                                        DelegationTokenProvider.class,
+                                        Collections.singleton(provider).iterator(),
+                                        DelegationTokenReceiver.class,
+                                        Collections.singleton(receiver).iterator())),
+                        new ManuallyTriggeredScheduledExecutor(),
+                        new ManuallyTriggeredScheduledExecutorService());
+        resourceManager =
+                new ResourceManagerBuilder()
+                        .withDelegationTokenManager(delegationTokenManager)
+                        .withHeartbeatServices(NoOpHeartbeatServices.getInstance())
+                        .withJobLeaderIdService(jobLeaderIdService)
+                        .buildAndStart();
+    }
+
+    private void assertDelegationTokenProviderState(
+            RecordingDelegationTokenProvider provider,
+            Collection<JobID> registeredJobs,
+            List<JobID> unregisteredJobs)
+            throws Exception {
+        final Tuple2<Set<JobID>, List<JobID>> state =
+                resourceManager
+                        .runInMainThread(
+                                () ->
+                                        Tuple2.<Set<JobID>, List<JobID>>of(
+                                                new HashSet<>(provider.registeredJobs),
+                                                new ArrayList<>(provider.unregisteredJobs)),
+                                TIMEOUT)
+                        .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        assertThat(state.f0).containsExactlyInAnyOrderElementsOf(registeredJobs);
+        assertThat(state.f1).containsExactlyElementsOf(unregisteredJobs);
+    }
+
     private void runHeartbeatTimeoutTest(
             Consumer<ResourceManagerBuilder> prepareResourceManager,
             ThrowingConsumer<ResourceManagerGateway, Exception> registerComponentAtResourceManager,
@@ -915,9 +1064,32 @@ class ResourceManagerTest {
         verifyHeartbeatTimeout.accept(resourceManagerResourceId);
     }
 
+    private static final class RecordingDelegationTokenProvider
+            extends TestDelegationTokenProvider {
+        private final Set<JobID> registeredJobs = new HashSet<>();
+        private final List<JobID> unregisteredJobs = new ArrayList<>();
+
+        @Override
+        public String serviceName() {
+            return "recording";
+        }
+
+        @Override
+        public void registerJob(JobID jobId, Configuration jobConfiguration) {
+            registeredJobs.add(jobId);
+        }
+
+        @Override
+        public void unregisterJob(JobID jobId) {
+            registeredJobs.remove(jobId);
+            unregisteredJobs.add(jobId);
+        }
+    }
+
     private class ResourceManagerBuilder {
         private HeartbeatServices heartbeatServices = null;
         private JobLeaderIdService jobLeaderIdService = null;
+        private DelegationTokenManager delegationTokenManager = new NoOpDelegationTokenManager();
         private SlotManager slotManager = null;
         private BlocklistHandler.Factory blocklistHandlerFactory =
                 new NoOpBlocklistHandler.Factory();
@@ -933,6 +1105,12 @@ class ResourceManagerTest {
         private ResourceManagerBuilder withJobLeaderIdService(
                 JobLeaderIdService jobLeaderIdService) {
             this.jobLeaderIdService = jobLeaderIdService;
+            return this;
+        }
+
+        private ResourceManagerBuilder withDelegationTokenManager(
+                DelegationTokenManager delegationTokenManager) {
+            this.delegationTokenManager = delegationTokenManager;
             return this;
         }
 
@@ -989,7 +1167,7 @@ class ResourceManagerTest {
                             resourceManagerId.toUUID(),
                             resourceManagerResourceId,
                             heartbeatServices,
-                            new NoOpDelegationTokenManager(),
+                            delegationTokenManager,
                             slotManager,
                             NoOpResourceManagerPartitionTracker::get,
                             blocklistHandlerFactory,
