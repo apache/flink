@@ -1998,11 +1998,22 @@ class CastRulesTest {
                                 VARIANT(), VARIANT_BUILDER.of(new BigDecimal("123.456")), 123.456f)
                         // a magnitude a FLOAT cannot represent is still rejected
                         .fail(VARIANT(), VARIANT_BUILDER.of(1e40d), TableRuntimeException.class)
+                        // a stored NaN or infinity is not an overflow and is kept
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(Double.NaN), Float.NaN)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(Double.POSITIVE_INFINITY),
+                                Float.POSITIVE_INFINITY)
                         .fail(VARIANT(), VARIANT_BUILDER.of("x"), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(DOUBLE())
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(1.5d), 1.5d)
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(1.5f), 1.5d)
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(3), 3.0d)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(Double.NaN), Double.NaN)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(Float.NEGATIVE_INFINITY),
+                                Double.NEGATIVE_INFINITY)
                         .fromCase(
                                 VARIANT(), VARIANT_BUILDER.of(new BigDecimal("123.456")), 123.456d)
                         .fail(VARIANT(), VARIANT_BUILDER.of("x"), TableRuntimeException.class),
