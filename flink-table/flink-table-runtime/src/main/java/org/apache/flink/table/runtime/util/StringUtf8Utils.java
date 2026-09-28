@@ -19,7 +19,6 @@ package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.core.memory.MemorySegment;
 
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 
 import static org.apache.flink.table.runtime.util.SegmentsUtil.allocateReuseBytes;
@@ -34,94 +33,15 @@ import static org.apache.flink.table.runtime.util.SegmentsUtil.allocateReuseChar
  */
 public class StringUtf8Utils {
 
-    private static final int MAX_BYTES_PER_CHAR = 3;
-
     /** This method must have the same result with JDK's String.getBytes. */
     public static byte[] encodeUTF8(String str) {
         return str.getBytes(StandardCharsets.UTF_8);
     }
 
-    public static int encodeUTF8(String str, byte[] bytes) {
-        int offset = 0;
-        int len = str.length();
-        int sl = offset + len;
-        int dp = 0;
-        int dlASCII = dp + Math.min(len, bytes.length);
-
-        // ASCII only optimized loop
-        while (dp < dlASCII && str.charAt(offset) < '\u0080') {
-            bytes[dp++] = (byte) str.charAt(offset++);
-        }
-
-        while (offset < sl) {
-            char c = str.charAt(offset++);
-            if (c < 0x80) {
-                // Have at most seven bits
-                bytes[dp++] = (byte) c;
-            } else if (c < 0x800) {
-                // 2 bytes, 11 bits
-                bytes[dp++] = (byte) (0xc0 | (c >> 6));
-                bytes[dp++] = (byte) (0x80 | (c & 0x3f));
-            } else if (Character.isSurrogate(c)) {
-                final int uc;
-                int ip = offset - 1;
-                if (Character.isHighSurrogate(c)) {
-                    if (sl - ip < 2) {
-                        uc = -1;
-                    } else {
-                        char d = str.charAt(ip + 1);
-                        if (Character.isLowSurrogate(d)) {
-                            uc = Character.toCodePoint(c, d);
-                        } else {
-                            // for some illegal character
-                            // the jdk will ignore the origin character and cast it to '?'
-                            // this acts the same with jdk
-                            return defaultEncodeUTF8(str, bytes);
-                        }
-                    }
-                } else {
-                    if (Character.isLowSurrogate(c)) {
-                        // for some illegal character
-                        // the jdk will ignore the origin character and cast it to '?'
-                        // this acts the same with jdk
-                        return defaultEncodeUTF8(str, bytes);
-                    } else {
-                        uc = c;
-                    }
-                }
-
-                if (uc < 0) {
-                    bytes[dp++] = (byte) '?';
-                } else {
-                    bytes[dp++] = (byte) (0xf0 | ((uc >> 18)));
-                    bytes[dp++] = (byte) (0x80 | ((uc >> 12) & 0x3f));
-                    bytes[dp++] = (byte) (0x80 | ((uc >> 6) & 0x3f));
-                    bytes[dp++] = (byte) (0x80 | (uc & 0x3f));
-                    offset++; // 2 chars
-                }
-            } else {
-                // 3 bytes, 16 bits
-                bytes[dp++] = (byte) (0xe0 | ((c >> 12)));
-                bytes[dp++] = (byte) (0x80 | ((c >> 6) & 0x3f));
-                bytes[dp++] = (byte) (0x80 | (c & 0x3f));
-            }
-        }
-        return dp;
-    }
-
-    public static int defaultEncodeUTF8(String str, byte[] bytes) {
-        try {
-            byte[] buffer = str.getBytes("UTF-8");
-            System.arraycopy(buffer, 0, bytes, 0, buffer.length);
-            return buffer.length;
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException("encodeUTF8 error", e);
-        }
-    }
-
     public static String decodeUTF8(byte[] input, int offset, int byteLen) {
-        // JDK-intrinsified decode; maps malformed input to U+FFFD (matches the previous fallback).
-        return new String(input, offset, byteLen, StandardCharsets.UTF_8);
+        // Delegate to the optimized table-common impl so non-ASCII input doesn't regress.
+        return org.apache.flink.table.data.binary.StringUtf8Utils.decodeUTF8(
+                input, offset, byteLen);
     }
 
     public static int decodeUTF8Strict(byte[] sa, int sp, int len, char[] da) {
