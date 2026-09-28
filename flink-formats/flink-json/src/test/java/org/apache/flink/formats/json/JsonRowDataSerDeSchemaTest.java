@@ -345,7 +345,7 @@ public class JsonRowDataSerDeSchemaTest {
                                 serializationSchema.serialize(
                                         GenericRowData.of(
                                                 new BinaryVariantBuilder().of(Double.NaN))))
-                .hasRootCauseMessage("Non-finite value NaN cannot be serialized to JSON.");
+                .hasRootCauseMessage("Non-finite value 'NaN' cannot be serialized to JSON.");
     }
 
     @Test

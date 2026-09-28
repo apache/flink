@@ -228,7 +228,7 @@ public final class JsonVariantFormatter {
     private void appendNonFinite(final StringBuilder sb, final String text, final double number) {
         if (!lenient) {
             throw new VariantTypeException(
-                    String.format("Non-finite value %s cannot be serialized to JSON.", number));
+                    String.format("Non-finite value '%s' cannot be serialized to JSON.", number));
         }
         appendQuoted(sb, text);
     }

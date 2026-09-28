@@ -35,7 +35,7 @@ import java.util.UUID;
  * <p>Instances are serializable so that they can be held as member variables of user-defined
  * functions or passed into their constructors.
  *
- * <p>{@link #toJson()} returns valid JSON or fails. {@code toString()} is for debugging and can be
+ * <p>{@link #toJson()} returns valid JSON or fails. {@link #toString()} is for debugging and can be
  * lossy.
  */
 @PublicEvolving
@@ -241,12 +241,30 @@ public interface Variant extends Serializable {
     List<String> getFieldNames() throws VariantTypeException;
 
     /**
-     * Returns the variant as valid JSON. Use {@code toString()} to debug a variant without one.
+     * Returns the variant as valid JSON.
+     *
+     * <p>It fails for a value that JSON cannot represent, such as a NaN or infinite {@code FLOAT}
+     * or {@code DOUBLE}, and for a node it cannot decode, such as a type written by a newer
+     * version. For example, an array holding 1 and NaN fails. Use {@link #toString()} to inspect
+     * such a variant.
      *
      * @throws VariantTypeException if the variant contains a value that cannot be represented as
-     *     valid JSON
+     *     valid JSON (e.g. NaN for double types)
      */
     String toJson();
+
+    /**
+     * Returns the variant as JSON for debugging. Unlike {@link #toJson()} it never fails, so the
+     * result can be lossy:
+     *
+     * <ul>
+     *   <li>NaN and infinity become strings. An array holding 1 and NaN returns {@code [1,"NaN"]}.
+     *   <li>A node whose type this version does not know becomes {@code "<UNKNOWN>"}.
+     *   <li>Any other node that cannot be decoded becomes {@code "<INVALID>"}.
+     * </ul>
+     */
+    @Override
+    String toString();
 
     /** The type of variant. */
     @PublicEvolving

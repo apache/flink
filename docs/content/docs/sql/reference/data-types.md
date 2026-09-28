@@ -1601,8 +1601,8 @@ object as `{k1=v1, k2=v2}`, with each value rendered by these same rules and a n
 shown as `NULL`. A string is never quoted, at any depth. Use `JSON_STRING` for the JSON form with
 quoted strings. A variant that stores a JSON `null` casts to SQL `NULL`.
 
-Printed results, for example in the SQL client, render a `VARIANT` like a cast to a character
-string, but printing never fails. A binary value prints as `x'68656c6c6f'`, a JSON `null` as `NULL`
+Printed results, for example in the SQL client, render a `VARIANT` the same way as
+`CAST(v AS STRING)`, not as JSON, but printing never fails. A binary value prints as `x'68656c6c6f'`, a JSON `null` as `NULL`
 where a SQL `NULL` prints as `<NULL>`, a type written by a newer version as `<UNKNOWN>`, and other
 data that cannot be decoded as `<INVALID>`. A `TIMESTAMP_LTZ` prints in the session time zone, as in
 the cast.

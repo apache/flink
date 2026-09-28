@@ -55,7 +55,7 @@ class JsonVariantFormatterTest {
 
         assertThat(variant.toString()).isEqualTo("[\"NaN\",\"-Infinity\",\"Infinity\"]");
         assertThatThrownBy(variant::toJson)
-                .hasMessage("Non-finite value NaN cannot be serialized to JSON.");
+                .hasMessage("Non-finite value 'NaN' cannot be serialized to JSON.");
     }
 
     @Test
