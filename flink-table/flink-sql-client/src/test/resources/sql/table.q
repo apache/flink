@@ -21,7 +21,7 @@
 
 create table tbl(a int, b as invalid_function());
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature invalid_function()
+org.apache.calcite.runtime.CalciteContextException: From line 1, column 30 to line 1, column 47: No match found for function signature invalid_function()
 !error
 
 drop table non_exist;
