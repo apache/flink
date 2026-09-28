@@ -1734,7 +1734,6 @@ under the License.
 						<!-- PyCharm -->
 						<inputExclude>**/.idea/**</inputExclude>
 						<!-- Generated code via Avro -->
-						<inputExclude>flink-end-to-end-tests/flink-confluent-schema-registry/src/main/java/example/avro/**</inputExclude>
 						<inputExclude>flink-end-to-end-tests/flink-datastream-allround-test/src/main/java/org/apache/flink/streaming/tests/avro/**</inputExclude>
 
 						<!-- flink-python -->
