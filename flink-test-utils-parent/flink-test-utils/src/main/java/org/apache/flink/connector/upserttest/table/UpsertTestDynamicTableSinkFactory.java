@@ -49,13 +49,13 @@ public class UpsertTestDynamicTableSinkFactory implements DynamicTableSinkFactor
     public DynamicTableSink createDynamicTableSink(Context context) {
         final FactoryUtil.TableFactoryHelper helper =
                 FactoryUtil.createTableFactoryHelper(this, context);
-        helper.validate();
-
         EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat =
                 helper.discoverEncodingFormat(SerializationFormatFactory.class, KEY_FORMAT_OPTION);
         EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat =
                 helper.discoverEncodingFormat(
                         SerializationFormatFactory.class, VALUE_FORMAT_OPTION);
+        // after format discovery, which consumes the format options
+        helper.validate();
 
         final ReadableConfig tableOptions = helper.getOptions();
         final String outputFilePath = tableOptions.get(OUTPUT_FILEPATH_OPTION);
