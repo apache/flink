@@ -34,10 +34,7 @@ jobs:
           - master
           - release-2.3
           - release-2.2
-          - release-2.1
-          - release-2.0
           - release-1.20
-          - release-1.19
     steps:
       - uses: actions/checkout@v7
         with:
