@@ -55,10 +55,7 @@ public class CalciteParser {
             SqlParser parser = SqlParser.create(sql, config);
             return parser.parseStmt();
         } catch (SqlParseException e) {
-            if (e.getMessage().contains("Encountered \"<EOF>\"")) {
-                throw new SqlParserEOFException(e.getMessage(), e);
-            }
-            throw new SqlParserException("SQL parse failed. " + e.getMessage(), e);
+            throw toStatementException(e);
         }
     }
 
@@ -75,10 +72,7 @@ public class CalciteParser {
             SqlParser parser = SqlParser.create(sql, config);
             return parser.parseStmtList();
         } catch (SqlParseException e) {
-            if (e.getMessage().contains("Encountered \"<EOF>\"")) {
-                throw new SqlParserEOFException(e.getMessage(), e);
-            }
-            throw new SqlParserException("SQL parse failed. " + e.getMessage(), e);
+            throw toStatementException(e);
         }
     }
 
@@ -94,7 +88,7 @@ public class CalciteParser {
             final SqlParser parser = SqlParser.create(sqlExpression, config);
             return parser.parseExpression();
         } catch (SqlParseException e) {
-            throw new SqlParserException("SQL parse failed. " + e.getMessage(), e);
+            throw toParserException(e);
         }
     }
 
@@ -118,6 +112,24 @@ public class CalciteParser {
             throw new SqlParserException(
                     String.format("Invalid SQL identifier %s.", identifier), e);
         }
+    }
+
+    /**
+     * Converts a parse error of a statement. An error at the end of the input means the statement
+     * is incomplete, which callers such as the SQL client use to keep reading.
+     */
+    private static SqlParserException toStatementException(SqlParseException e) {
+        final String message = e.getMessage();
+        if (message != null && message.contains("Encountered \"<EOF>\"")) {
+            return new SqlParserEOFException(message, e);
+        }
+        return toParserException(e);
+    }
+
+    private static SqlParserException toParserException(SqlParseException e) {
+        final String message = e.getMessage();
+        return new SqlParserException(
+                message == null ? "SQL parse failed." : "SQL parse failed. " + message, e);
     }
 
     /**
