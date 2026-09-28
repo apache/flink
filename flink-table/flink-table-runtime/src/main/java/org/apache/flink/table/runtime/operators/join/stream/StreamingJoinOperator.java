@@ -216,7 +216,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 
         if (isAccumulateMsg) { // record is accumulate
             final boolean isAdditionalMatch =
-                    isAdditionalMatch(input, inputSideStateView, inputIsLeft);
+                    isAdditionalMatch(input, inputSideStateView, inputIsLeft, isSuppress);
             if (inputIsOuter) { // input side is outer
                 Iterator<OuterRecord> associatedRecords =
                         AbstractStreamingJoinOperator.iterator(
@@ -339,21 +339,26 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
     }
 
     /**
-     * Returns whether the record adds a new match for other-side records, rather than replacing a
-     * stored record with the same unique key.
+     * Returns whether the record adds a new match for other-side records, which indicates that we
+     * have to increase the number of associations for a specific key match.
      *
      * <p>Matches are only counted when the other side is outer, so the result is false otherwise
      * and no lookup happens. If the join key contains the unique key, there is at most one record
      * per join key, so a match is never additional and no lookup is needed either.
+     *
+     * <p>A suppressed retraction in mini-batch mode removes the matches of a record but keeps it in
+     * state, so the suppressed accumulate message that follows is always an additional match.
      */
-    private boolean isAdditionalMatch(RowData record, JoinRecordStateView stateView, boolean isLeft)
+    private boolean isAdditionalMatch(
+            RowData record, JoinRecordStateView stateView, boolean isLeft, boolean isSuppress)
             throws Exception {
         final boolean otherIsOuter = isLeft ? rightIsOuter : leftIsOuter;
         final JoinInputSideSpec inputSideSpec = isLeft ? leftInputSideSpec : rightInputSideSpec;
         // TODO FLINK-40841: assumes the replaced record had the same matches, not true for non-equi
         return otherIsOuter
-                && !inputSideSpec.joinKeyContainsUniqueKey()
-                && !stateView.hasRecord(record);
+                && (isSuppress
+                        || (!inputSideSpec.joinKeyContainsUniqueKey()
+                                && !stateView.hasRecord(record)));
     }
 
     // -------------------------------------------------------------------------------------
