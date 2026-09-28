@@ -46,19 +46,21 @@ SHOW FULL MODULES;
 # load core module twice
 LOAD MODULE core;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: A module with name 'core' already exists
+org.apache.flink.table.api.ValidationException: Could not execute LOAD MODULE `core`. A module with name 'core' already exists
 !error
 
 # use hive built-in function without loading hive module
 SELECT SUBSTRING_INDEX('www.apache.org', '.', 2) FROM (VALUES (1, 'Hello World')) AS T(id, str);
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.calcite.sql.validate.SqlValidatorException: No match found for function signature SUBSTRING_INDEX(<CHARACTER>, <CHARACTER>, <NUMERIC>)
+org.apache.flink.table.api.ValidationException: SQL validation failed. From line 1, column 8 to line 1, column 48: No match found for function signature SUBSTRING_INDEX(<CHARACTER>, <CHARACTER>, <NUMERIC>)
 !error
 
 # load dummy module with module name as string literal
 LOAD MODULE 'dummy';
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.sql.parser.impl.ParseException: Encountered "\'dummy\'" at line 1, column 13.
+org.apache.flink.table.api.SqlParserException: SQL parse failed. Encountered "\'dummy\'" at line 1, column 13:
+    LOAD MODULE 'dummy';
+                ^^^^^^^
 Was expecting one of:
     <BRACKET_QUOTED_IDENTIFIER> ...
     <QUOTED_IDENTIFIER> ...
@@ -83,7 +85,7 @@ dummy
 # load dummy module with specifying type
 LOAD MODULE mydummy WITH ('type' = 'dummy');
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: Option 'type' = 'dummy' is not supported since module name is used to find module
+org.apache.flink.table.api.ValidationException: Could not execute LOAD MODULE `mydummy` WITH ('type' = 'dummy'). Option 'type' = 'dummy' is not supported since module name is used to find module
 !error
 
 LOAD MODULE dummy;
@@ -119,7 +121,7 @@ SHOW FULL MODULES;
 # use duplicate modules
 USE MODULES dummy, core, dummy;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: Module 'dummy' appears more than once
+org.apache.flink.table.api.ValidationException: Could not execute USE MODULES: [dummy, core, dummy]. Module 'dummy' appears more than once
 !error
 
 # change module resolution order
@@ -195,5 +197,5 @@ SHOW FULL MODULES;
 # unload core module twice
 UNLOAD MODULE core;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.table.api.ValidationException: No module with name 'core' exists
+org.apache.flink.table.api.ValidationException: Could not execute UNLOAD MODULE core. No module with name 'core' exists
 !error
