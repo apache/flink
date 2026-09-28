@@ -140,6 +140,10 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
     @Nullable
     private Future<?> tokensUpdateFuture;
 
+    /** Whether the current timer or submission retry still needs to dispatch to the IO executor. */
+    @GuardedBy("schedulingLock")
+    private boolean renewalDispatchPending;
+
     /** Fences dispatch and rejection handling after a pending cycle is replaced or stopped. */
     @GuardedBy("schedulingLock")
     private long renewalTaskGeneration;
@@ -587,6 +591,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
         final long cycleEpoch = sessionEpoch;
         final long generation = renewalTaskGeneration;
         nextScheduledAtMillis = clock.relativeTimeMillis() + delayMs;
+        renewalDispatchPending = true;
         try {
             try {
                 tokensUpdateFuture =
@@ -601,6 +606,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 if (ioExecutor.isShutdown()) {
                     reobtainScheduled = false;
                     nextScheduledAtMillis = Long.MAX_VALUE;
+                    renewalDispatchPending = false;
                     LOG.debug("Tokens update scheduling rejected during IO executor shutdown", e);
                     return -1L;
                 }
@@ -648,7 +654,14 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
             }
         }
         try {
-            ioExecutor.execute(this::startTokensUpdate);
+            ioExecutor.execute(
+                    () -> {
+                        // A worker can start before execute() returns. Requests made during obtain
+                        // must not mistake its timer for an overdue, undispatched renewal.
+                        markRenewalDispatched(cycleEpoch, generation);
+                        startTokensUpdate();
+                    });
+            markRenewalDispatched(cycleEpoch, generation);
         } catch (RejectedExecutionException e) {
             synchronized (schedulingLock) {
                 if (!running || cycleEpoch != sessionEpoch || generation != renewalTaskGeneration) {
@@ -670,6 +683,14 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 } else {
                     LOG.debug("Tokens update retry rejected during IO executor shutdown", e);
                 }
+            }
+        }
+    }
+
+    private void markRenewalDispatched(long cycleEpoch, long generation) {
+        synchronized (schedulingLock) {
+            if (running && cycleEpoch == sessionEpoch && generation == renewalTaskGeneration) {
+                renewalDispatchPending = false;
             }
         }
     }
@@ -750,6 +771,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                 tokensUpdateFuture = null;
             }
             nextScheduledAtMillis = Long.MAX_VALUE;
+            renewalDispatchPending = false;
         }
     }
 
@@ -888,11 +910,9 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                             : Math.max(0L, lastReobtainAtMillis + reobtainCooldownMillis - now);
             // scheduleRenewalLocked() replaces the pending cycle, so never schedule later than it:
             // a short-lived token could expire first. The earlier cycle serves this demand too.
-            // Ignore already-fired futures when comparing delays.
-            if (tokensUpdateFuture != null
-                    && nextScheduledAtMillis > now
-                    && nextScheduledAtMillis - now < delayMillis) {
-                delayMillis = nextScheduledAtMillis - now;
+            // An elapsed deadline does not mean the timer has dispatched its work yet.
+            if (renewalDispatchPending) {
+                delayMillis = Math.min(delayMillis, Math.max(0L, nextScheduledAtMillis - now));
             }
             reobtainScheduled = true;
             LOG.debug(

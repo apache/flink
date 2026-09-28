@@ -546,25 +546,43 @@ public class DefaultDelegationTokenManagerTest {
         assertEquals(1, startTokensUpdateCallCount.get());
     }
 
-    @Test
-    public void reobtainMustPreserveEarlierPeriodicRenewal() throws Exception {
+    @ParameterizedTest(name = "request at {0}s, renewal delay {1}ms, inline I/O {2}")
+    @CsvSource({
+        "10, 5000, false",
+        "15, 0, false",
+        "16, 0, false",
+        "10, 5000, true",
+        "15, 0, true",
+        "16, 0, true"
+    })
+    public void reobtainMustPreserveEarlierPeriodicRenewal(
+            long requestTimeSeconds, long expectedDelayMillis, boolean inlineIo) throws Exception {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final ManuallyTriggeredScheduledExecutorService ioExecutor =
-                new ManuallyTriggeredScheduledExecutorService();
+                new ManuallyTriggeredScheduledExecutorService() {
+                    @Override
+                    public void execute(Runnable command) {
+                        if (inlineIo) {
+                            command.run();
+                        } else {
+                            super.execute(command);
+                        }
+                    }
+                };
         final ManualClock clock = new ManualClock();
         final AtomicInteger obtains = new AtomicInteger();
         final Configuration configuration = hermeticCooldownConfig(Duration.ofMinutes(1));
-        configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 1.0);
+        configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 0.75);
         final DefaultDelegationTokenManager manager =
                 new DefaultDelegationTokenManager(
                         configuration, null, scheduledExecutor, ioExecutor, clock) {
                     @Override
                     protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
                             DelegationTokenContainer container) {
-                        final long renewalDelay =
-                                obtains.incrementAndGet() == 2 ? 15_000L : 300_000L;
-                        return Optional.of(clock.absoluteTimeMillis() + renewalDelay);
+                        final long validityMillis =
+                                obtains.incrementAndGet() == 2 ? 20_000L : 300_000L;
+                        return Optional.of(clock.absoluteTimeMillis() + validityMillis);
                     }
                 };
         try {
@@ -575,15 +593,61 @@ public class DefaultDelegationTokenManagerTest {
             assertThat(obtains).hasValue(2);
             assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(15_000L);
 
-            // Demand at t=10s must retain the periodic renewal at t=15s, not defer it to t=60s.
-            clock.advanceTime(Duration.ofSeconds(10));
+            // A timer that has not dispatched must still bound the delay after its deadline passes.
+            clock.advanceTime(Duration.ofSeconds(requestTimeSeconds));
             manager.reobtainDelegationTokens();
-            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(5_000L);
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(expectedDelayMillis);
 
-            clock.advanceTime(Duration.ofSeconds(5));
+            clock.advanceTime(Duration.ofMillis(expectedDelayMillis));
             scheduledExecutor.triggerScheduledTasks();
             ioExecutor.triggerAll();
             assertThat(obtains).hasValue(3);
+        } finally {
+            manager.close();
+        }
+    }
+
+    @Test
+    public void reobtainFromInlineObtainMustRespectCooldown() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService ioExecutor =
+                new ManuallyTriggeredScheduledExecutorService() {
+                    @Override
+                    public void execute(Runnable command) {
+                        command.run();
+                    }
+                };
+        final ManualClock clock = new ManualClock();
+        final AtomicInteger obtains = new AtomicInteger();
+        final Configuration configuration = hermeticCooldownConfig(Duration.ofMinutes(1));
+        configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 1.0);
+        final DefaultDelegationTokenManager manager =
+                new DefaultDelegationTokenManager(
+                        configuration, null, scheduledExecutor, ioExecutor, clock) {
+                    @Override
+                    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+                            DelegationTokenContainer container) {
+                        if (obtains.incrementAndGet() == 2) {
+                            clock.advanceTime(Duration.ofSeconds(10));
+                            reobtainDelegationTokens();
+                            return Optional.of(clock.absoluteTimeMillis() + 300_000L);
+                        }
+                        return Optional.empty();
+                    }
+                };
+        try {
+            manager.start(tokens -> {});
+            manager.reobtainDelegationTokens();
+            scheduledExecutor.triggerScheduledTasks();
+
+            assertThat(obtains).hasValue(2);
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(50_000L);
+
+            clock.advanceTime(Duration.ofSeconds(50));
+            scheduledExecutor.triggerScheduledTasks();
+            assertThat(obtains).hasValue(3);
+            assertThat(scheduledExecutor.getActiveScheduledTasks()).isEmpty();
         } finally {
             manager.close();
         }
@@ -1045,6 +1109,42 @@ public class DefaultDelegationTokenManagerTest {
             context.ioExecutor.triggerAll();
 
             assertThat(context.obtains).hasValue(2);
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor))
+                    .isEqualTo(SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS);
+        }
+    }
+
+    @Test
+    public void reobtainDuringRejectedDispatchMustPreserveDueRenewal() throws Exception {
+        try (SchedulingRejectionTestContext context =
+                new SchedulingRejectionTestContext(
+                        true,
+                        Duration.ofMillis(SchedulingRejectionTestContext.RETRY_DELAY_MILLIS),
+                        Duration.ofMinutes(1))) {
+            context.manager.start(tokens -> {});
+            context.manager.reobtainDelegationTokens();
+            context.scheduledExecutor.triggerScheduledTasks();
+            context.ioExecutor.triggerAll();
+            assertThat(context.obtains).hasValue(2);
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor))
+                    .isEqualTo(SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS);
+
+            context.rejectIoExecution = true;
+            context.beforeIoRejection = context.manager::reobtainDelegationTokens;
+            context.clock.advanceTime(
+                    Duration.ofMillis(SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS));
+            context.scheduledExecutor.triggerScheduledTasks();
+
+            assertThat(context.obtains).hasValue(2);
+            assertThat(context.ioExecutor.numQueuedRunnables()).isZero();
+            assertThat(onlyScheduledDelayMillis(context.scheduledExecutor)).isZero();
+            assertThat(context.retryExecutor.getActiveScheduledTasks()).isEmpty();
+
+            context.beforeIoRejection = () -> {};
+            context.rejectIoExecution = false;
+            context.scheduledExecutor.triggerScheduledTasks();
+            context.ioExecutor.triggerAll();
+            assertThat(context.obtains).hasValue(3);
             assertThat(onlyScheduledDelayMillis(context.scheduledExecutor))
                     .isEqualTo(SchedulingRejectionTestContext.RENEWAL_DELAY_MILLIS);
         }
@@ -2282,7 +2382,12 @@ public class DefaultDelegationTokenManagerTest {
         }
 
         private SchedulingRejectionTestContext(boolean periodic, Duration retryBackoff) {
-            final Configuration configuration = hermeticCooldownConfig(Duration.ZERO);
+            this(periodic, retryBackoff, Duration.ZERO);
+        }
+
+        private SchedulingRejectionTestContext(
+                boolean periodic, Duration retryBackoff, Duration cooldown) {
+            final Configuration configuration = hermeticCooldownConfig(cooldown);
             configuration.set(DELEGATION_TOKENS_RENEWAL_RETRY_INITIAL_BACKOFF, retryBackoff);
             configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 1.0);
             manager =
