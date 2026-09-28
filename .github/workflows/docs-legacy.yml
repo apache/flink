@@ -22,6 +22,9 @@ on:
         required: true
         type: choice
         options:
+          - release-2.1
+          - release-2.0
+          - release-1.19
           - release-1.18
           - release-1.17
           - release-1.16
