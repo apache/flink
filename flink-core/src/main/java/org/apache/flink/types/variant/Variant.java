@@ -34,6 +34,9 @@ import java.util.UUID;
  *
  * <p>Instances are serializable so that they can be held as member variables of user-defined
  * functions or passed into their constructors.
+ *
+ * <p>{@link #toJson()} returns valid JSON or fails. {@code toString()} is for debugging and can be
+ * lossy.
  */
 @PublicEvolving
 public interface Variant extends Serializable {
@@ -237,7 +240,12 @@ public interface Variant extends Serializable {
      */
     List<String> getFieldNames() throws VariantTypeException;
 
-    /** Parses the variant to json. */
+    /**
+     * Returns the variant as valid JSON. Use {@code toString()} to debug a variant without one.
+     *
+     * @throws VariantTypeException if the variant contains a value that cannot be represented as
+     *     valid JSON
+     */
     String toJson();
 
     /** The type of variant. */

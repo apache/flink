@@ -45,14 +45,26 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.unexpectedType;
  * Renders a {@link BinaryVariant} as JSON.
  *
  * <p>{@link #STRICT} backs {@link Variant#toJson()} and fails on NaN, infinity, and undecodable
- * nodes.
+ * nodes. {@link #LENIENT} backs {@link BinaryVariant#toString()} and never fails: it writes NaN as
+ * {@code "NaN"}, a type this version does not know as {@code "<UNKNOWN>"}, and other undecodable
+ * data as {@code "<INVALID>"}.
  */
 @Internal
 public final class JsonVariantFormatter implements VariantFormatter {
 
-    public static final JsonVariantFormatter STRICT = new JsonVariantFormatter();
+    public static final JsonVariantFormatter STRICT = new JsonVariantFormatter(false);
 
-    private JsonVariantFormatter() {}
+    public static final JsonVariantFormatter LENIENT = new JsonVariantFormatter(true);
+
+    private static final String UNKNOWN_NODE = "<UNKNOWN>";
+
+    private static final String INVALID_NODE = "<INVALID>";
+
+    private final boolean lenient;
+
+    private JsonVariantFormatter(final boolean lenient) {
+        this.lenient = lenient;
+    }
 
     @Override
     public String format(final Variant variant) {
@@ -62,7 +74,23 @@ public final class JsonVariantFormatter implements VariantFormatter {
         return sb.toString();
     }
 
-    private void append(byte[] value, byte[] metadata, int pos, StringBuilder sb) {
+    private void append(
+            final byte[] value, final byte[] metadata, final int pos, final StringBuilder sb) {
+        final int start = sb.length();
+        try {
+            appendNode(value, metadata, pos, sb);
+        } catch (VariantTypeException e) {
+            if (!lenient) {
+                throw e;
+            }
+            // Drop the node's partial output, such as a dangling key.
+            sb.setLength(start);
+            appendQuoted(
+                    sb, BinaryVariantUtil.isUnknownType(value, pos) ? UNKNOWN_NODE : INVALID_NODE);
+        }
+    }
+
+    private void appendNode(byte[] value, byte[] metadata, int pos, StringBuilder sb) {
         switch (BinaryVariantUtil.getType(value, pos)) {
             case OBJECT:
                 handleObject(
@@ -125,12 +153,11 @@ public final class JsonVariantFormatter implements VariantFormatter {
             case DOUBLE:
                 {
                     final double d = BinaryVariantUtil.getDouble(value, pos);
-                    if (Double.isInfinite(d) || Double.isNaN(d)) {
-                        throw new VariantTypeException(
-                                String.format(
-                                        "Non-finite value %s cannot be serialized to JSON.", d));
+                    if (Double.isFinite(d)) {
+                        sb.append(d);
+                    } else {
+                        appendNonFinite(sb, Double.toString(d), d);
                     }
-                    sb.append(d);
                     break;
                 }
             case DECIMAL:
@@ -180,13 +207,11 @@ public final class JsonVariantFormatter implements VariantFormatter {
             case FLOAT:
                 {
                     final float f = BinaryVariantUtil.getFloat(value, pos);
-                    if (Float.isInfinite(f) || Float.isNaN(f)) {
-                        throw new VariantTypeException(
-                                String.format(
-                                        "Non-finite value %s cannot be serialized to JSON.",
-                                        (double) f));
+                    if (Float.isFinite(f)) {
+                        sb.append(f);
+                    } else {
+                        appendNonFinite(sb, Float.toString(f), f);
                     }
-                    sb.append(f);
                     break;
                 }
             case BYTES:
@@ -201,6 +226,15 @@ public final class JsonVariantFormatter implements VariantFormatter {
             default:
                 throw unexpectedType(BinaryVariantUtil.getType(value, pos));
         }
+    }
+
+    /** JSON has no literal for NaN or infinity. */
+    private void appendNonFinite(final StringBuilder sb, final String text, final double number) {
+        if (!lenient) {
+            throw new VariantTypeException(
+                    String.format("Non-finite value %s cannot be serialized to JSON.", number));
+        }
+        appendQuoted(sb, text);
     }
 
     // Escape a string so that it can be pasted into JSON structure.

@@ -395,9 +395,10 @@ public final class BinaryVariant implements Variant {
                 });
     }
 
+    /** Returns JSON for debugging. Never fails, but can be lossy. */
     @Override
     public String toString() {
-        return toJson();
+        return JsonVariantFormatter.LENIENT.format(this);
     }
 
     @Override

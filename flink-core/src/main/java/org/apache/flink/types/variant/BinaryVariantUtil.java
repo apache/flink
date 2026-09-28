@@ -440,6 +440,32 @@ public class BinaryVariantUtil {
     }
 
     /**
+     * Returns whether {@code value[pos]} is a primitive whose type id this version does not know,
+     * such as one written by a newer version. Never throws.
+     */
+    public static boolean isUnknownType(byte[] value, int pos) {
+        if (pos < 0 || pos >= value.length || (value[pos] & BASIC_TYPE_MASK) != PRIMITIVE) {
+            return false;
+        }
+        // With the header in bounds, getType fails on a primitive only for an unknown type id.
+        try {
+            getType(value, pos);
+            return false;
+        } catch (VariantTypeException e) {
+            return true;
+        }
+    }
+
+    /** Same as {@link #isUnknownType(byte[], int)} for a {@link BinaryVariant} node. */
+    public static boolean isUnknownType(Variant variant) {
+        if (!(variant instanceof BinaryVariant)) {
+            return false;
+        }
+        final BinaryVariant binary = (BinaryVariant) variant;
+        return isUnknownType(binary.rawValue(), binary.getPos());
+    }
+
+    /**
      * Compute the size in bytes of the variant value {@code value[pos...]}. {@code value.length -
      * pos} is an upper bound of the size, but the actual size can be smaller.
      *

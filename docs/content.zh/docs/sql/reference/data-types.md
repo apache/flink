@@ -1690,6 +1690,9 @@ DataTypes.VARIANT()
 |:-----------------------------------------|:-----:|:------:|:----------|
 | `org.apache.flink.types.variant.Variant` |   X   |   X    | *Default* |
 
+`Variant#toJson()` returns valid JSON and fails for values such as `NaN`. `Variant#toString()` is
+for debugging: it never fails, but can be lossy. Both render a `TIMESTAMP_LTZ` in UTC.
+
 {{< /tab >}}
 {{< /tabs >}}
 
