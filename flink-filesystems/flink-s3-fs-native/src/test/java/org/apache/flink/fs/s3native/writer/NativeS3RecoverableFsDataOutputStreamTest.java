@@ -61,7 +61,7 @@ class NativeS3RecoverableFsDataOutputStreamTest {
     }
 
     @Test
-    void closeForCommitAbortsMultipartUploadWhenPartUploadFails() throws Exception {
+    void closeForCommitKeepsMultipartUploadWhenPartUploadFails() throws Exception {
         s3.failUploadPart = true;
 
         assertThatThrownBy(stream::closeForCommit)
@@ -69,56 +69,19 @@ class NativeS3RecoverableFsDataOutputStreamTest {
                 .hasMessageContaining("injected uploadPart failure");
 
         assertThat(s3.abortAttempts)
-                .as("closeForCommit must abort the upload on failure")
-                .isEqualTo(1);
-        assertThat(s3.openMultipartUploads)
-                .as("the multipart upload must not leak after a failed commit")
-                .doesNotContainKey(uploadId);
+                .as("closeForCommit must not abort the upload, a snapshot may reference it")
+                .isZero();
+        assertThat(s3.openMultipartUploads).containsKey(uploadId);
         assertThat(countLocalFilesIn(tmp)).as("the local temp file must be cleaned up").isZero();
     }
 
+    /** An abnormal {@code close()} releases local state but keeps the upload. */
     @Test
-    void closeForCommitSurfacesAbortFailureWhenBothUploadAndAbortFail() throws Exception {
-        s3.failUploadPart = true;
-        s3.failAbortMultiPartUpload = true;
-
-        assertThatThrownBy(stream::closeForCommit)
-                .isInstanceOf(IOException.class)
-                .hasMessageContaining("injected uploadPart failure")
-                .satisfies(
-                        t ->
-                                assertThat(t.getSuppressed())
-                                        .as("the abort failure must be surfaced, not swallowed")
-                                        .anySatisfy(
-                                                s ->
-                                                        assertThat(s)
-                                                                .hasMessageContaining(
-                                                                        "injected abort failure")));
-
-        assertThat(s3.abortAttempts).isEqualTo(1);
-    }
-
-    @Test
-    void closeSurfacesAbortFailureInsteadOfSwallowingIt() throws Exception {
-        s3.failAbortMultiPartUpload = true;
-
-        assertThatThrownBy(stream::close)
-                .isInstanceOf(IOException.class)
-                .hasMessageContaining("injected abort failure");
-
-        assertThat(s3.abortAttempts).isEqualTo(1);
-        assertThat(countLocalFilesIn(tmp))
-                .as("local resources are still released even when the abort fails")
-                .isZero();
-    }
-
-    /** An abnormal {@code close()} aborts the upload and releases local state. */
-    @Test
-    void closeAbortsMultipartUploadOnAbnormalClose() throws Exception {
+    void closeKeepsMultipartUploadOnAbnormalClose() throws Exception {
         stream.close();
 
-        assertThat(s3.abortAttempts).isEqualTo(1);
-        assertThat(s3.openMultipartUploads).doesNotContainKey(uploadId);
+        assertThat(s3.abortAttempts).isZero();
+        assertThat(s3.openMultipartUploads).containsKey(uploadId);
         assertThat(countLocalFilesIn(tmp)).isZero();
     }
 
@@ -130,10 +93,6 @@ class NativeS3RecoverableFsDataOutputStreamTest {
         assertThatThrownBy(failingStream::close)
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("injected temp-file delete failure");
-
-        assertThat(s3.abortAttempts)
-                .as("abort is still attempted despite delete failure")
-                .isEqualTo(1);
     }
 
     @Test
@@ -261,7 +220,6 @@ class NativeS3RecoverableFsDataOutputStreamTest {
 
         racingStream.close();
 
-        assertThat(s3.abortAttempts).isEqualTo(1);
         assertThat(countLocalFilesIn(dir)).isZero();
     }
 
@@ -314,7 +272,6 @@ class NativeS3RecoverableFsDataOutputStreamTest {
         final Map<String, Map<Integer, byte[]>> openMultipartUploads = new HashMap<>();
 
         boolean failUploadPart = false;
-        boolean failAbortMultiPartUpload = false;
         boolean deletePartFileAfterUpload = false;
         int abortAttempts = 0;
         int uploadPartAttempts = 0;
@@ -393,9 +350,6 @@ class NativeS3RecoverableFsDataOutputStreamTest {
         @Override
         public void abortMultiPartUpload(String key, String uploadId) throws IOException {
             abortAttempts++;
-            if (failAbortMultiPartUpload) {
-                throw new IOException("injected abort failure for uploadId: " + uploadId);
-            }
             openMultipartUploads.remove(uploadId);
         }
     }
