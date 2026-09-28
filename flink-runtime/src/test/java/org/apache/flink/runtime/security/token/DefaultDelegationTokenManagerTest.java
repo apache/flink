@@ -547,6 +547,49 @@ public class DefaultDelegationTokenManagerTest {
     }
 
     @Test
+    public void reobtainMustPreserveEarlierPeriodicRenewal() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        final ManuallyTriggeredScheduledExecutorService ioExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        final ManualClock clock = new ManualClock();
+        final AtomicInteger obtains = new AtomicInteger();
+        final Configuration configuration = hermeticCooldownConfig(Duration.ofMinutes(1));
+        configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 1.0);
+        final DefaultDelegationTokenManager manager =
+                new DefaultDelegationTokenManager(
+                        configuration, null, scheduledExecutor, ioExecutor, clock) {
+                    @Override
+                    protected Optional<Long> obtainDelegationTokensAndGetNextRenewal(
+                            DelegationTokenContainer container) {
+                        final long renewalDelay =
+                                obtains.incrementAndGet() == 2 ? 15_000L : 300_000L;
+                        return Optional.of(clock.absoluteTimeMillis() + renewalDelay);
+                    }
+                };
+        try {
+            manager.start(tokens -> {});
+            manager.reobtainDelegationTokens();
+            scheduledExecutor.triggerScheduledTasks();
+            ioExecutor.triggerAll();
+            assertThat(obtains).hasValue(2);
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(15_000L);
+
+            // Demand at t=10s must retain the periodic renewal at t=15s, not defer it to t=60s.
+            clock.advanceTime(Duration.ofSeconds(10));
+            manager.reobtainDelegationTokens();
+            assertThat(onlyScheduledDelayMillis(scheduledExecutor)).isEqualTo(5_000L);
+
+            clock.advanceTime(Duration.ofSeconds(5));
+            scheduledExecutor.triggerScheduledTasks();
+            ioExecutor.triggerAll();
+            assertThat(obtains).hasValue(3);
+        } finally {
+            manager.close();
+        }
+    }
+
+    @Test
     public void periodicRenewalMustNotCancelPendingOnDemandReobtain() throws Exception {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
