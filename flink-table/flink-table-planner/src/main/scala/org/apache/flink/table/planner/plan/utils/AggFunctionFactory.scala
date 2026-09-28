@@ -400,9 +400,6 @@ class AggFunctionFactory(
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val d = argTypes(0).asInstanceOf[LocalZonedTimestampType]
         new LeadLagAggFunction.LocalZonedTimestampLeadLagAggFunction(argTypes.length, d)
-      case TIMESTAMP_WITH_TIME_ZONE =>
-        val d = argTypes(0).asInstanceOf[ZonedTimestampType]
-        new LeadLagAggFunction.ZonedTimestampLeadLagAggFunction(argTypes.length, d)
       case DECIMAL =>
         val d = argTypes(0).asInstanceOf[DecimalType]
         new LeadLagAggFunction.DecimalLeadLagAggFunction(argTypes.length, d)
