@@ -58,7 +58,12 @@ public interface VariantBuilder {
     /** Create a variant from a boolean. */
     Variant of(boolean b);
 
-    /** Create a variant from a BigDecimal. */
+    /**
+     * Create a variant from a BigDecimal. A negative scale is rescaled to 0, which keeps the
+     * numeric value.
+     *
+     * @throws VariantTypeException if the precision or the scale of the rescaled decimal exceeds 38
+     */
     Variant of(BigDecimal bigDecimal);
 
     /** Create a variant from an Instant. */

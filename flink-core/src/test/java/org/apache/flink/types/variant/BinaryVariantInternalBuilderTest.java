@@ -143,6 +143,19 @@ class BinaryVariantInternalBuilderTest {
                 .isInstanceOf(IOException.class);
     }
 
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "123456789012345678901234567890123456789",
+                "0.000000000000000000000000000000000000001"
+            })
+    void testParseJsonStoresNumbersOutsideDecimalRangeAsDouble(final String number)
+            throws IOException {
+        BinaryVariant variant = BinaryVariantInternalBuilder.parseJson(number, false);
+        assertThat(variant.getType()).isEqualTo(Variant.Type.DOUBLE);
+        assertThat(variant.getDouble()).isEqualTo(Double.parseDouble(number));
+    }
+
     @Test
     void testAppendFloat() {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);

@@ -115,6 +115,53 @@ class BinaryVariantTest {
     }
 
     @Test
+    void testDecimalWithNegativeScale() {
+        Variant variant = builder.of(new BigDecimal("-1e5"));
+        assertThat(variant.getType()).isEqualTo(Variant.Type.DECIMAL);
+        assertThat(variant.getDecimal()).isEqualByComparingTo("-100000");
+        assertThat(variant.toJson()).isEqualTo("-100000");
+
+        // 38 digits after rescaling
+        assertThat(builder.of(new BigDecimal("1e37")).getDecimal()).isEqualByComparingTo("1e37");
+        assertThat(builder.of(new BigDecimal("0e999999999")).getDecimal())
+                .isEqualByComparingTo(BigDecimal.ZERO);
+
+        // getDecimal() strips trailing zeros, so its result can have a negative scale
+        BigDecimal stripped = builder.of(BigDecimal.valueOf(100)).getDecimal();
+        assertThat(stripped.scale()).isNegative();
+        assertThat(builder.of(stripped).getDecimal()).isEqualByComparingTo("100");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "12345678901234567890123456789012345678",
+                "-0.12345678901234567890123456789012345678"
+            })
+    void testDecimalWithMaxPrecisionAndScale(final String decimal) {
+        assertThat(builder.of(new BigDecimal(decimal)).getDecimal()).isEqualByComparingTo(decimal);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                // precision 39
+                "123456789012345678901234567890123456789",
+                // scale 39
+                "0.000000000000000000000000000000000000001",
+                // 39 digits after rescaling the negative scale
+                "1e38",
+                "-1e999999999",
+                // the scale does not fit into a byte
+                "1e2147483647"
+            })
+    void testDecimalOutOfRange(final String decimal) {
+        assertThatThrownBy(() -> builder.of(new BigDecimal(decimal)))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessageContaining("outside the range supported by variant decimals");
+    }
+
+    @Test
     void testNanosecondPrecisionVariant() {
         // Microsecond-precision values keep using the compact TIMESTAMP/TIMESTAMP_LTZ encoding,
         // matching the pre-existing on-wire format.
