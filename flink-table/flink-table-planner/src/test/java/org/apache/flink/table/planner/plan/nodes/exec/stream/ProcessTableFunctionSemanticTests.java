@@ -66,6 +66,7 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_PARTITION_BY,
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_PARTITION_BY_TABLE_API,
                 ProcessTableFunctionTestPrograms.PROCESS_ATOMIC_WRAPPING,
+                ProcessTableFunctionTestPrograms.PROCESS_EMPTY_OUTPUT,
                 ProcessTableFunctionTestPrograms.PROCESS_CONTEXT,
                 ProcessTableFunctionTestPrograms.PROCESS_POJO_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_DEFAULT_POJO_STATE,

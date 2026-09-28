@@ -31,6 +31,8 @@ import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.AppendProcessTableFunctionBase;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyOutputFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyOutputRowSemanticFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalDayArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalYearArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidUpdatingSemanticsFunction;
@@ -78,6 +80,7 @@ import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the type inference and planning part of {@link ProcessTableFunction}. */
@@ -197,6 +200,24 @@ class ProcessTableFunctionTest extends TableTestBase {
     void testEmptyArgs() {
         util.addTemporarySystemFunction("f", EmptyArgFunction.class);
         util.verifyRelPlan("SELECT * FROM f(uid => 'my-ptf')");
+    }
+
+    @Test
+    void testEmptyFunctionOutputWithPartitionByHasNoPhantomColumn() {
+        util.addTemporarySystemFunction("f", EmptyOutputFunction.class);
+        assertThat(
+                        util.tableEnv()
+                                .sqlQuery("SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                                .getResolvedSchema()
+                                .getColumnNames())
+                .containsExactly("name");
+    }
+
+    @Test
+    void testEmptyFunctionOutputWithoutColumnsFails() {
+        util.addTemporarySystemFunction("f", EmptyOutputRowSemanticFunction.class);
+        assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM f(r => TABLE t)"))
+                .satisfies(anyCauseMatches("A function must produce at least one output column"));
     }
 
     @Test
