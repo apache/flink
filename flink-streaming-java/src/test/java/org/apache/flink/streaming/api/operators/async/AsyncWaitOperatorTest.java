@@ -57,6 +57,7 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
@@ -95,11 +96,13 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.util.retryable.AsyncRetryStrategies.NO_RETRY_STRATEGY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -598,6 +601,13 @@ public class AsyncWaitOperatorTest {
             throws Exception {
         for (Mail mail : testHarness.getTaskMailbox().drain()) {
             mail.run();
+        }
+    }
+
+    private static void drainMailboxCompletely(OneInputStreamOperatorTestHarness<?, ?> testHarness)
+            throws Exception {
+        while (testHarness.getTaskMailbox().hasMail()) {
+            testHarness.getTaskMailbox().take(TaskMailbox.MIN_PRIORITY).run();
         }
     }
 
@@ -1434,6 +1444,179 @@ public class AsyncWaitOperatorTest {
         }
     }
 
+    @Test
+    void testAttemptFailureProcessedAfterTimeoutUsesTimeoutHandler() throws Exception {
+        final long asyncTimeout = 1000L;
+        SharedReference<AtomicReference<ResultFuture<Integer>>> resultFuture =
+                sharedObjects.add(new AtomicReference<>());
+        SharedReference<AtomicInteger> timeoutCalls = sharedObjects.add(new AtomicInteger());
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithRetry(
+                        new ControllableTimeoutDefaultAsyncFunction(resultFuture, timeoutCalls),
+                        asyncTimeout,
+                        1,
+                        AsyncDataStream.OutputMode.UNORDERED,
+                        exceptionRetryStrategy)) {
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            resultFuture.get().get().completeExceptionally(new ExpectedTestException());
+
+            // Keep the timer callback from running, advance past the overall deadline, then process
+            // the attempt failure that was already queued in the mailbox.
+            testHarness.getProcessingTimeService().quiesce().get();
+            testHarness.setProcessingTime(asyncTimeout + 1L);
+            drainMailboxCompletely(testHarness);
+
+            assertThat(timeoutCalls.get()).hasValue(1);
+            assertThat(testHarness.getOutput()).containsExactly(new StreamRecord<>(-1, 1L));
+            assertThat(testHarness.wasFailedExternally()).isFalse();
+        }
+    }
+
+    @Test
+    void testAttemptSuccessProcessedAfterTimeoutUsesTimeoutHandler() throws Exception {
+        SharedReference<AtomicReference<ResultFuture<Integer>>> resultFuture =
+                sharedObjects.add(new AtomicReference<>());
+        SharedReference<AtomicInteger> timeoutCalls = sharedObjects.add(new AtomicInteger());
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithRetry(
+                        new ControllableTimeoutDefaultAsyncFunction(resultFuture, timeoutCalls),
+                        TIMEOUT,
+                        1,
+                        AsyncDataStream.OutputMode.UNORDERED,
+                        exceptionRetryStrategy)) {
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            resultFuture.get().get().complete(Collections.singletonList(1));
+
+            testHarness.getProcessingTimeService().quiesce().get();
+            testHarness.setProcessingTime(TIMEOUT + 1L);
+            drainMailboxCompletely(testHarness);
+
+            assertThat(timeoutCalls.get()).hasValue(1);
+            assertThat(testHarness.getOutput()).containsExactly(new StreamRecord<>(-1, 1L));
+        }
+    }
+
+    @Test
+    void testAttemptResultAtTimeoutBoundaryIsNotExpired() throws Exception {
+        SharedReference<AtomicReference<ResultFuture<Integer>>> resultFuture =
+                sharedObjects.add(new AtomicReference<>());
+        SharedReference<AtomicInteger> timeoutCalls = sharedObjects.add(new AtomicInteger());
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithRetry(
+                        new ControllableTimeoutDefaultAsyncFunction(resultFuture, timeoutCalls),
+                        TIMEOUT,
+                        1,
+                        AsyncDataStream.OutputMode.UNORDERED,
+                        exceptionRetryStrategy)) {
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            resultFuture.get().get().complete(Collections.singletonList(1));
+
+            testHarness.getProcessingTimeService().quiesce().get();
+            testHarness.setProcessingTime(TIMEOUT);
+            drainMailboxCompletely(testHarness);
+
+            assertThat(timeoutCalls.get()).hasValue(0);
+            assertThat(testHarness.getOutput()).containsExactly(new StreamRecord<>(1, 1L));
+        }
+    }
+
+    @Test
+    void testTimeoutInvokedOnceWhenAttemptResultProcessedBeforeTimer() throws Exception {
+        testTimeoutInvokedOnceAcrossCallbackOrder(false);
+    }
+
+    @Test
+    void testTimeoutInvokedOnceWhenTimerProcessedBeforeAttemptResult() throws Exception {
+        testTimeoutInvokedOnceAcrossCallbackOrder(true);
+    }
+
+    private void testTimeoutInvokedOnceAcrossCallbackOrder(boolean timerFirst) throws Exception {
+        final long asyncTimeout = 1000L;
+        SharedReference<AtomicReference<ResultFuture<Integer>>> attemptResultFuture =
+                sharedObjects.add(new AtomicReference<>());
+        SharedReference<AtomicReference<ResultFuture<Integer>>> timeoutResultFuture =
+                sharedObjects.add(new AtomicReference<>());
+        SharedReference<AtomicInteger> timeoutCalls = sharedObjects.add(new AtomicInteger());
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        new DeferredTimeoutAsyncFunction(
+                                                attemptResultFuture,
+                                                timeoutResultFuture,
+                                                timeoutCalls),
+                                        asyncTimeout,
+                                        1,
+                                        AsyncDataStream.OutputMode.UNORDERED,
+                                        exceptionRetryStrategy))
+                        .build()) {
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            testHarness.setAutoProcess(false);
+
+            if (!timerFirst) {
+                // Queue the attempt-result mail before the timeout callback is queued.
+                attemptResultFuture.get().get().completeExceptionally(new ExpectedTestException());
+            }
+
+            // This raw timer is registered after the operator's timeout timer. Once it completes,
+            // the operator's timeout callback has been queued in the mailbox.
+            ScheduledFuture<?> timerBarrier =
+                    testHarness
+                            .getTimerService()
+                            .registerTimer(
+                                    testHarness.getTimerService().getCurrentProcessingTime()
+                                            + asyncTimeout,
+                                    timestamp -> {});
+            timerBarrier.get(10, TimeUnit.SECONDS);
+
+            if (timerFirst) {
+                // Queue the attempt-result mail after the timeout callback is queued.
+                attemptResultFuture.get().get().completeExceptionally(new ExpectedTestException());
+            }
+
+            testHarness.processAll();
+            assertThat(timeoutCalls.get()).hasValue(1);
+
+            timeoutResultFuture.get().get().complete(Collections.singletonList(-1));
+            testHarness.processAll();
+            assertThat(testHarness.getOutput()).containsExactly(new StreamRecord<>(-1, 1L));
+        }
+    }
+
+    @Test
+    void testSupplierTimeoutExceptionPropagatesFromMailbox() throws Exception {
+        SharedReference<AtomicReference<ResultFuture<Integer>>> resultFuture =
+                sharedObjects.add(new AtomicReference<>());
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithRetry(
+                        new ThrowingTimeoutAsyncFunction(resultFuture),
+                        TIMEOUT,
+                        1,
+                        AsyncDataStream.OutputMode.UNORDERED,
+                        exceptionRetryStrategy)) {
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            resultFuture.get().get().complete(() -> Collections.singletonList(1));
+            testHarness.getProcessingTimeService().quiesce().get();
+            testHarness.setProcessingTime(TIMEOUT + 1L);
+
+            assertThatThrownBy(() -> drainMailbox(testHarness))
+                    .isInstanceOf(ExpectedTestException.class);
+        }
+    }
+
     private static class ControllableExceptionThenTimeoutFunction
             extends AlwaysTimeoutWithDefaultValueAsyncFunction {
         private static final long serialVersionUID = 2L;
@@ -1456,6 +1639,81 @@ public class AsyncWaitOperatorTest {
                         resultFuture.completeExceptionally(new Exception("Dummy error"));
                         completionEnqueued.countDown();
                     });
+        }
+    }
+
+    private static class ControllableTimeoutDefaultAsyncFunction
+            implements AsyncFunction<Integer, Integer> {
+        private static final long serialVersionUID = 1L;
+
+        private final SharedReference<AtomicReference<ResultFuture<Integer>>> resultFuture;
+        private final SharedReference<AtomicInteger> timeoutCalls;
+
+        private ControllableTimeoutDefaultAsyncFunction(
+                SharedReference<AtomicReference<ResultFuture<Integer>>> resultFuture,
+                SharedReference<AtomicInteger> timeoutCalls) {
+            this.resultFuture = resultFuture;
+            this.timeoutCalls = timeoutCalls;
+        }
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            this.resultFuture.get().set(resultFuture);
+        }
+
+        @Override
+        public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
+            timeoutCalls.get().incrementAndGet();
+            resultFuture.complete(Collections.singletonList(-1));
+        }
+    }
+
+    private static class DeferredTimeoutAsyncFunction implements AsyncFunction<Integer, Integer> {
+        private static final long serialVersionUID = 1L;
+
+        private final SharedReference<AtomicReference<ResultFuture<Integer>>> attemptResultFuture;
+        private final SharedReference<AtomicReference<ResultFuture<Integer>>> timeoutResultFuture;
+        private final SharedReference<AtomicInteger> timeoutCalls;
+
+        private DeferredTimeoutAsyncFunction(
+                SharedReference<AtomicReference<ResultFuture<Integer>>> attemptResultFuture,
+                SharedReference<AtomicReference<ResultFuture<Integer>>> timeoutResultFuture,
+                SharedReference<AtomicInteger> timeoutCalls) {
+            this.attemptResultFuture = attemptResultFuture;
+            this.timeoutResultFuture = timeoutResultFuture;
+            this.timeoutCalls = timeoutCalls;
+        }
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            attemptResultFuture.get().set(resultFuture);
+        }
+
+        @Override
+        public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
+            timeoutCalls.get().incrementAndGet();
+            timeoutResultFuture.get().set(resultFuture);
+        }
+    }
+
+    private static class ThrowingTimeoutAsyncFunction implements AsyncFunction<Integer, Integer> {
+        private static final long serialVersionUID = 1L;
+
+        private final SharedReference<AtomicReference<ResultFuture<Integer>>> resultFuture;
+
+        private ThrowingTimeoutAsyncFunction(
+                SharedReference<AtomicReference<ResultFuture<Integer>>> resultFuture) {
+            this.resultFuture = resultFuture;
+        }
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            this.resultFuture.get().set(resultFuture);
+        }
+
+        @Override
+        public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
+            throw new ExpectedTestException();
         }
     }
 
