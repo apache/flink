@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.runtime.functions;
 
+import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantBuilder;
@@ -27,16 +29,41 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.TimeZone;
 
+import static org.apache.flink.table.runtime.functions.VariantCastUtils.MAX_PAYLOAD_BYTES;
+import static org.apache.flink.table.runtime.functions.VariantCastUtils.fromBytes;
+import static org.apache.flink.table.runtime.functions.VariantCastUtils.fromString;
 import static org.apache.flink.table.runtime.functions.VariantCastUtils.toPrintString;
 import static org.apache.flink.types.variant.BinaryVariantUtil.primitiveHeader;
 import static org.apache.flink.types.variant.BinaryVariantUtil.shortStrHeader;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class VariantCastUtilsTest {
 
     private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
 
     private static final VariantBuilder BUILDER = Variant.newBuilder();
+
+    @Test
+    void testCastToVariantHoldsUpToTheSizeLimit() {
+        assertThat(fromBytes(new byte[MAX_PAYLOAD_BYTES]).getBytes()).hasSize(MAX_PAYLOAD_BYTES);
+        assertThat(fromString(StringData.fromString("x".repeat(MAX_PAYLOAD_BYTES))).getString())
+                .hasSize(MAX_PAYLOAD_BYTES);
+    }
+
+    @Test
+    void testCastToVariantRejectsValuesOverTheSizeLimit() {
+        assertThatThrownBy(() -> fromBytes(new byte[MAX_PAYLOAD_BYTES + 1]))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessage(
+                        "Cannot cast a binary value of 16777212 bytes to VARIANT. A VARIANT is "
+                                + "limited to 16 MiB, so a string or binary value can have at "
+                                + "most 16777211 bytes.");
+        assertThatThrownBy(
+                        () -> fromString(StringData.fromString("x".repeat(MAX_PAYLOAD_BYTES + 1))))
+                .isInstanceOf(TableRuntimeException.class)
+                .hasMessageStartingWith("Cannot cast a string value of 16777212 bytes to VARIANT.");
+    }
 
     @Test
     void testPrintRendersLikeCast() {

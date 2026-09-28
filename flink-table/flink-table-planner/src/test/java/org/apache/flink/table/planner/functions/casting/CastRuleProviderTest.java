@@ -32,9 +32,12 @@ import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
+import static org.apache.flink.table.api.DataTypes.CHAR;
 import static org.apache.flink.table.api.DataTypes.DATE;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.MAP;
@@ -48,6 +51,8 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.UUID;
+import static org.apache.flink.table.api.DataTypes.VARBINARY;
+import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -145,6 +150,74 @@ class CastRuleProviderTest {
         // character strings keep going through the display-oriented rule
         assertThat(CastRuleProvider.resolve(VARIANT, STRING_TYPE))
                 .isSameAs(VariantToStringCastRule.INSTANCE);
+    }
+
+    @Test
+    void testResolvePrimitiveToVariant() {
+        assertThat(CastRuleProvider.resolve(INT, VARIANT))
+                .isSameAs(PrimitiveToVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(STRING_TYPE, VARIANT))
+                .isSameAs(PrimitiveToVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.exists(DECIMAL(10, 2).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.exists(TIMESTAMP(9).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.exists(TIMESTAMP_LTZ().getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.exists(TIME().getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.exists(BYTES().getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.exists(UUID().getLogicalType(), VARIANT)).isTrue();
+
+        // only a nanosecond timestamp can fail, since that kind covers a limited range of years
+        assertThat(CastRuleProvider.canFail(INT, VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(DOUBLE().getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(FLOAT().getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(TIMESTAMP(6).getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(TIMESTAMP(9).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(TIMESTAMP_LTZ(3).getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(TIMESTAMP_LTZ(7).getLogicalType(), VARIANT)).isTrue();
+
+        // a string or binary type fails only when its declared length allows a value over 16 MiB,
+        // and a character takes up to 4 bytes in UTF-8
+        assertThat(CastRuleProvider.canFail(STRING_TYPE, VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(BYTES().getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(VARCHAR(100).getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(CHAR(100).getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(VARCHAR(4_194_302).getLogicalType(), VARIANT))
+                .isFalse();
+        assertThat(CastRuleProvider.canFail(VARCHAR(4_194_303).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(VARBINARY(16_777_211).getLogicalType(), VARIANT))
+                .isFalse();
+        assertThat(CastRuleProvider.canFail(VARBINARY(16_777_212).getLogicalType(), VARIANT))
+                .isTrue();
+
+        // INTERVAL has no VARIANT kind, so it is not a castable source
+        assertThat(CastRuleProvider.exists(INTERVAL(DataTypes.DAY()).getLogicalType(), VARIANT))
+                .isFalse();
+        // VARIANT to VARIANT stays the identity
+        assertThat(CastRuleProvider.resolve(VARIANT, VARIANT)).isSameAs(IdentityCastRule.INSTANCE);
+
+        // a constructed type casts element by element, through the rules for its children
+        assertThat(
+                        CastRuleProvider.resolve(
+                                ARRAY(INT()).getLogicalType(), ARRAY(VARIANT()).getLogicalType()))
+                .isSameAs(ArrayToArrayCastRule.INSTANCE);
+        assertThat(
+                        CastRuleProvider.resolve(
+                                ROW(FIELD("a", INT())).getLogicalType(),
+                                ROW(FIELD("a", VARIANT())).getLogicalType()))
+                .isSameAs(RowToRowCastRule.INSTANCE);
+        assertThat(
+                        CastRuleProvider.resolve(
+                                MAP(STRING(), INT()).getLogicalType(),
+                                MAP(STRING(), VARIANT()).getLogicalType()))
+                .isSameAs(MapToMapAndMultisetToMultisetCastRule.INSTANCE);
+        assertThat(
+                        CastRuleProvider.canFail(
+                                ARRAY(INT()).getLogicalType(), ARRAY(VARIANT()).getLogicalType()))
+                .isFalse();
+        assertThat(
+                        CastRuleProvider.canFail(
+                                ARRAY(TIMESTAMP(9)).getLogicalType(),
+                                ARRAY(VARIANT()).getLogicalType()))
+                .isTrue();
     }
 
     @Test

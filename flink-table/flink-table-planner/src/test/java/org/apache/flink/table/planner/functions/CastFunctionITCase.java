@@ -31,6 +31,8 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantBuilder;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -160,6 +162,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         specs.addAll(variantArrayCasts());
         specs.addAll(variantRowCasts());
         specs.addAll(variantMapCasts());
+        specs.addAll(primitiveToVariantCasts());
         return specs;
     }
 
@@ -430,6 +433,280 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(TRY_PARSE_JSON('42') AS TINYINT)",
                                 (byte) 42,
                                 TINYINT()));
+    }
+
+    private static List<TestSetSpec> primitiveToVariantCasts() {
+        final VariantBuilder builder = Variant.newBuilder();
+        final LocalDateTime nanos = LocalDateTime.parse("2026-09-25T10:15:30.123456789");
+        final Instant instant = Instant.parse("2026-09-25T10:15:30.123Z");
+        return List.of(
+                // A value keeps the kind of its SQL type, so an integer keeps its width, and a
+                // string is wrapped rather than parsed.
+                CastTestSpecBuilder.testCastTo(VARIANT())
+                        .fromCase(BOOLEAN(), true, builder.of(true))
+                        .fromCase(INT(), 42, builder.of(42))
+                        .fromCase(BIGINT(), 1L, builder.of(1L))
+                        .fromCase(BIGINT(), 10000000000L, builder.of(10000000000L))
+                        .fromCase(DOUBLE(), 1.5d, builder.of(1.5d))
+                        .fromCase(
+                                DECIMAL(4, 2),
+                                new BigDecimal("12.50"),
+                                builder.of(new BigDecimal("12.50")))
+                        .fromCase(STRING(), "{\"a\":1}", builder.of("{\"a\":1}"))
+                        .fromCase(
+                                DATE(),
+                                LocalDate.parse("2026-09-25"),
+                                builder.of(LocalDate.parse("2026-09-25")))
+                        .fromCase(TIMESTAMP(9), nanos, builder.of(nanos))
+                        .fromCase(TIMESTAMP_LTZ(3), instant, builder.of(instant))
+                        .fromCase(UUID(), DEFAULT_UUID, builder.of(DEFAULT_UUID))
+                        .fromCase(INT(), null, null)
+                        // a type without a VARIANT kind is rejected at validation
+                        .failValidation(INTERVAL(MONTH()), Period.ofMonths(2))
+                        .build(),
+                TestSetSpec.forExpression("Cast a primitive to VARIANT and back")
+                        .onFieldsWithData(
+                                42L,
+                                new BigDecimal("12.50"),
+                                "hello",
+                                LocalTime.of(10, 15, 30),
+                                nanos,
+                                instant,
+                                DEFAULT_UUID,
+                                new byte[] {1, 2, 3})
+                        .andDataTypes(
+                                BIGINT(),
+                                DECIMAL(4, 2),
+                                STRING(),
+                                TIME(),
+                                TIMESTAMP(9),
+                                TIMESTAMP_LTZ(3),
+                                UUID(),
+                                BYTES())
+                        .testResult(
+                                $("f0").cast(VARIANT()).cast(BIGINT()),
+                                "CAST(CAST(f0 AS VARIANT) AS BIGINT)",
+                                42L,
+                                BIGINT())
+                        .testResult(
+                                $("f1").cast(VARIANT()).cast(DECIMAL(4, 2)),
+                                "CAST(CAST(f1 AS VARIANT) AS DECIMAL(4, 2))",
+                                new BigDecimal("12.50"),
+                                DECIMAL(4, 2))
+                        .testResult(
+                                $("f2").cast(VARIANT()).cast(STRING()),
+                                "CAST(CAST(f2 AS VARIANT) AS STRING)",
+                                "hello",
+                                STRING())
+                        .testResult(
+                                $("f3").cast(VARIANT()).cast(TIME()),
+                                "CAST(CAST(f3 AS VARIANT) AS TIME)",
+                                LocalTime.of(10, 15, 30),
+                                TIME())
+                        .testResult(
+                                $("f4").cast(VARIANT()).cast(TIMESTAMP(9)),
+                                "CAST(CAST(f4 AS VARIANT) AS TIMESTAMP(9))",
+                                nanos,
+                                TIMESTAMP(9))
+                        .testResult(
+                                $("f5").cast(VARIANT()).cast(TIMESTAMP_LTZ(3)),
+                                "CAST(CAST(f5 AS VARIANT) AS TIMESTAMP_LTZ(3))",
+                                instant,
+                                TIMESTAMP_LTZ(3))
+                        .testResult(
+                                $("f6").cast(VARIANT()).cast(UUID()),
+                                "CAST(CAST(f6 AS VARIANT) AS UUID)",
+                                DEFAULT_UUID,
+                                UUID())
+                        .testResult(
+                                $("f7").cast(VARIANT()).cast(BYTES()),
+                                "CAST(CAST(f7 AS VARIANT) AS BYTES)",
+                                new byte[] {1, 2, 3},
+                                BYTES()),
+                TestSetSpec.forExpression("Cast TIME to VARIANT and back")
+                        .onFieldsWithData(
+                                LocalTime.of(12, 34, 56, 123_000_000),
+                                LocalTime.MIDNIGHT,
+                                LocalTime.of(23, 59, 59, 999_000_000))
+                        .andDataTypes(TIME(3), TIME(0), TIME(3))
+                        .testResult(
+                                $("f0").cast(VARIANT()).cast(TIME(3)),
+                                "CAST(CAST(f0 AS VARIANT) AS TIME(3))",
+                                LocalTime.of(12, 34, 56, 123_000_000),
+                                TIME(3))
+                        .testResult(
+                                $("f1").cast(VARIANT()).cast(TIME(0)),
+                                "CAST(CAST(f1 AS VARIANT) AS TIME(0))",
+                                LocalTime.MIDNIGHT,
+                                TIME(0))
+                        .testResult(
+                                $("f2").cast(VARIANT()).cast(TIME(3)),
+                                "CAST(CAST(f2 AS VARIANT) AS TIME(3))",
+                                LocalTime.of(23, 59, 59, 999_000_000),
+                                TIME(3)),
+                // a VARIANT holds at most 16 MiB, so TRY_CAST returns NULL for a longer string
+                TestSetSpec.forExpression("Cast a string over the size limit to VARIANT")
+                        .onFieldsWithData("x")
+                        .andDataTypes(STRING())
+                        .testSqlResult(
+                                "TRY_CAST(REPEAT(f0, 17000000) AS VARIANT)", null, VARIANT()),
+                // nanoseconds only cover 1677-09-21 to 2262-04-11, while microseconds hold any year
+                TestSetSpec.forExpression("Cast a late TIMESTAMP to VARIANT")
+                        .onFieldsWithData(
+                                LocalDateTime.parse("3000-01-01T00:00"),
+                                LocalDateTime.parse("3000-01-01T00:00"))
+                        .andDataTypes(TIMESTAMP(9), TIMESTAMP(6))
+                        .testSqlRuntimeError(
+                                "CAST(f0 AS VARIANT)",
+                                TableRuntimeException.class,
+                                "1677-09-21 to 2262-04-11")
+                        .testTableApiRuntimeError(
+                                $("f0").cast(VARIANT()),
+                                TableRuntimeException.class,
+                                "1677-09-21 to 2262-04-11")
+                        .testResult(
+                                $("f0").tryCast(VARIANT()),
+                                "TRY_CAST(f0 AS VARIANT)",
+                                null,
+                                VARIANT())
+                        .testResult(
+                                $("f1").cast(VARIANT()).cast(TIMESTAMP(6)),
+                                "CAST(CAST(f1 AS VARIANT) AS TIMESTAMP(6))",
+                                LocalDateTime.parse("3000-01-01T00:00"),
+                                TIMESTAMP(6)),
+                TestSetSpec.forExpression("Cast a literal to VARIANT")
+                        .onFieldsWithData(0)
+                        .testResult(
+                                lit(42).cast(VARIANT()),
+                                "CAST(42 AS VARIANT)",
+                                builder.of(42),
+                                VARIANT().notNull())
+                        .testResult(
+                                lit("hello").cast(VARIANT()),
+                                "CAST('hello' AS VARIANT)",
+                                builder.of("hello"),
+                                VARIANT().notNull())
+                        // a NULL literal casts to a SQL NULL, not to a variant null
+                        .testSqlResult("CAST(NULL AS VARIANT)", null, VARIANT())
+                        .testSqlResult("TRY_CAST(NULL AS VARIANT)", null, VARIANT()),
+                // a VARIANT is not limited to JSON, so NaN and infinity are kept and round-trip
+                TestSetSpec.forExpression("Cast a NaN literal to VARIANT and back")
+                        .onFieldsWithData(0)
+                        .testResult(
+                                lit("NaN").cast(DOUBLE()).cast(VARIANT()).cast(DOUBLE()),
+                                "CAST(CAST(CAST('NaN' AS DOUBLE) AS VARIANT) AS DOUBLE)",
+                                Double.NaN,
+                                DOUBLE())
+                        .testResult(
+                                lit("NaN").cast(DOUBLE()).cast(VARIANT()).cast(STRING()),
+                                "CAST(CAST(CAST('NaN' AS DOUBLE) AS VARIANT) AS STRING)",
+                                "NaN",
+                                STRING()),
+                TestSetSpec.forExpression("Cast a non-finite number to VARIANT and back")
+                        // the non-finite values are produced at runtime from strings
+                        .onFieldsWithData("NaN", "Infinity", "-Infinity")
+                        .andDataTypes(STRING(), STRING(), STRING())
+                        .testResult(
+                                $("f0").cast(DOUBLE()).cast(VARIANT()).cast(DOUBLE()),
+                                "CAST(CAST(CAST(f0 AS DOUBLE) AS VARIANT) AS DOUBLE)",
+                                Double.NaN,
+                                DOUBLE())
+                        .testResult(
+                                $("f1").cast(FLOAT()).cast(VARIANT()).cast(FLOAT()),
+                                "CAST(CAST(CAST(f1 AS FLOAT) AS VARIANT) AS FLOAT)",
+                                Float.POSITIVE_INFINITY,
+                                FLOAT())
+                        .testResult(
+                                $("f2").cast(DOUBLE()).cast(VARIANT()).cast(FLOAT()),
+                                "CAST(CAST(CAST(f2 AS DOUBLE) AS VARIANT) AS FLOAT)",
+                                Float.NEGATIVE_INFINITY,
+                                FLOAT())
+                        // an integer cannot hold NaN, so that cast still fails
+                        .testSqlRuntimeError(
+                                "CAST(CAST(CAST(f0 AS DOUBLE) AS VARIANT) AS INT)",
+                                TableRuntimeException.class,
+                                "overflowed"),
+                TestSetSpec.forExpression("Cast narrow and fixed-width types to VARIANT and back")
+                        .onFieldsWithData((byte) 42, (short) 1000)
+                        .andDataTypes(TINYINT(), SMALLINT())
+                        .testResult(
+                                $("f0").cast(VARIANT()).cast(TINYINT()),
+                                "CAST(CAST(f0 AS VARIANT) AS TINYINT)",
+                                (byte) 42,
+                                TINYINT())
+                        .testResult(
+                                $("f1").cast(VARIANT()).cast(SMALLINT()),
+                                "CAST(CAST(f1 AS VARIANT) AS SMALLINT)",
+                                (short) 1000,
+                                SMALLINT())
+                        // a CHAR(n) is stored with its padding, so the spaces survive
+                        .testResult(
+                                lit("ab").cast(CHAR(4)).cast(VARIANT()).cast(STRING()),
+                                "CAST(CAST(CAST('ab' AS CHAR(4)) AS VARIANT) AS STRING)",
+                                "ab  ",
+                                STRING())
+                        .testResult(
+                                lit("ab").cast(CHAR(4)).cast(VARIANT()).cast(CHAR(4)),
+                                "CAST(CAST(CAST('ab' AS CHAR(4)) AS VARIANT) AS CHAR(4))",
+                                "ab  ",
+                                CHAR(4))
+                        // a BINARY(n) is stored with its zero padding
+                        .testResult(
+                                lit(new byte[] {1, 2})
+                                        .cast(BINARY(4))
+                                        .cast(VARIANT())
+                                        .cast(BYTES()),
+                                "CAST(CAST(CAST(X'0102' AS BINARY(4)) AS VARIANT) AS BYTES)",
+                                new byte[] {1, 2, 0, 0},
+                                BYTES()),
+                // a constructed type casts element by element when each child casts to VARIANT
+                TestSetSpec.forExpression("Cast a constructed type to VARIANT elements and back")
+                        .onFieldsWithData(
+                                new Integer[] {1, null},
+                                Row.of(7),
+                                map(entry("a", 1)),
+                                map(entry(1, "a")))
+                        .andDataTypes(
+                                ARRAY(INT()),
+                                ROW(FIELD("a", INT())),
+                                MAP(STRING(), INT()),
+                                MAP(INT(), STRING()))
+                        .testResult(
+                                $("f0").cast(ARRAY(VARIANT())).cast(ARRAY(INT())),
+                                "CAST(CAST(f0 AS ARRAY<VARIANT>) AS ARRAY<INT>)",
+                                new Integer[] {1, null},
+                                ARRAY(INT()))
+                        .testResult(
+                                $("f1").cast(ROW(FIELD("a", VARIANT())))
+                                        .cast(ROW(FIELD("a", INT()))),
+                                "CAST(CAST(f1 AS ROW<a VARIANT>) AS ROW<a INT>)",
+                                Row.of(7),
+                                ROW(FIELD("a", INT())))
+                        .testResult(
+                                $("f2").cast(MAP(STRING(), VARIANT())).cast(MAP(STRING(), INT())),
+                                "CAST(CAST(f2 AS MAP<STRING, VARIANT>) AS MAP<STRING, INT>)",
+                                map(entry("a", 1)),
+                                MAP(STRING(), INT()))
+                        // a VARIANT key matches by its bytes, so a key cast from INT does not
+                        // match the same number cast from BIGINT
+                        .testResult(
+                                $("f3").cast(MAP(VARIANT(), STRING())).at(lit(1).cast(VARIANT())),
+                                "CAST(f3 AS MAP<VARIANT, STRING>)[CAST(1 AS VARIANT)]",
+                                "a",
+                                STRING())
+                        .testResult(
+                                $("f3").cast(MAP(VARIANT(), STRING())).at(lit(1L).cast(VARIANT())),
+                                "CAST(f3 AS MAP<VARIANT, STRING>)[CAST(CAST(1 AS BIGINT) AS VARIANT)]",
+                                null,
+                                STRING()),
+                // a whole constructed value does not cast into a single VARIANT yet
+                TestSetSpec.forExpression("Cast a constructed type to VARIANT")
+                        .onFieldsWithData(0)
+                        .testSqlValidationError(
+                                "CAST(ARRAY[1, 2] AS VARIANT)",
+                                "Cast function cannot convert value")
+                        .testTableApiValidationError(
+                                lit(new int[] {1, 2}).cast(VARIANT()), "Unsupported cast"));
     }
 
     private static List<TestSetSpec> variantArrayCasts() {
