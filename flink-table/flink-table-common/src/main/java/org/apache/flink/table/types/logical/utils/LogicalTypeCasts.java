@@ -404,6 +404,33 @@ public final class LogicalTypeCasts {
                 .build();
 
         // -----------------------------------------------------------------------------------------
+        // VARIANT type
+        // -----------------------------------------------------------------------------------------
+
+        // Only a type with a VARIANT kind that holds its value without loss casts to VARIANT.
+        castTo(VARIANT)
+                .implicitFrom(VARIANT)
+                .explicitFrom(
+                        BOOLEAN,
+                        TINYINT,
+                        SMALLINT,
+                        INTEGER,
+                        BIGINT,
+                        FLOAT,
+                        DOUBLE,
+                        DECIMAL,
+                        CHAR,
+                        VARCHAR,
+                        BINARY,
+                        VARBINARY,
+                        DATE,
+                        TIME_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        UUID)
+                .build();
+
+        // -----------------------------------------------------------------------------------------
         // UUID type
         // -----------------------------------------------------------------------------------------
 
