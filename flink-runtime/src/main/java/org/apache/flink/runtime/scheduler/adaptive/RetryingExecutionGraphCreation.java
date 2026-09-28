@@ -30,10 +30,7 @@ import java.util.concurrent.ScheduledFuture;
 
 /**
  * State entered when {@link CreatingExecutionGraph} fails to create the {@link ExecutionGraph} with
- * a recoverable error. Unlike {@link Restarting}, there is no live ExecutionGraph to cancel here
- * (the creation failed, and any previous graph is already terminal). This state simply waits for
- * the configured backoff and then transitions back to {@link WaitingForResources} to re-attempt
- * resource acquisition and ExecutionGraph creation.
+ * a recoverable error.
  */
 class RetryingExecutionGraphCreation extends StateWithoutExecutionGraph {
 
@@ -55,7 +52,6 @@ class RetryingExecutionGraphCreation extends StateWithoutExecutionGraph {
         this.previousExecutionGraph = previousExecutionGraph;
         this.backoffTime = backoffTime;
 
-        // State transitions are not allowed in the constructor, so schedule for later.
         goToSubsequentStateFuture =
                 context.runIfState(this, this::goToSubsequentState, backoffTime);
     }
@@ -70,13 +66,6 @@ class RetryingExecutionGraphCreation extends StateWithoutExecutionGraph {
 
     @Override
     public JobStatus getJobStatus() {
-        // Report CREATED (like the other no-ExecutionGraph states Created / WaitingForResources /
-        // CreatingExecutionGraph) rather than RESTARTING: there is no ExecutionGraph yet, and on a
-        // first creation the job was never RUNNING, so a CREATED -> RESTARTING transition would
-        // break
-        // JobStatus state-machine assumptions. The retry is observable via the distinct state name
-        // in
-        // the transition logs and the numExecutionGraphCreationRetries metric.
         return JobStatus.CREATED;
     }
 

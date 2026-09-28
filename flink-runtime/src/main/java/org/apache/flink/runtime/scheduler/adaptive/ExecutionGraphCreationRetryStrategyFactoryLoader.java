@@ -31,21 +31,12 @@ import java.util.Optional;
 
 /**
  * Loads the dedicated {@link RestartBackoffTimeStrategy} used to retry ExecutionGraph-creation
- * failures, independent of the job's {@code restart-strategy} so these retries do not consume the
- * job's runtime restart budget.
+ * failures.
  */
 final class ExecutionGraphCreationRetryStrategyFactoryLoader {
 
     private ExecutionGraphCreationRetryStrategyFactoryLoader() {}
 
-    /**
-     * Builds the factory from the {@code
-     * jobmanager.adaptive-scheduler.retry-execution-graph-creation.} config namespace: the strategy
-     * type is taken from the job config, then the cluster config; if neither configures one,
-     * ExecutionGraph-creation failures are not retried (no-restart). Reuses only the public
-     * per-type {@code createFactory} methods, never the base loader's checkpointing-conditional
-     * default.
-     */
     static RestartBackoffTimeStrategy.Factory createFactory(
             Configuration jobConfiguration, Configuration clusterConfiguration) {
         return factoryFromConfig(prefixed(jobConfiguration))

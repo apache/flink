@@ -85,7 +85,8 @@ class ExecutionGraphCreationRetryStrategyFactoryLoaderTest {
     /**
      * The per-type parameters must be read from under the dedicated prefix, not from the plain
      * {@code restart-strategy.*} namespace. This is what regressed when the loader copied the
-     * prefixed configuration through {@code Configuration#addAll}, which silently dropped every key.
+     * prefixed configuration through {@code Configuration#addAll}, which silently dropped every
+     * key.
      */
     @Test
     void testPrefixedPerTypeParametersAreApplied() {
