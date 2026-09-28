@@ -177,23 +177,24 @@ public final class VariantCastUtils {
 
     /**
      * Reads any numeric variant as a {@code float}. Dropping decimal digits is expected of an
-     * approximate type, but a magnitude outside the {@code FLOAT} range is rejected.
+     * approximate type, but a finite magnitude outside the {@code FLOAT} range is rejected. A
+     * stored {@code NaN} or infinity is kept as is.
      */
     public static float toFloat(Variant variant) {
-        final float value = numeric(variant, "FLOAT").floatValue();
-        if (!Float.isFinite(value)) {
+        final Number number = numeric(variant, "FLOAT");
+        final float value = number.floatValue();
+        if (!Float.isFinite(value) && Double.isFinite(number.doubleValue())) {
             throw overflow(variant.get(), "FLOAT");
         }
         return value;
     }
 
-    /** Reads any numeric variant as a {@code double}. See {@link #toFloat(Variant)}. */
+    /**
+     * Reads any numeric variant as a {@code double}. Every numeric kind fits the {@code DOUBLE}
+     * range, so only decimal digits can be dropped, and a stored {@code NaN} or infinity is kept.
+     */
     public static double toDouble(Variant variant) {
-        final double value = numeric(variant, "DOUBLE").doubleValue();
-        if (!Double.isFinite(value)) {
-            throw overflow(variant.get(), "DOUBLE");
-        }
-        return value;
+        return numeric(variant, "DOUBLE").doubleValue();
     }
 
     /**
