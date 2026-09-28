@@ -36,7 +36,8 @@ import java.util.Optional;
  * executor, but the first cycle runs on the thread that starts the manager (the ResourceManager
  * main thread) and one-shot obtains run on the caller's thread, so implementations must not assume
  * a particular thread. {@link #registerJob(JobID, Configuration)} and {@link #unregisterJob(JobID)}
- * are invoked from the ResourceManager main thread. These can therefore run concurrently with
+ * are invoked from the ResourceManager main thread; {@code unregisterJob} may additionally be
+ * invoked from the thread that stops or closes the manager. These hooks can run concurrently with
  * {@link #obtainDelegationTokens()}. {@link
  * DelegationTokenManagerCallback#reobtainDelegationTokens()} may be invoked from any thread.
  * Implementations must keep any per-job state thread-safe, and {@code registerJob}/{@code
