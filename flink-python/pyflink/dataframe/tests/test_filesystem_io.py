@@ -217,12 +217,12 @@ class FilesystemIOTests(PyFlinkDataFrameUTTestCase):
     def test_invalid_partition_columns_are_rejected_by_the_table_api(self):
         for reader in (pf.read_json, pf.read_parquet):
             with self.subTest(reader=reader.__name__):
-                with self.assertRaisesRegex(Py4JJavaError, "missing"):
+                with self.assertRaisesRegex(ValueError, "missing"):
                     reader("/input", schema=self._SCHEMA, partition_by="missing")
         dataframe = pf.from_records([(1,)], schema=["id"])
         for writer in (dataframe.write_json, dataframe.write_parquet):
             with self.subTest(writer=writer.__name__):
-                with self.assertRaisesRegex(Py4JJavaError, "missing"):
+                with self.assertRaisesRegex(ValueError, "missing"):
                     writer("/output", partition_by="missing")
 
     def test_writers_accept_raw_options_without_overriding_them_with_defaults(self):
