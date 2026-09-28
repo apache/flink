@@ -1252,6 +1252,39 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
         testLeftJoinWithUpdateRecordsMultipleCases();
     }
 
+    /**
+     * A suppressed -U/+U pair on one of two matches of the left row keeps both matches, so deleting
+     * the other one does not null pad the left row.
+     */
+    @Tag("miniBatchSize=10")
+    @Test
+    void testLeftJoinHasUniqueKeyUpdatesOneOfTwoMatchesWithinBundle() throws Exception {
+        final String address = "3 Bellevue Drive, Pottstown, PA 19464";
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", address));
+        testHarness.processElement2(insertRecord("Ord#1", "LineOrd#1", "AIR"));
+        testHarness.processElement2(insertRecord("Ord#2", "LineOrd#1", "SHIP"));
+        testHarness.prepareSnapshotPreBarrier(1L);
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(updateBeforeRecord("Ord#1", "LineOrd#1", "AIR"));
+        testHarness.processElement2(updateAfterRecord("Ord#1", "LineOrd#1", "TRUCK"));
+        testHarness.prepareSnapshotPreBarrier(2L);
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(deleteRecord("Ord#2", "LineOrd#1", "SHIP"));
+        testHarness.prepareSnapshotPreBarrier(3L);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE,
+                        "Ord#1",
+                        "LineOrd#1",
+                        address,
+                        "Ord#2",
+                        "LineOrd#1",
+                        "SHIP"));
+    }
+
     @Tag("miniBatchSize=4")
     @Test
     void testLeftJoinJoinKeyContainsUniqueKeyWithUpdateMultipleCases() throws Exception {
