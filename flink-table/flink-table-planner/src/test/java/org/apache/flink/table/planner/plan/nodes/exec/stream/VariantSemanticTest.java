@@ -111,6 +111,28 @@ public class VariantSemanticTest extends SemanticTestBase {
                     .runSql("INSERT INTO sink_t SELECT TRY_PARSE_JSON(v) FROM t")
                     .build();
 
+    static final TableTestProgram VARIANT_OMITTED_FROM_INSERT_COLUMN_LIST =
+            TableTestProgram.of(
+                            "variant-omitted-from-insert-column-list",
+                            "validates that VARIANT columns omitted from an INSERT column list are filled with NULL")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("k INT")
+                                    .producedValues(Row.of(1))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "k INT",
+                                            "v VARIANT",
+                                            "a ARRAY<VARIANT>",
+                                            "r ROW<f VARIANT>",
+                                            "m MAP<STRING, VARIANT>")
+                                    .consumedValues(Row.of(1, null, null, null, null))
+                                    .build())
+                    .runSql("INSERT INTO sink_t (k) SELECT k FROM t")
+                    .build();
+
     static final Variant V1 = BUILDER.of(1);
     static final Variant V2 = BUILDER.of(2);
 
@@ -495,7 +517,8 @@ public class VariantSemanticTest extends SemanticTestBase {
                 VARIANT_OBJECT_ACCESS,
                 VARIANT_NESTED_ACCESS,
                 VARIANT_ARRAY_ERROR_ACCESS,
-                VARIANT_OBJECT_ERROR_ACCESS);
+                VARIANT_OBJECT_ERROR_ACCESS,
+                VARIANT_OMITTED_FROM_INSERT_COLUMN_LIST);
     }
 
     public static class VariantIdentity extends ScalarFunction {
