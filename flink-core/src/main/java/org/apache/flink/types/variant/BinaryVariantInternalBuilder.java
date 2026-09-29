@@ -73,6 +73,7 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.U8_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.arrayHeader;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
+import static org.apache.flink.types.variant.BinaryVariantUtil.fitsVariantDecimal;
 import static org.apache.flink.types.variant.BinaryVariantUtil.getMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleArray;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleObject;
@@ -248,12 +249,12 @@ public class BinaryVariantInternalBuilder {
         final BigDecimal d = toVariantDecimal(decimal);
         checkCapacity(2 + 16);
         BigInteger unscaled = d.unscaledValue();
-        if (d.scale() <= MAX_DECIMAL4_PRECISION && d.precision() <= MAX_DECIMAL4_PRECISION) {
+        if (fitsVariantDecimal(d, MAX_DECIMAL4_PRECISION)) {
             writeBuffer[writePos++] = primitiveHeader(DECIMAL4);
             writeBuffer[writePos++] = (byte) d.scale();
             writeLong(writeBuffer, writePos, unscaled.intValueExact(), 4);
             writePos += 4;
-        } else if (d.scale() <= MAX_DECIMAL8_PRECISION && d.precision() <= MAX_DECIMAL8_PRECISION) {
+        } else if (fitsVariantDecimal(d, MAX_DECIMAL8_PRECISION)) {
             writeBuffer[writePos++] = primitiveHeader(DECIMAL8);
             writeBuffer[writePos++] = (byte) d.scale();
             writeLong(writeBuffer, writePos, unscaled.longValueExact(), 8);
@@ -281,14 +282,16 @@ public class BinaryVariantInternalBuilder {
         BigDecimal result = d;
         if (d.scale() < 0) {
             // A non-zero value with a scale below -38 has more than 38 digits after rescaling.
-            // Reject it upfront because setScale is expensive for huge exponents like 1e999999999.
+            // Reject it upfront because setScale is slow for exponents like 1e9999999 and throws
+            // an ArithmeticException for exponents like 1e999999999.
             if (d.signum() != 0 && d.scale() < -MAX_DECIMAL16_PRECISION) {
                 throw decimalOutOfRange(d);
             }
+            // Rescaling a non-zero value gives it precision - scale digits. For example, 12345e34
+            // has precision 5 and scale -34, so it has 5 - (-34) = 39 digits after rescaling.
             result = d.setScale(0);
         }
-        if (result.scale() > MAX_DECIMAL16_PRECISION
-                || result.precision() > MAX_DECIMAL16_PRECISION) {
+        if (!fitsVariantDecimal(result, MAX_DECIMAL16_PRECISION)) {
             throw decimalOutOfRange(d);
         }
         return result;
@@ -717,7 +720,7 @@ public class BinaryVariantInternalBuilder {
             }
         }
         BigDecimal d = new BigDecimal(input);
-        if (d.scale() <= MAX_DECIMAL16_PRECISION && d.precision() <= MAX_DECIMAL16_PRECISION) {
+        if (fitsVariantDecimal(d, MAX_DECIMAL16_PRECISION)) {
             appendDecimal(d);
             return true;
         }

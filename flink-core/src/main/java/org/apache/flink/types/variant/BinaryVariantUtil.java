@@ -593,9 +593,17 @@ public class BinaryVariantUtil {
         return Double.longBitsToDouble(readLong(value, pos + 1, 8));
     }
 
+    /**
+     * Returns whether a decimal can be stored as a variant decimal: its precision and its
+     * non-negative scale must both be at most {@code maxPrecision}.
+     */
+    static boolean fitsVariantDecimal(BigDecimal d, int maxPrecision) {
+        return d.scale() >= 0 && d.scale() <= maxPrecision && d.precision() <= maxPrecision;
+    }
+
     /** Check whether the precision and scale of the decimal are within the limit. */
     private static void checkDecimal(BigDecimal d, int maxPrecision) {
-        if (d.precision() > maxPrecision || d.scale() > maxPrecision) {
+        if (!fitsVariantDecimal(d, maxPrecision)) {
             throw malformedVariant();
         }
     }
