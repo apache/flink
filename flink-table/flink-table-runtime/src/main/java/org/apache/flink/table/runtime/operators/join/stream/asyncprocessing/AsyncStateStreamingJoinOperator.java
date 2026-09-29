@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream.asyncprocessing;
 
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -160,20 +161,52 @@ public class AsyncStateStreamingJoinOperator extends AbstractAsyncStateStreaming
         // erase RowKind for later state updating
         input.setRowKind(RowKind.INSERT);
 
+        // has to be issued before processJoin writes the input record into the same state
+        StateFuture<Boolean> replacesRecordInStateFuture =
+                replacesRecordInState(inputSideAsyncStateView, inputIsLeft, input, originalRowKind);
         StateFuture<AssociatedRecords> associatedRecordsFuture =
                 AssociatedRecords.fromAsyncStateView(
                         input, inputIsLeft, otherSideAsyncStateView, joinCondition);
         // set back RowKind
         input.setRowKind(originalRowKind);
-        associatedRecordsFuture.thenAccept(
-                associatedRecords ->
-                        joinHelper.processJoin(
-                                input,
-                                inputSideAsyncStateView,
-                                otherSideAsyncStateView,
-                                inputIsLeft,
-                                associatedRecords,
-                                false));
+        associatedRecordsFuture.thenCombine(
+                replacesRecordInStateFuture,
+                (associatedRecords, replacesRecordInState) -> {
+                    joinHelper.processJoin(
+                            input,
+                            inputSideAsyncStateView,
+                            otherSideAsyncStateView,
+                            inputIsLeft,
+                            associatedRecords,
+                            false,
+                            replacesRecordInState);
+                    return null;
+                });
+    }
+
+    // returns true if the input is a replacing change
+    private StateFuture<Boolean> replacesRecordInState(
+            JoinRecordAsyncStateView inputSideAsyncStateView,
+            boolean inputIsLeft,
+            RowData input,
+            RowKind originalRowKind) {
+        final boolean otherIsOuter = inputIsLeft ? rightIsOuter : leftIsOuter;
+        final boolean isAccumulateMsg =
+                originalRowKind == RowKind.INSERT || originalRowKind == RowKind.UPDATE_AFTER;
+        // if other is not outer and if input is not accumulating,
+        // there is no need to query the state to check if input is replacing
+        if (!otherIsOuter || !isAccumulateMsg) {
+            return StateFutureUtils.completedFuture(false);
+        }
+        final JoinInputSideSpec inputSideSpec =
+                inputIsLeft ? leftInputSideSpec : rightInputSideSpec;
+        if (inputSideSpec.joinKeyContainsUniqueKey()) {
+            return StateFutureUtils.completedFuture(true);
+        }
+        if (inputSideSpec.hasUniqueKey()) {
+            return inputSideAsyncStateView.containsRecord(input);
+        }
+        return StateFutureUtils.completedFuture(false);
     }
 
     private class AsyncStateJoinHelper

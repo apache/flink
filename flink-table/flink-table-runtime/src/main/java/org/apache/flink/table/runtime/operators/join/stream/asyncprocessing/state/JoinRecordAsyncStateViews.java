@@ -101,6 +101,11 @@ public final class JoinRecordAsyncStateViews {
         }
 
         @Override
+        public StateFuture<Boolean> containsRecord(RowData record) {
+            return recordState.asyncValue().thenApply(v -> v != null);
+        }
+
+        @Override
         public StateFuture<List<OuterRecord>> findMatchedRecords(
                 Function<RowData, Boolean> condition) {
             return recordState
@@ -160,6 +165,13 @@ public final class JoinRecordAsyncStateViews {
                                 RowData uniqueKey = uniqueKeySelector.getKey(record);
                                 return recordState.asyncRemove(uniqueKey);
                             });
+        }
+
+        @Override
+        public StateFuture<Boolean> containsRecord(RowData record) {
+            return StateFutureUtils.completedVoidFuture()
+                    .thenCompose(
+                            VOID -> recordState.asyncContains(uniqueKeySelector.getKey(record)));
         }
 
         @Override
@@ -228,6 +240,11 @@ public final class JoinRecordAsyncStateViews {
                                 // ignore cnt == null, which means state may be expired
                                 return StateFutureUtils.completedVoidFuture();
                             });
+        }
+
+        @Override
+        public StateFuture<Boolean> containsRecord(RowData record) {
+            return recordState.asyncContains(record);
         }
 
         @Override

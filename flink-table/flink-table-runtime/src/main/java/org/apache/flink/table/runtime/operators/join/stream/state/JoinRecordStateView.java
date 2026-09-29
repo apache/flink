@@ -38,6 +38,17 @@ public interface JoinRecordStateView {
     /** Retract the record from the state view. */
     void retractRecord(RowData record) throws Exception;
 
+    /**
+     * Returns true if the state view already holds a record that {@link #addRecord} would replace,
+     * i.e. a record under the same unique key, or an identical record if the input side has no
+     * unique key.
+     *
+     * <p>This costs an additional state access, so it should only be called where the answer is
+     * needed, for example to tell an UPDATE_AFTER that replaces a record apart from one that adds a
+     * new one.
+     */
+    boolean containsRecord(RowData record) throws Exception;
+
     /** Gets all the records under the current context (i.e. join key). */
     Iterable<RowData> getRecords() throws Exception;
 }

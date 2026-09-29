@@ -142,6 +142,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
      *
      * <pre>
      * if input record is accumulate
+     * | replaces = the right side's state already holds this record (a replacing change)
      * | state.add(record)
      * | if there is no matched rows on the other side, skip
      * | if there are matched rows on the other side
@@ -149,7 +150,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
      * | |   if anti join, send -D[other]s
      * | |   if semi join, send +I/+U[other]s (using input RowKind)
      * | | if the matched num in the matched rows > 0, skip
-     * | | otherState.update(other, old+1)
+     * | | if not replaces or the matched num == 0, otherState.update(other, old+1)
      * | endif
      * endif
      * if input record is retract
@@ -177,6 +178,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                 AbstractStreamingJoinOperator.iterator(
                         input, false, leftRecordStateView, joinCondition);
         if (isAccumulateMsg) { // record is accumulate
+            final boolean replacesRecordInState = replacesRecordInState(input);
             rightRecordStateView.addRecord(input);
             while (associatedRecords.hasNext()) {
                 OuterRecord outerRecord = associatedRecords.next();
@@ -193,8 +195,11 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                     // set header back to INSERT, because we will update the other row to state
                     other.setRowKind(RowKind.INSERT);
                 } // ignore when number > 0
-                leftRecordStateView.updateNumOfAssociations(
-                        other, outerRecord.numOfAssociations + 1);
+                if (!replacesRecordInState
+                        || outerRecord.numOfAssociations == 0) { // new association
+                    leftRecordStateView.updateNumOfAssociations(
+                            other, outerRecord.numOfAssociations + 1);
+                }
             }
         } else { // retract input
             rightRecordStateView.retractRecord(input);
@@ -217,5 +222,15 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                         other, outerRecord.numOfAssociations - 1);
             }
         }
+    }
+
+    private boolean replacesRecordInState(RowData input) throws Exception {
+        if (rightInputSideSpec.joinKeyContainsUniqueKey()) {
+            return true;
+        }
+        if (rightInputSideSpec.hasUniqueKey()) {
+            return rightRecordStateView.containsRecord(input);
+        }
+        return false;
     }
 }

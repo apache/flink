@@ -119,6 +119,11 @@ public final class OuterJoinRecordStateViews {
         }
 
         @Override
+        public boolean containsRecord(RowData record) throws Exception {
+            return recordState.value() != null;
+        }
+
+        @Override
         public Iterable<RowData> getRecords() throws Exception {
             Tuple2<RowData, Integer> tuple = recordState.value();
             if (tuple == null) {
@@ -189,6 +194,11 @@ public final class OuterJoinRecordStateViews {
         public void retractRecord(RowData record) throws Exception {
             RowData uniqueKey = uniqueKeySelector.getKey(record);
             recordState.remove(uniqueKey);
+        }
+
+        @Override
+        public boolean containsRecord(RowData record) throws Exception {
+            return recordState.contains(uniqueKeySelector.getKey(record));
         }
 
         @Override
@@ -264,6 +274,14 @@ public final class OuterJoinRecordStateViews {
                     recordState.remove(record);
                 }
             }
+        }
+
+        @Override
+        public boolean containsRecord(RowData record) throws Exception {
+            // Without a unique key only an identical record counts as present. An UPDATE_AFTER
+            // carries a different record, so it reads as absent here while the record it updates
+            // stays in state. Callers that need to recognize such an update cannot rely on this.
+            return recordState.contains(record);
         }
 
         @Override

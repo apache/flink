@@ -116,6 +116,9 @@ public abstract class JoinHelper<STATE_VIEW, OUTER_STATE_VIEW extends STATE_VIEW
      * @param otherSideAsyncStateView state of other side
      * @param inputIsLeft whether input side is left side
      * @param otherSideAssociatedRecords associated records in the state of the other side
+     * @param replacesRecordInState whether an accumulate input replaces a record the input side's
+     *     state already holds, in which case it adds no new association to a matched record on an
+     *     outer other side
      */
     public void processJoin(
             RowData input,
@@ -123,7 +126,8 @@ public abstract class JoinHelper<STATE_VIEW, OUTER_STATE_VIEW extends STATE_VIEW
             STATE_VIEW otherSideAsyncStateView,
             boolean inputIsLeft,
             AssociatedRecords otherSideAssociatedRecords,
-            boolean isSuppress)
+            boolean isSuppress,
+            boolean replacesRecordInState)
             throws Exception {
         boolean inputIsOuter = inputIsLeft ? leftIsOuter : rightIsOuter;
         boolean otherIsOuter = inputIsLeft ? rightIsOuter : leftIsOuter;
@@ -156,10 +160,12 @@ public abstract class JoinHelper<STATE_VIEW, OUTER_STATE_VIEW extends STATE_VIEW
                                 outputNullPadding(other, !inputIsLeft);
                             } // ignore matched number > 0
                             // otherState.update(other, old + 1)
-                            updateNumOfAssociationsInOuterSide(
-                                    otherSideOuterStateView,
-                                    other,
-                                    outerRecord.numOfAssociations + 1);
+                            if (!replacesRecordInState || outerRecord.numOfAssociations == 0) {
+                                updateNumOfAssociationsInOuterSide(
+                                        otherSideOuterStateView,
+                                        other,
+                                        outerRecord.numOfAssociations + 1);
+                            }
                         }
                     }
                     // send +I[record+other]s
@@ -188,10 +194,12 @@ public abstract class JoinHelper<STATE_VIEW, OUTER_STATE_VIEW extends STATE_VIEW
                                 outputNullPadding(outerRecord.record, !inputIsLeft);
                             }
                             // otherState.update(other, old + 1)
-                            updateNumOfAssociationsInOuterSide(
-                                    otherSideOuterStateView,
-                                    outerRecord.record,
-                                    outerRecord.numOfAssociations + 1);
+                            if (!replacesRecordInState || outerRecord.numOfAssociations == 0) {
+                                updateNumOfAssociationsInOuterSide(
+                                        otherSideOuterStateView,
+                                        outerRecord.record,
+                                        outerRecord.numOfAssociations + 1);
+                            }
                         }
                         // send +I[record+other]s
                         outRow.setRowKind(RowKind.INSERT);
