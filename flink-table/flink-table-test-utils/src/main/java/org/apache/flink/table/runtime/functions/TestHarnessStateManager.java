@@ -19,7 +19,10 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
@@ -30,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * State manager for {@link ProcessTableFunctionTestHarness}.
@@ -59,18 +64,43 @@ class TestHarnessStateManager {
         @Nullable final String[] columnNames;
         @Nullable final Class<?>[] columnTypes;
 
+        /**
+         * Deep copies a partition key. {@link Row#copy(Row)} copies only the field array, so a key
+         * holding a mutable value such as an {@code ARRAY} would otherwise be shared between a
+         * snapshot and the harness it was taken from. {@link Row} hashes and compares its fields
+         * deeply, so mutating a shared key also changes its hash and can make a map entry keyed by
+         * it unreachable.
+         */
+        @Nullable private final TypeSerializer<Row> keySerializer;
+
         PartitionKeyInfo(
-                int arity,
-                @Nullable String[] columnNames,
-                @Nullable LogicalType[] columnLogicalTypes) {
+                int arity, @Nullable String[] columnNames, @Nullable DataType[] columnDataTypes) {
             this.arity = arity;
             this.columnNames = columnNames;
             this.columnTypes =
-                    columnLogicalTypes != null
-                            ? Arrays.stream(columnLogicalTypes)
-                                    .map(LogicalType::getDefaultConversion)
+                    columnDataTypes != null
+                            ? Arrays.stream(columnDataTypes)
+                                    .map(
+                                            dataType ->
+                                                    dataType.getLogicalType()
+                                                            .getDefaultConversion())
                                     .toArray(Class<?>[]::new)
                             : null;
+            if (columnNames == null || columnDataTypes == null || arity == 0) {
+                // An unpartitioned harness keys everything by an empty row, which holds nothing
+                // that could be shared.
+                this.keySerializer = null;
+            } else {
+                final DataTypes.Field[] fields = new DataTypes.Field[arity];
+                for (int i = 0; i < arity; i++) {
+                    fields[i] = DataTypes.FIELD(columnNames[i], columnDataTypes[i]);
+                }
+                this.keySerializer = ExternalSerializer.of(DataTypes.ROW(fields));
+            }
+        }
+
+        Row copyKey(Row key) {
+            return keySerializer == null ? Row.copy(key) : keySerializer.copy(key);
         }
 
         void validate(Row key) {
@@ -196,6 +226,46 @@ class TestHarnessStateManager {
             }
         }
         return result;
+    }
+
+    /**
+     * Returns a deep copy of all state, keyed by partition key. Later mutations of the live state
+     * are not visible through the returned map.
+     */
+    Map<Row, Map<String, Object>> snapshot() {
+        return copyStateByKey(stateByKey);
+    }
+
+    /**
+     * Installs a deep copy of the given state. Called while a harness is being built, before it
+     * holds any state of its own.
+     */
+    void restore(Map<Row, Map<String, Object>> snapshot) {
+        checkState(stateByKey.isEmpty(), "State has already been populated.");
+        stateByKey.putAll(copyStateByKey(snapshot));
+    }
+
+    /**
+     * Copies state entry by entry. Values are held in their internal representation, so the copy is
+     * driven off the state's internal serializer and never touches a user-facing state object.
+     */
+    private Map<Row, Map<String, Object>> copyStateByKey(Map<Row, Map<String, Object>> source) {
+        Map<Row, Map<String, Object>> copy = new HashMap<>();
+        for (Map.Entry<Row, Map<String, Object>> keyEntry : source.entrySet()) {
+            Map<String, Object> stateCopy = new HashMap<>();
+            for (Map.Entry<String, Object> stateEntry : keyEntry.getValue().entrySet()) {
+                Object internalData = stateEntry.getValue();
+                stateCopy.put(
+                        stateEntry.getKey(),
+                        internalData == null
+                                ? null
+                                : stateConverters
+                                        .get(stateEntry.getKey())
+                                        .copyInternal(internalData));
+            }
+            copy.put(partitionKeyInfo.copyKey(keyEntry.getKey()), stateCopy);
+        }
+        return copy;
     }
 
     private Map<String, Object> createEmptyKeyState() {
