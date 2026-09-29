@@ -81,6 +81,15 @@ public class Timer implements Comparable<Timer> {
         this.fired = true;
     }
 
+    /** Creates an isolated copy of this timer, including whether it has already fired. */
+    Timer copy() {
+        final Timer copy = new Timer(timestamp, name, Row.copy(partitionKey));
+        if (fired) {
+            copy.markFired();
+        }
+        return copy;
+    }
+
     /**
      * Comparison of timers is done by timestamp first, then by name (unnamed timers sort after
      * named ones), then by partition key, for a deterministic firing order.

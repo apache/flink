@@ -19,7 +19,10 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.types.DataType;
 
 /**
  * Converter for value state backed by structured types.
@@ -31,11 +34,13 @@ class StructuredTypeStateConverter implements StateConverter {
 
     private final DataStructureConverter<Object, Object> converter;
     private final Class<?> pojoClass;
+    private final TypeSerializer<Object> serializer;
 
     StructuredTypeStateConverter(
-            Class<?> pojoClass, DataStructureConverter<Object, Object> converter) {
+            DataType dataType, DataStructureConverter<Object, Object> converter) {
         this.converter = converter;
-        this.pojoClass = pojoClass;
+        this.pojoClass = dataType.getConversionClass();
+        this.serializer = InternalSerializers.create(dataType.getLogicalType());
     }
 
     @Override
@@ -63,5 +68,10 @@ class StructuredTypeStateConverter implements StateConverter {
             throw new RuntimeException(
                     "Failed to create new instance of POJO class: " + pojoClass.getName(), e);
         }
+    }
+
+    @Override
+    public Object copyInternal(Object internal) {
+        return serializer.copy(internal);
     }
 }

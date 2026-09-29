@@ -146,6 +146,62 @@ class TestHarnessTimerManager {
     }
 
     // -------------------------------------------------------------------------
+    // Snapshotting
+    // -------------------------------------------------------------------------
+
+    /**
+     * An isolated copy of all timer and watermark state. Later mutations of the live state are not
+     * visible through the snapshot.
+     */
+    static class TimerSnapshot {
+        private final Map<Row, Set<Timer>> pendingTimersByPartition;
+        private final List<Timer> firedTimers;
+        private final Map<String, Long> watermarkByTable;
+        @Nullable private final Long globalWatermark;
+
+        private TimerSnapshot(
+                Map<Row, Set<Timer>> pendingTimersByPartition,
+                List<Timer> firedTimers,
+                Map<String, Long> watermarkByTable,
+                @Nullable Long globalWatermark) {
+            this.pendingTimersByPartition = pendingTimersByPartition;
+            this.firedTimers = firedTimers;
+            this.watermarkByTable = watermarkByTable;
+            this.globalWatermark = globalWatermark;
+        }
+    }
+
+    TimerSnapshot snapshot() {
+        return new TimerSnapshot(
+                copyPendingTimers(pendingTimersByPartition),
+                copyTimers(firedTimers),
+                new HashMap<>(watermarkByTable),
+                globalWatermark);
+    }
+
+    void restore(TimerSnapshot snapshot) {
+        pendingTimersByPartition.clear();
+        pendingTimersByPartition.putAll(copyPendingTimers(snapshot.pendingTimersByPartition));
+        firedTimers.clear();
+        firedTimers.addAll(copyTimers(snapshot.firedTimers));
+        watermarkByTable.clear();
+        watermarkByTable.putAll(snapshot.watermarkByTable);
+        globalWatermark = snapshot.globalWatermark;
+    }
+
+    private static Map<Row, Set<Timer>> copyPendingTimers(Map<Row, Set<Timer>> source) {
+        Map<Row, Set<Timer>> copy = new HashMap<>();
+        for (Map.Entry<Row, Set<Timer>> entry : source.entrySet()) {
+            copy.put(Row.copy(entry.getKey()), new HashSet<>(copyTimers(entry.getValue())));
+        }
+        return copy;
+    }
+
+    private static List<Timer> copyTimers(Collection<Timer> timers) {
+        return timers.stream().map(Timer::copy).collect(Collectors.toList());
+    }
+
+    // -------------------------------------------------------------------------
     // Internal
     // -------------------------------------------------------------------------
 

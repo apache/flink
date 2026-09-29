@@ -198,6 +198,43 @@ class TestHarnessStateManager {
         return result;
     }
 
+    /**
+     * Returns a deep copy of all state, keyed by partition key. Later mutations of the live state
+     * are not visible through the returned map.
+     */
+    Map<Row, Map<String, Object>> snapshotState() {
+        return copyStateByKey(stateByKey);
+    }
+
+    /** Replaces all state with a deep copy of the given snapshot. */
+    void restoreState(Map<Row, Map<String, Object>> snapshot) {
+        stateByKey.clear();
+        stateByKey.putAll(copyStateByKey(snapshot));
+    }
+
+    /**
+     * Copies state entry by entry. Values are held in their internal representation, so the copy is
+     * driven off the state's internal serializer and never touches a user-facing state object.
+     */
+    private Map<Row, Map<String, Object>> copyStateByKey(Map<Row, Map<String, Object>> source) {
+        Map<Row, Map<String, Object>> copy = new HashMap<>();
+        for (Map.Entry<Row, Map<String, Object>> keyEntry : source.entrySet()) {
+            Map<String, Object> stateCopy = new HashMap<>();
+            for (Map.Entry<String, Object> stateEntry : keyEntry.getValue().entrySet()) {
+                Object internalData = stateEntry.getValue();
+                stateCopy.put(
+                        stateEntry.getKey(),
+                        internalData == null
+                                ? null
+                                : stateConverters
+                                        .get(stateEntry.getKey())
+                                        .copyInternal(internalData));
+            }
+            copy.put(Row.copy(keyEntry.getKey()), stateCopy);
+        }
+        return copy;
+    }
+
     private Map<String, Object> createEmptyKeyState() {
         Map<String, Object> newState = new HashMap<>();
         for (ProcessTableFunctionTestHarness.StateArgumentInfo stateArg : stateArguments) {
