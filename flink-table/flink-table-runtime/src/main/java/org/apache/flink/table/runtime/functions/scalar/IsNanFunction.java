@@ -19,12 +19,11 @@
 package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 
 import javax.annotation.Nullable;
-
-import java.math.BigDecimal;
 
 /** Implementation of {@link BuiltInFunctionDefinitions#IS_NAN}. */
 @Internal
@@ -58,7 +57,7 @@ public final class IsNanFunction extends BuiltInScalarFunction {
         return value == null ? null : Double.isNaN(value);
     }
 
-    public @Nullable Boolean eval(final @Nullable BigDecimal value) {
+    public @Nullable Boolean eval(final @Nullable DecimalData value) {
         return value == null ? null : false;
     }
 }
