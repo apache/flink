@@ -19,7 +19,10 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 
@@ -29,10 +32,12 @@ class RowStateConverter implements StateConverter {
 
     private final DataStructureConverter<Object, Object> converter;
     private final RowType rowType;
+    private final RowDataSerializer serializer;
 
     RowStateConverter(RowType rowType, DataStructureConverter<Object, Object> converter) {
         this.converter = converter;
         this.rowType = rowType;
+        this.serializer = InternalSerializers.create(rowType);
     }
 
     @Override
@@ -56,5 +61,10 @@ class RowStateConverter implements StateConverter {
         Row row = Row.withNames();
         rowType.getFieldNames().forEach(name -> row.setField(name, null));
         return converter.toInternal(row);
+    }
+
+    @Override
+    public Object copyInternal(Object internal) {
+        return serializer.copy((RowData) internal);
     }
 }

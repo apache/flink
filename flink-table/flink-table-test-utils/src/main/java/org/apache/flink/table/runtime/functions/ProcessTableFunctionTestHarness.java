@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableRuntimeException;
@@ -34,6 +35,7 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
+import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
@@ -144,6 +146,15 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     private final Map<String, TableArgumentConverters> argumentConverters;
     private final DataStructureConverter<Object, Object> harnessOutputConverter;
 
+    /**
+     * Deep copies output rows and collected values for {@link #snapshot()}. {@link Row#copy(Row)}
+     * copies only the field array, so a nested value such as an {@code ARRAY} would be shared
+     * between a snapshot and the harness it was taken from.
+     */
+    private final TypeSerializer<Row> outputRowSerializer;
+
+    private final TypeSerializer<OUT> functionOutputSerializer;
+
     private final OutputKind outputKind;
     @Nullable private final DataStructureConverter<Object, Object> compositeOutputToInternal;
     @Nullable private final DataStructureConverter<Object, Object> compositeOutputToRow;
@@ -155,7 +166,11 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
     @Nullable private InvocationContext currentInvocation;
 
+    /** The frozen configuration this harness was built with, kept for {@link #snapshot()}. */
+    private final HarnessSpec<OUT> spec;
+
     private ProcessTableFunctionTestHarness(
+            HarnessSpec<OUT> spec,
             ProcessTableFunction<OUT> function,
             FunctionContext functionContext,
             ResolvedMethod<ProcessTableFunction.Context> eval,
@@ -163,11 +178,14 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             List<ArgumentInfo> arguments,
             Map<String, TableArgumentConverters> argumentConverters,
             DataStructureConverter<Object, Object> harnessOutputConverter,
+            DataType derivedOutputType,
             DataType ptfOutputType,
             TestHarnessStateManager stateManager,
             TestHarnessTimerManager timerManager,
-            @Nullable String onTimeColumnName)
+            @Nullable String onTimeColumnName,
+            @Nullable TestSnapshot<OUT> restoreFrom)
             throws Exception {
+        this.spec = spec;
         this.function = function;
         this.functionContext = functionContext;
         this.eval = eval;
@@ -175,6 +193,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         this.arguments = arguments;
         this.argumentConverters = argumentConverters;
         this.harnessOutputConverter = harnessOutputConverter;
+        this.outputRowSerializer = ExternalSerializer.of(derivedOutputType);
+        this.functionOutputSerializer = ExternalSerializer.of(ptfOutputType);
         if (!LogicalTypeChecks.isCompositeType(ptfOutputType.getLogicalType())) {
             this.outputKind = OutputKind.ATOMIC;
         } else if (ptfOutputType.getLogicalType() instanceof RowType) {
@@ -202,6 +222,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
         this.onTimeColumnName = onTimeColumnName;
         this.functionOutput = new ArrayList<>();
         this.output = new ArrayList<>();
+        if (restoreFrom != null) {
+            // Seeded before the function is opened, so a failure here cannot leave an opened
+            // harness behind.
+            this.functionOutput.addAll(copyFunctionOutput(restoreFrom.functionOutput));
+            this.output.addAll(copyRows(restoreFrom.output));
+        }
         this.collector = new HarnessCollector();
         this.isOpen = false;
 
@@ -232,6 +258,61 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
     public static <OUT> Builder<OUT> ofClass(
             Class<? extends ProcessTableFunction<OUT>> functionClass) {
         return new Builder<>(functionClass);
+    }
+
+    // -------------------------------------------------------------------------
+    // Test State Snapshotting
+    // -------------------------------------------------------------------------
+
+    /**
+     * Takes a snapshot of this harness: the configuration it was built with, the state of every
+     * partition, the pending and the fired timers, the watermark of every table argument, and the
+     * collected output.
+     *
+     * <p>The snapshot is isolated from this harness. Processing further elements, advancing a
+     * watermark or mutating state afterwards does not change what the snapshot holds, and nothing a
+     * restored harness returns shares a mutable value with this one.
+     *
+     * @see #restoreFromSnapshot(TestSnapshot)
+     */
+    public TestSnapshot<OUT> snapshot() {
+        checkState(isOpen, "Harness not open");
+        return new TestSnapshot<>(
+                spec,
+                stateManager.snapshot(),
+                timerManager.snapshot(),
+                copyFunctionOutput(functionOutput),
+                copyRows(output));
+    }
+
+    /**
+     * Creates a new harness that continues from the given snapshot.
+     *
+     * <p>The returned harness runs a fresh instance of the PTF, opened as {@link Builder#build()}
+     * would, and starts out with the state, timers, watermarks and output that the snapshot was
+     * taken with. A snapshot can be restored more than once, and each restored harness is
+     * independent of the others.
+     *
+     * @see #snapshot()
+     */
+    public static <OUT> ProcessTableFunctionTestHarness<OUT> restoreFromSnapshot(
+            TestSnapshot<OUT> snapshot) throws Exception {
+        checkNotNull(snapshot, "snapshot must not be null");
+
+        return snapshot.spec.toBuilder().build(snapshot);
+    }
+
+    private List<Row> copyRows(List<Row> rows) {
+        // A PTF may collect null, which the serializer cannot convert.
+        return rows.stream()
+                .map(row -> row == null ? null : outputRowSerializer.copy(row))
+                .collect(Collectors.toList());
+    }
+
+    private List<OUT> copyFunctionOutput(List<OUT> values) {
+        return values.stream()
+                .map(value -> value == null ? null : functionOutputSerializer.copy(value))
+                .collect(Collectors.toList());
     }
 
     private void openFunction() throws Exception {
@@ -1216,6 +1297,16 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
          * @throws Exception If instantiation or opening fails
          */
         public ProcessTableFunctionTestHarness<OUT> build() throws Exception {
+            return build(null);
+        }
+
+        /**
+         * Builds a harness, optionally continuing from a snapshot. State, timers and output are
+         * installed while the harness is being constructed rather than overwritten afterwards, so
+         * there is no window in which an opened harness holds the wrong state.
+         */
+        private ProcessTableFunctionTestHarness<OUT> build(@Nullable TestSnapshot<OUT> restoreFrom)
+                throws Exception {
             ProcessTableFunction<OUT> function = instantiateFunction();
 
             ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
@@ -1250,17 +1341,22 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             // Create state manager
             List<StateArgumentInfo> stateArguments = ArgumentInfo.filterStateArguments(arguments);
+            TestHarnessStateManager.PartitionKeyInfo partitionKeyInfo =
+                    extractPartitionKeyInfo(arguments);
             TestHarnessStateManager stateManager =
-                    new TestHarnessStateManager(
-                            stateArguments, stateConverters, extractPartitionKeyInfo(arguments));
+                    new TestHarnessStateManager(stateArguments, stateConverters, partitionKeyInfo);
 
-            // Populate initial state
-            for (Map.Entry<String, StateArgumentConfiguration> entry : stateArgs.entrySet()) {
-                String stateName = entry.getKey();
-                for (Map.Entry<Row, Object> stateEntry :
-                        entry.getValue().initialValues.entrySet()) {
-                    stateManager.setStateForKey(
-                            stateName, stateEntry.getKey(), stateEntry.getValue());
+            if (restoreFrom != null) {
+                // A restore replaces the configured initial state rather than merging into it.
+                stateManager.restore(restoreFrom.state);
+            } else {
+                for (Map.Entry<String, StateArgumentConfiguration> entry : stateArgs.entrySet()) {
+                    String stateName = entry.getKey();
+                    for (Map.Entry<Row, Object> stateEntry :
+                            entry.getValue().initialValues.entrySet()) {
+                        stateManager.setStateForKey(
+                                stateName, stateEntry.getKey(), stateEntry.getValue());
+                    }
                 }
             }
 
@@ -1304,9 +1400,13 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                                                 t -> t.name, t -> getFieldNames(t.dataType))));
             }
 
-            TestHarnessTimerManager timerManager = new TestHarnessTimerManager();
+            TestHarnessTimerManager timerManager = new TestHarnessTimerManager(partitionKeyInfo);
+            if (restoreFrom != null) {
+                timerManager.restore(restoreFrom.timers);
+            }
 
             return new ProcessTableFunctionTestHarness<>(
+                    new HarnessSpec<>(this),
                     function,
                     functionContext,
                     eval,
@@ -1314,10 +1414,12 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                     arguments,
                     argumentConverters,
                     harnessOutputConverter,
+                    derivedOutputType,
                     ptfOutputType,
                     stateManager,
                     timerManager,
-                    onTimeColumnName);
+                    onTimeColumnName,
+                    restoreFrom);
         }
 
         /**
@@ -1662,10 +1764,10 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
             TableArgumentInfo table = partitionedTable.get();
             String[] columnNames = table.partitionColumnNames;
-            LogicalType[] columnTypes =
+            DataType[] columnTypes =
                     Arrays.stream(columnNames)
-                            .map(col -> extractPartitionColumnType(table, col).getLogicalType())
-                            .toArray(LogicalType[]::new);
+                            .map(col -> extractPartitionColumnType(table, col))
+                            .toArray(DataType[]::new);
             return new TestHarnessStateManager.PartitionKeyInfo(
                     columnNames.length, columnNames, columnTypes);
         }
@@ -1799,7 +1901,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         openConverter(valueType, classLoader));
             } else if (ValueView.class.isAssignableFrom(conversionClass)) {
                 final DataType valueType = stateDataType.getChildren().get(0);
-                return new ValueViewStateConverter(openConverter(valueType, classLoader));
+                return new ValueViewStateConverter(
+                        valueType, openConverter(valueType, classLoader));
             }
 
             // Eager value state is represented as a Row or POJO directly.
@@ -1809,7 +1912,7 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
                         (RowType) logicalType, openConverter(stateDataType, classLoader));
             }
             return new StructuredTypeStateConverter(
-                    conversionClass, openConverter(stateDataType, classLoader));
+                    stateDataType, openConverter(stateDataType, classLoader));
         }
 
         private static DataStructureConverter<Object, Object> openConverter(
@@ -2108,6 +2211,80 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             }
 
             return outputTypeOpt.get();
+        }
+    }
+
+    /**
+     * The frozen configuration a harness was built with: enough to build an equivalent one, and
+     * immutable, so that configuring the original {@link Builder} further cannot change what a
+     * snapshot restores.
+     */
+    private static final class HarnessSpec<OUT> {
+        private final Class<? extends ProcessTableFunction<OUT>> functionClass;
+        private final Map<String, ScalarArgumentConfiguration> scalarArgs;
+        private final Map<String, TableArgumentConfiguration> tableArgs;
+        private final Map<String, PartitionConfiguration> partitionConfigs;
+        private final Map<String, Map<Row, Object>> initialState;
+        @Nullable private final String onTimeColumnName;
+
+        private HarnessSpec(Builder<OUT> builder) {
+            this.functionClass = builder.functionClass;
+            this.scalarArgs = Collections.unmodifiableMap(new HashMap<>(builder.scalarArgs));
+            this.tableArgs = Collections.unmodifiableMap(new HashMap<>(builder.tableArgs));
+            this.partitionConfigs =
+                    Collections.unmodifiableMap(new HashMap<>(builder.partitionConfigs));
+            final Map<String, Map<Row, Object>> state = new HashMap<>();
+            builder.stateArgs.forEach(
+                    (name, config) ->
+                            state.put(
+                                    name,
+                                    Collections.unmodifiableMap(
+                                            new HashMap<>(config.initialValues))));
+            this.initialState = Collections.unmodifiableMap(state);
+            this.onTimeColumnName = builder.onTimeColumnName;
+        }
+
+        private Builder<OUT> toBuilder() {
+            final Builder<OUT> builder = new Builder<>(functionClass);
+            builder.scalarArgs.putAll(scalarArgs);
+            builder.tableArgs.putAll(tableArgs);
+            builder.partitionConfigs.putAll(partitionConfigs);
+            initialState.forEach(
+                    (name, values) -> {
+                        final StateArgumentConfiguration config = new StateArgumentConfiguration();
+                        config.initialValues.putAll(values);
+                        builder.stateArgs.put(name, config);
+                    });
+            builder.onTimeColumnName = onTimeColumnName;
+            return builder;
+        }
+    }
+
+    /**
+     * An isolated snapshot of a {@link ProcessTableFunctionTestHarness}, taken by {@link
+     * #snapshot()} and replayed by {@link #restoreFromSnapshot(TestSnapshot)}.
+     *
+     * @param <OUT> The output type of the ProcessTableFunction
+     */
+    @PublicEvolving
+    public static final class TestSnapshot<OUT> {
+        private final HarnessSpec<OUT> spec;
+        private final Map<Row, Map<String, Object>> state;
+        private final TestHarnessTimerManager.TimerSnapshot timers;
+        private final List<OUT> functionOutput;
+        private final List<Row> output;
+
+        private TestSnapshot(
+                HarnessSpec<OUT> spec,
+                Map<Row, Map<String, Object>> state,
+                TestHarnessTimerManager.TimerSnapshot timers,
+                List<OUT> functionOutput,
+                List<Row> output) {
+            this.spec = spec;
+            this.state = state;
+            this.timers = timers;
+            this.functionOutput = functionOutput;
+            this.output = output;
         }
     }
 
