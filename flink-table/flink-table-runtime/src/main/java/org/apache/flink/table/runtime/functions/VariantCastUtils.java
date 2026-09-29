@@ -27,7 +27,10 @@ import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.binary.StringUtf8Utils;
 import org.apache.flink.table.types.logical.utils.UuidUtils;
 import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.types.variant.BinaryVariantUtil;
 import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantTypeException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -65,6 +68,8 @@ public final class VariantCastUtils {
 
     // TIME is millisecond-of-day at runtime, so it renders with three fractional-second digits.
     private static final int TIME_PRECISION = 3;
+
+    private static final String NULL_NODE = "NULL";
 
     private VariantCastUtils() {}
 
@@ -304,29 +309,56 @@ public final class VariantCastUtils {
      * use {@code JSON_STRING} for the JSON form. A value longer than {@code targetLength} is
      * trimmed and a {@code CHAR} target pads a shorter one, both counted in code points rather than
      * UTF-16 units. A binary value must be well-formed UTF-8, and is rejected rather than decoded
-     * into {@code U+FFFD}.
+     * into {@code U+FFFD}. Printing uses {@link #toPrintString} instead.
      *
      * @param sessionZone the session time zone, applied to a {@code TIMESTAMP_LTZ} value
      */
     public static BinaryStringData toStringValue(
             Variant variant, TimeZone sessionZone, int targetLength, boolean charTarget) {
-        final String value = renderValue(variant, sessionZone, targetLength, charTarget);
+        final String value = renderValue(variant, sessionZone, targetLength, charTarget, false);
         // numChars and substring both count code points, so a character outside the BMP fills one
         // position rather than the two UTF-16 units it occupies.
         return variantKey(value, targetLength, charTarget);
     }
 
     /**
-     * Renders a variant as a character string. An array becomes {@code [e1, e2]} and an object
-     * becomes {@code {k1=v1, k2=v2}}, matching how a regular {@code ARRAY} or {@code MAP} casts to
-     * a string. Elements and field values recurse through the same rendering, so a string stays
-     * unquoted at every depth. A scalar renders like a regular cast of its stored kind.
+     * Renders like {@link #toStringValue} but never fails, for printing. An unknown type shows as
+     * {@code <UNKNOWN>}, other undecodable data as {@code <INVALID>}, bytes as {@code x'..'}, and a
+     * variant null as {@code NULL}.
      */
+    public static String toPrintString(final Variant variant, final TimeZone sessionZone) {
+        return renderValue(variant, sessionZone, Integer.MAX_VALUE, false, true);
+    }
+
+    /** Renders a variant. For printing, an undecodable node becomes a placeholder instead. */
     private static String renderValue(
             final Variant variant,
             final TimeZone sessionZone,
             final int targetLength,
-            final boolean charTarget) {
+            final boolean charTarget,
+            final boolean printing) {
+        if (printing) {
+            try {
+                return renderNode(variant, sessionZone, targetLength, charTarget, true);
+            } catch (VariantTypeException e) {
+                return BinaryVariantUtil.undecodableNode(variant);
+            }
+        }
+        return renderNode(variant, sessionZone, targetLength, charTarget, false);
+    }
+
+    /**
+     * Renders one node. An array becomes {@code [e1, e2]} and an object becomes {@code {k1=v1,
+     * k2=v2}}, matching how a regular {@code ARRAY} or {@code MAP} casts to a string. Elements and
+     * field values recurse through the same rendering, so a string stays unquoted at every depth. A
+     * scalar renders like a regular cast of its stored kind.
+     */
+    private static String renderNode(
+            final Variant variant,
+            final TimeZone sessionZone,
+            final int targetLength,
+            final boolean charTarget,
+            final boolean printing) {
         if (variant.isArray()) {
             final int size = variant.getArraySize();
             final StringBuilder sb = new StringBuilder();
@@ -335,7 +367,7 @@ public final class VariantCastUtils {
                 if (i > 0) {
                     sb.append(", ");
                 }
-                sb.append(renderElement(variant.getElement(i), sessionZone));
+                sb.append(renderElement(variant.getElement(i), sessionZone, printing));
             }
             return sb.append(']').toString();
         }
@@ -350,25 +382,31 @@ public final class VariantCastUtils {
                 first = false;
                 sb.append(fieldName)
                         .append('=')
-                        .append(renderElement(variant.getField(fieldName), sessionZone));
+                        .append(renderElement(variant.getField(fieldName), sessionZone, printing));
             }
             return sb.append('}').toString();
         }
-        return renderScalar(variant, sessionZone, targetLength, charTarget);
+        return renderScalar(variant, sessionZone, targetLength, charTarget, printing);
     }
 
     /** Renders one array element or object field value; a nested null shows as {@code NULL}. */
-    private static String renderElement(final Variant element, final TimeZone sessionZone) {
+    private static String renderElement(
+            final Variant element, final TimeZone sessionZone, final boolean printing) {
+        if (printing) {
+            // renderValue shows a null and catches an undecodable element itself.
+            return renderValue(element, sessionZone, Integer.MAX_VALUE, false, true);
+        }
         return element.isNull()
-                ? "NULL"
-                : renderValue(element, sessionZone, Integer.MAX_VALUE, false);
+                ? NULL_NODE
+                : renderValue(element, sessionZone, Integer.MAX_VALUE, false, false);
     }
 
     private static String renderScalar(
             final Variant variant,
             final TimeZone sessionZone,
             final int targetLength,
-            final boolean charTarget) {
+            final boolean charTarget,
+            final boolean printing) {
         final String value;
         switch (variant.getType()) {
             case BOOLEAN:
@@ -391,6 +429,11 @@ public final class VariantCastUtils {
                 value = variant.getString();
                 break;
             case BYTES:
+                if (printing) {
+                    // Printing must not fail on invalid UTF-8, so show hex like a BYTES column.
+                    value = "x'" + EncodingUtils.hex(variant.getBytes()) + "'";
+                    break;
+                }
                 // SQL reads a binary value as UTF-8, the same as a regular BINARY to string cast.
                 final byte[] utf8 = variant.getBytes();
                 final int invalidAt =
@@ -449,6 +492,10 @@ public final class VariantCastUtils {
                 value = variant.getUuid().toString();
                 break;
             case NULL:
+                if (printing) {
+                    value = NULL_NODE;
+                    break;
+                }
                 // Only reachable for a NOT NULL target. A nullable target maps a null-valued
                 // variant to SQL NULL before this method is called.
                 final String targetDescription = characterTarget(targetLength, charTarget);

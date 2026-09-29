@@ -24,8 +24,10 @@ import org.apache.flink.types.variant.Variant.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.UUID;
@@ -438,6 +440,37 @@ public class BinaryVariantUtil {
     }
 
     /**
+     * Returns the placeholder for a node that cannot be decoded: {@code <UNKNOWN>} for a type id
+     * this version does not know, such as one written by a newer version, and {@code <INVALID>}
+     * otherwise. Never throws.
+     */
+    public static String undecodableNode(byte[] value, int pos) {
+        return isUnknownType(value, pos) ? "<UNKNOWN>" : "<INVALID>";
+    }
+
+    /** Same as {@link #undecodableNode(byte[], int)} for a {@link BinaryVariant} node. */
+    public static String undecodableNode(Variant variant) {
+        if (!(variant instanceof BinaryVariant)) {
+            return "<INVALID>";
+        }
+        final BinaryVariant binary = (BinaryVariant) variant;
+        return undecodableNode(binary.rawValue(), binary.getPos());
+    }
+
+    private static boolean isUnknownType(byte[] value, int pos) {
+        if (pos < 0 || pos >= value.length || (value[pos] & BASIC_TYPE_MASK) != PRIMITIVE) {
+            return false;
+        }
+        // With the header in bounds, getType fails on a primitive only for an unknown type id.
+        try {
+            getType(value, pos);
+            return false;
+        } catch (VariantTypeException e) {
+            return true;
+        }
+    }
+
+    /**
      * Compute the size in bytes of the variant value {@code value[pos...]}. {@code value.length -
      * pos} is an upper bound of the size, but the actual size can be smaller.
      *
@@ -719,6 +752,14 @@ public class BinaryVariantUtil {
         long msb = readLongBigEndian(value, pos + 1);
         long lsb = readLongBigEndian(value, pos + 9);
         return new UUID(msb, lsb);
+    }
+
+    static Instant microsToInstant(long timestamp) {
+        return Instant.EPOCH.plus(timestamp, ChronoUnit.MICROS);
+    }
+
+    static Instant nanosToInstant(long timestamp) {
+        return Instant.EPOCH.plus(timestamp, ChronoUnit.NANOS);
     }
 
     /** A handler that receives the decoded header fields of a variant object. */
