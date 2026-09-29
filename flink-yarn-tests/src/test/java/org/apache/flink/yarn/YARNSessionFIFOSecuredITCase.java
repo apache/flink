@@ -46,6 +46,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -193,12 +194,13 @@ class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
     private static void verifyResultContainsKerberosKeytab(
             ApplicationId applicationId, String viewAcls, String modifyAcls) throws Exception {
         final String[] mustHave = {"Login successful for user", "using keytab file"};
-        final boolean jobManagerRunsWithKerberos =
-                verifyStringsInNamedLogFiles(mustHave, applicationId, "jobmanager.log");
-        final boolean taskManagerRunsWithKerberos =
-                verifyStringsInNamedLogFiles(mustHave, applicationId, "taskmanager.log");
-
-        assertThat(jobManagerRunsWithKerberos && taskManagerRunsWithKerberos).isTrue();
+        for (final String logFile : new String[] {"jobmanager.log", "taskmanager.log"}) {
+            assertThat(verifyStringsInNamedLogFiles(mustHave, applicationId, logFile))
+                    .as(
+                            "Kerberos keytab login %s in %s or its rolled files for %s",
+                            Arrays.toString(mustHave), logFile, applicationId)
+                    .isTrue();
+        }
 
         final List<String> amRMTokens =
                 Lists.newArrayList(AMRMTokenIdentifier.KIND_NAME.toString());
