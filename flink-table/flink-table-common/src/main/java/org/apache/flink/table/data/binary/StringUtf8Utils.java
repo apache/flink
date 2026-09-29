@@ -19,11 +19,23 @@ package org.apache.flink.table.data.binary;
 
 import org.apache.flink.annotation.Internal;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+
+import static org.apache.flink.table.data.binary.BinarySegmentUtils.allocateReuseChars;
 
 /** Utilities for String UTF-8. */
 @Internal
 public final class StringUtf8Utils {
+
+    /** Reads 8 bytes at a time from a {@code byte[]} for the SWAR ASCII scan. */
+    private static final VarHandle LONG_VIEW =
+            MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.nativeOrder());
+
+    /** High bit of each byte in a 64-bit word; a set bit marks a non-ASCII byte. */
+    private static final long ASCII_MASK = 0x8080808080808080L;
 
     private StringUtf8Utils() {
         // do not instantiate
@@ -35,8 +47,131 @@ public final class StringUtf8Utils {
     }
 
     public static String decodeUTF8(byte[] input, int offset, int byteLen) {
-        // JDK-intrinsified decode; maps malformed input to U+FFFD (matches the previous fallback).
-        return new String(input, offset, byteLen, StandardCharsets.UTF_8);
+        // Most real text is ASCII: route it to the JDK's compact-string path, which is a large win
+        // for longer strings. Anything with a multibyte sequence goes through the hand-rolled
+        // decoder; it beats the CharsetDecoder path for non-ASCII input.
+        if (isAscii(input, offset, byteLen)) {
+            // Pure ASCII: bytes map 1:1 to chars; ISO-8859-1 is an intrinsic LATIN1 copy.
+            return new String(input, offset, byteLen, StandardCharsets.ISO_8859_1);
+        }
+        char[] chars = allocateReuseChars(byteLen);
+        int len = decodeUTF8Strict(input, offset, byteLen, chars);
+        if (len < 0) {
+            // Malformed input; map to U+FFFD via the JDK decoder (matches the previous fallback).
+            return new String(input, offset, byteLen, StandardCharsets.UTF_8);
+        }
+        return new String(chars, 0, len);
+    }
+
+    /**
+     * SWAR ASCII test: reads 8 bytes per step and checks the high bit of each via {@link
+     * #ASCII_MASK}, so a fully ASCII range is scanned ~8x faster than byte-by-byte and non-ASCII
+     * input bails at the first eight-byte block that contains a set high bit.
+     */
+    private static boolean isAscii(byte[] bytes, int offset, int len) {
+        int i = offset;
+        final int end = offset + len;
+        final int swarEnd = offset + (len & ~7);
+        while (i < swarEnd) {
+            if (((long) LONG_VIEW.get(bytes, i) & ASCII_MASK) != 0) {
+                return false;
+            }
+            i += 8;
+        }
+        while (i < end) {
+            if (bytes[i] < 0) {
+                return false;
+            }
+            i++;
+        }
+        return true;
+    }
+
+    public static int decodeUTF8Strict(byte[] sa, int sp, int len, char[] da) {
+        final int sl = sp + len;
+        int dp = 0;
+        int dlASCII = Math.min(len, da.length);
+
+        // ASCII only optimized loop
+        while (dp < dlASCII && sa[sp] >= 0) {
+            da[dp++] = (char) sa[sp++];
+        }
+
+        while (sp < sl) {
+            int b1 = sa[sp++];
+            if (b1 >= 0) {
+                // 1 byte, 7 bits: 0xxxxxxx
+                da[dp++] = (char) b1;
+            } else if ((b1 >> 5) == -2 && (b1 & 0x1e) != 0) {
+                // 2 bytes, 11 bits: 110xxxxx 10xxxxxx
+                if (sp < sl) {
+                    int b2 = sa[sp++];
+                    if ((b2 & 0xc0) != 0x80) { // isNotContinuation(b2)
+                        return -1;
+                    } else {
+                        da[dp++] = (char) (((b1 << 6) ^ b2) ^ (((byte) 0xC0 << 6) ^ ((byte) 0x80)));
+                    }
+                    continue;
+                }
+                return -1;
+            } else if ((b1 >> 4) == -2) {
+                // 3 bytes, 16 bits: 1110xxxx 10xxxxxx 10xxxxxx
+                if (sp + 1 < sl) {
+                    int b2 = sa[sp++];
+                    int b3 = sa[sp++];
+                    if ((b1 == (byte) 0xe0 && (b2 & 0xe0) == 0x80)
+                            || (b2 & 0xc0) != 0x80
+                            || (b3 & 0xc0) != 0x80) { // isMalformed3(b1, b2, b3)
+                        return -1;
+                    } else {
+                        char c =
+                                (char)
+                                        ((b1 << 12)
+                                                ^ (b2 << 6)
+                                                ^ (b3
+                                                        ^ (((byte) 0xE0 << 12)
+                                                                ^ ((byte) 0x80 << 6)
+                                                                ^ ((byte) 0x80))));
+                        if (Character.isSurrogate(c)) {
+                            return -1;
+                        } else {
+                            da[dp++] = c;
+                        }
+                    }
+                    continue;
+                }
+                return -1;
+            } else if ((b1 >> 3) == -2) {
+                // 4 bytes, 21 bits: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+                if (sp + 2 < sl) {
+                    int b2 = sa[sp++];
+                    int b3 = sa[sp++];
+                    int b4 = sa[sp++];
+                    int uc =
+                            ((b1 << 18)
+                                    ^ (b2 << 12)
+                                    ^ (b3 << 6)
+                                    ^ (b4
+                                            ^ (((byte) 0xF0 << 18)
+                                                    ^ ((byte) 0x80 << 12)
+                                                    ^ ((byte) 0x80 << 6)
+                                                    ^ ((byte) 0x80))));
+                    // isMalformed4 and shortest form check
+                    if (((b2 & 0xc0) != 0x80 || (b3 & 0xc0) != 0x80 || (b4 & 0xc0) != 0x80)
+                            || !Character.isSupplementaryCodePoint(uc)) {
+                        return -1;
+                    } else {
+                        da[dp++] = Character.highSurrogate(uc);
+                        da[dp++] = Character.lowSurrogate(uc);
+                    }
+                    continue;
+                }
+                return -1;
+            } else {
+                return -1;
+            }
+        }
+        return dp;
     }
 
     // Bit-pattern predicates for UTF-8 byte categorization. The JIT inlines these so they cost
