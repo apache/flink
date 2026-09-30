@@ -780,6 +780,38 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /**
+     * Testing function that combines eager value state (a POJO) and a {@link ValueView} and
+     * accesses both from eval() and onTimer().
+     */
+    public static class EagerAndValueViewStateTimeFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint Score eager,
+                @StateHint ValueView<Integer> view,
+                @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
+            final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            collectObjects(eager, view.getValue(), r);
+            if (eager.i == null) {
+                eager.i = 1;
+                collectCreateTimer(timeCtx, "t", timeCtx.time() + 2);
+            } else {
+                eager.i += 1;
+            }
+            final Integer count = view.getValue();
+            view.setValue(count == null ? 1 : count + 1);
+        }
+
+        public void onTimer(OnTimerContext ctx, Score eager, ValueView<Integer> view) {
+            collectOnTimerEvent(ctx);
+            // Mutate both eager value state and the value view; the changes must be persisted and
+            // visible to the next eval() call. Both are guaranteed to be non-null here because the
+            // timer is only registered in the first eval() call, which also initializes them.
+            eager.i *= 10;
+            view.setValue(view.getValue() + 100);
+        }
+    }
+
     /** Testing function. */
     public static class ChainedSendingFunction extends AppendProcessTableFunctionBase {
         public void eval(
