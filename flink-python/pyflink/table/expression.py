@@ -96,7 +96,8 @@ _string_doc_seealso = """
              :py:attr:`~Expression.from_base64`, :py:attr:`~Expression.to_base64`,
              :func:`~Expression.ltrim`, :func:`~Expression.rtrim`, :func:`~Expression.repeat`,
              :func:`~Expression.json_quote`, :func:`~Expression.json_unquote`,
-             :func:`~Expression.parse_json`, :func:`~Expression.try_parse_json`
+             :func:`~Expression.parse_json`, :func:`~Expression.try_parse_json`,
+             :func:`~Expression.parse_xml`, :func:`~Expression.try_parse_xml`
 """
 
 _temporal_doc_seealso = """
@@ -196,7 +197,8 @@ def _make_string_doc():
         Expression.regexp_extract, Expression.from_base64, Expression.to_base64,
         Expression.ltrim, Expression.rtrim, Expression.repeat,
         Expression.json_quote, Expression.json_unquote,
-        Expression.parse_json, Expression.try_parse_json
+        Expression.parse_json, Expression.try_parse_json,
+        Expression.parse_xml, Expression.try_parse_xml
     ]
 
     for func in string_funcs:
@@ -2346,6 +2348,32 @@ class Expression(Generic[T]):
             return _unary_op("tryParseJson")(self)
         else:
             return _binary_op("tryParseJson")(self, allow_duplicate_keys)
+
+    def parse_xml(self, force_array=None) -> 'Expression':
+        """
+        Parses an XML string into a value of VARIANT type. If the XML string is invalid,
+        an error is thrown. To return None instead of an error, use
+        :func:`~Expression.try_parse_xml`.
+
+        If force_array is True, every child element is stored as an array, even if it occurs
+        only once. The default value of force_array is False.
+        """
+        if force_array is None:
+            return _unary_op("parseXml")(self)
+        else:
+            return _binary_op("parseXml")(self, force_array)
+
+    def try_parse_xml(self, force_array=None) -> 'Expression':
+        """
+        Parses an XML string into a value of VARIANT type. If the XML string is invalid,
+        None is returned. To throw an error instead, use :func:`~Expression.parse_xml`.
+
+        See :func:`~Expression.parse_xml` for the meaning of force_array.
+        """
+        if force_array is None:
+            return _unary_op("tryParseXml")(self)
+        else:
+            return _binary_op("tryParseXml")(self, force_array)
 
     def json_length(self, path=None) -> 'Expression':
         """

@@ -272,6 +272,12 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                                                   JsonQueryOnEmptyOrError.NULL,
                                                   JsonQueryOnEmptyOrError.EMPTY_ARRAY)))
 
+        # xml functions
+        self.assertEqual("PARSE_XML(a)", str(expr1.parse_xml()))
+        self.assertEqual("PARSE_XML(a, true)", str(expr1.parse_xml(True)))
+        self.assertEqual("TRY_PARSE_XML(a)", str(expr1.try_parse_xml()))
+        self.assertEqual("TRY_PARSE_XML(a, false)", str(expr1.try_parse_xml(False)))
+
         # bitmap functions
         self.assertEqual("BITMAP_AND(a, b)", str(expr1.bitmap_and(expr2)))
         self.assertEqual("BITMAP_ANDNOT(a, b)", str(expr1.bitmap_andnot(expr2)))
