@@ -712,30 +712,102 @@ class CountingFunction extends ProcessTableFunction<String> {
 
 Flink's state backends provide different types of state to efficiently handle large state.
 
-Currently, PTFs support three types of state:
+Every state entry can store data ranging from a single scalar, a composite type, or even a whole list or map. What
+differs is *how* the data is accessed:
 
-- **Value state**: Represents a single value.
-- **List state**: Represents a list of values, supporting operations like appending, removing, and iterating.
-- **Map state**: Represents a map (key-value pair) for efficient lookups, modifications, and removal of individual entries.
+- **Eager value state**: The value follows a Read-Modify-Write cycle. On access the complete value is deserialized, and
+  on update it is serialized again - regardless of how much of it is actually read or changed.
+- **Value view** (`org.apache.flink.table.api.dataview.ValueView`): A value with lazy access. The complete value
+  is only deserialized on read and serialized on update.
+- **List view** (`org.apache.flink.table.api.dataview.ListView`): A list of values with lazy access for each element,
+  supporting operations like appending, removing, and iterating.
+- **Map view** (`org.apache.flink.table.api.dataview.MapView`): A map (key-value pair) with lazy access for each pair,
+  supporting efficient lookups, modifications, and removal of individual entries.
 
-By default, state entries in a PTF are represented as value state. This means that every state entry is fully read from
-the state backend when the evaluation method is called, and the value is written back to the state backend once the
-evaluation method finishes.
+By default, a state entry in a PTF is represented as eager value state. Value state is not limited to a single scalar. It can also
+hold a whole list or map (for example a `Row` or POJO with an `ARRAY` or `MAP` field). In that case the *complete* collection is
+deserialized when `eval()` is called and serialized again when it returns, no matter how many elements are actually accessed.
 
-To optimize state access and avoid unnecessary (de)serialization, state entries can be declared as:
-- `org.apache.flink.table.api.dataview.ListView` (for list state)
-- `org.apache.flink.table.api.dataview.MapView` (for map state)
+{{< tabs "2739eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that stores a whole list as eager value state.
+// The entire list is deserialized on entry and serialized on exit of every call.
+class HistoryFunction extends ProcessTableFunction<String> {
+  public static class MyState {
+    public List<String> events = new ArrayList<>();
+  }
 
-These provide direct views to the underlying Flink state backend.
+  public void eval(
+    @StateHint MyState memory,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
+  ) {
+    memory.events.add(input.getFieldAs("eventId"));
+    collect("Seen " + memory.events.size() + " events");
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
 
-For example, when using a `MapView`, accessing a value via `MapView#get` will only deserialize the value associated with
-the specified key. This allows for efficient access to individual entries without needing to load the entire map. This
-approach is particularly useful when the map does not fit entirely into memory.
+`ValueView`, `ListView`, and `MapView` are the lazy counterparts. They provide direct views to the underlying Flink
+state backend and are preferred over eager value state, especially when state is accessed conditionally or is too large
+to fit into memory.
+
+For example, a `ValueView` only deserializes its value when `ValueView#getValue` is called and only serializes it when
+`ValueView#setValue` or `ValueView#clear` is called. A `ListView` appends or iterates elements without materializing the
+full list, and a `MapView` accesses a value via `MapView#get` by only deserializing the value associated with the
+specified key. This allows for efficient access to individual entries without needing to load the entire collection.
 
 {{< hint info >}}
 State TTL is applied individually to each entry in a list or map, allowing for fine-grained expiration control over state
 elements.
 {{< /hint >}}
+
+The following example demonstrates how to declare and use a `ValueView` for counting events per user.
+
+{{< tabs "2837eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that uses a value view for counting events per user with lazy state access
+class CountingFunction extends ProcessTableFunction<String> {
+  public void eval(
+    @StateHint ValueView<Integer> count,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
+  ) {
+    Integer currentCount = count.getValue();
+    if (currentCount == null) {
+      currentCount = 0;
+    }
+    count.setValue(currentCount + 1);
+    collect("Count for user: " + (currentCount + 1));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+The `ValueView` value type is reflectively extracted. If reflection is not feasible - such as when a `Row` object is
+involved - a type hint can be provided. In contrast to list and map views, the hint defines the value type directly.
+
+{{< tabs "2937eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that uses a value view of a row
+class CountingFunction extends ProcessTableFunction<String> {
+  public void eval(
+    @StateHint(type = @DataTypeHint("ROW<count INT>")) ValueView<Row> count,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
+  ) {
+    Row v = count.getValue();
+    Integer c = (v == null) ? 0 : v.getFieldAs("count");
+    count.setValue(Row.of(c + 1));
+    collect("Count for user: " + (c + 1));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 The following example demonstrates how to declare and use a `MapView`. It assumes the PTF processes a table with the
 schema `(userId, eventId, ...)`, partitioned by `userId`, with a high cardinality of distinct `eventId` values. For this
@@ -814,6 +886,28 @@ class CountingFunction extends ProcessTableFunction<String> {
       collect("Event 1: " + memory.first + " and Event 2: " + input.toString());
       ctx.clearAllState();
     }
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+We recommend the use of the [`VARIANT`]({{< ref "docs/sql/reference/data-types" >}}#variant) data type for future schema
+evolution. For example, a `ValueView<Variant>` can lazily store semi-structured data whose schema may
+change over time:
+
+{{< tabs "3037eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+// Function that lazily stores the latest semi-structured payload per key
+class VariantFunction extends ProcessTableFunction<String> {
+  public void eval(
+    @StateHint ValueView<Variant> last,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
+  ) {
+    Variant previous = last.getValue();
+    last.setValue(input.getFieldAs("payload"));
+    collect(previous == null ? "First payload" : "Updated payload");
   }
 }
 ```
