@@ -28,18 +28,26 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.SourceStringReader;
 
 import java.io.Reader;
+import java.util.List;
+import java.util.Optional;
+import java.util.regex.Pattern;
+
+import static org.apache.calcite.util.Static.RESOURCE;
 
 /**
  * Thin wrapper around {@link SqlParser} that does exception conversion and {@link SqlNode} casting.
  */
 public class CalciteParser {
     private final SqlParser.Config config;
+    private final List<String> additionalSensitiveKeys;
 
-    public CalciteParser(SqlParser.Config config) {
+    public CalciteParser(SqlParser.Config config, List<String> additionalSensitiveKeys) {
         this.config = config;
+        this.additionalSensitiveKeys = additionalSensitiveKeys;
     }
 
     /**
@@ -55,7 +63,7 @@ public class CalciteParser {
             SqlParser parser = SqlParser.create(sql, config);
             return parser.parseStmt();
         } catch (SqlParseException e) {
-            throw toStatementException(e);
+            throw toStatementException(sql, e);
         }
     }
 
@@ -72,7 +80,7 @@ public class CalciteParser {
             SqlParser parser = SqlParser.create(sql, config);
             return parser.parseStmtList();
         } catch (SqlParseException e) {
-            throw toStatementException(e);
+            throw toStatementException(sql, e);
         }
     }
 
@@ -88,7 +96,7 @@ public class CalciteParser {
             final SqlParser parser = SqlParser.create(sqlExpression, config);
             return parser.parseExpression();
         } catch (SqlParseException e) {
-            throw toParserException(e);
+            throw toParserException(sqlExpression, e);
         }
     }
 
@@ -118,18 +126,73 @@ public class CalciteParser {
      * Converts a parse error of a statement. An error at the end of the input means the statement
      * is incomplete, which callers such as the SQL client use to keep reading.
      */
-    private static SqlParserException toStatementException(SqlParseException e) {
+    private SqlParserException toStatementException(String sql, SqlParseException e) {
         final String message = e.getMessage();
         if (message != null && message.contains("Encountered \"<EOF>\"")) {
             return new SqlParserEOFException(message, e);
         }
-        return toParserException(e);
+        return toParserException(sql, e);
     }
 
-    private static SqlParserException toParserException(SqlParseException e) {
-        final String message = e.getMessage();
+    private SqlParserException toParserException(String sql, SqlParseException e) {
+        final String message = describe(sql, e);
         return new SqlParserException(
-                message == null ? "SQL parse failed." : "SQL parse failed. " + message, e);
+                message.isEmpty() ? "SQL parse failed." : "SQL parse failed. " + message, e);
+    }
+
+    /**
+     * Returns the Calcite message with the line the parser stopped at echoed after its headline, so
+     * the reason stays at the front and JavaCC's token list at the end. Errors raised through
+     * {@code SqlUtil.newContextException} keep their position only in {@link
+     * SqlParseException#getPos()}, and {@link SqlParserException} exposes none, so the position is
+     * appended to the reason in the wording validation errors use.
+     */
+    private String describe(String sql, SqlParseException e) {
+        final String message = e.getMessage() == null ? "" : e.getMessage();
+        final SqlParserPos pos = e.getPos();
+        if (pos == null || pos.getLineNum() <= 0 || message.isEmpty()) {
+            return message;
+        }
+        final int lineBreak = message.indexOf('\n');
+        final String headline = lineBreak < 0 ? message : message.substring(0, lineBreak);
+        final String rest = lineBreak < 0 ? "" : message.substring(lineBreak);
+        final boolean positioned =
+                Pattern.compile(
+                                "\\bline "
+                                        + pos.getLineNum()
+                                        + ", column "
+                                        + pos.getColumnNum()
+                                        + "\\b")
+                        .matcher(headline)
+                        .find();
+        final Optional<String> snippet =
+                ParseErrorSnippet.render(sql, pos, additionalSensitiveKeys);
+        if (positioned) {
+            return snippet.map(
+                            s ->
+                                    (headline.endsWith(".")
+                                                    ? headline.substring(0, headline.length() - 1)
+                                                    : headline)
+                                            + ":\n"
+                                            + s
+                                            + rest)
+                    .orElse(message);
+        }
+        final boolean point =
+                pos.getLineNum() == pos.getEndLineNum()
+                        && pos.getColumnNum() == pos.getEndColumnNum();
+        final String context =
+                point
+                        ? RESOURCE.validatorContextPoint(pos.getLineNum(), pos.getColumnNum()).str()
+                        : RESOURCE.validatorContext(
+                                        pos.getLineNum(),
+                                        pos.getColumnNum(),
+                                        pos.getEndLineNum(),
+                                        pos.getEndColumnNum())
+                                .str();
+        final String reason = message.endsWith(".") ? message : message + ".";
+        return snippet.map(s -> reason + " " + context + ":\n" + s)
+                .orElse(reason + " " + context + ".");
     }
 
     /**

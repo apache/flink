@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
@@ -172,11 +173,17 @@ public class PlannerContext {
 
     public FlinkPlannerImpl createFlinkPlanner() {
         return new FlinkPlannerImpl(
-                createFrameworkConfig(), this::createCatalogReader, typeFactory, cluster);
+                createFrameworkConfig(),
+                createCalciteParser(),
+                this::createCatalogReader,
+                typeFactory,
+                cluster);
     }
 
     public CalciteParser createCalciteParser() {
-        return new CalciteParser(getSqlParserConfig());
+        return new CalciteParser(
+                getSqlParserConfig(),
+                context.getTableConfig().get(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS));
     }
 
     public FlinkCalciteCatalogReader createCatalogReader(boolean lenientCaseSensitivity) {
