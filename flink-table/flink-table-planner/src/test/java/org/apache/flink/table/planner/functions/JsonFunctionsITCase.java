@@ -1096,6 +1096,33 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_STRING(TRY_PARSE_JSON(f2, true))",
                                 "{\"a\":2}",
                                 STRING()),
+                // Input is parsed from its UTF-8 bytes. A NUL or a BOM must not be read as a
+                // UTF-16 or UTF-32 hint that turns invalid JSON into a value.
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.PARSE_JSON,
+                                "input bytes are always read as UTF-8")
+                        .onFieldsWithData("1\u0000", "\u00001", "\uFEFF1")
+                        .andDataTypes(STRING().notNull(), STRING().notNull(), STRING().notNull())
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f0)",
+                                TableRuntimeException.class,
+                                "Failed to parse json string")
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f1)",
+                                TableRuntimeException.class,
+                                "Failed to parse json string")
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f2)",
+                                TableRuntimeException.class,
+                                "Failed to parse json string"),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.TRY_PARSE_JSON,
+                                "input bytes are always read as UTF-8")
+                        .onFieldsWithData("1\u0000", "\u00001", "\uFEFF1")
+                        .andDataTypes(STRING().notNull(), STRING().notNull(), STRING().notNull())
+                        .testSqlResult("JSON_STRING(TRY_PARSE_JSON(f0))", null, STRING())
+                        .testSqlResult("JSON_STRING(TRY_PARSE_JSON(f1))", null, STRING())
+                        .testSqlResult("JSON_STRING(TRY_PARSE_JSON(f2))", null, STRING()),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.PARSE_JSON,
                                 "VARIANT expression preceding another expression in a"
