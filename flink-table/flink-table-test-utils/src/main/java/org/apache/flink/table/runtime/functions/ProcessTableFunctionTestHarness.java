@@ -24,6 +24,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
@@ -1774,47 +1775,49 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
             return allArguments;
         }
 
-        /** Creates appropriate StateConverter for the given state data type. */
+        /** Creates the appropriate {@link StateConverter} for the given state data type. */
         private StateConverter createStateConverter(
                 DataType stateDataType, ClassLoader classLoader) {
-            DataType resolvedType =
-                    ListView.class.isAssignableFrom(stateDataType.getConversionClass())
-                                    || MapView.class.isAssignableFrom(
-                                            stateDataType.getConversionClass())
-                            ? stateDataType.getChildren().get(0)
-                            : stateDataType;
+            final Class<?> conversionClass = stateDataType.getConversionClass();
 
-            LogicalType logicalType = resolvedType.getLogicalType();
-
-            if (logicalType instanceof ArrayType) {
-                DataType elementType = resolvedType.getChildren().get(0);
-                DataStructureConverter<Object, Object> elementConverter =
-                        DataStructureConverters.getConverter(elementType);
-                elementConverter.open(classLoader);
-                return new ListViewStateConverter((ArrayType) logicalType, elementConverter);
-            } else if (logicalType instanceof MapType) {
-                DataType keyType = resolvedType.getChildren().get(0);
-                DataType valueType = resolvedType.getChildren().get(1);
-                DataStructureConverter<Object, Object> keyConverter =
-                        DataStructureConverters.getConverter(keyType);
-                DataStructureConverter<Object, Object> valueConverter =
-                        DataStructureConverters.getConverter(valueType);
-                keyConverter.open(classLoader);
-                valueConverter.open(classLoader);
+            // Data views expose their element / key-value / value type as the single child of the
+            // structured view type. Dispatch on the view class explicitly so that a composite value
+            // type (e.g. a ValueView<Row>) is not misrouted to a plain value state converter.
+            if (ListView.class.isAssignableFrom(conversionClass)) {
+                final DataType arrayType = stateDataType.getChildren().get(0);
+                final DataType elementType = arrayType.getChildren().get(0);
+                return new ListViewStateConverter(
+                        (ArrayType) arrayType.getLogicalType(),
+                        openConverter(elementType, classLoader));
+            } else if (MapView.class.isAssignableFrom(conversionClass)) {
+                final DataType mapType = stateDataType.getChildren().get(0);
+                final DataType keyType = mapType.getChildren().get(0);
+                final DataType valueType = mapType.getChildren().get(1);
                 return new MapViewStateConverter(
-                        (MapType) logicalType, keyConverter, valueConverter);
-            } else if (logicalType instanceof RowType) {
-                DataStructureConverter<Object, Object> converter =
-                        DataStructureConverters.getConverter(resolvedType);
-                converter.open(classLoader);
-                return new RowStateConverter((RowType) logicalType, converter);
-            } else {
-                DataStructureConverter<Object, Object> converter =
-                        DataStructureConverters.getConverter(resolvedType);
-                converter.open(classLoader);
-                return new StructuredTypeStateConverter(
-                        resolvedType.getConversionClass(), converter);
+                        (MapType) mapType.getLogicalType(),
+                        openConverter(keyType, classLoader),
+                        openConverter(valueType, classLoader));
+            } else if (ValueView.class.isAssignableFrom(conversionClass)) {
+                final DataType valueType = stateDataType.getChildren().get(0);
+                return new ValueViewStateConverter(openConverter(valueType, classLoader));
             }
+
+            // Eager value state is represented as a Row or POJO directly.
+            final LogicalType logicalType = stateDataType.getLogicalType();
+            if (logicalType instanceof RowType) {
+                return new RowStateConverter(
+                        (RowType) logicalType, openConverter(stateDataType, classLoader));
+            }
+            return new StructuredTypeStateConverter(
+                    conversionClass, openConverter(stateDataType, classLoader));
+        }
+
+        private static DataStructureConverter<Object, Object> openConverter(
+                DataType dataType, ClassLoader classLoader) {
+            final DataStructureConverter<Object, Object> converter =
+                    DataStructureConverters.getConverter(dataType);
+            converter.open(classLoader);
+            return converter;
         }
 
         /** Checks if an argument name is a system-reserved argument. */
