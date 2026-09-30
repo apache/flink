@@ -3210,6 +3210,36 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.TryParseJsonFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition PARSE_XML =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("PARSE_XML")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeRoot.BOOLEAN))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.VARIANT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ParseXmlFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition TRY_PARSE_XML =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("TRY_PARSE_XML")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeRoot.BOOLEAN))))
+                    .outputTypeStrategy(forceNullable(explicit(DataTypes.VARIANT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.TryParseXmlFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Bitmap functions
     // --------------------------------------------------------------------------------------------

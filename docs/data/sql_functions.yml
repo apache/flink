@@ -1389,6 +1389,45 @@ variant:
   - sql: JSON_STRING(variant)
     description: |
       Generate a json string from a Variant object.
+  - sql: PARSE_XML(xml_string[, force_array])
+    table: STRING.parseXml([forceArray])
+    description: |
+      Parses an XML string into a Variant. If the XML string is invalid, an error is thrown. To
+      return NULL instead of an error, use the `TRY_PARSE_XML` function.
+
+      The result is an object with a single field for the root element. Attributes are stored as
+      `@name` fields, text as a `$` field, and child elements as fields named after their tag. An
+      element without attributes and child elements is stored as its text directly. A tag that
+      occurs more than once in an element is stored as an array. The `#` field records the order
+      of the children and text of an element.
+
+      If `force_array` is true, every child element, text, and position in a `#` field is stored
+      as an array, even if it occurs only once. This keeps the structure the same across documents
+      that repeat an element a different number of times. The default value of `force_array` is
+      false.
+
+      External entities and external DTDs are not supported, and a document that references one
+      fails to parse.
+
+      ```sql
+      -- {"book":{"#":{"price":1,"title":0},"@pages":"320","price":"12.50","title":"Dune"}}
+      PARSE_XML('<book pages="320"><title>Dune</title><price>12.50</price></book>')
+
+      -- 'Dune'
+      CAST(PARSE_XML('<book><title>Dune</title></book>')['book']['title'] AS STRING)
+
+      -- {"book":{"title":["Dune"]}}
+      PARSE_XML('<book><title>Dune</title></book>', TRUE)
+      ```
+
+      See the `VARIANT` data type documentation for how XML is mapped to a Variant.
+  - sql: TRY_PARSE_XML(xml_string[, force_array])
+    table: STRING.tryParseXml([forceArray])
+    description: |
+      Parses an XML string into a Variant. If the XML string is invalid, returns NULL. To throw an
+      error instead of returning NULL, use the `PARSE_XML` function.
+
+      See `PARSE_XML` for the meaning of `force_array`.
   - sql: variant '[' INT ']'
     table: VARIANT.at(INT)
     description: |
