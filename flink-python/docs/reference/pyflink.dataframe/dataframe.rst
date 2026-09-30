@@ -149,6 +149,12 @@ Results
     DataFrame.collect
     DataFrame.to_table
     DataFrame.to_pandas
+    DataFrame.iter_rows
+    DataFrame.iter_batches
+    DataFrame.take
+    DataFrame.take_batch
+    CloseableIterator
+    CloseableIterator.close
 
 Windowing
 ---------

@@ -25,6 +25,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Literal,
     Optional,
     Set,
     Tuple,
@@ -36,6 +37,7 @@ from typing import (
 
 if TYPE_CHECKING:
     import pandas
+    import pyarrow
     from pyflink.dataframe.udf import _DataTypeLike
     from pyflink.dataframe.udtf import _DataFrameUDTFWrapper
     from pyflink.table.table_environment import TableEnvironment
@@ -43,6 +45,18 @@ if TYPE_CHECKING:
 
 from pyflink.common import Row
 from pyflink.dataframe.datatype import _INT_MAX, DataType
+from pyflink.dataframe.iteration import (
+    _BATCH_FORMATS,
+    CloseableIterator,
+    _build_arrow_schema,
+    _iterate_batches,
+    _iterate_rows,
+    _row_to_dict,
+    _rows_to_batch,
+    _take_rows,
+    _validate_row_kind_field,
+)
+from pyflink.dataframe.validation import _require_choice, _require_int, _require_number
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression
 from pyflink.table.expressions import (
@@ -64,10 +78,7 @@ T = TypeVar("T")
 
 
 def _validate_row_count(n: int) -> None:
-    if isinstance(n, bool) or not isinstance(n, int):
-        raise TypeError("n must be an integer")
-    if n < 0:
-        raise ValueError("n must be non-negative")
+    _require_int(n, "n", 0)
     if n > _INT_MAX:
         raise ValueError(f"n must be less than or equal to {_INT_MAX}")
 
@@ -1719,6 +1730,204 @@ class DataFrame:
         """
         with self._table.execute().collect() as rows:
             return list(rows)
+
+    @PublicEvolving()
+    def iter_rows(
+        self,
+        *,
+        include_row_kind: bool = False,
+        row_kind_field: str = "__row_kind__",
+    ) -> CloseableIterator[Dict[str, Any]]:
+        """
+        Execute this DataFrame and iterate over its rows as they arrive, one dict per row.
+
+        Rows are fetched incrementally, so this also works on unbounded sources. The job runs until
+        the iterator is exhausted or closed; use it in a ``with`` block.
+
+        On an updating DataFrame, such as a streaming aggregation, every changelog entry is a
+        separate row. Set ``include_row_kind`` to tell insertions, updates and deletions apart.
+
+        TIMESTAMP_LTZ columns are not supported yet: the row transfer shared with :meth:`collect`
+        cannot serialize them.
+
+        :param include_row_kind: Whether to add each row's change kind, one of ``"+I"``,
+            ``"-U"``, ``"+U"`` and ``"-D"``.
+        :param row_kind_field: Key under which the change kind is added. It must not clash with a
+            column name.
+        :return: An iterator of dicts mapping column names to values.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([{"id": 1}, {"id": 2}])
+            >>> with df.iter_rows() as rows:
+            ...     for row in rows:
+            ...         print(row["id"])
+
+        .. versionadded:: 2.4.0
+        """
+        columns = self.columns
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        return _iterate_rows(self._table, columns, row_kind_field if include_row_kind else None)
+
+    @PublicEvolving()
+    def iter_batches(
+        self,
+        *,
+        batch_size: int = 1000,
+        batch_format: Literal["pandas", "pyarrow"] = "pandas",
+        include_row_kind: bool = False,
+        row_kind_field: str = "__row_kind__",
+    ) -> CloseableIterator[Union["pandas.DataFrame", "pyarrow.Table"]]:
+        """
+        Execute this DataFrame and iterate over its rows in batches of ``batch_size``.
+
+        Every batch except possibly the last holds exactly ``batch_size`` rows, so on a slow
+        unbounded source a batch is only emitted once enough rows have arrived. The job runs until
+        the iterator is exhausted or closed; use it in a ``with`` block.
+
+        TIMESTAMP_LTZ columns are not supported yet: the row transfer shared with :meth:`collect`
+        cannot serialize them.
+
+        :param batch_size: Number of rows per batch.
+        :param batch_format: ``"pandas"`` for pandas DataFrames or ``"pyarrow"`` for PyArrow
+            Tables.
+        :param include_row_kind: Whether to add a column with each row's change kind, one of
+            ``"+I"``, ``"-U"``, ``"+U"`` and ``"-D"``.
+        :param row_kind_field: Name of the change kind column. It must not clash with a column
+            name.
+        :return: An iterator of batches in the requested format.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.range(10)
+            >>> with df.iter_batches(batch_size=4) as batches:
+            ...     for batch in batches:
+            ...         print(len(batch))
+
+        .. versionadded:: 2.4.0
+        """
+        _require_int(batch_size, "batch_size", 1)
+        _require_choice(batch_format, "batch_format", _BATCH_FORMATS)
+        schema = self._table.get_resolved_schema()
+        columns = schema.get_column_names()
+        data_types = schema.get_column_data_types()
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        row_kind_field = row_kind_field if include_row_kind else None
+        return _iterate_batches(
+            self._table,
+            batch_size,
+            batch_format,
+            data_types,
+            _build_arrow_schema(columns, data_types, row_kind_field),
+            row_kind_field,
+        )
+
+    @PublicEvolving()
+    def take(
+        self,
+        n: int,
+        *,
+        timeout: Optional[float] = None,
+        include_row_kind: bool = False,
+        row_kind_field: str = "__row_kind__",
+    ) -> List[Dict[str, Any]]:
+        """
+        Execute this DataFrame and return its first ``n`` rows as dicts.
+
+        The job is cancelled once ``n`` rows have arrived if it is still running, so this is a
+        safe way to peek at an unbounded source. Fewer rows are returned if the result ends first
+        or ``timeout`` expires.
+        The query itself is not limited: on an updating DataFrame the rows are the first ``n``
+        changelog entries.
+
+        TIMESTAMP_LTZ columns are not supported yet: the row transfer shared with :meth:`collect`
+        cannot serialize them.
+
+        :param n: Maximum number of rows to return.
+        :param timeout: Maximum number of seconds to wait for rows once the job is submitted.
+            ``None`` waits until ``n`` rows arrive or the result ends.
+        :param include_row_kind: Whether to add each row's change kind, one of ``"+I"``,
+            ``"-U"``, ``"+U"`` and ``"-D"``.
+        :param row_kind_field: Key under which the change kind is added. It must not clash with a
+            column name.
+        :return: Up to ``n`` dicts mapping column names to values.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.range(100)
+            >>> df.take(2)
+            [{'id': 0}, {'id': 1}]
+
+        .. versionadded:: 2.4.0
+        """
+        _validate_row_count(n)
+        if timeout is not None:
+            _require_number(timeout, "timeout", 0)
+        columns = self.columns
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        row_kind_field = row_kind_field if include_row_kind else None
+        return [
+            _row_to_dict(row, columns, row_kind_field)
+            for row in _take_rows(self._table, n, timeout)
+        ]
+
+    @PublicEvolving()
+    def take_batch(
+        self,
+        n: int,
+        *,
+        timeout: Optional[float] = None,
+        batch_format: Literal["pandas", "pyarrow"] = "pandas",
+        include_row_kind: bool = False,
+        row_kind_field: str = "__row_kind__",
+    ) -> Union["pandas.DataFrame", "pyarrow.Table"]:
+        """
+        Execute this DataFrame and return its first ``n`` rows as a single batch.
+
+        Behaves like :meth:`take` but returns a pandas DataFrame or PyArrow Table.
+
+        TIMESTAMP_LTZ columns are not supported yet: the row transfer shared with :meth:`collect`
+        cannot serialize them.
+
+        :param n: Maximum number of rows to return.
+        :param timeout: Maximum number of seconds to wait for rows once the job is submitted.
+            ``None`` waits until ``n`` rows arrive or the result ends.
+        :param batch_format: ``"pandas"`` for a pandas DataFrame or ``"pyarrow"`` for a PyArrow
+            Table.
+        :param include_row_kind: Whether to add a column with each row's change kind, one of
+            ``"+I"``, ``"-U"``, ``"+U"`` and ``"-D"``.
+        :param row_kind_field: Name of the change kind column. It must not clash with a column
+            name.
+        :return: A batch of up to ``n`` rows in the requested format.
+
+        Example::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.range(100)
+            >>> pdf = df.take_batch(5)
+
+        .. versionadded:: 2.4.0
+        """
+        _validate_row_count(n)
+        if timeout is not None:
+            _require_number(timeout, "timeout", 0)
+        _require_choice(batch_format, "batch_format", _BATCH_FORMATS)
+        schema = self._table.get_resolved_schema()
+        columns = schema.get_column_names()
+        data_types = schema.get_column_data_types()
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        row_kind_field = row_kind_field if include_row_kind else None
+        arrow_schema = _build_arrow_schema(columns, data_types, row_kind_field)
+        return _rows_to_batch(
+            _take_rows(self._table, n, timeout),
+            data_types,
+            arrow_schema,
+            batch_format,
+            row_kind_field,
+        )
 
     @PublicEvolving()
     def to_table(self) -> Table:

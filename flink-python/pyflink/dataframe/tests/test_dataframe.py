@@ -232,7 +232,7 @@ class DataFrameSlicingTests(unittest.TestCase):
     def test_rejects_negative_values(self):
         for method_name in ("limit", "offset", "head"):
             with self.subTest(method=method_name):
-                with self.assertRaisesRegex(ValueError, "n must be non-negative"):
+                with self.assertRaisesRegex(ValueError, "n must be at least 0"):
                     getattr(self.dataframe, method_name)(-1)
 
         self.table.fetch.assert_not_called()
