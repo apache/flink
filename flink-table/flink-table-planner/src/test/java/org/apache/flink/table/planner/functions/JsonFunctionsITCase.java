@@ -1036,8 +1036,13 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         // The bulk of parsing behavior is covered by BinaryVariantInternalBuilderTest.
         return List.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.PARSE_JSON)
-                        .onFieldsWithData("{\"a\":1,\"b\":[2,3]}", "1e400", "{\"a\":1,\"a\":2}")
-                        .andDataTypes(STRING().notNull(), STRING().notNull(), STRING().notNull())
+                        .onFieldsWithData(
+                                "{\"a\":1,\"b\":[2,3]}", "1e400", "{\"a\":1,\"a\":2}", null)
+                        .andDataTypes(
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                BOOLEAN())
                         .testResult(
                                 jsonString($("f0").parseJson()),
                                 "JSON_STRING(PARSE_JSON(f0))",
@@ -1070,10 +1075,28 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString($("f2").parseJson(true)),
                                 "JSON_STRING(PARSE_JSON(f2, true))",
                                 "{\"a\":2}",
-                                STRING().notNull()),
+                                STRING().notNull())
+                        // a NULL allowDuplicateKeys is treated as false
+                        .testResult(
+                                jsonString(call("PARSE_JSON", $("f0"), $("f3"))),
+                                "JSON_STRING(PARSE_JSON(f0, f3))",
+                                "{\"a\":1,\"b\":[2,3]}",
+                                STRING())
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f2, f3)",
+                                TableRuntimeException.class,
+                                "Failed to parse json string")
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", $("f2"), $("f3")),
+                                TableRuntimeException.class,
+                                "Failed to parse json string"),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.TRY_PARSE_JSON)
-                        .onFieldsWithData("{\"a\":1}", "1e400", "{\"a\":1,\"a\":2}")
-                        .andDataTypes(STRING().notNull(), STRING().notNull(), STRING().notNull())
+                        .onFieldsWithData("{\"a\":1}", "1e400", "{\"a\":1,\"a\":2}", null)
+                        .andDataTypes(
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                BOOLEAN())
                         .testResult(
                                 jsonString($("f0").tryParseJson()),
                                 "JSON_STRING(TRY_PARSE_JSON(f0))",
@@ -1095,6 +1118,17 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString($("f2").tryParseJson(true)),
                                 "JSON_STRING(TRY_PARSE_JSON(f2, true))",
                                 "{\"a\":2}",
+                                STRING())
+                        // a NULL allowDuplicateKeys is treated as false
+                        .testResult(
+                                jsonString(call("TRY_PARSE_JSON", $("f0"), $("f3"))),
+                                "JSON_STRING(TRY_PARSE_JSON(f0, f3))",
+                                "{\"a\":1}",
+                                STRING())
+                        .testResult(
+                                jsonString(call("TRY_PARSE_JSON", $("f2"), $("f3"))),
+                                "JSON_STRING(TRY_PARSE_JSON(f2, f3))",
+                                null,
                                 STRING()),
                 // Input is parsed from its UTF-8 bytes. A NUL or a BOM must not be read as a
                 // UTF-16 or UTF-32 hint that turns invalid JSON into a value. Only input that is

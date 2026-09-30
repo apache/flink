@@ -39,14 +39,17 @@ public class ParseJsonFunction extends BuiltInScalarFunction {
         return eval(jsonStr, false);
     }
 
-    public @Nullable Variant eval(@Nullable StringData jsonStr, boolean allowDuplicateKeys) {
+    /** A {@code NULL} {@code allowDuplicateKeys} is treated as {@code false}. */
+    public @Nullable Variant eval(
+            @Nullable StringData jsonStr, @Nullable Boolean allowDuplicateKeys) {
         if (jsonStr == null) {
             return null;
         }
 
         final byte[] bytes = jsonStr.toBytes();
         try {
-            return BinaryVariantInternalBuilder.parseJson(bytes, allowDuplicateKeys);
+            return BinaryVariantInternalBuilder.parseJson(
+                    bytes, Boolean.TRUE.equals(allowDuplicateKeys));
         } catch (Throwable e) {
             final int invalidIndex =
                     StringUtf8Utils.firstInvalidUtf8ByteIndex(bytes, 0, bytes.length);
