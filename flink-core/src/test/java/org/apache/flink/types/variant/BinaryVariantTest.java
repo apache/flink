@@ -23,6 +23,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
@@ -112,6 +113,56 @@ class BinaryVariantTest {
 
         assertThat(builder.ofNull().get()).isEqualTo(null);
         assertThat(builder.ofNull().isNull()).isTrue();
+    }
+
+    @Test
+    void testDecimalWithNegativeScale() {
+        Variant variant = builder.of(new BigDecimal("-1e5"));
+        assertThat(variant.getType()).isSameAs(Variant.Type.DECIMAL);
+        assertThat(variant.getDecimal()).isEqualByComparingTo("-100000");
+        assertThat(variant.toJson()).isEqualTo("-100000");
+
+        // 38 digits after rescaling
+        assertThat(builder.of(new BigDecimal("1e37")).getDecimal()).isEqualByComparingTo("1e37");
+        assertThat(builder.of(new BigDecimal("0e999999999")).getDecimal())
+                .isEqualByComparingTo(BigDecimal.ZERO);
+
+        // getDecimal() strips trailing zeros, so its result can have a negative scale
+        BigDecimal stripped = builder.of(BigDecimal.valueOf(100)).getDecimal();
+        assertThat(stripped.scale()).isNegative();
+        assertThat(builder.of(stripped).getDecimal()).isEqualByComparingTo("100");
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "12345678901234567890123456789012345678",
+                "-0.12345678901234567890123456789012345678"
+            })
+    void testDecimalWithMaxPrecisionAndScale(final String decimal) {
+        assertThat(builder.of(new BigDecimal(decimal)).getDecimal()).isEqualByComparingTo(decimal);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        // precision 39
+        "123456789012345678901234567890123456789, 39, 0",
+        // scale 39
+        "0.000000000000000000000000000000000000001, 1, 39",
+        // 39 digits after rescaling the negative scale
+        "1e38, 1, -38",
+        "-1e999999999, 1, -999999999",
+        // the scale does not fit into a byte
+        "1e2147483647, 1, -2147483647"
+    })
+    void testDecimalOutOfRange(final String decimal, final int precision, final int scale) {
+        assertThatThrownBy(() -> builder.of(new BigDecimal(decimal)))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage(
+                        "Decimal with precision %d and scale %d is outside the range supported by "
+                                + "variant decimals. After rescaling a negative scale to 0, the "
+                                + "precision and scale must not exceed 38.",
+                        precision, scale);
     }
 
     @Test

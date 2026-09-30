@@ -73,6 +73,7 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.U8_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.arrayHeader;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
+import static org.apache.flink.types.variant.BinaryVariantUtil.fitsVariantDecimal;
 import static org.apache.flink.types.variant.BinaryVariantUtil.getMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleArray;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleObject;
@@ -237,23 +238,28 @@ public class BinaryVariantInternalBuilder {
         writePos += 8;
     }
 
-    // Append a decimal value to the variant builder. The caller should guarantee that its precision
-    // and scale fit into `MAX_DECIMAL16_PRECISION`.
-    public void appendDecimal(BigDecimal d) {
+    /**
+     * Appends a decimal value to the variant builder. A negative scale is rescaled to 0, which
+     * keeps the numeric value.
+     *
+     * @throws VariantTypeException if the precision or the scale of the rescaled decimal exceeds
+     *     {@link BinaryVariantUtil#MAX_DECIMAL16_PRECISION}
+     */
+    public void appendDecimal(BigDecimal decimal) {
+        final BigDecimal d = toVariantDecimal(decimal);
         checkCapacity(2 + 16);
         BigInteger unscaled = d.unscaledValue();
-        if (d.scale() <= MAX_DECIMAL4_PRECISION && d.precision() <= MAX_DECIMAL4_PRECISION) {
+        if (fitsVariantDecimal(d, MAX_DECIMAL4_PRECISION)) {
             writeBuffer[writePos++] = primitiveHeader(DECIMAL4);
             writeBuffer[writePos++] = (byte) d.scale();
             writeLong(writeBuffer, writePos, unscaled.intValueExact(), 4);
             writePos += 4;
-        } else if (d.scale() <= MAX_DECIMAL8_PRECISION && d.precision() <= MAX_DECIMAL8_PRECISION) {
+        } else if (fitsVariantDecimal(d, MAX_DECIMAL8_PRECISION)) {
             writeBuffer[writePos++] = primitiveHeader(DECIMAL8);
             writeBuffer[writePos++] = (byte) d.scale();
             writeLong(writeBuffer, writePos, unscaled.longValueExact(), 8);
             writePos += 8;
         } else {
-            assert d.scale() <= MAX_DECIMAL16_PRECISION && d.precision() <= MAX_DECIMAL16_PRECISION;
             writeBuffer[writePos++] = primitiveHeader(DECIMAL16);
             writeBuffer[writePos++] = (byte) d.scale();
             // `toByteArray` returns a big-endian representation. We need to copy it reversely and
@@ -269,6 +275,35 @@ public class BinaryVariantInternalBuilder {
             }
             writePos += 16;
         }
+    }
+
+    // The variant spec requires a scale in [0, 38] and a precision of at most 38.
+    private static BigDecimal toVariantDecimal(BigDecimal d) {
+        BigDecimal result = d;
+        if (d.scale() < 0) {
+            // A non-zero value with a scale below -38 has more than 38 digits after rescaling.
+            // Reject it upfront because setScale is slow for exponents like 1e9999999 and throws
+            // an ArithmeticException for exponents like 1e999999999.
+            if (d.signum() != 0 && d.scale() < -MAX_DECIMAL16_PRECISION) {
+                throw decimalOutOfRange(d);
+            }
+            // Rescaling a non-zero value gives it precision - scale digits. For example, 12345e34
+            // has precision 5 and scale -34, so it has 5 - (-34) = 39 digits after rescaling.
+            result = d.setScale(0);
+        }
+        if (!fitsVariantDecimal(result, MAX_DECIMAL16_PRECISION)) {
+            throw decimalOutOfRange(d);
+        }
+        return result;
+    }
+
+    private static VariantTypeException decimalOutOfRange(BigDecimal d) {
+        return new VariantTypeException(
+                String.format(
+                        "Decimal with precision %d and scale %d is outside the range supported by "
+                                + "variant decimals. After rescaling a negative scale to 0, the "
+                                + "precision and scale must not exceed %d.",
+                        d.precision(), d.scale(), MAX_DECIMAL16_PRECISION));
     }
 
     public void appendDate(int daysSinceEpoch) {
@@ -685,7 +720,7 @@ public class BinaryVariantInternalBuilder {
             }
         }
         BigDecimal d = new BigDecimal(input);
-        if (d.scale() <= MAX_DECIMAL16_PRECISION && d.precision() <= MAX_DECIMAL16_PRECISION) {
+        if (fitsVariantDecimal(d, MAX_DECIMAL16_PRECISION)) {
             appendDecimal(d);
             return true;
         }
