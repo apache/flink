@@ -152,7 +152,7 @@ class BinaryVariantInternalBuilderTest {
     void testParseJsonStoresNumbersOutsideDecimalRangeAsDouble(final String number)
             throws IOException {
         BinaryVariant variant = BinaryVariantInternalBuilder.parseJson(number, false);
-        assertThat(variant.getType()).isEqualTo(Variant.Type.DOUBLE);
+        assertThat(variant.getType()).isSameAs(Variant.Type.DOUBLE);
         assertThat(variant.getDouble()).isEqualTo(Double.parseDouble(number));
     }
 
