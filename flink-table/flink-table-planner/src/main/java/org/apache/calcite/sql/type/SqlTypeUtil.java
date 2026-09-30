@@ -77,9 +77,10 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>We should use ExtendedSqlCollectionTypeNameSpec for rows: Lines 1291-1300
- *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1312-1316
- *   <li>Should be removed after fixing CALCITE-7062: Lines 1336
+ *   <li>We should use ExtendedSqlCollectionTypeNameSpec for rows: Lines 1292-1301
+ *   <li>We should use ExtendedSqlRowTypeNameSpec for rows: Lines 1313-1317
+ *   <li>Should be removed after fixing CALCITE-7062: Lines 1337
+ *   <li>Should be removed after upgrading to Calcite 1.42.0, see CALCITE-7293: Lines 1994-2001
  * </ol>
  */
 public abstract class SqlTypeUtil {
@@ -1990,11 +1991,14 @@ public abstract class SqlTypeUtil {
         if (typeName == null) {
             return false;
         }
+        // FLINK MODIFICATION BEGIN
         return SqlTypeUtil.isDatetime(type)
                 || SqlTypeUtil.isNumeric(type)
                 || SqlTypeUtil.isString(type)
                 || SqlTypeUtil.isBoolean(type)
-                || typeName == SqlTypeName.UUID;
+                || typeName == SqlTypeName.UUID
+                || typeName == SqlTypeName.VARIANT;
+        // FLINK MODIFICATION END
     }
 
     /** Returns a DECIMAL type with the maximum precision for the current type system. */
