@@ -151,7 +151,10 @@ public class ScriptExecutorITCase extends AbstractSqlGatewayStatementITCaseBase 
     void testParseErrorPositionIsCorrect() throws Exception {
         assertThat(runScript("error.q"))
                 .contains(
-                        "org.apache.flink.table.api.SqlParserException: SQL parse failed. Encountered \")\" at line 26, column 1.");
+                        "org.apache.flink.table.api.SqlParserException: SQL parse failed. At line 26, column 1:\n"
+                                + "    ) WITH (\n"
+                                + "    ^\n"
+                                + "Encountered \")\" at line 26, column 1.");
     }
 
     @Override

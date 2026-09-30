@@ -59,12 +59,12 @@ import scala.collection.JavaConverters._
  */
 class FlinkPlannerImpl(
     val config: FrameworkConfig,
+    val parser: CalciteParser,
     catalogReaderSupplier: JFunction[JBoolean, CalciteCatalogReader],
     typeFactory: FlinkTypeFactory,
     val cluster: RelOptCluster) {
 
   val operatorTable: SqlOperatorTable = config.getOperatorTable
-  val parser: CalciteParser = new CalciteParser(config.getParserConfig)
   val convertletTable: SqlRexConvertletTable = config.getConvertletTable
   val sqlToRelConverterConfig: SqlToRelConverter.Config =
     config.getSqlToRelConverterConfig.withAddJsonTypeOperatorEnabled(false)
