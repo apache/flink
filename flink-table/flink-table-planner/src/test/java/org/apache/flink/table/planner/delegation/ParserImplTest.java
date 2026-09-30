@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.planner.delegation;
 
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.api.SqlParserException;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
@@ -73,7 +75,15 @@ class ParserImplTest {
                     forStatement("SET execution.runtime-type=")
                             // TODO: the exception message should be "no value defined"
                             .error(
-                                    "SQL parse failed. Encountered \"execution\" at line 1, column 5"));
+                                    "SQL parse failed. Encountered \"execution\" at line 1, column 5:\n"
+                                            + "    SET execution.runtime-type=\n"
+                                            + "        ^^^^^^^^^\n"),
+                    forStatement("ELECT 1")
+                            .error(
+                                    "SQL parse failed. Non-query expression encountered in illegal context."
+                                            + " From line 1, column 1 to line 1, column 5:\n"
+                                            + "    ELECT 1\n"
+                                            + "    ^^^^^"));
 
     @Test
     void testParseLegalStatements() {
@@ -104,6 +114,25 @@ class ParserImplTest {
                                 parser.parse(
                                         "Execute Statement Set Begin insert into A select * from B"))
                 .isInstanceOf(SqlParserEOFException.class);
+    }
+
+    /** The statement parser comes from {@code PlannerContext}, which passes the configured keys. */
+    @Test
+    void testStatementParserHonorsAdditionalSensitiveKeys() {
+        final TableConfig config = TableConfig.getDefault();
+        config.set(SecurityOptions.ADDITIONAL_SENSITIVE_KEYS, List.of("hunter"));
+        final PlannerMocks mocks = PlannerMocks.newBuilder().withTableConfig(config).build();
+        final Parser parser =
+                new DefaultParserFactory()
+                        .create(
+                                new DefaultCalciteContext(
+                                        mocks.getCatalogManager(), mocks.getPlannerContext()));
+        assertThatThrownBy(
+                        () -> parser.parse("CREATE TABLE t (a INT) WITH ('my.hunter.opt' = 'x') 1"))
+                .isInstanceOf(SqlParserException.class)
+                .message()
+                .contains("    CREATE TABLE t (a INT) WITH ('my.hunter.opt' = '*') 1\n")
+                .doesNotContain("'x'");
     }
 
     @Test
