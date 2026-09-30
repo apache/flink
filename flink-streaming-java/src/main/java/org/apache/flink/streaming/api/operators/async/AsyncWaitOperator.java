@@ -513,6 +513,8 @@ public class AsyncWaitOperator<IN, OUT>
             if (!resultHandler.completed.get() && timedOut.compareAndSet(false, true)) {
                 // cancel delayed retry timer first
                 cancelRetryTimer();
+                // A timed-out record must not be retried again when input ends.
+                inFlightDelayRetryHandlers.remove(this);
 
                 // force reset retryAwaiting to prevent the handler to trigger retry unnecessarily
                 retryAwaiting.set(false);
@@ -585,8 +587,10 @@ public class AsyncWaitOperator<IN, OUT>
         }
 
         private void processRetry(Collection<OUT> results, Throwable error) throws Exception {
-            // ignore repeated call(s) and only called in main thread can be safe
-            if (!retryAwaiting.compareAndSet(false, true)) {
+            // Ignore terminal or repeated results, including mail queued before the timeout.
+            if (timedOut.get()
+                    || resultHandler.completed.get()
+                    || !retryAwaiting.compareAndSet(false, true)) {
                 return;
             }
 
