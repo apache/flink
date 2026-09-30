@@ -19,6 +19,7 @@
 package org.apache.flink.fs.s3.common.token;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
@@ -87,13 +88,7 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
     public ObtainedDelegationTokens obtainDelegationTokens() throws Exception {
         LOG.info("Obtaining session credentials token with access key: {}", accessKey);
 
-        AWSSecurityTokenService stsClient =
-                AWSSecurityTokenServiceClientBuilder.standard()
-                        .withRegion(region)
-                        .withCredentials(
-                                new AWSStaticCredentialsProvider(
-                                        new BasicAWSCredentials(accessKey, secretKey)))
-                        .build();
+        AWSSecurityTokenService stsClient = createStsClient();
         GetSessionTokenResult sessionTokenResult = stsClient.getSessionToken();
         Credentials credentials = sessionTokenResult.getCredentials();
         LOG.info(
@@ -104,5 +99,15 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
         return new ObtainedDelegationTokens(
                 InstantiationUtil.serializeObject(credentials),
                 Optional.of(credentials.getExpiration().getTime()));
+    }
+
+    @VisibleForTesting
+    AWSSecurityTokenService createStsClient() {
+        return AWSSecurityTokenServiceClientBuilder.standard()
+                .withRegion(region)
+                .withCredentials(
+                        new AWSStaticCredentialsProvider(
+                                new BasicAWSCredentials(accessKey, secretKey)))
+                .build();
     }
 }
