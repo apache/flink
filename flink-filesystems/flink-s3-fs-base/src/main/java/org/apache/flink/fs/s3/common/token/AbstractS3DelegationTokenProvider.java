@@ -88,17 +88,20 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
     public ObtainedDelegationTokens obtainDelegationTokens() throws Exception {
         LOG.info("Obtaining session credentials token with access key: {}", accessKey);
 
-        AWSSecurityTokenService stsClient = createStsClient();
-        GetSessionTokenResult sessionTokenResult = stsClient.getSessionToken();
-        Credentials credentials = sessionTokenResult.getCredentials();
-        LOG.info(
-                "Session credentials obtained successfully with access key: {} expiration: {}",
-                credentials.getAccessKeyId(),
-                credentials.getExpiration());
+        final AWSSecurityTokenService stsClient = createStsClient();
+        // Preserve the acquisition failure if shutting down the client also fails.
+        try (AutoCloseable ignored = stsClient::shutdown) {
+            final GetSessionTokenResult sessionTokenResult = stsClient.getSessionToken();
+            final Credentials credentials = sessionTokenResult.getCredentials();
+            LOG.info(
+                    "Session credentials obtained successfully with access key: {} expiration: {}",
+                    credentials.getAccessKeyId(),
+                    credentials.getExpiration());
 
-        return new ObtainedDelegationTokens(
-                InstantiationUtil.serializeObject(credentials),
-                Optional.of(credentials.getExpiration().getTime()));
+            return new ObtainedDelegationTokens(
+                    InstantiationUtil.serializeObject(credentials),
+                    Optional.of(credentials.getExpiration().getTime()));
+        }
     }
 
     @VisibleForTesting
