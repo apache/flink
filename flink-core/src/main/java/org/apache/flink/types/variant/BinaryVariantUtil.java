@@ -870,4 +870,41 @@ public class BinaryVariantUtil {
         return new String(
                 metadata, stringStart + offset, nextOffset - offset, StandardCharsets.UTF_8);
     }
+
+    /**
+     * Returns the microseconds since the epoch, as stored by a microsecond precision timestamp.
+     *
+     * @throws VariantTypeException if the instant is outside the supported range
+     */
+    public static long microsSinceEpoch(Instant instant) {
+        try {
+            return Math.addExact(
+                    Math.multiplyExact(instant.getEpochSecond(), 1_000_000L),
+                    instant.getNano() / 1000);
+        } catch (ArithmeticException e) {
+            throw new VariantTypeException(
+                    String.format(
+                            "%s is outside the range supported by microsecond precision variant "
+                                    + "timestamps.",
+                            instant));
+        }
+    }
+
+    /**
+     * Returns the nanoseconds since the epoch, as stored by a nanosecond precision timestamp.
+     *
+     * @throws VariantTypeException if the instant is outside the supported range
+     */
+    public static long nanosSinceEpoch(Instant instant) {
+        try {
+            return ChronoUnit.NANOS.between(Instant.EPOCH, instant);
+        } catch (ArithmeticException e) {
+            throw new VariantTypeException(
+                    String.format(
+                            "%s is outside the +/-292 year range (1677-09-21 to 2262-04-11) "
+                                    + "supported by nanosecond precision variant timestamps. Use "
+                                    + "microsecond precision instead.",
+                            instant));
+        }
+    }
 }
