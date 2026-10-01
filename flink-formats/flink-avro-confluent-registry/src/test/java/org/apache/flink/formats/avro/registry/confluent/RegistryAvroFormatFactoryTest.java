@@ -39,6 +39,8 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.avro.Schema.Parser;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -227,6 +229,92 @@ class RegistryAvroFormatFactoryTest {
                 () ->
                         sinkMock.valueFormat.createRuntimeEncoder(
                                 null, SCHEMA.toPhysicalRowDataType()));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"true", "false"})
+    void testSeDeSchemaWithAutoRegisterSchemas(String autoRegisterSchemas) {
+        final Map<String, String> expectedProperties = new HashMap<>();
+        expectedProperties.put("auto.register.schemas", autoRegisterSchemas);
+
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts ->
+                                opts.put(
+                                        "avro-confluent.auto.register.schemas",
+                                        autoRegisterSchemas));
+
+        final AvroRowDataDeserializationSchema expectedDeser =
+                new AvroRowDataDeserializationSchema(
+                        ConfluentRegistryAvroDeserializationSchema.forGeneric(
+                                AvroSchemaConverter.convertToSchema(ROW_TYPE),
+                                REGISTRY_URL,
+                                expectedProperties),
+                        AvroToRowDataConverters.createRowConverter(ROW_TYPE),
+                        InternalTypeInfo.of(ROW_TYPE));
+
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
+        assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
+        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+
+        DeserializationSchema<RowData> actualDeser =
+                scanSourceMock.valueFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toPhysicalRowDataType());
+        assertThat(actualDeser).isEqualTo(expectedDeser);
+
+        final AvroRowDataSerializationSchema expectedSer =
+                new AvroRowDataSerializationSchema(
+                        ROW_TYPE,
+                        ConfluentRegistryAvroSerializationSchema.forGeneric(
+                                SUBJECT,
+                                AvroSchemaConverter.convertToSchema(ROW_TYPE),
+                                REGISTRY_URL,
+                                expectedProperties),
+                        RowDataToAvroConverters.createConverter(ROW_TYPE));
+
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+        SerializationSchema<RowData> actualSer =
+                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
+        assertThat(actualSer).isEqualTo(expectedSer);
+    }
+
+    @Test
+    void testAutoRegisterSchemasViaPropertiesMap() {
+        // auto.register.schemas can also be provided through the generic properties map,
+        // without the dedicated table option
+        final Map<String, String> expectedProperties = new HashMap<>();
+        expectedProperties.put("auto.register.schemas", "false");
+
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts ->
+                                opts.put(
+                                        "avro-confluent.properties.auto.register.schemas",
+                                        "false"));
+
+        final AvroRowDataSerializationSchema expectedSer =
+                new AvroRowDataSerializationSchema(
+                        ROW_TYPE,
+                        ConfluentRegistryAvroSerializationSchema.forGeneric(
+                                SUBJECT,
+                                AvroSchemaConverter.convertToSchema(ROW_TYPE),
+                                REGISTRY_URL,
+                                expectedProperties),
+                        RowDataToAvroConverters.createConverter(ROW_TYPE));
+
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+        SerializationSchema<RowData> actualSer =
+                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     // ------------------------------------------------------------------------

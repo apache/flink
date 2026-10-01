@@ -32,7 +32,7 @@ under the License.
 	<name>Flink : Formats : Avro confluent registry</name>
 
 	<properties>
-		<confluent.version>7.5.3</confluent.version>
+		<confluent.version>7.9.8</confluent.version>
 	</properties>
 
 	<repositories>
