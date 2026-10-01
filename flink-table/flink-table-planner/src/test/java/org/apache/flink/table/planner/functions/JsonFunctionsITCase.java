@@ -1033,6 +1033,32 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString($("f0")),
                                 "JSON_STRING(f0)",
                                 "{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}",
+                                STRING().notNull()),
+                // DATE/TIME edge cases: fractional seconds and values nested inside a collection,
+                // which take a different code path than top-level values.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
+                        .onFieldsWithData(
+                                LocalTime.parse("13:37:42.123"),
+                                LocalTime.parse("13:37:42.000"),
+                                Arrays.asList(
+                                        LocalDate.parse("1990-06-02"),
+                                        null,
+                                        LocalDate.parse("2000-01-01")))
+                        .andDataTypes(TIME(3).notNull(), TIME(3).notNull(), ARRAY(DATE()).notNull())
+                        .testResult(
+                                jsonString($("f0")),
+                                "JSON_STRING(f0)",
+                                "\"13:37:42.123\"",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString($("f1")),
+                                "JSON_STRING(f1)",
+                                "\"13:37:42\"",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString($("f2")),
+                                "JSON_STRING(f2)",
+                                "[\"1990-06-02\",null,\"2000-01-01\"]",
                                 STRING().notNull()));
     }
 
