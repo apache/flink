@@ -1,0 +1,352 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 5,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`user_events`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "action",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "ts",
+              "dataType" : {
+                "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                "precision" : 3,
+                "kind" : "ROWTIME"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "ts",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "syntax" : "BINARY",
+                  "internalName" : "$-$1",
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 2,
+                    "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+                  }, {
+                    "kind" : "LITERAL",
+                    "value" : "1",
+                    "type" : "INTERVAL SECOND(6) NOT NULL"
+                  } ],
+                  "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+                },
+                "serializableString" : "`ts` - INTERVAL '0.001' SECOND"
+              }
+            } ]
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "WatermarkPushDown",
+        "watermarkExpr" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$-$1",
+          "operands" : [ {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 2,
+            "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "1",
+            "type" : "INTERVAL SECOND(6) NOT NULL"
+          } ],
+          "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+        },
+        "rowtimeExpr" : {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+        },
+        "idleTimeoutMillis" : -1,
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "name" : "user_name",
+            "fieldType" : "VARCHAR(2147483647)"
+          }, {
+            "name" : "action",
+            "fieldType" : "VARCHAR(2147483647)"
+          }, {
+            "name" : "ts",
+            "fieldType" : {
+              "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+              "precision" : 3,
+              "kind" : "ROWTIME"
+            }
+          } ]
+        },
+        "watermarkParams" : {
+          "emitStrategy" : "ON_EVENT",
+          "alignGroupName" : null,
+          "alignMaxDrift" : "PT0S",
+          "alignUpdateInterval" : "PT1S",
+          "sourceIdleTimeout" : -1
+        }
+      } ]
+    },
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "user_name",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "action",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "ts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, user_events, watermark=[-(ts, 1:INTERVAL SECOND)], watermarkEmitStrategy=[on-event]]], fields=[user_name, action, ts])"
+  }, {
+    "id" : 6,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "user_name",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "action",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "ts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[user_name]])"
+  }, {
+    "id" : 7,
+    "type" : "stream-exec-process-table-function_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "user_name",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "action",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "ts",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      }, {
+        "name" : "rowtime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ]
+    },
+    "description" : "ProcessTableFunction(invocation=[DEDUPLICATE_KEEP_FIRST(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT())], uid=[DEDUPLICATE_KEEP_FIRST], select=[user_name,action,ts,rowtime], rowType=[RecordType(VARCHAR(2147483647) user_name, VARCHAR(2147483647) action, TIMESTAMP_LTZ(3) *ROWTIME* ts, TIMESTAMP_LTZ(3) *ROWTIME* rowtime)])",
+    "uid" : "DEDUPLICATE_KEEP_FIRST",
+    "functionCall" : {
+      "kind" : "CALL",
+      "internalName" : "$DEDUPLICATE_KEEP_FIRST$1",
+      "operands" : [ {
+        "kind" : "TABLE_ARG_CALL",
+        "inputIndex" : 0,
+        "partitionKeys" : [ 0 ],
+        "type" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "name" : "user_name",
+            "fieldType" : "VARCHAR(2147483647)"
+          }, {
+            "name" : "action",
+            "fieldType" : "VARCHAR(2147483647)"
+          }, {
+            "name" : "ts",
+            "fieldType" : {
+              "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+              "precision" : 3,
+              "kind" : "ROWTIME"
+            }
+          } ]
+        }
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "INTERVAL SECOND(6)"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "internalName" : "$DESCRIPTOR$1",
+        "operands" : [ {
+          "kind" : "LITERAL",
+          "value" : "ts",
+          "type" : "CHAR(2) NOT NULL"
+        } ],
+        "type" : "DESCRIPTOR NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : {
+        "type" : "ROW",
+        "nullable" : false,
+        "fields" : [ {
+          "name" : "user_name",
+          "fieldType" : "VARCHAR(2147483647)"
+        }, {
+          "name" : "action",
+          "fieldType" : "VARCHAR(2147483647)"
+        }, {
+          "name" : "ts",
+          "fieldType" : {
+            "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        }, {
+          "name" : "rowtime",
+          "fieldType" : {
+            "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+            "nullable" : false,
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
+        } ]
+      }
+    },
+    "inputChangelogModes" : [ [ "INSERT" ] ],
+    "outputChangelogMode" : [ "INSERT" ],
+    "inputUpsertKeys" : [ [ ] ]
+  }, {
+    "id" : 8,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_name` VARCHAR(2147483647), `action` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[user_name, action])"
+  }, {
+    "id" : 9,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "action",
+              "dataType" : "VARCHAR(2147483647)"
+            } ]
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "upsertMaterializeStrategy" : "MAP",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_name` VARCHAR(2147483647), `action` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_name, action])"
+  } ],
+  "edges" : [ {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

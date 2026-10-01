@@ -147,6 +147,7 @@ Table functions can be used in two ways: as stand-alone inputs, where they are i
 | `FROM_CHANGELOG(input => TABLE t [, ...])` | Converts an append-only table with an explicit operation column into a dynamic table. See Changelog Conversion for the full list of arguments, semantics, and usage.                                                                       |
 | `TO_CHANGELOG(input => TABLE t [, ...])`   | Converts a dynamic table into an append-only table with an explicit operation column. See Changelog Conversion for the full list of arguments, semantics, and usage.                                                                         |
 | `SNAPSHOT(input => TABLE t [, ...])`       | Returns the current state of a dynamic table `t`. `SNAPSHOT` can only be used in a `LATERAL` context and not as a stand-alone table function. See [LATERAL SNAPSHOT join]({{< ref "docs/sql/reference/queries/joins" >}}#lateral-snapshot-join) for the full list of arguments, the join semantics, and usage. |
+| `DEDUPLICATE_KEEP_FIRST(input => TABLE t [, ...])` | Keeps the first record per key as an insert-only stream (first arrival, or earliest event time with `on_time`). See [Deduplicate Keep First]({{< ref "docs/sql/reference/queries/deduplicate-keep-first" >}}#deduplicate_keep_first) for the full list of arguments, semantics, and usage. |
 
 To implement your own table functions, see [user-defined table functions]({{< ref "docs/dev/table/functions/udfs" >}}#table-functions).
 

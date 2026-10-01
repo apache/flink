@@ -38,6 +38,7 @@ import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TraitCondition;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.DeduplicateKeepFirstTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
@@ -108,6 +109,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.varyingStrin
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_ELEMENT_ARG;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_OF_ENTRIES_ARG;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.DEDUPLICATE_KEEP_FIRST_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.FROM_CHANGELOG_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
@@ -121,6 +123,7 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentageArray;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.plainJsonPath;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ARRAY_APPEND_PREPEND;
+import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.DEDUPLICATE_KEEP_FIRST_OUTPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.LATERAL_SNAPSHOT_OUTPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ML_PREDICT_OUTPUT_TYPE_STRATEGY;
@@ -937,6 +940,31 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.ptf.FromChangelogFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition DEDUPLICATE_KEEP_FIRST =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DEDUPLICATE_KEEP_FIRST")
+                    .kind(PROCESS_TABLE)
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.OPTIONAL_PARTITION_BY,
+                                            StaticArgumentTrait.SUPPORT_UPDATES)),
+                            StaticArgument.scalar(
+                                    "state_ttl", DataTypes.INTERVAL(DataTypes.SECOND()), true),
+                            StaticArgument.scalar(
+                                    "reset_ttl_on_duplicate", DataTypes.BOOLEAN(), true))
+                    .inputTypeStrategy(DEDUPLICATE_KEEP_FIRST_TYPE_STRATEGY)
+                    .outputTypeStrategy(DEDUPLICATE_KEEP_FIRST_OUTPUT_TYPE_STRATEGY)
+                    .stateTypeStrategies(DeduplicateKeepFirstTypeStrategy.stateTypeStrategies())
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.ptf.DeduplicateKeepFirst")
                     .build();
 
     /**
