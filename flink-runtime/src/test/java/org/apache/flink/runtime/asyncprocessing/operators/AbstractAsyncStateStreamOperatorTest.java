@@ -116,6 +116,19 @@ public class AbstractAsyncStateStreamOperatorTest {
     }
 
     @Test
+    void testCloseCancelsBufferTimeout() throws Exception {
+        AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER);
+        testHarness.open();
+        AsyncExecutionController<?, ?> aec =
+                ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
+                        .getAsyncExecutionController();
+        assertThat(aec.isBufferTimeoutScheduled()).isTrue();
+        testHarness.close();
+        assertThat(aec.isBufferTimeoutScheduled()).isFalse();
+    }
+
+    @Test
     void testRecordProcessorWithFirstRequestOrder() throws Exception {
         try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.FIRST_REQUEST_ORDER)) {

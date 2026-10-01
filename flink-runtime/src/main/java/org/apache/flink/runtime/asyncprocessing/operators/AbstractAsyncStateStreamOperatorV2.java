@@ -454,8 +454,16 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
 
     @Override
     public void close() throws Exception {
-        super.close();
-        closeIfNeeded();
+        try {
+            super.close();
+            closeIfNeeded();
+        } finally {
+            // Cancels the buffer timeout task on the static, TaskManager-wide scheduler, which
+            // otherwise keeps this controller and the disposed state backend reachable.
+            if (asyncExecutionController != null) {
+                asyncExecutionController.close();
+            }
+        }
     }
 
     private void closeIfNeeded() {
