@@ -27,6 +27,7 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.avro.AvroTypeException;
 import org.apache.avro.Schema;
@@ -273,6 +274,27 @@ class AvroSerializerSnapshotTest {
     }
 
     @Test
+    void incompatibleGenericRecordSchemaShouldFailCopyWithSchemaContext() {
+        final AvroSerializer<GenericRecord> serializer =
+                new AvroSerializer<>(GenericRecord.class, BOTH_REQUIRED);
+        final GenericRecord oldRecord =
+                new GenericRecordBuilder(FIRST_NAME).set("first", "Flink").build();
+
+        assertThatThrownBy(() -> serializer.copy(oldRecord))
+                .isInstanceOf(FlinkRuntimeException.class)
+                .hasCauseInstanceOf(IOException.class)
+                .satisfies(
+                        error -> {
+                            assertThat(error.getCause())
+                                    .hasMessageContaining(
+                                            "Failed to resolve GenericRecord from writer schema")
+                                    .hasMessageContaining(FIRST_NAME.toString())
+                                    .hasMessageContaining(BOTH_REQUIRED.toString())
+                                    .hasCauseInstanceOf(AvroTypeException.class);
+                        });
+    }
+
+    @Test
     void migratedGenericRecordShouldBeSerializedWithNewSchema() throws IOException {
         final AvroSerializer<GenericRecord> originalSerializer =
                 new AvroSerializer<>(GenericRecord.class, FIRST_NAME);
@@ -341,6 +363,43 @@ class AvroSerializerSnapshotTest {
         assertThat(restoredRecord.get("b")).isNull();
         assertThat(restoredRecord.get("c").toString()).isEqualTo("C");
         assertThat(restoredRecord.get("d").toString()).isEqualTo("D");
+    }
+
+    @Test
+    void migratedGenericRecordShouldBeCopiedWithNewSchemaWhenFieldIsInsertedInMiddle()
+            throws IOException {
+        final AvroSerializer<GenericRecord> originalSerializer =
+                new AvroSerializer<>(GenericRecord.class, A_C_D);
+        final AvroSerializer<GenericRecord> newSerializer =
+                new AvroSerializer<>(GenericRecord.class, A_B_C_D);
+        final GenericRecord oldRecord =
+                new GenericRecordBuilder(A_C_D).set("a", "A").set("c", "C").set("d", "D").build();
+
+        final TypeSerializerSnapshot<GenericRecord> originalSnapshot =
+                originalSerializer.snapshotConfiguration();
+        final TypeSerializer<GenericRecord> restoredPreviousSerializer =
+                originalSnapshot.restoreSerializer();
+        assertThat(
+                        newSerializer
+                                .snapshotConfiguration()
+                                .resolveSchemaCompatibility(originalSnapshot))
+                .is(isCompatibleAfterMigration());
+
+        final GenericRecord restoredOldRecord =
+                deserialize(restoredPreviousSerializer, serialize(originalSerializer, oldRecord));
+        assertThat(restoredOldRecord.getSchema()).isEqualTo(A_C_D);
+
+        final GenericRecord copiedRecord = newSerializer.copy(restoredOldRecord);
+        assertThat(copiedRecord).isNotSameAs(restoredOldRecord);
+        assertThat(copiedRecord.getSchema()).isEqualTo(A_B_C_D);
+        assertThat(copiedRecord.get("a").toString()).isEqualTo("A");
+        assertThat(copiedRecord.get("b")).isNull();
+        assertThat(copiedRecord.get("c").toString()).isEqualTo("C");
+        assertThat(copiedRecord.get("d").toString()).isEqualTo("D");
+
+        final GenericRecord copiedWithReuse = newSerializer.copy(restoredOldRecord, copiedRecord);
+        assertThat(copiedWithReuse).isEqualTo(copiedRecord);
+        assertThat(copiedWithReuse).isNotSameAs(copiedRecord);
     }
 
     @Test

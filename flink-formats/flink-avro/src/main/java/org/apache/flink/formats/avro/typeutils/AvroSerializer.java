@@ -27,6 +27,7 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
@@ -238,7 +239,10 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
         try {
             checkAvroInitialized();
-            return avroData.deepCopy(runtimeSchema, from);
+            return avroData.deepCopy(runtimeSchema, resolveGenericRecord(from));
+        } catch (IOException e) {
+            throw new FlinkRuntimeException(
+                    "Failed to copy GenericRecord with mismatched schema", e);
         } finally {
             if (CONCURRENT_ACCESS_CHECK) {
                 exitExclusiveThread();
@@ -333,8 +337,8 @@ public class AvroSerializer<T> extends TypeSerializer<T> {
 
     /**
      * GenericRecord values restored during state migration can still carry the previous schema.
-     * Resolve them to this serializer's runtime schema before the writer indexes fields by
-     * position.
+     * Resolve them to this serializer's runtime schema before a writer or deep copy accesses fields
+     * by position.
      */
     private T resolveGenericRecord(T value) throws IOException {
         if (value == null || !isGenericRecord(type)) {
