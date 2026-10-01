@@ -2120,7 +2120,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 multisetData,
                                 "Test".getBytes(StandardCharsets.UTF_8),
                                 "Test".getBytes(StandardCharsets.UTF_8),
-                                Row.of(Collections.singletonList(Row.of(1, 2))))
+                                Row.of(Collections.singletonList(Row.of(1, 2))),
+                                LocalDate.parse("1990-06-02"),
+                                LocalTime.parse("13:37:42"))
                         .andDataTypes(
                                 STRING(),
                                 BOOLEAN(),
@@ -2135,7 +2137,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 MAP(STRING(), INT()),
                                 BINARY(4),
                                 VARBINARY(4),
-                                ROW(ARRAY(ROW(INT(), INT()))))
+                                ROW(ARRAY(ROW(INT(), INT()))),
+                                DATE(),
+                                TIME())
                         .withFunction(CreateMultiset.class)
                         .withFunction(CreateStructuredType.class)
                         .testResult(
@@ -2160,7 +2164,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                                 JsonOnNull.NULL,
                                                 "K",
                                                 jsonArray(JsonOnNull.NULL, "V")),
-                                        call("CreateStructuredType", $("f0"), $("f2"), $("f9"))),
+                                        call("CreateStructuredType", $("f0"), $("f2"), $("f9")),
+                                        $("f14"),
+                                        $("f15")),
                                 "JSON_ARRAY("
                                         + "f0, "
                                         + "f1, "
@@ -2178,7 +2184,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "f13, "
                                         + "JSON_ARRAY('V'), "
                                         + "JSON_OBJECT('K' VALUE JSON_ARRAY('V')), "
-                                        + "CreateStructuredType(f0, f2, f9)"
+                                        + "CreateStructuredType(f0, f2, f9), "
+                                        + "f14, "
+                                        + "f15"
                                         + ")",
                                 "["
                                         + "\"V\","
@@ -2197,7 +2205,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "{\"f0\":[{\"f0\":1,\"f1\":2}]},"
                                         + "[\"V\"],"
                                         + "{\"K\":[\"V\"]},"
-                                        + "{\"age\":1,\"name\":\"V\",\"payload\":{\"M1\":\"V1\",\"M2\":\"V2\"}}"
+                                        + "{\"age\":1,\"name\":\"V\",\"payload\":{\"M1\":\"V1\",\"M2\":\"V2\"}},"
+                                        + "\"1990-06-02\","
+                                        + "\"13:37:42\""
                                         + "]",
                                 STRING().notNull(),
                                 STRING().notNull()),
