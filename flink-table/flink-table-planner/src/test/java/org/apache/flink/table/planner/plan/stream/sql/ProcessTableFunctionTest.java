@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Table;
@@ -78,6 +80,7 @@ import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the type inference and planning part of {@link ProcessTableFunction}. */
@@ -197,6 +200,19 @@ class ProcessTableFunctionTest extends TableTestBase {
     void testEmptyArgs() {
         util.addTemporarySystemFunction("f", EmptyArgFunction.class);
         util.verifyRelPlan("SELECT * FROM f(uid => 'my-ptf')");
+    }
+
+    @Test
+    void testEmptyFunctionOutputWithPartitionByHasNoPhantomColumn() {
+        util.addTemporarySystemFunction("f", EmptyOutputSetSemanticFunction.class);
+        // An empty function output combined with a PARTITION BY pass-through column must yield
+        // just the partition key, not a phantom EXPR$0 column.
+        assertThat(
+                        util.tableEnv()
+                                .sqlQuery("SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                                .getResolvedSchema()
+                                .getColumnNames())
+                .containsExactly("name");
     }
 
     @Test
@@ -701,6 +717,13 @@ class ProcessTableFunctionTest extends TableTestBase {
         public void eval(
                 @ArgumentHint({SET_SEMANTIC_TABLE, OPTIONAL_PARTITION_BY}) Row r1,
                 @ArgumentHint(ROW_SEMANTIC_TABLE) Row r2) {}
+    }
+
+    /** Testing function with an empty output that contributes no columns of its own. */
+    @FunctionHint(output = @DataTypeHint("ROW<>"))
+    public static class EmptyOutputSetSemanticFunction extends ProcessTableFunction<Row> {
+        @SuppressWarnings("unused")
+        public void eval(@ArgumentHint({SET_SEMANTIC_TABLE, OPTIONAL_PARTITION_BY}) Row r) {}
     }
 
     /** Testing function. */
