@@ -188,14 +188,17 @@ class ArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowData> {
         final RowType type =
                 RowType.of(
                         mapType, new ArrayType(mapType), new ArrayType(RowType.of(nestedMapType)));
+        final Map<Integer, Integer> twoEntries = new LinkedHashMap<>();
+        twoEntries.put(1, 11);
+        twoEntries.put(2, 22);
         final List<RowData> rows = new ArrayList<>();
         for (Map<Integer, Integer> values :
                 Arrays.asList(
-                        Map.of(1, 11, 2, 22),
+                        twoEntries,
                         Collections.<Integer, Integer>emptyMap(),
                         null,
                         Collections.<Integer, Integer>singletonMap(3, null),
-                        Map.of(4, 44))) {
+                        Collections.singletonMap(4, 44))) {
             final GenericMapData map = values == null ? null : new GenericMapData(values);
             final Map<Integer, RowData> nestedValues = new LinkedHashMap<>();
             if (values != null) {
