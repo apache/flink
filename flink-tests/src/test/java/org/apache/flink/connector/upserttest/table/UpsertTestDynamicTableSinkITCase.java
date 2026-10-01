@@ -109,4 +109,37 @@ class UpsertTestDynamicTableSinkITCase {
 
         assertThat(records).isEqualTo(expected);
     }
+
+    @Test
+    void testFormatOptionsAreForwarded(@TempDir File tempDir) throws Exception {
+        TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        File outputFile = new File(tempDir, "records.out");
+
+        tEnv.executeSql(
+                String.format(
+                        "CREATE TABLE UpsertFileSinkTable (\n"
+                                + "    user_id INT,\n"
+                                + "    ts TIMESTAMP(3),\n"
+                                + "    PRIMARY KEY (user_id) NOT ENFORCED\n"
+                                + "  ) WITH (\n"
+                                + "    'connector' = '%s',\n"
+                                + "    'key.format' = 'json',\n"
+                                + "    'value.format' = 'json',\n"
+                                + "    'value.json.timestamp-format.standard' = 'ISO-8601',\n"
+                                + "    'output-filepath' = '%s'\n"
+                                + "  );",
+                        UpsertTestDynamicTableSinkFactory.IDENTIFIER, outputFile));
+        tEnv.executeSql(
+                        "INSERT INTO UpsertFileSinkTable VALUES (1, TIMESTAMP '2026-01-01 12:00:00')")
+                .await();
+
+        DeserializationSchema<String> deserializationSchema = new SimpleStringSchema();
+        assertThat(
+                        UpsertTestFileUtil.readRecords(
+                                outputFile, deserializationSchema, deserializationSchema))
+                .containsExactly(
+                        Map.entry(
+                                "{\"user_id\":1}",
+                                "{\"user_id\":1,\"ts\":\"2026-01-01T12:00:00\"}"));
+    }
 }
