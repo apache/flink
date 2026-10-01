@@ -91,7 +91,7 @@ public class VariantSemanticTest extends SemanticTestBase {
                     .runFailingSql(
                             "INSERT INTO sink_t SELECT PARSE_JSON(v) FROM t",
                             TableRuntimeException.class,
-                            "Failed to parse json string")
+                            "Failed to parse JSON string")
                     .build();
 
     static final TableTestProgram TRY_PARSE_JSON_HANDLE_MALFORMED_JSON =

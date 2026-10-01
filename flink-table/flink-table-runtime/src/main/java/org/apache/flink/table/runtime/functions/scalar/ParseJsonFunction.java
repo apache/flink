@@ -53,12 +53,12 @@ public class ParseJsonFunction extends BuiltInScalarFunction {
             if (invalidIndex >= 0) {
                 throw new TableRuntimeException(
                         String.format(
-                                "Failed to parse json string: Invalid UTF-8 byte at index %d of %d.",
+                                "Failed to parse JSON string: Invalid UTF-8 byte at index %d of %d.",
                                 invalidIndex, bytes.length),
                         e);
             }
             throw new TableRuntimeException(
-                    String.format("Failed to parse json string: %s", jsonStr), e);
+                    String.format("Failed to parse JSON string: %s", jsonStr), e);
         }
     }
 }

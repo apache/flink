@@ -1051,20 +1051,20 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f1)",
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         .testTableApiRuntimeError(
                                 $("f1").parseJson(),
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         // allowDuplicateKeys: false (the default) rejects duplicate keys
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f2, false)",
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         .testTableApiRuntimeError(
                                 $("f2").parseJson(false),
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         // allowDuplicateKeys: true keeps the last occurrence of the duplicated key
                         .testResult(
                                 jsonString($("f2").parseJson(true)),
@@ -1120,15 +1120,15 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f2)",
                                 TableRuntimeException.class,
-                                "Failed to parse json string: \uFEFF1")
+                                "Failed to parse JSON string: \uFEFF1")
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f3)",
                                 TableRuntimeException.class,
-                                "Failed to parse json string: [\u65E5]")
+                                "Failed to parse JSON string: [\u65E5]")
                         .testSqlRuntimeError(
                                 "PARSE_JSON(FROM_BASE64(f4))",
                                 TableRuntimeException.class,
-                                "Failed to parse json string: Invalid UTF-8 byte at index 1 of 3."),
+                                "Failed to parse JSON string: Invalid UTF-8 byte at index 1 of 3."),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.TRY_PARSE_JSON,
                                 "input bytes are always read as UTF-8")
