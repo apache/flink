@@ -123,17 +123,23 @@ class AbstractS3DelegationTokenProviderTest {
         stsClient.shutdownFailure = shutdownFailure;
 
         assertThatThrownBy(provider::obtainDelegationTokens).isSameAs(requestFailure);
-        assertThat(requestFailure.getSuppressed()).containsExactly(shutdownFailure);
         assertThat(stsClient.shutdownCount).isEqualTo(1);
     }
 
     @Test
-    void obtainDelegationTokensShouldPropagateShutdownFailure() {
+    void obtainDelegationTokensShouldReturnTokensWhenShutdownFails() throws Exception {
+        final Credentials credentials = createCredentials();
+        stsClient.credentials = credentials;
         final RuntimeException shutdownFailure = new RuntimeException("STS shutdown failed");
         stsClient.shutdownFailure = shutdownFailure;
 
-        assertThatThrownBy(provider::obtainDelegationTokens).isSameAs(shutdownFailure);
+        final ObtainedDelegationTokens tokens = provider.obtainDelegationTokens();
 
+        final Credentials deserializedCredentials =
+                InstantiationUtil.deserializeObject(
+                        tokens.getTokens(), getClass().getClassLoader());
+        assertThat(deserializedCredentials).isEqualTo(credentials);
+        assertThat(tokens.getValidUntil()).contains(credentials.getExpiration().getTime());
         assertThat(stsClient.requestCount).isEqualTo(1);
         assertThat(stsClient.shutdownCount).isEqualTo(1);
     }

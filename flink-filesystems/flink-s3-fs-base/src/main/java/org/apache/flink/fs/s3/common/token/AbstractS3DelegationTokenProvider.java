@@ -89,8 +89,7 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
         LOG.info("Obtaining session credentials token with access key: {}", accessKey);
 
         final AWSSecurityTokenService stsClient = createStsClient();
-        // Preserve the acquisition failure if shutting down the client also fails.
-        try (AutoCloseable ignored = stsClient::shutdown) {
+        try {
             final GetSessionTokenResult sessionTokenResult = stsClient.getSessionToken();
             final Credentials credentials = sessionTokenResult.getCredentials();
             LOG.info(
@@ -101,6 +100,14 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
             return new ObtainedDelegationTokens(
                     InstantiationUtil.serializeObject(credentials),
                     Optional.of(credentials.getExpiration().getTime()));
+        } finally {
+            // Shutdown is best effort, so a failure must not discard the obtained tokens or
+            // mask an acquisition failure.
+            try {
+                stsClient.shutdown();
+            } catch (RuntimeException e) {
+                LOG.warn("Failed to shut down STS client for {}", serviceName(), e);
+            }
         }
     }
 
