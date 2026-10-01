@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.functions.scalar;
 
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.StringUtf8Utils;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
@@ -43,9 +44,19 @@ public class ParseJsonFunction extends BuiltInScalarFunction {
             return null;
         }
 
+        final byte[] bytes = jsonStr.toBytes();
         try {
-            return BinaryVariantInternalBuilder.parseJson(jsonStr.toBytes(), allowDuplicateKeys);
+            return BinaryVariantInternalBuilder.parseJson(bytes, allowDuplicateKeys);
         } catch (Throwable e) {
+            final int invalidIndex =
+                    StringUtf8Utils.firstInvalidUtf8ByteIndex(bytes, 0, bytes.length);
+            if (invalidIndex >= 0) {
+                throw new TableRuntimeException(
+                        String.format(
+                                "Failed to parse json string: Invalid UTF-8 byte at index %d of %d.",
+                                invalidIndex, bytes.length),
+                        e);
+            }
             throw new TableRuntimeException(
                     String.format("Failed to parse json string: %s", jsonStr), e);
         }
