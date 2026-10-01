@@ -1679,14 +1679,14 @@ public class MultiJoinTestPrograms {
                                                     "Bob"),
                                             Row.ofKind(
                                                     RowKind.INSERT,
-                                                    "A1",
+                                                    "J1",
                                                     200,
                                                     false,
                                                     "k4_val2",
                                                     "John"),
                                             Row.ofKind(
                                                     RowKind.DELETE,
-                                                    "A1",
+                                                    "J1",
                                                     200,
                                                     false,
                                                     "k4_val2",
