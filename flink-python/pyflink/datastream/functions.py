@@ -624,24 +624,21 @@ class ProcessFunction(Function):
     A function that process elements of a stream.
 
     For every element in the input stream process_element(value, ctx, out) is invoked. This can
-    produce zero or more elements as output. Implementations can also query the time and set timers
-    through the provided Context. For firing timers on_timer(long, ctx, out) will be invoked. This
-    can again produce zero or more elements as output and register further timers.
+    produce zero or more elements as output. Implementations can also query the time through the
+    provided Context.
 
-    Note that access to keyed state and timers (which are also scoped to a key) is only available if
-    the ProcessFunction is applied on a KeyedStream.
+    Use KeyedProcessFunction on a KeyedStream to access keyed state and register timers.
     """
 
     class Context(ABC):
         """
-        Information available in an invocation of process_element(value, ctx, out) or
-        on_timer(value, ctx, out).
+        Information available in an invocation of process_element(value, ctx, out).
         """
 
         @abstractmethod
         def timer_service(self) -> TimerService:
             """
-            A Timer service for querying time and registering timers.
+            A Timer service for querying time. Registering timers requires a KeyedProcessFunction.
             """
             pass
 
@@ -651,16 +648,6 @@ class ProcessFunction(Function):
             Timestamp of the element currently being processed or timestamp of a firing timer.
 
             This might be None, depending on the stream's watermark strategy.
-            """
-            pass
-
-    class OnTimerContext(Context):
-
-        @abstractmethod
-        def time_domain(self) -> TimeDomain:
-            """
-            The TimeDomain of the firing timer.
-            :return: The TimeDomain of current fired timer.
             """
             pass
 
@@ -678,18 +665,6 @@ class ProcessFunction(Function):
                      valid during the invocation of this method, do not store it.
         """
         pass
-
-    def on_timer(self, timestamp: int, ctx: 'ProcessFunction.OnTimerContext'):
-        """
-        Called when a timer set using TimerService fires.
-
-        :param timestamp: The timestamp of the firing timer.
-        :param ctx: An OnTimerContext that allows querying the timestamp of the firing timer,
-                    querying the TimeDomain of the firing timer and getting a TimerService for
-                    registering timers and querying the time. The context is only valid during the
-                    invocation of this method, do not store it.
-        """
-        yield from []
 
 
 class KeyedProcessFunction(Function):

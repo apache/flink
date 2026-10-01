@@ -28,11 +28,11 @@ from pyflink.fn_execution.internal_state import InternalBroadcastState
 
 
 class InternalKeyedProcessFunctionOnTimerContext(
-        ProcessFunction.OnTimerContext, KeyedProcessFunction.OnTimerContext,
-        CoProcessFunction.OnTimerContext, KeyedCoProcessFunction.OnTimerContext):
+        KeyedProcessFunction.OnTimerContext, CoProcessFunction.OnTimerContext,
+        KeyedCoProcessFunction.OnTimerContext):
     """
-    Internal implementation of OnTimerContext of ProcessFunction, KeyedProcessFunction,
-    CoProcessFunction and KeyedCoProcessFunction.
+    Internal implementation of OnTimerContext of KeyedProcessFunction, CoProcessFunction and
+    KeyedCoProcessFunction.
     """
 
     def __init__(self, timer_service: TimerService):
