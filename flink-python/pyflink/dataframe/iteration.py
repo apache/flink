@@ -20,21 +20,32 @@ import itertools
 import queue
 import threading
 import time
-from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Protocol,
+    TypeVar,
+)
 
 from pyflink.common import Row
+from pyflink.dataframe.validation import _require_non_empty_str
 from pyflink.table.types import ArrayType, DataType, MapType, RowType, create_arrow_schema
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["CloseableIterator"]
 
 T = TypeVar("T")
+T_co = TypeVar("T_co", covariant=True)
 
 _BATCH_FORMATS = ("pandas", "pyarrow")
 
 
 @PublicEvolving()
-class CloseableIterator(Generic[T]):
+class CloseableIterator(Iterator[T_co], Protocol):
     """
     An iterator over the results of a running Flink job.
 
@@ -43,8 +54,7 @@ class CloseableIterator(Generic[T]):
     their end need an explicit :meth:`close`. Prefer a ``with`` block: on an unbounded source the
     job keeps running until the iterator is closed.
 
-    Instances are returned by :meth:`DataFrame.iter_rows` and :meth:`DataFrame.iter_batches`;
-    the constructor is not meant to be called by users.
+    Instances are returned by :meth:`DataFrame.iter_rows` and :meth:`DataFrame.iter_batches`.
 
     Example::
 
@@ -56,12 +66,26 @@ class CloseableIterator(Generic[T]):
     .. versionadded:: 2.4.0
     """
 
+    def close(self) -> None:
+        """
+        Close the iterator and cancel the job if it is still running. Closing twice is a no-op.
+        """
+        ...
+
+    def __enter__(self) -> "CloseableIterator[T_co]":
+        ...
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        ...
+
+
+class _CloseableIterator(Iterator[T]):
     def __init__(self, iterator: Iterator[T], close: Callable[[], None]):
         self._iterator = iterator
         self._close = close
         self._closed = False
 
-    def __iter__(self) -> "CloseableIterator[T]":
+    def __iter__(self) -> "_CloseableIterator[T]":
         return self
 
     def __next__(self) -> T:
@@ -75,27 +99,23 @@ class CloseableIterator(Generic[T]):
             raise
 
     def close(self) -> None:
-        """
-        Close the iterator and cancel the job if it is still running. Closing twice is a no-op.
-        """
         if not self._closed:
             self._closed = True
             self._close()
 
-    def __enter__(self) -> "CloseableIterator[T]":
+    def __enter__(self) -> "_CloseableIterator[T]":
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         self.close()
 
 
-def validate_row_kind_field(
+def _validate_row_kind_field(
     columns: List[str], include_row_kind: bool, row_kind_field: str
 ) -> None:
     if not include_row_kind:
         return
-    if not isinstance(row_kind_field, str) or not row_kind_field:
-        raise TypeError("row_kind_field must be a non-empty string")
+    _require_non_empty_str(row_kind_field, "row_kind_field")
     if row_kind_field in columns:
         raise ValueError(
             f"row_kind_field '{row_kind_field}' conflicts with an existing column; "
@@ -103,30 +123,7 @@ def validate_row_kind_field(
         )
 
 
-def validate_batch_format(batch_format: str) -> None:
-    if batch_format not in _BATCH_FORMATS:
-        raise ValueError(
-            f"batch_format must be one of {list(_BATCH_FORMATS)}, got {batch_format!r}"
-        )
-
-
-def validate_timeout(timeout: Optional[float]) -> None:
-    if timeout is None:
-        return
-    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
-        raise TypeError("timeout must be a number of seconds or None")
-    if timeout < 0:
-        raise ValueError("timeout must be non-negative")
-
-
-def validate_batch_size(batch_size: int) -> None:
-    if isinstance(batch_size, bool) or not isinstance(batch_size, int):
-        raise TypeError("batch_size must be an integer")
-    if batch_size <= 0:
-        raise ValueError("batch_size must be positive")
-
-
-def row_to_dict(
+def _row_to_dict(
     row: Row, columns: List[str], row_kind_field: Optional[str]
 ) -> Dict[str, Any]:
     result = dict(zip(columns, row))
@@ -135,16 +132,16 @@ def row_to_dict(
     return result
 
 
-def iterate_rows(
+def _iterate_rows(
     table, columns: List[str], row_kind_field: Optional[str]
-) -> CloseableIterator[Dict[str, Any]]:
+) -> _CloseableIterator[Dict[str, Any]]:
     rows = table.execute().collect()
-    return CloseableIterator(
-        (row_to_dict(row, columns, row_kind_field) for row in rows), rows.close
+    return _CloseableIterator(
+        (_row_to_dict(row, columns, row_kind_field) for row in rows), rows.close
     )
 
 
-def build_arrow_schema(
+def _build_arrow_schema(
     columns: List[str], data_types: List[DataType], row_kind_field: Optional[str]
 ) -> Any:
     """
@@ -158,14 +155,14 @@ def build_arrow_schema(
     return schema
 
 
-def iterate_batches(
+def _iterate_batches(
     table,
     batch_size: int,
     batch_format: str,
     data_types: List[DataType],
     arrow_schema: Any,
     row_kind_field: Optional[str],
-) -> CloseableIterator[Any]:
+) -> _CloseableIterator[Any]:
     rows = table.execute().collect()
 
     def batches():
@@ -173,22 +170,22 @@ def iterate_batches(
             chunk = list(itertools.islice(rows, batch_size))
             if not chunk:
                 return
-            yield rows_to_batch(chunk, data_types, arrow_schema, batch_format, row_kind_field)
+            yield _rows_to_batch(chunk, data_types, arrow_schema, batch_format, row_kind_field)
 
-    return CloseableIterator(batches(), rows.close)
+    return _CloseableIterator(batches(), rows.close)
 
 
-def take_rows(table, n: int, timeout: Optional[float]) -> List[Row]:
+def _take_rows(table, n: int, timeout: Optional[float]) -> List[Row]:
     if n == 0:
         return []
     rows = table.execute().collect()
     if timeout is None:
         with rows:
             return list(itertools.islice(rows, n))
-    return take_rows_until(rows, n, time.monotonic() + timeout)
+    return _take_rows_until(rows, n, time.monotonic() + timeout)
 
 
-def take_rows_until(rows, n: int, deadline: float) -> List[Row]:
+def _take_rows_until(rows, n: int, deadline: float) -> List[Row]:
     """
     Read up to ``n`` rows, returning early with what has arrived when ``deadline`` passes.
 
@@ -237,7 +234,7 @@ def take_rows_until(rows, n: int, deadline: float) -> List[Row]:
     return taken
 
 
-def rows_to_batch(
+def _rows_to_batch(
     rows: List[Row],
     data_types: List[DataType],
     arrow_schema: Any,
@@ -248,7 +245,7 @@ def rows_to_batch(
 
     arrays = [
         pa.array(
-            [to_arrow_value(row[index], data_type) for row in rows],
+            [_to_arrow_value(row[index], data_type) for row in rows],
             type=arrow_schema.field(index).type,
         )
         for index, data_type in enumerate(data_types)
@@ -259,7 +256,7 @@ def rows_to_batch(
     return batch.to_pandas() if batch_format == "pandas" else batch
 
 
-def to_arrow_value(value: Any, data_type: DataType) -> Any:
+def _to_arrow_value(value: Any, data_type: DataType) -> Any:
     """
     Reshape a collected value into what pyarrow expects for ``data_type``.
 
@@ -270,18 +267,18 @@ def to_arrow_value(value: Any, data_type: DataType) -> Any:
         return None
     if isinstance(data_type, RowType):
         return {
-            name: to_arrow_value(field_value, field_type)
+            name: _to_arrow_value(field_value, field_type)
             for name, field_value, field_type in zip(
                 data_type.field_names(), value, data_type.field_types()
             )
         }
     if isinstance(data_type, ArrayType):
-        return [to_arrow_value(element, data_type.element_type) for element in value]
+        return [_to_arrow_value(element, data_type.element_type) for element in value]
     if isinstance(data_type, MapType):
         return [
             (
-                to_arrow_value(key, data_type.key_type),
-                to_arrow_value(item, data_type.value_type),
+                _to_arrow_value(key, data_type.key_type),
+                _to_arrow_value(item, data_type.value_type),
             )
             for key, item in value.items()
         ]

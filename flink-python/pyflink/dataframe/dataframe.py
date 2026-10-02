@@ -46,18 +46,17 @@ if TYPE_CHECKING:
 from pyflink.common import Row
 from pyflink.dataframe.datatype import _INT_MAX, DataType
 from pyflink.dataframe.iteration import (
+    _BATCH_FORMATS,
     CloseableIterator,
-    build_arrow_schema,
-    iterate_batches,
-    iterate_rows,
-    row_to_dict,
-    rows_to_batch,
-    take_rows,
-    validate_batch_format,
-    validate_batch_size,
-    validate_row_kind_field,
-    validate_timeout,
+    _build_arrow_schema,
+    _iterate_batches,
+    _iterate_rows,
+    _row_to_dict,
+    _rows_to_batch,
+    _take_rows,
+    _validate_row_kind_field,
 )
+from pyflink.dataframe.validation import _require_choice, _require_int, _require_number
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression
 from pyflink.table.expressions import (
@@ -1770,8 +1769,8 @@ class DataFrame:
         .. versionadded:: 2.4.0
         """
         columns = self.columns
-        validate_row_kind_field(columns, include_row_kind, row_kind_field)
-        return iterate_rows(self._table, columns, row_kind_field if include_row_kind else None)
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        return _iterate_rows(self._table, columns, row_kind_field if include_row_kind else None)
 
     @PublicEvolving()
     def iter_batches(
@@ -1811,19 +1810,19 @@ class DataFrame:
 
         .. versionadded:: 2.4.0
         """
-        validate_batch_size(batch_size)
-        validate_batch_format(batch_format)
+        _require_int(batch_size, "batch_size", 1)
+        _require_choice(batch_format, "batch_format", _BATCH_FORMATS)
         schema = self._table.get_resolved_schema()
         columns = schema.get_column_names()
         data_types = schema.get_column_data_types()
-        validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
         row_kind_field = row_kind_field if include_row_kind else None
-        return iterate_batches(
+        return _iterate_batches(
             self._table,
             batch_size,
             batch_format,
             data_types,
-            build_arrow_schema(columns, data_types, row_kind_field),
+            _build_arrow_schema(columns, data_types, row_kind_field),
             row_kind_field,
         )
 
@@ -1867,13 +1866,14 @@ class DataFrame:
         .. versionadded:: 2.4.0
         """
         _validate_row_count(n)
-        validate_timeout(timeout)
+        if timeout is not None:
+            _require_number(timeout, "timeout", 0)
         columns = self.columns
-        validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
         row_kind_field = row_kind_field if include_row_kind else None
         return [
-            row_to_dict(row, columns, row_kind_field)
-            for row in take_rows(self._table, n, timeout)
+            _row_to_dict(row, columns, row_kind_field)
+            for row in _take_rows(self._table, n, timeout)
         ]
 
     @PublicEvolving()
@@ -1914,16 +1914,17 @@ class DataFrame:
         .. versionadded:: 2.4.0
         """
         _validate_row_count(n)
-        validate_timeout(timeout)
-        validate_batch_format(batch_format)
+        if timeout is not None:
+            _require_number(timeout, "timeout", 0)
+        _require_choice(batch_format, "batch_format", _BATCH_FORMATS)
         schema = self._table.get_resolved_schema()
         columns = schema.get_column_names()
         data_types = schema.get_column_data_types()
-        validate_row_kind_field(columns, include_row_kind, row_kind_field)
+        _validate_row_kind_field(columns, include_row_kind, row_kind_field)
         row_kind_field = row_kind_field if include_row_kind else None
-        arrow_schema = build_arrow_schema(columns, data_types, row_kind_field)
-        return rows_to_batch(
-            take_rows(self._table, n, timeout),
+        arrow_schema = _build_arrow_schema(columns, data_types, row_kind_field)
+        return _rows_to_batch(
+            _take_rows(self._table, n, timeout),
             data_types,
             arrow_schema,
             batch_format,
