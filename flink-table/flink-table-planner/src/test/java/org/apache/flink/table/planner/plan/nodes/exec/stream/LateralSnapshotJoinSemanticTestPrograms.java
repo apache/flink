@@ -57,7 +57,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
             "load_completed_time => CAST(TIMESTAMP '2100-01-01 00:00:00' AS TIMESTAMP_LTZ(3))";
 
     /** Event time of the flip-trigger row; equal to the {@link #MID_FLIP} timestamp. */
-    private static final String FLIP_TRIGGER_TS = "00:00:10";
+    static final String FLIP_TRIGGER_TS = "00:00:10";
 
     /** A build-side key that never matches any probe row. */
     private static final String FLIP_TRIGGER_KEY = "__flip_trigger__";
@@ -360,14 +360,14 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                 + condition;
     }
 
-    private static List<Row> defaultProbe() {
+    static List<Row> defaultProbe() {
         return Arrays.asList(
                 Row.of("a", 100, ts("00:01:00")),
                 Row.of("b", 200, ts("00:01:01")),
                 Row.of("c", 300, ts("00:01:02")));
     }
 
-    private static List<Row> defaultBuild() {
+    static List<Row> defaultBuild() {
         return Arrays.asList(
                 Row.of("a", 10, ts("00:00:01")),
                 Row.of("b", 20, ts("00:00:02")),
@@ -384,20 +384,20 @@ public class LateralSnapshotJoinSemanticTestPrograms {
      * Appends a non-matching build row at the {@link #FLIP_TRIGGER_TS} timestamp; its watermark
      * flips the operator to the JOIN phase mid-stream (all real build rows are earlier).
      */
-    private static List<Row> withFlipTrigger(List<Row> data) {
+    static List<Row> withFlipTrigger(List<Row> data) {
         final List<Row> withTrigger = new ArrayList<>(data);
         withTrigger.add(Row.of(FLIP_TRIGGER_KEY, 0, ts(FLIP_TRIGGER_TS)));
         return withTrigger;
     }
 
-    private static SourceTestStep probe(List<Row> data) {
+    static SourceTestStep probe(List<Row> data) {
         return SourceTestStep.newBuilder("probe")
                 .addSchema(PROBE_SCHEMA)
                 .producedValues(data.toArray(new Row[0]))
                 .build();
     }
 
-    private static SourceTestStep throttledProbe(List<Row> data, long sleepMillis) {
+    static SourceTestStep throttledProbe(List<Row> data, long sleepMillis) {
         return SourceTestStep.newBuilder("probe")
                 .addSchema(PROBE_SCHEMA)
                 .addOptions(throttleOptions(sleepMillis))
@@ -405,7 +405,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                 .build();
     }
 
-    private static SourceTestStep appendBuild(List<Row> data) {
+    static SourceTestStep appendBuild(List<Row> data) {
         return SourceTestStep.newBuilder("b")
                 .addSchema(BUILD_SCHEMA)
                 .producedValues(data.toArray(new Row[0]))
@@ -426,7 +426,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                 .build();
     }
 
-    private static SinkTestStep.Builder keyValueSink() {
+    static SinkTestStep.Builder keyValueSink() {
         return SinkTestStep.newBuilder("sink")
                 .addSchema("pk STRING", "pv INT", "bk STRING", "bv INT")
                 .testMaterializedData();
@@ -439,7 +439,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
         return options;
     }
 
-    private static LocalDateTime ts(String time) {
+    static LocalDateTime ts(String time) {
         return LocalDateTime.parse("2020-01-01T" + time);
     }
 }

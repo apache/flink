@@ -80,15 +80,29 @@ final class JoinOperationFactory {
             JoinType joinType,
             ResolvedExpression condition,
             boolean correlated) {
-        boolean alwaysTrue = ExpressionUtils.extractValue(condition, Boolean.class).orElse(false);
+        final boolean alwaysTrue =
+                ExpressionUtils.extractValue(condition, Boolean.class).orElse(false);
 
-        if (alwaysTrue) {
+        // A lateral SNAPSHOT join is rewritten into a dedicated join that supports an ON predicate
+        // but requires at least one equi-join predicate (for both INNER and LEFT OUTER). An
+        // always-true/empty condition is therefore not allowed; fall through to the equi-join check
+        // below so the user gets a clear error instead of a later planner failure.
+        final boolean isLateralSnapshot =
+                correlated
+                        && right instanceof CorrelatedFunctionQueryOperation
+                        && CorrelatedFunctionTableFactory.isSnapshot(
+                                ((CorrelatedFunctionQueryOperation) right)
+                                        .getResolvedFunction()
+                                        .getDefinition());
+
+        if (alwaysTrue && !isLateralSnapshot) {
             return;
         }
 
         Boolean equiJoinExists = condition.accept(equiJoinExistsChecker);
         if (correlated
                 && right instanceof CorrelatedFunctionQueryOperation
+                && !isLateralSnapshot
                 && joinType != JoinType.INNER) {
             throw new ValidationException(
                     "Predicate for lateral left outer join with table function can only be empty or literal true.");

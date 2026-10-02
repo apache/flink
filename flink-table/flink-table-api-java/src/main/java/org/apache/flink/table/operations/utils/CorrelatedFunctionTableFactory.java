@@ -27,6 +27,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.operations.CorrelatedFunctionQueryOperation;
@@ -56,6 +57,14 @@ final class CorrelatedFunctionTableFactory {
         FunctionTableCallVisitor calculatedTableCreator =
                 new FunctionTableCallVisitor(leftTableFieldNames);
         return callExpr.accept(calculatedTableCreator);
+    }
+
+    /**
+     * Whether the given function is {@code SNAPSHOT}, currently the only {@link
+     * FunctionKind#PROCESS_TABLE} function that is valid as the build side of a lateral join.
+     */
+    static boolean isSnapshot(FunctionDefinition definition) {
+        return definition.equals(BuiltInFunctionDefinitions.SNAPSHOT);
     }
 
     private static class FunctionTableCallVisitor
@@ -91,7 +100,11 @@ final class CorrelatedFunctionTableFactory {
                                                                                     + alias)))
                             .collect(toList());
 
-            if (!isFunctionOfKind(children.get(0), FunctionKind.TABLE)) {
+            // SNAPSHOT is PROCESS_TABLE rather than TABLE but is valid in a LATERAL join.
+            Expression firstChild = children.get(0);
+            if (!isFunctionOfKind(children.get(0), FunctionKind.TABLE)
+                    && !(firstChild instanceof CallExpression
+                            && isSnapshot(((CallExpression) firstChild).getFunctionDefinition()))) {
                 throw fail();
             }
 
