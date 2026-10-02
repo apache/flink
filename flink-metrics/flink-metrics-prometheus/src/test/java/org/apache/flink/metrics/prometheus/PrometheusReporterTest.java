@@ -26,6 +26,7 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.util.PortRange;
@@ -100,6 +101,24 @@ class PrometheusReporterTest {
         testCounter.inc(7);
 
         assertThatGaugeIsExported(testCounter, "testCounter", "7.0");
+    }
+
+    /**
+     * A {@link org.apache.flink.metrics.MonotonicCounter} is reported as a native {@link
+     * io.prometheus.client.Counter}, so the monitoring backend can perform reset detection.
+     *
+     * @throws IOException Might be thrown on I/O problems.
+     * @throws InterruptedException Might be thrown if the thread is interrupted.
+     */
+    @Test
+    void monotonicCounterIsReportedAsPrometheusCounter() throws IOException, InterruptedException {
+        Counter testCounter = new SimpleMonotonicCounter();
+        testCounter.inc(7);
+
+        String response = addMetricAndPollResponse(testCounter, "testMonotonicCounter");
+        assertThat(response).contains("# TYPE " + SCOPE_PREFIX + "testMonotonicCounter counter");
+        assertThat(response)
+                .contains(SCOPE_PREFIX + "testMonotonicCounter" + DEFAULT_LABELS + " 7.0");
     }
 
     @Test

@@ -30,7 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
@@ -138,7 +138,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
                 tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();
             } catch (Exception e) {
                 LOG.warn("An exception occurred during the metrics setup.", e);
-                tmpNumRecordsIn = new SimpleCounter();
+                tmpNumRecordsIn = new SimpleMonotonicCounter();
             }
             numRecordsIn = tmpNumRecordsIn;
         }

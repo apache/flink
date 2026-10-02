@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.ThreadSafeSimpleCounter;
+import org.apache.flink.metrics.ThreadSafeSimpleMonotonicCounter;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.clock.Clock;
@@ -131,10 +131,10 @@ public class DefaultLookupCache implements LookupCache {
                 guavaCache = guavaCacheBuilder.build();
             }
             if (hitCounter == null) {
-                hitCounter = new ThreadSafeSimpleCounter();
+                hitCounter = new ThreadSafeSimpleMonotonicCounter();
             }
             if (missCounter == null) {
-                missCounter = new ThreadSafeSimpleCounter();
+                missCounter = new ThreadSafeSimpleMonotonicCounter();
             }
         }
         // Register metrics

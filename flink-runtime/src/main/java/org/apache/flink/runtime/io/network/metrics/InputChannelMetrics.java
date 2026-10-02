@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.metrics;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MonotonicCounter;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -34,10 +35,10 @@ public class InputChannelMetrics {
     private static final String IO_NUM_BUFFERS_IN_LOCAL = MetricNames.IO_NUM_BUFFERS_IN + "Local";
     private static final String IO_NUM_BUFFERS_IN_REMOTE = MetricNames.IO_NUM_BUFFERS_IN + "Remote";
 
-    private final Counter numBytesInLocal;
-    private final Counter numBytesInRemote;
-    private final Counter numBuffersInLocal;
-    private final Counter numBuffersInRemote;
+    private final MonotonicCounter numBytesInLocal;
+    private final MonotonicCounter numBytesInRemote;
+    private final MonotonicCounter numBuffersInLocal;
+    private final MonotonicCounter numBuffersInRemote;
 
     public InputChannelMetrics(MetricGroup... parents) {
         this.numBytesInLocal = createCounter(IO_NUM_BYTES_IN_LOCAL, parents);
@@ -46,10 +47,10 @@ public class InputChannelMetrics {
         this.numBuffersInRemote = createCounter(IO_NUM_BUFFERS_IN_REMOTE, parents);
     }
 
-    private static Counter createCounter(String name, MetricGroup... parents) {
+    private static MonotonicCounter createCounter(String name, MetricGroup... parents) {
         Counter[] counters = new Counter[parents.length];
         for (int i = 0; i < parents.length; i++) {
-            counters[i] = parents[i].counter(name);
+            counters[i] = parents[i].monotonicCounter(name);
             parents[i].meter(name + MetricNames.SUFFIX_RATE, new MeterView(counters[i]));
         }
         return new MultiCounterWrapper(counters);
@@ -71,7 +72,7 @@ public class InputChannelMetrics {
         return numBuffersInRemote;
     }
 
-    private static class MultiCounterWrapper implements Counter {
+    private static class MultiCounterWrapper implements MonotonicCounter {
         private final Counter[] counters;
 
         private MultiCounterWrapper(Counter... counters) {
@@ -90,20 +91,6 @@ public class InputChannelMetrics {
         public void inc(long n) {
             for (Counter c : counters) {
                 c.inc(n);
-            }
-        }
-
-        @Override
-        public void dec() {
-            for (Counter c : counters) {
-                c.dec();
-            }
-        }
-
-        @Override
-        public void dec(long n) {
-            for (Counter c : counters) {
-                c.dec(n);
             }
         }
 
