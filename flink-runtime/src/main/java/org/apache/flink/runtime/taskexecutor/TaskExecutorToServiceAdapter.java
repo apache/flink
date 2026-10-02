@@ -43,6 +43,11 @@ public class TaskExecutorToServiceAdapter implements TaskManagerRunner.TaskExecu
     }
 
     @Override
+    public void prepareForTermination() {
+        taskExecutor.prepareForTermination();
+    }
+
+    @Override
     public CompletableFuture<Void> closeAsync() {
         return taskExecutor.closeAsync();
     }

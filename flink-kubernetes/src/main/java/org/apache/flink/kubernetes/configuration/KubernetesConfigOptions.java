@@ -656,6 +656,27 @@ public class KubernetesConfigOptions {
      * #KUBERNETES_PERSISTENT_VOLUME_CLAIMS}. If you need different access modes for different PVCs,
      * consider using pod templates instead.
      */
+    public static final ConfigOption<Duration> TASK_MANAGER_TERMINATION_GRACE_PERIOD =
+            key("kubernetes.taskmanager.termination-grace-period")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If set, the TaskManager pod's %s is set to this value, and a %s "
+                                                    + "lifecycle hook is added that signals the TaskExecutor to "
+                                                    + "proactively disconnect from the ResourceManager - instead of "
+                                                    + "waiting to be timed out - so its slots are freed immediately "
+                                                    + "rather than after the heartbeat timeout elapses. Left unset, "
+                                                    + "no lifecycle hook is added and Kubernetes' own default grace "
+                                                    + "period behavior applies. Has no effect if the pod template "
+                                                    + "already configures %s or a %s hook.",
+                                            code("terminationGracePeriodSeconds"),
+                                            code("preStop"),
+                                            code("terminationGracePeriodSeconds"),
+                                            code("preStop"))
+                                    .build());
+
     public static final ConfigOption<Boolean> KUBERNETES_PERSISTENT_VOLUME_CLAIM_READ_ONLY =
             key("kubernetes.persistent-volume-claim-read-only")
                     .booleanType()
