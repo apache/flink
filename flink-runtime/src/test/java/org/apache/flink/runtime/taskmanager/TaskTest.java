@@ -316,7 +316,8 @@ public class TaskTest extends TestLogger {
         final ShuffleDescriptor shuffleDescriptor =
                 NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
         final ResultPartitionDeploymentDescriptor dummyPartition =
-                new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
+                new ResultPartitionDeploymentDescriptor(
+                        partitionDescriptor, shuffleDescriptor, 1, 1);
         testExecutionFailsInNetworkRegistration(
                 Collections.singletonList(dummyPartition), Collections.emptyList());
     }

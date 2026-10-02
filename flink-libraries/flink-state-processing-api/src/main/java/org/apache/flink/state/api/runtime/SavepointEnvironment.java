@@ -323,6 +323,11 @@ public class SavepointEnvironment implements Environment {
     }
 
     @Override
+    public int getWriterConsumerParallelism(int index) {
+        throw new UnsupportedOperationException(ERROR_MSG);
+    }
+
+    @Override
     public ResultPartitionWriter[] getAllWriters() {
         return new ResultPartitionWriter[0];
     }
