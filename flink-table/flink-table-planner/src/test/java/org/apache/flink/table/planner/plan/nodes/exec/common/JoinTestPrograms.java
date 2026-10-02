@@ -44,6 +44,7 @@ public class JoinTestPrograms {
     public static final TableTestProgram SEMI_ANTI_JOIN_WITH_LITERAL_AGG;
     public static final TableTestProgram LEFT_JOIN_UPSERT_INPUT_NON_EQUI;
     public static final TableTestProgram LEFT_JOIN_UPSERT_INPUT_NON_EQUI_WITHOUT_CHANGELOG_MODES;
+    public static final TableTestProgram INNER_JOIN_KEY_ONLY_DELETES_NON_EQUI;
 
     static final SourceTestStep EMPLOYEE =
             SourceTestStep.newBuilder("EMPLOYEE")
@@ -516,6 +517,54 @@ public class JoinTestPrograms {
                 leftJoinWithUpsertInputAndNonEquiCondition(
                         "join-left-join-upsert-input-non-equi-without-changelog-modes",
                         "left join with an upsert input and a non-equi condition restored from a plan without input changelog modes");
+
+        // the full image of the deleted line is only in the restored state
+        INNER_JOIN_KEY_ONLY_DELETES_NON_EQUI =
+                TableTestProgram.of(
+                                "join-inner-join-key-only-deletes-non-equi",
+                                "inner join with an input that deletes by key and a non-equi condition")
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("orders")
+                                        .addSchema(
+                                                "order_id INT PRIMARY KEY NOT ENFORCED",
+                                                "excluded_status STRING")
+                                        .producedBeforeRestore(Row.of(1, "cancelled"))
+                                        .build())
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("lines")
+                                        .addSchema(
+                                                "order_id INT",
+                                                "line_id STRING",
+                                                "status STRING",
+                                                "PRIMARY KEY (order_id, line_id) NOT ENFORCED")
+                                        .addOption("changelog-mode", "I,UA,D")
+                                        .addOption("source.produces-delete-by-key", "true")
+                                        .producedBeforeRestore(
+                                                Row.ofKind(RowKind.INSERT, 1, "l1", "new"))
+                                        .producedAfterRestore(
+                                                Row.ofKind(RowKind.DELETE, 1, "l1", null),
+                                                Row.ofKind(RowKind.INSERT, 1, "l2", "paid"))
+                                        .build())
+                        .setupTableSink(
+                                SinkTestStep.newBuilder("MySink")
+                                        .addSchema(
+                                                "order_id INT",
+                                                "line_id STRING",
+                                                "status STRING",
+                                                "excluded_status STRING",
+                                                "PRIMARY KEY (order_id, line_id) NOT ENFORCED")
+                                        .addOption("changelog-mode", "I,UA,D")
+                                        .addOption("sink.supports-delete-by-key", "true")
+                                        .consumedBeforeRestore("+I[1, l1, new, cancelled]")
+                                        .consumedAfterRestore(
+                                                "-D[1, l1, new, cancelled]",
+                                                "+I[1, l2, paid, cancelled]")
+                                        .build())
+                        .runSql(
+                                "INSERT INTO MySink SELECT l.order_id, l.line_id, l.status, o.excluded_status "
+                                        + "FROM orders o JOIN lines l "
+                                        + "ON o.order_id = l.order_id AND l.status <> o.excluded_status")
+                        .build();
     }
 
     /**
