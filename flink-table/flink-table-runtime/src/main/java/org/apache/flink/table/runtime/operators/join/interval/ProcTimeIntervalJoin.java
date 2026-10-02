@@ -45,7 +45,9 @@ public final class ProcTimeIntervalJoin extends TimeIntervalJoin {
                 leftType,
                 rightType,
                 genJoinFunc,
-                earlyFireDelay);
+                earlyFireDelay,
+                // A proctime join's early fire shares the cleanup domain; never cross-domain.
+                false);
     }
 
     @Override

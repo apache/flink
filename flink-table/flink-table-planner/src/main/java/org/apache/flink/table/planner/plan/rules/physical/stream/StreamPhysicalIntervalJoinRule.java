@@ -187,12 +187,6 @@ public class StreamPhysicalIntervalJoinRule
                     "EARLY_FIRE hint requested row-time triggering on a processing-time interval"
                             + " join. Row-time triggering requires a row-time interval join.");
         }
-        if (isEventTime && timeMode == TimeMode.PROCTIME) {
-            // Processing-time triggering on an event-time interval join is not supported.
-            throw new TableException(
-                    "EARLY_FIRE hint requested processing-time triggering on a row-time interval"
-                            + " join, which is not yet supported.");
-        }
 
         return new EarlyFire(delay == null ? null : delay.toMillis(), timeMode);
     }
