@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -180,6 +181,21 @@ public interface KeyedStateBackend<K>
      * @return returns ture if safe to reuse the key-values from the state-backend.
      */
     default boolean isSafeToReuseKVState() {
+        return false;
+    }
+
+    /**
+     * Whether this backend migrates restored values at the object level.
+     *
+     * <p>A backend returning {@code true} guarantees that every value it restores under a {@code
+     * compatibleAfterMigration} verdict passes through {@link
+     * org.apache.flink.api.common.typeutils.TypeSerializerSnapshot#migrate} on the state's own
+     * value serializer. State schema evolution is armed only on such a backend: on any other one
+     * the verdict would be accepted and the stored bytes rewritten under the new schema with
+     * nothing ever converting them.
+     */
+    @Internal
+    default boolean supportsObjectLevelValueMigration() {
         return false;
     }
 
