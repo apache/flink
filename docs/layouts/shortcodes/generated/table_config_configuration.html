@@ -75,6 +75,12 @@
             <td>If enabled, executing a CREATE OR ALTER MATERIALIZED TABLE on an existing regular table converts it in place to a materialized table, preserving identity and storage. The option is read at planning time from the session's root configuration, so it must be set when the TableEnvironment session is initialized (for example in the cluster configuration file config.yaml, or in the configuration used to create the session); a session-level SET statement has no effect. When disabled (the default), CREATE OR ALTER MATERIALIZED TABLE against a regular table is rejected.</td>
         </tr>
         <tr>
+            <td><h5>table.order-by-all-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enables the 'ORDER BY ALL' clause, a shorthand that sorts by every expression in the SELECT list, from left to right. A trailing ASC/DESC and NULLS FIRST/LAST applies to all sort keys. Disabled by default during the initial rollout; will be enabled by default in a future release.</td>
+        </tr>
+        <tr>
             <td><h5>table.plan.compile.catalog-objects</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">ALL</td>
             <td><p>Enum</p></td>
