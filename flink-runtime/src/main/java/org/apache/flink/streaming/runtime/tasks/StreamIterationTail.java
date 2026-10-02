@@ -155,6 +155,7 @@ public class StreamIterationTail<IN> extends OneInputStreamTask<IN, IN> {
                     dataChannel.put(record);
                 }
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
         }

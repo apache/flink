@@ -117,7 +117,7 @@ public class ComponentClosingUtils {
             executor.shutdown();
             executor.awaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException ie) {
-            // Let it go.
+            Thread.currentThread().interrupt();
         }
         if (!executor.isTerminated()) {
             shutdownExecutorForcefully(executor, Duration.ZERO, false);
@@ -159,6 +159,9 @@ public class ComponentClosingUtils {
                 isInterrupted = interruptable;
             }
         } while (!isInterrupted && deadline.hasTimeLeft() && !executor.isTerminated());
+        if (isInterrupted) {
+            Thread.currentThread().interrupt();
+        }
         return executor.isTerminated();
     }
 
@@ -177,7 +180,7 @@ public class ComponentClosingUtils {
             try {
                 Thread.sleep(10);
             } catch (InterruptedException e) {
-                // Let it go.
+                Thread.currentThread().interrupt();
             }
         }
     }

@@ -64,6 +64,7 @@ public class BlockingPhysicalFilePool extends PhysicalFilePool {
         try {
             return ((BlockingQueue<PhysicalFile>) getFileQueue(subtaskKey, scope)).take();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
     }

@@ -1232,6 +1232,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
                 this.inputs[index] = in;
                 return in;
             } catch (InterruptedException iex) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(
                         "Interrupted while waiting for input " + index + " to become available.");
             } catch (IOException ioex) {

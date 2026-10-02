@@ -44,6 +44,7 @@ public class Broker<V> {
             mediations.remove(key);
             return objToShare;
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
     }
@@ -64,6 +65,7 @@ public class Broker<V> {
             }
             return objToShare;
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
     }

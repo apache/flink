@@ -1113,7 +1113,9 @@ public class FutureUtils {
         if (isCompletedNormally(future)) {
             try {
                 return future.get();
-            } catch (InterruptedException | ExecutionException ignored) {
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (ExecutionException ignored) {
             }
         }
         return null;

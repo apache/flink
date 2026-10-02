@@ -63,6 +63,7 @@ public class ReaderIterator<T> implements MutableObjectIterator<T> {
                 return null;
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new IOException("Reader interrupted.", e);
         }
     }
@@ -76,6 +77,7 @@ public class ReaderIterator<T> implements MutableObjectIterator<T> {
                 return null;
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new IOException("Reader interrupted.", e);
         }
     }

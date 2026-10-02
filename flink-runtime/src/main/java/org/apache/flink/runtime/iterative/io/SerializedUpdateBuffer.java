@@ -142,6 +142,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
         try {
             return emptyBuffers.take();
         } catch (InterruptedException iex) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(
                     "Spilling Fifo Queue was interrupted while waiting for next buffer.");
         }
@@ -224,6 +225,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
                                 readSegments,
                                 numBuffersSpilled - 1);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(
                         "SerializedUpdateBuffer was interrupted while reclaiming memory by spilling.",
                         e);
@@ -237,6 +239,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
         try {
             seekOutput(emptyBuffers.take(), HEADER_LENGTH);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(
                     "SerializedUpdateBuffer was interrupted while reclaiming memory by spilling.",
                     e);
@@ -276,6 +279,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
                 freeMem.add(emptyBuffers.take());
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RuntimeException(
                     "Retrieving memory back from asynchronous I/O was interrupted.", e);
         }
@@ -338,6 +342,7 @@ public class SerializedUpdateBuffer extends AbstractPagedOutputView {
                 try {
                     return spilledBufferSource.getReturnQueue().take();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     throw new RuntimeException(
                             "Read End was interrupted while waiting for spilled buffer.", e);
                 }
