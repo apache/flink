@@ -24,6 +24,8 @@ import oshi.hardware.CentralProcessor;
 import oshi.hardware.CentralProcessor.TickType;
 import oshi.hardware.HardwareAbstractionLayer;
 import oshi.hardware.NetworkIF;
+import oshi.software.os.OSProcess;
+import oshi.software.os.OperatingSystem;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -49,6 +51,9 @@ public class SystemResourcesCounter extends Thread {
     private final long probeIntervalMs;
     private final SystemInfo systemInfo = new SystemInfo();
     private final HardwareAbstractionLayer hardwareAbstractionLayer = systemInfo.getHardware();
+    private final OperatingSystem operatingSystem = systemInfo.getOperatingSystem();
+    private final int processId;
+    private final int logicalProcessorCount;
 
     private volatile boolean running = true;
 
@@ -78,15 +83,23 @@ public class SystemResourcesCounter extends Thread {
     private AtomicLongArray receiveRatePerInterface;
     private AtomicLongArray sendRatePerInterface;
 
+    private OSProcess previousProcessSnapshot;
+
+    private volatile double processCpuUsage;
+    private volatile long processMemoryRSS;
+    private volatile long processBytesRead;
+    private volatile long processBytesWritten;
+
     public SystemResourcesCounter(Duration probeInterval) {
         probeIntervalMs = probeInterval.toMillis();
         checkState(this.probeIntervalMs > 0);
 
         setName(SystemResourcesCounter.class.getSimpleName() + " probing thread");
 
-        cpuUsagePerProcessor =
-                new AtomicReferenceArray<>(
-                        hardwareAbstractionLayer.getProcessor().getLogicalProcessorCount());
+        processId = operatingSystem.getProcessId();
+        logicalProcessorCount = hardwareAbstractionLayer.getProcessor().getLogicalProcessorCount();
+
+        cpuUsagePerProcessor = new AtomicReferenceArray<>(logicalProcessorCount);
 
         List<NetworkIF> networkIFs = hardwareAbstractionLayer.getNetworkIFs();
         bytesReceivedPerInterface = new long[networkIFs.size()];
@@ -106,6 +119,7 @@ public class SystemResourcesCounter extends Thread {
             while (running) {
                 calculateCPUUsage(hardwareAbstractionLayer.getProcessor());
                 calculateNetworkUsage(hardwareAbstractionLayer.getNetworkIFs());
+                calculateProcessUsage();
                 Thread.sleep(probeIntervalMs);
             }
         } catch (InterruptedException e) {
@@ -187,6 +201,22 @@ public class SystemResourcesCounter extends Thread {
 
     public long getSendRatePerInterface(int interfaceNo) {
         return sendRatePerInterface.get(interfaceNo);
+    }
+
+    public double getProcessCpuUsage() {
+        return processCpuUsage;
+    }
+
+    public long getProcessMemoryRSS() {
+        return processMemoryRSS;
+    }
+
+    public long getProcessBytesRead() {
+        return processBytesRead;
+    }
+
+    public long getProcessBytesWritten() {
+        return processBytesWritten;
     }
 
     private long[] getSystemCpuLoadTicksDiff(CentralProcessor processor) {
@@ -279,5 +309,25 @@ public class SystemResourcesCounter extends Thread {
             bytesReceivedPerInterface[i] = networkIF.getBytesRecv();
             bytesSentPerInterface[i] = networkIF.getBytesSent();
         }
+    }
+
+    private void calculateProcessUsage() {
+        OSProcess process = operatingSystem.getProcess(processId);
+        if (process == null) {
+            return;
+        }
+        // CPU load is only available relative to a prior snapshot; report 0 until we have one.
+        if (previousProcessSnapshot != null) {
+            // getProcessCpuLoadBetweenTicks() returns the number of cores used; normalize it to a
+            // percentage of the whole machine to match the semantics of System.CPU.Usage.
+            processCpuUsage =
+                    100d
+                            * process.getProcessCpuLoadBetweenTicks(previousProcessSnapshot)
+                            / logicalProcessorCount;
+        }
+        processMemoryRSS = process.getResidentSetSize();
+        processBytesRead = process.getBytesRead();
+        processBytesWritten = process.getBytesWritten();
+        previousProcessSnapshot = process;
     }
 }
