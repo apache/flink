@@ -27,6 +27,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Stream;
 
@@ -34,6 +35,12 @@ import static java.nio.charset.StandardCharsets.UTF_16;
 import static java.nio.charset.StandardCharsets.UTF_16BE;
 import static java.nio.charset.StandardCharsets.UTF_16LE;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.flink.types.variant.BinaryVariantUtil.DECIMAL16;
+import static org.apache.flink.types.variant.BinaryVariantUtil.DECIMAL4;
+import static org.apache.flink.types.variant.BinaryVariantUtil.DECIMAL8;
+import static org.apache.flink.types.variant.BinaryVariantUtil.MAX_SHORT_STR_SIZE;
+import static org.apache.flink.types.variant.BinaryVariantUtil.U32_SIZE;
+import static org.apache.flink.types.variant.BinaryVariantUtil.primitiveHeader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -200,5 +207,59 @@ class BinaryVariantInternalBuilderTest {
         ArrayList<Float> floatList = new ArrayList<>(Collections.nCopies(25, 4.2f));
 
         assertThatCode(() -> floatList.forEach(builder::appendFloat)).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "",
+                "Grüße, 世界 🚀",
+                "A string longer than 63 bytes is stored with a 4-byte length header."
+            })
+    void testAppendStringStoresUtf8BytesAsTheyAre(final String str) {
+        final byte[] utf8 = str.getBytes(UTF_8);
+        final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        builder.appendString(utf8);
+        final BinaryVariant variant = builder.build();
+
+        final byte[] value = variant.getValue();
+        final int headerSize = utf8.length > MAX_SHORT_STR_SIZE ? 1 + U32_SIZE : 1;
+        assertThat(Arrays.copyOfRange(value, headerSize, value.length)).isEqualTo(utf8);
+        assertThat(variant.getString()).isEqualTo(str);
+    }
+
+    @ParameterizedTest(name = "unscaled={0}, scale={1}")
+    @MethodSource("unscaledDecimals")
+    void testAppendDecimalFromUnscaledLong(
+            final long unscaled, final int scale, final int decimalType) {
+        final BigDecimal decimal = BigDecimal.valueOf(unscaled, scale);
+        final BinaryVariantInternalBuilder fromLong = new BinaryVariantInternalBuilder(false);
+        fromLong.appendDecimal(unscaled, scale);
+        final BinaryVariantInternalBuilder fromBigDecimal = new BinaryVariantInternalBuilder(false);
+        fromBigDecimal.appendDecimal(decimal);
+
+        final BinaryVariant variant = fromLong.build();
+        assertThat(variant).isEqualTo(fromBigDecimal.build());
+        assertThat(variant.getValue()[0]).isEqualTo(primitiveHeader(decimalType));
+        assertThat(variant.getDecimal()).isEqualByComparingTo(decimal);
+    }
+
+    private static Stream<Arguments> unscaledDecimals() {
+        return Stream.of(
+                Arguments.of(0L, 0, DECIMAL4),
+                Arguments.of(999_999_999L, 9, DECIMAL4),
+                Arguments.of(-999_999_999L, 9, DECIMAL4),
+                Arguments.of(1_000_000_000L, 0, DECIMAL8),
+                Arguments.of(-1_000_000_000L, 0, DECIMAL8),
+                Arguments.of(1L, 10, DECIMAL8),
+                Arguments.of(999_999_999_999_999_999L, 18, DECIMAL8),
+                Arguments.of(-999_999_999_999_999_999L, 18, DECIMAL8),
+                Arguments.of(1_000_000_000_000_000_000L, 0, DECIMAL16),
+                Arguments.of(-1_000_000_000_000_000_000L, 0, DECIMAL16),
+                Arguments.of(1L, 19, DECIMAL16),
+                Arguments.of(Long.MAX_VALUE, 38, DECIMAL16),
+                Arguments.of(Long.MIN_VALUE, 0, DECIMAL16),
+                // A negative scale is rescaled to 0.
+                Arguments.of(5L, -1, DECIMAL4));
     }
 }
