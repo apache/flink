@@ -95,11 +95,12 @@ class XmlFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_STRING(PARSE_XML(f0, f3))",
                         BOOK_FORCE_ARRAY_JSON,
                         STRING().notNull())
+                // A NULL force_array is treated as false.
                 .testResult(
                         jsonString(call("PARSE_XML", $("f0"), $("f4"))),
                         "JSON_STRING(PARSE_XML(f0, f4))",
-                        null,
-                        STRING())
+                        BOOK_JSON,
+                        STRING().notNull())
                 .testResult(
                         $("f0").parseXml().at("book").at("title").cast(STRING()),
                         "CAST(PARSE_XML(f0).book.title AS STRING)",
@@ -137,7 +138,13 @@ class XmlFunctionsITCase extends BuiltInFunctionTestBase {
                 .testTableApiRuntimeError(
                         $("f2").parseXml(true),
                         TableRuntimeException.class,
-                        "Failed to parse XML string");
+                        "Failed to parse XML string")
+                // FROM_BASE64 doesn't validate the decoded bytes, so this is <a>, 0xFF, </a>. An
+                // invalid UTF-8 byte is read as U+FFFD, like in any other conversion to a string.
+                .testSqlResult(
+                        "JSON_STRING(PARSE_XML(FROM_BASE64('PGE+/zwvYT4=')))",
+                        "{\"a\":\"\ufffd\"}",
+                        STRING().notNull());
     }
 
     private static TestSetSpec tryParseXmlSpec() {
