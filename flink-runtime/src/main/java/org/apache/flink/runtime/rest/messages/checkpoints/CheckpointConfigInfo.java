@@ -72,6 +72,14 @@ public class CheckpointConfigInfo implements ResponseBody {
 
     public static final String FIELD_NAME_CHANGELOG_STORAGE = "changelog_storage";
 
+    public static final String FIELD_NAME_REGIONAL_CHECKPOINT_ENABLED =
+            "regional_checkpoint_enabled";
+
+    public static final String FIELD_NAME_REGIONAL_MAX_FAILURE_RATIO = "regional_max_failure_ratio";
+
+    public static final String FIELD_NAME_REGIONAL_MAX_CONSECUTIVE_FAILURES =
+            "regional_max_consecutive_failures";
+
     @JsonProperty(FIELD_NAME_PROCESSING_MODE)
     private final ProcessingMode processingMode;
 
@@ -117,6 +125,15 @@ public class CheckpointConfigInfo implements ResponseBody {
     @JsonProperty(FIELD_NAME_CHANGELOG_STORAGE)
     private final String changelogStorage;
 
+    @JsonProperty(FIELD_NAME_REGIONAL_CHECKPOINT_ENABLED)
+    private final boolean regionalCheckpointEnabled;
+
+    @JsonProperty(FIELD_NAME_REGIONAL_MAX_FAILURE_RATIO)
+    private final double regionalMaxFailureRatio;
+
+    @JsonProperty(FIELD_NAME_REGIONAL_MAX_CONSECUTIVE_FAILURES)
+    private final int regionalMaxConsecutiveFailures;
+
     @JsonCreator
     public CheckpointConfigInfo(
             @JsonProperty(FIELD_NAME_PROCESSING_MODE) ProcessingMode processingMode,
@@ -136,7 +153,11 @@ public class CheckpointConfigInfo implements ResponseBody {
             @JsonProperty(FIELD_NAME_STATE_CHANGELOG) boolean stateChangelog,
             @JsonProperty(FIELD_NAME_PERIODIC_MATERIALIZATION_INTERVAL)
                     long periodicMaterializationInterval,
-            @JsonProperty(FIELD_NAME_CHANGELOG_STORAGE) String changelogStorage) {
+            @JsonProperty(FIELD_NAME_CHANGELOG_STORAGE) String changelogStorage,
+            @JsonProperty(FIELD_NAME_REGIONAL_CHECKPOINT_ENABLED) boolean regionalCheckpointEnabled,
+            @JsonProperty(FIELD_NAME_REGIONAL_MAX_FAILURE_RATIO) double regionalMaxFailureRatio,
+            @JsonProperty(FIELD_NAME_REGIONAL_MAX_CONSECUTIVE_FAILURES)
+                    int regionalMaxConsecutiveFailures) {
         this.processingMode = Preconditions.checkNotNull(processingMode);
         this.checkpointInterval = checkpointInterval;
         this.checkpointTimeout = checkpointTimeout;
@@ -152,6 +173,9 @@ public class CheckpointConfigInfo implements ResponseBody {
         this.stateChangelog = stateChangelog;
         this.periodicMaterializationInterval = periodicMaterializationInterval;
         this.changelogStorage = changelogStorage;
+        this.regionalCheckpointEnabled = regionalCheckpointEnabled;
+        this.regionalMaxFailureRatio = regionalMaxFailureRatio;
+        this.regionalMaxConsecutiveFailures = regionalMaxConsecutiveFailures;
     }
 
     @Override
@@ -177,7 +201,10 @@ public class CheckpointConfigInfo implements ResponseBody {
                 && checkpointsWithFinishedTasks == that.checkpointsWithFinishedTasks
                 && stateChangelog == that.stateChangelog
                 && periodicMaterializationInterval == that.periodicMaterializationInterval
-                && changelogStorage == that.changelogStorage;
+                && changelogStorage == that.changelogStorage
+                && regionalCheckpointEnabled == that.regionalCheckpointEnabled
+                && Double.compare(regionalMaxFailureRatio, that.regionalMaxFailureRatio) == 0
+                && regionalMaxConsecutiveFailures == that.regionalMaxConsecutiveFailures;
     }
 
     @Override
@@ -197,7 +224,22 @@ public class CheckpointConfigInfo implements ResponseBody {
                 checkpointsWithFinishedTasks,
                 stateChangelog,
                 periodicMaterializationInterval,
-                changelogStorage);
+                changelogStorage,
+                regionalCheckpointEnabled,
+                regionalMaxFailureRatio,
+                regionalMaxConsecutiveFailures);
+    }
+
+    public boolean isRegionalCheckpointEnabled() {
+        return regionalCheckpointEnabled;
+    }
+
+    public double getRegionalMaxFailureRatio() {
+        return regionalMaxFailureRatio;
+    }
+
+    public int getRegionalMaxConsecutiveFailures() {
+        return regionalMaxConsecutiveFailures;
     }
 
     /** Contains information about the externalized checkpoint configuration. */
