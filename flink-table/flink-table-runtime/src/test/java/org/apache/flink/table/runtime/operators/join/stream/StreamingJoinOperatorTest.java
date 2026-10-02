@@ -19,12 +19,14 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.AsyncStateStreamingJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
@@ -37,6 +39,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+
+import javax.annotation.Nullable;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -987,6 +991,114 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
                 rowOfKind(RowKind.INSERT, null, null, null, "LineOrd#1", "SHIP"));
     }
 
+    /**
+     * A DELETE of only the key is joined with the stored row, so it retracts the matches one by one
+     * and restores the null padding of the right row after the last one.
+     */
+    @TestTemplate
+    void testRightOuterJoinKeyOnlyDeletesOfLeft() throws Exception {
+        assumeFalse(enableAsyncState);
+        useStreamingJoinOperator(
+                leftHasUniqueKeySpec(),
+                rightInputSpec,
+                false,
+                true,
+                knownValuesNonEquiCondition(),
+                true);
+
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.processElement1(insertRecord("Ord#2", "LineOrd#1", NEW_ADDRESS));
+        testHarness.getOutput().clear();
+
+        testHarness.processElement1(deleteRecord("Ord#1", "LineOrd#1", null));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", "AIR"));
+
+        testHarness.processElement1(deleteRecord("Ord#2", "LineOrd#1", null));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#2", "LineOrd#1", NEW_ADDRESS, "LineOrd#1", "AIR"),
+                rowOfKind(RowKind.INSERT, null, null, null, "LineOrd#1", "AIR"));
+    }
+
+    /**
+     * Compiled plans before Flink 2.4 do not tell whether a DELETE contains only the key, so it is
+     * joined with the stored row. A row that is not stored, e.g. expired, is joined as it is.
+     */
+    @TestTemplate
+    void testLeftOuterJoinKeyOnlyDeletesOfPreviousPlan() throws Exception {
+        assumeFalse(enableAsyncState);
+        useStreamingJoinOperator(
+                leftInputSpec,
+                rightInputSpec,
+                true,
+                false,
+                knownValuesNonEquiCondition(),
+                true,
+                null);
+
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(deleteRecord("LineOrd#1", null));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", "AIR"),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS, null, null));
+
+        testHarness.processElement1(deleteRecord("Ord#2", "LineOrd#2", null));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.DELETE, "Ord#2", "LineOrd#2", null, null, null));
+    }
+
+    /**
+     * A DELETE is joined as it is if every stored row of the join key matches, if the input sends
+     * full deletes, or if the input has no unique key.
+     */
+    @TestTemplate
+    void testLeftOuterJoinDeletesWithoutLookup() throws Exception {
+        assumeFalse(enableAsyncState);
+        useStreamingJoinOperator(leftInputSpec, rightInputSpec, true, false);
+        assertJoinedDeleteOfRight(deleteRecord("LineOrd#1", null), null);
+
+        useStreamingJoinOperator(
+                leftInputSpec,
+                rightInputSpec,
+                true,
+                false,
+                knownValuesNonEquiCondition(),
+                true,
+                UPSERT_WITH_FULL_DELETES);
+        // differs from the stored row to show that it is not looked up
+        assertJoinedDeleteOfRight(deleteRecord("LineOrd#1", "SHIP"), "SHIP");
+
+        useStreamingJoinOperator(
+                leftInputSpec,
+                JoinInputSideSpec.withoutUniqueKey(),
+                true,
+                false,
+                knownValuesNonEquiCondition(),
+                true);
+        assertJoinedDeleteOfRight(deleteRecord("LineOrd#1", "AIR"), "AIR");
+    }
+
+    private void assertJoinedDeleteOfRight(StreamRecord<RowData> delete, String joinedShipMode)
+            throws Exception {
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(delete);
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(
+                        RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", joinedShipMode),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS, null, null));
+    }
+
     /** Views without a unique key never return a stored record, not even an equal one. */
     @TestTemplate
     void testLeftOuterJoinGetRecord() throws Exception {
@@ -1029,6 +1141,25 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
             GeneratedJoinCondition condition,
             boolean hasNonEquiCondition)
             throws Exception {
+        useStreamingJoinOperator(
+                leftSpec,
+                rightSpec,
+                leftIsOuter,
+                rightIsOuter,
+                condition,
+                hasNonEquiCondition,
+                UPSERT_WITH_KEY_ONLY_DELETES);
+    }
+
+    private void useStreamingJoinOperator(
+            JoinInputSideSpec leftSpec,
+            JoinInputSideSpec rightSpec,
+            boolean leftIsOuter,
+            boolean rightIsOuter,
+            GeneratedJoinCondition condition,
+            boolean hasNonEquiCondition,
+            @Nullable RuntimeChangelogMode inputChangelogMode)
+            throws Exception {
         testHarness.close();
         testHarness =
                 new KeyedTwoInputStreamOperatorTestHarness<>(
@@ -1040,8 +1171,8 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
                                 rightSpec,
                                 leftIsOuter,
                                 rightIsOuter,
-                                UPSERT,
-                                UPSERT,
+                                inputChangelogMode,
+                                inputChangelogMode,
                                 hasNonEquiCondition,
                                 new boolean[] {true},
                                 0L,
