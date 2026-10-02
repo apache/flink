@@ -23,8 +23,11 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions.NonDeterministicUpdateStrategy;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -42,6 +45,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Plan tests for the {@code LATERAL SNAPSHOT} processing-time temporal table join. */
@@ -257,6 +261,71 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                                         + ") AS s ON probe.pk = s.bk");
         assertThat(plan).contains("ChangelogNormalize");
         assertThat(plan).doesNotContain("DropUpdateBefore");
+    }
+
+    @Test
+    void testRejectNonDeterministicBuildColumnWithPrimaryKey() {
+        // The LSJ operator keys its state by the whole build row, so retractions are matched by
+        // exact row equality. A non-deterministic build column therefore breaks retraction even
+        // when the build side has a unique key (FLINK-40890). TRY_RESOLVE must reject it.
+        enableTryResolve();
+        createUpdatingPkBuildSource();
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW b_view AS "
+                                + "SELECT bk, CAST(NOW() AS STRING) AS bn, bts FROM b_pk");
+
+        final String sql =
+                "SELECT probe.pk, s.bk, s.bn FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b_view, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s ON probe.pk = s.bk";
+
+        assertThatThrownBy(() -> util.tableEnv().explainSql(sql))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("can not satisfy the determinism requirement");
+    }
+
+    @Test
+    void testAcceptDeterministicBuildColumnWithPrimaryKey() {
+        // Counterpart to the rejection test: a deterministic build column over the same
+        // primary-keyed, updating source must still pass TRY_RESOLVE (no over-rejection).
+        enableTryResolve();
+        createUpdatingPkBuildSource();
+        util.tableEnv()
+                .executeSql("CREATE VIEW b_view AS SELECT bk, UPPER(bk) AS bn, bts FROM b_pk");
+
+        final String sql =
+                "SELECT probe.pk, s.bk, s.bn FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b_view, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s ON probe.pk = s.bk";
+
+        assertThatCode(() -> util.tableEnv().explainSql(sql)).doesNotThrowAnyException();
+    }
+
+    private void enableTryResolve() {
+        util.tableEnv()
+                .getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+    }
+
+    private void createUpdatingPkBuildSource() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE b_pk ("
+                                + "  bk STRING,"
+                                + "  bv INT,"
+                                + "  bts TIMESTAMP(3),"
+                                + "  WATERMARK FOR bts AS bts,"
+                                + "  PRIMARY KEY (bk) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'bounded' = 'false',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
     }
 
     @Test
