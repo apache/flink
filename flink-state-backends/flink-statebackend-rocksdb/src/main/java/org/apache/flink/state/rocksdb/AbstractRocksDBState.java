@@ -19,6 +19,7 @@ package org.apache.flink.state.rocksdb;
 
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -35,6 +36,8 @@ import org.apache.flink.util.StateMigrationException;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -191,6 +194,7 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
             DataInputDeserializer serializedOldValueInput,
             DataOutputSerializer serializedMigratedValueOutput,
             TypeSerializer<V> priorSerializer,
+            @Nullable TypeSerializerSnapshot<V> priorSerializerSnapshot,
             TypeSerializer<V> newSerializer,
             TtlTimeProvider ttlTimeProvider)
             throws StateMigrationException {
@@ -203,6 +207,7 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
         try {
             ttlAwareNewSerializer.migrateValueFromPriorSerializer(
                     ttlAwarePriorSerializer,
+                    priorSerializerSnapshot,
                     () -> ttlAwarePriorSerializer.deserialize(serializedOldValueInput),
                     serializedMigratedValueOutput,
                     ttlTimeProvider);
