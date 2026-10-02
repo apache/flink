@@ -195,6 +195,29 @@ class BinaryVariantInternalBuilderTest {
     }
 
     @Test
+    void testAppendNestedVariant() throws IOException {
+        final BinaryVariant source =
+                BinaryVariantInternalBuilder.parseJson(
+                        "{\"a\":[7,8,9],\"b\":\"hello\",\"c\":{\"d\":true}}", false);
+        final VariantBuilder builder = Variant.newBuilder();
+
+        final Variant array =
+                builder.array()
+                        .add(source.getField("a"))
+                        .add(source.getField("b"))
+                        .add(source.getField("c"))
+                        .build();
+        assertThat(array.toJson()).isEqualTo("[[7,8,9],\"hello\",{\"d\":true}]");
+
+        final Variant object =
+                builder.object()
+                        .add("x", source.getField("c").getField("d"))
+                        .add("y", source.getField("a").getElement(2))
+                        .build();
+        assertThat(object.toJson()).isEqualTo("{\"x\":true,\"y\":9}");
+    }
+
+    @Test
     void testAppendFloat() {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
         ArrayList<Float> floatList = new ArrayList<>(Collections.nCopies(25, 4.2f));
