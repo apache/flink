@@ -1,0 +1,259 @@
+{
+  "flinkVersion" : "2.3",
+  "nodes" : [ {
+    "id" : 8,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`orders`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "excluded_status",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_order_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "order_id" ]
+            }
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`order_id` INT NOT NULL, `excluded_status` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, orders]], fields=[order_id, excluded_status])"
+  }, {
+    "id" : 9,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` INT NOT NULL, `excluded_status` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[order_id]])"
+  }, {
+    "id" : 10,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`lines`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "line_id",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "status",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_order_id_line_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "order_id", "line_id" ]
+            }
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`order_id` INT NOT NULL, `line_id` VARCHAR(2147483647) NOT NULL, `status` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, lines]], fields=[order_id, line_id, status])"
+  }, {
+    "id" : 11,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` INT NOT NULL, `line_id` VARCHAR(2147483647) NOT NULL, `status` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[order_id]])"
+  }, {
+    "id" : 12,
+    "type" : "stream-exec-join_1",
+    "joinSpec" : {
+      "joinType" : "INNER",
+      "leftKeys" : [ 0 ],
+      "rightKeys" : [ 0 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$<>$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 4,
+          "type" : "VARCHAR(2147483647)"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
+      }
+    },
+    "leftUpsertKeys" : [ [ 0 ] ],
+    "rightUpsertKeys" : [ [ 0, 1 ] ],
+    "leftInputChangelogMode" : [ "INSERT" ],
+    "rightInputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "~DELETE" ],
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "leftState"
+    }, {
+      "index" : 1,
+      "ttl" : "0 ms",
+      "name" : "rightState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` INT NOT NULL, `excluded_status` VARCHAR(2147483647), `order_id0` INT NOT NULL, `line_id` VARCHAR(2147483647) NOT NULL, `status` VARCHAR(2147483647)>",
+    "description" : "Join(joinType=[InnerJoin], where=[((order_id = order_id0) AND (status <> excluded_status))], select=[order_id, excluded_status, order_id0, line_id, status], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])"
+  }, {
+    "id" : 13,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "VARCHAR(2147483647) NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` INT NOT NULL, `line_id` VARCHAR(2147483647) NOT NULL, `status` VARCHAR(2147483647), `excluded_status` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[order_id0 AS order_id, line_id, status, excluded_status])"
+  }, {
+    "id" : 14,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "order_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "line_id",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "status",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "excluded_status",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_order_id_line_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "order_id", "line_id" ]
+            }
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "~DELETE" ],
+    "upsertMaterializeStrategy" : "VALUE",
+    "inputUpsertKey" : [ 0, 1 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`order_id` INT NOT NULL, `line_id` VARCHAR(2147483647) NOT NULL, `status` VARCHAR(2147483647), `excluded_status` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[order_id, line_id, status, excluded_status])"
+  } ],
+  "edges" : [ {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 11,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 9,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 11,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 12,
+    "target" : 13,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 13,
+    "target" : 14,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
