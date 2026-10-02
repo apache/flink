@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>job-result-store.clean-job-result.ttl</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>Determines how long the job results of the embedded (in-memory) job result store are retained after they transitioned into a clean state. If no value is configured, the clean job results are retained indefinitely. Configuring a value bounds the memory consumption of long-running sessions at the cost of no longer being able to answer whether a job result was marked as clean. This option does not affect the file system based job result store which removes the job results on commit unless job-result-store.delete-on-commit is disabled.</td>
+        </tr>
+        <tr>
             <td><h5>job-result-store.storage-path</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
