@@ -90,7 +90,7 @@ public class StreamMockEnvironment implements Environment {
 
     private final JobInfo jobInfo;
 
-    private final TaskInfo taskInfo;
+    private TaskInfo taskInfo;
 
     private final MemoryManager memManager;
 
@@ -335,6 +335,18 @@ public class StreamMockEnvironment implements Environment {
 
     public void setWriterConsumerParallelism(int writerConsumerParallelism) {
         this.writerConsumerParallelism = writerConsumerParallelism;
+    }
+
+    public void setNumberOfParallelSubtasks(int numberOfParallelSubtasks) {
+        this.taskInfo =
+                new TaskInfoImpl(
+                        taskInfo.getTaskName(),
+                        Math.max(
+                                taskInfo.getMaxNumberOfParallelSubtasks(),
+                                numberOfParallelSubtasks),
+                        taskInfo.getIndexOfThisSubtask(),
+                        numberOfParallelSubtasks,
+                        taskInfo.getAttemptNumber());
     }
 
     @Override
