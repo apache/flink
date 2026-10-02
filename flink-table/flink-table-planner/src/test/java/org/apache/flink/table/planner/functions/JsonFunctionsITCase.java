@@ -1085,11 +1085,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f2, f3)",
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         .testTableApiRuntimeError(
                                 call("PARSE_JSON", $("f2"), $("f3")),
                                 TableRuntimeException.class,
-                                "Failed to parse json string"),
+                                "Failed to parse JSON string"),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.TRY_PARSE_JSON)
                         .onFieldsWithData("{\"a\":1}", "1e400", "{\"a\":1,\"a\":2}", null)
                         .andDataTypes(
