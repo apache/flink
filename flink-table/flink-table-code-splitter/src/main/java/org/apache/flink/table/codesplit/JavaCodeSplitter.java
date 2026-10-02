@@ -48,6 +48,9 @@ public class JavaCodeSplitter {
             return code;
         }
 
+        // reset counter so identical input yields identical output
+        CodeSplitUtil.reset();
+
         String returnValueRewrittenCode = new ReturnValueRewriter(code, maxMethodLength).rewrite();
         return Optional.ofNullable(
                         new DeclarationRewriter(returnValueRewrittenCode, maxMethodLength)
