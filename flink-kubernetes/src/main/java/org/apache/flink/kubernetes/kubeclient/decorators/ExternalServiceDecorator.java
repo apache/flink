@@ -60,6 +60,6 @@ public class ExternalServiceDecorator extends AbstractKubernetesStepDecorator {
      * project, so do not delete it.
      */
     public static String getNamespacedExternalServiceName(String clusterId, String namespace) {
-        return getExternalServiceName(clusterId) + "." + namespace;
+        return getExternalServiceName(clusterId) + "." + namespace + ".svc";
     }
 }
