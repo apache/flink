@@ -30,14 +30,6 @@ from typing import Any, List, Tuple, Union
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression
-from pyflink.table.expressions import (
-    CURRENT_RANGE as _CURRENT_RANGE,
-    CURRENT_ROW as _CURRENT_ROW,
-    UNBOUNDED_RANGE as _UNBOUNDED_RANGE,
-    UNBOUNDED_ROW as _UNBOUNDED_ROW,
-    col as _table_col,
-    row_interval,
-)
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = [
@@ -100,7 +92,9 @@ def following(value: Any) -> _FrameBoundary:
 
 def _to_column(value: Union[str, Expression], parameter_name: str) -> Expression:
     if isinstance(value, str):
-        return _table_col(value)
+        from pyflink.table.expressions import col
+
+        return col(value)
     if isinstance(value, Expression):
         return value
     raise TypeError("%s must be a column name or Expression" % parameter_name)
@@ -150,17 +144,24 @@ def _row_expression(value: Any) -> Expression:
         raise TypeError("row boundaries must be integers")
     if value <= 0:
         raise ValueError("row interval must be larger than 0")
+    from pyflink.table.expressions import row_interval
+
     return row_interval(value)
 
 
 def _current_expression(kind: str) -> Expression:
-    return _CURRENT_ROW if kind == "rows" else _CURRENT_RANGE
+    # Keep Expression instances out of module globals: introspection can initialize the gateway.
+    from pyflink.table.expressions import CURRENT_RANGE, CURRENT_ROW
+
+    return CURRENT_ROW if kind == "rows" else CURRENT_RANGE
 
 
 def _unbounded_expression(kind: str) -> Expression:
+    from pyflink.table.expressions import UNBOUNDED_RANGE, UNBOUNDED_ROW
+
     if kind == "rows":
-        return _UNBOUNDED_ROW
-    return _UNBOUNDED_RANGE
+        return UNBOUNDED_ROW
+    return UNBOUNDED_RANGE
 
 
 def _value_expression(value: Any, kind: str) -> Expression:
@@ -172,11 +173,18 @@ def _normalize_bound(bound: Any, kind: str, position: str) -> Expression:
         return _unbounded_expression(kind)
     if bound is CURRENT_ROW:
         return _current_expression(kind)
+    from pyflink.table.expressions import (
+        CURRENT_RANGE,
+        CURRENT_ROW as TABLE_CURRENT_ROW,
+        UNBOUNDED_RANGE,
+        UNBOUNDED_ROW,
+    )
+
     table_bound_names = (
-        (_CURRENT_ROW, "CURRENT_ROW"),
-        (_CURRENT_RANGE, "CURRENT_RANGE"),
-        (_UNBOUNDED_ROW, "UNBOUNDED_ROW"),
-        (_UNBOUNDED_RANGE, "UNBOUNDED_RANGE"),
+        (TABLE_CURRENT_ROW, "CURRENT_ROW"),
+        (CURRENT_RANGE, "CURRENT_RANGE"),
+        (UNBOUNDED_ROW, "UNBOUNDED_ROW"),
+        (UNBOUNDED_RANGE, "UNBOUNDED_RANGE"),
     )
     for table_bound, table_name in table_bound_names:
         if bound is table_bound:
@@ -236,7 +244,7 @@ def _normalize_frame(
         raise ValueError("rows and range are mutually exclusive")
 
     if rows is None and range_ is None:
-        return _UNBOUNDED_RANGE, _CURRENT_RANGE
+        return _unbounded_expression("range"), _current_expression("range")
 
     kind = "rows" if rows is not None else "range"
     value = rows if rows is not None else range_

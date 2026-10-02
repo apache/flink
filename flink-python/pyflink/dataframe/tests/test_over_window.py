@@ -24,11 +24,7 @@ from pyflink.common import Row
 from pyflink.datastream import RuntimeExecutionMode, StreamExecutionEnvironment
 from pyflink.java_gateway import get_gateway
 from pyflink.table import StreamTableEnvironment
-from pyflink.table.expressions import (
-    CURRENT_ROW as TABLE_CURRENT_ROW,
-    lit,
-    row,
-)
+from pyflink.table.expressions import lit, row
 from pyflink.table.table import Table
 from pyflink.table.utils import to_expression_jarray
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -140,12 +136,30 @@ class OverWindowTests(PyFlinkTestCase):
         self.assertIn("CURRENT_ROW", str(unbounded_rows))
 
     def test_table_current_row_constant_is_rejected_with_dataframe_guidance(self):
+        from pyflink.table.expressions import CURRENT_ROW as table_current_row
+
         with self.assertRaisesRegex(
             TypeError, "Use pyflink.dataframe.CURRENT_ROW"
         ):
             pf.col("amount").sum.over(
-                order_by="rowtime", rows=(pf.preceding(1), TABLE_CURRENT_ROW)
+                order_by="rowtime", rows=(pf.preceding(1), table_current_row)
             )
+
+    def test_over_window_module_introspection_does_not_access_gateway(self):
+        import unittest
+        from unittest.mock import patch
+
+        from pyflink.table import _over_window
+
+        with patch(
+            "pyflink.table.expression.get_gateway",
+            side_effect=AssertionError("module introspection accessed the gateway"),
+        ):
+            for value in vars(_over_window).values():
+                try:
+                    issubclass(value, unittest.TestCase)
+                except TypeError:
+                    pass
 
 
 class OverWindowBatchITTests(PyFlinkTestCase):
