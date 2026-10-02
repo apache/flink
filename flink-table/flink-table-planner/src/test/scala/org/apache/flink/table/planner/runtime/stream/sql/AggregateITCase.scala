@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
@@ -126,6 +127,28 @@ class AggregateITCase(
     env.execute()
 
     val expected = List("5")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testGroupByAll(): Unit = {
+    tEnv.getConfig.set(TableConfigOptions.TABLE_GROUP_BY_ALL_ENABLED, Boolean.box(true))
+
+    val data = List((1, 2L), (1, 2L), (3, 4L))
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporaryView("GbaSource", t)
+
+    // GROUP BY ALL groups by the non-aggregated columns (a, b); the streaming aggregate
+    // produces the same final per-group counts as an explicit GROUP BY a, b.
+    val sink = new TestingRetractSink
+    tEnv
+      .sqlQuery("SELECT a, b, COUNT(*) FROM GbaSource GROUP BY ALL")
+      .toRetractStream[Row]
+      .addSink(sink)
+      .setParallelism(1)
+    env.execute()
+
+    val expected = List("1,2,2", "3,4,1")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
