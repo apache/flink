@@ -106,6 +106,7 @@ public class TaskExecutorMemoryConfiguration implements Serializable {
      * @return The newly instantiated TaskExecutorMemoryConfiguration.
      */
     public static TaskExecutorMemoryConfiguration create(Configuration config) {
+        final long totalFlinkMemory = calculateTotalFlinkMemoryFromComponents(config);
         return new TaskExecutorMemoryConfiguration(
                 getConfigurationValue(config, FRAMEWORK_HEAP_MEMORY),
                 getConfigurationValue(config, TASK_HEAP_MEMORY),
@@ -115,8 +116,8 @@ public class TaskExecutorMemoryConfiguration implements Serializable {
                 getConfigurationValue(config, MANAGED_MEMORY_SIZE),
                 getConfigurationValue(config, JVM_METASPACE),
                 getConfigurationValue(config, JVM_OVERHEAD_MAX),
-                calculateTotalFlinkMemoryFromComponents(config),
-                calculateTotalProcessMemoryFromComponents(config));
+                totalFlinkMemory,
+                calculateTotalProcessMemoryFromComponents(config, totalFlinkMemory));
     }
 
     @JsonCreator
