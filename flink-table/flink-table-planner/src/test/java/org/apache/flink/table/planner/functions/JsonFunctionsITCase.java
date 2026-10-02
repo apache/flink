@@ -1081,7 +1081,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString(call("PARSE_JSON", $("f0"), $("f3"))),
                                 "JSON_STRING(PARSE_JSON(f0, f3))",
                                 "{\"a\":1,\"b\":[2,3]}",
-                                STRING())
+                                STRING().notNull())
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f2, f3)",
                                 TableRuntimeException.class,
