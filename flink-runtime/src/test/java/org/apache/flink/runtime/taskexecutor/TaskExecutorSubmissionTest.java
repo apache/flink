@@ -503,7 +503,7 @@ class TaskExecutorSubmissionTest {
                         .build();
 
         ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor =
-                new ResultPartitionDeploymentDescriptor(partitionDescriptor, sdd, 1);
+                new ResultPartitionDeploymentDescriptor(partitionDescriptor, sdd, 1, 1);
         TaskDeploymentDescriptor tdd =
                 createTestTaskDeploymentDescriptor(
                         "task",
@@ -798,7 +798,8 @@ class TaskExecutorSubmissionTest {
                         .setPartitionId(shuffleDescriptor.getResultPartitionID().getPartitionId())
                         .build();
         ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor =
-                new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
+                new ResultPartitionDeploymentDescriptor(
+                        partitionDescriptor, shuffleDescriptor, 1, 1);
         return createTestTaskDeploymentDescriptor(
                 "Sender",
                 shuffleDescriptor.getResultPartitionID().getProducerId(),

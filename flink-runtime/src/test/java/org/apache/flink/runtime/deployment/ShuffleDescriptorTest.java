@@ -274,6 +274,7 @@ class ShuffleDescriptorTest {
                         .registerPartitionWithProducer(
                                 jobID, partitionDescriptor, producerDescriptor)
                         .get();
-        return new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
+        return new ResultPartitionDeploymentDescriptor(
+                partitionDescriptor, shuffleDescriptor, 1, 1);
     }
 }

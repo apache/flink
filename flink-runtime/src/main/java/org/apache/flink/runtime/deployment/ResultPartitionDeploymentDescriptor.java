@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 
 import java.io.Serializable;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -45,14 +46,31 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
     private final int maxParallelism;
 
+    /** Parallelism of the consuming job vertices, or {@link #UNKNOWN_CONSUMER_PARALLELISM}. */
+    private final int consumerParallelism;
+
+    /**
+     * The consumer parallelism is not decided yet when the producer is deployed. This only happens
+     * in dynamic graphs (AdaptiveBatchScheduler), where the parallelism of a consumer vertex may be
+     * decided after its producers are deployed. Every other partition carries the actual consumer
+     * parallelism.
+     */
+    public static final int UNKNOWN_CONSUMER_PARALLELISM = -1;
+
     public ResultPartitionDeploymentDescriptor(
             PartitionDescriptor partitionDescriptor,
             ShuffleDescriptor shuffleDescriptor,
-            int maxParallelism) {
+            int maxParallelism,
+            int consumerParallelism) {
         this.partitionDescriptor = checkNotNull(partitionDescriptor);
         this.shuffleDescriptor = checkNotNull(shuffleDescriptor);
         KeyGroupRangeAssignment.checkParallelismPreconditions(maxParallelism);
         this.maxParallelism = maxParallelism;
+        checkArgument(
+                consumerParallelism > 0 || consumerParallelism == UNKNOWN_CONSUMER_PARALLELISM,
+                "Invalid consumer parallelism %s.",
+                consumerParallelism);
+        this.consumerParallelism = consumerParallelism;
     }
 
     public IntermediateDataSetID getResultId() {
@@ -86,6 +104,16 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
     public int getMaxParallelism() {
         return maxParallelism;
+    }
+
+    /**
+     * Returns the parallelism of the job vertices consuming this partition, or {@link
+     * #UNKNOWN_CONSUMER_PARALLELISM} if it is not decided yet. Unlike {@link
+     * #getNumberOfSubpartitions()}, this is the actual consumer parallelism for every distribution
+     * pattern.
+     */
+    public int getConsumerParallelism() {
+        return consumerParallelism;
     }
 
     public ShuffleDescriptor getShuffleDescriptor() {
