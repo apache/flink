@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.PipelineOptions.ForwardEdgeParallelismMismatchMode;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
@@ -2051,18 +2053,55 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         // The number of subpartitions isn't the consumer parallelism on a POINTWISE edge, so the
         // actual consumer parallelism is passed through the deployment descriptor.
         final int consumerParallelism = environment.getWriterConsumerParallelism(outputIndex);
-        if (streamOutput.getPartitioner() instanceof ForwardPartitioner
+        if (!(streamOutput.getPartitioner() instanceof ForwardPartitioner)
                 // An undecided consumer parallelism is not a mismatch.
-                && consumerParallelism
-                        != ResultPartitionDeploymentDescriptor.UNKNOWN_CONSUMER_PARALLELISM
-                && consumerParallelism != producerParallelism) {
-            LOG.debug(
-                    "Replacing forward partitioner with rebalance for {} "
-                            + "(producer parallelism {} != consumer parallelism {}).",
-                    environment.getTaskInfo().getTaskNameWithSubtasks(),
-                    producerParallelism,
-                    consumerParallelism);
-            streamOutput.setPartitioner(new RebalancePartitioner<>());
+                || consumerParallelism
+                        == ResultPartitionDeploymentDescriptor.UNKNOWN_CONSUMER_PARALLELISM
+                || consumerParallelism == producerParallelism) {
+            return;
+        }
+
+        final ForwardEdgeParallelismMismatchMode mode =
+                environment
+                        .getJobConfiguration()
+                        .get(PipelineOptions.FORWARD_EDGE_PARALLELISM_MISMATCH_MODE);
+        final String taskNameWithSubtasks = environment.getTaskInfo().getTaskNameWithSubtasks();
+        switch (mode) {
+            case REBALANCE:
+                LOG.debug(
+                        "Replacing forward partitioner with rebalance for {} "
+                                + "(producer parallelism {} != consumer parallelism {}).",
+                        taskNameWithSubtasks,
+                        producerParallelism,
+                        consumerParallelism);
+                streamOutput.setPartitioner(new RebalancePartitioner<>());
+                break;
+            case KEEP_FORWARD:
+                LOG.warn(
+                        "Keeping forward partitioner for {} despite a parallelism mismatch "
+                                + "(producer parallelism {} != consumer parallelism {}). Record order "
+                                + "is preserved but records are funneled to a single consumer subtask, "
+                                + "leaving the remaining consumer subtasks idle.",
+                        taskNameWithSubtasks,
+                        producerParallelism,
+                        consumerParallelism);
+                break;
+            case FAIL:
+                throw new FlinkRuntimeException(
+                        String.format(
+                                "Forward partitioning cannot be preserved across a parallelism change "
+                                        + "for %s (producer parallelism %d != consumer parallelism %d). "
+                                        + "Silently downgrading a FORWARD edge to a redistributing "
+                                        + "exchange can reorder records and corrupt order-sensitive "
+                                        + "(changelog) results. Set %s to %s or %s to allow it.",
+                                taskNameWithSubtasks,
+                                producerParallelism,
+                                consumerParallelism,
+                                PipelineOptions.FORWARD_EDGE_PARALLELISM_MISMATCH_MODE.key(),
+                                ForwardEdgeParallelismMismatchMode.REBALANCE,
+                                ForwardEdgeParallelismMismatchMode.KEEP_FORWARD));
+            default:
+                throw new IllegalStateException("Unhandled mode: " + mode);
         }
     }
 
