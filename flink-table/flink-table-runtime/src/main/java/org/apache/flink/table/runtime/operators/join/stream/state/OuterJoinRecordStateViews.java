@@ -119,8 +119,9 @@ public final class OuterJoinRecordStateViews {
         }
 
         @Override
-        public boolean hasRecord(RowData record) throws Exception {
-            return recordState.value() != null;
+        public RowData getRecord(RowData record) throws Exception {
+            final Tuple2<RowData, Integer> tuple = recordState.value();
+            return tuple == null ? null : tuple.f0;
         }
 
         @Override
@@ -197,8 +198,10 @@ public final class OuterJoinRecordStateViews {
         }
 
         @Override
-        public boolean hasRecord(RowData record) throws Exception {
-            return recordState.contains(uniqueKeySelector.getKey(record));
+        public RowData getRecord(RowData record) throws Exception {
+            final Tuple2<RowData, Integer> tuple =
+                    recordState.get(uniqueKeySelector.getKey(record));
+            return tuple == null ? null : tuple.f0;
         }
 
         @Override
@@ -277,9 +280,9 @@ public final class OuterJoinRecordStateViews {
         }
 
         @Override
-        public boolean hasRecord(RowData record) {
+        public RowData getRecord(RowData record) {
             // without a unique key, an equal record is a second record and not an update
-            return false;
+            return null;
         }
 
         @Override

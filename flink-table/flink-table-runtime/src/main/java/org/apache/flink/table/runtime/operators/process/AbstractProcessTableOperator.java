@@ -61,6 +61,7 @@ import org.apache.flink.table.runtime.operators.process.TimeConverter.LongTimeCo
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
