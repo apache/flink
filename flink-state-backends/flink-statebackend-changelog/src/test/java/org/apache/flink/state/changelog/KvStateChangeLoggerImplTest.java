@@ -31,7 +31,7 @@ import static org.apache.flink.api.common.state.StateDescriptor.Type.VALUE;
 import static org.apache.flink.state.changelog.StateChangeOperation.MERGE_NS;
 
 /** {@link KvStateChangeLoggerImpl} test. */
-public class KvStateChangeLoggerImplTest extends StateChangeLoggerTestBase<String> {
+class KvStateChangeLoggerImplTest extends StateChangeLoggerTestBase<String> {
 
     @Override
     protected StateChangeLogger<String, String> getLogger(
