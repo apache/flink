@@ -445,15 +445,73 @@ class LogicalTypeCastsTest {
                         new ArrayType(new VariantType()),
                         false,
                         false),
-                // a whole constructed value does not cast into a single VARIANT yet
-                Arguments.of(new ArrayType(new IntType()), new VariantType(), false, false),
+                // a whole constructed value casts into a single VARIANT when every leaf does
+                Arguments.of(new ArrayType(new IntType()), new VariantType(), false, true),
+                Arguments.of(new ArrayType(new VariantType()), new VariantType(), false, true),
+                Arguments.of(new ArrayType(new NullType()), new VariantType(), false, true),
                 Arguments.of(
                         new MapType(VarCharType.STRING_TYPE, new IntType()),
                         new VariantType(),
                         false,
-                        false),
+                        true),
+                Arguments.of(
+                        new MapType(new CharType(3), new VariantType()),
+                        new VariantType(),
+                        false,
+                        true),
                 Arguments.of(
                         new RowType(List.of(new RowField("a", new IntType()))),
+                        new VariantType(),
+                        false,
+                        true),
+                Arguments.of(new RowType(List.of()), new VariantType(), false, true),
+                Arguments.of(
+                        new RowType(
+                                List.of(
+                                        new RowField(
+                                                "a",
+                                                new ArrayType(
+                                                        new MapType(
+                                                                VarCharType.STRING_TYPE,
+                                                                new RowType(
+                                                                        List.of(
+                                                                                new RowField(
+                                                                                        "b",
+                                                                                        new TimestampType(
+                                                                                                9))))))))),
+                        new VariantType(),
+                        false,
+                        true),
+                Arguments.of(
+                        StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"))
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredAttribute("f1", new TimestampType()),
+                                                new StructuredAttribute("f2", new IntType())))
+                                .build(),
+                        new VariantType(),
+                        false,
+                        true),
+                // a map key is never converted to a string, and every leaf needs a VARIANT kind
+                Arguments.of(
+                        new MapType(new IntType(), new IntType()), new VariantType(), false, false),
+                Arguments.of(
+                        new ArrayType(
+                                new YearMonthIntervalType(
+                                        YearMonthIntervalType.YearMonthResolution.MONTH)),
+                        new VariantType(),
+                        false,
+                        false),
+                Arguments.of(
+                        new MapType(VarCharType.STRING_TYPE, new ZonedTimestampType()),
+                        new VariantType(),
+                        false,
+                        false),
+                Arguments.of(
+                        new RowType(
+                                List.of(
+                                        new RowField(
+                                                "a", new MultisetType(VarCharType.STRING_TYPE)))),
                         new VariantType(),
                         false,
                         false));

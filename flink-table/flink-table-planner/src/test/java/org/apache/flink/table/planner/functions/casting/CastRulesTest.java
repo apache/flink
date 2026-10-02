@@ -2108,6 +2108,45 @@ class CastRulesTest {
                                 MULTISET(INT()),
                                 mapData(entry(1, 2)),
                                 mapData(entry(VARIANT_BUILDER.of(1), 2))),
+                // a whole constructed value becomes one VARIANT, and a NULL element or field
+                // becomes a variant null
+                CastTestSpecBuilder.testCastTo(VARIANT())
+                        .fromCase(
+                                ARRAY(INT()),
+                                new GenericArrayData(new Integer[] {1, null}),
+                                VARIANT_BUILDER
+                                        .array()
+                                        .add(VARIANT_BUILDER.of(1))
+                                        .add(VARIANT_BUILDER.ofNull())
+                                        .build())
+                        .fromCase(
+                                MAP(STRING(), INT()),
+                                mapData(entry(fromString("a"), 1)),
+                                VARIANT_BUILDER.object().add("a", VARIANT_BUILDER.of(1)).build())
+                        .fromCase(
+                                ROW(FIELD("id", BIGINT()), FIELD("tags", ARRAY(STRING()))),
+                                GenericRowData.of(
+                                        7L, new GenericArrayData(new Object[] {fromString("x")})),
+                                VARIANT_BUILDER
+                                        .object()
+                                        .add("id", VARIANT_BUILDER.of(7L))
+                                        .add(
+                                                "tags",
+                                                VARIANT_BUILDER
+                                                        .array()
+                                                        .add(VARIANT_BUILDER.of("x"))
+                                                        .build())
+                                        .build())
+                        .fromCase(
+                                ROW(FIELD("v", VARIANT())),
+                                GenericRowData.of(VARIANT_BUILDER.ofNull()),
+                                VARIANT_BUILDER.object().add("v", VARIANT_BUILDER.ofNull()).build())
+                        .fail(
+                                MAP(STRING(), INT()),
+                                mapData(entry(null, 1)),
+                                TableRuntimeException.class,
+                                "A VARIANT object key cannot be NULL.")
+                        .fromCase(ARRAY(INT()), null, null),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(true), true)
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(false), false)

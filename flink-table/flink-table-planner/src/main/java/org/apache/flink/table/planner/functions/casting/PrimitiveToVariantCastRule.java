@@ -39,7 +39,7 @@ class PrimitiveToVariantCastRule extends AbstractExpressionCodeGeneratorCastRule
     static final PrimitiveToVariantCastRule INSTANCE = new PrimitiveToVariantCastRule();
 
     /** A character takes up to 4 bytes in UTF-8, which a declared length counts as one. */
-    private static final int MAX_UTF8_BYTES_PER_CHAR = 4;
+    static final int MAX_UTF8_BYTES_PER_CHAR = 4;
 
     private PrimitiveToVariantCastRule() {
         super(
