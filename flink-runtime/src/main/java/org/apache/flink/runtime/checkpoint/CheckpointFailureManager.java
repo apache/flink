@@ -141,7 +141,8 @@ public class CheckpointFailureManager {
             statsTracker.reportFailedCheckpoint(
                     pendingCheckpointStats.toFailedCheckpoint(failureTimestamp, exception));
         } else {
-            statsTracker.reportFailedCheckpointsWithoutInProgress();
+            statsTracker.reportFailedCheckpointsWithoutInProgress(
+                    exception.getCheckpointFailureReason());
         }
     }
 
@@ -219,49 +220,11 @@ public class CheckpointFailureManager {
             return;
         }
 
-        CheckpointFailureReason reason = exception.getCheckpointFailureReason();
-        switch (reason) {
-            case PERIODIC_SCHEDULER_SHUTDOWN:
-            case TOO_MANY_CHECKPOINT_REQUESTS:
-            case MINIMUM_TIME_BETWEEN_CHECKPOINTS:
-            case NOT_ALL_REQUIRED_TASKS_RUNNING:
-            case CHECKPOINT_SUBSUMED:
-            case CHECKPOINT_COORDINATOR_SUSPEND:
-            case CHECKPOINT_COORDINATOR_SHUTDOWN:
-            case CHANNEL_STATE_SHARED_STREAM_EXCEPTION:
-            case JOB_FAILOVER_REGION:
-            // for compatibility purposes with user job behavior
-            case CHECKPOINT_DECLINED_TASK_NOT_READY:
-            case CHECKPOINT_DECLINED_TASK_CLOSING:
-            case CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER:
-            case CHECKPOINT_DECLINED_SUBSUMED:
-            case CHECKPOINT_DECLINED_INPUT_END_OF_STREAM:
-
-            case TASK_FAILURE:
-            case TASK_CHECKPOINT_FAILURE:
-            case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
-            // there are some edge cases shouldn't be counted as a failure, e.g. shutdown
-            case TRIGGER_CHECKPOINT_FAILURE:
-            case BLOCKING_OUTPUT_EXIST:
-                // ignore
-                break;
-
-            case IO_EXCEPTION:
-            case CHECKPOINT_ASYNC_EXCEPTION:
-            case CHECKPOINT_DECLINED:
-            case CHECKPOINT_EXPIRED:
-            case FINALIZE_CHECKPOINT_FAILURE:
-                // we should make sure one checkpoint only be counted once
-                if (checkpointId == UNKNOWN_CHECKPOINT_ID
-                        || countedCheckpointIds.add(checkpointId)) {
-                    continuousFailureCounter.incrementAndGet();
-                }
-
-                break;
-
-            default:
-                throw new FlinkRuntimeException(
-                        "Unknown checkpoint failure reason : " + reason.name());
+        if (exception.getCheckpointFailureReason().isCountedAgainstFailureThreshold()) {
+            // we should make sure one checkpoint only be counted once
+            if (checkpointId == UNKNOWN_CHECKPOINT_ID || countedCheckpointIds.add(checkpointId)) {
+                continuousFailureCounter.incrementAndGet();
+            }
         }
     }
 

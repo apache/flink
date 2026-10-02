@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import javax.annotation.Nullable;
+
 /** An interface that allows listening on the checkpoint lifecycle. */
 public interface CheckpointStatsListener {
 
@@ -26,8 +28,13 @@ public interface CheckpointStatsListener {
         // No-op.
     }
 
-    /** Called when a checkpoint failed. */
-    default void onFailedCheckpoint() {
+    /**
+     * Called when a checkpoint failed.
+     *
+     * @param reason the {@link CheckpointFailureReason} categorizing the failure, or {@code null}
+     *     if the cause could not be classified (e.g. a non-{@link CheckpointException} cause).
+     */
+    default void onFailedCheckpoint(@Nullable CheckpointFailureReason reason) {
         // No-op.
     }
 }
