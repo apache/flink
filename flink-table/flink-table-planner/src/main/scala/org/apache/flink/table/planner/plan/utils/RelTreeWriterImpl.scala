@@ -23,14 +23,17 @@ import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 
+import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.core.{Aggregate, Correlate, Join, TableScan}
 import org.apache.calcite.rel.externalize.RelWriterImpl
-import org.apache.calcite.rel.hint.Hintable
+import org.apache.calcite.rel.hint.{Hintable, RelHint}
+import org.apache.calcite.rex.{RexNode, RexSubQuery, RexVisitorImpl}
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.util.Pair
 
-import java.io.PrintWriter
+import java.io.{PrintWriter, StringWriter}
 import java.util
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -139,49 +142,7 @@ class RelTreeWriterImpl(
       case _ => // ignore
     }
 
-    if (withQueryHint) {
-      rel match {
-        case _: Join | _: Correlate =>
-          val joinHints = FlinkHints.getAllJoinHints(rel.asInstanceOf[Hintable].getHints)
-          if (joinHints.nonEmpty) {
-            printValues.add(Pair.of("joinHints", RelExplainUtil.hintsToString(joinHints)))
-          }
-          val stateTtlHints = FlinkHints.getAllStateTtlHints(rel.asInstanceOf[Hintable].getHints)
-          if (stateTtlHints.nonEmpty) {
-            printValues.add(Pair.of("stateTtlHints", RelExplainUtil.hintsToString(stateTtlHints)))
-          }
-
-        case _: Aggregate | _: StreamPhysicalGroupAggregateBase =>
-          val aggHints =
-            rel match {
-              case aggregate: Aggregate => aggregate.getHints
-              case _ => rel.asInstanceOf[StreamPhysicalGroupAggregateBase].hints
-            }
-          val stateTtlHints = FlinkHints.getAllStateTtlHints(aggHints)
-          if (stateTtlHints.nonEmpty) {
-            printValues.add(Pair.of("stateTtlHints", RelExplainUtil.hintsToString(stateTtlHints)))
-          }
-        case _ => // ignore
-      }
-    }
-
-    if (withQueryBlockAlias) {
-      rel match {
-        case node: Hintable =>
-          node match {
-            case _: TableScan =>
-            // We don't need to pint hints about TableScan because TableScan will always
-            // print hints if exist. See more in such as LogicalTableScan#explainTerms
-            case _ =>
-              val queryBlockAliasHints = FlinkHints.getQueryBlockAliasHints(node.getHints)
-              if (queryBlockAliasHints.nonEmpty) {
-                printValues.add(
-                  Pair.of("hints", RelExplainUtil.hintsToString(queryBlockAliasHints)))
-              }
-          }
-        case _ => // ignore
-      }
-    }
+    addHintItems(rel, (term, value) => printValues.add(Pair.of(term, value)))
 
     if (withDuplicateChangesTrait) {
       rel match {
@@ -277,6 +238,122 @@ class RelTreeWriterImpl(
     // increase the counter to track the progress
     statementCnt += 1
     pw.println()
+  }
+
+  override def item(term: String, value: AnyRef): RelWriter = {
+    if (withQueryHint || withQueryBlockAlias) {
+      value match {
+        case rexNode: RexNode =>
+          toHintAwareSubQueryString(rexNode) match {
+            case Some(rendered) => return super.item(term, rendered)
+            case None =>
+          }
+        case _ =>
+      }
+    }
+    super.item(term, value)
+  }
+
+  private def addHintItems(rel: RelNode, addItem: (String, AnyRef) => Unit): Unit = {
+    addQueryHintItems(rel, addItem)
+    addQueryBlockAliasHintItems(rel, addItem)
+  }
+
+  private def addQueryHintItems(rel: RelNode, addItem: (String, AnyRef) => Unit): Unit = {
+    if (withQueryHint) {
+      rel match {
+        case hintable: Hintable if rel.isInstanceOf[Join] || rel.isInstanceOf[Correlate] =>
+          val hints = hintable.getHints
+          addJoinHintItems(hints, addItem)
+          addStateTtlHintItems(hints, addItem)
+        case aggregate: Aggregate =>
+          addStateTtlHintItems(aggregate.getHints, addItem)
+        case aggregate: StreamPhysicalGroupAggregateBase =>
+          addStateTtlHintItems(aggregate.hints, addItem)
+        case _ => // ignore
+      }
+    }
+  }
+
+  private def addQueryBlockAliasHintItems(rel: RelNode, addItem: (String, AnyRef) => Unit): Unit = {
+    if (withQueryBlockAlias) {
+      rel match {
+        case _: TableScan =>
+        // We don't need to pint hints about TableScan because TableScan will always
+        // print hints if exist. See more in such as LogicalTableScan#explainTerms
+        case hintable: Hintable =>
+          val queryBlockAliasHints = FlinkHints.getQueryBlockAliasHints(hintable.getHints)
+          if (queryBlockAliasHints.nonEmpty) {
+            addItem("hints", RelExplainUtil.hintsToString(queryBlockAliasHints))
+          }
+        case _ => // ignore
+      }
+    }
+  }
+
+  private def addJoinHintItems(
+      hints: util.List[RelHint],
+      addItem: (String, AnyRef) => Unit): Unit = {
+    val joinHints = FlinkHints.getAllJoinHints(hints)
+    if (joinHints.nonEmpty) {
+      addItem("joinHints", RelExplainUtil.hintsToString(joinHints))
+    }
+  }
+
+  private def addStateTtlHintItems(
+      hints: util.List[RelHint],
+      addItem: (String, AnyRef) => Unit): Unit = {
+    val stateTtlHints = FlinkHints.getAllStateTtlHints(hints)
+    if (stateTtlHints.nonEmpty) {
+      addItem("stateTtlHints", RelExplainUtil.hintsToString(stateTtlHints))
+    }
+  }
+
+  /** Renders embedded {@link RexSubQuery}s with hint-aware inner relational plans. */
+  private def toHintAwareSubQueryString(node: RexNode): Option[String] = {
+    var found = false
+    var result = node.toString
+    var searchStart = 0
+    node.accept(new RexVisitorImpl[Void](true) {
+      override def visitSubQuery(subQuery: RexSubQuery): Void = {
+        found = true
+        val withoutHints = RelOptUtil.toString(subQuery.rel)
+        val withHints = toHintAwareRelString(subQuery.rel)
+        val start = result.indexOf(withoutHints, searchStart)
+        if (start >= 0) {
+          result =
+            result.substring(0, start) + withHints + result.substring(start + withoutHints.length)
+          searchStart = start + withHints.length
+        }
+        null
+      }
+    })
+    if (found) Some(result) else None
+  }
+
+  /** Produces a flat-style plan string for the given rel that includes hint attributes. */
+  private def toHintAwareRelString(rel: RelNode): String = {
+    val sw = new StringWriter
+    val hintWriter = new RelWriterImpl(new PrintWriter(sw), explainLevel, withIdPrefix) {
+      override def item(term: String, value: AnyRef): RelWriter = {
+        value match {
+          case rexNode: RexNode =>
+            toHintAwareSubQueryString(rexNode) match {
+              case Some(rendered) => super.item(term, rendered)
+              case None => super.item(term, value)
+            }
+          case _ => super.item(term, value)
+        }
+      }
+
+      override def done(node: RelNode): RelWriter = {
+        // RelWriterImpl stores pending attributes privately, so append hints through its item API.
+        addHintItems(node, (term, value) => super.item(term, value))
+        super.done(node)
+      }
+    }
+    rel.explain(hintWriter)
+    sw.toString
   }
 
   private def applyAdvice(rel: RelNode): Unit = {
