@@ -640,24 +640,36 @@ public final class VariantCastUtils {
      */
     public static Variant fromTimestamp(TimestampData value, int precision) {
         final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
-        if (precision <= TIMESTAMP_PRECISION) {
-            builder.appendTimestamp(timestampMicros(value));
-        } else {
-            builder.appendTimestampNanos(timestampNanos(value, "TIMESTAMP(" + precision + ")"));
-        }
+        appendTimestamp(builder, value, precision);
         return builder.build();
     }
 
     /** Like {@link #fromTimestamp(TimestampData, int)}, for {@code TIMESTAMP_LTZ}. */
     public static Variant fromTimestampLtz(TimestampData value, int precision) {
         final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        appendTimestampLtz(builder, value, precision);
+        return builder.build();
+    }
+
+    /** Like {@link #fromTimestamp(TimestampData, int)}, but writes into a shared builder. */
+    static void appendTimestamp(
+            BinaryVariantInternalBuilder builder, TimestampData value, int precision) {
+        if (precision <= TIMESTAMP_PRECISION) {
+            builder.appendTimestamp(timestampMicros(value));
+        } else {
+            builder.appendTimestampNanos(timestampNanos(value, "TIMESTAMP(" + precision + ")"));
+        }
+    }
+
+    /** Like {@link #fromTimestampLtz(TimestampData, int)}, but writes into a shared builder. */
+    static void appendTimestampLtz(
+            BinaryVariantInternalBuilder builder, TimestampData value, int precision) {
         if (precision <= TIMESTAMP_PRECISION) {
             builder.appendTimestampLtz(timestampMicros(value));
         } else {
             builder.appendTimestampLtzNanos(
                     timestampNanos(value, "TIMESTAMP_LTZ(" + precision + ")"));
         }
-        return builder.build();
     }
 
     /** Microseconds since the epoch, which cover every year a {@link TimestampData} can hold. */
