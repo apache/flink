@@ -200,7 +200,7 @@ class LocalFileSystemTest {
         // do the move/rename: /root/src/B -> /root/dst/
         assertThat(fs.rename(srcDirPath, destDirPath)).isTrue();
 
-        // post-conditions: /root/src/B doesn't exists, /root/dst/B/test.csv has been created
+        // post-conditions: /root/src/B doesn't exist, /root/dst/B/test.csv has been created
         assertThat(fs.exists(destFilePath)).isTrue();
         assertThat(fs.exists(srcDirPath)).isFalse();
 
