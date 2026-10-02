@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.BindException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
@@ -41,6 +42,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -132,6 +134,64 @@ class ArtifactFetchManagerTest {
             assertThat(res.getJobJar()).isNotNull();
             assertThat(res.getArtifacts()).isNull();
             assertFetchedFile(res.getJobJar(), sourceFile);
+        } finally {
+            if (httpServer != null) {
+                httpServer.stop(0);
+            }
+        }
+    }
+
+    @Test
+    void testAPartlyFetchedArtifactIsFetchedAgain() throws Exception {
+        configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
+        final byte[] artifact = RandomUtils.nextBytes(64 * 1024);
+        HttpServer httpServer = null;
+        try {
+            httpServer = startHttpServer();
+            httpServer.createContext(
+                    "/download/test.jar", new TruncatedOnceHttpDownloadHandler(artifact));
+            final String uriStr =
+                    String.format(
+                            "http://127.0.0.1:%d/download/test.jar",
+                            httpServer.getAddress().getPort());
+
+            final ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
+            assertThatThrownBy(() -> fetchMgr.fetchArtifacts(uriStr, null))
+                    .isInstanceOf(IOException.class);
+            assertThat(tempDir.resolve("test.jar")).doesNotExist();
+
+            final ArtifactFetchManager.Result res = fetchMgr.fetchArtifacts(uriStr, null);
+            assertThat(res.getJobJar()).hasBinaryContent(artifact);
+        } finally {
+            if (httpServer != null) {
+                httpServer.stop(0);
+            }
+        }
+    }
+
+    @Test
+    void testAUriWithoutAFileNameIsWrittenToTheBaseDirPathItself(@TempDir Path pseudoJarDir)
+            throws Exception {
+        configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
+        // baseDir must not exist yet, otherwise fetchArtifact would return the directory as the job
+        // jar without fetching anything
+        final Path baseDir = tempDir.resolve("target");
+        configuration.set(ArtifactFetchOptions.BASE_DIR, baseDir.toString());
+        HttpServer httpServer = null;
+        try {
+            httpServer = startHttpServer();
+            final File sourceFile =
+                    Files.createTempFile(pseudoJarDir, "testNoFinalPathSegment", ".jar").toFile();
+            Files.write(sourceFile.toPath(), RandomUtils.nextBytes(1024));
+            httpServer.createContext("/", new DummyHttpDownloadHandler(sourceFile));
+            final String uriStr =
+                    String.format("http://127.0.0.1:%d/?id=1", httpServer.getAddress().getPort());
+
+            final ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
+            final ArtifactFetchManager.Result res = fetchMgr.fetchArtifacts(uriStr, null);
+
+            assertThat(res.getJobJar()).isEqualTo(baseDir.toFile());
+            assertThat(res.getJobJar()).hasSameBinaryContentAs(sourceFile);
         } finally {
             if (httpServer != null) {
                 httpServer.stop(0);
@@ -247,6 +307,33 @@ class ArtifactFetchManagerTest {
             exchange.getResponseHeaders().add("Content-Type", "application/octet-stream");
             exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, file.length());
             FileUtils.copyFile(this.file, exchange.getResponseBody());
+            exchange.close();
+        }
+    }
+
+    /** Sends half the artifact on the first request, and serves in full on subsequent requests. */
+    private static class TruncatedOnceHttpDownloadHandler implements HttpHandler {
+
+        private final byte[] artifact;
+        private final AtomicBoolean truncated = new AtomicBoolean();
+
+        TruncatedOnceHttpDownloadHandler(byte[] artifact) {
+            this.artifact = artifact;
+        }
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            exchange.getResponseHeaders().add("Content-Type", "application/octet-stream");
+            if (truncated.compareAndSet(false, true)) {
+                exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
+                final OutputStream body = exchange.getResponseBody();
+                body.write(artifact, 0, artifact.length / 2);
+                body.flush();
+                // the server drops the connection without sending the final chunk
+                throw new IOException("connection reset");
+            }
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, artifact.length);
+            exchange.getResponseBody().write(artifact);
             exchange.close();
         }
     }
