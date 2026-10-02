@@ -209,6 +209,15 @@ class DecimalITCase extends BatchTestBase {
       "select sum(f0) from Table1",
       Seq(DECIMAL(38, 0)),
       s1r(null))
+
+    // SUM(DECIMAL(38,18) * integer literal): multiplication type must not aggressively reduce
+    // scale, otherwise digits in positions beyond the reduced scale are silently lost.
+    checkQuery1(
+      Seq(DECIMAL(38, 18)),
+      s1r(d"9.123456789000000000"),
+      "select cast(sum(f0 * 10) as varchar) from Table1",
+      Seq(STRING),
+      s1r("91.23456789"))
   }
 
   @Test
