@@ -231,12 +231,12 @@ rest:
 # no tuning. Adjusting them may be necessary in case of an "Insufficient number
 # of network buffers" error. The default min is 64MB, the default max is 1GB.
 #
-# taskmanager:
-#   memory:
-#     network:
-#       fraction: 0.1
-#       min: 64mb
-#       max: 1gb
+# The flat key form is used because 'taskmanager' is already defined in the
+# Common section.
+#
+# taskmanager.memory.network.fraction: 0.1
+# taskmanager.memory.network.min: 64mb
+# taskmanager.memory.network.max: 1gb
 
 #==============================================================================
 # Flink Cluster Security Configuration
@@ -280,12 +280,10 @@ rest:
 
 # The HistoryServer is started and stopped via bin/historyserver.sh (start|stop)
 #
-# jobmanager:
-#   archive:
-#     fs:
-#       # Directory to upload completed jobs to. Add this directory to the list of
-#       # monitored directories of the HistoryServer as well (see below).
-#       dir: hdfs:///completed-jobs/
+# Directory to upload completed jobs to. Add this directory to the list of
+# monitored directories of the HistoryServer as well (see below). The flat key
+# form is used because 'jobmanager' is already defined in the Common section.
+# jobmanager.archive.fs.dir: hdfs:///completed-jobs/
 
 # historyserver:
 #   web:
@@ -298,5 +296,5 @@ rest:
 #       # Comma separated list of directories to monitor for completed jobs.
 #       dir: hdfs:///completed-jobs/
 #       # Interval in milliseconds for refreshing the monitored directories.
-#       fs.refresh-interval: 10000
+#       refresh-interval: 10000
 
