@@ -101,10 +101,68 @@ class SavepointFilterTranslatorTest {
     }
 
     @Test
-    void orWithNonPushableChild_returnsNull() {
-        // One branch is a range, which OR cannot absorb
+    void orOfExactAndRangeProducesUnion() {
+        // key = 1 OR key > 5 -> {1} ∪ (5, +∞)
         CallExpression expr = or(eq(longKeyRef(), longLit(1L)), gt(longKeyRef(), longLit(5L)));
-        assertThat(keyFilterOf(expr)).isNull();
+        SavepointKeyFilter<Object> filter = keyFilterOf(expr);
+
+        assertNotNull(filter);
+        assertThat(filter.test(0L)).isFalse();
+        assertThat(filter.test(1L)).isTrue();
+        assertThat(filter.test(5L)).isFalse();
+        assertThat(filter.test(6L)).isTrue();
+        assertThat(filter.getExactKeys()).isNull();
+    }
+
+    @Test
+    void orOfTwoRangesProducesUnion() {
+        // key < 2 OR key > 7 -> (-∞, 2) ∪ (7, +∞)
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(or(lt(longKeyRef(), longLit(2L)), gt(longKeyRef(), longLit(7L))));
+
+        assertNotNull(filter);
+        assertThat(filter.test(1L)).isTrue();
+        assertThat(filter.test(2L)).isFalse();
+        assertThat(filter.test(7L)).isFalse();
+        assertThat(filter.test(8L)).isTrue();
+    }
+
+    // -------------------------------------------------------------------------
+    //  Exclusion filters
+    // -------------------------------------------------------------------------
+
+    @Test
+    void notEqualsProducesExclusion() {
+        SavepointKeyFilter<Object> filter = keyFilterOf(neq(longKeyRef(), longLit(5L)));
+
+        assertNotNull(filter);
+        assertThat(filter.test(5L)).isFalse();
+        assertThat(filter.test(6L)).isTrue();
+        assertThat(filter.getExactKeys()).isNull();
+    }
+
+    @Test
+    void notOfExactSetExcludesEveryKeyInSet() {
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(not(or(eq(longKeyRef(), longLit(3L)), eq(longKeyRef(), longLit(7L)))));
+
+        assertNotNull(filter);
+        assertThat(filter.test(3L)).isFalse();
+        assertThat(filter.test(7L)).isFalse();
+        assertThat(filter.test(5L)).isTrue();
+    }
+
+    @Test
+    void notBetweenProducesUnionOfOuterRanges() {
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(notBetween(longKeyRef(), longLit(10L), longLit(20L)));
+
+        assertNotNull(filter);
+        assertThat(filter.test(9L)).isTrue();
+        assertThat(filter.test(10L)).isFalse();
+        assertThat(filter.test(15L)).isFalse();
+        assertThat(filter.test(20L)).isFalse();
+        assertThat(filter.test(21L)).isTrue();
     }
 
     // -------------------------------------------------------------------------
@@ -250,10 +308,53 @@ class SavepointFilterTranslatorTest {
     }
 
     @Test
-    void andWithExactKeyChildIsNotPushable() {
-        // AND requires all children to be range filters; exact filter breaks pushdown
+    void andOfExactAndRangeNarrowsToExactSubset() {
         CallExpression expr = and(eq(longKeyRef(), longLit(5L)), gt(longKeyRef(), longLit(3L)));
-        assertThat(keyFilterOf(expr)).isNull();
+        SavepointKeyFilter<Object> filter = keyFilterOf(expr);
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).containsExactly(5L);
+    }
+
+    @Test
+    void andOfExactAndRangeWithNoMatchProducesEmptyFilter() {
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(and(eq(longKeyRef(), longLit(5L)), gt(longKeyRef(), longLit(6L))));
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).isEmpty();
+    }
+
+    @Test
+    void andOfExactAndExclusionNarrowsExactSet() {
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(
+                        and(
+                                or(
+                                        eq(longKeyRef(), longLit(1L)),
+                                        eq(longKeyRef(), longLit(2L)),
+                                        eq(longKeyRef(), longLit(3L))),
+                                neq(longKeyRef(), longLit(2L))));
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).containsExactlyInAnyOrder(1L, 3L);
+    }
+
+    @Test
+    void andOfRangeAndExclusionFiltersExcludedKey() {
+        SavepointKeyFilter<Object> filter =
+                keyFilterOf(
+                        and(
+                                between(longKeyRef(), longLit(1L), longLit(10L)),
+                                neq(longKeyRef(), longLit(5L))));
+
+        assertNotNull(filter);
+        assertThat(filter.getExactKeys()).isNull();
+        assertThat(filter.test(0L)).isFalse();
+        assertThat(filter.test(1L)).isTrue();
+        assertThat(filter.test(5L)).isFalse();
+        assertThat(filter.test(10L)).isTrue();
+        assertThat(filter.test(11L)).isFalse();
     }
 
     // -------------------------------------------------------------------------
@@ -1093,6 +1194,20 @@ class SavepointFilterTranslatorTest {
                 BuiltInFunctionDefinitions.EQUALS, Arrays.asList(left, right), DataTypes.BOOLEAN());
     }
 
+    private static CallExpression neq(ResolvedExpression left, ResolvedExpression right) {
+        return CallExpression.permanent(
+                BuiltInFunctionDefinitions.NOT_EQUALS,
+                Arrays.asList(left, right),
+                DataTypes.BOOLEAN());
+    }
+
+    private static CallExpression not(ResolvedExpression arg) {
+        return CallExpression.permanent(
+                BuiltInFunctionDefinitions.NOT,
+                Collections.singletonList(arg),
+                DataTypes.BOOLEAN());
+    }
+
     private static CallExpression isNull(ResolvedExpression arg) {
         return CallExpression.permanent(
                 BuiltInFunctionDefinitions.IS_NULL,
@@ -1126,6 +1241,14 @@ class SavepointFilterTranslatorTest {
             ResolvedExpression value, ResolvedExpression lower, ResolvedExpression upper) {
         return CallExpression.permanent(
                 BuiltInFunctionDefinitions.BETWEEN,
+                Arrays.asList(value, lower, upper),
+                DataTypes.BOOLEAN());
+    }
+
+    private static CallExpression notBetween(
+            ResolvedExpression value, ResolvedExpression lower, ResolvedExpression upper) {
+        return CallExpression.permanent(
+                BuiltInFunctionDefinitions.NOT_BETWEEN,
                 Arrays.asList(value, lower, upper),
                 DataTypes.BOOLEAN());
     }
