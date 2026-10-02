@@ -189,7 +189,7 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
         }
         return Arrays.asList(
                 new ContainerPortBuilder()
-                        .withName(Constants.REST_PORT_NAME)
+                        .withName(kubernetesJobManagerParameters.getRestServicePortName())
                         .withContainerPort(kubernetesJobManagerParameters.getRestPort())
                         .build(),
                 new ContainerPortBuilder()

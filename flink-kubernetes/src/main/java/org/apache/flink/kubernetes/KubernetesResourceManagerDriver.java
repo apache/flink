@@ -304,9 +304,8 @@ public class KubernetesResourceManagerDriver
         Preconditions.checkArgument(
                 restPort > 0, "Failed to parse rest port from " + webInterfaceUrl);
         final String restServiceName = ExternalServiceDecorator.getExternalServiceName(clusterId);
-        flinkKubeClient
-                .updateServiceTargetPort(restServiceName, Constants.REST_PORT_NAME, restPort)
-                .get();
+        final String restPortName = flinkConfig.get(KubernetesConfigOptions.REST_SERVICE_PORT_NAME);
+        flinkKubeClient.updateServiceTargetPort(restServiceName, restPortName, restPort).get();
         if (!HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig)) {
             final String internalServiceName =
                     InternalServiceDecorator.getInternalServiceName(clusterId);
