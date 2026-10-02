@@ -21,11 +21,12 @@ package org.apache.flink.streaming.api.lineage;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.io.Serializable;
 import java.util.Map;
 
 /** Lineage dataset represents the source or sink in the job. */
 @PublicEvolving
-public interface LineageDataset {
+public interface LineageDataset extends Serializable {
     /* Name for this particular dataset. */
     String name();
 
