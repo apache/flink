@@ -150,6 +150,10 @@ import java.util.stream.Collectors;
  *
  * <p>4. for a cdc source node(which will generate updates), the metadata columns are treated as
  * non-deterministic if changelogNormalize is not enabled.
+ *
+ * <p>5. filter and join conditions must be deterministic whenever the output carries updates,
+ * independent of the required determinism, because they decide whether a row and its retraction are
+ * emitted.
  */
 public class StreamNonDeterministicUpdatePlanVisitor {
     private static final ImmutableBitSet NO_REQUIRED_DETERMINISM = ImmutableBitSet.of();
@@ -305,8 +309,17 @@ public class StreamNonDeterministicUpdatePlanVisitor {
 
     private StreamPhysicalRel visitCalc(
             final StreamPhysicalCalcBase calc, final ImmutableBitSet requireDeterminism) {
-        if (inputInsertOnly(calc) || requireDeterminism.isEmpty()) {
+        if (inputInsertOnly(calc)) {
             // for append stream, not care about NDU
+            return transmitDeterminismRequirement(calc, NO_REQUIRED_DETERMINISM);
+        } else if (requireDeterminism.isEmpty()) {
+            // the upsert key only covers the column values, a non-deterministic condition can
+            // still drop the UPDATE_BEFORE or DELETE of a row whose insert passed
+            final RexProgram program = calc.getProgram();
+            if (program.getCondition() != null) {
+                checkNonDeterministicCondition(
+                        program.expandLocalRef(program.getCondition()), calc);
+            }
             return transmitDeterminismRequirement(calc, NO_REQUIRED_DETERMINISM);
         } else {
             // if input has updates, any non-deterministic conditions are not acceptable, also
@@ -1238,8 +1251,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             finalRequireDeterminism = requireDeterminism;
         } else {
             if (inputUpsertKeys.stream().anyMatch(uk -> uk.contains(requireDeterminism))) {
-                // upsert keys can satisfy the requireDeterminism because they are always
-                // deterministic
+                // upsert keys can satisfy the requireDeterminism because their column values are
+                // always deterministic
                 finalRequireDeterminism = NO_REQUIRED_DETERMINISM;
             } else {
                 // otherwise we should check the column(s) that not in upsert keys
