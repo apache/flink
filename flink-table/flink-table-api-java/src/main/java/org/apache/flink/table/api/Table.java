@@ -1424,12 +1424,12 @@ public interface Table extends Explainable<Table>, Executable {
     Table process(Class<? extends UserDefinedFunction> function, Object... arguments);
 
     /**
-     * Converts this dynamic table into an append-only table with an explicit operation code column
-     * using the built-in {@code TO_CHANGELOG} process table function.
+     * Converts this dynamic table into an append-only table using the built-in {@code TO_CHANGELOG}
+     * process table function.
      *
      * <p>Each input row - regardless of its original change operation - is emitted as an
-     * INSERT-only row with a string {@code "op"} column indicating the original operation (INSERT,
-     * UPDATE_AFTER, DELETE, etc.).
+     * INSERT-only row. By default, a string {@code "op"} column indicates the original operation
+     * (INSERT, UPDATE_AFTER, DELETE, etc.).
      *
      * <p>By default, the input is processed with row semantics (each row independently). To
      * co-locate rows with the same key in the same parallel operator instance, partition the input
@@ -1466,11 +1466,17 @@ public interface Table extends Explainable<Table>, Executable {
      * Table result = table.toChangelog(
      *     lit(false).asArgument("produces_full_deletes")
      * );
+     *
+     * // Omit the operation code column from the output schema.
+     * Table result = table.toChangelog(
+     *     lit(false).asArgument("include_op_column")
+     * );
      * }</pre>
      *
-     * @param arguments optional named arguments for {@code op}, {@code op_mapping}, and {@code
-     *     produces_full_deletes}
-     * @return an append-only {@link Table} with an {@code op} column prepended to the input columns
+     * @param arguments optional named arguments for {@code op}, {@code op_mapping}, {@code
+     *     produces_full_deletes}, and {@code include_op_column}
+     * @return an append-only {@link Table}, optionally with an {@code op} column prepended to the
+     *     input columns
      */
     Table toChangelog(Expression... arguments);
 
