@@ -24,6 +24,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.connector.RuntimeConverter.Context;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -69,14 +70,16 @@ public class OutputConversionOperator extends TableStreamOperator<Object>
     public void processElement(StreamRecord<RowData> element) throws Exception {
         final RowData rowData = element.getValue();
 
+        final int rowtimePos;
         if (consumeRowtimeMetadata) {
             // timestamp is TIMESTAMP_LTZ
-            final long rowtime = rowData.getTimestamp(rowData.getArity() - 1, 3).getMillisecond();
-            outRecord.setTimestamp(rowtime);
-        } else if (rowtimeIndex != -1) {
+            rowtimePos = rowData.getArity() - 1;
+        } else {
             // timestamp might be TIMESTAMP or TIMESTAMP_LTZ
-            final long rowtime = rowData.getTimestamp(rowtimeIndex, 3).getMillisecond();
-            outRecord.setTimestamp(rowtime);
+            rowtimePos = rowtimeIndex;
+        }
+        if (rowtimePos != -1) {
+            updateRowtime(rowData, rowtimePos);
         }
 
         final Object internalRecord;
@@ -103,5 +106,16 @@ public class OutputConversionOperator extends TableStreamOperator<Object>
         outRecord.replace(externalRecord);
 
         output.collect(outRecord);
+    }
+
+    private void updateRowtime(RowData rowData, int pos) {
+        final TimestampData rowtime = rowData.isNullAt(pos) ? null : rowData.getTimestamp(pos, 3);
+        if (rowtime != null) {
+            outRecord.setTimestamp(rowtime.getMillisecond());
+        } else {
+            // outRecord is reused across elements and replace(Object) keeps the timestamp,
+            // so the previous rowtime has to be erased explicitly
+            outRecord.eraseTimestamp();
+        }
     }
 }
