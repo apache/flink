@@ -21,6 +21,7 @@ package org.apache.flink.types.variant;
 import org.apache.flink.annotation.Internal;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactoryBuilder;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
@@ -96,7 +97,10 @@ public class BinaryVariantInternalBuilder {
             new VariantTypeException("VARIANT_SIZE_LIMIT");
     public static final VariantTypeException VARIANT_DUPLICATE_KEY_EXCEPTION =
             new VariantTypeException("VARIANT_DUPLICATE_KEY");
-    private static final JsonFactory JSON_FACTORY = new JsonFactory();
+    // Byte input is always UTF-8. Charset detection would take NUL bytes or a BOM as a UTF-16 or
+    // UTF-32 hint and could turn input that is not valid JSON into a value.
+    private static final JsonFactory JSON_FACTORY =
+            new JsonFactoryBuilder().disable(JsonFactory.Feature.CHARSET_DETECTION).build();
 
     public BinaryVariantInternalBuilder(boolean allowDuplicateKeys) {
         this.allowDuplicateKeys = allowDuplicateKeys;
@@ -110,6 +114,20 @@ public class BinaryVariantInternalBuilder {
     public static BinaryVariant parseJson(String json, boolean allowDuplicateKeys)
             throws IOException {
         try (JsonParser parser = JSON_FACTORY.createParser(json)) {
+            parser.nextToken();
+            return parseJson(parser, allowDuplicateKeys);
+        }
+    }
+
+    /**
+     * Parse UTF-8 encoded JSON bytes as a Variant value. Invalid UTF-8 is rejected rather than
+     * replaced with U+FFFD.
+     *
+     * @throws IOException if any JSON parsing error happens.
+     */
+    public static BinaryVariant parseJson(byte[] bytes, boolean allowDuplicateKeys)
+            throws IOException {
+        try (JsonParser parser = JSON_FACTORY.createParser(bytes)) {
             parser.nextToken();
             return parseJson(parser, allowDuplicateKeys);
         }

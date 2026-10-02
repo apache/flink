@@ -43,7 +43,7 @@ public class TryParseJsonFunction extends BuiltInScalarFunction {
         }
 
         try {
-            return BinaryVariantInternalBuilder.parseJson(jsonStr.toString(), allowDuplicateKeys);
+            return BinaryVariantInternalBuilder.parseJson(jsonStr.toBytes(), allowDuplicateKeys);
         } catch (Throwable e) {
             return null;
         }
