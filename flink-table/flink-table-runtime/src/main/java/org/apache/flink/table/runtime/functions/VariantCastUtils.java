@@ -593,14 +593,31 @@ public final class VariantCastUtils {
     }
 
     public static Variant fromDecimal(DecimalData value) {
-        return BUILDER.of(value.toBigDecimal());
+        if (!value.isCompact()) {
+            return BUILDER.of(value.toBigDecimal());
+        }
+        final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        builder.appendDecimal(value.toUnscaledLong(), value.scale());
+        return builder.build();
     }
 
+    /**
+     * Stores the UTF-8 bytes of the string as they are. A {@link StringData} may hold invalid
+     * UTF-8, which the variant spec does not allow, so such a value is decoded first and every
+     * malformed sequence is stored as the U+FFFD replacement character.
+     */
     public static Variant fromString(StringData value) {
+        final byte[] utf8 = value.toBytes();
         try {
-            return BUILDER.of(value.toString());
+            if (StringUtf8Utils.firstInvalidUtf8ByteIndex(utf8, 0, utf8.length) >= 0) {
+                // The same decoding StringData#toString falls back to for invalid UTF-8.
+                return BUILDER.of(new String(utf8, StandardCharsets.UTF_8));
+            }
+            final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+            builder.appendString(utf8);
+            return builder.build();
         } catch (VariantTypeException e) {
-            throw sizeLimitExceeded(e, "string", value.toBytes().length);
+            throw sizeLimitExceeded(e, "string", utf8.length);
         }
     }
 

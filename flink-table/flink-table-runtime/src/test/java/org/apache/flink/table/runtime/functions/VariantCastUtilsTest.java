@@ -18,19 +18,31 @@
 
 package org.apache.flink.table.runtime.functions;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantBuilder;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.TimeZone;
+import java.util.stream.Stream;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.flink.table.runtime.functions.VariantCastUtils.MAX_PAYLOAD_BYTES;
 import static org.apache.flink.table.runtime.functions.VariantCastUtils.fromBytes;
+import static org.apache.flink.table.runtime.functions.VariantCastUtils.fromDecimal;
 import static org.apache.flink.table.runtime.functions.VariantCastUtils.fromString;
 import static org.apache.flink.table.runtime.functions.VariantCastUtils.toPrintString;
 import static org.apache.flink.types.variant.BinaryVariantUtil.primitiveHeader;
@@ -43,6 +55,8 @@ class VariantCastUtilsTest {
     private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
 
     private static final VariantBuilder BUILDER = Variant.newBuilder();
+
+    private static final String REPLACEMENT_CHARACTER = "\uFFFD";
 
     @Test
     void testCastToVariantHoldsUpToTheSizeLimit() {
@@ -63,6 +77,49 @@ class VariantCastUtilsTest {
                         () -> fromString(StringData.fromString("x".repeat(MAX_PAYLOAD_BYTES + 1))))
                 .isInstanceOf(TableRuntimeException.class)
                 .hasMessageStartingWith("Cannot cast a string value of 16777212 bytes to VARIANT.");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "hello", "Grüße, 世界 🚀"})
+    void testCastStringToVariantStoresItsUtf8Bytes(final String str) {
+        assertThat(fromString(binaryString(str.getBytes(UTF_8)))).isEqualTo(BUILDER.of(str));
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidUtf8")
+    void testCastStringToVariantReplacesInvalidUtf8(final byte[] invalid) {
+        final Variant variant = fromString(binaryString(invalid));
+
+        assertThat(variant.getString()).contains(REPLACEMENT_CHARACTER);
+        assertThat(variant).isEqualTo(BUILDER.of(new String(invalid, UTF_8)));
+    }
+
+    private static Stream<byte[]> invalidUtf8() {
+        return Stream.of(
+                new byte[] {'a', (byte) 0xFF, 'b'},
+                new byte[] {'a', (byte) 0xC3},
+                new byte[] {(byte) 0xC0, (byte) 0xAF},
+                new byte[] {(byte) 0xED, (byte) 0xA0, (byte) 0x80});
+    }
+
+    @ParameterizedTest(name = "{0} as DECIMAL({1}, {2})")
+    @CsvSource({
+        "0, 1, 0",
+        "1.50, 10, 2",
+        "999999999, 9, 0",
+        "-0.999999999, 9, 9",
+        "1000000000, 10, 0",
+        "0.0000000001, 10, 10",
+        "-999999999999999999, 18, 0",
+        "0.999999999999999999, 18, 18",
+        "1000000000000000000, 19, 0",
+        "-99999999999999999999999999999999999999, 38, 0",
+        "0.99999999999999999999999999999999999999, 38, 38"
+    })
+    void testCastDecimalToVariantKeepsUnscaledValueAndScale(
+            final BigDecimal decimal, final int precision, final int scale) {
+        assertThat(fromDecimal(DecimalData.fromBigDecimal(decimal, precision, scale)))
+                .isEqualTo(BUILDER.of(decimal));
     }
 
     @Test
@@ -109,6 +166,14 @@ class VariantCastUtilsTest {
 
         assertThat(toPrintString(variant, TimeZone.getTimeZone("Europe/Berlin")))
                 .isEqualTo("2021-09-24 14:34:56.123456");
+    }
+
+    /** Places the bytes inside a larger segment, the way a row field points into its row. */
+    private static StringData binaryString(final byte[] utf8) {
+        final byte[] row = new byte[utf8.length + 2];
+        System.arraycopy(utf8, 0, row, 1, utf8.length);
+        return BinaryStringData.fromAddress(
+                new MemorySegment[] {MemorySegmentFactory.wrap(row)}, 1, utf8.length);
     }
 
     /** Replaces the header of the array's second element. */
