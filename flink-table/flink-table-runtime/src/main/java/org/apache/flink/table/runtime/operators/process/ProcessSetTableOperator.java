@@ -39,6 +39,7 @@ import org.apache.flink.table.runtime.generated.ProcessTableRunner;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.process.InputSortBuffer.SortedRowConsumer;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.ArrayList;

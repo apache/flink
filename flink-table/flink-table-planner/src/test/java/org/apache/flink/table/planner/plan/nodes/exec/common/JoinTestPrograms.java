@@ -23,6 +23,7 @@ import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecJoin}. */
 public class JoinTestPrograms {
@@ -41,6 +42,8 @@ public class JoinTestPrograms {
     public static final TableTestProgram ANTI_JOIN;
     public static final TableTestProgram JOIN_WITH_STATE_TTL_HINT;
     public static final TableTestProgram SEMI_ANTI_JOIN_WITH_LITERAL_AGG;
+    public static final TableTestProgram LEFT_JOIN_UPSERT_INPUT_NON_EQUI;
+    public static final TableTestProgram LEFT_JOIN_UPSERT_INPUT_NON_EQUI_PRE_2_4;
 
     static final SourceTestStep EMPLOYEE =
             SourceTestStep.newBuilder("EMPLOYEE")
@@ -501,5 +504,63 @@ public class JoinTestPrograms {
                                         + " WHEN a NOT IN (SELECT CAST(j AS INTEGER) FROM source_t3) THEN 2 ELSE 3 END)"
                                         + " NOT IN (SELECT d FROM source_t2 WHERE source_t1.c = source_t2.f)")
                         .build();
+
+        LEFT_JOIN_UPSERT_INPUT_NON_EQUI =
+                leftJoinWithUpsertInputAndNonEquiCondition(
+                        "join-left-join-upsert-input-non-equi",
+                        "left join with an upsert input and a non-equi condition");
+
+        // its plan and savepoint are compiled with Flink 2.3, whose plans have no input changelog
+        // modes
+        LEFT_JOIN_UPSERT_INPUT_NON_EQUI_PRE_2_4 =
+                leftJoinWithUpsertInputAndNonEquiCondition(
+                        "join-left-join-upsert-input-non-equi-pre-2-4",
+                        "left join with an upsert input and a non-equi condition restored from a Flink 2.3 plan");
+    }
+
+    /**
+     * An updated line that no longer satisfies the non-equi condition after the restore retracts
+     * its match, before a further update matches again.
+     */
+    private static TableTestProgram leftJoinWithUpsertInputAndNonEquiCondition(
+            String id, String description) {
+        return TableTestProgram.of(id, description)
+                .setupTableSource(
+                        SourceTestStep.newBuilder("orders")
+                                .addSchema(
+                                        "order_id INT PRIMARY KEY NOT ENFORCED",
+                                        "excluded_status STRING")
+                                .producedBeforeRestore(Row.of(1, "cancelled"))
+                                .build())
+                .setupTableSource(
+                        SourceTestStep.newBuilder("lines")
+                                .addSchema(
+                                        "order_id INT",
+                                        "line_id STRING",
+                                        "status STRING",
+                                        "PRIMARY KEY (order_id, line_id) NOT ENFORCED")
+                                .addOption("changelog-mode", "I,UA,D")
+                                .producedBeforeRestore(Row.ofKind(RowKind.INSERT, 1, "l1", "new"))
+                                .producedAfterRestore(
+                                        Row.ofKind(RowKind.UPDATE_AFTER, 1, "l1", "cancelled"),
+                                        Row.ofKind(RowKind.UPDATE_AFTER, 1, "l1", "paid"))
+                                .build())
+                .setupTableSink(
+                        SinkTestStep.newBuilder("MySink")
+                                .addSchema(
+                                        "order_id INT",
+                                        "line_order_id INT",
+                                        "line_id STRING",
+                                        "status STRING")
+                                .addOption("sink-changelog-mode-enforced", "I,UA,D")
+                                .consumedBeforeRestore(Row.of(1, 1, "l1", "new"))
+                                .consumedAfterRestore(Row.of(1, 1, "l1", "paid"))
+                                .testMaterializedData()
+                                .deduplicatedFieldIndices(new int[] {0})
+                                .build())
+                .runSql(
+                        "INSERT INTO MySink SELECT o.order_id, l.* FROM orders o "
+                                + "LEFT JOIN lines l ON o.order_id = l.order_id AND l.status <> o.excluded_status")
+                .build();
     }
 }
