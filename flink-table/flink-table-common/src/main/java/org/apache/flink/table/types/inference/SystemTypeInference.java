@@ -348,6 +348,12 @@ public class SystemTypeInference {
                                     fields.addAll(deriveRowtimeField(callContext, resolvedArgs));
                                 }
 
+                                // Nothing to show at all: no pass-through, no rowtime, and the
+                                // function itself returned ROW<>. Fall back to EXPR$0 as output.
+                                if (fields.isEmpty()) {
+                                    fields.add(DataTypes.FIELD("EXPR$0", functionDataType));
+                                }
+
                                 final List<Field> uniqueFields = makeFieldNamesUnique(fields);
 
                                 return DataTypes.ROW(uniqueFields).notNull();
@@ -403,16 +409,16 @@ public class SystemTypeInference {
         }
 
         private List<Field> deriveFunctionOutputFields(DataType functionDataType) {
-            final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
-            final List<String> fieldNames = DataType.getFieldNames(functionDataType);
-
-            if (fieldTypes.isEmpty()) {
-                // Before the system type inference was introduced, SQL and
-                // Table API chose a different default field name.
-                // EXPR$0 is chosen for best-effort backwards compatibility for
-                // SQL users.
+            final boolean isScalarOutput =
+                    !LogicalTypeChecks.isCompositeType(functionDataType.getLogicalType());
+            if (isScalarOutput) {
+                // Scalar output has no field name of its own; EXPR$0 is kept for
+                // backwards compatibility with the pre-system-type-inference default.
                 return List.of(DataTypes.FIELD("EXPR$0", functionDataType));
             }
+            // For composite types, extract field names/types and build output
+            final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
+            final List<String> fieldNames = DataType.getFieldNames(functionDataType);
             return IntStream.range(0, fieldTypes.size())
                     .mapToObj(pos -> DataTypes.FIELD(fieldNames.get(pos), fieldTypes.get(pos)))
                     .collect(Collectors.toList());

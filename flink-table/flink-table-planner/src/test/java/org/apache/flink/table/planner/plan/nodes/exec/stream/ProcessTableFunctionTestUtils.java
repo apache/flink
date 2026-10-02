@@ -203,6 +203,22 @@ public class ProcessTableFunctionTestUtils {
         }
     }
 
+    /** Testing function. */
+    @DataTypeHint("ROW<>")
+    public static class EmptyOutputFunction extends ProcessTableFunction<Row> {
+        public void eval(@ArgumentHint(SET_SEMANTIC_TABLE) Row r) {
+            collect(Row.of());
+        }
+    }
+
+    /** Testing function with an empty output and no pass-through columns. */
+    @DataTypeHint("ROW<>")
+    public static class EmptyOutputRowSemanticFunction extends ProcessTableFunction<Row> {
+        public void eval(@ArgumentHint(ROW_SEMANTIC_TABLE) Row r) {
+            collect(Row.of());
+        }
+    }
+
     @DataTypeHint("ROW<`out` STRING>")
     public abstract static class AppendProcessTableFunctionBase extends ProcessTableFunction<Row> {
         protected void collectObjects(Object... objects) {

@@ -30,6 +30,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EagerAndValueViewStateTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyOutputFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyOutputRowSemanticFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ImplicitCastingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalDayArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalYearArgFunction;
@@ -792,6 +794,52 @@ public class ProcessTableFunctionTestPrograms {
                                     .consumedValues("+I[Bob, 12]", "+I[Alice, 42]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_EMPTY_OUTPUT =
+            TableTestProgram.of(
+                            "process-empty-output",
+                            "empty function output with pass-through and rowtime columns")
+                    .setupTemporarySystemFunction("f", EmptyOutputFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("`name` STRING", "`rowtime` TIMESTAMP_LTZ(3)")
+                                    .consumedValues(
+                                            "+I[Bob, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, 1970-01-01T00:00:00.006Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM "
+                                    + "f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_EMPTY_OUTPUT_ROWTIME_ONLY =
+            TableTestProgram.of(
+                            "process-empty-output-rowtime-only",
+                            "empty function output with rowtime column but no partition by")
+                    .setupTemporarySystemFunction("f", EmptyOutputRowSemanticFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("`rowtime` TIMESTAMP_LTZ(3)")
+                                    .consumedValues(
+                                            "+I[1970-01-01T00:00:00Z]",
+                                            "+I[1970-01-01T00:00:00.001Z]",
+                                            "+I[1970-01-01T00:00:00.002Z]",
+                                            "+I[1970-01-01T00:00:00.003Z]",
+                                            "+I[1970-01-01T00:00:00.004Z]",
+                                            "+I[1970-01-01T00:00:00.005Z]",
+                                            "+I[1970-01-01T00:00:00.006Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM "
+                                    + "f(r => TABLE t, on_time => DESCRIPTOR(ts))")
                     .build();
 
     public static final TableTestProgram PROCESS_CONTEXT =
