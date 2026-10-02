@@ -19,65 +19,48 @@
 package org.apache.flink.connector.datagen.table.types;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-/** Data generator for Flink's internal {@link RowData} type. */
+/**
+ * Composite {@link GeneratorFunction} that builds a {@link RowData} by invoking each per-field
+ * generator with the current sequence index. With probability {@code nullRate}, an entire row is
+ * replaced with {@code null}, matching the legacy behavior.
+ */
 @Internal
-public class RowDataGenerator implements DataGenerator<RowData> {
+public class RowDataGenerator implements GeneratorFunction<Long, RowData> {
 
     private static final long serialVersionUID = 1L;
 
-    private final DataGenerator<?>[] fieldGenerators;
+    private final GeneratorFunction<Long, ?>[] fieldGenerators;
     private final List<String> fieldNames;
     private final float nullRate;
 
     public RowDataGenerator(
-            DataGenerator<?>[] fieldGenerators, List<String> fieldNames, float nullRate) {
+            GeneratorFunction<Long, ?>[] fieldGenerators, List<String> fieldNames, float nullRate) {
         this.fieldGenerators = fieldGenerators;
         this.fieldNames = fieldNames;
         this.nullRate = nullRate;
     }
 
     @Override
-    public void open(
-            String name, FunctionInitializationContext context, RuntimeContext runtimeContext)
-            throws Exception {
-        for (int i = 0; i < fieldGenerators.length; i++) {
-            fieldGenerators[i].open(fieldNames.get(i), context, runtimeContext);
+    public void open(SourceReaderContext readerContext) throws Exception {
+        for (GeneratorFunction<Long, ?> generator : fieldGenerators) {
+            generator.open(readerContext);
         }
     }
 
     @Override
-    public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        for (DataGenerator<?> generator : fieldGenerators) {
-            generator.snapshotState(context);
-        }
-    }
-
-    @Override
-    public boolean hasNext() {
-        for (DataGenerator<?> generator : fieldGenerators) {
-            if (!generator.hasNext()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    @Override
-    public RowData next() {
+    public RowData map(Long value) throws Exception {
         if (nullRate == 0f || ThreadLocalRandom.current().nextFloat() > nullRate) {
             GenericRowData row = new GenericRowData(fieldNames.size());
             for (int i = 0; i < fieldGenerators.length; i++) {
-                row.setField(i, fieldGenerators[i].next());
+                row.setField(i, fieldGenerators[i].map(value));
             }
             return row;
         }
