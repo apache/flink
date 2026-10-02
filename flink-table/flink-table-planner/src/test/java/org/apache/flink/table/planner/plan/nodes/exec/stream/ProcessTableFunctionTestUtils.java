@@ -105,7 +105,11 @@ public class ProcessTableFunctionTestUtils {
                             "city STRING",
                             "ts TIMESTAMP_LTZ(3)",
                             "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
-                    .producedValues(Row.of("Bob", "London", Instant.ofEpochMilli(0)))
+                    .producedValues(
+                            Row.of("Bob", "London", Instant.ofEpochMilli(0)),
+                            Row.of("Charly", "Paris", Instant.ofEpochMilli(2)),
+                            Row.of("Dave", "Berlin", Instant.ofEpochMilli(4)),
+                            Row.of("Eve", "Rome", Instant.ofEpochMilli(5)))
                     .build();
 
     public static final String UPDATING_VALUES =

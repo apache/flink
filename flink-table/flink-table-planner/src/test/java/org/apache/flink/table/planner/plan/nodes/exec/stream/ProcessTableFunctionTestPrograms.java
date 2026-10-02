@@ -1705,19 +1705,30 @@ public class ProcessTableFunctionTestPrograms {
                             "process-stateful-multi-input-with-timeout",
                             "joins two tables and emits the left side after a timeout if there is no right side")
                     .setupTemporarySystemFunction("f", TimedJoinFunction.class)
-                    .setupTableSource(TIMED_SOURCE)
+                    // The two inputs may reach eval() in any interleaving. To keep the output
+                    // independent of it, a key with a city has a single score with the same
+                    // timestamp as its city. Keys without a city may have multiple scores.
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(TIMED_SOURCE_SCHEMA)
+                                    .producedValues(
+                                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                                            Row.of("Charly", 3, Instant.ofEpochMilli(2)),
+                                            Row.of("Alice", 2, Instant.ofEpochMilli(3)),
+                                            Row.of("Dave", 4, Instant.ofEpochMilli(4)),
+                                            Row.of("Frank", 5, Instant.ofEpochMilli(6)))
+                                    .build())
                     .setupTableSource(TIMED_CITY_SOURCE)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(TIMED_MULTI_BASE_SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[Bob, Bob, 1 score in city London, 1970-01-01T00:00:00Z]",
-                                            "+I[Bob, Bob, 2 score in city London, 1970-01-01T00:00:00.002Z]",
-                                            "+I[Bob, Bob, 3 score in city London, 1970-01-01T00:00:00.003Z]",
-                                            "+I[Bob, Bob, 4 score in city London, 1970-01-01T00:00:00.004Z]",
-                                            "+I[Bob, Bob, 5 score in city London, 1970-01-01T00:00:00.005Z]",
-                                            "+I[Bob, Bob, 6 score in city London, 1970-01-01T00:00:00.006Z]",
-                                            "+I[Alice, Alice, no city found for score 1, 1970-01-01T00:00:01.001Z]")
+                                            "+I[Charly, Charly, 3 score in city Paris, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Dave, Dave, 4 score in city Berlin, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Alice, Alice, no city found for score 2, 1970-01-01T00:00:01.003Z]",
+                                            "+I[Frank, Frank, no city found for score 5, 1970-01-01T00:00:01.006Z]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f("
