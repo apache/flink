@@ -1105,6 +1105,138 @@ class DefaultLeaderElectionServiceTest {
         };
     }
 
+    /**
+     * A leader-information change event (e.g. a Kubernetes ConfigMap watch event) that arrives
+     * while a granted session's confirmation is still in flight must not erase the component's
+     * leader information from the external storage. {@code confirmLeadershipAsync} runs
+     * asynchronously on the {@code leadershipOperationExecutor} while {@code
+     * onLeaderInformationChange} is handled synchronously, so the change handler can observe an
+     * empty {@code confirmedLeaderInformation} and reset a stale external entry to empty before the
+     * confirmation has had a chance to run.
+     */
+    @Test
+    void testLeaderInformationChangeDoesNotEraseComponentWithInflightConfirmation()
+            throws Exception {
+        final AtomicReference<LeaderInformationRegister> storedLeaderInformation =
+                new AtomicReference<>();
+        new Context(storedLeaderInformation) {
+            {
+                runTestWithManuallyTriggeredEvents(
+                        executor -> {
+                            final String componentId = contenderContext0.componentId;
+                            final UUID staleSessionId = UUID.randomUUID();
+                            final UUID currentSessionId = UUID.randomUUID();
+
+                            // Acquire leadership for the current session but keep the confirmation
+                            // in flight: the grant runnable runs, the auto-queued confirm does not.
+                            grantLeadership(currentSessionId);
+                            executor.trigger();
+
+                            // The external storage still holds a stale entry from a previous
+                            // session that wasn't cleaned up (e.g. during an API-server outage).
+                            final LeaderInformation staleLeaderInformation =
+                                    LeaderInformation.known(staleSessionId, "stale-address");
+                            storedLeaderInformation.set(
+                                    LeaderInformationRegister.of(
+                                            componentId, staleLeaderInformation));
+
+                            // A watch event delivers the stale entry while the confirmation for the
+                            // current session is still queued on the leadershipOperationExecutor.
+                            leaderElectionService.onLeaderInformationChange(
+                                    LeaderInformationRegister.of(
+                                            componentId, staleLeaderInformation));
+
+                            assertThat(
+                                            storedLeaderInformation
+                                                    .get()
+                                                    .hasLeaderInformation(componentId))
+                                    .as(
+                                            "The leader information for a component we lead must not be "
+                                                    + "erased from the external storage while its confirmation "
+                                                    + "is still in flight.")
+                                    .isTrue();
+
+                            // Once the pending confirmation runs, the external storage converges to
+                            // the current session's leader information.
+                            executor.triggerAll();
+                            assertThat(storedLeaderInformation.get().forComponentId(componentId))
+                                    .hasValue(
+                                            LeaderInformation.known(
+                                                    currentSessionId, contenderContext0.address));
+                        });
+            }
+        };
+    }
+
+    /**
+     * After leadership is lost and re-acquired with a new session, the previous session's
+     * still-present external entry must not be erased while the new session's confirmation is in
+     * flight. A component confirms one session, gets revoked (which clears the local confirmation
+     * but leaves the external entry in place), and is re-granted a new session whose confirmation
+     * is still pending when a change event replays the stale entry.
+     */
+    @Test
+    void testLeaderInformationChangeDoesNotEraseComponentAfterReacquisition() throws Exception {
+        final AtomicReference<LeaderInformationRegister> storedLeaderInformation =
+                new AtomicReference<>();
+        new Context(storedLeaderInformation) {
+            {
+                runTestWithManuallyTriggeredEvents(
+                        executor -> {
+                            final String componentId = contenderContext0.componentId;
+                            final UUID firstSessionId = UUID.randomUUID();
+                            final UUID secondSessionId = UUID.randomUUID();
+
+                            // First reign: grant and let the confirmation land so the external
+                            // storage holds the first session's leader information.
+                            grantLeadership(firstSessionId);
+                            executor.triggerAll();
+                            assertThat(
+                                            storedLeaderInformation
+                                                    .get()
+                                                    .hasLeaderInformation(componentId))
+                                    .as("precondition: the first session's entry was written")
+                                    .isTrue();
+
+                            // Leadership is lost: the local confirmation is cleared but the
+                            // external
+                            // storage keeps the stale entry (not cleaned up during the outage).
+                            revokeLeadership();
+                            executor.triggerAll();
+
+                            // Leadership is re-acquired with a new session; the confirmation for
+                            // the
+                            // new session is queued but kept in flight.
+                            grantLeadership(secondSessionId);
+                            executor.trigger();
+
+                            // A watch event replays the stale (first-session) entry while the new
+                            // session's confirmation is still pending.
+                            leaderElectionService.onLeaderInformationChange(
+                                    storedLeaderInformation.get());
+
+                            assertThat(
+                                            storedLeaderInformation
+                                                    .get()
+                                                    .hasLeaderInformation(componentId))
+                                    .as(
+                                            "The leader information must not be erased after "
+                                                    + "re-acquisition while the new session's confirmation "
+                                                    + "is still in flight.")
+                                    .isTrue();
+
+                            // Once the pending confirmation runs, the external storage converges to
+                            // the new session's leader information.
+                            executor.triggerAll();
+                            assertThat(storedLeaderInformation.get().forComponentId(componentId))
+                                    .hasValue(
+                                            LeaderInformation.known(
+                                                    secondSessionId, contenderContext0.address));
+                        });
+            }
+        };
+    }
+
     @Test
     void testErrorForwarding() throws Exception {
         new Context() {
@@ -1201,9 +1333,13 @@ class DefaultLeaderElectionServiceTest {
                                     contenderContext0.componentId,
                                     storedLeaderInformation.get());
 
-                            assertThat(storedLeaderInformation.get().hasNoLeaderInformation())
+                            assertThat(
+                                            storedLeaderInformation
+                                                    .get()
+                                                    .hasLeaderInformation(
+                                                            contenderContext0.componentId))
                                     .as(
-                                            "The blocked leadership grant event shouldn't have blocked the processing of the LeaderInformation change event.")
+                                            "A queued leadership grant event shouldn't block the LeaderInformation change event; while the grant is pending (no confirmation available yet) the change handler must not erase the still-unconfirmed leader information.")
                                     .isTrue();
                         });
             }
