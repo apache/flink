@@ -125,6 +125,38 @@ Calc(select=[a, b, f], where=[f], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPushdownCalcNotAffectChangelogNormalizeKey2">
+    <Resource name="sql">
+      <![CDATA[
+SELECT f, count(*)
+FROM (select ingestion_time, f, a from t2) t2
+group by f
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
++- LogicalProject(f=[$1])
+   +- LogicalProject(ingestion_time=[$1], f=[$3], a=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[ingestion_time], watermark=[$1])
+         +- LogicalProject(k=[$0], ingestion_time=[CAST($3):TIMESTAMP(3) *ROWTIME*], a=[$1], f=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t2, metadata=[ts]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(groupBy=[f], select=[f, COUNT_RETRACT(*) AS EXPR$1], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[f]], changelogMode=[I,UB,UA,D])
+   +- Calc(select=[f], changelogMode=[I,UB,UA,D])
+      +- ChangelogNormalize(key=[a], changelogMode=[I,UB,UA,D])
+         +- Exchange(distribution=[hash[a]], changelogMode=[I,UA,D])
+            +- Calc(select=[f, a], changelogMode=[I,UA,D])
+               +- WatermarkAssigner(rowtime=[ingestion_time], watermark=[ingestion_time], changelogMode=[I,UA,D])
+                  +- Calc(select=[f, CAST(ingestion_time AS TIMESTAMP(3) *ROWTIME*) AS ingestion_time, a], changelogMode=[I,UA,D])
+                     +- TableSourceScan(table=[[default_catalog, default_database, t2, project=[f, a], metadata=[ts]]], fields=[f, a, ingestion_time], changelogMode=[I,UA,D])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPushdownNewCalcAndWatermarkAssignerWithCalc">
     <Resource name="sql">
       <![CDATA[

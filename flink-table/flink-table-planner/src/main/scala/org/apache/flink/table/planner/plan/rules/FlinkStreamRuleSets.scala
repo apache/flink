@@ -544,6 +544,7 @@ object FlinkStreamRuleSets {
   val CHANGELOG_NORMALIZE_TRANSPOSE_RULES: RuleSet = RuleSets.ofList(
     WatermarkAssignerChangelogNormalizeTransposeRule.WITH_CALC,
     WatermarkAssignerChangelogNormalizeTransposeRule.WITHOUT_CALC,
+    FlinkCalcMergeRule.STREAM_PHYSICAL_INSTANCE,
     // reduce state size in ChangelogNormalize
     PushCalcPastChangelogNormalizeRule.INSTANCE
   )
