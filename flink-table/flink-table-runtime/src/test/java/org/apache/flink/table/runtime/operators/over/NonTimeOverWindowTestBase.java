@@ -19,6 +19,10 @@
 package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -30,19 +34,36 @@ import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.StateParameterizedHarnessTestBase.StateBackendMode;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.RowKind;
 
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Base class for non-time over window test. */
+@ExtendWith(ParameterizedTestExtension.class)
 public abstract class NonTimeOverWindowTestBase extends RowTimeOverWindowTestBase {
+
+    @Parameter private StateBackendMode stateBackendMode;
+
+    @Parameters(name = "StateBackend={0}")
+    public static Collection<StateBackendMode> parameters() {
+        return Arrays.asList(StateBackendMode.HEAP, StateBackendMode.ROCKSDB);
+    }
 
     private static final int SORT_KEY_IDX = 1;
 
@@ -142,13 +163,11 @@ public abstract class NonTimeOverWindowTestBase extends RowTimeOverWindowTestBas
         public boolean equals(RowData row1, RowData row2) {
             if (row1 instanceof BinaryRowData && row2 instanceof BinaryRowData) {
                 return row1.equals(row2);
-            } else if (row1 instanceof GenericRowData && row2 instanceof GenericRowData) {
-                return row1.getString(0).equals(row2.getString(0))
-                        && row1.getLong(1) == row2.getLong(1)
-                        && row1.getLong(2) == row2.getLong(2);
-            } else {
-                throw new UnsupportedOperationException();
             }
+            // Rows read back from RocksDB are BinaryRowData while input rows are GenericRowData
+            return row1.getString(0).equals(row2.getString(0))
+                    && row1.getLong(1) == row2.getLong(1)
+                    && row1.getLong(2) == row2.getLong(2);
         }
     }
 
@@ -167,6 +186,33 @@ public abstract class NonTimeOverWindowTestBase extends RowTimeOverWindowTestBas
                 throw new UnsupportedOperationException();
             }
         }
+    }
+
+    @Override
+    protected OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
+            KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                super.createTestHarness(operator);
+        switch (stateBackendMode) {
+            case HEAP:
+                testHarness.setStateBackend(new HashMapStateBackend());
+                break;
+            case ROCKSDB:
+                testHarness.setStateBackend(new EmbeddedRocksDBStateBackend());
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown mode: " + stateBackendMode);
+        }
+        return testHarness;
+    }
+
+    /**
+     * The early-out compares a {@link GenericRowData} accumulator with the {@link BinaryRowData}
+     * read back from RocksDB, which never matches until FLINK-40735 compares them with a {@link
+     * RecordEqualiser}.
+     */
+    void assumeEarlyOutSupported() {
+        assumeThat(stateBackendMode).isEqualTo(StateBackendMode.HEAP);
     }
 
     abstract void validateEntry(
@@ -222,12 +268,11 @@ public abstract class NonTimeOverWindowTestBase extends RowTimeOverWindowTestBas
 
         if (isInsertion) {
             // Validate if record was successfully inserted in the valueMapState
-            assertThat(
-                            function.getRuntimeContext()
-                                    .getMapState(function.valueStateDescriptor)
-                                    .get(Long.MIN_VALUE + idOffset)
-                                    .toString())
-                    .isEqualTo(record.toString());
+            RowData storedRow =
+                    function.getRuntimeContext()
+                            .getMapState(function.valueStateDescriptor)
+                            .get(Long.MIN_VALUE + idOffset);
+            assertThat(new TestRowValueEqualiser().equals(storedRow, record)).isTrue();
         } else {
             // Validate if record was successfully removed from the valueMapState
             assertThat(
