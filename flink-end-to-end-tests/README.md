@@ -46,9 +46,8 @@ export IT_CASE_S3_SECRET_KEY=<secret-key>
 The tests requiring these credentials are:
 
 ```
-$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh hadoop
-$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh hadoop_with_provider
-$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh presto
+$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh native
+$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh native_with_provider
 ```
 
 `test_kubernetes_materialized_table.sh` also reads these variables but additionally requires a
@@ -60,8 +59,8 @@ Docker daemon but no AWS credentials:
 
 ```
 $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh skip flink-end-to-end-tests/test-scripts/test_file_sink.sh s3
-$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh hadoop_seaweedfs
-$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh presto_seaweedfs_read
+$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh native_seaweedfs
+$ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh flink-end-to-end-tests/test-scripts/test_batch_wordcount.sh native_seaweedfs_read
 ```
 
 
