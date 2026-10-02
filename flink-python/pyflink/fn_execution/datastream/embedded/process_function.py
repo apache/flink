@@ -79,7 +79,6 @@ class InternalKeyedProcessFunctionContext(KeyedProcessFunction.Context,
 
 class InternalKeyedProcessFunctionOnTimerContext(KeyedProcessFunction.OnTimerContext,
                                                  KeyedProcessFunction.Context,
-                                                 CoProcessFunction.OnTimerContext,
                                                  KeyedCoProcessFunction.OnTimerContext,
                                                  KeyedCoProcessFunction.Context):
 

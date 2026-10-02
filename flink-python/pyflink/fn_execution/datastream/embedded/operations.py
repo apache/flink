@@ -199,7 +199,9 @@ def extract_process_function(
 
         process_element1 = user_defined_func.process_element1
         process_element2 = user_defined_func.process_element2
-        on_timer = user_defined_func.on_timer
+        # ConnectedStreams.process also routes a plain CoProcessFunction here, and it has no
+        # on_timer.
+        on_timer = getattr(user_defined_func, "on_timer", None)
 
         def process_element_func1(value):
             yield from process_func(process_element1(value[1], function_context))
@@ -211,7 +213,8 @@ def extract_process_function(
             yield from process_func(on_timer(timestamp, timer_context))
 
         return TwoInputOperation(
-            open_func, close_func, process_element_func1, process_element_func2, on_timer_func)
+            open_func, close_func, process_element_func1, process_element_func2,
+            on_timer_func if on_timer else None)
 
     elif func_type == UserDefinedDataStreamFunction.KEYED_CO_BROADCAST_PROCESS:
         broadcast_ctx = InternalKeyedBroadcastProcessFunctionContext(

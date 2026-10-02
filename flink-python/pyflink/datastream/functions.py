@@ -737,7 +737,7 @@ class KeyedProcessFunction(Function):
                     registering timers and querying the time. The context is only valid during the
                     invocation of this method, do not store it.
         """
-        yield from []
+        pass
 
 
 class CoProcessFunction(Function):
@@ -776,16 +776,6 @@ class CoProcessFunction(Function):
             """
             pass
 
-    class OnTimerContext(Context):
-
-        @abstractmethod
-        def time_domain(self) -> TimeDomain:
-            """
-            The TimeDomain of the firing timer.
-            :return: The TimeDomain of current fired timer.
-            """
-            pass
-
     @abstractmethod
     def process_element1(self, value, ctx: 'CoProcessFunction.Context'):
         """
@@ -815,18 +805,6 @@ class CoProcessFunction(Function):
                      valid during the invocation of this method, do not store it.
         """
         pass
-
-    def on_timer(self, timestamp: int, ctx: 'CoProcessFunction.OnTimerContext'):
-        """
-        Called when a timer set using TimerService fires.
-
-        :param timestamp: The timestamp of the firing timer.
-        :param ctx: An OnTimerContext that allows querying the timestamp of the firing timer,
-                    querying the TimeDomain of the firing timer and getting a TimerService for
-                    registering timers and querying the time. The context is only valid during the
-                    invocation of this method, do not store it.
-        """
-        yield from []
 
 
 class KeyedCoProcessFunction(Function):
@@ -918,7 +896,7 @@ register a timer that will trigger an action in the future.
                     registering timers and querying the time. The context is only valid during the
                     invocation of this method, do not store it.
         """
-        yield from []
+        pass
 
 
 class AsyncRetryPredicate(ABC, Generic[OUT]):
