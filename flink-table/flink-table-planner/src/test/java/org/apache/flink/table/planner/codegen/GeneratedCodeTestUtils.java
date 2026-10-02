@@ -29,7 +29,6 @@ import org.apache.flink.util.CollectionUtil;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Utilities for tests that check the code generated for a query. */
@@ -59,11 +58,6 @@ final class GeneratedCodeTestUtils {
     }
 
     static int countMatches(Pattern pattern, String code) {
-        final Matcher matcher = pattern.matcher(code);
-        int count = 0;
-        while (matcher.find()) {
-            count++;
-        }
-        return count;
+        return (int) pattern.matcher(code).results().count();
     }
 }

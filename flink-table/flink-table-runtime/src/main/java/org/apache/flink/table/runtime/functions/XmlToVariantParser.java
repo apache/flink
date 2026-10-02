@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
 import org.apache.flink.types.variant.BinaryVariantInternalBuilder.FieldEntry;
 import org.apache.flink.types.variant.Variant;
@@ -45,6 +46,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoField;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,11 +61,11 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.nanosSinceEpoch;
  * Parses XML into a {@link Variant} for {@code PARSE_XML} and {@code TRY_PARSE_XML}. The mapping is
  * described in the documentation of the {@code VARIANT} data type.
  *
- * <p>Parsing has two steps. First, the document is read into a tree of {@link XmlElement}s, which
- * group the children of each element by name and apply {@code xsi:nil} and {@code xsi:type}. Then,
- * the {@link VariantEncoder} writes the tree into a variant. The variant can't be written while
- * reading, because the occurrences of a repeated child become one array, and they don't have to be
- * next to each other in the document.
+ * <p>Parsing has two steps. First, {@link #read} reads the document into a tree of {@link
+ * XmlElement}s, which group the children of each element by name and apply {@code xsi:nil} and
+ * {@code xsi:type}. Then, {@link #encode} writes the tree into a variant. The variant can't be
+ * written while reading, because the occurrences of a repeated child become one array, and they
+ * don't have to be next to each other in the document.
  *
  * <p>Instances are not thread-safe.
  */
@@ -80,14 +82,25 @@ public final class XmlToVariantParser {
 
     private final XMLInputFactory inputFactory = createInputFactory();
 
-    public Variant parse(String xml, boolean forceArray) {
-        final XmlElement root;
+    @VisibleForTesting
+    Variant parse(String xml, boolean forceArray) {
+        return encode(read(xml), forceArray);
+    }
+
+    /**
+     * Reads the document into the tree of its root element. Calls on the same document can share
+     * the tree, since {@link #encode} doesn't change it.
+     */
+    XmlElement read(String xml) {
         try {
-            root = readDocument(xml);
+            return readDocument(xml);
         } catch (XMLStreamException e) {
             // Only the message is kept, since the location of the exception is not serializable.
             throw new IllegalArgumentException(e.getMessage());
         }
+    }
+
+    static Variant encode(XmlElement root, boolean forceArray) {
         return new VariantEncoder(forceArray).encodeDocument(root);
     }
 
@@ -129,10 +142,10 @@ public final class XmlToVariantParser {
     private XmlElement readDocument(String xml) throws XMLStreamException {
         final XMLStreamReader reader = inputFactory.createXMLStreamReader(new StringReader(xml));
         try {
-            // XML 1.1 allows characters that XML 1.0 can't represent, e.g. most control characters.
-            // Accepting only XML 1.0 keeps every result representable as XML 1.0.
-            if ("1.1".equals(reader.getVersion())) {
-                throw new XMLStreamException("XML 1.1 documents are not supported.");
+            final String version = reader.getVersion();
+            if (!XmlVersion.isSupported(version)) {
+                throw new XMLStreamException(
+                        String.format("XML %s documents are not supported.", version));
             }
             while (reader.next() != XMLStreamConstants.START_ELEMENT) {
                 // Skip the prolog.
@@ -188,6 +201,28 @@ public final class XmlToVariantParser {
     // The reader splits attribute names into prefix and local name, even if not namespace-aware.
     private static String qualifiedName(@Nullable String prefix, String localName) {
         return prefix == null || prefix.isEmpty() ? localName : prefix + ':' + localName;
+    }
+
+    /**
+     * The XML versions that can be parsed. XML 1.1 isn't supported, since it allows characters that
+     * XML 1.0 can't represent, e.g. most control characters. Accepting only XML 1.0 keeps every
+     * result representable as XML 1.0.
+     */
+    private enum XmlVersion {
+        XML_1_0("1.0");
+
+        private final String version;
+
+        XmlVersion(String version) {
+            this.version = version;
+        }
+
+        /** A document without an XML declaration is XML 1.0. */
+        static boolean isSupported(@Nullable String version) {
+            return version == null
+                    || Arrays.stream(values())
+                            .anyMatch(supported -> supported.version.equals(version));
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -344,7 +379,7 @@ public final class XmlToVariantParser {
     // --------------------------------------------------------------------------------------------
 
     /** An element as read from the document. */
-    private static final class XmlElement {
+    static final class XmlElement {
 
         final String name;
 

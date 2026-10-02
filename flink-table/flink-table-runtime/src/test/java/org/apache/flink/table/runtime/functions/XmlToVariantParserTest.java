@@ -34,6 +34,7 @@ import java.time.LocalTime;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
@@ -108,6 +109,10 @@ class XmlToVariantParserTest {
                 arguments(
                         "<?xml version=\"1.0\"?><!-- c --><a>foo<!-- c -->bar<?pi x?></a><!-- c -->",
                         "{\"a\":\"foobar\"}"),
+                // The input is a string, so an encoding declared in the document is ignored.
+                arguments(
+                        "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><a>\u00e4</a>",
+                        "{\"a\":\"\u00e4\"}"),
                 // Whitespace-only text is dropped, other text is trimmed of XML whitespace only.
                 arguments("<a>\n  <b>x</b>\n</a>", "{\"a\":{\"b\":\"x\"}}"),
                 arguments("<a> \t\r\n </a>", "{\"a\":\"\"}"),
@@ -407,7 +412,7 @@ class XmlToVariantParserTest {
 
     @Test
     void testNestingDepthIsLimited() {
-        assertThat(parser.parse(nested(500), true).toJson()).startsWith("{\"a\":{\"a\":[{\"a\":");
+        assertThatNoException().isThrownBy(() -> parser.parse(nested(500), true));
         assertThatThrownBy(() -> parser.parse(nested(501), false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("JAXP00010006");

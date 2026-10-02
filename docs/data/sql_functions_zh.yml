@@ -1498,7 +1498,7 @@ variant:
       If `force_array` is true, every child element, text, and position in a `#` field is stored
       as an array, even if it occurs only once. This keeps the structure the same across documents
       that repeat an element a different number of times. The default value of `force_array` is
-      false.
+      false. A NULL `force_array` is treated as false.
 
       External entities and external DTDs are not supported, and a document that references one
       fails to parse.
