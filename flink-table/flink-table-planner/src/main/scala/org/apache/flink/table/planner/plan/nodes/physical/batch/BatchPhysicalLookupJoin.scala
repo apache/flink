@@ -31,6 +31,7 @@ import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexProgram
 
 import java.util
+import java.util.Collections
 
 import scala.collection.JavaConverters._
 
@@ -45,7 +46,8 @@ class BatchPhysicalLookupJoin(
     joinType: JoinRelType,
     lookupHint: Option[RelHint] = Option.empty,
     enableLookupShuffle: Boolean = false,
-    preferCustomShuffle: Boolean = false)
+    preferCustomShuffle: Boolean = false,
+    hints: util.List[RelHint] = Collections.emptyList[RelHint]())
   extends CommonPhysicalLookupJoin(
     cluster,
     traitSet,
@@ -57,7 +59,8 @@ class BatchPhysicalLookupJoin(
     lookupHint,
     false,
     enableLookupShuffle,
-    preferCustomShuffle)
+    preferCustomShuffle,
+    hints)
   with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -71,7 +74,8 @@ class BatchPhysicalLookupJoin(
       joinType,
       lookupHint,
       enableLookupShuffle,
-      preferCustomShuffle)
+      preferCustomShuffle,
+      hints)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
