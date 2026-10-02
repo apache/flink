@@ -100,8 +100,8 @@ public final class JoinRecordStateViews {
         }
 
         @Override
-        public boolean hasRecord(RowData record) throws Exception {
-            return recordState.value() != null;
+        public RowData getRecord(RowData record) throws Exception {
+            return recordState.value();
         }
 
         @Override
@@ -152,8 +152,8 @@ public final class JoinRecordStateViews {
         }
 
         @Override
-        public boolean hasRecord(RowData record) throws Exception {
-            return recordState.contains(uniqueKeySelector.getKey(record));
+        public RowData getRecord(RowData record) throws Exception {
+            return recordState.get(uniqueKeySelector.getKey(record));
         }
 
         @Override
@@ -204,9 +204,9 @@ public final class JoinRecordStateViews {
         }
 
         @Override
-        public boolean hasRecord(RowData record) {
+        public RowData getRecord(RowData record) {
             // without a unique key, an equal record is a second record and not an update
-            return false;
+            return null;
         }
 
         @Override
