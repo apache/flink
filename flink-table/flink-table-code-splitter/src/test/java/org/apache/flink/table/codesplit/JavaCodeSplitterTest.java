@@ -52,8 +52,9 @@ class JavaCodeSplitterTest {
                                         .toURI()));
 
         try {
-            String first = JavaCodeSplitter.split(code, 100, 3);
-            String second = JavaCodeSplitter.split(code, 100, 3);
+            // call splitImpl directly to bypass the result cache and actually re-run the splitter
+            String first = JavaCodeSplitter.splitImpl(code, 100, 3);
+            String second = JavaCodeSplitter.splitImpl(code, 100, 3);
 
             assertThat(second).isEqualTo(first);
         } finally {
