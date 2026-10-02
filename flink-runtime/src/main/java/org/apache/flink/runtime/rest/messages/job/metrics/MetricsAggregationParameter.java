@@ -61,5 +61,8 @@ public class MetricsAggregationParameter
         SUM,
         AVG,
         SKEW,
+        P50,
+        P90,
+        P99,
     }
 }
