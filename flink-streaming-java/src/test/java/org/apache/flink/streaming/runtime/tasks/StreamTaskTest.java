@@ -152,6 +152,8 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -1838,8 +1840,10 @@ public class StreamTaskTest {
         }
     }
 
-    @Test
-    void testForwardPartitionerIsConvertedToRebalanceOnParallelismChanges() throws Exception {
+    @ParameterizedTest(name = "producer parallelism {0}, consumer parallelism {1}")
+    @CsvSource({"1, 2", "2, 1"})
+    void testForwardPartitionerIsConvertedToRebalanceOnParallelismChanges(
+            int producerParallelism, int consumerParallelism) throws Exception {
         StreamTaskMailboxTestHarnessBuilder<Integer> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
@@ -1861,16 +1865,18 @@ public class StreamTaskTest {
                                     .getChannelSelector())
                     .isInstanceOf(ForwardPartitioner.class);
 
-            // Simulate changed downstream task parallelism (1->2)
+            // Simulate changed producer and consumer parallelism
             List<ResultPartitionWriter> newOutputs = new ArrayList<>();
             newOutputs.add(
                     new MockResultPartitionWriter() {
                         @Override
                         public int getNumberOfSubpartitions() {
-                            return 2;
+                            return consumerParallelism;
                         }
                     });
             harness.streamMockEnvironment.setOutputs(newOutputs);
+            harness.streamMockEnvironment.setNumberOfParallelSubtasks(producerParallelism);
+            harness.streamMockEnvironment.setWriterConsumerParallelism(consumerParallelism);
 
             // Re-create outputs
             recordWriterDelegate =
