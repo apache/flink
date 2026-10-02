@@ -260,8 +260,12 @@ Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_ord
 - SQL 语法
 
     ```sql
-    COMPILE PLAN [IF NOT EXISTS] <plan_file_path> FOR <insert_statement>|<statement_set>;
-    
+    -- 将编译后的计划写入文件：
+    COMPILE PLAN '<plan_file_path>' [IF NOT EXISTS] FOR <insert_statement>|<statement_set>;
+
+    -- 或将编译后的计划作为一行一列的 STRING 结果集内联返回：
+    COMPILE PLAN FOR <insert_statement>|<statement_set>;
+
     statement_set:
         EXECUTE STATEMENT SET
         BEGIN
@@ -269,11 +273,11 @@ Flink SQL> COMPILE PLAN 'file:///path/to/plan.json' FOR INSERT INTO enriched_ord
         ...
         insert_statement;
         END;
-    
+
     insert_statement:
         <insert_from_select>|<insert_from_values>
     ```
-    该语句会在指定位置 `/path/to/plan.json` 生成一个 JSON 文件。
+    文件形式会在 `<plan_file_path>` 生成 JSON 文件。`IF NOT EXISTS` 仅在文件形式下有效，用于在文件已存在时跳过编译。内联形式返回相同的 JSON 作为结果集，适用于与执行器不共享文件系统的 SQL Gateway / SQL Client / JDBC 客户端。
 
 {{< hint info >}}
 `COMPILE PLAN` 语句支持写入 `hdfs://` 或 `s3://` 等 Flink 支持的[文件系统]({{< ref "docs/deployment/filesystems/overview" >}})。
