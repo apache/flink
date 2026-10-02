@@ -32,7 +32,7 @@ It is recommended to use the HiveServer2 Endpoint with a Hive Catalog and Hive d
 
 Setting Up
 ----------------
-Before the trip of the SQL Gateway with the HiveServer2 Endpoint, please prepare the required [dependencies]({{< ref "docs/connectors/table/hive/overview#dependencies" >}}).
+Before the trip of the SQL Gateway with the HiveServer2 Endpoint, please prepare the required dependencies.
 
 ### Configure HiveServer2 Endpoint
 
@@ -209,7 +209,7 @@ HiveServer2 Protocol Compatibility
 
 The Flink SQL Gateway with HiveServer2 Endpoint aims to provide the same experience compared to the HiveServer2 of Apache Hive.
 Therefore, HiveServer2 Endpoint automatically initialize the environment to have more consistent experience for Hive users:
-- create the [Hive Catalog]({{< ref "docs/connectors/table/hive/hive_catalog.md" >}}) as the default catalog;
+- create the Hive Catalog as the default catalog;
 - use Hive built-in function by loading Hive function module and place it first in the [function module]({{< ref "docs/dev/table/modules/index.md" >}}) list;
 - switch to the Hive dialect (`table.sql-dialect = hive`);
 - switch to batch execution mode (`execution.runtime-mode = BATCH`);
@@ -316,4 +316,4 @@ Supported Types
 
 The HiveServer2 Endpoint is built on the Hive2 now and supports all Hive2 available types. For Hive-compatible tables, the HiveServer2 Endpoint
 obeys the same rule as the HiveCatalog to convert the Flink types to Hive Types and serialize them to the thrift object. Please refer to
-the [HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog#supported-types" >}}) for the type mappings.
+the HiveCatalog for the type mappings.
