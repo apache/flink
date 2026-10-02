@@ -89,7 +89,7 @@ class JsonFormatFactoryTest {
                 .satisfies(
                         anyCauseMatches(
                                 ValidationException.class,
-                                "Unsupported value 'test' for timestamp-format.standard. Supported values are [SQL, ISO-8601]."));
+                                "Unsupported value 'test' for timestamp-format.standard. Supported values are [SQL, ISO-8601, ISO-8601-WITH-OFFSET]."));
     }
 
     @Test
@@ -102,7 +102,7 @@ class JsonFormatFactoryTest {
                 .satisfies(
                         anyCauseMatches(
                                 ValidationException.class,
-                                "Unsupported value 'iso-8601' for timestamp-format.standard. Supported values are [SQL, ISO-8601]."));
+                                "Unsupported value 'iso-8601' for timestamp-format.standard. Supported values are [SQL, ISO-8601, ISO-8601-WITH-OFFSET]."));
     }
 
     @Test
