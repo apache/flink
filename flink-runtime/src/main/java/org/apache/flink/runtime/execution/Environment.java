@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -247,6 +248,13 @@ public interface Environment {
     // --------------------------------------------------------------------------------------------
 
     ResultPartitionWriter getWriter(int index);
+
+    /**
+     * Returns the parallelism of the job vertices consuming the partition written by {@link
+     * #getWriter(int)}, or {@link ResultPartitionDeploymentDescriptor#UNKNOWN_CONSUMER_PARALLELISM}
+     * if it is not decided yet.
+     */
+    int getWriterConsumerParallelism(int index);
 
     ResultPartitionWriter[] getAllWriters();
 
