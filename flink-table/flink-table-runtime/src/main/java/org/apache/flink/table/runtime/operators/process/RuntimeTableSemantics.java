@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.process;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.DataType;
 
 import java.io.Serializable;

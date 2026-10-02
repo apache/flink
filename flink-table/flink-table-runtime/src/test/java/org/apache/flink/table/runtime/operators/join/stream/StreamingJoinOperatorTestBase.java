@@ -22,12 +22,14 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncKeyOrderedProcessingOperator;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -96,6 +98,30 @@ public abstract class StreamingJoinOperatorTestBase {
                     + "}\n";
     protected final GeneratedJoinCondition joinCondition =
             new GeneratedJoinCondition("ConditionFunction", funcCode, new Object[0]);
+
+    protected static final String UNKNOWN = "unknown";
+
+    protected static final RuntimeChangelogMode UPSERT =
+            RuntimeChangelogMode.serialize(ChangelogMode.upsert());
+
+    /** Only rows whose last field is not {@link #UNKNOWN} join. */
+    protected static GeneratedJoinCondition knownValuesNonEquiCondition() {
+        final String code =
+                "public class KnownValuesNonEquiCondition extends org.apache.flink.api.common.functions.AbstractRichFunction "
+                        + "implements org.apache.flink.table.runtime.generated.JoinCondition {\n"
+                        + "    public KnownValuesNonEquiCondition(Object[] reference) {}\n"
+                        + "    private boolean isKnown(org.apache.flink.table.data.RowData row) {\n"
+                        + "        return !row.getString(row.getArity() - 1).toString().equals(\""
+                        + UNKNOWN
+                        + "\");\n"
+                        + "    }\n"
+                        + "    @Override\n"
+                        + "    public boolean apply(org.apache.flink.table.data.RowData in1, org.apache.flink.table.data.RowData in2) {\n"
+                        + "        return isKnown(in1) && isKnown(in2);\n"
+                        + "    }\n"
+                        + "}\n";
+        return new GeneratedJoinCondition("KnownValuesNonEquiCondition", code, new Object[0]);
+    }
 
     protected RowDataHarnessAssertor assertor;
 

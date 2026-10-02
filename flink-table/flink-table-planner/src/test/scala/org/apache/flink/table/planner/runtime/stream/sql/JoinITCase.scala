@@ -774,20 +774,6 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode, enableAsyncS
     // mini-batch folds the +U/-D pair within a bundle and async state is not fixed yet
     assumeThat(miniBatch == MiniBatchOff).isTrue
     assumeThat(enableAsyncState).isFalse
-    env.setParallelism(1)
-    val sink = s"sink_${UUID.randomUUID().toString.replace('-', '_')}"
-
-    val order = row(1, "EU")
-    val ordersId = TestValuesTableFactory.registerData(Seq(row(order)))
-    tEnv.executeSql(s"""
-                       |CREATE TABLE orders (
-                       |  order_key ROW<id INT, region STRING> PRIMARY KEY NOT ENFORCED
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'data-id' = '$ordersId',
-                       |  'changelog-mode' = 'I,UA,D'
-                       |)
-                       |""".stripMargin)
 
     val lines = Seq(
       changelogRow("+I", order, "l1", "new"),
@@ -796,6 +782,73 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode, enableAsyncS
       changelogRow("-D", order, "l1", "paid"),
       changelogRow("-D", order, "l2", "new")
     )
+
+    val expected = List(
+      "+I[+I[1, EU], null, null, null]",
+      "-D[+I[1, EU], null, null, null]",
+      "+I[+I[1, EU], +I[1, EU], l1, new]",
+      "+I[+I[1, EU], +I[1, EU], l2, new]",
+      "+I[+I[1, EU], +I[1, EU], l1, paid]",
+      "-D[+I[1, EU], +I[1, EU], l1, paid]",
+      "-D[+I[1, EU], +I[1, EU], l2, new]",
+      "+I[+I[1, EU], null, null, null]"
+    )
+    val results = getRawResultsOfLeftJoinOnRowKey("o.order_key = l.order_key", lines)
+    assertThat(results).isEqualTo(expected)
+  }
+
+  /** An updated line that no longer satisfies the non-equi condition retracts its match. */
+  @TestTemplate
+  def testLeftJoinOnRowKeyWithNonEquiCondition(): Unit = {
+    // mini-batch folds the +U/+U pair within a bundle and async state is not fixed yet
+    assumeThat(miniBatch == MiniBatchOff).isTrue
+    assumeThat(enableAsyncState).isFalse
+
+    val lines = Seq(
+      changelogRow("+I", order, "l1", "new"),
+      changelogRow("+U", order, "l1", "cancelled"),
+      changelogRow("+U", order, "l1", "paid")
+    )
+
+    val expected = List(
+      "+I[+I[1, EU], null, null, null]",
+      "-D[+I[1, EU], null, null, null]",
+      "+I[+I[1, EU], +I[1, EU], l1, new]",
+      "-D[+I[1, EU], +I[1, EU], l1, new]",
+      "+I[+I[1, EU], null, null, null]",
+      "-D[+I[1, EU], null, null, null]",
+      "+I[+I[1, EU], +I[1, EU], l1, paid]"
+    )
+    val results = getRawResultsOfLeftJoinOnRowKey(
+      "o.order_key = l.order_key AND l.status <> o.excluded_status",
+      lines)
+    assertThat(results).isEqualTo(expected)
+  }
+
+  private val order = row(1, "EU")
+
+  /**
+   * Left joins an upsert table of orders with the given upsert changes of their lines, which are
+   * emitted once the sink received the first row, and returns the raw results of the sink.
+   */
+  private def getRawResultsOfLeftJoinOnRowKey(
+      joinCondition: String,
+      lines: Seq[Row]): List[String] = {
+    env.setParallelism(1)
+    val sink = s"sink_${UUID.randomUUID().toString.replace('-', '_')}"
+
+    val ordersId = TestValuesTableFactory.registerData(Seq(row(order, "cancelled")))
+    tEnv.executeSql(s"""
+                       |CREATE TABLE orders (
+                       |  order_key ROW<id INT, region STRING> PRIMARY KEY NOT ENFORCED,
+                       |  excluded_status STRING
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$ordersId',
+                       |  'changelog-mode' = 'I,UA,D'
+                       |)
+                       |""".stripMargin)
+
     val lineType = Types.ROW_NAMED(
       Array("order_key", "line_id", "status"),
       Types.ROW_NAMED(Array("id", "region"), Types.INT, Types.STRING),
@@ -826,22 +879,11 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode, enableAsyncS
                        |""".stripMargin)
 
     val insert =
-      s"INSERT INTO $sink SELECT * FROM orders o LEFT JOIN lines l ON o.order_key = l.order_key"
+      s"INSERT INTO $sink SELECT o.order_key, l.* FROM orders o LEFT JOIN lines l ON $joinCondition"
     assertThat(tEnv.explainSql(insert, ExplainDetail.CHANGELOG_MODE))
       .contains("rightInputSpec=[HasUniqueKey], changelogMode=[I,UA,D]")
     tEnv.executeSql(insert).await()
-
-    val expected = List(
-      "+I[+I[1, EU], null, null, null]",
-      "-D[+I[1, EU], null, null, null]",
-      "+I[+I[1, EU], +I[1, EU], l1, new]",
-      "+I[+I[1, EU], +I[1, EU], l2, new]",
-      "+I[+I[1, EU], +I[1, EU], l1, paid]",
-      "-D[+I[1, EU], +I[1, EU], l1, paid]",
-      "-D[+I[1, EU], +I[1, EU], l2, new]",
-      "+I[+I[1, EU], null, null, null]"
-    )
-    assertThat(TestValuesTableFactory.getRawResultsAsStrings(sink).toList).isEqualTo(expected)
+    TestValuesTableFactory.getRawResultsAsStrings(sink).toList
   }
 
   @TestTemplate
