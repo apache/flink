@@ -22,10 +22,14 @@ import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContex
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.jupiter.api.{BeforeEach, Test}
 
-/** Test for [[ReplaceIntersectWithSemiJoinRule]]. */
+/**
+ * Former test for [[ReplaceIntersectWithSemiJoinRule]] which now replaced
+ * by Calcite's [[CoreRules#INTERSECT_TO_SEMI_JOIN]].
+ */
 class ReplaceIntersectWithSemiJoinRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
@@ -38,7 +42,7 @@ class ReplaceIntersectWithSemiJoinRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(ReplaceIntersectWithSemiJoinRule.INSTANCE))
+        .add(RuleSets.ofList(CoreRules.INTERSECT_TO_SEMI_JOIN))
         .build()
     )
     util.replaceBatchProgram(programs)
