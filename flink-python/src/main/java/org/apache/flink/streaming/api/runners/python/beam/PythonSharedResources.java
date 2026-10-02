@@ -44,6 +44,8 @@ public final class PythonSharedResources implements AutoCloseable {
     /** Keep track of the PythonEnvironmentManagers of the Python operators in one slot. */
     private final List<PythonEnvironmentManager> environmentManagers;
 
+    private boolean closed;
+
     PythonSharedResources(JobBundleFactory jobBundleFactory, Environment environment) {
         this.jobBundleFactory = jobBundleFactory;
         this.environment = environment;
@@ -63,10 +65,31 @@ public final class PythonSharedResources implements AutoCloseable {
     }
 
     @Override
-    public void close() throws Exception {
-        jobBundleFactory.close();
+    public synchronized void close() throws Exception {
+        if (closed) {
+            return;
+        }
+
+        Exception exception = null;
+        try {
+            jobBundleFactory.close();
+        } catch (Exception e) {
+            exception = e;
+        }
         for (PythonEnvironmentManager environmentManager : environmentManagers) {
-            environmentManager.close();
+            try {
+                environmentManager.close();
+            } catch (Exception e) {
+                if (exception == null) {
+                    exception = e;
+                } else {
+                    exception.addSuppressed(e);
+                }
+            }
+        }
+        closed = true;
+        if (exception != null) {
+            throw exception;
         }
     }
 }
