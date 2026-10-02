@@ -107,10 +107,9 @@ public class AbstractSessionClusterExecutor<
                     .thenApplyAsync(
                             FunctionUtils.uncheckedFunction(
                                     jobId -> {
-                                        ClientUtils.waitUntilJobInitializationFinished(
+                                        ClientUtils.waitUntilSafeJobInitializationFinished(
                                                 () -> clusterClient.getJobStatus(jobId).get(),
-                                                () -> clusterClient.requestJobResult(jobId).get(),
-                                                userCodeClassloader);
+                                                () -> clusterClient.requestJobResult(jobId).get());
                                         return jobId;
                                     }))
                     .thenApplyAsync(
