@@ -449,6 +449,33 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 checkpointId, operatorChain, isRunning, Task.NotifyCheckpointOperation.SUBSUME);
     }
 
+    @Override
+    public void notifyRegionalCheckpointFallback(
+            long checkpointId,
+            long fallbackCheckpointId,
+            OperatorChain<?, ?> operatorChain,
+            Supplier<Boolean> isRunning)
+            throws Exception {
+        // Per FLIP-600 Section 9 "Local Recovery Cleanup": failed-region tasks discard
+        // the failed checkpoint's local state. Cleanup is deferred to the next checkpoint
+        // trigger. Here we propagate the notification to operators (so they can perform
+        // custom cleanup) and to the TaskStateManager / local state store.
+        LOG.debug(
+                "Notification of regional checkpoint {} fallback to {} for task {}",
+                checkpointId,
+                fallbackCheckpointId,
+                taskName);
+        try {
+            if (isRunning.get()) {
+                operatorChain.notifyRegionalCheckpointFallback(checkpointId, fallbackCheckpointId);
+            }
+        } finally {
+            // Discard local state for this failed checkpoint attempt. The local state store
+            // prunes the entry for checkpointId so that recovery does not restore stale state.
+            env.getTaskStateManager().pruneStateForCheckpoint(checkpointId);
+        }
+    }
+
     private void notifyCheckpoint(
             long checkpointId,
             OperatorChain<?, ?> operatorChain,

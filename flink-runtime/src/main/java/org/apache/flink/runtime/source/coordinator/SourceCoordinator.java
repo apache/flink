@@ -416,6 +416,61 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     }
 
     @Override
+    public boolean supportsRegionCheckpoint() {
+        return true;
+    }
+
+    @Override
+    public void checkpointCoordinatorForRegionFallback(
+            long checkpointId,
+            long fallbackCheckpointId,
+            Set<Integer> fallbackSubtaskIds,
+            CompletableFuture<byte[]> resultFuture)
+            throws Exception {
+        runInEventLoop(
+                () -> {
+                    LOG.info(
+                            "Region checkpoint fallback for source {} at checkpoint {}, "
+                                    + "rolling back subtasks {} to checkpoint {}.",
+                            operatorName,
+                            checkpointId,
+                            fallbackSubtaskIds,
+                            fallbackCheckpointId);
+                    try {
+                        // Remove splits assigned to fallback subtasks after the fallback checkpoint
+                        final Map<Integer, List<SplitT>> removedAssignments =
+                                context.getAssignmentTracker()
+                                        .removeAssignmentsAfterCheckpoint(
+                                                fallbackCheckpointId, fallbackSubtaskIds);
+
+                        // Return removed splits to the enumerator
+                        for (Map.Entry<Integer, List<SplitT>> entry :
+                                removedAssignments.entrySet()) {
+                            LOG.debug(
+                                    "Adding splits back to enumerator of source {} for subtask {}: {}",
+                                    operatorName,
+                                    entry.getKey(),
+                                    entry.getValue());
+                            enumerator.addSplitsBack(entry.getValue(), entry.getKey());
+                        }
+
+                        // Serialize the corrected coordinator state
+                        resultFuture.complete(toBytes(checkpointId));
+                    } catch (Throwable e) {
+                        ExceptionUtils.rethrowIfFatalErrorOrOOM(e);
+                        resultFuture.completeExceptionally(
+                                new CompletionException(
+                                        String.format(
+                                                "Failed to perform region checkpoint fallback for source %s",
+                                                operatorName),
+                                        e));
+                    }
+                },
+                "performing region checkpoint fallback for checkpoint %d",
+                checkpointId);
+    }
+
+    @Override
     public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
         runInEventLoop(
                 () -> {

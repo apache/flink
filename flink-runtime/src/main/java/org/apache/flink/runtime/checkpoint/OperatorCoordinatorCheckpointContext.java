@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.state.RegionalCheckpointInfo;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 
 import javax.annotation.Nullable;
 
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -44,6 +46,27 @@ public interface OperatorCoordinatorCheckpointContext extends OperatorInfo, Chec
      */
     @Override
     void notifyCheckpointComplete(long checkpointId);
+
+    /**
+     * Notifies the coordinator that a regional checkpoint has completed, providing context about
+     * which subtasks used historical state. Default implementation delegates to {@link
+     * #notifyCheckpointComplete(long)}.
+     */
+    @Override
+    default void notifyRegionalCheckpointComplete(
+            long checkpointId, RegionalCheckpointInfo regionalCheckpointInfo) throws Exception {
+        notifyCheckpointComplete(checkpointId);
+    }
+
+    /**
+     * Notifies the coordinator that a regional checkpoint has completed but some subtasks fell back
+     * to a historical checkpoint. Default is no-op; coordinators that maintain local state should
+     * override to clean up stale state for the fallback subtasks.
+     */
+    @Override
+    default void notifyRegionalCheckpointFallback(long checkpointId, long fallbackCheckpointId) {
+        // no-op for backward compatibility
+    }
 
     /**
      * We override the method here to remove the checked exception. Please check the Java docs of
@@ -78,4 +101,32 @@ public interface OperatorCoordinatorCheckpointContext extends OperatorInfo, Chec
      * recovered.
      */
     void subtaskReset(int subtask, long checkpointId);
+
+    /**
+     * Returns whether this coordinator supports regional checkpoints. When {@code true}, the
+     * framework may call {@link #checkpointCoordinatorForRegionFallback} instead of aborting the
+     * checkpoint when some subtasks decline.
+     */
+    default boolean supportsRegionCheckpoint() {
+        return false;
+    }
+
+    /**
+     * Takes a region-aware snapshot of the coordinator. Called when a regional checkpoint is being
+     * completed and some subtasks' state will fall back to a previous checkpoint.
+     *
+     * @param checkpointId the id of the ongoing checkpoint
+     * @param fallbackCheckpointId the id of the previous checkpoint for fallback subtasks
+     * @param fallbackSubtaskIds subtask indices whose state will be replaced
+     * @param resultFuture future to complete with the serialized coordinator state
+     */
+    default void checkpointCoordinatorForRegionFallback(
+            long checkpointId,
+            long fallbackCheckpointId,
+            Set<Integer> fallbackSubtaskIds,
+            CompletableFuture<byte[]> resultFuture)
+            throws Exception {
+        throw new UnsupportedOperationException(
+                "This coordinator does not support region checkpoints.");
+    }
 }

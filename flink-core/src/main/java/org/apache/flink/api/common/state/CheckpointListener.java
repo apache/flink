@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * This interface is typically only needed for transactional interaction with the "outside world",
@@ -120,6 +121,60 @@ public interface CheckpointListener {
      *     the task. Note that this will NOT lead to the checkpoint being revoked.
      */
     void notifyCheckpointComplete(long checkpointId) throws Exception;
+
+    /**
+     * Notifies the listener that the checkpoint with the given {@code checkpointId} completed and
+     * was committed, providing additional context about whether this is a regional checkpoint.
+     *
+     * <p>This method is called instead of {@link #notifyCheckpointComplete(long)} when the
+     * framework has Regional Checkpoint information available. The default implementation delegates
+     * to {@link #notifyCheckpointComplete(long)}, so existing implementations are unaffected.
+     *
+     * <p>Implementations that need to distinguish between global checkpoints (all tasks
+     * acknowledged) and regional checkpoints (some tasks fell back to historical state) can
+     * override this method to inspect the {@link RegionalCheckpointInfo}.
+     *
+     * <p>Per FLIP-600, this method is called on <b>healthy-region tasks</b> only. Tasks in failed
+     * regions receive {@link #notifyRegionalCheckpointFallback(long, long)} instead.
+     *
+     * @param checkpointId The ID of the checkpoint that has been completed.
+     * @param regionalCheckpointInfo Context about which subtasks used historical state. Use {@link
+     *     RegionalCheckpointInfo#isGlobalCheckpoint()} to check if all tasks acknowledged.
+     * @throws Exception This method can propagate exceptions, which leads to a failure/recovery for
+     *     the task. Note that this will NOT lead to the checkpoint being revoked.
+     */
+    @PublicEvolving
+    default void notifyRegionalCheckpointComplete(
+            long checkpointId, RegionalCheckpointInfo regionalCheckpointInfo) throws Exception {
+        notifyCheckpointComplete(checkpointId);
+    }
+
+    /**
+     * Notifies the listener that a regional checkpoint has completed but this task's region fell
+     * back to a historical checkpoint. Sent to tasks in failed regions so they can clean up stale
+     * local state from the aborted attempt.
+     *
+     * <p>Per FLIP-600, this method is called on <b>failed-region tasks</b> only. Tasks in healthy
+     * regions receive {@link #notifyRegionalCheckpointComplete(long, RegionalCheckpointInfo)}
+     * instead.
+     *
+     * <p>When a regional checkpoint completes, the framework may have already cancelled/restarted
+     * the failed-region tasks (decline path) or they may still be running but did not finish the
+     * checkpoint (timeout path). This notification is delivered via the same task-side
+     * checkpoint-complete RPC path so that it survives task restarts and is applied after the task
+     * is recovered. Implementations that maintain local checkpoint state (e.g. {@code
+     * TaskLocalStateStore}) should override this method to discard the stale local state of the
+     * failed checkpoint attempt.
+     *
+     * <p>Default: no-op for backward compatibility.
+     *
+     * @param checkpointId the completed regional checkpoint id
+     * @param fallbackCheckpointId the historical checkpoint this task fell back to
+     */
+    @PublicEvolving
+    default void notifyRegionalCheckpointFallback(long checkpointId, long fallbackCheckpointId) {
+        // no-op for backward compatibility
+    }
 
     /**
      * This method is called as a notification once a distributed checkpoint has been aborted.
