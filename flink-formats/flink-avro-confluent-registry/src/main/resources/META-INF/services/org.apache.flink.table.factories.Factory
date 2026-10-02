@@ -15,3 +15,4 @@
 
 org.apache.flink.formats.avro.registry.confluent.RegistryAvroFormatFactory
 org.apache.flink.formats.avro.registry.confluent.debezium.DebeziumAvroFormatFactory
+org.apache.flink.formats.avro.registry.confluent.RegistryAvroVariantFormatFactory
