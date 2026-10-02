@@ -231,8 +231,8 @@ class FlinkLogicalRankRuleForConstantRange extends FlinkLogicalRankRuleBase {
     }
 
     val agg = group.aggCalls.get(0)
-    if (agg.getOperator.kind != SqlKind.RANK) {
-      // only accept RANK function
+    if (agg.getOperator.kind != SqlKind.RANK && agg.getOperator.kind != SqlKind.ROW_NUMBER) {
+      // only accept RANK and ROW_NUMBER functions
       return false
     }
 

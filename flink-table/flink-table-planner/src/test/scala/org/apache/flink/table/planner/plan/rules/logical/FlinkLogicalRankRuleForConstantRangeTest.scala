@@ -32,7 +32,7 @@ class FlinkLogicalRankRuleForConstantRangeTest extends TableTestBase {
 
   @Test
   def testRowNumberFunc(): Unit = {
-    // can not be converted to Rank
+    // ROW_NUMBER Top-N with a constant rank range is converted to Rank
     val sqlQuery =
       """
         |SELECT * FROM (
