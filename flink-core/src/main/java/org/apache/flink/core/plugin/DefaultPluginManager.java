@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -60,6 +61,9 @@ public class DefaultPluginManager implements PluginManager {
     @GuardedBy("pluginLoadersLock")
     private final Map<String, PluginLoader> pluginLoaders;
 
+    @GuardedBy("pluginLoadersLock")
+    private final Map<Class<?>, List<?>> pluginInstancesCache;
+
     /** List of patterns for classes that should always be resolved from the parent ClassLoader. */
     private final String[] alwaysParentFirstPatterns;
 
@@ -70,6 +74,7 @@ public class DefaultPluginManager implements PluginManager {
         pluginLoadersLock = null;
         pluginLoaders = null;
         alwaysParentFirstPatterns = null;
+        pluginInstancesCache = null;
     }
 
     public DefaultPluginManager(
@@ -87,12 +92,26 @@ public class DefaultPluginManager implements PluginManager {
         this.pluginDescriptors = pluginDescriptors;
         this.pluginLoadersLock = new ReentrantLock();
         this.pluginLoaders = new HashMap<>();
+        this.pluginInstancesCache = new HashMap<>();
         this.parentClassLoader = parentClassLoader;
         this.alwaysParentFirstPatterns = alwaysParentFirstPatterns;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <P> Iterator<P> load(Class<P> service) {
+        pluginLoadersLock.lock();
+        try {
+            if (pluginInstancesCache.containsKey(service)) {
+                LOG.info(
+                        "Returning cached singleton instances for plugin type: {}",
+                        service.getName());
+                return ((List<P>) pluginInstancesCache.get(service)).iterator();
+            }
+        } finally {
+            pluginLoadersLock.unlock();
+        }
+
         ArrayList<Iterator<P>> combinedIterators = new ArrayList<>(pluginDescriptors.size());
         for (PluginDescriptor pluginDescriptor : pluginDescriptors) {
             PluginLoader pluginLoader;
@@ -114,7 +133,61 @@ public class DefaultPluginManager implements PluginManager {
             }
             combinedIterators.add(pluginLoader.load(service));
         }
-        return Iterators.concat(combinedIterators.iterator());
+
+        List<P> instances = new ArrayList<>();
+        Iterators.concat(combinedIterators.iterator()).forEachRemaining(instances::add);
+
+        pluginLoadersLock.lock();
+        try {
+            pluginInstancesCache.putIfAbsent(service, instances);
+            return ((List<P>) pluginInstancesCache.get(service)).iterator();
+        } finally {
+            pluginLoadersLock.unlock();
+        }
+    }
+
+    @Override
+    public void open(PluginContext context) {
+        pluginLoadersLock.lock();
+        try {
+            for (List<?> instances : pluginInstancesCache.values()) {
+                for (Object instance : instances) {
+                    if (instance instanceof Plugin) {
+                        ((Plugin) instance).open(context);
+                    }
+                }
+            }
+        } finally {
+            pluginLoadersLock.unlock();
+        }
+    }
+
+    @Override
+    public void close() {
+        pluginLoadersLock.lock();
+        try {
+            for (List<?> instances : pluginInstancesCache.values()) {
+                for (Object instance : instances) {
+                    if (instance instanceof Plugin) {
+                        ((Plugin) instance).close();
+                    }
+                }
+            }
+        } finally {
+            pluginLoadersLock.unlock();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @VisibleForTesting
+    public <P> void injectForTesting(Class<P> service, P instance) {
+        pluginLoadersLock.lock();
+        try {
+            ((List<P>) pluginInstancesCache.computeIfAbsent(service, k -> new ArrayList<>()))
+                    .add(instance);
+        } finally {
+            pluginLoadersLock.unlock();
+        }
     }
 
     @Override

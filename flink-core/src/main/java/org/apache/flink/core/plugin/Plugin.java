@@ -48,4 +48,15 @@ public interface Plugin {
      * @param config The configuration to apply to the plugin.
      */
     default void configure(Configuration config) {}
+
+    /**
+     * Called when the plugin is opened, providing context information such as the hosting task
+     * manager ID.
+     *
+     * @param context The context for this plugin.
+     */
+    default void open(PluginContext context) {}
+
+    /** Called when the plugin is closed to release any held resources. */
+    default void close() {}
 }
