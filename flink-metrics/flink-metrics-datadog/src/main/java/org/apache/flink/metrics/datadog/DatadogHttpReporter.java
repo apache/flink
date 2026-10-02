@@ -67,20 +67,20 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
             String proxyHost,
             int proxyPort,
             int maxMetricsPerRequestValue,
-            DataCenter dataCenter,
+            String dataCenterUrl,
             String tags,
             boolean useLogicalIdentifier) {
         this.maxMetricsPerRequestValue = maxMetricsPerRequestValue;
         this.useLogicalIdentifier = useLogicalIdentifier;
-        this.client = new DatadogHttpClient(apiKey, proxyHost, proxyPort, dataCenter, true);
+        this.client = new DatadogHttpClient(apiKey, proxyHost, proxyPort, dataCenterUrl, true);
         this.configTags = getTagsFromConfig(tags);
 
         LOGGER.info(
-                "Configured DatadogHttpReporter with {tags={}, proxyHost={}, proxyPort={}, dataCenter={}, maxMetricsPerRequest={}",
+                "Configured DatadogHttpReporter with {tags={}, proxyHost={}, proxyPort={}, dataCenterUrl={}, maxMetricsPerRequest={}",
                 tags,
                 proxyHost,
                 proxyPort,
-                dataCenter,
+                dataCenterUrl,
                 maxMetricsPerRequestValue);
     }
 
