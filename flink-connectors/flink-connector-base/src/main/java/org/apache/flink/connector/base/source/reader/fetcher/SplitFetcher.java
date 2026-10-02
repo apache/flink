@@ -42,6 +42,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -58,7 +59,15 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
     // track the assigned splits so we can suspend the reader when there is no splits assigned.
     private final Map<String, SplitT> assignedSplits = new HashMap<>();
     private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
-    private final SplitReader<E, SplitT> splitReader;
+
+    /** Creates the split reader, once, when the fetcher starts or when it is first requested. */
+    private final Supplier<SplitReader<E, SplitT>> splitReaderSupplier;
+
+    private final Object splitReaderCreationLock = new Object();
+
+    /** The split reader, or {@code null} until the supplier has been invoked. */
+    @Nullable private volatile SplitReader<E, SplitT> splitReader;
+
     private final Consumer<Throwable> errorHandler;
     private final Runnable shutdownHook;
 
@@ -102,9 +111,28 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
             Runnable shutdownHook,
             Consumer<Collection<String>> splitFinishedHook,
             boolean allowUnalignedSourceSplits) {
+        this(
+                id,
+                elementsQueue,
+                () -> splitReader,
+                errorHandler,
+                shutdownHook,
+                splitFinishedHook,
+                allowUnalignedSourceSplits);
+        this.splitReader = checkNotNull(splitReader);
+    }
+
+    SplitFetcher(
+            int id,
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+            Consumer<Throwable> errorHandler,
+            Runnable shutdownHook,
+            Consumer<Collection<String>> splitFinishedHook,
+            boolean allowUnalignedSourceSplits) {
         this.id = id;
         this.elementsQueue = checkNotNull(elementsQueue);
-        this.splitReader = checkNotNull(splitReader);
+        this.splitReaderSupplier = checkNotNull(splitReaderSupplier);
         this.errorHandler = checkNotNull(errorHandler);
         this.shutdownHook = checkNotNull(shutdownHook);
         this.allowUnalignedSourceSplits = allowUnalignedSourceSplits;
@@ -113,7 +141,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 
         this.fetchTask =
                 new FetchTask<>(
-                        splitReader,
+                        this::getSplitReader,
                         elementsQueue,
                         ids -> {
                             ids.forEach(assignedSplits::remove);
@@ -127,6 +155,9 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
     public void run() {
         LOG.info("Starting split fetcher {}", id);
         try {
+            // Create the reader on this thread, the one that uses it, unless it was requested
+            // earlier. A failure here goes through the error handler like any fetch failure.
+            getSplitReader();
             while (runOnce()) {
                 // nothing to do, everything is inside #runOnce.
             }
@@ -149,7 +180,10 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
         } finally {
             try {
                 recordsProcessedLatch.await();
-                splitReader.close();
+                SplitReader<E, SplitT> reader = splitReader;
+                if (reader != null) {
+                    reader.close();
+                }
             } catch (Exception e) {
                 errorHandler.accept(e);
             } finally {
@@ -263,7 +297,8 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
     public void addSplits(List<SplitT> splitsToAdd) {
         lock.lock();
         try {
-            enqueueTaskUnsafe(new AddSplitsTask<>(splitReader, splitsToAdd, assignedSplits));
+            enqueueTaskUnsafe(
+                    new AddSplitsTask<>(this::getSplitReader, splitsToAdd, assignedSplits));
             wakeUpUnsafe(true);
         } finally {
             lock.unlock();
@@ -280,7 +315,10 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
         try {
             enqueueTaskUnsafe(
                     new RemoveSplitsTask<>(
-                            splitReader, splitsToRemove, assignedSplits, splitFinishedHook));
+                            this::getSplitReader,
+                            splitsToRemove,
+                            assignedSplits,
+                            splitFinishedHook));
             wakeUpUnsafe(true);
         } finally {
             lock.unlock();
@@ -301,7 +339,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
         try {
             enqueueTaskUnsafe(
                     new PauseOrResumeSplitsTask<>(
-                            splitReader,
+                            this::getSplitReader,
                             splitsToPause,
                             splitsToResume,
                             allowUnalignedSourceSplits));
@@ -326,8 +364,29 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
         nonEmpty.signal();
     }
 
+    /**
+     * Returns the split reader of this fetcher.
+     *
+     * <p>The reader is created on the fetcher thread when the fetcher starts. If this method is
+     * called before that, the reader is created on the calling thread instead. Either way it is
+     * created only once.
+     */
     public SplitReader<E, SplitT> getSplitReader() {
-        return splitReader;
+        SplitReader<E, SplitT> reader = splitReader;
+        if (reader != null) {
+            return reader;
+        }
+        synchronized (splitReaderCreationLock) {
+            reader = splitReader;
+            if (reader == null) {
+                reader =
+                        checkNotNull(
+                                splitReaderSupplier.get(),
+                                "The split reader supplier returned null.");
+                splitReader = reader;
+            }
+            return reader;
+        }
     }
 
     public int fetcherId() {

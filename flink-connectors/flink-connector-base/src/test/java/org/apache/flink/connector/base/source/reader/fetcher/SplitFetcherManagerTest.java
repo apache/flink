@@ -114,6 +114,48 @@ class SplitFetcherManagerTest {
     }
 
     @Test
+    void testSplitReaderIsCreatedOnFetcherThread() throws Exception {
+        final CompletableFuture<String> creatingThreadName = new CompletableFuture<>();
+        final SingleThreadFetcherManager<Integer, TestingSourceSplit> fetcherManager =
+                new SingleThreadFetcherManager<>(
+                        () -> {
+                            creatingThreadName.complete(Thread.currentThread().getName());
+                            return new ThreadInfoCapturingSplitReader<>();
+                        },
+                        new Configuration());
+        try {
+            fetcherManager.addSplits(Collections.singletonList(new TestingSourceSplit("split-0")));
+            assertThat(creatingThreadName)
+                    .succeedsWithin(Duration.ofSeconds(60))
+                    .isEqualTo(
+                            SplitFetcherManager.THREAD_NAME_PREFIX
+                                    + Thread.currentThread().getName());
+        } finally {
+            fetcherManager.close(30_000L);
+        }
+    }
+
+    @Test
+    void testSplitReaderCreationFailureIsReportedThroughCheckErrors() throws Exception {
+        final RuntimeException creationFailure =
+                new RuntimeException("Artificial exception on creating the split reader.");
+        final SingleThreadFetcherManager<Integer, TestingSourceSplit> fetcherManager =
+                new SingleThreadFetcherManager<>(
+                        () -> {
+                            throw creationFailure;
+                        },
+                        new Configuration());
+        try {
+            // The supplier runs on the fetcher thread, so adding the split does not throw.
+            fetcherManager.addSplits(Collections.singletonList(new TestingSourceSplit("split-0")));
+            fetcherManager.getQueue().getAvailabilityFuture().get();
+            assertThatThrownBy(fetcherManager::checkErrors).hasCause(creationFailure);
+        } finally {
+            fetcherManager.close(30_000L);
+        }
+    }
+
+    @Test
     @Timeout(value = 30000, unit = TimeUnit.MILLISECONDS)
     void testCloseCleansUpPreviouslyClosedFetcher() throws Exception {
         final String splitId = "testSplit";
