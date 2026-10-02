@@ -145,7 +145,7 @@ LogicalProject(f2=[$1], f3=[$5])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[f2, f3])
-+- LookupJoin(table=[TimeTravelCatalog.default.t1], joinType=[LeftOuterJoin], lookup=[f1=f1], select=[f1, f2, f10, f3])
++- LookupJoin(table=[TimeTravelCatalog.default.t1, project=[f1, f3], metadata=[]], joinType=[LeftOuterJoin], lookup=[f1=f1], select=[f1, f2, f10, f3])
    +- TableSourceScan(table=[[TimeTravelCatalog, default, t1]], fields=[f1, f2], version=[1672538400000])
 ]]>
     </Resource>

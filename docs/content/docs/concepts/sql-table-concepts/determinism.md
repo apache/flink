@@ -240,7 +240,7 @@ join dim_with_pk for system_time as of t1.proctime as t2
 -- plan: the upsertKey of left stream is reserved when lookup table with a pk definition and use it as lookup key, so that the high cost materialization can be omitted.
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk, project=[a, c], metadata=[]], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c])
       +- DropUpdateBefore
          +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])   
 ```
@@ -257,7 +257,7 @@ join dim_without_pk for system_time as of t1.proctime as t2
 -- execution plan when `TRY_RESOLVE` is enabled(may encounter errors at runtime when `TRY_RESOLVE` mode is not enabled):
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c], upsertMaterialize=[true])
+   +- LookupJoin(table=[default_catalog.default_database.dim_without_pk, project=[a, c], metadata=[]], joinType=[InnerJoin], lookup=[a=a], select=[a, b, a, c], upsertMaterialize=[true])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
 ```
 Though the second case can be solved by adding materialization if `TRY_RESOLVE` is enabled, but the cost is very high, there will be two more costly materialization compared to the one with primary key.
