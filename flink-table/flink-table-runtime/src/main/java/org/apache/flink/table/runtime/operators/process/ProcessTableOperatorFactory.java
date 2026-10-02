@@ -28,6 +28,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.ProcessTableRunner;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 
 import java.util.Arrays;
 import java.util.List;

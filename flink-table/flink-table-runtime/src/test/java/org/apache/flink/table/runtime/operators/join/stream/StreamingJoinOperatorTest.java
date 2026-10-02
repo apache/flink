@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.join.stream;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.AsyncStateStreamingJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
@@ -79,6 +80,10 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
                     rightInputSpec,
                     joinTypeSpec[0],
                     joinTypeSpec[1],
+                    // the tests send both retract and upsert inputs
+                    null,
+                    null,
+                    false,
                     new boolean[] {true},
                     ttl[0],
                     ttl[1]);
@@ -810,18 +815,190 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
                 rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", "AIR"));
     }
 
-    /** Views without a unique key never report a stored record, not even an equal one. */
+    /**
+     * A left row replaced without UPDATE_BEFORE is counted by the right row if the old version did
+     * not match it.
+     */
     @TestTemplate
-    void testLeftOuterJoinHasRecord() throws Exception {
+    void testRightOuterJoinCountsLeftUpsertThatStartsMatching() throws Exception {
         assumeFalse(enableAsyncState);
-        assertHasRecordAfterInsert(true);
+        useStreamingJoinOperator(
+                leftHasUniqueKeySpec(),
+                rightInputSpec,
+                false,
+                true,
+                knownValuesNonEquiCondition(),
+                true);
+
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.INSERT, null, null, null, "LineOrd#1", "AIR"));
+
+        testHarness.processElement1(insertRecord("Ord#2", "LineOrd#1", ADDRESS));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, null, null, null, "LineOrd#1", "AIR"),
+                rowOfKind(RowKind.INSERT, "Ord#2", "LineOrd#1", ADDRESS, "LineOrd#1", "AIR"));
+
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", UNKNOWN));
+        assertor.shouldEmitNothing(testHarness);
+
+        testHarness.processElement1(updateAfterRecord("Ord#1", "LineOrd#1", NEW_ADDRESS));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", NEW_ADDRESS, "LineOrd#1", "AIR"));
+
+        testHarness.processElement1(deleteRecord("Ord#2", "LineOrd#1", ADDRESS));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#2", "LineOrd#1", ADDRESS, "LineOrd#1", "AIR"));
+
+        testHarness.processElement1(deleteRecord("Ord#1", "LineOrd#1", NEW_ADDRESS));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", NEW_ADDRESS, "LineOrd#1", "AIR"),
+                rowOfKind(RowKind.INSERT, null, null, null, "LineOrd#1", "AIR"));
+    }
+
+    /** A right row replaced without UPDATE_BEFORE that no longer matches retracts its match. */
+    @TestTemplate
+    void testLeftOuterJoinRetractsLostMatchOfRightUpsert() throws Exception {
+        assumeFalse(enableAsyncState);
+        useStreamingJoinOperator(
+                leftInputSpec, rightInputSpec, true, false, knownValuesNonEquiCondition(), true);
+
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(updateAfterRecord("LineOrd#1", UNKNOWN));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", "AIR"),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS, null, null));
+
+        testHarness.processElement2(updateAfterRecord("LineOrd#1", "SHIP"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS, null, null),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", "SHIP"));
+    }
+
+    /**
+     * A null padded left row replaced without UPDATE_BEFORE that now matches retracts its null
+     * padding.
+     */
+    @TestTemplate
+    void testLeftOuterJoinRetractsNullPaddingOfLeftUpsert() throws Exception {
+        assumeFalse(enableAsyncState);
+        useStreamingJoinOperator(
+                leftInputSpec, rightInputSpec, true, false, knownValuesNonEquiCondition(), true);
+
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", UNKNOWN));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", UNKNOWN, null, null));
+
+        testHarness.processElement1(updateAfterRecord("Ord#1", "LineOrd#1", ADDRESS));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", UNKNOWN, null, null),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", "AIR"));
+    }
+
+    /** A right row replaced without UPDATE_BEFORE that no longer matches retracts its match. */
+    @TestTemplate
+    void testInnerJoinRetractsLostMatchOfRightUpsert() throws Exception {
+        assumeFalse(enableAsyncState);
+        useStreamingJoinOperator(
+                leftInputSpec, rightInputSpec, false, false, knownValuesNonEquiCondition(), true);
+
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(updateAfterRecord("LineOrd#1", UNKNOWN));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", "AIR"));
+    }
+
+    /** A left row replaced without UPDATE_BEFORE that no longer matches uncounts its match. */
+    @TestTemplate
+    void testRightOuterJoinUncountsLostMatchOfLeftUpsert() throws Exception {
+        assumeFalse(enableAsyncState);
+        useStreamingJoinOperator(
+                leftHasUniqueKeySpec(),
+                rightInputSpec,
+                false,
+                true,
+                knownValuesNonEquiCondition(),
+                true);
+
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.processElement1(insertRecord("Ord#2", "LineOrd#1", ADDRESS));
+        testHarness.getOutput().clear();
+
+        testHarness.processElement1(updateAfterRecord("Ord#1", "LineOrd#1", UNKNOWN));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", "AIR"));
+
+        testHarness.processElement1(deleteRecord("Ord#2", "LineOrd#1", ADDRESS));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#2", "LineOrd#1", ADDRESS, "LineOrd#1", "AIR"),
+                rowOfKind(RowKind.INSERT, null, null, null, "LineOrd#1", "AIR"));
+    }
+
+    /**
+     * A right row replaced by INSERT or UPDATE_AFTER keeps the null padding of both sides in sync
+     * when it loses and gains its match.
+     */
+    @TestTemplate
+    void testFullOuterJoinReplacesMatchesOfRightUpsert() throws Exception {
+        assumeFalse(enableAsyncState);
+        useStreamingJoinOperator(
+                leftInputSpec, rightInputSpec, true, true, knownValuesNonEquiCondition(), true);
+
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(insertRecord("LineOrd#1", UNKNOWN));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", "AIR"),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS, null, null),
+                rowOfKind(RowKind.INSERT, null, null, null, "LineOrd#1", UNKNOWN));
+
+        testHarness.processElement2(updateAfterRecord("LineOrd#1", "SHIP"));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, null, null, null, "LineOrd#1", UNKNOWN),
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS, null, null),
+                rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", "SHIP"));
+
+        testHarness.processElement1(deleteRecord("Ord#1", "LineOrd#1", ADDRESS));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS, "LineOrd#1", "SHIP"),
+                rowOfKind(RowKind.INSERT, null, null, null, "LineOrd#1", "SHIP"));
+    }
+
+    /** Views without a unique key never return a stored record, not even an equal one. */
+    @TestTemplate
+    void testLeftOuterJoinGetRecord() throws Exception {
+        assumeFalse(enableAsyncState);
+        assertGetRecordAfterInsert(true);
 
         useStreamingJoinOperator(
                 JoinInputSideSpec.withoutUniqueKey(),
                 JoinInputSideSpec.withoutUniqueKey(),
                 true,
                 false);
-        assertHasRecordAfterInsert(false);
+        assertGetRecordAfterInsert(false);
     }
 
     // TODO FLINK-40681: remove once AsyncStateStreamingJoinOperator handles
@@ -840,17 +1017,32 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
             boolean leftIsOuter,
             boolean rightIsOuter)
             throws Exception {
+        useStreamingJoinOperator(
+                leftSpec, rightSpec, leftIsOuter, rightIsOuter, joinCondition, false);
+    }
+
+    private void useStreamingJoinOperator(
+            JoinInputSideSpec leftSpec,
+            JoinInputSideSpec rightSpec,
+            boolean leftIsOuter,
+            boolean rightIsOuter,
+            GeneratedJoinCondition condition,
+            boolean hasNonEquiCondition)
+            throws Exception {
         testHarness.close();
         testHarness =
                 new KeyedTwoInputStreamOperatorTestHarness<>(
                         new StreamingJoinOperator(
                                 leftTypeInfo,
                                 rightTypeInfo,
-                                joinCondition,
+                                condition,
                                 leftSpec,
                                 rightSpec,
                                 leftIsOuter,
                                 rightIsOuter,
+                                UPSERT,
+                                UPSERT,
+                                hasNonEquiCondition,
                                 new boolean[] {true},
                                 0L,
                                 0L),
@@ -860,21 +1052,28 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
         testHarness.open();
     }
 
-    private void assertHasRecordAfterInsert(boolean expected) throws Exception {
+    private void assertGetRecordAfterInsert(boolean hasUniqueKey) throws Exception {
         final StreamingJoinOperator operator = (StreamingJoinOperator) testHarness.getOperator();
         final RowData left = insertRecord("Ord#1", "LineOrd#1", ADDRESS).getValue();
         final RowData right = insertRecord("LineOrd#1", "AIR").getValue();
 
         operator.setCurrentKey(rightKeySelector.getKey(right));
-        assertThat(operator.leftRecordStateView.hasRecord(left)).isFalse();
-        assertThat(operator.rightRecordStateView.hasRecord(right)).isFalse();
+        assertThat(operator.leftRecordStateView.getRecord(left)).isNull();
+        assertThat(operator.rightRecordStateView.getRecord(right)).isNull();
 
         testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
         testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
-        assertThat(operator.leftRecordStateView.hasRecord(left)).isEqualTo(expected);
-        assertThat(operator.rightRecordStateView.hasRecord(right)).isEqualTo(expected);
+        assertThat(operator.leftRecordStateView.getRecord(left))
+                .isEqualTo(hasUniqueKey ? left : null);
+        assertThat(operator.rightRecordStateView.getRecord(right))
+                .isEqualTo(hasUniqueKey ? right : null);
     }
 
+    /**
+     * The unique key (order_id, line_order_id) contains the join key (line_order_id), which the
+     * planner requires for inputs without UPDATE_BEFORE, so a replacing record has the same join
+     * key.
+     */
     private JoinInputSideSpec leftHasUniqueKeySpec() {
         final RowDataKeySelector uniqueKeySelector =
                 HandwrittenSelectorUtil.getRowDataSelector(

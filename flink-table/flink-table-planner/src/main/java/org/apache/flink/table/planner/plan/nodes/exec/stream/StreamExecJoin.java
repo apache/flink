@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -49,6 +50,7 @@ import org.apache.flink.table.runtime.operators.join.stream.StreamingSemiAntiJoi
 import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.AsyncStateStreamingJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
@@ -88,6 +90,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
     public static final String FIELD_NAME_LEFT_UPSERT_KEYS = "leftUpsertKeys";
     public static final String FIELD_NAME_RIGHT_UPSERT_KEYS = "rightUpsertKeys";
+    public static final String FIELD_NAME_LEFT_INPUT_CHANGELOG_MODE = "leftInputChangelogMode";
+    public static final String FIELD_NAME_RIGHT_INPUT_CHANGELOG_MODE = "rightInputChangelogMode";
 
     @JsonProperty(FIELD_NAME_JOIN_SPEC)
     private final JoinSpec joinSpec;
@@ -101,6 +105,16 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
     private final List<int[]> rightUpsertKeys;
 
     @Nullable
+    @JsonProperty(FIELD_NAME_LEFT_INPUT_CHANGELOG_MODE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final ChangelogMode leftInputChangelogMode;
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_RIGHT_INPUT_CHANGELOG_MODE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final ChangelogMode rightInputChangelogMode;
+
+    @Nullable
     @JsonProperty(FIELD_NAME_STATE)
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<StateMetadata> stateMetadataList;
@@ -110,6 +124,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             JoinSpec joinSpec,
             List<int[]> leftUpsertKeys,
             List<int[]> rightUpsertKeys,
+            ChangelogMode leftInputChangelogMode,
+            ChangelogMode rightInputChangelogMode,
             InputProperty leftInputProperty,
             InputProperty rightInputProperty,
             Map<Integer, Long> stateTtlFromHint,
@@ -122,6 +138,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 joinSpec,
                 leftUpsertKeys,
                 rightUpsertKeys,
+                leftInputChangelogMode,
+                rightInputChangelogMode,
                 StateMetadata.getMultiInputOperatorDefaultMeta(
                         stateTtlFromHint, tableConfig, LEFT_STATE_NAME, RIGHT_STATE_NAME),
                 Lists.newArrayList(leftInputProperty, rightInputProperty),
@@ -137,6 +155,10 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
             @JsonProperty(FIELD_NAME_LEFT_UPSERT_KEYS) List<int[]> leftUpsertKeys,
             @JsonProperty(FIELD_NAME_RIGHT_UPSERT_KEYS) List<int[]> rightUpsertKeys,
+            @Nullable @JsonProperty(FIELD_NAME_LEFT_INPUT_CHANGELOG_MODE)
+                    ChangelogMode leftInputChangelogMode,
+            @Nullable @JsonProperty(FIELD_NAME_RIGHT_INPUT_CHANGELOG_MODE)
+                    ChangelogMode rightInputChangelogMode,
             @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
@@ -146,6 +168,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
         this.joinSpec = checkNotNull(joinSpec);
         this.leftUpsertKeys = leftUpsertKeys;
         this.rightUpsertKeys = rightUpsertKeys;
+        this.leftInputChangelogMode = leftInputChangelogMode;
+        this.rightInputChangelogMode = rightInputChangelogMode;
         this.stateMetadataList = stateMetadataList;
     }
 
@@ -216,6 +240,11 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             boolean leftIsOuter = joinType == FlinkJoinType.LEFT || joinType == FlinkJoinType.FULL;
             boolean rightIsOuter =
                     joinType == FlinkJoinType.RIGHT || joinType == FlinkJoinType.FULL;
+            final RuntimeChangelogMode leftRuntimeChangelogMode =
+                    toRuntimeChangelogMode(leftInputChangelogMode);
+            final RuntimeChangelogMode rightRuntimeChangelogMode =
+                    toRuntimeChangelogMode(rightInputChangelogMode);
+            final boolean hasNonEquiCondition = joinSpec.getNonEquiCondition().isPresent();
             if (isMiniBatchEnabled) {
                 operator =
                         MiniBatchStreamingJoinOperator.newMiniBatchStreamJoinOperator(
@@ -227,6 +256,9 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                                 rightInputSpec,
                                 leftIsOuter,
                                 rightIsOuter,
+                                leftRuntimeChangelogMode,
+                                rightRuntimeChangelogMode,
+                                hasNonEquiCondition,
                                 joinSpec.getFilterNulls(),
                                 leftStateRetentionTime,
                                 rightStateRetentionTime,
@@ -255,6 +287,9 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                                     rightInputSpec,
                                     leftIsOuter,
                                     rightIsOuter,
+                                    leftRuntimeChangelogMode,
+                                    rightRuntimeChangelogMode,
+                                    hasNonEquiCondition,
                                     joinSpec.getFilterNulls(),
                                     leftStateRetentionTime,
                                     rightStateRetentionTime);
@@ -283,5 +318,13 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
         transform.setStateKeySelectors(leftSelect, rightSelect);
         transform.setStateKeyType(leftSelect.getProducedType());
         return transform;
+    }
+
+    /** Compiled plans before Flink 2.4 do not contain the changelog modes of the inputs. */
+    private static @Nullable RuntimeChangelogMode toRuntimeChangelogMode(
+            @Nullable ChangelogMode inputChangelogMode) {
+        return inputChangelogMode == null
+                ? null
+                : RuntimeChangelogMode.serialize(inputChangelogMode);
     }
 }
