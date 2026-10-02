@@ -134,6 +134,35 @@ class ClosureCleanerTest {
     }
 
     @Test
+    void testCleanNonSerializableNestedMap() {
+        MapFunction<Integer, Integer> complexMap =
+                new ComplexMap(
+                        new MapFunction<>() {
+                            private final Object obj = new Object(); // non-serializable
+
+                            @Override
+                            public Integer map(Integer value) {
+                                return value + obj.hashCode();
+                            }
+                        });
+
+        // Verify that the error message contains the reference chain.
+        assertThatThrownBy(
+                        () ->
+                                ClosureCleaner.clean(
+                                        complexMap,
+                                        ExecutionConfig.ClosureCleanerLevel.RECURSIVE,
+                                        true))
+                .isInstanceOf(InvalidProgramException.class)
+                .hasMessageMatching(
+                        "(?s).*Reference path:.*object not serializable \\(class:"
+                            + " java\\.lang\\.Object\\).*field \\(class: .*ClosureCleanerTest.*,"
+                            + " name: obj, type: class java\\.lang\\.Object\\).*field \\(class:"
+                            + " .*LocalMap, name: map4, type: interface .*MapFunction\\).*field"
+                            + " \\(class: .*ComplexMap, name: map4, type: class .*LocalMap\\).*");
+    }
+
+    @Test
     void testComplexInnerClassClean() throws Exception {
         MapFunction<Integer, Integer> complexMap =
                 new InnerComplexMap((MapFunction<Integer, Integer>) value -> value + 1);
