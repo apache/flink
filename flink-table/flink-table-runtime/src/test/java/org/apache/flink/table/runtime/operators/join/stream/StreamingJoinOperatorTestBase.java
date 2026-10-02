@@ -101,17 +101,21 @@ public abstract class StreamingJoinOperatorTestBase {
 
     protected static final String UNKNOWN = "unknown";
 
-    protected static final RuntimeChangelogMode UPSERT =
-            RuntimeChangelogMode.serialize(ChangelogMode.upsert());
+    protected static final RuntimeChangelogMode UPSERT_WITH_KEY_ONLY_DELETES =
+            RuntimeChangelogMode.serialize(ChangelogMode.upsert(true));
 
-    /** Only rows whose last field is not {@link #UNKNOWN} join. */
+    protected static final RuntimeChangelogMode UPSERT_WITH_FULL_DELETES =
+            RuntimeChangelogMode.serialize(ChangelogMode.upsert(false));
+
+    /** Only rows whose last field is neither null nor {@link #UNKNOWN} join. */
     protected static GeneratedJoinCondition knownValuesNonEquiCondition() {
         final String code =
                 "public class KnownValuesNonEquiCondition extends org.apache.flink.api.common.functions.AbstractRichFunction "
                         + "implements org.apache.flink.table.runtime.generated.JoinCondition {\n"
                         + "    public KnownValuesNonEquiCondition(Object[] reference) {}\n"
                         + "    private boolean isKnown(org.apache.flink.table.data.RowData row) {\n"
-                        + "        return !row.getString(row.getArity() - 1).toString().equals(\""
+                        + "        final int last = row.getArity() - 1;\n"
+                        + "        return !row.isNullAt(last) && !row.getString(last).toString().equals(\""
                         + UNKNOWN
                         + "\");\n"
                         + "    }\n"
