@@ -160,7 +160,10 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                 fatalErrorHandler,
                 jobStatusListener,
                 failureEnrichers,
-                executionGraphFactory);
+                executionGraphFactory,
+                ExecutionGraphCreationRetryStrategyFactoryLoader.createFactory(
+                                jobGraph.getJobConfiguration(), jobMasterConfiguration)
+                        .create());
     }
 
     @Override
