@@ -735,7 +735,7 @@ public class KubernetesConfigOptions {
                         .stringType()
                         .noDefaultValue()
                         .withFallbackKeys(defaultPodTemplate.key())
-                        .withFallbackKeys(getDeprecatedKeys(defaultPodTemplate))
+                        .withDeprecatedKeys(getDeprecatedKeys(defaultPodTemplate))
                         .withDescription(
                                 "Specify a local file that contains the jobmanager pod template definition. "
                                         + "It will be used to initialize the jobmanager pod. "
@@ -750,7 +750,7 @@ public class KubernetesConfigOptions {
                         .stringType()
                         .noDefaultValue()
                         .withFallbackKeys(defaultPodTemplate.key())
-                        .withFallbackKeys(getDeprecatedKeys(defaultPodTemplate))
+                        .withDeprecatedKeys(getDeprecatedKeys(defaultPodTemplate))
                         .withDescription(
                                 "Specify a local file that contains the taskmanager pod template definition. "
                                         + "It will be used to initialize the taskmanager pod. "
