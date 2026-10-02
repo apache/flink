@@ -20,6 +20,8 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.util.clock.ManualClock;
 
@@ -32,7 +34,9 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.concurrent.ScheduledFuture;
@@ -203,6 +207,116 @@ class WaitingForResourcesTest {
     }
 
     @Test
+    void testDesiredResourcesRequireReachingRestartTargetRegardlessOfBaseCheck() {
+        final JobVertexID jobVertexId = new JobVertexID();
+        final VertexParallelism targetParallelism =
+                new VertexParallelism(
+                        Collections.singletonMap(jobVertexId, 2));
+        final VertexParallelism freeSlotParallelism =
+                new VertexParallelism(
+                        Collections.singletonMap(jobVertexId, 1));
+
+        // the (over-counted) base "sufficient" check is untouched by the restart target and can
+        // freely say "enough resources" ...
+        ctx.setHasSufficientResources(() -> true);
+        // ... and the base "desired" check is stubbed to the opposite of the expected outcome, so
+        // the assertion below can only pass if the restart-target gate actually overrides it,
+        // rather than happening to agree with an unexercised base check.
+        ctx.setHasDesiredResources(() -> true);
+        // only 1 out of the 2 slots we had before the restart is genuinely free, so
+        // "desired" (which is restart-target-aware) must not be satisfied yet.
+        ctx.setAchievableVertexParallelism(() -> Optional.of(freeSlotParallelism));
+
+        final WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx,
+                        LOG,
+                        DISABLED_RESOURCE_WAIT_TIMEOUT,
+                        null,
+                        context -> TestingStateTransitionManager.withNoOp(),
+                        targetParallelism);
+
+        assertThat(wfr.hasDesiredResources()).isFalse();
+        // "sufficient" is intentionally left as the plain, restart-agnostic base check: it is the
+        // stabilization phase's give-up bar, not another restart-target gate.
+        assertThat(wfr.hasSufficientResources()).isTrue();
+    }
+
+    @Test
+    void testDesiredResourcesCapRestartTargetToLatestResourceRequirements() {
+        final JobVertexID jobVertexId = new JobVertexID();
+        final VertexParallelism targetParallelism =
+                new VertexParallelism(
+                        Collections.singletonMap(jobVertexId, 2));
+        final VertexParallelism freeSlotParallelism =
+                new VertexParallelism(
+                        Collections.singletonMap(jobVertexId, 1));
+
+        // a concurrent scale-down lowered what's actually needed for this vertex to 1, below the
+        // pre-restart target of 2: the gate must not keep waiting for the stale target.
+        ctx.setUpperBoundParallelism(vertex -> 1);
+        ctx.setAchievableVertexParallelism(() -> Optional.of(freeSlotParallelism));
+
+        final WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx,
+                        LOG,
+                        DISABLED_RESOURCE_WAIT_TIMEOUT,
+                        null,
+                        context -> TestingStateTransitionManager.withNoOp(),
+                        targetParallelism);
+
+        assertThat(wfr.hasDesiredResources()).isTrue();
+    }
+
+    @Test
+    void testDesiredResourcesAreMetOnceFreeSlotParallelismReachesRestartTarget() {
+        final JobVertexID jobVertexId = new JobVertexID();
+        final VertexParallelism targetParallelism =
+                new VertexParallelism(
+                        Collections.singletonMap(jobVertexId, 2));
+
+        ctx.setHasSufficientResources(() -> false);
+        ctx.setAchievableVertexParallelism(() -> Optional.of(targetParallelism));
+
+        final WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx,
+                        LOG,
+                        DISABLED_RESOURCE_WAIT_TIMEOUT,
+                        null,
+                        context -> TestingStateTransitionManager.withNoOp(),
+                        targetParallelism);
+
+        assertThat(wfr.hasDesiredResources()).isTrue();
+        // "sufficient" still just reflects the plain base check, unaffected by the restart target.
+        assertThat(wfr.hasSufficientResources()).isFalse();
+    }
+
+    @Test
+    void testResourceTimeoutOverridesRestartTargetGuard() {
+        final JobVertexID jobVertexId = new JobVertexID();
+        final VertexParallelism targetParallelism =
+                new VertexParallelism(
+                        Collections.singletonMap(jobVertexId, 2));
+
+        // free-slot-based parallelism never reaches the restart target ...
+        ctx.setAchievableVertexParallelism(Optional::empty);
+
+        new WaitingForResources(
+                ctx,
+                LOG,
+                Duration.ZERO,
+                null,
+                context -> TestingStateTransitionManager.withNoOp(),
+                targetParallelism);
+
+        // ... but the resource-wait timeout fires immediately and forces the transition anyway.
+        ctx.setExpectCreatingExecutionGraph();
+        ctx.runScheduledTasks();
+    }
+
+    @Test
     void testInternalRunScheduledTasks_correctExecutionOrder() {
         AtomicBoolean firstRun = new AtomicBoolean(false);
         AtomicBoolean secondRun = new AtomicBoolean(false);
@@ -293,6 +407,10 @@ class WaitingForResourcesTest {
 
         private Supplier<Boolean> hasDesiredResourcesSupplier = () -> false;
         private Supplier<Boolean> hasSufficientResourcesSupplier = () -> false;
+        private Supplier<Optional<VertexParallelism>> achievableVertexParallelismSupplier =
+                Optional::empty;
+        private Function<JobVertexID, Integer> upperBoundParallelismFunction =
+                jobVertexId -> Integer.MAX_VALUE;
 
         private final Queue<ScheduledTask<Void>> scheduledTasks =
                 new PriorityQueue<>(
@@ -306,6 +424,14 @@ class WaitingForResourcesTest {
 
         public void setHasSufficientResources(Supplier<Boolean> sup) {
             hasSufficientResourcesSupplier = sup;
+        }
+
+        public void setAchievableVertexParallelism(Supplier<Optional<VertexParallelism>> sup) {
+            achievableVertexParallelismSupplier = sup;
+        }
+
+        public void setUpperBoundParallelism(Function<JobVertexID, Integer> fn) {
+            upperBoundParallelismFunction = fn;
         }
 
         void setExpectCreatingExecutionGraph() {
@@ -348,6 +474,16 @@ class WaitingForResourcesTest {
         @Override
         public boolean hasSufficientResources() {
             return hasSufficientResourcesSupplier.get();
+        }
+
+        @Override
+        public Optional<VertexParallelism> getFreeSlotVertexParallelism() {
+            return achievableVertexParallelismSupplier.get();
+        }
+
+        @Override
+        public int getUpperBoundParallelism(JobVertexID jobVertexId) {
+            return upperBoundParallelismFunction.apply(jobVertexId);
         }
 
         @Override
