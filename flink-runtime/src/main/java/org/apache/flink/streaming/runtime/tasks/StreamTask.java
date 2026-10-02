@@ -49,6 +49,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.AvailabilityProvider;
@@ -2046,12 +2047,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     private static void replaceForwardPartitionerIfConsumerParallelismDoesNotMatch(
             Environment environment, NonChainedOutput streamOutput, int outputIndex) {
+        final int producerParallelism = environment.getTaskInfo().getNumberOfParallelSubtasks();
+        // The number of subpartitions isn't the consumer parallelism on a POINTWISE edge, so the
+        // actual consumer parallelism is passed through the deployment descriptor.
+        final int consumerParallelism = environment.getWriterConsumerParallelism(outputIndex);
         if (streamOutput.getPartitioner() instanceof ForwardPartitioner
-                && environment.getWriter(outputIndex).getNumberOfSubpartitions()
-                        != environment.getTaskInfo().getNumberOfParallelSubtasks()) {
+                // An undecided consumer parallelism is not a mismatch.
+                && consumerParallelism
+                        != ResultPartitionDeploymentDescriptor.UNKNOWN_CONSUMER_PARALLELISM
+                && consumerParallelism != producerParallelism) {
             LOG.debug(
-                    "Replacing forward partitioner with rebalance for {}",
-                    environment.getTaskInfo().getTaskNameWithSubtasks());
+                    "Replacing forward partitioner with rebalance for {} "
+                            + "(producer parallelism {} != consumer parallelism {}).",
+                    environment.getTaskInfo().getTaskNameWithSubtasks(),
+                    producerParallelism,
+                    consumerParallelism);
             streamOutput.setPartitioner(new RebalancePartitioner<>());
         }
     }
