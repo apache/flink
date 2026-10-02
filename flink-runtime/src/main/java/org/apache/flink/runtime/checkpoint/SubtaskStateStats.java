@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import java.io.Serializable;
+import java.util.OptionalLong;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -66,8 +67,15 @@ public class SubtaskStateStats implements Serializable {
     /** Is the checkpoint completed by this subtask. */
     private final boolean completed;
 
+    /**
+     * The checkpoint id this subtask's state originates from when it was reused by a regional
+     * checkpoint (i.e. this subtask belonged to a failed region). {@code null} if the state was
+     * produced by the current checkpoint.
+     */
+    private final Long refCheckpointId;
+
     SubtaskStateStats(int subtaskIndex, long ackTimestamp) {
-        this(subtaskIndex, ackTimestamp, 0, 0, 0, 0, 0, 0, 0, 0, false, true);
+        this(subtaskIndex, ackTimestamp, 0, 0, 0, 0, 0, 0, 0, 0, false, true, null);
     }
 
     SubtaskStateStats(
@@ -83,6 +91,36 @@ public class SubtaskStateStats implements Serializable {
             long checkpointStartDelay,
             boolean unalignedCheckpoint,
             boolean completed) {
+        this(
+                subtaskIndex,
+                ackTimestamp,
+                checkpointedSize,
+                stateSize,
+                syncCheckpointDuration,
+                asyncCheckpointDuration,
+                processedData,
+                persistedData,
+                alignmentDuration,
+                checkpointStartDelay,
+                unalignedCheckpoint,
+                completed,
+                null);
+    }
+
+    SubtaskStateStats(
+            int subtaskIndex,
+            long ackTimestamp,
+            long checkpointedSize,
+            long stateSize,
+            long syncCheckpointDuration,
+            long asyncCheckpointDuration,
+            long processedData,
+            long persistedData,
+            long alignmentDuration,
+            long checkpointStartDelay,
+            boolean unalignedCheckpoint,
+            boolean completed,
+            Long refCheckpointId) {
 
         checkArgument(subtaskIndex >= 0, "Negative subtask index");
         this.subtaskIndex = subtaskIndex;
@@ -99,6 +137,7 @@ public class SubtaskStateStats implements Serializable {
         this.checkpointStartDelay = checkpointStartDelay;
         this.unalignedCheckpoint = unalignedCheckpoint;
         this.completed = completed;
+        this.refCheckpointId = refCheckpointId;
     }
 
     public int getSubtaskIndex() {
@@ -193,5 +232,14 @@ public class SubtaskStateStats implements Serializable {
 
     public boolean isCompleted() {
         return completed;
+    }
+
+    /**
+     * Returns the checkpoint id this subtask's state originates from when it was reused by a
+     * regional checkpoint, or {@link OptionalLong#empty()} if the state was produced by the current
+     * checkpoint.
+     */
+    public OptionalLong getRefCheckpointId() {
+        return refCheckpointId == null ? OptionalLong.empty() : OptionalLong.of(refCheckpointId);
     }
 }
