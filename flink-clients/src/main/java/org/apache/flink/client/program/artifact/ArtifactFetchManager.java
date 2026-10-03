@@ -23,14 +23,20 @@ import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.client.program.DefaultPackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.apache.commons.io.FilenameUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -41,6 +47,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Class that manages the artifact loading process. */
 public class ArtifactFetchManager {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ArtifactFetchManager.class);
 
     private final ArtifactFetcher localFetcher;
     private final ArtifactFetcher fsFetcher;
@@ -142,14 +150,31 @@ public class ArtifactFetchManager {
     }
 
     private File fetchArtifact(String uri) throws Exception {
-        URI resolvedUri = PackagedProgramUtils.resolveURI(uri);
-        File targetFile = new File(baseDir, FilenameUtils.getName(resolvedUri.getPath()));
-        if (targetFile.exists()) {
-            // Already fetched user artifacts are kept.
-            return targetFile;
+        final URI resolvedUri = PackagedProgramUtils.resolveURI(uri);
+        final ArtifactFetcher fetcher = getFetcher(resolvedUri);
+        if (fetcher == localFetcher) {
+            // used in place, so there is no fetched copy to reuse
+            return fetcher.fetch(uri, conf, baseDir);
         }
 
-        return getFetcher(resolvedUri).fetch(uri, conf, baseDir);
+        final File targetDir = new File(baseDir, directoryNameFor(resolvedUri));
+        final File targetFile = new File(targetDir, FilenameUtils.getName(resolvedUri.getPath()));
+        if (targetFile.exists()) {
+            LOG.debug("Reusing {} previously fetched from {}", targetFile, uri);
+            return targetFile;
+        }
+        return fetcher.fetch(uri, conf, targetDir);
+    }
+
+    /**
+     * The first 16 hex digits of the SHA-256 of the whole URI, including any query, so artifacts
+     * from different URIs never share a file, even if their file names match.
+     */
+    private static String directoryNameFor(URI resolvedUri) throws NoSuchAlgorithmException {
+        final byte[] hash =
+                MessageDigest.getInstance("SHA-256")
+                        .digest(resolvedUri.toString().getBytes(StandardCharsets.UTF_8));
+        return StringUtils.byteToHexString(hash, 0, 8);
     }
 
     private boolean isRawHttp(String uriScheme) {
