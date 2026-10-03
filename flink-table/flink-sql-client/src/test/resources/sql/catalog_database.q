@@ -31,7 +31,10 @@ org.apache.flink.table.catalog.exceptions.CatalogException: A catalog with name 
 
 create catalog invalid.cat with ('type'='generic_in_memory');
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.sql.parser.impl.ParseException: Encountered "." at line 1, column 23.
+org.apache.flink.table.api.SqlParserException: SQL parse failed. At line 1, column 23:
+    create catalog invalid.cat with ('type'='generic_in_memory');
+                          ^
+Encountered "." at line 1, column 23.
 Was expecting one of:
     <EOF>
     "WITH" ...
@@ -523,7 +526,7 @@ show databases from c0 ilike 'db%';
 
 show databases in c0.t;
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.sql.parser.impl.ParseException: Show databases from/in identifier [ c0.t ] format error, catalog must be a single part identifier.
+org.apache.flink.table.api.SqlParserException: SQL parse failed. Show databases from/in identifier [ c0.t ] format error, catalog must be a single part identifier.
 !error
 
 drop catalog `c0`;

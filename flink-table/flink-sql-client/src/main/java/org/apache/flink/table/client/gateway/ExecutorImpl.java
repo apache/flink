@@ -102,6 +102,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.rest.handler.session.CloseSessionHandler.CLOSE_MESSAGE;
@@ -109,6 +110,15 @@ import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 
 /** Executor to connect to {@link SqlGateway} and execute statements. */
 public class ExecutorImpl implements Executor {
+
+    /**
+     * The planner's own class for an incomplete statement, as a headline of the server trace. The
+     * message text is not searched, since the planner echoes the statement in it.
+     */
+    private static final Pattern INCOMPLETE_STATEMENT =
+            Pattern.compile(
+                    "^(Caused by: )?org\\.apache\\.flink\\.table\\.api\\.SqlParserEOFException: ",
+                    Pattern.MULTILINE | Pattern.UNIX_LINES);
 
     private static final Logger LOG = LoggerFactory.getLogger(ExecutorImpl.class);
     private static final long HEARTBEAT_INTERVAL_MILLISECONDS = 60_000L;
@@ -496,7 +506,7 @@ public class ExecutorImpl implements Executor {
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause instanceof RestClientException
-                    && cause.getMessage().contains("Encountered \"<EOF>\"")) {
+                    && INCOMPLETE_STATEMENT.matcher(cause.getMessage()).find()) {
                 throw new SqlExecutionException(
                         "The SQL statement is incomplete.",
                         new SqlParserEOFException(cause.getMessage(), cause));

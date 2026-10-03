@@ -221,6 +221,13 @@ SET 'table.display.max-column-width' = '30';
 [INFO] Execute statement succeeded.
 !info
 
+# a planning rejection prints the reason, not the plan that follows it
+
+SELECT * FROM (VALUES (1, 2), (3, 4)) AS t(a, b) ORDER BY a;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.TableException: Streaming ORDER BY requires the primary sort key to be a time attribute in ascending order, but 'a' is INT NOT NULL. A time attribute is an event-time column (a TIMESTAMP or TIMESTAMP_LTZ column with a WATERMARK) or a processing-time column. Otherwise use LIMIT for Top-N, sort within a window, or run in batch mode.
+!error
+
 # ==========================================================================
 # test batch query
 # ==========================================================================
@@ -367,3 +374,31 @@ SELECT --;
 +--------+
 1 row in set
 !ok
+
+# parse errors name the position of the token the parser stopped at
+
+ELECT 1;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.SqlParserException: SQL parse failed. From line 1, column 1 to line 1, column 5:
+    ELECT 1;
+    ^^^^^
+Non-query expression encountered in illegal context
+!error
+
+/*
+comment
+*/  ELECT 1;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.SqlParserException: SQL parse failed. From line 3, column 5 to line 3, column 9:
+    */  ELECT 1;
+        ^^^^^
+Non-query expression encountered in illegal context
+!error
+
+SELECT * FROM (t);
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.SqlParserException: SQL parse failed. At line 1, column 16:
+    SELECT * FROM (t);
+                   ^
+Expected query or join
+!error

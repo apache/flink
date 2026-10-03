@@ -178,7 +178,10 @@ EXPLAIN STATEMENT SET BEGIN
 END;
 !output
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.table.api.SqlParserException: SQL parse failed. From line 2, column 1 to line 2, column 3:
+    END;
+    ^^^
+Encountered "END" at line 2, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
@@ -188,7 +191,10 @@ EXECUTE STATEMENT SET BEGIN
 END;
 !output
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.table.api.SqlParserException: SQL parse failed. From line 2, column 1 to line 2, column 3:
+    END;
+    ^^^
+Encountered "END" at line 2, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
@@ -306,7 +312,10 @@ EXPLAIN STATEMENT SET BEGIN
 END;
 !output
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.table.api.SqlParserException: SQL parse failed. From line 2, column 1 to line 2, column 3:
+    END;
+    ^^^
+Encountered "END" at line 2, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
@@ -316,7 +325,10 @@ EXECUTE STATEMENT SET BEGIN
 END;
 !output
 [ERROR] Could not execute SQL statement. Reason:
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.table.api.SqlParserException: SQL parse failed. From line 2, column 1 to line 2, column 3:
+    END;
+    ^^^
+Encountered "END" at line 2, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
