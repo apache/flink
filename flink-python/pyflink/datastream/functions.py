@@ -624,24 +624,21 @@ class ProcessFunction(Function):
     A function that process elements of a stream.
 
     For every element in the input stream process_element(value, ctx, out) is invoked. This can
-    produce zero or more elements as output. Implementations can also query the time and set timers
-    through the provided Context. For firing timers on_timer(long, ctx, out) will be invoked. This
-    can again produce zero or more elements as output and register further timers.
+    produce zero or more elements as output. Implementations can also query the time through the
+    provided Context.
 
-    Note that access to keyed state and timers (which are also scoped to a key) is only available if
-    the ProcessFunction is applied on a KeyedStream.
+    Use KeyedProcessFunction on a KeyedStream to access keyed state and register timers.
     """
 
     class Context(ABC):
         """
-        Information available in an invocation of process_element(value, ctx, out) or
-        on_timer(value, ctx, out).
+        Information available in an invocation of process_element(value, ctx, out).
         """
 
         @abstractmethod
         def timer_service(self) -> TimerService:
             """
-            A Timer service for querying time and registering timers.
+            A Timer service for querying time. Registering timers requires a KeyedProcessFunction.
             """
             pass
 
