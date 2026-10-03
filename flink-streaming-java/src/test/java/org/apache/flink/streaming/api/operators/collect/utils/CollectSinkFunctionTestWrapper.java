@@ -105,13 +105,18 @@ public class CollectSinkFunctionTestWrapper<IN> {
     }
 
     public void openFunctionWithState() throws Exception {
+        initializeFunctionWithState();
+        function.open(DefaultOpenContext.INSTANCE);
+        coordinator.handleEventFromOperator(0, 0, gateway.getNextEvent());
+    }
+
+    /** Initializes the function's state without opening it. */
+    public void initializeFunctionWithState() throws Exception {
         functionInitializationContext.getOperatorStateStore().revertToLastSuccessCheckpoint();
         function = new CollectSinkFunction<>(serializer, maxBytesPerBatch, ACCUMULATOR_NAME);
         function.setRuntimeContext(runtimeContext);
         function.setOperatorEventGateway(gateway);
         function.initializeState(functionInitializationContext);
-        function.open(DefaultOpenContext.INSTANCE);
-        coordinator.handleEventFromOperator(0, 0, gateway.getNextEvent());
     }
 
     public void invoke(IN record) throws Exception {
