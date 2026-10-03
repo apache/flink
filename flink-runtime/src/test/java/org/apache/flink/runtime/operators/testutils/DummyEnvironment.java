@@ -265,6 +265,11 @@ public class DummyEnvironment implements Environment {
     }
 
     @Override
+    public int getWriterConsumerParallelism(int index) {
+        return taskInfo.getNumberOfParallelSubtasks();
+    }
+
+    @Override
     public ResultPartitionWriter[] getAllWriters() {
         return new ResultPartitionWriter[0];
     }

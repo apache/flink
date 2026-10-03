@@ -58,6 +58,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -93,6 +94,7 @@ public class RuntimeEnvironment implements Environment {
     private final Map<String, Future<Path>> distCacheEntries;
 
     private final ResultPartitionWriter[] writers;
+    private final int[] writerConsumerParallelisms;
     private final IndexedInputGate[] inputGates;
 
     private final TaskEventDispatcher taskEventDispatcher;
@@ -145,6 +147,7 @@ public class RuntimeEnvironment implements Environment {
             InputSplitProvider splitProvider,
             Map<String, Future<Path>> distCacheEntries,
             ResultPartitionWriter[] writers,
+            int[] writerConsumerParallelisms,
             IndexedInputGate[] inputGates,
             TaskEventDispatcher taskEventDispatcher,
             CheckpointResponder checkpointResponder,
@@ -177,6 +180,8 @@ public class RuntimeEnvironment implements Environment {
         this.splitProvider = checkNotNull(splitProvider);
         this.distCacheEntries = checkNotNull(distCacheEntries);
         this.writers = checkNotNull(writers);
+        this.writerConsumerParallelisms = checkNotNull(writerConsumerParallelisms);
+        checkArgument(writers.length == writerConsumerParallelisms.length);
         this.inputGates = checkNotNull(inputGates);
         this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
         this.checkpointResponder = checkNotNull(checkpointResponder);
@@ -304,6 +309,11 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public ResultPartitionWriter getWriter(int index) {
         return writers[index];
+    }
+
+    @Override
+    public int getWriterConsumerParallelism(int index) {
+        return writerConsumerParallelisms[index];
     }
 
     @Override

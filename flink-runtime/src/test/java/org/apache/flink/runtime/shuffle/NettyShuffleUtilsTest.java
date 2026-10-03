@@ -194,7 +194,8 @@ class NettyShuffleUtilsTest {
                         true,
                         false);
         ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor =
-                new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
+                new ResultPartitionDeploymentDescriptor(
+                        partitionDescriptor, shuffleDescriptor, 1, 1);
 
         ExecutionAttemptID consumerID = createExecutionAttemptId();
         Collection<ResultPartition> resultPartitions =
