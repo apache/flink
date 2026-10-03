@@ -49,9 +49,19 @@ public class RowTimeOverWindowTestBase {
                 }
             };
 
+    protected static GeneratedAggsHandleFunction lastValueAggsHandleFunction =
+            new GeneratedAggsHandleFunction("Function", "", new Object[0]) {
+                @Override
+                public AggsHandleFunction newInstance(ClassLoader classLoader) {
+                    return new LastValueAggsHandleFunction(2);
+                }
+            };
+
     protected LogicalType[] inputFieldTypes =
             new LogicalType[] {VarCharType.STRING_TYPE, new BigIntType(), new BigIntType()};
     protected LogicalType[] accTypes = new LogicalType[] {new BigIntType()};
+    protected LogicalType[] lastValueAccTypes =
+            new LogicalType[] {new BigIntType(), new BigIntType()};
 
     protected RowDataKeySelector keySelector =
             HandwrittenSelectorUtil.getRowDataSelector(new int[] {0}, inputFieldTypes);

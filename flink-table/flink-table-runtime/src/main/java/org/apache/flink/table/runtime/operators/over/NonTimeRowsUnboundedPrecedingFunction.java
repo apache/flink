@@ -273,11 +273,12 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
             // to comply with the sql rows syntax
             for (int j = 0; j < ids.size(); j++) {
                 RowData value = valueMapState.get(ids.get(j));
+                RowData prevAcc = accMapState.get(GenericRowData.of(ids.get(j)));
                 aggFuncs.accumulate(value);
-                RowData accData = accMapState.get(GenericRowData.of(ids.get(j)));
+                RowData newAcc = aggFuncs.getAccumulators();
                 // Logic to early out
                 // TODO: Move comparison to function i.e. canEarlyOut(prev, curr)
-                if (aggFuncs.getValue().equals(accData)) {
+                if (newAcc.equals(prevAcc)) {
                     // Previous accumulator is the same as the current accumulator.
                     // This means all the ids will have no change in the accumulated value.
                     // Skip sending downstream updates in such cases to reduce network traffic
@@ -285,9 +286,12 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
                             "Prev accumulator is same as curr accumulator. Skipping further updates.");
                     return;
                 }
-                collectUpdateBefore(out, value, accData);
-                collectUpdateAfter(out, value, aggFuncs.getValue());
-                accMapState.put(GenericRowData.of(ids.get(j)), aggFuncs.getValue());
+                RowData newValue = aggFuncs.getValue();
+                RowData prevValue = setAccumulatorAndGetValue(prevAcc);
+                aggFuncs.setAccumulators(newAcc);
+                collectUpdateBefore(out, value, prevValue);
+                collectUpdateAfter(out, value, newValue);
+                accMapState.put(GenericRowData.of(ids.get(j)), newAcc);
             }
         }
     }
@@ -402,19 +406,27 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
      */
     private void reAccumulateIdsAndEmitUpdates(
             List<Long> ids, int removeIndex, Collector<RowData> out) throws Exception {
+        RowData baseAcc = aggFuncs.getAccumulators();
         for (int j = removeIndex; j < ids.size(); j++) {
             RowData value = valueMapState.get(ids.get(j));
             if (j == removeIndex) {
-                collectDelete(out, value, accMapState.get(GenericRowData.of(ids.get(j))));
+                RowData deletedAcc = accMapState.get(GenericRowData.of(ids.get(j)));
+                collectDelete(out, value, setAccumulatorAndGetValue(deletedAcc));
+                aggFuncs.setAccumulators(baseAcc);
             } else {
+                RowData prevAcc = accMapState.get(GenericRowData.of(ids.get(j)));
                 aggFuncs.accumulate(value);
+                RowData newAcc = aggFuncs.getAccumulators();
                 // Logic to early out
-                if (aggFuncs.getValue().equals(accMapState.get(GenericRowData.of(ids.get(j))))) {
+                if (newAcc.equals(prevAcc)) {
                     break;
                 }
-                collectUpdateBefore(out, value, accMapState.get(GenericRowData.of(ids.get(j))));
-                collectUpdateAfter(out, value, aggFuncs.getValue());
-                accMapState.put(GenericRowData.of(ids.get(j)), aggFuncs.getValue());
+                RowData newValue = aggFuncs.getValue();
+                RowData prevValue = setAccumulatorAndGetValue(prevAcc);
+                aggFuncs.setAccumulators(newAcc);
+                collectUpdateBefore(out, value, prevValue);
+                collectUpdateAfter(out, value, newValue);
+                accMapState.put(GenericRowData.of(ids.get(j)), newAcc);
             }
         }
     }

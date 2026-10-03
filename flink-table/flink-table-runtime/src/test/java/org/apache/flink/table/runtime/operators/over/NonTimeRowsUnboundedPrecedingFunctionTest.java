@@ -97,6 +97,58 @@ class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBas
     }
 
     @Test
+    void testInsertWithDuplicateSortKeyAndLastValueAgg() throws Exception {
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(
+                        new NonTimeRowsUnboundedPrecedingFunction<RowData>(
+                                0L,
+                                lastValueAggsHandleFunction,
+                                GENERATED_ROW_VALUE_EQUALISER,
+                                GENERATED_SORT_KEY_EQUALISER,
+                                GENERATED_SORT_KEY_COMPARATOR_ASC,
+                                lastValueAccTypes,
+                                inputFieldTypes,
+                                SORT_KEY_TYPES,
+                                SORT_KEY_SELECTOR) {});
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+        testHarness.open();
+
+        testHarness.processElement(insertRecord("key1", 1L, 100L));
+        testHarness.processElement(insertRecord("key1", 2L, 200L));
+        testHarness.processElement(insertRecord("key1", 5L, 500L));
+        testHarness.processElement(insertRecord("key1", 6L, 600L));
+        testHarness.processElement(insertRecord("key1", 4L, 400L));
+        testHarness.processElement(insertRecord("key1", 5L, 503L));
+        testHarness.processElement(updateBeforeRecord("key1", 5L, 500L));
+
+        List<RowData> expectedRows =
+                Arrays.asList(
+                        outputRecord(RowKind.INSERT, "key1", 1L, 100L, 100L),
+                        outputRecord(RowKind.INSERT, "key1", 2L, 200L, 200L),
+                        outputRecord(RowKind.INSERT, "key1", 5L, 500L, 500L),
+                        outputRecord(RowKind.INSERT, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.INSERT, "key1", 4L, 400L, 400L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 500L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 500L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.INSERT, "key1", 5L, 503L, 503L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.DELETE, "key1", 5L, 500L, 500L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 503L, 503L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 503L, 503L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 600L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 600L));
+
+        List<RowData> actualRows = testHarness.extractOutputValues();
+
+        validateRows(actualRows, expectedRows);
+    }
+
+    @Test
     void testInsertOnlyRecordsWithCustomSortKeyAndLongSumAgg() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
