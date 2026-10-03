@@ -191,6 +191,8 @@ On query pipeline with update messages and cannot derive the update key, the fol
 2. LookupJoin on an evolving source
 3. [CDC source]({{< ref "docs/connectors/table/kafka" >}}#cdc-changelog-source) carries metadata fields(system columns, not belongs to the entity row itself)
 
+Even when the update key can be derived, a non-deterministic function in a filter or in a regular join condition is an NDU problem as well: the condition decides whether a row and later its retraction are emitted, so `WHERE b > UNIX_TIMESTAMP() - 300` on a CDC table can drop the retraction of a row whose insert passed. `TRY_RESOLVE` rejects such conditions.
+
 Note: Exceptions caused by cleaning internal state data based on TTL will be discussed separately as a runtime fault-tolerant handling strategy ([FLINK-24666](https://issues.apache.org/jira/browse/FLINK-24666)).
 
 ### 3.3 How To Eliminate The Impact Of Non-Deterministic Update In Streaming
