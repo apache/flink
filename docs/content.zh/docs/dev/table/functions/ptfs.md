@@ -2889,6 +2889,65 @@ void testAtomicOutputFunctionOutput() throws Exception {
 
 {{< top >}}
 
+### Snapshotting and Restoring a Test
+
+`snapshot()` captures a test at a point in time: the state of every partition, the pending and the
+fired timers, the watermark of every table argument, and the collected output. Passing the snapshot
+to `ProcessTableFunctionTestHarness.restoreFromSnapshot()` creates a new harness that continues from
+there, which lets several test cases share one setup instead of repeating it.
+
+A snapshot is isolated from the harness it was taken from, so processing further elements, advancing
+a watermark or changing state afterwards does not change what it holds. It can also be restored more
+than once, and the restored harnesses are independent of each other. Every restore runs a fresh
+instance of the PTF, so anything the function keeps in its own fields rather than in state starts
+over.
+
+{{< tabs "test-snapshot" >}}
+{{< tab "Java" >}}
+```java
+@Test
+void testRestoreFromSnapshot() throws Exception {
+  ProcessTableFunctionTestHarness.TestSnapshot<Row> snapshot;
+
+  try (ProcessTableFunctionTestHarness<Row> harness =
+    ProcessTableFunctionTestHarness.ofClass(StatefulPTF.class)
+    .withTableArgument(
+        TableArgument.forName("input")
+            .type(DataTypes.of("ROW<name STRING, value INT>"))
+            .partitionBy("name")
+            .build())
+    .build()) {
+
+    harness.processElement(Row.of("Alice", 10));
+    harness.processElement(Row.of("Alice", 20));
+
+    snapshot = harness.snapshot();
+
+    // What happens after the snapshot was taken does not change it
+    harness.processElement(Row.of("Alice", 30));
+    assertThat(harness.getOutput()).hasSize(3);
+  }
+
+  try (ProcessTableFunctionTestHarness<Row> restored =
+    ProcessTableFunctionTestHarness.restoreFromSnapshot(snapshot)) {
+
+    // The output and the state are the ones the snapshot was taken with
+    assertThat(restored.getOutput()).hasSize(2);
+
+    StatefulPTF.ValueState state = restored.getStateForKey("valueState", Row.of("Alice"));
+    assertThat(state.count).isEqualTo(2L);
+
+    // And the test carries on from there
+    restored.processElement(Row.of("Alice", 30));
+    assertThat(restored.getOutput().get(2)).isEqualTo(Row.of("Alice", 3L));
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}
+
 ### PTF Features Unsupported by the TestHarness
 
 - Update traits (`SUPPORTS_UPDATES`, `REQUIRE_UPDATE_BEFORE`)
