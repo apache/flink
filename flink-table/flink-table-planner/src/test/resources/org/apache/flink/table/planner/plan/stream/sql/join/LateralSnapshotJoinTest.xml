@@ -49,6 +49,38 @@ Calc(select=[pk, bk, bv, pt])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testBuildSideRowtimeFromMetadataColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT probe.pk, probe.pv, s.bk, s.bv FROM probe JOIN LATERAL SNAPSHOT(input => TABLE b_meta, on_time => DESCRIPTOR(bts), load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))) AS s ON probe.pk = s.bk]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(pk=[$0], pv=[$1], bk=[$3], bv=[$4])
++- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :- LogicalWatermarkAssigner(rowtime=[pts], watermark=[$2])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, probe]])
+   +- LogicalTableFunctionScan(invocation=[SNAPSHOT(TABLE(#0), DESCRIPTOR(_UTF-16LE'bts'), CAST(2026-07-01 00:00:00):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) bk, INTEGER bv, TIMESTAMP(3) bts)])
+      +- LogicalProject(bk=[$0], bv=[$1], bts=[$2])
+         +- LogicalWatermarkAssigner(rowtime=[bts], watermark=[$2])
+            +- LogicalProject(bk=[$0], bv=[$1], bts=[CAST($2):TIMESTAMP(3) *ROWTIME*])
+               +- LogicalTableScan(table=[[default_catalog, default_database, b_meta, metadata=[bts]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[pk, pv, bk, bv])
++- LateralSnapshotJoin(joinType=[InnerJoin], where=[=(pk, bk)], select=[pk, pv, bk, bv, bts], loadCompletedCondition=[user_time], loadCompletedTime=[1782864000000])
+   :- Exchange(distribution=[hash[pk]])
+   :  +- Calc(select=[pk, pv])
+   :     +- WatermarkAssigner(rowtime=[pts], watermark=[pts])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, probe]], fields=[pk, pv, pts])
+   +- Exchange(distribution=[hash[bk]])
+      +- WatermarkAssigner(rowtime=[bts], watermark=[bts])
+         +- Calc(select=[bk, bv, CAST(bts AS TIMESTAMP(3) *ROWTIME*) AS bts])
+            +- TableSourceScan(table=[[default_catalog, default_database, b_meta, metadata=[bts]]], fields=[bk, bv, bts])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testInnerJoin">
     <Resource name="sql">
       <![CDATA[SELECT * FROM probe JOIN LATERAL TABLE(SNAPSHOT(input => TABLE b, on_time => DESCRIPTOR(bts), load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3)))) AS s ON probe.pk = s.bk]]>
