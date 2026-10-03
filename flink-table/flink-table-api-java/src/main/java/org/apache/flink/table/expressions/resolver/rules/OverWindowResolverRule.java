@@ -66,6 +66,22 @@ final class OverWindowResolverRule implements ResolverRule {
 
             if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
                 List<Expression> children = unresolvedCall.getChildren();
+
+                if (children.size() >= 4) {
+                    // Expanded OVER calls already contain their window arguments. Resolve their
+                    // children recursively and leave the canonical argument order intact.
+                    return unresolvedCall.replaceArgs(
+                            children.stream()
+                                    .map(expr -> expr.accept(this))
+                                    .collect(Collectors.toList()));
+                }
+
+                if (children.size() != 2) {
+                    throw new ValidationException(
+                            "An OVER call expects a window alias or an inline window "
+                                    + "specification.");
+                }
+
                 Expression alias = children.get(1);
 
                 LocalOverWindow referenceWindow =
