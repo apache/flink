@@ -510,12 +510,11 @@ public class AsyncWaitOperator<IN, OUT>
 
         /** Rewrite the timeout process to deal with retry state. */
         private void timerTriggered() throws Exception {
-            if (!resultHandler.completed.get()) {
+            if (!resultHandler.completed.get() && timedOut.compareAndSet(false, true)) {
                 // cancel delayed retry timer first
                 cancelRetryTimer();
-
-                // timeout result is terminal: route it straight to the handler, not the retry path
-                timedOut.set(true);
+                // A timed-out record must not be retried again when input ends.
+                inFlightDelayRetryHandlers.remove(this);
 
                 // force reset retryAwaiting to prevent the handler to trigger retry unnecessarily
                 retryAwaiting.set(false);
@@ -553,13 +552,16 @@ public class AsyncWaitOperator<IN, OUT>
             Preconditions.checkNotNull(
                     supplier, "Runnable must not be null, return empty collection to emit nothing");
             if (shouldProcessResultForRetry()) {
-                mailboxExecutor.submit(
+                mailboxExecutor.execute(
                         () -> {
+                            Collection<OUT> results;
                             try {
-                                processRetry(supplier.get(), null);
+                                results = supplier.get();
                             } catch (Throwable t) {
                                 processRetry(null, t);
+                                return;
                             }
+                            processRetry(results, null);
                         },
                         "RetryableResultHandlerDelegator#complete");
             } else {
@@ -584,9 +586,16 @@ public class AsyncWaitOperator<IN, OUT>
             return processingTimeService.getCurrentProcessingTime() - startTs > timeout;
         }
 
-        private void processRetry(Collection<OUT> results, Throwable error) {
-            // ignore repeated call(s) and only called in main thread can be safe
-            if (!retryAwaiting.compareAndSet(false, true)) {
+        private void processRetry(Collection<OUT> results, Throwable error) throws Exception {
+            // Ignore terminal or repeated results, including mail queued before the timeout.
+            if (timedOut.get()
+                    || resultHandler.completed.get()
+                    || !retryAwaiting.compareAndSet(false, true)) {
+                return;
+            }
+
+            if (isTimeout()) {
+                timerTriggered();
                 return;
             }
 
@@ -594,8 +603,7 @@ public class AsyncWaitOperator<IN, OUT>
                     (null != results && retryResultPredicate.test(results))
                             || (null != error && retryExceptionPredicate.test(error));
 
-            if (!isTimeout()
-                    && satisfy
+            if (satisfy
                     && asyncRetryStrategy.canRetry(currentAttempts)
                     && !retryDisabledOnFinish.get()) {
                 long nextBackoffTimeMillis =
