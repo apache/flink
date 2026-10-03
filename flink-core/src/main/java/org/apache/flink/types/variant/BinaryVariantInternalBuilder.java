@@ -296,7 +296,7 @@ public class BinaryVariantInternalBuilder {
     }
 
     // The variant spec requires a scale in [0, 38] and a precision of at most 38.
-    private static BigDecimal toVariantDecimal(BigDecimal d) {
+    public static BigDecimal toVariantDecimal(BigDecimal d) {
         BigDecimal result = d;
         if (d.scale() < 0) {
             // A non-zero value with a scale below -38 has more than 38 digits after rescaling.

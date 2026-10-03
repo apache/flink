@@ -183,6 +183,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVERLAY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_JSON;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_URL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_XML;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PERCENTILE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POSITION;
@@ -235,6 +236,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_PARSE_JSON;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_PARSE_XML;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UNHEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE;
@@ -1418,6 +1420,51 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType tryParseJson(boolean allowDuplicateKeys) {
         return toApiSpecificExpression(
                 unresolvedCall(TRY_PARSE_JSON, toExpr(), valueLiteral(allowDuplicateKeys)));
+    }
+
+    /**
+     * Parses an XML string into a value of type {@link DataTypes#VARIANT()}. If the XML string is
+     * invalid, an error is thrown. To return {@code NULL} instead of an error, use {@link
+     * #tryParseXml()}.
+     *
+     * <p>This is a shortcut for {@code parseXml(false)}. See {@link #parseXml(boolean)}.
+     */
+    public OutType parseXml() {
+        return toApiSpecificExpression(unresolvedCall(PARSE_XML, objectToExpression(toExpr())));
+    }
+
+    /**
+     * Parses an XML string into a value of type {@link DataTypes#VARIANT()}. If the XML string is
+     * invalid, an error is thrown. To return {@code NULL} instead of an error, use {@link
+     * #tryParseXml(boolean)}.
+     *
+     * <p>If {@code forceArray} is {@code true}, every child element is stored as an array, even if
+     * it occurs only once.
+     */
+    public OutType parseXml(boolean forceArray) {
+        return toApiSpecificExpression(
+                unresolvedCall(PARSE_XML, toExpr(), valueLiteral(forceArray)));
+    }
+
+    /**
+     * Parses an XML string into a value of type {@link DataTypes#VARIANT()}. If the XML string is
+     * invalid, {@code NULL} is returned. To throw an error instead, use {@link #parseXml()}.
+     *
+     * <p>This is a shortcut for {@code tryParseXml(false)}. See {@link #tryParseXml(boolean)}.
+     */
+    public OutType tryParseXml() {
+        return toApiSpecificExpression(unresolvedCall(TRY_PARSE_XML, objectToExpression(toExpr())));
+    }
+
+    /**
+     * Parses an XML string into a value of type {@link DataTypes#VARIANT()}. If the XML string is
+     * invalid, {@code NULL} is returned. To throw an error instead, use {@link #parseXml(boolean)}.
+     *
+     * <p>See {@link #parseXml(boolean)} for the meaning of {@code forceArray}.
+     */
+    public OutType tryParseXml(boolean forceArray) {
+        return toApiSpecificExpression(
+                unresolvedCall(TRY_PARSE_XML, toExpr(), valueLiteral(forceArray)));
     }
 
     /** Returns the base string decoded with base64. */

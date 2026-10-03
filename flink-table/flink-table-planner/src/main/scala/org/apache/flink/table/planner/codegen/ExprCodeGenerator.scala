@@ -942,6 +942,12 @@ class ExprCodeGenerator(
           case BuiltInFunctionDefinitions.JSON_TYPE =>
             JsonCodeGenUtils.generateJsonType(ctx, resultType, operands)
 
+          case BuiltInFunctionDefinitions.PARSE_XML =>
+            XmlCodeGenUtils.generateParseXml(ctx, resultType, operands)
+
+          case BuiltInFunctionDefinitions.TRY_PARSE_XML =>
+            XmlCodeGenUtils.generateTryParseXml(ctx, resultType, operands)
+
           case BuiltInFunctionDefinitions.INTERNAL_HASHCODE =>
             new HashCodeCallGen().generate(ctx, operands, resultType)
 

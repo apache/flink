@@ -18,13 +18,9 @@
 
 package org.apache.flink.table.planner.codegen;
 
-import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
@@ -32,7 +28,6 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.codesplit.JavaCodeSplitter;
 import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +37,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -74,36 +68,15 @@ class JsonParseReuseTest {
     }
 
     private List<Row> collect(final String sql) {
-        final TableResult result = tEnv.executeSql(sql);
-        final List<Row> rows = new ArrayList<>();
-        result.collect().forEachRemaining(rows::add);
-        return rows;
+        return GeneratedCodeTestUtils.collect(tEnv, sql);
     }
 
     private static int countJsonParse(final String code) {
-        final Matcher m = JSON_PARSE_PATTERN.matcher(code);
-        int count = 0;
-        while (m.find()) {
-            count++;
-        }
-        return count;
+        return GeneratedCodeTestUtils.countMatches(JSON_PARSE_PATTERN, code);
     }
 
     private List<String> generatedClassCodes(final String sql) {
-        final Table table = tEnv.sqlQuery(sql);
-        final Transformation<?> root = tEnv.toChangelogStream(table).getTransformation();
-        final List<String> codes = new ArrayList<>();
-        for (final Transformation<?> t : root.getTransitivePredecessors()) {
-            if (t instanceof OneInputTransformation
-                    && ((OneInputTransformation<?, ?>) t).getOperatorFactory()
-                            instanceof CodeGenOperatorFactory) {
-                final CodeGenOperatorFactory<?> factory =
-                        (CodeGenOperatorFactory<?>)
-                                ((OneInputTransformation<?, ?>) t).getOperatorFactory();
-                codes.add(factory.getGeneratedClass().getCode());
-            }
-        }
-        return codes;
+        return GeneratedCodeTestUtils.generatedClassCodes(tEnv, sql);
     }
 
     private String extractGeneratedCode(final String sql) {
