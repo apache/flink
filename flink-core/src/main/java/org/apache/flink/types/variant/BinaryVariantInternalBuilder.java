@@ -537,7 +537,9 @@ public class BinaryVariantInternalBuilder {
     // the
     // input variant, we can directly copy the binary slice.
     public void appendVariant(BinaryVariant v) {
-        appendVariantImpl(v.getValue(), v.getMetadata(), v.getPos());
+        // A nested variant, such as a field or an element of another variant, starts at its own
+        // position in the shared buffer. getValue() would copy it to position 0 instead.
+        appendVariantImpl(v.rawValue(), v.getMetadata(), v.getPos());
     }
 
     private void appendVariantImpl(byte[] value, byte[] metadata, int pos) {

@@ -221,6 +221,52 @@ class CastRuleProviderTest {
     }
 
     @Test
+    void testResolveConstructedToVariant() {
+        assertThat(CastRuleProvider.resolve(ARRAY(INT()).getLogicalType(), VARIANT))
+                .isSameAs(ConstructedToVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(MAP(STRING(), INT()).getLogicalType(), VARIANT))
+                .isSameAs(ConstructedToVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(ROW, VARIANT))
+                .isSameAs(ConstructedToVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(STRUCTURED, VARIANT))
+                .isSameAs(ConstructedToVariantCastRule.INSTANCE);
+
+        // every leaf needs a VARIANT kind, and a map key is never converted to a string
+        assertThat(CastRuleProvider.exists(ARRAY(INTERVAL(MONTH())).getLogicalType(), VARIANT))
+                .isFalse();
+        assertThat(CastRuleProvider.exists(MAP(INT(), STRING()).getLogicalType(), VARIANT))
+                .isFalse();
+        assertThat(CastRuleProvider.exists(MULTISET(STRING()).getLogicalType(), VARIANT)).isFalse();
+
+        // any ARRAY, MAP or nested VARIANT can exceed 16 MiB
+        assertThat(CastRuleProvider.canFail(ARRAY(INT()).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(MAP(STRING(), INT()).getLogicalType(), VARIANT))
+                .isTrue();
+        assertThat(CastRuleProvider.canFail(ROW(FIELD("v", VARIANT())).getLogicalType(), VARIANT))
+                .isTrue();
+
+        // a ROW fails when a leaf can, or when the declared sizes of its fields add up past 16 MiB
+        assertThat(CastRuleProvider.canFail(ROW, VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(STRUCTURED, VARIANT)).isFalse();
+        assertThat(
+                        CastRuleProvider.canFail(
+                                ROW(FIELD("a", TIMESTAMP(9))).getLogicalType(), VARIANT))
+                .isTrue();
+        assertThat(CastRuleProvider.canFail(ROW(FIELD("a", STRING())).getLogicalType(), VARIANT))
+                .isTrue();
+        assertThat(
+                        CastRuleProvider.canFail(
+                                ROW(FIELD("a", VARCHAR(4_000_000))).getLogicalType(), VARIANT))
+                .isFalse();
+        assertThat(
+                        CastRuleProvider.canFail(
+                                ROW(FIELD("a", VARCHAR(4_000_000)), FIELD("b", VARCHAR(4_000_000)))
+                                        .getLogicalType(),
+                                VARIANT))
+                .isTrue();
+    }
+
+    @Test
     void testResolveVariantToArray() {
         assertThat(CastRuleProvider.resolve(VARIANT, ARRAY(INT()).getLogicalType()))
                 .isSameAs(VariantToArrayCastRule.INSTANCE);

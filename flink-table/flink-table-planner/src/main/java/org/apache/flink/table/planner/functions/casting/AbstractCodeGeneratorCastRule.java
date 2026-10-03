@@ -76,10 +76,11 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
                 generateCodeBlock(
                         ctx, inputTerm, inputIsNullTerm, inputLogicalType, targetLogicalType);
 
-        // Class fields can contain type serializers
+        // Type serializers and reusable objects are passed to the constructor
+        final Map<String, Object> constructorFields = ctx.getConstructorFields();
         final String classFieldDecls =
                 Stream.concat(
-                                ctx.typeSerializers.values().stream()
+                                constructorFields.entrySet().stream()
                                         .map(
                                                 entry ->
                                                         "private final "
@@ -95,7 +96,7 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
                 "public "
                         + castExecutorClassName
                         + "("
-                        + ctx.typeSerializers.values().stream()
+                        + constructorFields.entrySet().stream()
                                 .map(
                                         entry ->
                                                 className(entry.getValue().getClass())
@@ -104,7 +105,7 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
                                 .collect(Collectors.joining(", "))
                         + ")";
         final String constructorBody =
-                ctx.getDeclaredTypeSerializers().stream()
+                constructorFields.keySet().stream()
                         .map(name -> "this." + name + " = " + name + ";\n")
                         .collect(Collectors.joining());
 
@@ -158,8 +159,7 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
                         + "}\n}";
 
         try {
-            Object[] constructorArgs =
-                    ctx.getTypeSerializersInstances().toArray(new TypeSerializer[0]);
+            Object[] constructorArgs = constructorFields.values().toArray();
             return (CastExecutor<IN, OUT>)
                     CompileUtils.compile(
                                     castRuleContext.getClassLoader(),
@@ -182,6 +182,7 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
 
         private final Map<LogicalType, Map.Entry<String, TypeSerializer<?>>> typeSerializers =
                 new LinkedHashMap<>();
+        private final Map<String, Object> reusableObjects = new LinkedHashMap<>();
         private final List<String> variableDeclarationStatements = new ArrayList<>();
         private final List<String> classFields = new ArrayList<>();
         private int variableIndex = 0;
@@ -232,6 +233,14 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
         }
 
         @Override
+        public String declareReusableObject(Object object, String fieldPrefix) {
+            final String fieldName = fieldPrefix + "$" + variableIndex;
+            variableIndex++;
+            reusableObjects.put(fieldName, object);
+            return fieldName;
+        }
+
+        @Override
         public String declareClassField(String type, String name, String initialization) {
             this.classFields.add(type + " " + name + " = " + initialization + ";");
             return "this." + name;
@@ -242,16 +251,12 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
             return castRuleCtx.getCodeGeneratorContext();
         }
 
-        public List<String> getDeclaredTypeSerializers() {
-            return this.typeSerializers.values().stream()
-                    .map(Map.Entry::getKey)
-                    .collect(Collectors.toList());
-        }
-
-        public List<TypeSerializer<?>> getTypeSerializersInstances() {
-            return this.typeSerializers.values().stream()
-                    .map(Map.Entry::getValue)
-                    .collect(Collectors.toList());
+        /** The fields the generated constructor receives, in the order of its parameters. */
+        public Map<String, Object> getConstructorFields() {
+            final Map<String, Object> fields = new LinkedHashMap<>();
+            typeSerializers.values().forEach(entry -> fields.put(entry.getKey(), entry.getValue()));
+            fields.putAll(reusableObjects);
+            return fields;
         }
 
         public List<String> getClassFields() {

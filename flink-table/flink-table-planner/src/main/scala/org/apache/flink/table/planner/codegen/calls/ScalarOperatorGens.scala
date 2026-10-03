@@ -2098,6 +2098,8 @@ object ScalarOperatorGens {
         ctx.addReusableLocalVariable(ty, variablePrefix)
       override def declareTypeSerializer(ty: LogicalType): String =
         ctx.addReusableTypeSerializer(ty)
+      override def declareReusableObject(obj: AnyRef, fieldPrefix: String): String =
+        ctx.addReusableObject(obj, fieldPrefix)
       override def declareClassField(ty: String, field: String, init: String): String = {
         ctx.addReusableMember(s"private $ty $field = $init;")
         field
