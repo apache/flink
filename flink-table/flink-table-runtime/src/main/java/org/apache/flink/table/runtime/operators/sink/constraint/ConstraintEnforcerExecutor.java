@@ -56,6 +56,7 @@ import java.util.stream.Stream;
 public class ConstraintEnforcerExecutor implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    private static final int[] NO_PRIMARY_KEYS = new int[0];
     private final Constraint[] constraints;
 
     private ConstraintEnforcerExecutor(Constraint[] constraints) {
@@ -68,18 +69,44 @@ public class ConstraintEnforcerExecutor implements Serializable {
 
     public static Optional<ConstraintEnforcerExecutor> create(
             final RowType physicalType,
+            final int[] primaryKeys,
+            final boolean keyOnlyDeletes,
             final NotNullEnforcer notNullEnforcer,
             final TypeLengthEnforcer typeLengthEnforcer,
             final NestedEnforcer nestedConstraints) {
         final Constraint[] topLevelConstraints =
                 createConstraints(
-                        physicalType, notNullEnforcer, typeLengthEnforcer, nestedConstraints);
+                        physicalType,
+                        keyOnlyDeletes,
+                        primaryKeys,
+                        notNullEnforcer,
+                        typeLengthEnforcer,
+                        nestedConstraints);
 
         return create(topLevelConstraints);
     }
 
+    private static Constraint[] createNestedConstraints(
+            final RowType physicalType,
+            final NotNullEnforcer notNullEnforcer,
+            final TypeLengthEnforcer typeLengthEnforcer,
+            final NestedEnforcer nestedEnforcer) {
+        // Nested constraints are never relaxed for partial deletes: a by-key delete nulls the whole
+        // top-level field, so the nested constraint skips it (it only descends into non-null
+        // fields).
+        return createConstraints(
+                physicalType,
+                false,
+                NO_PRIMARY_KEYS,
+                notNullEnforcer,
+                typeLengthEnforcer,
+                nestedEnforcer);
+    }
+
     private static Constraint[] createConstraints(
             final RowType physicalType,
+            final boolean keyOnlyDeletes,
+            final int[] primaryKeys,
             final NotNullEnforcer notNullEnforcer,
             final TypeLengthEnforcer typeLengthEnforcer,
             final NestedEnforcer nestedEnforcer) {
@@ -94,11 +121,22 @@ public class ConstraintEnforcerExecutor implements Serializable {
                             .mapToObj(idx -> fieldNames[idx])
                             .toArray(String[]::new);
 
+            final BitSet primaryKeySet = new BitSet();
+            for (int pk : primaryKeys) {
+                primaryKeySet.set(pk);
+            }
+            final boolean[] keyField = new boolean[notNullFieldIndices.length];
+            for (int i = 0; i < notNullFieldIndices.length; i++) {
+                keyField[i] = primaryKeySet.get(notNullFieldIndices[i]);
+            }
+
             constraints.add(
                     new NotNullConstraint(
                             NotNullEnforcementStrategy.of(notNullEnforcer),
                             notNullFieldIndices,
-                            notNullFieldNames));
+                            notNullFieldNames,
+                            keyOnlyDeletes,
+                            keyField));
         }
 
         if (typeLengthEnforcer != TypeLengthEnforcer.IGNORE) {
@@ -144,7 +182,7 @@ public class ConstraintEnforcerExecutor implements Serializable {
                     nestedRowInfo.stream()
                             .map(
                                     r ->
-                                            createConstraints(
+                                            createNestedConstraints(
                                                     r.getFieldType(),
                                                     notNullEnforcer,
                                                     typeLengthEnforcer,
@@ -184,7 +222,7 @@ public class ConstraintEnforcerExecutor implements Serializable {
                     nestedArrayInfos.stream()
                             .map(
                                     r1 ->
-                                            createConstraints(
+                                            createNestedConstraints(
                                                     new RowType(
                                                             List.of(
                                                                     new RowType.RowField(
@@ -223,7 +261,7 @@ public class ConstraintEnforcerExecutor implements Serializable {
                     nestedMapInfos.stream()
                             .map(
                                     r1 ->
-                                            createConstraints(
+                                            createNestedConstraints(
                                                     new RowType(
                                                             List.of(
                                                                     new RowType.RowField(

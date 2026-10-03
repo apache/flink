@@ -141,6 +141,24 @@ public class ClusterOptions {
                             "The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
+    public static final ConfigOption<ThreadDumpMode> THREAD_DUMP_DEFAULT_MODE =
+            key("cluster.thread-dump.default-mode")
+                    .enumType(ThreadDumpMode.class)
+                    .defaultValue(ThreadDumpMode.FULL)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Default granularity of the JobManager/TaskManager thread-dump REST endpoint "
+                                                    + "when no explicit %s query parameter is supplied. ",
+                                            code("mode"))
+                                    .text(
+                                            "The default is %s to preserve historical behavior; operators of large "
+                                                    + "clusters are strongly encouraged to switch to %s to avoid "
+                                                    + "heartbeat timeouts caused by long safepoint pauses.",
+                                            code("FULL"), code("LITE"))
+                                    .build());
+
+    @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
     public static final ConfigOption<UncaughtExceptionHandleMode> UNCAUGHT_EXCEPTION_HANDLING =
             ConfigOptions.key("cluster.uncaught-exception-handling")
                     .enumType(UncaughtExceptionHandleMode.class)

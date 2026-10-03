@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.runtime.generated.ProcessTableRunner.StateHandle.Kind;
 import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator;
 import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator.RunnerContext;
 import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator.RunnerOnTimerContext;
@@ -36,7 +37,6 @@ import org.apache.flink.util.function.RunnableWithException;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 /**
  * Abstraction of code-generated calls to {@link ProcessTableFunction} to be used within {@link
@@ -45,10 +45,9 @@ import java.util.Arrays;
 @Internal
 public abstract class ProcessTableRunner extends AbstractRichFunction {
 
-    // Constant references after initialization
-    protected State[] stateHandles;
-    private HashFunction[] stateHashCode;
-    private RecordEqualiser[] stateEquals;
+    // Constant references after initialization.
+    // Accessed by generated code.
+    protected StateHandle[] stateHandles;
     private boolean emitRowtime;
 
     // Contexts
@@ -68,30 +67,14 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     private @Nullable Long rowtime;
     private @Nullable StringData timerName;
 
-    /** State entries to be converted into external data structure; null if state is empty. */
-    protected RowData[] valueStateToFunction;
-
-    /**
-     * Reference to whether the state has been cleared within the function; if yes, a conversion
-     * from external to internal data structure is not necessary anymore.
-     */
-    protected boolean[] stateCleared;
-
-    /** State ready for persistence; null if {@link #stateCleared} was true during conversion. */
-    protected RowData[] valueStateFromFunction;
-
     public void initialize(
-            State[] stateHandles,
-            HashFunction[] stateHashCode,
-            RecordEqualiser[] stateEquals,
+            StateHandle[] stateHandles,
             boolean emitRowtime,
             RunnerContext runnerContext,
             RunnerOnTimerContext runnerOnTimerContext,
             PassThroughCollectorBase evalCollector,
             PassAllCollector onTimerCollector) {
         this.stateHandles = stateHandles;
-        this.stateHashCode = stateHashCode;
-        this.stateEquals = stateEquals;
         this.emitRowtime = emitRowtime;
 
         // Accessed by generated code
@@ -99,9 +82,6 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
         this.runnerOnTimerContext = runnerOnTimerContext;
         this.evalCollector = evalCollector;
         this.onTimerCollector = onTimerCollector;
-        this.valueStateToFunction = new RowData[stateHandles.length];
-        this.stateCleared = new boolean[stateHandles.length];
-        this.valueStateFromFunction = new RowData[stateHandles.length];
     }
 
     public void ingestTableEvent(int pos, RowData row, int timeColumn, long watermark) {
@@ -131,11 +111,13 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     }
 
     public void clearAllState() {
-        Arrays.fill(stateCleared, true);
+        for (StateHandle stateHandle : stateHandles) {
+            stateHandle.cleared = true;
+        }
     }
 
     public void clearState(int statePos) {
-        stateCleared[statePos] = true;
+        stateHandles[statePos].cleared = true;
     }
 
     public long getTableWatermark() {
@@ -165,11 +147,12 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     private void processMethod(RunnableWithException method) throws Exception {
         if (stateHandles.length > 0) {
             // For each function call:
-            // - the state is read from Flink
-            // - converted into external data structure
+            // - eager value state is read from Flink and converted into external data structure
+            // - views are cheap to set up (lazy access to Flink state)
             // - evaluated
-            // - converted into internal data structure (if not cleared)
-            // - the state is written into Flink
+            // - eager value state is converted into internal data structure (if not cleared)
+            //   and written into Flink
+            // - views may only need to be cleared if requested
             moveStateToFunction();
             method.run();
             moveStateFromFunction();
@@ -180,41 +163,38 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
 
     @SuppressWarnings("unchecked")
     private void moveStateToFunction() throws IOException {
-        Arrays.fill(stateCleared, false);
-        for (int i = 0; i < stateHandles.length; i++) {
-            final State stateHandle = stateHandles[i];
-            if (!(stateHandle instanceof ValueState)) {
+        for (StateHandle stateHandle : stateHandles) {
+            stateHandle.cleared = false;
+            if (stateHandle.kind != Kind.EAGER_VALUE) {
+                // Views access Flink state lazily; nothing to move eagerly.
                 continue;
             }
-            final ValueState<RowData> valueState = (ValueState<RowData>) stateHandle;
-            final RowData value = valueState.value();
-            valueStateToFunction[i] = value;
+            final ValueState<RowData> valueState = (ValueState<RowData>) stateHandle.state;
+            stateHandle.toFunction = valueState.value();
         }
     }
 
     @SuppressWarnings("unchecked")
     private void moveStateFromFunction() throws IOException {
-        for (int i = 0; i < stateHandles.length; i++) {
-            final State stateHandle = stateHandles[i];
-            if (stateHandle instanceof ValueState) {
-                moveValueStateFromFunction((ValueState<RowData>) stateHandle, i);
-            } else {
-                if (stateCleared[i]) {
-                    stateHandle.clear();
-                }
+        for (StateHandle stateHandle : stateHandles) {
+            if (stateHandle.kind == Kind.EAGER_VALUE) {
+                moveValueStateFromFunction(stateHandle);
+            } else if (stateHandle.cleared) {
+                stateHandle.state.clear();
             }
         }
     }
 
-    private void moveValueStateFromFunction(ValueState<RowData> valueState, int pos)
-            throws IOException {
-        final RowData fromFunction = valueStateFromFunction[pos];
+    private void moveValueStateFromFunction(StateHandle stateHandle) throws IOException {
+        @SuppressWarnings("unchecked")
+        final ValueState<RowData> valueState = (ValueState<RowData>) stateHandle.state;
+        final RowData fromFunction = stateHandle.fromFunction;
         if (fromFunction == null || isEmpty(fromFunction)) {
             valueState.clear();
         } else {
-            final HashFunction hashCode = stateHashCode[pos];
-            final RecordEqualiser equals = stateEquals[pos];
-            final RowData toFunction = valueStateToFunction[pos];
+            final HashFunction hashCode = stateHandle.hashFunction;
+            final RecordEqualiser equals = stateHandle.equaliser;
+            final RowData toFunction = stateHandle.toFunction;
             // Reduce state updates by checking if something has changed
             if (toFunction == null
                     || hashCode.hashCode(toFunction) != hashCode.hashCode(fromFunction)
@@ -231,5 +211,78 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
             }
         }
         return row.getRowKind() == RowKind.INSERT;
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * A bundle of everything the runner needs to handle a single state entry.
+     *
+     * <p>The {@link Kind} determines how the entry is moved to/from the function. For all view
+     * kinds ({@link Kind#MAP_VIEW}, {@link Kind#LIST_VIEW}, {@link Kind#VALUE_VIEW}) the view
+     * accesses Flink state lazily, so {@link #hashFunction} and {@link #equaliser} are {@code null}
+     * and the scratch fields are unused. Only {@link Kind#EAGER_VALUE} follows a Read-Modify-Write
+     * cycle and uses the hash function, equaliser, and per-invocation scratch fields.
+     */
+    @Internal
+    public static final class StateHandle {
+
+        /** Kind of a state entry. */
+        public enum Kind {
+            MAP_VIEW,
+            LIST_VIEW,
+            VALUE_VIEW,
+            EAGER_VALUE
+        }
+
+        private final Kind kind;
+        private final State state;
+        private final @Nullable HashFunction hashFunction;
+        private final @Nullable RecordEqualiser equaliser;
+
+        // Per-invocation scratch, only used for EAGER_VALUE.
+
+        /** State entry to be converted into external data structure; null if state is empty. */
+        private @Nullable RowData toFunction;
+
+        /** State ready for persistence; null if {@link #cleared} was true during conversion. */
+        private @Nullable RowData fromFunction;
+
+        /**
+         * Whether the state has been cleared within the function; if yes, a conversion from
+         * external to internal data structure is not necessary anymore.
+         */
+        private boolean cleared;
+
+        public StateHandle(
+                Kind kind,
+                State state,
+                @Nullable HashFunction hashFunction,
+                @Nullable RecordEqualiser equaliser) {
+            this.kind = kind;
+            this.state = state;
+            this.hashFunction = hashFunction;
+            this.equaliser = equaliser;
+        }
+
+        public Kind getKind() {
+            return kind;
+        }
+
+        public State getState() {
+            return state;
+        }
+
+        public @Nullable RowData getToFunction() {
+            return toFunction;
+        }
+
+        public void setFromFunction(@Nullable RowData fromFunction) {
+            this.fromFunction = fromFunction;
+        }
+
+        public boolean isCleared() {
+            return cleared;
+        }
     }
 }

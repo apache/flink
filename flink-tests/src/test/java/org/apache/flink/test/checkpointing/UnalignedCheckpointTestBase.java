@@ -45,6 +45,7 @@ import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RpcOptions;
@@ -77,7 +78,6 @@ import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -116,10 +116,10 @@ import static org.junit.jupiter.api.Assertions.fail;
  * <p>This test base relies on restarting the subtasks within the scheduler to trigger a reset of
  * the operators. The operator reset is counted in the LongSource. The job will terminate if the
  * number of expected restarts is reached. The AdaptiveScheduler won't trigger the operator reset
- * resulting in the test running forever. This is why this test suite is disabled for the {@link
- * org.apache.flink.runtime.scheduler.adaptive.AdaptiveScheduler}.
+ * resulting in the test running forever. This is why this test suite always pins {@link
+ * JobManagerOptions#SCHEDULER} to {@link JobManagerOptions.SchedulerType#Default}, independent of
+ * the scheduler selected by the build profile.
  */
-@Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
 @ExtendWith(TestLoggerExtension.class)
 abstract class UnalignedCheckpointTestBase {
     protected static final Logger LOG = LoggerFactory.getLogger(UnalignedCheckpointTestBase.class);
@@ -840,6 +840,7 @@ abstract class UnalignedCheckpointTestBase {
             conf.set(TaskManagerOptions.NETWORK_MEMORY_FRACTION, 0.9f);
             conf.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
             conf.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+            conf.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Default);
             conf.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
             if (restoreCheckpoint != null) {
                 conf.set(StateRecoveryOptions.SAVEPOINT_PATH, restoreCheckpoint);

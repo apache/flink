@@ -112,7 +112,9 @@ public class SqlTypeFactoryImpl extends RelDataTypeFactoryImpl {
 
     @Override
     public RelDataType createUnknownType() {
-        return createSqlType(SqlTypeName.UNKNOWN);
+        // FLINK MODIFICATION BEGIN
+        return canonize(new UnknownSqlType(this));
+        // FLINK MODIFICATION END
     }
 
     @Override

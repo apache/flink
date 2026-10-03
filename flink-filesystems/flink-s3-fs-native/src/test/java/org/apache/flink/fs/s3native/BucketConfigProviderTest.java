@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for {@link BucketConfigProvider}. */
 class BucketConfigProviderTest {
 
-    /** One test exercises all 11 known properties on a single bucket. */
+    /** One test exercises all 12 known properties on a single bucket. */
     @Test
     void testParsesAllKnownPropertiesForSingleBucket() {
         Configuration config = new Configuration();
@@ -52,6 +52,7 @@ class BucketConfigProviderTest {
         config.setString(
                 "s3.bucket.my-bucket.aws.credentials.provider",
                 "software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider");
+        config.setString("s3.bucket.my-bucket.delete.batch.enabled", "false");
 
         BucketConfigProvider provider = new BucketConfigProvider(config);
 
@@ -73,6 +74,7 @@ class BucketConfigProviderTest {
         assertThat(bucket.getAssumeRoleSessionDurationSeconds()).isEqualTo(7200);
         assertThat(bucket.getCredentialsProvider())
                 .isEqualTo("software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider");
+        assertThat(bucket.getDeleteBatchEnabled()).isFalse();
     }
 
     @Test
@@ -216,6 +218,17 @@ class BucketConfigProviderTest {
         assertThatThrownBy(() -> new BucketConfigProvider(config))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Invalid path-style-access");
+    }
+
+    @Test
+    void testInvalidDeleteBatchEnabledThrowsException() {
+        Configuration config = new Configuration();
+        config.setString("s3.bucket.my-bucket.delete.batch.enabled", "treu");
+        config.setString("s3.bucket.my-bucket.region", "us-east-1");
+
+        assertThatThrownBy(() -> new BucketConfigProvider(config))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Invalid delete.batch.enabled");
     }
 
     @Test

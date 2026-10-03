@@ -21,7 +21,14 @@ DataFrame
 =========
 
 A DataFrame provides a Pythonic interface for composing data transformations.
-Transformation methods return new DataFrames and support fluent chaining.
+Transformation methods return new DataFrames and support fluent chaining. They build execution
+plans lazily without starting a Flink job; execution is triggered by an action such as
+``DataFrame.collect`` or ``DataFrame.to_pandas``.
+
+Columns can also be referenced as attributes, such as ``df.name``, when their names are valid
+Python identifiers, do not start with an underscore, are not keywords, and do not conflict with
+existing DataFrame attributes. Use bracket access for other names, such as ``df["select"]``,
+``df["_name"]``, or ``df["first name"]``.
 
 Example::
 
@@ -30,6 +37,7 @@ Example::
     >>> result = df.select("id", "name") \
     ...            .with_column("id_doubled", pf.col("id") * 2) \
     ...            .filter(pf.col("id") > 0)
+    >>> names = df.select(df.name)
 
 DataFrame
 ---------
@@ -51,8 +59,84 @@ Transformations
 
     DataFrame.select
     DataFrame.with_column
+    DataFrame.with_columns
+    DataFrame.drop_columns
+    DataFrame.drop
+    DataFrame.rename_columns
+    DataFrame.rename
     DataFrame.filter
+    DataFrame.where
+    DataFrame.explode
+    DataFrame.drop_duplicates
+    DataFrame.distinct
+    DataFrame.unique
+    DataFrame.sort
+    DataFrame.top_n
+    DataFrame.limit
+    DataFrame.offset
+    DataFrame.head
+    DataFrame.flat_map
     DataFrame.__getitem__
+    DataFrame.__getattr__
+
+Set Operations
+--------------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.union
+    DataFrame.union_all
+    DataFrame.intersect
+    DataFrame.intersect_all
+    DataFrame.minus
+    DataFrame.minus_all
+
+Joins
+-----
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.join
+
+Aggregations
+------------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.group_by
+    DataFrame.agg
+    GroupedDataFrame
+    GroupedDataFrame.agg
+
+Composition
+-----------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.pipe
+
+Properties
+----------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.schema
+    DataFrame.columns
 
 Results
 -------
@@ -63,6 +147,21 @@ Results
     :toctree: api/
 
     DataFrame.collect
+    DataFrame.to_table
+    DataFrame.to_pandas
+
+Windowing
+---------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.tumble
+    DataFrame.hop
+    DataFrame.cumulate
+    DataFrame.session
 
 Expressions
 -----------

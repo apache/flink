@@ -32,10 +32,13 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+
+import java.lang.reflect.Array;
 
 /** Utility class for mapping between Flink logical types and Triton data types. */
 public class TritonTypeMapper {
@@ -208,6 +211,15 @@ public class TritonTypeMapper {
 
         int size = dataNode.size();
 
+        // The primitive-backed arrays below cannot represent a JSON null: GenericArrayData
+        // reports isNullAt() == false for every position of a primitive array, so a null would
+        // silently be read back as 0, false, or the literal string "null". Use a boxed array
+        // whenever the payload actually contains a null, leaving the primitive fast path
+        // untouched for the common all-non-null case.
+        if (containsNull(dataNode)) {
+            return deserializeNullableArrayFromJson(dataNode, elementType, size);
+        }
+
         // Handle different element types with appropriate array types
         if (elementType instanceof BooleanType) {
             boolean[] array = new boolean[size];
@@ -268,6 +280,60 @@ public class TritonTypeMapper {
         } else {
             throw new IllegalArgumentException("Unsupported array element type: " + elementType);
         }
+    }
+
+    /** Returns whether the given JSON array contains at least one null element. */
+    private static boolean containsNull(JsonNode dataNode) {
+        for (JsonNode element : dataNode) {
+            if (element.isNull()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Deserializes a JSON array that contains at least one null element into a boxed {@link
+     * GenericArrayData}, which is the only representation able to report {@code isNullAt(pos)}.
+     *
+     * @param dataNode The JSON array node
+     * @param elementType The element type
+     * @param size The number of elements
+     * @return The deserialized ArrayData preserving null elements
+     */
+    private static ArrayData deserializeNullableArrayFromJson(
+            JsonNode dataNode, LogicalType elementType, int size) {
+        // Reject element types the module does not support before allocating anything, mirroring
+        // the trailing else branch of the primitive path above.
+        toTritonDataType(elementType);
+        // toTritonDataType recurses into an ArrayType rather than rejecting it, and the primitive
+        // path above does not support nested arrays; reject them explicitly so that the presence
+        // of a null element cannot change which element types are accepted.
+        Preconditions.checkArgument(
+                !(elementType instanceof ArrayType),
+                "Unsupported array element type: %s",
+                elementType);
+        // Writing a null into an array declared NOT NULL would violate the output schema, so fail
+        // loudly rather than substituting a value the model never produced.
+        Preconditions.checkArgument(
+                elementType.isNullable(),
+                "Received a null array element but the declared element type is NOT NULL: %s",
+                elementType);
+
+        // GenericArrayData requires a boxed array of the concrete component type: a plain Object[]
+        // would break ArrayObjectArrayConverter#toExternal, whose fast path returns the underlying
+        // array straight to the caller, where it is cast to e.g. Integer[].
+        Object[] array =
+                (Object[])
+                        Array.newInstance(
+                                LogicalTypeUtils.toInternalConversionClass(elementType), size);
+        int i = 0;
+        for (JsonNode element : dataNode) {
+            // deserializeFromJson maps a JSON null to a Java null and already covers every
+            // element type supported above, including the FloatType special case.
+            array[i++] = deserializeFromJson(element, elementType);
+        }
+        return new GenericArrayData(array);
     }
 
     /**

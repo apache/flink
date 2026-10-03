@@ -237,6 +237,20 @@ class S3ClientProviderTest {
                 .isEqualTo(NativeS3FileSystemFactory.RETRY_THROTTLE_BASE_DELAY.defaultValue());
         assertThat(provider.getRetryMaxBackoff())
                 .isEqualTo(NativeS3FileSystemFactory.RETRY_MAX_BACKOFF.defaultValue());
+        assertThat(provider.isRetryCircuitBreakerEnabled())
+                .isEqualTo(NativeS3FileSystemFactory.RETRY_CIRCUIT_BREAKER_ENABLED.defaultValue());
+    }
+
+    @Test
+    void testRetryCircuitBreakerEnabledOverride() {
+        S3ClientProvider provider =
+                S3ClientProvider.builder()
+                        .endpoint(DUMMY_ENDPOINT)
+                        .region(DUMMY_REGION)
+                        .retryCircuitBreakerEnabled(true)
+                        .build();
+
+        assertThat(provider.isRetryCircuitBreakerEnabled()).isTrue();
     }
 
     @Test

@@ -35,9 +35,11 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.functions.python.InputRef;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
@@ -242,7 +244,9 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
                 getTestOperator(
                         config,
                         new PythonFunctionInfo[] {
-                            new PythonFunctionInfo(DummyPythonFunction.INSTANCE, new Integer[] {0})
+                            new PythonFunctionInfo(
+                                    DummyPythonFunction.INSTANCE,
+                                    new PythonFunctionInput[] {new InputRef(0)})
                         },
                         dataType,
                         dataType,

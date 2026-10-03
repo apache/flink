@@ -63,6 +63,7 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.VariantType;
@@ -490,6 +491,9 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
             case VARIANT:
                 return createSqlType(SqlTypeName.VARIANT);
 
+            case UUID:
+                return createSqlType(SqlTypeName.UUID);
+
             case BITMAP:
                 return new BitmapRelDataType((BitmapType) logicalType);
 
@@ -860,6 +864,9 @@ public class FlinkTypeFactory extends JavaTypeFactoryImpl implements ExtendedRel
 
             case VARIANT:
                 return new VariantType();
+
+            case UUID:
+                return new UuidType();
 
             case OTHER:
                 if (relDataType instanceof RawRelDataType) {

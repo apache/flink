@@ -6,6 +6,12 @@ This module provides a native S3 filesystem implementation for Apache Flink usin
 
 The Native S3 FileSystem is a direct implementation of Flink's FileSystem interface using AWS SDK v2, without Hadoop dependencies. It provides exactly-once semantics for checkpointing and file sinks through S3 multipart uploads.
 
+### Cleaning Up Unfinished Uploads
+
+The Native S3 FileSystem never aborts a multipart upload on its own. An upload that is in progress may be referenced by a checkpoint or savepoint, and Flink cannot tell whether that is the case when a stream is closed, cancelled, or fails to commit. Aborting such an upload would make the referencing checkpoint or savepoint unrecoverable. Uploads that are no longer needed (for example after a job is cancelled and never restored, or after a failed commit) therefore remain in the bucket and are billed as storage until they are removed.
+
+**You must configure an S3 lifecycle rule that aborts incomplete multipart uploads** on every bucket written through this file system. Without such a rule, abandoned uploads accumulate indefinitely. See the [S3 documentation on aborting incomplete multipart uploads](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpu-abort-incomplete-mpu-lifecycle-config.html) for how to configure the rule. Choose a retention period long enough for uploads to finish and for jobs to recover, including any planned downtime. S3 measures this period from when an upload starts. Cleaning up uploads too soon can prevent recovery from older checkpoints or savepoints. This rule does not remove other temporary files. See the [S3-specific FileSink guidance](../../docs/content/docs/connectors/datastream/filesystem.md#s3-specific).
+
 ## Supported URI Schemes
 
 This module supports both `s3://` and `s3a://` URI schemes:
@@ -77,6 +83,27 @@ input.sinkTo(FileSink.forRowFormat(new Path("s3://my-bucket/output"),
 | s3.connection.max | 50 | Maximum HTTP connections in the S3 client connection pool. Applies to sync and async clients, including CRT when enabled. Must be ≥ `s3.bulk-copy.max-concurrent` |
 | s3.async.enabled | true | Enable async read/write with TransferManager |
 | s3.read.buffer.size | 262144 (256KB) | Read buffer size per stream (64KB - 4MB) |
+| s3.delete.batch.enabled | true | Use S3's batch `DeleteObjects` API when recursively deleting a directory, instead of issuing one `DeleteObject` call per file. Disable for S3-compatible stores that do not support multi-object delete |
+
+### Metrics
+
+When the native S3 plugin is loaded in a JobManager or TaskManager, it can publish AWS SDK operation metrics into Flink's process-level metric group. Metrics are scoped under `filesystem.filesystem_type.<scheme>`, where `<scheme>` is `s3` or `s3a`.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| s3.metrics.enabled | true | Enable S3 operation metrics. Set to `false` to avoid attaching the AWS SDK metric publisher |
+| s3.metrics.allowlist | `api_call_count`, `api_call_duration_ms`, `throttle_count`, `retry_count`, `iops` | Metrics to register. Use `*` to register every metric emitted by the plugin. Empty lists are rejected; set `s3.metrics.enabled: false` to disable metrics. `iops` is derived by reporters from `api_call_count`, so allowing `iops` also registers `api_call_count` |
+| s3.metrics.histogram.window-size | 1024 | Number of recent samples retained per `api_call_duration_ms` histogram |
+
+The plugin emits the following metric names:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| api_call_count | Counter | `op`, `status_class` | Number of completed S3 API calls, grouped by operation and result class |
+| api_call_duration_ms | Histogram | `op` | Completed S3 API call latency in milliseconds |
+| throttle_count | Counter | `op` | Number of throttled S3 responses (`429` or `503`) |
+| retry_count | Counter | `op`, `reason` | Number of AWS SDK retries, grouped by retry reason |
+| iops | Derived rate | `op`, `status_class` | Reporter-side rate derived from `api_call_count` |
 
 ### Credentials Provider
 
@@ -136,6 +163,7 @@ Only the following properties can be overridden at the bucket level. Any other `
 - **Credentials:** `access-key`, `secret-key`, `aws.credentials.provider`
 - **Encryption:** `sse.type`, `sse.kms.key-id`
 - **IAM Assume Role:** `assume-role.arn`, `assume-role.external-id`, `assume-role.session-name`, `assume-role.session-duration`
+- **Delete behavior:** `delete.batch.enabled`
 
 Timeouts, retries, encoding/checksum flags, entropy, upload/copy settings, and the credentials provider chain are configured globally only.
 

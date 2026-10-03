@@ -19,18 +19,20 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CustomRestoreSerializerFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.LinkedOptionalMap;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.BiFunctionWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -113,6 +115,7 @@ final class PojoSerializerSnapshotData<T> {
 
         return new PojoSerializerSnapshotData<>(
                 pojoClass,
+                pojoClass.getName(),
                 fieldSerializerSnapshots,
                 optionalMapOf(registeredSubclassSerializerSnapshots, Class::getName),
                 optionalMapOf(nonRegisteredSubclassSerializerSnapshots, Class::getName));
@@ -153,12 +156,14 @@ final class PojoSerializerSnapshotData<T> {
 
         return new PojoSerializerSnapshotData<>(
                 pojoClass,
+                pojoClass.getName(),
                 fieldSerializerSnapshots,
                 optionalMapOf(existingRegisteredSubclassSerializerSnapshots, Class::getName),
                 optionalMapOf(existingNonRegisteredSubclassSerializerSnapshots, Class::getName));
     }
 
-    private Class<T> pojoClass;
+    @Nullable private Class<T> pojoClass;
+    private String pojoClassName;
     private LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots;
     private LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>>
             registeredSubclassSerializerSnapshots;
@@ -166,14 +171,16 @@ final class PojoSerializerSnapshotData<T> {
             nonRegisteredSubclassSerializerSnapshots;
 
     private PojoSerializerSnapshotData(
-            Class<T> typeClass,
+            @Nullable Class<T> typeClass,
+            String pojoClassName,
             LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots,
             LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>>
                     registeredSubclassSerializerSnapshots,
             LinkedOptionalMap<Class<?>, TypeSerializerSnapshot<?>>
                     nonRegisteredSubclassSerializerSnapshots) {
 
-        this.pojoClass = checkNotNull(typeClass);
+        this.pojoClass = typeClass;
+        this.pojoClassName = checkNotNull(pojoClassName);
         this.fieldSerializerSnapshots = checkNotNull(fieldSerializerSnapshots);
         this.registeredSubclassSerializerSnapshots =
                 checkNotNull(registeredSubclassSerializerSnapshots);
@@ -186,7 +193,7 @@ final class PojoSerializerSnapshotData<T> {
     // ---------------------------------------------------------------------------------------------
 
     void writeSnapshotData(DataOutputView out) throws IOException {
-        out.writeUTF(pojoClass.getName());
+        out.writeUTF(pojoClassName);
         writeOptionalMap(
                 out,
                 fieldSerializerSnapshots,
@@ -206,7 +213,14 @@ final class PojoSerializerSnapshotData<T> {
 
     private static <T> PojoSerializerSnapshotData<T> readSnapshotData(
             DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-        Class<T> pojoClass = InstantiationUtil.resolveClassByName(in, userCodeClassLoader);
+        final String pojoClassName = in.readUTF();
+        Class<T> pojoClass =
+                CustomRestoreSerializerFactory.resolveOrNull(pojoClassName, userCodeClassLoader);
+        if (pojoClass == null) {
+            LOG.debug(
+                    "POJO class '{}' not found on classpath; schema can still be read from field snapshots.",
+                    pojoClassName);
+        }
 
         LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> fieldSerializerSnapshots =
                 readOptionalMap(
@@ -226,6 +240,7 @@ final class PojoSerializerSnapshotData<T> {
 
         return new PojoSerializerSnapshotData<>(
                 pojoClass,
+                pojoClassName,
                 fieldSerializerSnapshots,
                 registeredSubclassSerializerSnapshots,
                 nonRegisteredSubclassSerializerSnapshots);
@@ -235,8 +250,13 @@ final class PojoSerializerSnapshotData<T> {
     //  Snapshot data accessors
     // ---------------------------------------------------------------------------------------------
 
+    @Nullable
     Class<T> getPojoClass() {
         return pojoClass;
+    }
+
+    String getPojoClassName() {
+        return pojoClassName;
     }
 
     LinkedOptionalMap<Field, TypeSerializerSnapshot<?>> getFieldSerializerSnapshots() {

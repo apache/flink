@@ -66,7 +66,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     protected static final Logger LOG =
             LoggerFactory.getLogger(InternalTimeServiceManagerImpl.class);
 
-    @VisibleForTesting static final String TIMER_STATE_PREFIX = "_timer_state";
+    public static final String TIMER_STATE_PREFIX = "_timer_state";
 
     @VisibleForTesting
     static final String PROCESSING_TIMER_PREFIX = TIMER_STATE_PREFIX + "/processing_";

@@ -84,10 +84,13 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_PARTITION_BY_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_ON_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_POJO_STATE_TIME,
+                ProcessTableFunctionTestPrograms.PROCESS_EAGER_AND_VALUE_VIEW_STATE_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_CHAINED_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_CHAINED_TIME_TABLE_API,
                 ProcessTableFunctionTestPrograms.PROCESS_INVALID_ROW_SEMANTIC_TABLE_TIMERS,
                 ProcessTableFunctionTestPrograms.PROCESS_INVALID_PASS_THROUGH_TIMERS,
+                ProcessTableFunctionTestPrograms.PROCESS_VALUE_STATE,
+                ProcessTableFunctionTestPrograms.PROCESS_COMPLEX_VALUE_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_LIST_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_MAP_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT,
@@ -97,6 +100,10 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_ORDER_BY,
                 ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT_ORDER_BY,
                 ProcessTableFunctionTestPrograms.PROCESS_ORDER_BY_TABLE_API,
-                ProcessTableFunctionTestPrograms.PROCESS_IMPLICIT_CASTS);
+                ProcessTableFunctionTestPrograms.PROCESS_IMPLICIT_CASTS,
+                ProcessTableFunctionTestPrograms.PROCESS_ROW_DATA_CONVERSION_TABLE,
+                ProcessTableFunctionTestPrograms.PROCESS_VARIANT,
+                ProcessTableFunctionTestPrograms.PROCESS_VARIANT_TABLE_ARG,
+                ProcessTableFunctionTestPrograms.PROCESS_VARIANT_STATE);
     }
 }

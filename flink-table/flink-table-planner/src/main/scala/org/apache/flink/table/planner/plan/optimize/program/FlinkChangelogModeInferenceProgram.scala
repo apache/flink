@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
 import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
@@ -362,9 +362,27 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = new ModifyKindSetTrait(builder.build())
         createNewNode(over, children, providedTrait, requiredTrait, requester)
 
-      case _: StreamPhysicalTemporalSort | _: StreamPhysicalIntervalJoin |
-          _: StreamPhysicalPythonOverAggregate =>
-        // TemporalSort, IntervalJoin only support consuming insert-only
+      case intervalJoin: StreamPhysicalIntervalJoin =>
+        // The interval join consumes insert-only input. Without the EARLY_FIRE hint it also only
+        // produces insert-only changes; an early-firing outer join additionally produces update
+        // changes, because it speculatively emits a padded row and later corrects it on a match.
+        val children = visitChildren(intervalJoin, ModifyKindSetTrait.INSERT_ONLY)
+        val builder = ModifyKindSet.newBuilder().addContainedKind(ModifyKind.INSERT)
+        if (intervalJoin.produceEarlyFireUpdates) {
+          builder.addContainedKind(ModifyKind.UPDATE)
+        }
+        val providedTrait = new ModifyKindSetTrait(builder.build())
+        if (intervalJoin.produceEarlyFireUpdates && !providedTrait.satisfies(requiredTrait)) {
+          throw new TableException(
+            s"$requester doesn't support consuming update changes, but the EARLY_FIRE hint " +
+              "makes this outer interval join produce update changes (a padded row is emitted " +
+              "speculatively and later corrected on a match). Remove the EARLY_FIRE hint, or " +
+              "write into a downstream/sink that accepts update changes.")
+        }
+        createNewNode(intervalJoin, children, providedTrait, requiredTrait, requester)
+
+      case _: StreamPhysicalTemporalSort | _: StreamPhysicalPythonOverAggregate =>
+        // TemporalSort and PythonOverAggregate only support consuming insert-only
         // and producing insert-only changes
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         createNewNode(rel, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
@@ -1113,16 +1131,19 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      * when the upsert key has columns outside sink pk. This differs from batch job's unique key
      * inference.
      *
-     * <p>A sink without a primary key is satisfied whenever the input carries any upsert key.
+     * <p>A sink without a primary key is satisfied whenever the input carries a real (non-empty)
+     * upsert key; an empty candidate ("at most one row") never counts, even alongside a real one.
      */
     private def canUpsertKeysWithImmutableColsSatisfyPk(sink: StreamPhysicalSink): Boolean = {
       val sinkDefinedPks = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
       val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
       val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
       if (sinkDefinedPks.isEmpty) {
-        // A keyless sink cannot apply UPDATE_AFTER in place, so it can only accept upsert when the
-        // input itself carries an upsert key; otherwise fall back to beforeAndAfter.
-        return changeLogUpsertKeys != null && !changeLogUpsertKeys.isEmpty
+        // A keyless sink can only stay upsert when the input has a real, column-based upsert
+        // key. An empty candidate means "at most one row" (e.g. a global aggregate), not columns
+        // to match on - UpsertKeyUtil.getSmallestKey would otherwise prefer it over a real one.
+        return changeLogUpsertKeys != null && changeLogUpsertKeys.nonEmpty &&
+          !changeLogUpsertKeys.exists(_.isEmpty)
       }
       val sinkPks = ImmutableBitSet.of(sinkDefinedPks: _*)
       // if upsert key is null, pk cannot be satisfied, should fall back to beforeAndAfter
@@ -1148,7 +1169,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      * Analyze whether to enable upsertMaterialize or not. In these case will return true:
      *   1. when `TABLE_EXEC_SINK_UPSERT_MATERIALIZE` set to FORCE and sink's primary key nonempty.
      *      2. when `TABLE_EXEC_SINK_UPSERT_MATERIALIZE` set to AUTO and sink's primary key doesn't
-     *      contain upsertKeys of the input update stream.
+     *      contain upsertKeys of the input update stream, unless the input is insert only and the
+     *      effective conflict strategy is DEDUPLICATE.
      *
      * Also validates that ON CONFLICT clause is specified when upsert key differs from primary key.
      */
@@ -1197,38 +1219,47 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             return false
           }
 
-          // For a DEDUPLICATE strategy and INSERT only input, we simply let the inserts be handled
-          // as UPSERT_AFTER and overwrite previous value
-          if (inputIsAppend && sink.isDeduplicateConflictStrategy) {
-            return false
-          }
-
           // if input has updates and primary key != upsert key  we should enable upsertMaterialize.
           //
           // An optimize is: do not enable upsertMaterialize when sink pk(s) contains input
           // changeLogUpsertKeys
           val upsertKeyDiffersFromPk = !sink.primaryKeysContainsUpsertKey
+          validateOnConflictSpecifiedIfRequired(sink, tableConfig, upsertKeyDiffersFromPk)
 
-          // Validate that ON CONFLICT is specified when upsert key differs from primary key
-          val requireOnConflict =
-            tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT)
-          if (requireOnConflict && upsertKeyDiffersFromPk && sink.conflictStrategy == null) {
-            val pkNames = sink.getPrimaryKeyNames
-            val upsertKeyNames = sink.getUpsertKeyNames
-            throw new ValidationException(
-              "The query has an upsert key that differs from the primary key of the sink table " +
-                s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}'. " +
-                s"Primary key: $pkNames, upsert key: $upsertKeyNames. " +
-                "This can lead to non-deterministic results when multiple records with different " +
-                "upsert keys map to the same primary key. " +
-                "Please specify an ON CONFLICT clause to define how conflicts should be handled: " +
-                "ON CONFLICT DO DEDUPLICATE (update to the latest record, state intensive, since we" +
-                " need to keep the entire history), or " +
-                "ON CONFLICT DO ERROR (fail on conflict), or " +
-                "ON CONFLICT DO NOTHING (keep first record).")
+          // Once enforcement above has passed, an absent clause leaves DEDUPLICATE as the strategy.
+          val deduplicatesOnConflict =
+            sink.conflictStrategy == null || sink.isDeduplicateConflictStrategy
+
+          // For a DEDUPLICATE strategy and INSERT only input, we simply let the inserts be handled
+          // as UPDATE_AFTER and overwrite previous value
+          if (deduplicatesOnConflict && inputIsAppend) {
+            return false
           }
 
           upsertKeyDiffersFromPk
+      }
+    }
+
+    private def validateOnConflictSpecifiedIfRequired(
+        sink: StreamPhysicalSink,
+        tableConfig: TableConfig,
+        upsertKeyDiffersFromPk: Boolean): Unit = {
+      val requireOnConflict =
+        tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT)
+      if (requireOnConflict && upsertKeyDiffersFromPk && sink.conflictStrategy == null) {
+        val pkNames = sink.getPrimaryKeyNames
+        val upsertKeyNames = sink.getUpsertKeyNames
+        throw new ValidationException(
+          "The query has an upsert key that differs from the primary key of the sink table " +
+            s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}'. " +
+            s"Primary key: $pkNames, upsert key: $upsertKeyNames. " +
+            "This can lead to non-deterministic results when multiple records with different " +
+            "upsert keys map to the same primary key. " +
+            "Please specify an ON CONFLICT clause to define how conflicts should be handled: " +
+            "ON CONFLICT DO DEDUPLICATE (update to the latest record, state intensive, since we" +
+            " need to keep the entire history), or " +
+            "ON CONFLICT DO ERROR (fail on conflict), or " +
+            "ON CONFLICT DO NOTHING (keep first record).")
       }
     }
 
@@ -1402,14 +1433,29 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
         // if the condition is applied on the upsert key, we can emit whatever the requiredTrait
         // is, because we will filter all records based on the condition that applies to that key
-        case calc: StreamPhysicalCalcBase =>
+        case calc: StreamPhysicalCalc =>
           if (
             requiredTrait == DeleteKindTrait.DELETE_BY_KEY &&
-            isNonUpsertKeyCondition(calc)
+            (isNonUpsertKeyCondition(calc) || !hasOutputUpsertKey(calc))
           ) {
             None
           } else {
             // otherwise, forward DeleteKind requirement
+            visitChildren(rel, requiredTrait) match {
+              case None => None
+              case Some(children) =>
+                val childTrait = children.head.getTraitSet.getTrait(DeleteKindTraitDef.INSTANCE)
+                createNewNode(rel, Some(children), childTrait)
+            }
+          }
+
+        // Unlike StreamPhysicalCalc, other Calc nodes do not skip evaluating non-key expressions
+        // for a delete-by-key tombstone. We are conservative by default and never forward
+        // DELETE_BY_KEY.
+        case _: StreamPhysicalCalcBase =>
+          if (requiredTrait == DeleteKindTrait.DELETE_BY_KEY) {
+            None
+          } else {
             visitChildren(rel, requiredTrait) match {
               case None => None
               case Some(children) =>
@@ -1649,6 +1695,19 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       }
       upsertKeyDifferentFromPk
     }
+  }
+
+  /**
+   * Whether this calc's own output still has an upsert key after its projection. A DELETE_BY_KEY
+   * tombstone passed through this calc must still carry a key in its output, otherwise nothing
+   * downstream would know what to delete.
+   *
+   * This method is an extra safety net, in case downstream consumers don't require an upsert key.
+   */
+  private def hasOutputUpsertKey(calc: StreamPhysicalCalcBase): Boolean = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(calc.getCluster.getMetadataQuery)
+    val upsertKeys = fmq.getUpsertKeys(calc)
+    upsertKeys != null && upsertKeys.exists(!_.isEmpty)
   }
 
   private def isNonUpsertKeyCondition(calc: StreamPhysicalCalcBase): Boolean = {

@@ -17,6 +17,7 @@
  */
 
 export * from './status.service';
+export * from './http-context';
 export * from './overview.service';
 export * from './job.service';
 export * from './jar.service';

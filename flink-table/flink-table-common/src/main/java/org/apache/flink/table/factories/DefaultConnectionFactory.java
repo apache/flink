@@ -64,7 +64,7 @@ public class DefaultConnectionFactory implements ConnectionFactory {
      * surrounding double underscores make collision with user-supplied option names unlikely; user
      * options containing this key will be rejected at create-time.
      */
-    static final String SECRET_REFERENCE_KEY = "__flink.encrypted-secret-key__";
+    public static final String SECRET_REFERENCE_KEY = "__flink.encrypted-secret-key__";
 
     /**
      * Default whitelist of option keys treated as sensitive. Seeded from {@link

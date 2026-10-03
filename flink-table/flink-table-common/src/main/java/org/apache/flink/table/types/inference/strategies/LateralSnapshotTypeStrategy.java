@@ -31,12 +31,14 @@ import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.Signature.Argument;
+import org.apache.flink.table.types.inference.SystemTypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.types.ColumnList;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -48,19 +50,11 @@ import java.util.stream.IntStream;
  *
  * <ul>
  *   <li>{@code input} (TABLE, required)
- *   <li>{@code load_completed_condition} (STRING literal, optional, default {@code 'compile_time'},
- *       allowed values: {@code 'compile_time'}, {@code 'user_time'})
- *   <li>{@code load_completed_time} (TIMESTAMP_LTZ(3), optional)
+ *   <li>{@code on_time} (DESCRIPTOR, optional; required for streaming, enforced by the rule)
+ *   <li>{@code load_completed_time} (TIMESTAMP_LTZ(3), optional; when absent, the planner rule
+ *       defaults the load completed time to the wall-clock time when the query is compiled)
  *   <li>{@code load_completed_idle_timeout} (INTERVAL SECOND, optional)
  *   <li>{@code state_ttl} (INTERVAL SECOND, optional)
- * </ul>
- *
- * <p>and ensures cross-argument consistency:
- *
- * <ul>
- *   <li>{@code load_completed_condition='user_time'} requires {@code load_completed_time}.
- *   <li>{@code load_completed_condition='compile_time'} (or unset) forbids {@code
- *       load_completed_time}.
  * </ul>
  *
  * <p>The output type forwards the input table's row type, but materializes any rowtime attribute
@@ -74,10 +68,10 @@ public final class LateralSnapshotTypeStrategy {
 
     public static final String INPUT_ARG_NAME = "input";
 
-    /** The {@code load_completed_condition} STRING argument. */
-    public static final int LOAD_COMPLETED_CONDITION_ARG_INDEX = 1;
+    /** The {@code on_time} DESCRIPTOR argument naming the build-side row-time column. */
+    public static final int ON_TIME_ARG_INDEX = 1;
 
-    public static final String LOAD_COMPLETED_CONDITION_ARG_NAME = "load_completed_condition";
+    public static final String ON_TIME_ARG_NAME = "on_time";
 
     /** The {@code load_completed_time} TIMESTAMP_LTZ argument. */
     public static final int LOAD_COMPLETED_TIME_ARG_INDEX = 2;
@@ -93,23 +87,6 @@ public final class LateralSnapshotTypeStrategy {
     public static final int STATE_TTL_ARG_INDEX = 4;
 
     public static final String STATE_TTL_ARG_NAME = "state_ttl";
-
-    /** Default value for {@code load_completed_condition}. */
-    public static final String LOAD_COMPLETED_CONDITION_COMPILE_TIME = "compile_time";
-
-    /**
-     * Allowed value for {@code load_completed_condition} that requires {@code load_completed_time}.
-     */
-    public static final String LOAD_COMPLETED_CONDITION_USER_TIME = "user_time";
-
-    private static final Set<String> VALID_LOAD_COMPLETED_CONDITIONS =
-            Set.of(LOAD_COMPLETED_CONDITION_COMPILE_TIME, LOAD_COMPLETED_CONDITION_USER_TIME);
-
-    /** Stable, human-readable rendering of {@link #VALID_LOAD_COMPLETED_CONDITIONS}. */
-    private static final String VALID_LOAD_COMPLETED_CONDITIONS_DESC =
-            String.format(
-                    "'%s', '%s'",
-                    LOAD_COMPLETED_CONDITION_COMPILE_TIME, LOAD_COMPLETED_CONDITION_USER_TIME);
 
     // --------------------------------------------------------------------------------------------
     // Input validation
@@ -133,7 +110,7 @@ public final class LateralSnapshotTypeStrategy {
                     return List.of(
                             Signature.of(
                                     Argument.of(INPUT_ARG_NAME, "TABLE"),
-                                    Argument.of(LOAD_COMPLETED_CONDITION_ARG_NAME, "STRING"),
+                                    Argument.of(ON_TIME_ARG_NAME, "DESCRIPTOR"),
                                     Argument.of(LOAD_COMPLETED_TIME_ARG_NAME, "TIMESTAMP_LTZ(3)"),
                                     Argument.of(
                                             LOAD_COMPLETED_IDLE_TIMEOUT_ARG_NAME,
@@ -188,58 +165,62 @@ public final class LateralSnapshotTypeStrategy {
                     throwOnFailure, "Argument 'input' of SNAPSHOT must be a table.");
         }
 
-        // Reject non-literal load_completed_condition explicitly: the planner needs the value
-        // at compile time to decide between 'compile_time' and 'user_time'.
-        final boolean hasLoadCompletedCondition =
-                isArgumentProvided(callContext, LOAD_COMPLETED_CONDITION_ARG_INDEX);
-        if (isProvidedNonLiteral(callContext, LOAD_COMPLETED_CONDITION_ARG_INDEX)) {
-            return callContext.fail(
-                    throwOnFailure,
-                    "Argument 'load_completed_condition' of SNAPSHOT must be a STRING literal.");
-        }
-        // Get condition and default to 'compile_time' if not provided
-        final String condition =
-                hasLoadCompletedCondition
-                        ? callContext
-                                .getArgumentValue(LOAD_COMPLETED_CONDITION_ARG_INDEX, String.class)
-                                .orElse(LOAD_COMPLETED_CONDITION_COMPILE_TIME)
-                        : LOAD_COMPLETED_CONDITION_COMPILE_TIME;
-        // Reject invalid condition value
-        if (!VALID_LOAD_COMPLETED_CONDITIONS.contains(condition)) {
-            return callContext.fail(
-                    throwOnFailure,
-                    "Argument 'load_completed_condition' of SNAPSHOT must be one of %s but was '%s'.",
-                    VALID_LOAD_COMPLETED_CONDITIONS_DESC,
-                    condition);
-        }
-
-        final boolean hasLoadCompletedTime =
-                isArgumentProvided(callContext, LOAD_COMPLETED_TIME_ARG_INDEX);
-
-        // Cross-argument consistency: condition <-> load_completed_time
-        if (LOAD_COMPLETED_CONDITION_USER_TIME.equals(condition) && !hasLoadCompletedTime) {
-            return callContext.fail(
-                    throwOnFailure,
-                    "SNAPSHOT requires 'load_completed_time' when "
-                            + "'load_completed_condition' is 'user_time'.");
-        }
-        if (!LOAD_COMPLETED_CONDITION_USER_TIME.equals(condition) && hasLoadCompletedTime) {
-            return callContext.fail(
-                    throwOnFailure,
-                    "SNAPSHOT does not accept 'load_completed_time' when "
-                            + "'load_completed_condition' is not 'user_time'.");
+        // Validate on_time if provided. Presence is enforced by the planner rule for streaming.
+        final Optional<List<DataType>> timeColumnFailure =
+                validateOnTime(callContext, throwOnFailure);
+        if (timeColumnFailure != null) {
+            return timeColumnFailure;
         }
 
         return Optional.of(callContext.getArgumentDataTypes());
     }
 
+    /**
+     * Validates {@code on_time} when present: it must name exactly one existing TIMESTAMP or
+     * TIMESTAMP_LTZ column (precision up to 3). Returns {@code null} when the argument is absent or
+     * valid; otherwise returns the failure result of {@link CallContext#fail}.
+     */
+    private static Optional<List<DataType>> validateOnTime(
+            final CallContext callContext, final boolean throwOnFailure) {
+        if (!isArgumentProvided(callContext, ON_TIME_ARG_INDEX)) {
+            return null;
+        }
+        final List<String> columns =
+                callContext
+                        .getArgumentValue(ON_TIME_ARG_INDEX, ColumnList.class)
+                        .map(ColumnList::getNames)
+                        .orElse(List.of());
+        if (columns.size() != 1) {
+            return callContext.fail(
+                    throwOnFailure,
+                    "Argument 'on_time' of SNAPSHOT must reference exactly one column.");
+        }
+        final String timeColumn = columns.get(0);
+        final DataType inputType = callContext.getArgumentDataTypes().get(INPUT_ARG_INDEX);
+        final int idx = DataType.getFieldNames(inputType).indexOf(timeColumn);
+        if (idx < 0) {
+            return callContext.fail(
+                    throwOnFailure,
+                    "Argument 'on_time' of SNAPSHOT references column '%s' which is not present "
+                            + "in the input table.",
+                    timeColumn);
+        }
+        final LogicalType columnType =
+                DataType.getFieldDataTypes(inputType).get(idx).getLogicalType();
+        if (SystemTypeInference.isUnsupportedOnTimeColumn(columnType)) {
+            return callContext.fail(
+                    throwOnFailure,
+                    "Argument 'on_time' of SNAPSHOT must reference a TIMESTAMP or TIMESTAMP_LTZ "
+                            + "column (up to precision 3), but column '%s' has type '%s'.",
+                    timeColumn,
+                    columnType.asSummaryString());
+        }
+        return null;
+    }
+
     private static boolean isArgumentProvided(final CallContext callContext, final int index) {
         return callContext.getArgumentDataTypes().size() > index
                 && !callContext.isArgumentNull(index);
-    }
-
-    private static boolean isProvidedNonLiteral(final CallContext callContext, final int index) {
-        return isArgumentProvided(callContext, index) && !callContext.isArgumentLiteral(index);
     }
 
     private LateralSnapshotTypeStrategy() {}

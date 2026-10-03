@@ -101,7 +101,7 @@ or using Python DataStream API as following:
     stream_execution_environment.add_python_file(file_path)
 
 You could also specify the Python libraries using configuration
-``python.files`` (see :doc:`configuration`)
+:confval:`python.files`
 or via :flinkdoc:`command line arguments <docs/deployment/cli/#submitting-pyflink-jobs>` ``-pyfs`` or ``--pyFiles``
 when submitting the job.
 
@@ -171,7 +171,7 @@ or using Python DataStream API as following:
     the platform of the cluster, and the Python version used.
 
 You could also specify the ``requirements.txt`` file using configuration
-``python.requirements`` (see :doc:`configuration`)
+:confval:`python.requirements`
 or via :flinkdoc:`command line arguments <docs/deployment/cli/#submitting-pyflink-jobs>`
 ``-pyreq`` or ``--pyRequirements`` when submitting the job.
 
@@ -237,7 +237,7 @@ You could then access the content of the archive file in Python user-defined fun
     relative path.
 
 You could also specify the archive files using configuration
-``python.archives`` (see :doc:`configuration`)
+:confval:`python.archives`
 or via :flinkdoc:`command line arguments <docs/deployment/cli/#submitting-pyflink-jobs>`
 ``-pyarch`` or ``--pyArchives`` when submitting the job.
 
@@ -279,7 +279,7 @@ It also supports to use the Python interpreter inside an archive file.
     stream_execution_environment.set_python_executable("venv/py_env/bin/python")
 
 You could also specify the Python interpreter using configuration
-``python.executable`` (see :doc:`configuration`)
+:confval:`python.executable`
 or via :flinkdoc:`command line arguments <docs/deployment/cli/#submitting-pyflink-jobs>`
 ``-pyexec`` or ``--pyExecutable`` when submitting the job.
 
@@ -301,7 +301,7 @@ it in the current session.
     source my_env/bin/activate
 
 or specify it using configuration
-``python.client.executable`` (see :doc:`configuration`),
+:confval:`python.client.executable`,
 :flinkdoc:`command line arguments <docs/deployment/cli/#submitting-pyflink-jobs>` ``-pyclientexec`` or ``--pyClientExecutable``,
 environment variable ``PYFLINK_CLIENT_EXECUTABLE`` (see :doc:`environment_variables`).
 
@@ -333,7 +333,7 @@ Java Table API program:
 You can refer to the SQL statement about :flinkdoc:`CREATE FUNCTION <docs/sql/reference/ddl/create/#create-function>`
 for more details on how to create Python user-defined functions using SQL statements.
 
-The Python dependencies could then be specified via the Python config options (see :doc:`configuration`),
-such as **python.archives**, **python.files**, **python.requirements**, **python.client.executable**,
-**python.executable**, etc or through :flinkdoc:`command line arguments <docs/deployment/cli/#usage>`
-when submitting the job.
+The Python dependencies could then be specified via the Python config options,
+such as :confval:`python.archives`, :confval:`python.files`, :confval:`python.requirements`,
+:confval:`python.client.executable`, :confval:`python.executable`, etc or through
+:flinkdoc:`command line arguments <docs/deployment/cli/#usage>` when submitting the job.

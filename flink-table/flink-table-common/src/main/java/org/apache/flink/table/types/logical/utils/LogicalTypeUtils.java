@@ -71,6 +71,7 @@ public final class LogicalTypeUtils {
                 return Boolean.class;
             case BINARY:
             case VARBINARY:
+            case UUID:
                 return byte[].class;
             case DECIMAL:
                 return DecimalData.class;

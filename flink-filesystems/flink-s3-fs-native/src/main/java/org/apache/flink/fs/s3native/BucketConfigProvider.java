@@ -76,6 +76,18 @@ final class BucketConfigProvider {
                 });
         applicators.put("assume-role.session-name", S3BucketConfig.Builder::assumeRoleSessionName);
         applicators.put("aws.credentials.provider", S3BucketConfig.Builder::credentialsProvider);
+        applicators.put(
+                "delete.batch.enabled",
+                (b, v) -> {
+                    if (!"true".equalsIgnoreCase(v) && !"false".equalsIgnoreCase(v)) {
+                        throw new IllegalConfigurationException(
+                                String.format(
+                                        "Invalid delete.batch.enabled '%s' for bucket '%s'. "
+                                                + "Must be 'true' or 'false'",
+                                        v, b.getBucketName()));
+                    }
+                    b.deleteBatchEnabled(Boolean.parseBoolean(v));
+                });
         applicators.put("endpoint", S3BucketConfig.Builder::endpoint);
         applicators.put(
                 "path-style-access",

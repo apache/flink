@@ -42,6 +42,7 @@ import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Default implementation for {@link CheckpointPlanCalculator}. If all tasks are running, it
@@ -95,7 +96,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
                                     CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
                         }
 
-                        checkAllTasksInitiated();
+                        checkAllTasksRunningOrFinished();
 
                         CheckpointPlan result =
                                 context.hasFinishedTasks()
@@ -113,18 +114,30 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
     }
 
     /**
-     * Checks if all tasks are attached with the current Execution already. This method should be
-     * called from JobMaster main thread executor.
+     * Checks that every task is attached with the current Execution and that this Execution is
+     * either RUNNING or FINISHED, the only states a checkpoint can be based on. This method should
+     * be called from JobMaster main thread executor.
      *
-     * @throws CheckpointException if some tasks do not have attached Execution.
+     * @throws CheckpointException if some task has no attached Execution or is neither RUNNING nor
+     *     FINISHED.
      */
-    private void checkAllTasksInitiated() throws CheckpointException {
+    private void checkAllTasksRunningOrFinished() throws CheckpointException {
         for (ExecutionVertex task : allTasks) {
-            if (task.getCurrentExecutionAttempt() == null) {
+            Execution attempt = task.getCurrentExecutionAttempt();
+            if (attempt == null) {
                 throw new CheckpointException(
                         String.format(
                                 "task %s of job %s is not being executed at the moment. Aborting checkpoint.",
                                 task.getTaskNameWithSubtaskIndex(), jobId),
+                        CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
+            }
+
+            ExecutionState state = attempt.getState();
+            if (state != ExecutionState.RUNNING && state != ExecutionState.FINISHED) {
+                throw new CheckpointException(
+                        String.format(
+                                "task %s of job %s is in %s state instead of RUNNING or FINISHED. Aborting checkpoint.",
+                                task.getTaskNameWithSubtaskIndex(), jobId, state),
                         CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
             }
         }
@@ -318,8 +331,18 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
             BitSet runningTasks = new BitSet(vertex.getTaskVertices().length);
 
             for (int i = 0; i < vertex.getTaskVertices().length; ++i) {
-                if (!vertex.getTaskVertices()[i].getCurrentExecutionAttempt().isFinished()) {
+                Execution attempt = vertex.getTaskVertices()[i].getCurrentExecutionAttempt();
+                ExecutionState state = attempt.getState();
+                if (state == ExecutionState.RUNNING) {
                     runningTasks.set(i);
+                } else {
+                    // A non-RUNNING task must be FINISHED; every other state is already rejected
+                    // by checkAllTasksRunningOrFinished().
+                    checkState(
+                            state == ExecutionState.FINISHED,
+                            "Task %s is %s, not FINISHED",
+                            attempt.getAttemptId(),
+                            state);
                 }
             }
 

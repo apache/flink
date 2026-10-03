@@ -164,6 +164,37 @@ class AlterMaterializedTableAsQueryOperationValidationTest {
     }
 
     @Test
+    void rejectInsertColumnBeforeMultipleColumns() {
+        // (a, b, c) -> (a, mid, b, c): both b and c shift; c is repositioned after the existing
+        // column b, which the append-only guard rejects.
+        final ResolvedCatalogMaterializedTable oldTable =
+                resolvedTable(
+                        ResolvedSchema.of(
+                                physical("a", DataTypes.INT()),
+                                physical("b", DataTypes.STRING()),
+                                physical("c", DataTypes.BIGINT())));
+
+        final AlterMaterializedTableAsQueryOperation op =
+                operation(
+                        oldTable,
+                        List.of(
+                                TableChange.modifyDefinitionQuery(
+                                        "SELECT a, 1 AS mid, b, c FROM src",
+                                        "SELECT `src`.`a`, 1 AS `mid`, `src`.`b`, `src`.`c` FROM `src`"),
+                                TableChange.add(physical("mid", DataTypes.INT())),
+                                TableChange.modifyColumnPosition(
+                                        physical("b", DataTypes.STRING()),
+                                        ColumnPosition.after("mid")),
+                                TableChange.modifyColumnPosition(
+                                        physical("c", DataTypes.BIGINT()),
+                                        ColumnPosition.after("b"))));
+
+        assertThatThrownBy(op::validateChanges)
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Column mismatch at position 3");
+    }
+
+    @Test
     void acceptAppendColumn() {
         final ResolvedCatalogMaterializedTable oldTable =
                 resolvedTable(

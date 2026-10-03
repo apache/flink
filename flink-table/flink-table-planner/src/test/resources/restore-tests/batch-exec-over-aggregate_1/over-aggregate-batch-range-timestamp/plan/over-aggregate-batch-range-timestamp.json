@@ -1,0 +1,214 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`timestamp_range_source`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "ts",
+              "dataType" : "TIMESTAMP(6)"
+            }, {
+              "name" : "val",
+              "dataType" : "INT"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`ts` TIMESTAMP(6), `val` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, timestamp_range_source]], fields=[ts, val])",
+    "dynamicFilteringDataListenerID" : "227ea629-cfe7-4e32-9b5f-44d2da57286e"
+  }, {
+    "id" : 2,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "SINGLETON"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`ts` TIMESTAMP(6), `val` INT>",
+    "description" : "Exchange(distribution=[single])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 3,
+    "type" : "batch-exec-sort_1",
+    "configuration" : {
+      "table.exec.resource.sort.memory" : "128 mb",
+      "table.exec.sort.async-merge-enabled" : "true",
+      "table.exec.sort.max-num-file-handles" : "128",
+      "table.exec.spill-compression.block-size" : "64 kb",
+      "table.exec.spill-compression.enabled" : "true"
+    },
+    "sortSpec" : {
+      "fields" : [ {
+        "index" : 0,
+        "isAscending" : true,
+        "nullIsLast" : false
+      } ]
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "END_INPUT",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`ts` TIMESTAMP(6), `val` INT>",
+    "description" : "Sort(orderBy=[ts ASC])"
+  }, {
+    "id" : 4,
+    "type" : "batch-exec-over-aggregate_1",
+    "configuration" : {
+      "table.exec.resource.external-buffer-memory" : "10 mb"
+    },
+    "overSpec" : {
+      "partition" : {
+        "fields" : [ ]
+      },
+      "groups" : [ {
+        "orderBy" : {
+          "fields" : [ {
+            "index" : 0,
+            "isAscending" : true,
+            "nullIsLast" : false
+          } ]
+        },
+        "isRows" : false,
+        "lowerBound" : {
+          "kind" : "BOUNDED_WINDOW",
+          "isPreceding" : true,
+          "offset" : {
+            "kind" : "INPUT_REF",
+            "inputIndex" : 2,
+            "type" : "INTERVAL SECOND(6) NOT NULL"
+          }
+        },
+        "upperBound" : {
+          "kind" : "CURRENT_ROW"
+        },
+        "aggCalls" : [ {
+          "name" : "w0$o0",
+          "syntax" : "FUNCTION_STAR",
+          "internalName" : "$COUNT$1",
+          "argList" : [ 1 ],
+          "filterArg" : -1,
+          "distinct" : false,
+          "approximate" : false,
+          "ignoreNulls" : false,
+          "type" : "BIGINT NOT NULL"
+        } ]
+      } ],
+      "constants" : [ {
+        "kind" : "LITERAL",
+        "value" : "10000",
+        "type" : "INTERVAL SECOND(6) NOT NULL"
+      } ],
+      "originalInputFields" : 2
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "SINGLETON"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`ts` TIMESTAMP(6), `val` INT, `w0$o0` BIGINT NOT NULL>",
+    "description" : "OverAggregate(orderBy=[ts ASC], window#0=[COUNT(val) AS w0$o0 RANGE BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[ts, val, w0$o0])"
+  }, {
+    "id" : 5,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "BIGINT NOT NULL"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`val` INT, `$1` BIGINT NOT NULL>",
+    "description" : "Calc(select=[val, w0$o0 AS $1])"
+  }, {
+    "id" : 6,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`timestamp_range_sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "val",
+              "dataType" : "INT"
+            }, {
+              "name" : "cnt",
+              "dataType" : "BIGINT"
+            } ]
+          }
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`val` INT, `$1` BIGINT NOT NULL>",
+    "description" : "Sink(table=[default_catalog.default_database.timestamp_range_sink], fields=[val, $1])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

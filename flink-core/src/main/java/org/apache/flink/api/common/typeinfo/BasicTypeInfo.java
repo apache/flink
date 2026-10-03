@@ -51,6 +51,8 @@ import org.apache.flink.api.common.typeutils.base.ShortComparator;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.StringComparator;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.UuidComparator;
+import org.apache.flink.api.common.typeutils.base.UuidSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 
 import java.lang.reflect.Constructor;
@@ -62,6 +64,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -160,6 +163,9 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
                     new Class<?>[] {},
                     InstantSerializer.INSTANCE,
                     InstantComparator.class);
+    public static final BasicTypeInfo<UUID> UUID_TYPE_INFO =
+            new BasicTypeInfo<>(
+                    UUID.class, new Class<?>[] {}, UuidSerializer.INSTANCE, UuidComparator.class);
 
     // --------------------------------------------------------------------------------------------
 
@@ -338,5 +344,9 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
         TYPES.put(BigInteger.class, BIG_INT_TYPE_INFO);
         TYPES.put(BigDecimal.class, BIG_DEC_TYPE_INFO);
         TYPES.put(Instant.class, INSTANT_TYPE_INFO);
+        // UUID is intentionally not registered here. Automatic reflective extraction of
+        // java.util.UUID to UUID_TYPE_INFO in the DataStream API stays opt-in via Types.UUID to
+        // avoid silently changing the serializer of existing java.util.UUID fields (currently
+        // handled by Kryo). This is planned to change in the next major Flink version.
     }
 }

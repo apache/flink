@@ -21,6 +21,7 @@ from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import create_url_class_loader
 
 from pyflink.common import Configuration
+from pyflink.datastream.execution_mode import RuntimeExecutionMode
 
 __all__ = ['EnvironmentSettings']
 
@@ -80,6 +81,20 @@ class EnvironmentSettings(object):
             :return: This object.
             """
             self._j_builder = self._j_builder.inStreamingMode()
+            return self
+
+        def in_runtime_execution_mode(
+                self, mode: RuntimeExecutionMode) -> 'EnvironmentSettings.Builder':
+            """
+            Sets the :class:`~pyflink.datastream.RuntimeExecutionMode` that the components
+            should work in. Only an explicit
+            :class:`~pyflink.datastream.RuntimeExecutionMode`.STREAMING or
+            :class:`~pyflink.datastream.RuntimeExecutionMode`.BATCH mode is supported in the
+            Table API.
+
+            :return: This object.
+            """
+            self._j_builder = self._j_builder.inRuntimeExecutionMode(mode._to_j_execution_mode())
             return self
 
         def with_built_in_catalog_name(self, built_in_catalog_name: str) \

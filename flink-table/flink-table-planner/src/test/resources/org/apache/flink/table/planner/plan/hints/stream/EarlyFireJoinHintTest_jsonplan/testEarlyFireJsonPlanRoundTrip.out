@@ -370,12 +370,13 @@
             } ]
           },
           "options" : {
-            "connector" : "values"
+            "connector" : "values",
+            "sink-insert-only" : "false"
           }
         }
       }
     },
-    "inputChangelogMode" : [ "INSERT" ],
+    "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

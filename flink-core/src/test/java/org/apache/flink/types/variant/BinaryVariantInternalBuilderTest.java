@@ -20,13 +20,20 @@ package org.apache.flink.types.variant;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.stream.Stream;
 
+import static java.nio.charset.StandardCharsets.UTF_16;
+import static java.nio.charset.StandardCharsets.UTF_16BE;
+import static java.nio.charset.StandardCharsets.UTF_16LE;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -122,6 +129,49 @@ class BinaryVariantInternalBuilderTest {
         assertThat(variant.getField("k2").getDecimal()).isEqualTo(BigDecimal.valueOf(1.5));
     }
 
+    @Test
+    void testParseJsonWithNonAsciiStringsAndKeys() throws IOException {
+        String json = "{\"schlüssel\":\"Grüße, 世界 🚀\",\"キー\":[\"äöü\"]}";
+
+        BinaryVariant variant = BinaryVariantInternalBuilder.parseJson(json, false);
+
+        assertThat(variant.getFieldNames()).containsExactlyInAnyOrder("schlüssel", "キー");
+        assertThat(variant.getField("schlüssel").getString()).isEqualTo("Grüße, 世界 🚀");
+        assertThat(variant.getField("キー").getElement(0).getString()).isEqualTo("äöü");
+        assertThat(variant.toJson()).isEqualTo(json);
+    }
+
+    @Test
+    void testParseJsonFromUtf8Bytes() throws IOException {
+        final String json = "{\"schlüssel\":\"Grüße, 世界 🚀\",\"キー\":[\"äöü\"]}";
+
+        assertThat(BinaryVariantInternalBuilder.parseJson(json.getBytes(UTF_8), false))
+                .isEqualTo(BinaryVariantInternalBuilder.parseJson(json, false));
+    }
+
+    private static Stream<Arguments> nonUtf8JsonBytes() {
+        return Stream.of(
+                // Charset detection would read these as UTF-16 or UTF-32, or skip the BOM.
+                Arguments.of("trailing NUL", "1\u0000".getBytes(UTF_8)),
+                Arguments.of("leading NUL", "\u00001".getBytes(UTF_8)),
+                Arguments.of("UTF-8 BOM", "\uFEFF1".getBytes(UTF_8)),
+                Arguments.of("UTF-16BE", "{\"a\":1}".getBytes(UTF_16BE)),
+                Arguments.of("UTF-16LE", "{\"a\":1}".getBytes(UTF_16LE)),
+                Arguments.of("UTF-16 with BOM", "{\"a\":1}".getBytes(UTF_16)),
+                Arguments.of("invalid start byte", new byte[] {'"', (byte) 0xFF, '"'}),
+                Arguments.of("truncated sequence", new byte[] {'"', 'a', (byte) 0xC3, '"'}),
+                Arguments.of(
+                        "surrogate code point",
+                        new byte[] {'"', (byte) 0xED, (byte) 0xA0, (byte) 0x80, '"'}));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("nonUtf8JsonBytes")
+    void testParseJsonRejectsBytesThatAreNotUtf8Json(final String name, final byte[] bytes) {
+        assertThatThrownBy(() -> BinaryVariantInternalBuilder.parseJson(bytes, false))
+                .isInstanceOf(IOException.class);
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"NaN", "Infinity", "-Infinity", "1e400", "-1e400"})
     void testParseJsonRejectsNonFiniteNumbers(final String nonFiniteNumber) {
@@ -129,6 +179,19 @@ class BinaryVariantInternalBuilderTest {
         // range. Both must be rejected so PARSE_JSON errors and TRY_PARSE_JSON returns NULL.
         assertThatThrownBy(() -> BinaryVariantInternalBuilder.parseJson(nonFiniteNumber, false))
                 .isInstanceOf(IOException.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "123456789012345678901234567890123456789",
+                "0.000000000000000000000000000000000000001"
+            })
+    void testParseJsonStoresNumbersOutsideDecimalRangeAsDouble(final String number)
+            throws IOException {
+        BinaryVariant variant = BinaryVariantInternalBuilder.parseJson(number, false);
+        assertThat(variant.getType()).isSameAs(Variant.Type.DOUBLE);
+        assertThat(variant.getDouble()).isEqualTo(Double.parseDouble(number));
     }
 
     @Test

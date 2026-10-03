@@ -89,8 +89,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
     private final HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1000L, 1000L);
     private final TestingRpcService testingRpcService;
-    private final TaskExecutorBlobService taskExecutorBlobService =
-            NoOpTaskExecutorBlobService.INSTANCE;
+    private final TaskExecutorBlobService taskExecutorBlobService;
     private final Duration timeout = Duration.ofMillis(10000L);
     private final TestingFatalErrorHandler testingFatalErrorHandler =
             new TestingFatalErrorHandler();
@@ -114,9 +113,11 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
             @Nullable String metricQueryServiceAddress,
             TestingRpcService testingRpcService,
             ShuffleEnvironment<?, ?> shuffleEnvironment,
+            TaskExecutorBlobService taskExecutorBlobService,
             ScheduledExecutorService executor)
             throws Exception {
 
+        this.taskExecutorBlobService = taskExecutorBlobService;
         this.timerService =
                 new DefaultTimerService<>(
                         java.util.concurrent.Executors.newSingleThreadScheduledExecutor(),
@@ -360,6 +361,9 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         private ResourceID resourceID = ResourceID.generate();
         @Nullable private String metricQueryServiceAddress;
 
+        private TaskExecutorBlobService taskExecutorBlobService =
+                NoOpTaskExecutorBlobService.INSTANCE;
+
         private List<Tuple3<ExecutionAttemptID, ExecutionState, CompletableFuture<Void>>>
                 taskManagerActionListeners = new ArrayList<>();
 
@@ -422,6 +426,11 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
             return this;
         }
 
+        Builder setTaskExecutorBlobService(TaskExecutorBlobService taskExecutorBlobService) {
+            this.taskExecutorBlobService = taskExecutorBlobService;
+            return this;
+        }
+
         public TaskSubmissionTestEnvironment build(ScheduledExecutorService executorService)
                 throws Exception {
             final TestingRpcService testingRpcService = new TestingRpcService();
@@ -450,6 +459,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                     metricQueryServiceAddress,
                     testingRpcService,
                     network,
+                    taskExecutorBlobService,
                     executorService);
         }
     }

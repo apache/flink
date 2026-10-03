@@ -29,6 +29,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.DeserializationException;
+import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
+import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.Collector;
 
 import javax.annotation.Nullable;
@@ -210,6 +212,9 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
             case RAW:
                 return RawValueData::fromBytes;
 
+            case VARIANT:
+                return createVariantConverter(charsetName);
+
             case BOOLEAN:
                 return data -> data[0] != 0;
 
@@ -278,6 +283,36 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
         };
     }
 
+    /**
+     * Creates a converter that decodes the bytes with the configured charset and parses the text as
+     * a JSON document into a {@link Variant}. Duplicate object keys are rejected, matching the
+     * default of {@code PARSE_JSON}.
+     */
+    private static DeserializationRuntimeConverter createVariantConverter(
+            final String charsetName) {
+        return new DeserializationRuntimeConverter() {
+            private static final long serialVersionUID = 1L;
+            private transient Charset charset;
+
+            @Override
+            public void open() {
+                charset = Charset.forName(charsetName);
+            }
+
+            @Override
+            public Object convert(byte[] data) {
+                try {
+                    return BinaryVariantInternalBuilder.parseJson(new String(data, charset), false);
+                } catch (Exception e) {
+                    throw new DeserializationException(
+                            "Failed to deserialize VARIANT type. "
+                                    + "The received data is not a valid JSON document.",
+                            e);
+                }
+            }
+        };
+    }
+
     private static DeserializationRuntimeConverter createEndiannessAwareConverter(
             final boolean isBigEndian,
             final MemorySegmentConverter bigEndianConverter,
@@ -302,6 +337,7 @@ public class RawFormatDeserializationSchema implements DeserializationSchema<Row
             case VARBINARY:
             case BINARY:
             case RAW:
+            case VARIANT:
                 return data -> {};
             case BOOLEAN:
                 return createDataLengthValidator(1, "BOOLEAN");

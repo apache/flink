@@ -107,6 +107,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.JobMdcRegistry;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -145,6 +146,7 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -572,12 +574,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     @Test
     public void testJobMdcContextRegisteredOnSubmissionAndClearedOnTermination() throws Exception {
-        final Map<String, String> keyMapping = new HashMap<>();
-        keyMapping.put("job.key-1", "mdc-key-1");
-        keyMapping.put("job.key-2", "mdc-key-2");
-        jobGraph.getJobConfiguration().set(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS, keyMapping);
-        jobGraph.getJobConfiguration().setString("job.key-1", "val-1");
-        jobGraph.getJobConfiguration().setString("job.key-2", "val-2");
+        configureJobWithMdcEnrichment();
 
         final CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
         dispatcher =
@@ -609,6 +606,32 @@ public class DispatcherTest extends AbstractDispatcherTest {
         // the unregistration callback is an independent dependent of the termination future,
         // so poll instead of asserting immediately
         CommonTestUtils.waitUntilCondition(() -> JobMdcRegistry.lookup(jobId) == null);
+    }
+
+    @Test
+    public void testJobMdcContextRegisteredOnRecovery() throws Exception {
+        configureJobWithMdcEnrichment();
+
+        jobMasterLeaderElection.isLeader(UUID.randomUUID());
+
+        final TestingJobMasterServiceLeadershipRunnerFactory runnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
+        dispatcher =
+                createTestingDispatcherBuilder()
+                        .setJobManagerRunnerFactory(runnerFactory)
+                        .setRecoveredJobs(Collections.singleton(jobGraph))
+                        .build(rpcService);
+        dispatcher.start();
+
+        // takeCreatedJobManagerRunner blocks until the runner is created,
+        // which happens AFTER registerOrClear in runRecoveredJob
+        runnerFactory.takeCreatedJobManagerRunner();
+
+        assertThat(JobMdcRegistry.lookup(jobId))
+                .containsEntry(MdcUtils.JOB_ID, jobId.toHexString())
+                .containsEntry("mdc-key-1", "val-1")
+                .containsEntry("mdc-key-2", "val-2")
+                .hasSize(3);
     }
 
     @Test
@@ -673,6 +696,15 @@ public class DispatcherTest extends AbstractDispatcherTest {
                             return CompletableFuture.completedFuture(null);
                         })
                 .get();
+    }
+
+    private void configureJobWithMdcEnrichment() {
+        final Map<String, String> keyMapping = new HashMap<>();
+        keyMapping.put("job.key-1", "mdc-key-1");
+        keyMapping.put("job.key-2", "mdc-key-2");
+        jobGraph.getJobConfiguration().set(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS, keyMapping);
+        jobGraph.getJobConfiguration().setString("job.key-1", "val-1");
+        jobGraph.getJobConfiguration().setString("job.key-2", "val-2");
     }
 
     @Test
@@ -1374,6 +1406,83 @@ public class DispatcherTest extends AbstractDispatcherTest {
         assertOnlyContainsRunningJobsWithOrder(
                 dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get(),
                 Stream.of(jobId, secondJobID).sorted().collect(Collectors.toList()));
+    }
+
+    /**
+     * A JobMaster that fails or times out on {@code requestJobDetails} must not cause its running
+     * job to be silently omitted from an otherwise successful response: clients (such as the
+     * Kubernetes operator) treat absence from this list as "job not found".
+     */
+    @Test
+    public void testRequestMultipleJobDetails_doesNotSilentlyOmitJobWhoseJobMasterQueryFails()
+            throws Exception {
+        final JobID secondJobID = new JobID();
+        final DispatcherGateway dispatcherGateway =
+                createDispatcherWithUnresponsiveSecondJob(
+                        TestingJobManagerRunner.newBuilder()
+                                .setJobId(secondJobID)
+                                .setJobDetailsFutureFunction(
+                                        DispatcherTest::failedJobMasterQueryFuture));
+
+        assertFailsWithJobMasterQueryFailure(
+                dispatcherGateway.requestMultipleJobDetails(TIMEOUT), secondJobID);
+    }
+
+    /**
+     * A JobMaster that fails or times out on {@code requestJobStatus} must not cause its running
+     * job to be silently left out of the job counts of an otherwise successful response.
+     */
+    @Test
+    public void testRequestClusterOverview_doesNotSilentlyOmitJobWhoseJobMasterQueryFails()
+            throws Exception {
+        final JobID secondJobID = new JobID();
+        final DispatcherGateway dispatcherGateway =
+                createDispatcherWithUnresponsiveSecondJob(
+                        TestingJobManagerRunner.newBuilder()
+                                .setJobId(secondJobID)
+                                .setJobStatusFunction(DispatcherTest::failedJobMasterQueryFuture));
+
+        assertFailsWithJobMasterQueryFailure(
+                dispatcherGateway.requestClusterOverview(TIMEOUT), secondJobID);
+    }
+
+    /**
+     * Fails through {@code thenApply}, like the production {@code JobManagerRunner} queries do, so
+     * that the failure arrives wrapped in a {@link CompletionException}.
+     */
+    private static <T> CompletableFuture<T> failedJobMasterQueryFuture() {
+        return FutureUtils.<T>completedExceptionally(
+                        new TimeoutException("JobMaster did not answer in time"))
+                .thenApply(Function.identity());
+    }
+
+    private DispatcherGateway createDispatcherWithUnresponsiveSecondJob(
+            TestingJobManagerRunner.Builder unresponsiveJobManagerRunner) throws Exception {
+        final TestingJobManagerRunner secondJobManagerRunner = unresponsiveJobManagerRunner.build();
+        final JobGraph secondJobGraph = JobGraphTestUtils.streamingJobGraph();
+        secondJobGraph.setJobID(secondJobManagerRunner.getJobID());
+        secondJobGraph.setApplicationId(applicationId);
+        final JobManagerRunnerFactory jobManagerRunnerFactory =
+                new QueuedJobManagerRunnerFactory(
+                        runningJobManagerRunnerWithJobStatus(JobStatus.RUNNING, jobId, 10L),
+                        secondJobManagerRunner);
+
+        return createDispatcherAndStartJobs(
+                jobManagerRunnerFactory, Arrays.asList(jobGraph, secondJobGraph));
+    }
+
+    private static void assertFailsWithJobMasterQueryFailure(
+            CompletableFuture<?> future, JobID failedJobId) {
+        assertThatFuture(future)
+                .eventuallyFailsWith(ExecutionException.class)
+                .havingCause()
+                .isInstanceOf(FlinkException.class)
+                .withMessage(
+                        "Could not retrieve information about job %s from its JobMaster.",
+                        failedJobId)
+                .havingCause()
+                .isInstanceOf(TimeoutException.class)
+                .withMessage("JobMaster did not answer in time");
     }
 
     @Test

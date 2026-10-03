@@ -17,15 +17,21 @@
 ################################################################################
 import datetime
 import os
+import pickle
 import unittest
 import uuid
 
+import cloudpickle
+import pyarrow as pa
+import pyarrow.compute as pc
 import pytz
 
 from pyflink.common import Row
+from pyflink.fn_execution import flink_fn_execution_pb2 as proto
+from pyflink.fn_execution.table.operations import ScalarFunctionOperation
 from pyflink.table import DataTypes, expressions as expr
 from pyflink.table.expressions import call
-from pyflink.table.udf import ScalarFunction, udf, FunctionContext
+from pyflink.table.udf import DelegatingScalarFunction, ScalarFunction, udf, FunctionContext
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBatchTableTestCase
@@ -33,6 +39,167 @@ from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
 
 def generate_random_table_name():
     return "Table{0}".format(str(uuid.uuid1()).replace("-", "_"))
+
+
+class ArrowScalarOperationTests(unittest.TestCase):
+    def operation(self, func, inputs, takes_row_as_input=False, preceding=(), output_indices=()):
+        function = proto.UserDefinedFunction(
+            payload=cloudpickle.dumps(DelegatingScalarFunction(func)),
+            is_arrow_udf=True, inputs=inputs, takes_row_as_input=takes_row_as_input)
+        operation = ScalarFunctionOperation(proto.UserDefinedFunctions(
+            udfs=[*preceding, function], output_indices=output_indices))
+        operation.open()
+        self.addCleanup(operation.close)
+        return operation
+
+    def test_literals_columns_and_chunked_results(self):
+        def add(offset, left, right):
+            if not isinstance(offset, int) or not isinstance(left, pa.Array) \
+                    or not isinstance(right, pa.Array):
+                raise TypeError("Expected a scalar literal followed by two Arrow arrays.")
+            values = pc.add(pc.add(left, right), offset)
+            return pa.chunked_array([values.slice(0, 1), values.slice(1)])
+
+        operation = self.operation(add, [
+            proto.Input(inputConstant=b"\x00" + pickle.dumps(10)),
+            proto.Input(inputOffset=0), proto.Input(inputOffset=1)])
+        result = operation.process_element(pa.record_batch(
+            [pa.array([1, None, 3]), pa.array([4, 5, 6])], names=["a", "b"]))
+        self.assertEqual(result.column(0).to_pylist(), [15, None, 19])
+
+    def test_single_chunk_result_preserves_buffers(self):
+        values = pa.array([0, 1, None, 3]).slice(1, 2)
+        operation = self.operation(lambda column: pa.chunked_array([column]),
+                                   [proto.Input(inputOffset=0)])
+        result = operation.process_element(pa.record_batch([values], names=["value"]))
+        column = result.column(0)
+        self.assertEqual(column.to_pylist(), [1, None])
+        self.assertEqual(column.offset, values.offset)
+        self.assertEqual([buffer.address for buffer in column.buffers()],
+                         [buffer.address for buffer in values.buffers()])
+
+    def test_empty_chunked_results(self):
+        values = pa.array([], type=pa.int64())
+        for chunks in ([], [values]):
+            with self.subTest(chunks=len(chunks)):
+                operation = self.operation(
+                    lambda column: pa.chunked_array(chunks, type=pa.int64()),
+                    [proto.Input(inputOffset=0)])
+                result = operation.process_element(pa.record_batch([values], names=["value"]))
+                self.assertEqual(result.column(0), values)
+
+    def test_nested_chunked_results(self):
+        values = pa.StructArray.from_arrays([pa.array([0, 1, None, 3])], names=["value"])
+        for chunks in (0, 1, 2):
+            with self.subTest(chunks=chunks):
+                column = values.slice(1, 0 if chunks == 0 else 3)
+
+                def chunk_result(array):
+                    parts = [] if chunks == 0 else [array] if chunks == 1 else [
+                        array.slice(0, 1), array.slice(1)]
+                    return pa.chunked_array(parts, type=array.type)
+
+                inner = proto.UserDefinedFunction(
+                    payload=cloudpickle.dumps(DelegatingScalarFunction(chunk_result)),
+                    is_arrow_udf=True, inputs=[proto.Input(inputOffset=0)])
+                for shared in (False, True):
+                    with self.subTest(shared=shared):
+                        operation = self.operation(
+                            lambda row: row.field("value"),
+                            [proto.Input(refIndex=0)] if shared else [proto.Input(udf=inner)],
+                            preceding=[inner] if shared else [],
+                            output_indices=[1, 0, 1] if shared else [])
+                        result = operation.process_element(
+                            pa.record_batch([column], names=["record"]))
+                        self.assertEqual(result.num_columns, 3 if shared else 1)
+                        self.assertEqual(result.column(0).to_pylist(),
+                                         [] if chunks == 0 else [1, None, 3])
+                        if shared:
+                            self.assertEqual(result.column(1), column)
+                            self.assertEqual(result.column(2), result.column(0))
+                        if chunks == 1:
+                            self.assertEqual(result.column(0).offset, column.field(0).offset)
+                            self.assertEqual(
+                                [buffer.address for buffer in result.column(0).buffers()],
+                                [buffer.address for buffer in column.field(0).buffers()])
+
+    def test_whole_row_input(self):
+        batch = pa.record_batch([pa.array(["alice", None]), pa.array([1, 2])],
+                                names=["name", "count"])
+
+        def increment(row):
+            return pa.StructArray.from_arrays(
+                [pc.struct_field(row, "name"), pc.add(pc.struct_field(row, "count"), 1)],
+                names=["name", "count"])
+
+        inputs = [proto.Input(inputOffset=0), proto.Input(inputOffset=1)]
+        identity = proto.UserDefinedFunction(
+            payload=cloudpickle.dumps(DelegatingScalarFunction(lambda row: row)),
+            is_arrow_udf=True, inputs=inputs, takes_row_as_input=True)
+        for arguments in (inputs, [proto.Input(udf=identity)], [proto.Input(refIndex=0)]):
+            with self.subTest(input_kind=arguments[0].WhichOneof("input")):
+                shared = arguments[0].HasField("refIndex")
+                operation = self.operation(
+                    increment, arguments, takes_row_as_input=True,
+                    preceding=[identity] if shared else [], output_indices=[1] if shared else [])
+                result = operation.process_element(batch)
+                self.assertEqual(result.num_columns, 1)
+                self.assertEqual(result.column(0).to_pylist(),
+                                 [{"name": "alice", "count": 2}, {"name": None, "count": 3}])
+
+    def test_whole_row_argument_offsets(self):
+        batch = pa.record_batch([pa.array([0, 1, None, 3]), pa.array([0, 100, 200, 300])],
+                                names=["a", "b"]).slice(1)
+        for offsets in ([0, 0, 1], [1, 0]):
+            with self.subTest(offsets=offsets):
+                operation = self.operation(
+                    lambda row: row.field(1),
+                    [proto.Input(inputOffset=offset) for offset in offsets],
+                    takes_row_as_input=True)
+                result = operation.process_element(batch)
+                self.assertEqual(result.column(0).to_pylist(), [1, None, 3])
+
+    def test_invalid_scalar_results(self):
+        batch = pa.record_batch([pa.array([1, 2, 3])], names=["value"])
+        for result, error, message in (
+            ([1, 2, 3], TypeError, "Array or pyarrow.ChunkedArray"),
+            (None, TypeError, "NoneType"),
+            (pa.scalar(1), TypeError, "Scalar"),
+            (batch, TypeError, "RecordBatch"),
+            (pa.Table.from_batches([batch]), TypeError, "Table"),
+            (pa.array([1]), ValueError, "returned 1 rows, expected 3"),
+            (pa.chunked_array([[1], [2]]), ValueError, "returned 2 rows, expected 3"),
+        ):
+            with self.subTest(result=result):
+                operation = self.operation(lambda values: result, [proto.Input(inputOffset=0)])
+                with self.assertRaisesRegex(error, message):
+                    operation.process_element(batch)
+
+    def test_invalid_intermediate_result_is_not_consumed(self):
+        inner = proto.UserDefinedFunction(
+            payload=cloudpickle.dumps(DelegatingScalarFunction(lambda values: values.slice(0, 1))),
+            is_arrow_udf=True, inputs=[proto.Input(inputOffset=0)])
+        # The outer result has the correct batch length, but must not hide the invalid inner result.
+        operation = self.operation(lambda values: pa.array([1, 2, 3]), [proto.Input(udf=inner)])
+        with self.assertRaisesRegex(ValueError, "returned 1 rows, expected 3"):
+            operation.process_element(pa.record_batch([pa.array([1, 2, 3])], names=["value"]))
+
+    def test_arrow_scalar_operation(self):
+        class Uppercase(ScalarFunction):
+            def eval(self, values):
+                return pc.utf8_upper(values)
+
+        function = proto.UserDefinedFunction(
+            payload=cloudpickle.dumps(Uppercase()), is_arrow_udf=True,
+            inputs=[proto.Input(inputOffset=0)])
+        operation = ScalarFunctionOperation(
+            proto.UserDefinedFunctions(udfs=[function]), one_arg_optimization=True)
+        operation.open()
+        self.addCleanup(operation.close)
+        result = operation.process_element(pa.record_batch(
+            [pa.array(["alice", None, "Bob"])], names=["name"]))
+        self.assertIsInstance(result, pa.RecordBatch)
+        self.assertEqual(result.column(0).to_pylist(), ["ALICE", None, "BOB"])
 
 
 class UserDefinedFunctionTests(object):
@@ -925,6 +1092,143 @@ class UserDefinedFunctionTests(object):
         t_env.drop_temporary_function("subtract_one_func")
         self.assertTrue('add_one_func' not in t_env.list_user_defined_functions())
         self.assertTrue('subtract_one_func' not in t_env.list_user_defined_functions())
+
+    def test_python_local_ref_reuse(self):
+        """
+        Parameterized test for Python UDF local reference reuse.
+        Each case specifies a SQL query and a result verifier.
+        Similar to FunctionITCase.inputForTestCalcLocalRefReuse in Java.
+
+        Deterministic UDF calls with same args are computed once and reused;
+        non-deterministic UDF calls are always executed independently.
+        The UUID suffix in UDF output proves whether calls were deduplicated.
+        """
+        @udf(result_type=DataTypes.STRING())
+        def Det(s):
+            import uuid
+            return (s.upper() + "_" + str(uuid.uuid4())[:8]) if s else None
+
+        @udf(result_type=DataTypes.STRING(), deterministic=False)
+        def Nondet(s):
+            import uuid
+            return (s.upper() + "_" + str(uuid.uuid4())[:8]) if s else None
+
+        @udf(result_type=DataTypes.STRING(), deterministic=False)
+        def ZeroNondet():
+            import uuid
+            return "z_" + str(uuid.uuid4())[:8]
+
+        self.t_env.create_temporary_system_function("Det", Det)
+        self.t_env.create_temporary_system_function("ZeroNondet", ZeroNondet)
+        self.t_env.create_temporary_system_function("Nondet", Nondet)
+
+        source_t = self.t_env.from_elements([("hello",)], ['s'])
+        self.t_env.create_temporary_view("SourceTable", source_t)
+
+        # (description, sql, verify_fn)
+        cases = [
+            (
+                "Det(Det(s)) - inner Det shared with the standalone Det call",
+                "SELECT Det(Det(s)), Det(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    # Det upper-cases its input, so the outer result must start with the
+                    # upper-cased inner value. That proves the outer call consumed the very
+                    # same result as the standalone Det(s) rather than recomputing it.
+                    self.assertTrue(
+                        vals[0].startswith(vals[1].upper() + "_"),
+                        f"outer={vals[0]} does not build on inner={vals[1]}"),
+                ),
+            ),
+            (
+                "Nondet(Det(s)) - outer Nondet not reused, inner Det reused",
+                "SELECT Nondet(Det(s)), Nondet(Det(s)), Det(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 3),
+                    self.assertNotEqual(vals[0], vals[1]),
+                    self.assertTrue(vals[2].startswith("HELLO_")),
+                ),
+            ),
+            (
+                "Det(Nondet(s)) - nondet input disables reuse",
+                "SELECT Det(Nondet(s)), Det(Nondet(s)) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    self.assertNotEqual(vals[0], vals[1]),
+                ),
+            ),
+            (
+                "Nondet(s) as a projection is not referenced by a nested occurrence",
+                "SELECT Nondet(s), Det(Nondet(s)) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    # Det upper-cases its input, so if the nested Nondet(s) had consumed the
+                    # result of the standalone one, vals[1] would start with vals[0].upper().
+                    # A non-deterministic call must be evaluated once per occurrence.
+                    self.assertFalse(
+                        vals[1].startswith(vals[0].upper() + "_"),
+                        f"nested Nondet reused the projected result: {vals}"),
+                ),
+            ),
+            (
+                "Det(s) below Nondet reads the shared Det(s) rather than a later slot",
+                "SELECT Det(Nondet(Det(s))), Det(s) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    # Both Det(s) are one evaluation, so the value below Nondet is vals[1]
+                    # itself. Nondet upper-cases it and appends its own suffix, and the outer
+                    # Det does so again, hence the prefix. Had the inner Det(s) read the entry
+                    # of the projected one instead, that slot would still have been unset and
+                    # the whole column would silently have been None.
+                    self.assertIsNotNone(
+                        vals[0], f"forward reference produced a null column: {vals}"),
+                    self.assertTrue(
+                        vals[0].startswith(vals[1].upper() + "_"),
+                        f"Det(s) was not reused below Nondet: {vals}"),
+                ),
+            ),
+            (
+                "zero-argument Nondet nested before its projection",
+                "SELECT Det(ZeroNondet()), ZeroNondet() FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    # Calcite hands out the very same RexCall object for both ZeroNondet()
+                    # occurrences, so the nested one must not be resolved to the projected one:
+                    # that entry is evaluated later, and reading it would yield None.
+                    self.assertIsNotNone(
+                        vals[0], f"forward reference produced a null column: {vals}"),
+                    self.assertFalse(
+                        vals[0].startswith(vals[1].upper() + "_"),
+                        f"nested ZeroNondet reused the projected result: {vals}"),
+                ),
+            ),
+            (
+                "zero-argument Nondet projected before its nested occurrence",
+                "SELECT ZeroNondet(), Det(ZeroNondet()) FROM SourceTable",
+                lambda vals: (
+                    self.assertEqual(len(vals), 2),
+                    self.assertFalse(
+                        vals[1].startswith(vals[0].upper() + "_"),
+                        f"nested ZeroNondet reused the projected result: {vals}"),
+                ),
+            ),
+        ]
+
+        for desc, sql, verify_fn in cases:
+            with self.subTest(desc):
+                result = self.t_env.sql_query(sql)
+                col_count = len(result.get_schema().get_field_names())
+                cols = ", ".join([f"c{i} STRING" for i in range(col_count)])
+                sink_table = generate_random_table_name()
+                self.t_env.execute_sql(f"""
+                    CREATE TABLE {sink_table}({cols})
+                    WITH ('connector'='test-sink')
+                """)
+                result.execute_insert(sink_table).wait()
+                actual = source_sink_utils.results()
+                self.assertEqual(len(actual), 1)
+                vals = actual[0].replace("+I[", "").replace("]", "").split(", ")
+                verify_fn(vals)
 
 
 # decide whether two floats are equal

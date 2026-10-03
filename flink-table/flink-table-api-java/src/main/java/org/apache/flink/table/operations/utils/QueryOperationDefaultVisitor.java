@@ -35,6 +35,7 @@ import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation;
+import org.apache.flink.table.operations.WindowTableFunctionQueryOperation;
 
 /**
  * A utility {@link QueryOperationVisitor} that calls {@link
@@ -57,6 +58,11 @@ public abstract class QueryOperationDefaultVisitor<T> implements QueryOperationV
     @Override
     public T visit(WindowAggregateQueryOperation windowAggregate) {
         return defaultMethod(windowAggregate);
+    }
+
+    @Override
+    public T visit(WindowTableFunctionQueryOperation windowTableFunction) {
+        return defaultMethod(windowTableFunction);
     }
 
     @Override

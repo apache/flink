@@ -21,7 +21,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
-import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.Test
 
 import java.sql.Date
@@ -213,8 +213,13 @@ class GroupingSetsTest extends TableTestBase {
 
   @Test
   def testRollupPlusOrderBy(): Unit = {
-    util.verifyExecPlan(
-      "SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender) ORDER BY c DESC")
+    // A non-time-attribute streaming sort is rejected during optimization.
+    assertThatThrownBy(
+      () =>
+        util.verifyExecPlan(
+          "SELECT gender, COUNT(*) AS c FROM emp GROUP BY ROLLUP(gender) ORDER BY c DESC"))
+      .hasMessageContaining(
+        "requires the primary sort key to be a time attribute in ascending order")
   }
 
   @Test
@@ -318,7 +323,10 @@ class GroupingSetsTest extends TableTestBase {
       """
         |SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) ORDER BY GROUPING(deptno), c
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    // A non-time-attribute streaming sort is rejected during optimization.
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasMessageContaining(
+        "requires the primary sort key to be a time attribute in ascending order")
   }
 
   @Test
@@ -424,7 +432,6 @@ class GroupingSetsTest extends TableTestBase {
         |    END gr_text
         |from scott_emp
         |    GROUP BY ROLLUP(deptno, job, (empno,ename))
-        |    ORDER BY deptno, job, empno
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
   }

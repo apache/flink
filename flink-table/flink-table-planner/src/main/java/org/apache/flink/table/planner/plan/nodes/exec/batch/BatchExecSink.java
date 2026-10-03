@@ -120,6 +120,7 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
                 tableSink,
                 -1,
                 false,
+                null,
                 null);
     }
 

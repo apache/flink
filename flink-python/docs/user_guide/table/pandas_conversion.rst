@@ -63,7 +63,7 @@ Convert PyFlink Table to Pandas DataFrame
 PyFlink Tables can additionally be converted into a Pandas DataFrame.
 The resulting rows will be serialized as multiple Arrow batches of Arrow columnar format on the client.
 The maximum Arrow batch size is configured via the option
-:flinkdoc:`python.fn-execution.arrow.batch.size <docs/dev/python/python_config/#python-fn-execution-arrow-batch-size>`.
+:confval:`python.fn-execution.arrow.batch.size`.
 The serialized data will then be converted to a Pandas DataFrame.
 Because the contents of the table will be collected on the client, please ensure that the results of the table can fit in memory before calling this method.
 You can limit the number of rows collected to client side via ``Table.limit``.

@@ -18,146 +18,39 @@
 
 package org.apache.flink.state.table;
 
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.StateBackendOptions;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.state.api.OperatorIdentifier;
 import org.apache.flink.state.api.SavepointReader;
 import org.apache.flink.state.api.filter.SavepointKeyFilter;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.connector.ProviderContext;
-import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
-import javax.naming.ConfigurationException;
 
-import java.util.List;
+import java.util.function.Supplier;
 
-/** Savepoint data stream scan provider. */
+/**
+ * Savepoint data stream scan provider for the general keyed state table, emitting one row per key
+ * (see {@link KeyedStateReader}).
+ */
 @SuppressWarnings("rawtypes")
-public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
-    @Nullable private final String stateBackendType;
-    private final String statePath;
-    private final OperatorIdentifier operatorIdentifier;
-    private final TypeInformation keyTypeInfo;
-    private final Tuple2<Integer, List<StateValueColumnConfiguration>> keyValueProjections;
-    private final RowType rowType;
-    @Nullable private final SavepointKeyFilter keyFilter;
+public class SavepointDataStreamScanProvider
+        extends AbstractMultiColumnScanProvider<StateTableMapping> {
 
     public SavepointDataStreamScanProvider(
             @Nullable final String stateBackendType,
             final String statePath,
             final OperatorIdentifier operatorIdentifier,
-            final TypeInformation keyTypeInfo,
-            final Tuple2<Integer, List<StateValueColumnConfiguration>> keyValueProjections,
-            RowType rowType) {
-        this(
-                stateBackendType,
-                statePath,
-                operatorIdentifier,
-                keyTypeInfo,
-                keyValueProjections,
-                rowType,
-                null);
-    }
-
-    public SavepointDataStreamScanProvider(
-            @Nullable final String stateBackendType,
-            final String statePath,
-            final OperatorIdentifier operatorIdentifier,
-            final TypeInformation keyTypeInfo,
-            final Tuple2<Integer, List<StateValueColumnConfiguration>> keyValueProjections,
+            final Supplier<StateTableMapping> mappingSupplier,
             RowType rowType,
             @Nullable SavepointKeyFilter keyFilter) {
-        this.stateBackendType = stateBackendType;
-        this.statePath = statePath;
-        this.operatorIdentifier = operatorIdentifier;
-        this.keyTypeInfo = keyTypeInfo;
-        this.keyValueProjections = keyValueProjections;
-        this.rowType = rowType;
-        this.keyFilter = keyFilter;
+        super(stateBackendType, statePath, operatorIdentifier, mappingSupplier, rowType, keyFilter);
     }
 
     @Override
-    public boolean isBounded() {
-        return true;
-    }
-
-    @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public DataStream<RowData> produceDataStream(
-            ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
-        try {
-            Configuration configuration = Configuration.fromMap(execEnv.getConfiguration().toMap());
-            if (!StringUtils.isNullOrWhitespaceOnly(stateBackendType)) {
-                configuration.set(StateBackendOptions.STATE_BACKEND, stateBackendType);
-            }
-            StateBackend stateBackend =
-                    StateBackendLoader.loadStateBackendFromConfig(
-                            configuration, getClass().getClassLoader(), null);
-
-            SavepointReader savepointReader =
-                    SavepointReader.read(execEnv, statePath, stateBackend);
-
-            // Get value state descriptors
-            for (StateValueColumnConfiguration columnConfig : keyValueProjections.f1) {
-                TypeSerializer valueTypeSerializer = columnConfig.getValueTypeSerializer();
-
-                switch (columnConfig.getStateType()) {
-                    case VALUE:
-                        columnConfig.setStateDescriptor(
-                                new ValueStateDescriptor<>(
-                                        columnConfig.getStateName(), valueTypeSerializer));
-                        break;
-
-                    case LIST:
-                        columnConfig.setStateDescriptor(
-                                new ListStateDescriptor<>(
-                                        columnConfig.getStateName(), valueTypeSerializer));
-                        break;
-
-                    case MAP:
-                        TypeSerializer<?> mapKeyTypeSerializer =
-                                columnConfig.getMapKeyTypeSerializer();
-                        if (mapKeyTypeSerializer == null) {
-                            throw new ConfigurationException(
-                                    "Map key type serializer is required for map state");
-                        }
-                        columnConfig.setStateDescriptor(
-                                new MapStateDescriptor<>(
-                                        columnConfig.getStateName(),
-                                        mapKeyTypeSerializer,
-                                        valueTypeSerializer));
-                        break;
-
-                    default:
-                        throw new UnsupportedOperationException(
-                                "Unsupported state type: " + columnConfig.getStateType());
-                }
-            }
-
-            TypeInformation outTypeInfo = InternalTypeInfo.of(rowType);
-
-            return savepointReader.readKeyedState(
-                    operatorIdentifier,
-                    new KeyedStateReader(rowType, keyValueProjections),
-                    keyTypeInfo,
-                    outTypeInfo,
-                    keyFilter);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    protected DataStream<RowData> readState(
+            SavepointReader savepointReader, StateTableMapping mapping) throws Exception {
+        return readVoidNamespaceKeyedState(
+                savepointReader, mapping, new KeyedStateReader(rowType, mapping));
     }
 }

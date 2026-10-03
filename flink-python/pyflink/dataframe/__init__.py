@@ -38,22 +38,65 @@ Example::
     <Row(1, 'Alice', 31)>
 """
 
-from pyflink.dataframe.convert import from_dict, from_records
+from pyflink.dataframe.catalog import (
+    create_catalog,
+    get_catalog,
+    get_current_catalog,
+    get_current_database,
+    list_catalogs,
+    list_databases,
+    use_catalog,
+    use_database,
+)
+from pyflink.dataframe.convert import (
+    from_arrow,
+    from_dict,
+    from_pandas,
+    from_records,
+    from_table,
+    range,
+)
 from pyflink.dataframe.context import (
     get_or_create_table_environment,
     get_table_environment,
     set_table_environment,
 )
-from pyflink.dataframe.dataframe import DataFrame, col, lit
+from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit
+from pyflink.dataframe.dataframe_config import config
 from pyflink.dataframe.datatype import DataType
+from pyflink.dataframe.io import read_catalog_table, read_generic, read_json, read_parquet
+from pyflink.dataframe.sql import sql
+from pyflink.dataframe.udf import udf
+from pyflink.dataframe.udtf import udtf
 
 __all__ = [
     "DataFrame",
+    "GroupedDataFrame",
     "DataType",
     "col",
     "lit",
+    "udf",
+    "udtf",
+    "from_arrow",
     "from_dict",
+    "from_pandas",
     "from_records",
+    "from_table",
+    "range",
+    "read_catalog_table",
+    "read_generic",
+    "read_json",
+    "read_parquet",
+    "create_catalog",
+    "get_catalog",
+    "use_catalog",
+    "get_current_catalog",
+    "list_catalogs",
+    "use_database",
+    "get_current_database",
+    "list_databases",
+    "sql",
+    "config",
     "set_table_environment",
     "get_table_environment",
     "get_or_create_table_environment",

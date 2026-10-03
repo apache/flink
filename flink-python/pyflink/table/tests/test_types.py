@@ -24,6 +24,8 @@ import sys
 import tempfile
 import unittest
 
+import pyarrow as pa
+
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 
@@ -35,7 +37,7 @@ from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  _create_type_verifier, UserDefinedType, DataTypes, Row, RowField,
                                  RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
                                  _from_java_data_type, ZonedTimestampType,
-                                 LocalZonedTimestampType, _to_java_data_type)
+                                 LocalZonedTimestampType, _to_java_data_type, from_arrow_type)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -124,6 +126,36 @@ class UTCOffsetTimezone(datetime.tzinfo):
 
     def dst(self, dt):
         return self.OFFSET
+
+
+class ArrowTypeConversionTests(unittest.TestCase):
+
+    def test_nested_field_nullability(self):
+        try:
+            arrow_map_type = pa.map_(
+                pa.string(),
+                pa.field("value", pa.int64(), nullable=False),
+            )
+        except TypeError:
+            arrow_map_type = pa.map_(pa.string(), pa.int64())
+
+        map_type = from_arrow_type(arrow_map_type)
+        self.assertFalse(map_type.key_type._nullable)
+        item_field = getattr(arrow_map_type, "item_field", None)
+        expected_item_nullable = (
+            item_field.nullable if item_field is not None else True
+        )
+        self.assertEqual(expected_item_nullable, map_type.value_type._nullable)
+
+        array_type = from_arrow_type(
+            pa.list_(pa.field("item", pa.int64(), nullable=False))
+        )
+        self.assertFalse(array_type.element_type._nullable)
+
+        row_type = from_arrow_type(
+            pa.struct([pa.field("value", pa.int64())]), nullable=False
+        )
+        self.assertFalse(row_type._nullable)
 
 
 class TypesTests(PyFlinkTestCase):
@@ -548,6 +580,18 @@ class TypesTests(PyFlinkTestCase):
     def test_datetype_equal_zero(self):
         dt = DataTypes.DATE()
         self.assertEqual(dt.from_sql_type(0), datetime.date(1970, 1, 1))
+
+    def test_array_from_sql_type_converts_elements(self):
+        at = DataTypes.ARRAY(DataTypes.DATE())
+        self.assertEqual(
+            at.from_sql_type([0, 1]),
+            [datetime.date(1970, 1, 1), datetime.date(1970, 1, 2)])
+
+    def test_multiset_from_sql_type_converts_elements(self):
+        mst = DataTypes.MULTISET(DataTypes.DATE())
+        self.assertEqual(
+            mst.from_sql_type([0, 1]),
+            [datetime.date(1970, 1, 1), datetime.date(1970, 1, 2)])
 
     @unittest.skipIf(on_windows(), "Windows x64 system only support the datetime not larger "
                                    "than time.ctime(32536799999), so this test can't run "

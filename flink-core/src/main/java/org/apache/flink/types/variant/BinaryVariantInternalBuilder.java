@@ -21,6 +21,7 @@ package org.apache.flink.types.variant;
 import org.apache.flink.annotation.Internal;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactoryBuilder;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
@@ -35,6 +36,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.UUID;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.ARRAY;
 import static org.apache.flink.types.variant.BinaryVariantUtil.BASIC_TYPE_MASK;
@@ -58,8 +60,11 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.MAX_SHORT_STR_SIZ
 import static org.apache.flink.types.variant.BinaryVariantUtil.NULL;
 import static org.apache.flink.types.variant.BinaryVariantUtil.OBJECT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIME;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ_NS;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_NS;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TRUE;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U16_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U24_MAX;
@@ -69,6 +74,7 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.U8_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.arrayHeader;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
+import static org.apache.flink.types.variant.BinaryVariantUtil.fitsVariantDecimal;
 import static org.apache.flink.types.variant.BinaryVariantUtil.getMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleArray;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleObject;
@@ -91,7 +97,10 @@ public class BinaryVariantInternalBuilder {
             new VariantTypeException("VARIANT_SIZE_LIMIT");
     public static final VariantTypeException VARIANT_DUPLICATE_KEY_EXCEPTION =
             new VariantTypeException("VARIANT_DUPLICATE_KEY");
-    private static final JsonFactory JSON_FACTORY = new JsonFactory();
+    // Byte input is always UTF-8. Charset detection would take NUL bytes or a BOM as a UTF-16 or
+    // UTF-32 hint and could turn input that is not valid JSON into a value.
+    private static final JsonFactory JSON_FACTORY =
+            new JsonFactoryBuilder().disable(JsonFactory.Feature.CHARSET_DETECTION).build();
 
     public BinaryVariantInternalBuilder(boolean allowDuplicateKeys) {
         this.allowDuplicateKeys = allowDuplicateKeys;
@@ -105,6 +114,20 @@ public class BinaryVariantInternalBuilder {
     public static BinaryVariant parseJson(String json, boolean allowDuplicateKeys)
             throws IOException {
         try (JsonParser parser = JSON_FACTORY.createParser(json)) {
+            parser.nextToken();
+            return parseJson(parser, allowDuplicateKeys);
+        }
+    }
+
+    /**
+     * Parse UTF-8 encoded JSON bytes as a Variant value. Invalid UTF-8 is rejected rather than
+     * replaced with U+FFFD.
+     *
+     * @throws IOException if any JSON parsing error happens.
+     */
+    public static BinaryVariant parseJson(byte[] bytes, boolean allowDuplicateKeys)
+            throws IOException {
+        try (JsonParser parser = JSON_FACTORY.createParser(bytes)) {
             parser.nextToken();
             return parseJson(parser, allowDuplicateKeys);
         }
@@ -233,23 +256,28 @@ public class BinaryVariantInternalBuilder {
         writePos += 8;
     }
 
-    // Append a decimal value to the variant builder. The caller should guarantee that its precision
-    // and scale fit into `MAX_DECIMAL16_PRECISION`.
-    public void appendDecimal(BigDecimal d) {
+    /**
+     * Appends a decimal value to the variant builder. A negative scale is rescaled to 0, which
+     * keeps the numeric value.
+     *
+     * @throws VariantTypeException if the precision or the scale of the rescaled decimal exceeds
+     *     {@link BinaryVariantUtil#MAX_DECIMAL16_PRECISION}
+     */
+    public void appendDecimal(BigDecimal decimal) {
+        final BigDecimal d = toVariantDecimal(decimal);
         checkCapacity(2 + 16);
         BigInteger unscaled = d.unscaledValue();
-        if (d.scale() <= MAX_DECIMAL4_PRECISION && d.precision() <= MAX_DECIMAL4_PRECISION) {
+        if (fitsVariantDecimal(d, MAX_DECIMAL4_PRECISION)) {
             writeBuffer[writePos++] = primitiveHeader(DECIMAL4);
             writeBuffer[writePos++] = (byte) d.scale();
             writeLong(writeBuffer, writePos, unscaled.intValueExact(), 4);
             writePos += 4;
-        } else if (d.scale() <= MAX_DECIMAL8_PRECISION && d.precision() <= MAX_DECIMAL8_PRECISION) {
+        } else if (fitsVariantDecimal(d, MAX_DECIMAL8_PRECISION)) {
             writeBuffer[writePos++] = primitiveHeader(DECIMAL8);
             writeBuffer[writePos++] = (byte) d.scale();
             writeLong(writeBuffer, writePos, unscaled.longValueExact(), 8);
             writePos += 8;
         } else {
-            assert d.scale() <= MAX_DECIMAL16_PRECISION && d.precision() <= MAX_DECIMAL16_PRECISION;
             writeBuffer[writePos++] = primitiveHeader(DECIMAL16);
             writeBuffer[writePos++] = (byte) d.scale();
             // `toByteArray` returns a big-endian representation. We need to copy it reversely and
@@ -265,6 +293,35 @@ public class BinaryVariantInternalBuilder {
             }
             writePos += 16;
         }
+    }
+
+    // The variant spec requires a scale in [0, 38] and a precision of at most 38.
+    private static BigDecimal toVariantDecimal(BigDecimal d) {
+        BigDecimal result = d;
+        if (d.scale() < 0) {
+            // A non-zero value with a scale below -38 has more than 38 digits after rescaling.
+            // Reject it upfront because setScale is slow for exponents like 1e9999999 and throws
+            // an ArithmeticException for exponents like 1e999999999.
+            if (d.signum() != 0 && d.scale() < -MAX_DECIMAL16_PRECISION) {
+                throw decimalOutOfRange(d);
+            }
+            // Rescaling a non-zero value gives it precision - scale digits. For example, 12345e34
+            // has precision 5 and scale -34, so it has 5 - (-34) = 39 digits after rescaling.
+            result = d.setScale(0);
+        }
+        if (!fitsVariantDecimal(result, MAX_DECIMAL16_PRECISION)) {
+            throw decimalOutOfRange(d);
+        }
+        return result;
+    }
+
+    private static VariantTypeException decimalOutOfRange(BigDecimal d) {
+        return new VariantTypeException(
+                String.format(
+                        "Decimal with precision %d and scale %d is outside the range supported by "
+                                + "variant decimals. After rescaling a negative scale to 0, the "
+                                + "precision and scale must not exceed %d.",
+                        d.precision(), d.scale(), MAX_DECIMAL16_PRECISION));
     }
 
     public void appendDate(int daysSinceEpoch) {
@@ -288,6 +345,27 @@ public class BinaryVariantInternalBuilder {
         writePos += 8;
     }
 
+    public void appendTime(long microsSinceMidnight) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIME);
+        writeLong(writeBuffer, writePos, microsSinceMidnight, 8);
+        writePos += 8;
+    }
+
+    public void appendTimestampLtzNanos(long nanosSinceEpoch) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP_LTZ_NS);
+        writeLong(writeBuffer, writePos, nanosSinceEpoch, 8);
+        writePos += 8;
+    }
+
+    public void appendTimestampNanos(long nanosSinceEpoch) {
+        checkCapacity(1 + 8);
+        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP_NS);
+        writeLong(writeBuffer, writePos, nanosSinceEpoch, 8);
+        writePos += 8;
+    }
+
     public void appendFloat(float f) {
         checkCapacity(1 + 4);
         writeBuffer[writePos++] = primitiveHeader(FLOAT);
@@ -302,6 +380,18 @@ public class BinaryVariantInternalBuilder {
         writePos += U32_SIZE;
         System.arraycopy(binary, 0, writeBuffer, writePos, binary.length);
         writePos += binary.length;
+    }
+
+    public void appendUuid(UUID uuid) {
+        checkCapacity(1 + 16);
+        writeBuffer[writePos++] = primitiveHeader(BinaryVariantUtil.UUID);
+        // The variant spec stores UUIDs as 16 big-endian bytes: the most significant 8 bytes
+        // followed by the least significant 8 bytes. UUID is the only primitive that is not
+        // little-endian, so we use the big-endian writer instead of writeLong.
+        BinaryVariantUtil.writeLongBigEndian(writeBuffer, writePos, uuid.getMostSignificantBits());
+        BinaryVariantUtil.writeLongBigEndian(
+                writeBuffer, writePos + 8, uuid.getLeastSignificantBits());
+        writePos += 16;
     }
 
     // Add a key to the variant dictionary. If the key already exists, the dictionary is not
@@ -648,7 +738,7 @@ public class BinaryVariantInternalBuilder {
             }
         }
         BigDecimal d = new BigDecimal(input);
-        if (d.scale() <= MAX_DECIMAL16_PRECISION && d.precision() <= MAX_DECIMAL16_PRECISION) {
+        if (fitsVariantDecimal(d, MAX_DECIMAL16_PRECISION)) {
             appendDecimal(d);
             return true;
         }

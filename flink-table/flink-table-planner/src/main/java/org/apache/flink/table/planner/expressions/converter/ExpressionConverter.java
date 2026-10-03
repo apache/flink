@@ -74,6 +74,7 @@ import java.time.temporal.ChronoField;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.typeutils.SymbolUtil.commonToCalcite;
@@ -139,6 +140,13 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
                     columnList.getNames().stream()
                             .map(rexBuilder::makeLiteral)
                             .collect(Collectors.toList()));
+        }
+
+        if (type.is(LogicalTypeRoot.UUID)) {
+            // UUID has no generic RexBuilder#makeLiteral support, so build the literal directly.
+            // This also lets filter push-down round-trip a UUID predicate back into a RexNode.
+            return rexBuilder.makeUuidLiteral(
+                    valueLiteral.getValueAs(UUID.class).orElseThrow(IllegalStateException::new));
         }
 
         Object value;

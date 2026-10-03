@@ -72,7 +72,10 @@ final class CastRuleUtils {
     }
 
     static String newArray(String innerType, String arraySize) {
-        return "new " + innerType + "[" + arraySize + "]";
+        final int arrayIndex = innerType.indexOf('[');
+        final String baseType = arrayIndex < 0 ? innerType : innerType.substring(0, arrayIndex);
+        final String dimensions = arrayIndex < 0 ? "" : innerType.substring(arrayIndex);
+        return "new " + baseType + "[" + arraySize + "]" + dimensions;
     }
 
     static String stringConcat(Object... args) {

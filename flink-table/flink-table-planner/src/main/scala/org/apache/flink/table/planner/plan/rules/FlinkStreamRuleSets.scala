@@ -415,6 +415,8 @@ object FlinkStreamRuleSets {
     PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
     // Avoids dealing with a python call in the condition.
     PythonCalcSplitRule.SPLIT_CONDITION,
+    // Deduplicates Python UDF calls shared between condition and projection.
+    PythonCalcSplitRule.CONDITION_PROJECTION_CSE,
     // Avoids dealing with Java calls in the same Calc as python calls.
     PythonCalcSplitRule.SPLIT_PROJECT,
     // Splits calcs which contain both general Python functions and pandas Python functions
@@ -425,6 +427,8 @@ object FlinkStreamRuleSets {
     PythonCalcSplitRule.PUSH_CONDITION,
     // Orders the projections so that input references are first, followed by python calls.
     PythonCalcSplitRule.REWRITE_PROJECT,
+    // Deduplicates identical deterministic python calls within the projection.
+    PythonCalcSplitRule.PROJECTION_CSE,
     // Renames the field names of the Flatten calc which is right after a calc representing a
     // Python Map operation to the output names of the map function
     PythonMapRenameRule.INSTANCE,

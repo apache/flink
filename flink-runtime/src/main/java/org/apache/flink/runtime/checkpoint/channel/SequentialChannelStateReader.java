@@ -34,8 +34,6 @@ public interface SequentialChannelStateReader extends AutoCloseable {
      *
      * @param inputGates The input gates to recover state for.
      * @param filterContext The filter context containing input configs and rescaling info.
-     * @return the fetched recovered channel state if there is any state to recover, otherwise
-     *     {@link Optional#empty()}.
      */
     Optional<FetchedChannelState> readInputData(
             InputGate[] inputGates, RecordFilterContext filterContext)

@@ -20,7 +20,7 @@ import { DecimalPipe, NgForOf, NgIf, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { of, Subject } from 'rxjs';
-import { catchError, mergeMap, startWith, takeUntil } from 'rxjs/operators';
+import { catchError, takeUntil } from 'rxjs/operators';
 
 import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
 import { MetricMap, TaskManagerDetail } from '@flink-runtime-web/interfaces';
@@ -31,6 +31,8 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
+
+import { pollTaskManagerDetail } from '../task-manager-detail-poll';
 
 @Component({
   selector: 'flink-task-manager-metrics',
@@ -66,17 +68,13 @@ export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
 
   public ngOnInit(): void {
     const taskManagerId = this.activatedRoute.parent!.snapshot.params.taskManagerId;
-    this.statusService.refresh$
-      .pipe(
-        startWith(true),
-        mergeMap(() => this.taskManagerService.loadManager(taskManagerId).pipe(catchError(() => of(undefined)))),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(data => {
-        if (data) {
-          this.reload(data.id);
+    pollTaskManagerDetail(this.statusService.refresh$, () => this.taskManagerService.loadManager(taskManagerId))
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(({ detail }) => {
+        if (detail) {
+          this.reload(detail.id);
         }
-        this.taskManagerDetail = data;
+        this.taskManagerDetail = detail;
         this.cdr.markForCheck();
       });
   }

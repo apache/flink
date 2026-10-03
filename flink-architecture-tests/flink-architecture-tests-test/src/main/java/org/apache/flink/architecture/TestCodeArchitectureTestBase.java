@@ -19,6 +19,7 @@
 package org.apache.flink.architecture;
 
 import org.apache.flink.architecture.rules.ITCaseRules;
+import org.apache.flink.architecture.rules.NestedTestClassRules;
 import org.apache.flink.architecture.rules.TestNamingRules;
 
 import com.tngtech.archunit.junit.ArchTest;
@@ -36,4 +37,7 @@ public class TestCodeArchitectureTestBase {
     @ArchTest public static final ArchTests ITCASE = ArchTests.in(ITCaseRules.class);
 
     @ArchTest public static final ArchTests TEST_NAMING = ArchTests.in(TestNamingRules.class);
+
+    @ArchTest
+    public static final ArchTests NESTED_TEST_CLASS = ArchTests.in(NestedTestClassRules.class);
 }

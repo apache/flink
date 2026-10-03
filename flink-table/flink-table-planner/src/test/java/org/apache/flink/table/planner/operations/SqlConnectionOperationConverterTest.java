@@ -20,15 +20,22 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.SqlParserException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.SensitiveConnection;
+import org.apache.flink.table.operations.DescribeConnectionOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowCreateConnectionOperation;
 import org.apache.flink.table.operations.ddl.CreateConnectionOperation;
 import org.apache.flink.table.operations.ddl.DropConnectionOperation;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -168,5 +175,79 @@ class SqlConnectionOperationConverterTest extends SqlNodeToOperationConversionTe
         DropConnectionOperation op = (DropConnectionOperation) operation;
         assertThat(op.getConnectionIdentifier())
                 .isEqualTo(ObjectIdentifier.of("cat1", "db1", "my_conn"));
+    }
+
+    @Test
+    void testShowCreateConnection() {
+        createTemporaryConnection("my_conn");
+
+        Operation operation = parse("SHOW CREATE CONNECTION my_conn");
+        assertThat(operation).isInstanceOf(ShowCreateConnectionOperation.class);
+        ShowCreateConnectionOperation op = (ShowCreateConnectionOperation) operation;
+
+        assertThat(op.getConnectionIdentifier())
+                .isEqualTo(ObjectIdentifier.of("builtin", "default", "my_conn"));
+        assertThat(op.getConnection().getOptions()).containsEntry("k", "v");
+        assertThat(op.getConnection().getOptions()).doesNotContainKey("password");
+        assertThat(op.isTemporary()).isTrue();
+    }
+
+    @Test
+    void testShowCreateConnectionWithFullyQualifiedName() {
+        createTemporaryConnection("my_conn");
+
+        Operation operation = parse("SHOW CREATE CONNECTION `builtin`.`default`.`my_conn`");
+        ShowCreateConnectionOperation op = (ShowCreateConnectionOperation) operation;
+
+        assertThat(op.getConnectionIdentifier())
+                .isEqualTo(ObjectIdentifier.of("builtin", "default", "my_conn"));
+    }
+
+    @Test
+    void testShowCreateConnectionMissingConnectionRejected() {
+        assertThatThrownBy(() -> parse("SHOW CREATE CONNECTION missing_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Could not execute SHOW CREATE CONNECTION. Connection with identifier");
+    }
+
+    @ParameterizedTest
+    @MethodSource("describeConnectionCases")
+    void testDescribeConnection(
+            String statement, ObjectIdentifier expectedIdentifier, boolean expectedExtended) {
+        Operation operation = parse(statement);
+        assertThat(operation).isInstanceOf(DescribeConnectionOperation.class);
+        DescribeConnectionOperation op = (DescribeConnectionOperation) operation;
+
+        assertThat(op.getConnectionIdentifier()).isEqualTo(expectedIdentifier);
+        assertThat(op.isExtended()).isEqualTo(expectedExtended);
+    }
+
+    private static Stream<Arguments> describeConnectionCases() {
+        return Stream.of(
+                Arguments.of(
+                        "DESCRIBE CONNECTION my_conn",
+                        ObjectIdentifier.of("builtin", "default", "my_conn"),
+                        false),
+                Arguments.of(
+                        "DESC CONNECTION EXTENDED my_conn",
+                        ObjectIdentifier.of("builtin", "default", "my_conn"),
+                        true),
+                Arguments.of(
+                        "DESCRIBE CONNECTION cat1.db1.my_conn",
+                        ObjectIdentifier.of("cat1", "db1", "my_conn"),
+                        false));
+    }
+
+    private void createTemporaryConnection(String connectionName) {
+        catalogManager.createTemporaryConnection(
+                SensitiveConnection.of(
+                        Map.of("type", "default", "k", "v", "password", "super-secret"),
+                        "hi there"),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        connectionName),
+                false);
     }
 }

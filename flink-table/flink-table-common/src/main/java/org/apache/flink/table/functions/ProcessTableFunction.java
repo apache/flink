@@ -24,12 +24,15 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.Collector;
 
 import java.time.Instant;
@@ -268,6 +271,73 @@ import java.time.LocalDateTime;
  * }
  * }</pre>
  *
+ * <h2>Large State</h2>
+ *
+ * <p>Flink's state backends provide different types of state to efficiently handle large state.
+ *
+ * <p>Every state entry can store data ranging from a single scalar, a composite type, or even a
+ * whole list or map. What differs is <i>how</i> the data is accessed:
+ *
+ * <ul>
+ *   <li><b>Eager value state</b>: The value follows a Read-Modify-Write cycle. On access the
+ *       complete value is deserialized, and on update it is serialized again - regardless of how
+ *       much of it is actually read or changed.
+ *   <li><b>Value view</b>: A value with lazy access via {@link ValueView}. The complete value is
+ *       only deserialized on read and serialized on update.
+ *   <li><b>List view</b>: A list of values with lazy access for each element via {@link ListView},
+ *       supporting operations like appending, removing, and iterating.
+ *   <li><b>Map view</b>: A map (key-value pair) with lazy access for each pair via {@link MapView},
+ *       supporting efficient lookups, modifications, and removal of individual entries.
+ * </ul>
+ *
+ * <p>By default, a state entry in a PTF is represented as eager value state. Value state is not
+ * limited to a single scalar. It can also hold a whole list or map (for example a {@code Row} or
+ * POJO with an {@code ARRAY} or {@code MAP} field). In that case the <i>complete</i> collection is
+ * deserialized when {@code eval()} is called and serialized again when it returns, no matter how
+ * many elements are actually accessed.
+ *
+ * <p>{@link ValueView}, {@link ListView}, and {@link MapView} are the lazy counterparts. They
+ * provide direct views to the underlying Flink state backend and are preferred over eager value
+ * state, especially when state is accessed conditionally or is too large to fit into memory.
+ *
+ * <p>For example, a {@link ListView} appends or iterates elements without materializing the full
+ * list, and a {@link MapView} accesses a value via {@link MapView#get(Object)} by only
+ * deserializing the value associated with the specified key. This allows for efficient access to
+ * individual entries without needing to load the entire collection.
+ *
+ * <p>State TTL is applied individually to each entry in a list or map, allowing for fine-grained
+ * expiration control over state elements.
+ *
+ * <pre>{@code
+ * // Function that uses a value view for counting events per user with lazy state access
+ * class CountingFunction extends ProcessTableFunction<String> {
+ *   public void eval(@StateHint ValueView<Integer> count, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
+ *     Integer currentCount = count.getValue();
+ *     if (currentCount == null) {
+ *       currentCount = 0;
+ *     }
+ *     count.setValue(currentCount + 1);
+ *     collect("Count for user: " + (currentCount + 1));
+ *   }
+ * }
+ *
+ * // Function that uses a map view for storing a large map for an event history per user
+ * class HistoryFunction extends ProcessTableFunction<String> {
+ *   public void eval(@StateHint MapView<String, Integer> largeMemory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
+ *     String eventId = input.getFieldAs("eventId");
+ *     Integer count = largeMemory.get(eventId);
+ *     if (count == null) {
+ *       largeMemory.put(eventId, 1);
+ *     } else {
+ *       if (count > 1000) {
+ *         collect("Anomaly detected: " + eventId);
+ *       }
+ *       largeMemory.put(eventId, count + 1);
+ *     }
+ *   }
+ * }
+ * }</pre>
+ *
  * <h2>Efficiency and Design Principles</h2>
  *
  * <p>A stateful function also means that data layout and data retention should be well thought
@@ -293,50 +363,17 @@ import java.time.LocalDateTime;
  * }
  * }</pre>
  *
- * <h2>Large State</h2>
- *
- * <p>Flink's state backends provide different types of state to efficiently handle large state.
- *
- * <p>Currently, PTFs support three types of state:
- *
- * <ul>
- *   <li><b>Value state</b>: Represents a single value.
- *   <li><b>List state</b>: Represents a list of values, supporting operations like appending,
- *       removing, and iterating.
- *   <li><b>Map state</b>: Represents a map (key-value pair) for efficient lookups, modifications,
- *       and removal of individual entries.
- * </ul>
- *
- * <p>By default, state entries in a PTF are represented as value state. This means that every state
- * entry is fully read from the state backend when the evaluation method is called, and the value is
- * written back to the state backend once the evaluation method finishes.
- *
- * <p>To optimize state access and avoid unnecessary (de)serialization, state entries can be
- * declared as {@link ListView} or {@link MapView}. These provide direct views to the underlying
- * Flink state backend.
- *
- * <p>For example, when using a {@link MapView}, accessing a value via {@link MapView#get(Object)}
- * will only deserialize the value associated with the specified key. This allows for efficient
- * access to individual entries without needing to load the entire map. This approach is
- * particularly useful when the map does not fit entirely into memory.
- *
- * <p>State TTL is applied individually to each entry in a list or map, allowing for fine-grained
- * expiration control over state elements.
+ * <p>We recommend the use of the {@code VARIANT} data type for future schema evolution. For
+ * example, a {@link ValueView} of {@link Variant} can lazily store semi-structured data whose
+ * schema may change over time:
  *
  * <pre>{@code
- * // Function that uses a map view for storing a large map for an event history per user
- * class HistoryFunction extends ProcessTableFunction<String> {
- *   public void eval(@StateHint MapView<String, Integer> largeMemory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
- *     String eventId = input.getFieldAs("eventId");
- *     Integer count = largeMemory.get(eventId);
- *     if (count == null) {
- *       largeMemory.put(eventId, 1);
- *     } else {
- *       if (count > 1000) {
- *         collect("Anomaly detected: " + eventId);
- *       }
- *       largeMemory.put(eventId, count + 1);
- *     }
+ * // Function that lazily stores the latest semi-structured payload per key
+ * class VariantFunction extends ProcessTableFunction<String> {
+ *   public void eval(@StateHint ValueView<Variant> last, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
+ *     Variant previous = last.getValue();
+ *     last.setValue(input.getFieldAs("payload"));
+ *     collect(previous == null ? "First payload" : "Updated payload");
  *   }
  * }
  * }</pre>
@@ -543,8 +580,9 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
         /**
          * Clears the given state entry within the virtual partition once the eval() method returns.
          *
-         * <p>Semantically this is equal to setting all fields of the state entry to null shortly
-         * before the eval() method returns.
+         * <p>Semantically, this is equal to calling {@link DataView#clear()} on the state entry if
+         * backed by a data view. For eager value state, semantically this is equal to setting all
+         * fields of the state entry to null shortly before the eval() method returns.
          *
          * @param stateName name of the state entry; either reflectively extracted or manually
          *     defined via {@link StateHint#name()}.

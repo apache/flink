@@ -640,6 +640,9 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         resourceID,
                         taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
 
+        // Attach file system metrics once the process-level MetricGroup exists.
+        FileSystem.attachMetrics(taskManagerMetricGroup.f0);
+
         final ExecutorService ioExecutor =
                 Executors.newFixedThreadPool(
                         taskManagerServicesConfiguration.getNumIoThreads(),

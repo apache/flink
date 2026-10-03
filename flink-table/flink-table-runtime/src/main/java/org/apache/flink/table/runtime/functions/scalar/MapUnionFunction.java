@@ -26,6 +26,7 @@ import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction;
+import org.apache.flink.table.runtime.util.MapDataContainer;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -88,7 +89,7 @@ public class MapUnionFunction extends BuiltInScalarFunction {
                     return null;
                 }
                 if (map.size() > 0) {
-                    result = new MapDataForMapUnion(result, map);
+                    result = mapUnion(result, map);
                 }
             }
             return result;
@@ -97,70 +98,51 @@ public class MapUnionFunction extends BuiltInScalarFunction {
         }
     }
 
-    private class MapDataForMapUnion implements MapData {
-        private final GenericArrayData keysArray;
-        private final GenericArrayData valuesArray;
-
-        public MapDataForMapUnion(MapData map1, MapData map2) throws Throwable {
-            List<Object> keysList = new ArrayList<>();
-            List<Object> valuesList = new ArrayList<>();
-            boolean isKeyNullExist = false;
-            ArrayData keyArray2 = map2.keyArray();
-            ArrayData valueArray2 = map2.valueArray();
-            for (int i = 0; i < map2.size(); i++) {
-                Object key = keyElementGetter.getElementOrNull(keyArray2, i);
-                if (key == null) {
-                    isKeyNullExist = true;
-                }
-                keysList.add(key);
-                valuesList.add(valueElementGetter.getElementOrNull(valueArray2, i));
+    private MapData mapUnion(MapData map1, MapData map2) throws Throwable {
+        List<Object> keysList = new ArrayList<>();
+        List<Object> valuesList = new ArrayList<>();
+        boolean isKeyNullExist = false;
+        ArrayData keyArray2 = map2.keyArray();
+        ArrayData valueArray2 = map2.valueArray();
+        for (int i = 0; i < map2.size(); i++) {
+            Object key = keyElementGetter.getElementOrNull(keyArray2, i);
+            if (key == null) {
+                isKeyNullExist = true;
             }
-            ArrayData keyArray1 = map1.keyArray();
-            ArrayData valueArray1 = map1.valueArray();
-            for (int i = 0; i < map1.size(); i++) {
-                final Object key1 = keyElementGetter.getElementOrNull(keyArray1, i);
+            keysList.add(key);
+            valuesList.add(valueElementGetter.getElementOrNull(valueArray2, i));
+        }
+        ArrayData keyArray1 = map1.keyArray();
+        ArrayData valueArray1 = map1.valueArray();
+        for (int i = 0; i < map1.size(); i++) {
+            final Object key1 = keyElementGetter.getElementOrNull(keyArray1, i);
 
-                boolean keyExists = false;
-                if (key1 != null) {
-                    for (int j = 0; j < keysList.size(); j++) {
-                        final Object key2 = keysList.get(j);
-                        if (key2 != null && (boolean) keyEqualityHandle.invoke(key1, key2)) {
-                            // If key exists in map2, skip this key-value pair
-                            keyExists = true;
-                            break;
-                        }
+            boolean keyExists = false;
+            if (key1 != null) {
+                for (int j = 0; j < keysList.size(); j++) {
+                    final Object key2 = keysList.get(j);
+                    if (key2 != null && (boolean) keyEqualityHandle.invoke(key1, key2)) {
+                        // If key exists in map2, skip this key-value pair
+                        keyExists = true;
+                        break;
                     }
                 }
-
-                if (isKeyNullExist && key1 == null) {
-                    continue;
-                }
-
-                // If key doesn't exist in map2, add the key-value pair from map1
-                if (!keyExists) {
-                    final Object value1 = valueElementGetter.getElementOrNull(valueArray1, i);
-                    keysList.add(key1);
-                    valuesList.add(value1);
-                }
             }
-            this.keysArray = new GenericArrayData(keysList.toArray());
-            this.valuesArray = new GenericArrayData(valuesList.toArray());
-        }
 
-        @Override
-        public int size() {
-            return keysArray.size();
-        }
+            if (isKeyNullExist && key1 == null) {
+                continue;
+            }
 
-        @Override
-        public ArrayData keyArray() {
-            return keysArray;
+            // If key doesn't exist in map2, add the key-value pair from map1
+            if (!keyExists) {
+                final Object value1 = valueElementGetter.getElementOrNull(valueArray1, i);
+                keysList.add(key1);
+                valuesList.add(value1);
+            }
         }
-
-        @Override
-        public ArrayData valueArray() {
-            return valuesArray;
-        }
+        return new MapDataContainer(
+                new GenericArrayData(keysList.toArray()),
+                new GenericArrayData(valuesList.toArray()));
     }
 
     @Override

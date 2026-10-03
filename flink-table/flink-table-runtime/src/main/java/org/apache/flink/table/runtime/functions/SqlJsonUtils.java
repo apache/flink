@@ -32,6 +32,7 @@ import org.apache.flink.shaded.com.jayway.jsonpath.DocumentContext;
 import org.apache.flink.shaded.com.jayway.jsonpath.InvalidPathException;
 import org.apache.flink.shaded.com.jayway.jsonpath.JsonPath;
 import org.apache.flink.shaded.com.jayway.jsonpath.Option;
+import org.apache.flink.shaded.com.jayway.jsonpath.PathNotFoundException;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.cache.CacheProvider;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.json.JacksonJsonProvider;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
@@ -47,6 +48,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import java.lang.reflect.Array;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -77,9 +79,29 @@ public class SqlJsonUtils {
             new JacksonJsonProvider(MAPPER);
     private static final MappingProvider JSON_PATH_MAPPING_PROVIDER =
             new JacksonMappingProvider(MAPPER);
+
+    /**
+     * Configuration for JSON_LENGTH, which evaluates plain paths only and therefore does not need
+     * the 'lax'/'strict' path mode handling of {@link #jsonApiCommonSyntax}. Exceptions are left
+     * unsuppressed so that a path resolving to a JSON null literal (returns {@code null}) stays
+     * distinguishable from a path that does not exist (throws {@link PathNotFoundException}).
+     * {@link Configuration} is immutable, so a single instance is shared across all calls.
+     */
+    private static final Configuration JSON_PATH_LENGTH_CONFIG =
+            Configuration.builder()
+                    .jsonProvider(JSON_PATH_JSON_PROVIDER)
+                    .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
+                    .build();
+
     private static final String JSON_QUERY_FUNCTION_NAME = "JSON_QUERY";
     private static final String JSON_VALUE_FUNCTION_NAME = "JSON_VALUE";
     private static final String JSON_EXISTS_FUNCTION_NAME = "JSON_EXISTS";
+
+    private static final Configuration JSON_PATH_TYPE_CONFIG =
+            Configuration.builder()
+                    .jsonProvider(JSON_PATH_JSON_PROVIDER)
+                    .mappingProvider(JSON_PATH_MAPPING_PROVIDER)
+                    .build();
 
     private SqlJsonUtils() {}
 
@@ -374,6 +396,66 @@ public class SqlJsonUtils {
         }
     }
 
+    /** Accepts a pre-parsed context from {@link #jsonParse}. */
+    public static Integer jsonLength(final JsonValueContext parsedInput) {
+        if (parsedInput == null || parsedInput.hasException()) {
+            return null;
+        }
+
+        // Whole document: a top-level JSON null literal counts as a scalar (length 1).
+        return jsonLengthValue(parsedInput.obj);
+    }
+
+    /**
+     * Accepts a pre-parsed context from {@link #jsonParse}. {@code isPathDefinite} is computed at
+     * plan time by {@link #isPathDefinite}.
+     */
+    public static Integer jsonLength(
+            final JsonValueContext parsedInput,
+            final String pathSpec,
+            final boolean isPathDefinite) {
+        // An empty path is ruled out up front because JsonPath rejects it with an
+        // IllegalArgumentException instead of the InvalidPathException caught below.
+        if (parsedInput == null || parsedInput.hasException() || pathSpec.isEmpty()) {
+            return null;
+        }
+
+        // JsonPath rejects a null root document, so a whole document that is a JSON null literal
+        // has to be resolved here. Only the root path matches it, as a scalar of length 1.
+        if (parsedInput.obj == null) {
+            return "$".equals(pathSpec) ? 1 : null;
+        }
+        final Object value;
+        try {
+            value = JsonPath.parse(parsedInput.obj, JSON_PATH_LENGTH_CONFIG).read(pathSpec);
+        } catch (InvalidPathException e) {
+            // The path does not exist, or is not a valid path at all.
+            return null;
+        }
+
+        if (!isPathDefinite) {
+            final List<?> matched = (List<?>) value;
+            return matched.size() == 1 ? jsonLengthValue(matched.get(0)) : null;
+        }
+
+        // A definite path that read without throwing but produced null matched a JSON null
+        // literal, which jsonLengthValue counts as a scalar.
+        return jsonLengthValue(value);
+    }
+
+    private static int jsonLengthValue(final Object value) {
+        if (value instanceof Map) {
+            return ((Map<?, ?>) value).size();
+        } else if (value != null && value.getClass().isArray()) {
+            return Array.getLength(value);
+        } else if (value instanceof List<?>) {
+            return ((List<?>) value).size();
+        }
+
+        // Scalars, including a JSON null literal, have length 1.
+        return 1;
+    }
+
     public static Object json(String input) {
         try {
             String trimmed = input.trim();
@@ -444,6 +526,80 @@ public class SqlJsonUtils {
 
     private static Object dejsonize(String input) {
         return JSON_PATH_JSON_PROVIDER.parse(input);
+    }
+
+    /**
+     * Returns the JSON type flag for the parsed value: {@code object}, {@code array}, {@code
+     * string}, {@code number}, {@code boolean}, or {@code null} for the JSON null literal. Returns
+     * SQL {@code NULL} for invalid JSON.
+     */
+    public static String jsonType(final JsonValueContext parsedInput) {
+        // Unparsed, or shared with a call that never assigned it: report NULL either way.
+        if (parsedInput == null || parsedInput.hasException()) {
+            return null;
+        }
+        return getJsonType(parsedInput.obj);
+    }
+
+    private static String getJsonType(final Object val) {
+        if (val instanceof Number) {
+            return "number";
+        } else if (val instanceof String) {
+            return "string";
+        } else if (val instanceof Boolean) {
+            return "boolean";
+        } else if (val instanceof Map) {
+            return "object";
+        } else if (val instanceof Collection) {
+            return "array";
+        } else if (val == null) {
+            return "null";
+        }
+        return null;
+    }
+
+    /**
+     * Returns the JSON type flag at {@code path}, or {@code null} if the path doesn't resolve to
+     * exactly one value. {@code definite} is computed at plan time by {@link #isPathDefinite}.
+     */
+    public static String jsonType(
+            final JsonValueContext parsedInput, final String path, final boolean isPathDefinite) {
+        if (parsedInput == null || parsedInput.hasException() || path.isEmpty()) {
+            return null;
+        }
+
+        if (parsedInput.obj == null) {
+            return "$".equals(path) ? "null" : null;
+        }
+
+        final Object value;
+        try {
+            // PathNotFoundException extends InvalidPathException (covers both exceptions)
+            value = JsonPath.parse(parsedInput.obj, JSON_PATH_TYPE_CONFIG).read(path);
+        } catch (InvalidPathException e) {
+            return null;
+        }
+
+        if (!isPathDefinite) {
+            // Indefinite paths (e.g. wildcards) read back as a list; only one match has one type.
+            final List<?> matched = (List<?>) value;
+            return matched.size() == 1 ? getJsonType(matched.get(0)) : null;
+        }
+        return getJsonType(value);
+    }
+
+    /** Returns whether {@code pathSpec} is a definite JSON path. */
+    public static boolean isPathDefinite(final String pathSpec) {
+        // JsonPath.compile() rejects an empty path with an IllegalArgumentException rather than
+        // the InvalidPathException caught below.
+        if (pathSpec.isEmpty()) {
+            return false;
+        }
+        try {
+            return JsonPath.isPathDefinite(pathSpec);
+        } catch (InvalidPathException e) {
+            return false;
+        }
     }
 
     /**

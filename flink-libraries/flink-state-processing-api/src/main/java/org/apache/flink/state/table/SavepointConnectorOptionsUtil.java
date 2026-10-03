@@ -35,9 +35,21 @@ public class SavepointConnectorOptionsUtil {
         final Optional<String> operatorUid = options.getOptional(OPERATOR_UID);
         final Optional<String> operatorUidHash = options.getOptional(OPERATOR_UID_HASH);
 
-        if (operatorUid.isPresent() == operatorUidHash.isPresent()) {
+        if (operatorUid.isPresent() && operatorUidHash.isPresent()) {
             throw new IllegalArgumentException(
-                    "Either operator uid or operator uid hash must be specified.");
+                    "Options '"
+                            + OPERATOR_UID.key()
+                            + "' and '"
+                            + OPERATOR_UID_HASH.key()
+                            + "' cannot be specified together.");
+        }
+        if (operatorUid.isEmpty() && operatorUidHash.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Either '"
+                            + OPERATOR_UID.key()
+                            + "' or '"
+                            + OPERATOR_UID_HASH.key()
+                            + "' must be specified.");
         }
 
         return operatorUid

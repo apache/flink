@@ -20,12 +20,14 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.secret.SecretStore;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -184,6 +186,20 @@ public class EnvironmentSettings {
         /** Sets that the components should work in a streaming mode. Enabled by default. */
         public Builder inStreamingMode() {
             configuration.set(RUNTIME_MODE, STREAMING);
+            return this;
+        }
+
+        /** Sets the {@link RuntimeExecutionMode} that the components should work in. */
+        public Builder inRuntimeExecutionMode(RuntimeExecutionMode mode) {
+            Preconditions.checkArgument(
+                    mode == STREAMING || mode == BATCH,
+                    "Unsupported value '%s' for '%s'. "
+                            + "Only an explicit %s or %s mode is supported in Table API.",
+                    mode,
+                    RUNTIME_MODE.key(),
+                    STREAMING,
+                    BATCH);
+            configuration.set(RUNTIME_MODE, mode);
             return this;
         }
 

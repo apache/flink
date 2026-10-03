@@ -29,11 +29,14 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 
+import org.junit.jupiter.api.Nested;
+
 /** Test for {@link ArrayDataSerializer}. */
 class ArrayDataSerializerTest {
 
     /** Test for ArrayData with Primitive data type. */
-    static class BaseArrayWithPrimitiveTest extends SerializerTestBase<ArrayData> {
+    @Nested
+    class BaseArrayWithPrimitiveTest extends SerializerTestBase<ArrayData> {
         @Override
         protected TypeSerializer<ArrayData> createSerializer() {
             return new ArrayDataSerializer(new BigIntType(), LongSerializer.INSTANCE);
@@ -56,7 +59,8 @@ class ArrayDataSerializerTest {
     }
 
     /** Test for ArrayData with ArrayData data type. */
-    static class ArrayDataWithBinaryArrayTest extends SerializerTestBase<ArrayData> {
+    @Nested
+    class ArrayDataWithBinaryArrayTest extends SerializerTestBase<ArrayData> {
 
         @Override
         protected TypeSerializer<ArrayData> createSerializer() {
@@ -89,7 +93,8 @@ class ArrayDataSerializerTest {
     }
 
     /** Test for ArrayData with ArrayData data type. */
-    static class BaseArrayWithNullTest extends SerializerTestBase<ArrayData> {
+    @Nested
+    class BaseArrayWithNullTest extends SerializerTestBase<ArrayData> {
 
         @Override
         protected TypeSerializer<ArrayData> createSerializer() {

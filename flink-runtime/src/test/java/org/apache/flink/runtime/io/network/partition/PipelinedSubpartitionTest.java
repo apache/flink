@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfOutputChannelStateEvent;
 import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
@@ -470,6 +471,39 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         assertThatThrownBy(checkpointFuture10::get)
                 .hasCauseInstanceOf(IllegalStateException.class)
                 .isInstanceOf(ExecutionException.class);
+    }
+
+    @TestTemplate
+    void testPriorityBarrierAvailableToCreditedReaderWhileBlocked() throws Exception {
+        PipelinedSubpartition subpartition = createSubpartition();
+        subpartition.setChannelStateWriter(ChannelStateWriter.NO_OP);
+
+        // Block the subpartition, mirroring the RECOVERY_COMPLETION event emitted during recovery.
+        subpartition.add(
+                EventSerializer.toBufferConsumer(EndOfOutputChannelStateEvent.INSTANCE, false));
+        pollBufferAndCheckType(subpartition, Buffer.DataType.RECOVERY_COMPLETION);
+
+        // While blocked and without any priority element, a credited reader sees no data.
+        assertThat(subpartition.getAvailabilityAndBacklog(true).isAvailable()).isFalse();
+        assertThat(subpartition.pollBuffer()).isNull();
+
+        // Enqueue an unaligned checkpoint barrier as a priority element.
+        CheckpointOptions options =
+                CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT, CheckpointStorageLocationReference.getDefault());
+        subpartition.add(
+                EventSerializer.toBufferConsumer(
+                        new CheckpointBarrier(1L, System.currentTimeMillis(), options), true));
+
+        // The credited-reader availability check must now report available so the remote reader is
+        // enqueued and the priority barrier is delivered even though the subpartition
+        // stays blocked.
+        assertThat(subpartition.getAvailabilityAndBacklog(true).isAvailable()).isTrue();
+        pollBufferAndCheckType(subpartition, Buffer.DataType.PRIORITIZED_EVENT_BUFFER);
+
+        // After the priority element is consumed, the subpartition should immediately re-block.
+        assertThat(subpartition.getAvailabilityAndBacklog(true).isAvailable()).isFalse();
+        assertThat(subpartition.pollBuffer()).isNull();
     }
 
     private BufferConsumer getTimeoutableBarrierBuffer(long checkpointId) throws IOException {

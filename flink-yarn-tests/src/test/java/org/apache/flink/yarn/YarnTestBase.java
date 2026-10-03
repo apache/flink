@@ -640,7 +640,11 @@ public abstract class YarnTestBase {
                         new FilenameFilter() {
                             @Override
                             public boolean accept(File dir, String name) {
-                                if (fileName != null && !name.equals(fileName)) {
+                                // Container logs go through a RollingFile appender, so earlier
+                                // lines may be in <fileName>.<n>.
+                                if (fileName != null
+                                        && !name.equals(fileName)
+                                        && !name.matches(Pattern.quote(fileName) + "\\.\\d+")) {
                                     return false;
                                 }
                                 final File f = new File(dir.getAbsolutePath(), name);

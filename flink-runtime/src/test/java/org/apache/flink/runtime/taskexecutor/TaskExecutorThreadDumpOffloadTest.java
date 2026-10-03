@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
@@ -31,6 +34,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.File;
 import java.time.Duration;
@@ -40,7 +45,12 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests that {@link TaskExecutor#requestThreadDump(Duration)} is offloaded to the ioExecutor. */
+/**
+ * Tests for {@link TaskExecutor#requestThreadDump(ThreadDumpMode, Duration)}: the dump is offloaded
+ * to the ioExecutor instead of blocking the main thread, returns a non-empty result for every
+ * supported mode, and falls back to {@link ClusterOptions#THREAD_DUMP_DEFAULT_MODE} when the
+ * request omits the mode.
+ */
 @ExtendWith(TestLoggerExtension.class)
 class TaskExecutorThreadDumpOffloadTest {
 
@@ -55,8 +65,44 @@ class TaskExecutorThreadDumpOffloadTest {
 
     @Test
     void requestThreadDumpRunsOnIoExecutor(@TempDir File tempDir) throws Exception {
-        // Named single-thread executor: if the dump runs on it, dumpAllThreads() captures
-        // the thread and it appears in the returned ThreadDumpInfo.
+        final ThreadDumpInfo dump = requestDump(tempDir, new Configuration(), ThreadDumpMode.FULL);
+
+        assertThat(dump.getThreadInfos())
+                .as("dump must include ioExecutor thread '%s' (proves offload)", IO_THREAD_NAME)
+                .anyMatch(t -> IO_THREAD_NAME.equals(t.getThreadName()));
+    }
+
+    @ParameterizedTest
+    @EnumSource(ThreadDumpMode.class)
+    void requestThreadDumpReturnsNonEmptyDumpForEachMode(ThreadDumpMode mode, @TempDir File tempDir)
+            throws Exception {
+        final ThreadDumpInfo dump = requestDump(tempDir, new Configuration(), mode);
+
+        assertThat(dump.getThreadInfos()).isNotEmpty();
+    }
+
+    @Test
+    void requestThreadDumpFallsBackToClusterDefaultWhenModeOmitted(@TempDir File tempDir)
+            throws Exception {
+        // Override the cluster default to LITE so the assertion below distinguishes "config was
+        // honored" from "hardcoded FULL". LITE omits the "Number of locked synchronizers" section
+        // that FULL always emits.
+        final Configuration configuration = new Configuration();
+        configuration.set(ClusterOptions.THREAD_DUMP_DEFAULT_MODE, ThreadDumpMode.LITE);
+
+        final ThreadDumpInfo dump = requestDump(tempDir, configuration, /* mode= */ null);
+
+        assertThat(dump.getThreadInfos())
+                .noneMatch(
+                        t ->
+                                t.getStringifiedThreadInfo()
+                                        .contains("Number of locked synchronizers"));
+    }
+
+    private ThreadDumpInfo requestDump(
+            File tempDir, Configuration configuration, ThreadDumpMode mode) throws Exception {
+        // Named single-thread executor: if the dump runs on it, dumpAllThreads() captures the
+        // thread and it appears in the returned ThreadDumpInfo.
         final ExecutorService ioExecutor =
                 Executors.newSingleThreadExecutor(r -> new Thread(r, IO_THREAD_NAME));
         try {
@@ -72,22 +118,15 @@ class TaskExecutorThreadDumpOffloadTest {
                                     rpcServiceExtension.getTestingRpcService(),
                                     new TestingHighAvailabilityServicesBuilder().build(),
                                     WorkingDirectory.create(tempDir))
+                            .setConfiguration(configuration)
                             .setTaskManagerServices(services)
                             .build();
             try {
                 taskExecutor.start();
-
-                final ThreadDumpInfo dump =
-                        taskExecutor
-                                .getSelfGateway(TaskExecutorGateway.class)
-                                .requestThreadDump(RPC_TIMEOUT)
-                                .get(20, TimeUnit.SECONDS);
-
-                assertThat(dump.getThreadInfos())
-                        .as(
-                                "dump must include ioExecutor thread '%s' (proves offload)",
-                                IO_THREAD_NAME)
-                        .anyMatch(t -> IO_THREAD_NAME.equals(t.getThreadName()));
+                return taskExecutor
+                        .getSelfGateway(TaskExecutorGateway.class)
+                        .requestThreadDump(mode, RPC_TIMEOUT)
+                        .get(20, TimeUnit.SECONDS);
             } finally {
                 RpcUtils.terminateRpcEndpoint(taskExecutor);
             }

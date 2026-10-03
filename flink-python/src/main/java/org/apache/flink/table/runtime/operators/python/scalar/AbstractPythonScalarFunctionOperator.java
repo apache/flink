@@ -35,6 +35,8 @@ import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowData
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
 import static org.apache.flink.python.PythonOptions.PYTHON_PROFILE_ENABLED;
 
@@ -65,6 +67,16 @@ public abstract class AbstractPythonScalarFunctionOperator
     /** The Python {@link ScalarFunction}s to be executed. */
     protected final PythonFunctionInfo[] scalarFunctions;
 
+    /**
+     * The positions of the projected results within {@link #scalarFunctions}, or {@code null} when
+     * the functions are exactly the operator output in order.
+     *
+     * <p>Flattening nested calls for CSE appends intermediate sub-expressions that are consumed by
+     * reference and must not be emitted, and it can leave the projected results in a different
+     * order than the projection.
+     */
+    @Nullable private final int[] udfOutputIndices;
+
     private final GeneratedProjection udfInputGeneratedProjection;
     private final GeneratedProjection forwardedFieldGeneratedProjection;
 
@@ -88,8 +100,29 @@ public abstract class AbstractPythonScalarFunctionOperator
             RowType udfOutputType,
             GeneratedProjection udfInputGeneratedProjection,
             GeneratedProjection forwardedFieldGeneratedProjection) {
+        this(
+                config,
+                scalarFunctions,
+                null,
+                inputType,
+                udfInputType,
+                udfOutputType,
+                udfInputGeneratedProjection,
+                forwardedFieldGeneratedProjection);
+    }
+
+    public AbstractPythonScalarFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            @Nullable int[] udfOutputIndices,
+            RowType inputType,
+            RowType udfInputType,
+            RowType udfOutputType,
+            GeneratedProjection udfInputGeneratedProjection,
+            GeneratedProjection forwardedFieldGeneratedProjection) {
         super(config, inputType, udfInputType, udfOutputType);
         this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
+        this.udfOutputIndices = udfOutputIndices;
         this.udfInputGeneratedProjection = Preconditions.checkNotNull(udfInputGeneratedProjection);
         this.forwardedFieldGeneratedProjection =
                 Preconditions.checkNotNull(forwardedFieldGeneratedProjection);
@@ -121,6 +154,7 @@ public abstract class AbstractPythonScalarFunctionOperator
         return ProtoUtils.createUserDefinedFunctionsProto(
                 getRuntimeContext(),
                 scalarFunctions,
+                udfOutputIndices,
                 config.get(PYTHON_METRIC_ENABLED),
                 config.get(PYTHON_PROFILE_ENABLED));
     }

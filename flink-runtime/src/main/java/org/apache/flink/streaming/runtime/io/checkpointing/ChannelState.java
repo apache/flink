@@ -19,6 +19,8 @@
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.FetchedChannelStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -53,14 +55,19 @@ final class ChannelState {
 
     private final RecoveryCheckpointTrigger recoveryCheckpointTrigger;
 
+    private final ChannelStateWriter channelStateWriter;
+
     public ChannelState(CheckpointableInput[] inputs) {
-        this(inputs, RecoveryCheckpointTrigger.NO_OP);
+        this(inputs, RecoveryCheckpointTrigger.NO_OP, ChannelStateWriter.NO_OP);
     }
 
     public ChannelState(
-            CheckpointableInput[] inputs, RecoveryCheckpointTrigger recoveryCheckpointTrigger) {
+            CheckpointableInput[] inputs,
+            RecoveryCheckpointTrigger recoveryCheckpointTrigger,
+            ChannelStateWriter channelStateWriter) {
         this.inputs = inputs;
         this.recoveryCheckpointTrigger = checkNotNull(recoveryCheckpointTrigger);
+        this.channelStateWriter = checkNotNull(channelStateWriter);
     }
 
     public void blockChannel(InputChannelInfo channelInfo) {
@@ -112,17 +119,19 @@ final class ChannelState {
     }
 
     /**
-     * Dispatches checkpoint start: inserts recovery-checkpoint barriers into in-recovery channels
-     * through the trigger, then notifies every input. (FLINK-38544 transitional: the spilling
-     * backend adds a third step handing the trigger's snapshot reader to the channel-state writer.)
+     * Transfers spill-snapshot ownership to the writer after all inputs observe checkpoint start.
      */
     public void onCheckpointStartedForAllInputs(CheckpointBarrier barrier)
             throws CheckpointException, IOException {
         long cpId = barrier.getId();
-        recoveryCheckpointTrigger.snapshotAndInsertBarriers(cpId);
-
-        for (CheckpointableInput input : inputs) {
-            input.checkpointStarted(barrier);
+        // The snapshot is closed either way: closing is a no-op once the reader below was opened
+        // (the writer owns and closes it), and releases the grant if we never got that far.
+        try (FetchedChannelStateSnapshot snapshot =
+                recoveryCheckpointTrigger.snapshotAndInsertBarriers(cpId)) {
+            for (CheckpointableInput input : inputs) {
+                input.checkpointStarted(barrier);
+            }
+            channelStateWriter.addInputDataFromSpill(cpId, snapshot.reader());
         }
     }
 }

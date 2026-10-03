@@ -17,6 +17,7 @@
 
 package org.apache.flink.state.rocksdb;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -38,6 +39,7 @@ import org.rocksdb.ImportColumnFamilyOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.Slice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,6 +113,83 @@ public class RocksDBOperationUtils {
     public static RocksIteratorWrapper getRocksIterator(
             RocksDB db, ColumnFamilyHandle columnFamilyHandle, ReadOptions readOptions) {
         return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
+    }
+
+    /**
+     * Creates an iterator that stops at the end of the key range starting with {@code prefix}.
+     *
+     * <p>Without the bound, a seek that finds no live key under the prefix keeps reading into
+     * neighboring key ranges, possibly through many tombstones, before it reports the end. For a
+     * map with prefix {@code [0x12, 0x34]}, the bound {@code [0x12, 0x35]} stops the iterator
+     * before the next map's keys. The prefix only sets the bound; callers still position the
+     * iterator with {@code seek}.
+     *
+     * <p>The iterator uses a private copy of {@code readOptions} with the upper bound set,
+     * auto-prefix mode enabled, and {@code prefixSameAsStart} and any lower bound cleared. The
+     * caller's options are not modified. If the prefix has no exclusive upper bound (see {@code
+     * getPrefixEnd}), the caller's options are used as they are and the iterator is unbounded: no
+     * key outside such a prefix can follow it, so nothing extra is visited.
+     */
+    static RocksIteratorWrapper getRocksIteratorBoundedByPrefix(
+            RocksDB db,
+            ColumnFamilyHandle columnFamilyHandle,
+            ReadOptions readOptions,
+            byte[] prefix) {
+        final byte[] prefixEnd = getPrefixEnd(prefix);
+        if (prefixEnd == null) {
+            return getRocksIterator(db, columnFamilyHandle, readOptions);
+        }
+
+        final Slice upperBound = new Slice(prefixEnd);
+        ReadOptions boundedReadOptions = null;
+        try {
+            boundedReadOptions = new ReadOptions(readOptions);
+            boundedReadOptions.setIterateUpperBound(upperBound);
+            // Auto-prefix mode is needed because, with a prefix extractor configured, the default
+            // seek mode honors the upper bound only if it shares the seek key's extracted prefix.
+            boundedReadOptions.setAutoPrefixMode(true);
+            // prefix_same_as_start would invalidate the iterator as soon as the extracted prefix
+            // changes. With an extractor longer than the seek prefix that happens inside the map
+            // or key group, or immediately for the initial seek from the bare prefix. Neither
+            // auto_prefix_mode nor total_order_seek disables it, so it is cleared on the copy.
+            boundedReadOptions.setPrefixSameAsStart(false);
+            // The seek key is the lower end of every bounded scan. A configured lower bound above
+            // it would silently skip entries, so the copy carries none.
+            boundedReadOptions.setIterateLowerBound(null);
+            return new RocksIteratorWrapper(
+                    db.newIterator(columnFamilyHandle, boundedReadOptions),
+                    boundedReadOptions,
+                    upperBound);
+        } catch (RuntimeException | Error e) {
+            IOUtils.closeQuietly(boundedReadOptions);
+            IOUtils.closeQuietly(upperBound);
+            throw e;
+        }
+    }
+
+    /**
+     * Returns the smallest key that is greater than every key starting with {@code prefix}, or
+     * {@code null} if there is none.
+     *
+     * <p>Keys are ordered as unsigned bytes. Incrementing the last byte of the prefix moves past
+     * every key that starts with it. A {@code 0xFF} byte cannot be incremented, so trailing {@code
+     * 0xFF} bytes are dropped and the byte before them is incremented instead. For example, {@code
+     * [0x12, 0xFE, 0xFF]} becomes {@code [0x12, 0xFF]}.
+     *
+     * <p>No such key exists for an empty prefix or for a prefix made only of {@code 0xFF} bytes.
+     * Every key at or after such a prefix still starts with it.
+     */
+    @Nullable
+    @VisibleForTesting
+    static byte[] getPrefixEnd(byte[] prefix) {
+        for (int i = prefix.length - 1; i >= 0; --i) {
+            if (prefix[i] != (byte) 0xFF) {
+                final byte[] prefixEnd = Arrays.copyOf(prefix, i + 1);
+                ++prefixEnd[i];
+                return prefixEnd;
+            }
+        }
+        return null;
     }
 
     public static void registerKvStateInformation(

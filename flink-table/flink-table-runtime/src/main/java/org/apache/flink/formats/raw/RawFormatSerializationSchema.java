@@ -26,6 +26,8 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RawType;
+import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantTypeException;
 
 import javax.annotation.Nullable;
 
@@ -89,7 +91,7 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
             byte[] result = Arrays.copyOf(valueBytes, valueBytes.length + delimiterBytes.length);
             System.arraycopy(delimiterBytes, 0, result, valueBytes.length, delimiterBytes.length);
             return result;
-        } catch (IOException e) {
+        } catch (IOException | VariantTypeException e) {
             throw new RuntimeException("Could not serialize row '" + row + "'. ", e);
         }
     }
@@ -164,6 +166,9 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
             case RAW:
                 return createRawValueConverter((RawType<?>) type);
 
+            case VARIANT:
+                return createVariantConverter(charsetName);
+
             case BOOLEAN:
                 return row -> {
                     byte b = (byte) (row.getBoolean(0) ? 1 : 0);
@@ -216,6 +221,27 @@ public class RawFormatSerializationSchema implements SerializationSchema<RowData
             public byte[] convert(RowData row) {
                 String str = row.getString(0).toString();
                 return str.getBytes(charset);
+            }
+        };
+    }
+
+    /**
+     * Creates a converter that renders the {@link Variant} as a JSON document. The result is
+     * value-lossless but not byte-lossless: whitespace and object key order are normalized.
+     */
+    private static SerializationRuntimeConverter createVariantConverter(final String charsetName) {
+        return new SerializationRuntimeConverter() {
+            private static final long serialVersionUID = 1L;
+            private transient Charset charset;
+
+            @Override
+            public void open() {
+                charset = Charset.forName(charsetName);
+            }
+
+            @Override
+            public byte[] convert(RowData row) {
+                return row.getVariant(0).toJson().getBytes(charset);
             }
         };
     }

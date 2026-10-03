@@ -419,6 +419,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             ConfigurationUtils.getSystemResourceMetricsProbingInterval(
                                     configuration));
 
+            FileSystem.attachMetrics(processMetricGroup);
+
             archivedApplicationStore =
                     createArchivedApplicationStore(
                             configuration, commonRpcService.getScheduledExecutor());

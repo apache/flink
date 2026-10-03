@@ -2285,6 +2285,12 @@ SqlNode TableRef3(ExprContext exprContext, boolean lateral) :
             tableRef = unnestOp.createCall(s.end(this), (List<SqlNode>) args);
         }
     |
+        LOOKAHEAD(<LATERAL> CompoundTableIdentifier() <LPAREN>)
+        <LATERAL> { lateral = true; }
+        tableName = CompoundTableIdentifier()
+        tableRef = ImplicitTableFunctionCallArgs(tableName)
+        tableRef = addLateral(tableRef, lateral)
+    |
         [ <LATERAL> { lateral = true; } ]
         tableRef = TableFunctionCall()
         tableRef = addLateral(tableRef, lateral)

@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogConnection;
 import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
@@ -44,6 +45,7 @@ import org.apache.flink.table.catalog.StartMode.StartModeKind;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.factories.DefaultConnectionFactory;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,15 +53,15 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.time.Clock;
 import java.time.Instant;
-import java.time.Period;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -69,12 +71,18 @@ class ShowCreateUtilTest {
             ObjectIdentifier.of("catalogName", "dbName", "tableName");
     private static final ObjectIdentifier VIEW_IDENTIFIER =
             ObjectIdentifier.of("catalogName", "dbName", "viewName");
+    private static final ObjectIdentifier CONNECTION_IDENTIFIER =
+            ObjectIdentifier.of("catalogName", "dbName", "connectionName");
     private static final ObjectIdentifier MATERIALIZED_TABLE_IDENTIFIER =
             ObjectIdentifier.of("catalogName", "dbName", "materializedTableName");
 
-    private static final Pattern START_MODE_EVALUATED_TIMESTAMP =
-            Pattern.compile(
-                    "/\\* Evaluated to FROM_TIMESTAMP\\(TIMESTAMP '[^']*'\\) at execution \\*/");
+    /**
+     * Fixed clock used so the "Evaluated to FROM_TIMESTAMP(...)" comment for
+     * FROM_NOW/RESUME_OR_FROM_NOW resolves to a deterministic, assertable value instead of the wall
+     * clock.
+     */
+    private static final Clock FIXED_CLOCK =
+            Clock.fixed(Instant.parse("2020-12-12T23:18:12Z"), ZoneOffset.UTC);
 
     private static final ResolvedSchema ONE_COLUMN_SCHEMA =
             ResolvedSchema.of(Column.physical("id", DataTypes.INT()));
@@ -142,12 +150,9 @@ class ShowCreateUtilTest {
                         createOrAlter,
                         ZoneOffset.UTC,
                         DefaultSqlFactory.INSTANCE,
-                        List.of());
-        final String fixedTimestamp = "1970-01-02 12:34:56";
-        final String normalizedMTString =
-                setFixedTimestamp(createMaterializedTableString, fixedTimestamp);
-        final String normalizedExpected = setFixedTimestamp(expected, fixedTimestamp);
-        assertThat(normalizedMTString).isEqualTo(normalizedExpected);
+                        List.of(),
+                        FIXED_CLOCK);
+        assertThat(createMaterializedTableString).isEqualTo(expected);
     }
 
     @ParameterizedTest(name = "includeFreshness={0}, includeRefreshMode={1}")
@@ -195,12 +200,98 @@ class ShowCreateUtilTest {
         assertThat(result).isEqualTo(expected.toString());
     }
 
+    @Test
+    void extractStartModeFromNowIsUnaffectedByClockZone() {
+        final Clock fixedClock =
+                Clock.fixed(Instant.parse("2020-12-12T23:18:12Z"), ZoneId.of("America/New_York"));
+        final ResolvedCatalogMaterializedTable materializedTable =
+                createResolvedMaterialized(
+                        ONE_COLUMN_SCHEMA,
+                        null,
+                        List.of(),
+                        null,
+                        StartMode.of(StartModeKind.FROM_NOW, Interval.of(3, TimeUnit.MINUTE)),
+                        IntervalFreshness.ofMinute(1),
+                        RefreshMode.CONTINUOUS,
+                        "SELECT 1",
+                        "SELECT 1");
+
+        assertThat(ShowCreateUtil.extractStartMode(materializedTable, ZoneOffset.UTC, fixedClock))
+                .isEqualTo(
+                        "START_MODE = FROM_NOW(INTERVAL '3' MINUTE) /* Evaluated to"
+                                + " FROM_TIMESTAMP(TIMESTAMP '2020-12-12 23:15:12') at execution"
+                                + " */");
+    }
+
     @ParameterizedTest(name = "{index}: {1}")
     @MethodSource("argsForShowCreateCatalog")
     void showCreateCatalog(CatalogDescriptor catalogDescriptor, String expected) {
         final String createCatalogString =
                 ShowCreateUtil.buildShowCreateCatalogRow(catalogDescriptor, List.of());
         assertThat(createCatalogString).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "{index}: {3}")
+    @MethodSource("argsForShowCreateConnection")
+    void showCreateConnection(
+            CatalogConnection catalogConnection,
+            boolean isTemporary,
+            List<String> additionalSensitiveKeys,
+            String expected) {
+        final String createConnectionString =
+                ShowCreateUtil.buildShowCreateConnectionRow(
+                        catalogConnection,
+                        CONNECTION_IDENTIFIER,
+                        isTemporary,
+                        additionalSensitiveKeys);
+        assertThat(createConnectionString).isEqualTo(expected);
+    }
+
+    private static Collection<Arguments> argsForShowCreateConnection() {
+        final Collection<Arguments> argList = new ArrayList<>();
+
+        final Map<String, String> options = new HashMap<>();
+        options.put("url", "jdbc:mysql://localhost:3306/db");
+        options.put("type", "default");
+        addTemporaryAndPermanent(
+                argList,
+                CatalogConnection.of(options, null),
+                List.of(),
+                "CREATE %sCONNECTION `catalogName`.`dbName`.`connectionName`\n"
+                        + "WITH (\n"
+                        + "  'type' = 'default',\n"
+                        + "  'url' = 'jdbc:mysql://localhost:3306/db'\n"
+                        + ")\n");
+
+        final Map<String, String> commentedOptions = new HashMap<>();
+        commentedOptions.put("connector", "jdbc");
+        addTemporaryAndPermanent(
+                argList,
+                CatalogConnection.of(commentedOptions, "Connection's comment"),
+                List.of(),
+                "CREATE %sCONNECTION `catalogName`.`dbName`.`connectionName`\n"
+                        + "COMMENT 'Connection''s comment'\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'jdbc'\n"
+                        + ")\n");
+
+        final Map<String, String> sensitiveOptions = new HashMap<>();
+        sensitiveOptions.put(DefaultConnectionFactory.SECRET_REFERENCE_KEY, "secret-id");
+        sensitiveOptions.put("endpoint", "service");
+        sensitiveOptions.put("my.custom.cred", "supersecret");
+        sensitiveOptions.put("password", "topsecret");
+        addTemporaryAndPermanent(
+                argList,
+                CatalogConnection.of(sensitiveOptions, null),
+                List.of("custom.cred"),
+                "CREATE %sCONNECTION `catalogName`.`dbName`.`connectionName`\n"
+                        + "WITH (\n"
+                        + "  'endpoint' = 'service',\n"
+                        + "  'my.custom.cred' = '******',\n"
+                        + "  'password' = '******'\n"
+                        + ")\n");
+
+        return argList;
     }
 
     private static Collection<Arguments> argsForShowCreateCatalog() {
@@ -407,7 +498,7 @@ class ShowCreateUtilTest {
                 "%sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
                         + "  `id` INT\n"
                         + ")\n"
-                        + "START_MODE = FROM_NOW(INTERVAL '3' MINUTE) /* Evaluated to FROM_TIMESTAMP(TIMESTAMP '2020-12-12 23:21:12') at execution */\n"
+                        + "START_MODE = FROM_NOW(INTERVAL '3' MINUTE) /* Evaluated to FROM_TIMESTAMP(TIMESTAMP '2020-12-12 23:15:12') at execution */\n"
                         + "FRESHNESS = INTERVAL '1' MINUTE\n"
                         + "REFRESH_MODE = CONTINUOUS\n"
                         + "AS SELECT 1\n");
@@ -491,9 +582,7 @@ class ShowCreateUtilTest {
                         "Materialized table comment",
                         List.of("id"),
                         TableDistribution.of(TableDistribution.Kind.HASH, 5, List.of("id")),
-                        StartMode.of(
-                                StartModeKind.FROM_NOW,
-                                Interval.of(Period.of(0, 1, 2), TimeUnit.MONTH)),
+                        StartMode.of(StartModeKind.FROM_NOW, Interval.of(1, TimeUnit.MONTH)),
                         IntervalFreshness.ofMinute(3),
                         RefreshMode.FULL,
                         "SELECT * FROM tbl_a",
@@ -505,7 +594,7 @@ class ShowCreateUtilTest {
                         + "COMMENT 'Materialized table comment'\n"
                         + "DISTRIBUTED BY HASH(`id`) INTO 5 BUCKETS\n"
                         + "PARTITIONED BY (`id`)\n"
-                        + "START_MODE = FROM_NOW(INTERVAL '1' MONTH) /* Evaluated to FROM_TIMESTAMP(TIMESTAMP '1970-01-02 12:34:56') at execution */\n"
+                        + "START_MODE = FROM_NOW(INTERVAL '1' MONTH) /* Evaluated to FROM_TIMESTAMP(TIMESTAMP '2020-11-12 23:18:12') at execution */\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`\n");
@@ -559,6 +648,22 @@ class ShowCreateUtilTest {
             Collection<Arguments> argList, CatalogBaseTable catalogBaseTable, String sql) {
         argList.add(Arguments.of(catalogBaseTable, false, String.format(sql, "")));
         argList.add(Arguments.of(catalogBaseTable, true, String.format(sql, "TEMPORARY ")));
+    }
+
+    private static void addTemporaryAndPermanent(
+            Collection<Arguments> argList,
+            CatalogConnection catalogConnection,
+            List<String> additionalSensitiveKeys,
+            String sql) {
+        argList.add(
+                Arguments.of(
+                        catalogConnection, false, additionalSensitiveKeys, String.format(sql, "")));
+        argList.add(
+                Arguments.of(
+                        catalogConnection,
+                        true,
+                        additionalSensitiveKeys,
+                        String.format(sql, "TEMPORARY ")));
     }
 
     private static void addCreateAndCreateOrAlter(
@@ -651,14 +756,5 @@ class ShowCreateUtilTest {
                 refreshMode,
                 freshness,
                 startMode);
-    }
-
-    private static String setFixedTimestamp(String sql, String fixedTimestamp) {
-        return START_MODE_EVALUATED_TIMESTAMP
-                .matcher(sql)
-                .replaceAll(
-                        "/* Evaluated to FROM_TIMESTAMP(TIMESTAMP '"
-                                + fixedTimestamp
-                                + "') at execution */");
     }
 }

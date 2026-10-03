@@ -64,7 +64,6 @@ public class CommittableCollector<CommT> {
             SinkCommitterMetricGroup metricGroup) {
         this.checkpointCommittables = new TreeMap<>(checkNotNull(checkpointCommittables));
         this.metricGroup = metricGroup;
-        this.metricGroup.setCurrentPendingCommittablesGauge(this::getNumPending);
     }
 
     private int getNumPending() {
@@ -82,7 +81,9 @@ public class CommittableCollector<CommT> {
      * @return {@link CommittableCollector}
      */
     public static <CommT> CommittableCollector<CommT> of(SinkCommitterMetricGroup metricGroup) {
-        return new CommittableCollector<>(metricGroup);
+        CommittableCollector<CommT> collector = new CommittableCollector<>(metricGroup);
+        metricGroup.setCurrentPendingCommittablesGauge(collector::getNumPending);
+        return collector;
     }
 
     /**

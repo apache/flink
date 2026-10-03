@@ -50,6 +50,8 @@ public class FlinkLogicalLateralSnapshotJoin extends Join implements FlinkLogica
     private final Long loadCompletedTime;
     private final @Nullable Long loadCompletedIdleTimeoutMs;
     private final @Nullable Long stateTtlMs;
+    // Build-side row-time column index (from the on_time argument); -1 in batch.
+    private final int rightTimeAttributeIndex;
 
     public FlinkLogicalLateralSnapshotJoin(
             RelOptCluster cluster,
@@ -58,6 +60,7 @@ public class FlinkLogicalLateralSnapshotJoin extends Join implements FlinkLogica
             RelNode right,
             RexNode condition,
             JoinRelType joinType,
+            int rightTimeAttributeIndex,
             String loadCompletedCondition,
             Long loadCompletedTime,
             @Nullable Long loadCompletedIdleTimeoutMs,
@@ -72,10 +75,15 @@ public class FlinkLogicalLateralSnapshotJoin extends Join implements FlinkLogica
                 Collections.emptySet(),
                 joinType);
         Preconditions.checkNotNull(loadCompletedTime, "loadCompletedTime must not be null.");
+        this.rightTimeAttributeIndex = rightTimeAttributeIndex;
         this.loadCompletedCondition = loadCompletedCondition;
         this.loadCompletedTime = loadCompletedTime;
         this.loadCompletedIdleTimeoutMs = loadCompletedIdleTimeoutMs;
         this.stateTtlMs = stateTtlMs;
+    }
+
+    public int getRightTimeAttributeIndex() {
+        return rightTimeAttributeIndex;
     }
 
     public String getLoadCompletedCondition() {
@@ -109,6 +117,7 @@ public class FlinkLogicalLateralSnapshotJoin extends Join implements FlinkLogica
                 right,
                 conditionExpr,
                 joinType,
+                rightTimeAttributeIndex,
                 loadCompletedCondition,
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,
@@ -154,6 +163,7 @@ public class FlinkLogicalLateralSnapshotJoin extends Join implements FlinkLogica
             RelNode right,
             RexNode condition,
             JoinRelType joinType,
+            int rightTimeAttributeIndex,
             String loadCompletedCondition,
             Long loadCompletedTime,
             @Nullable Long loadCompletedIdleTimeoutMs,
@@ -167,6 +177,7 @@ public class FlinkLogicalLateralSnapshotJoin extends Join implements FlinkLogica
                 right,
                 condition,
                 joinType,
+                rightTimeAttributeIndex,
                 loadCompletedCondition,
                 loadCompletedTime,
                 loadCompletedIdleTimeoutMs,

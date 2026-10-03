@@ -98,9 +98,18 @@ public class CastRuleProvider {
                 // Variant rules
                 .addRule(VariantToStringCastRule.INSTANCE)
                 .addRule(VariantToPrimitiveCastRule.INSTANCE)
+                .addRule(VariantToArrayCastRule.INSTANCE)
+                .addRule(VariantToRowCastRule.INSTANCE)
+                .addRule(VariantToMapCastRule.INSTANCE)
+                .addRule(PrimitiveToVariantCastRule.INSTANCE)
                 // Bitmap rules
                 .addRule(BitmapToStringCastRule.INSTANCE)
                 .addRule(BitmapToBinaryCastRule.INSTANCE)
+                // UUID rules
+                .addRule(UuidToStringCastRule.INSTANCE)
+                .addRule(UuidToBinaryCastRule.INSTANCE)
+                .addRule(StringToUuidCastRule.INSTANCE)
+                .addRule(BinaryToUuidCastRule.INSTANCE)
                 // Special rules
                 .addRule(CharVarCharTrimPadCastRule.INSTANCE)
                 .addRule(NullToStringCastRule.INSTANCE);

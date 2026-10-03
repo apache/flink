@@ -173,7 +173,7 @@ class MultiStateKeyIteratorTest {
         List<Integer> keys = new ArrayList<>();
 
         while (iterator.hasNext()) {
-            keys.add(iterator.next());
+            keys.add(iterator.next().f0);
         }
 
         assertThat(keys).containsExactly(1, 2);
@@ -202,7 +202,7 @@ class MultiStateKeyIteratorTest {
         List<Integer> keys = new ArrayList<>();
 
         while (iterator.hasNext()) {
-            keys.add(iterator.next());
+            keys.add(iterator.next().f0);
         }
 
         assertThat(keys).containsExactly(1, 2);
@@ -260,9 +260,16 @@ class MultiStateKeyIteratorTest {
 
         @Override
         public <N> Stream<Integer> getKeys(List<String> states, N namespace) {
+            return getKeysAndKeyGroups(states, namespace).map(t -> t.f0);
+        }
+
+        @Override
+        public <N> Stream<Tuple2<Integer, Integer>> getKeysAndKeyGroups(
+                List<String> states, N namespace) {
             return IntStream.range(0, this.numberOfKeysGenerated)
                     .boxed()
-                    .peek(i -> numberOfKeysEnumerated++);
+                    .peek(i -> numberOfKeysEnumerated++)
+                    .map(i -> Tuple2.of(i, 0));
         }
 
         @Override

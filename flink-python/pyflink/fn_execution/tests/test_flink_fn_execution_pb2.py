@@ -17,6 +17,8 @@
 ################################################################################
 import filecmp
 import os
+import sys
+import unittest
 
 from pyflink.gen_protos import generate_proto_files
 from pyflink.testing.test_case_utils import PyFlinkTestCase
@@ -41,6 +43,11 @@ class FlinkFnExecutionTests(PyFlinkTestCase):
                            self.gen_protos_script,
                            self.flink_fn_execution_proto_file_name))
 
+    @unittest.skipIf(
+        sys.version_info < (3, 10),
+        "grpcio-tools 1.80.0 is incompatible with Apache Beam's grpcio "
+        "constraint on Python 3.9",
+    )
     def test_flink_fn_execution_pb2_synced(self):
         generate_proto_files('True', self.tempdir)
         self.check_file_content(self.flink_fn_execution_pb2_file_name)

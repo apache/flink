@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DistinctType;
@@ -27,6 +28,7 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -37,7 +39,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
@@ -54,6 +55,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.NUMERIC;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.PREDEFINED;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIMESTAMP;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ARRAY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BITMAP;
@@ -67,6 +69,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.FLOAT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_YEAR_MONTH;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.MAP;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.NULL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.RAW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
@@ -78,6 +81,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WIT
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TINYINT;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.UUID;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARBINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARCHAR;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARIANT;
@@ -210,7 +214,7 @@ public final class LogicalTypeCasts {
         castTo(CHAR)
                 .implicitFrom(CHAR)
                 .explicitFromFamily(PREDEFINED, CONSTRUCTED)
-                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP, VARIANT, UUID)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
                 .injectiveFrom(WHEN_CHAR_LENGTH_FITS_UTF8, BINARY, VARBINARY)
@@ -219,7 +223,7 @@ public final class LogicalTypeCasts {
         castTo(VARCHAR)
                 .implicitFromFamily(CHARACTER_STRING)
                 .explicitFromFamily(PREDEFINED, CONSTRUCTED)
-                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE, BITMAP, VARIANT, UUID)
                 .injectiveFrom(WHEN_LENGTH_FITS, CHAR, VARCHAR)
                 .injectiveFrom(WHEN_MAX_CHAR_LENGTH_FITS, STRING_INJECTIVE_SOURCES)
                 .injectiveFrom(WHEN_CHAR_LENGTH_FITS_UTF8, BINARY, VARBINARY)
@@ -232,7 +236,7 @@ public final class LogicalTypeCasts {
         castTo(BINARY)
                 .implicitFrom(BINARY)
                 .explicitFromFamily(CHARACTER_STRING)
-                .explicitFrom(VARBINARY, RAW)
+                .explicitFrom(VARBINARY, RAW, VARIANT)
                 .injectiveFrom(WHEN_LENGTH_FITS, BINARY)
                 .injectiveFrom(WHEN_BINARY_LENGTH_FITS_UTF8, CHAR, VARCHAR)
                 .build();
@@ -240,7 +244,7 @@ public final class LogicalTypeCasts {
         castTo(VARBINARY)
                 .implicitFromFamily(BINARY_STRING)
                 .explicitFromFamily(CHARACTER_STRING)
-                .explicitFrom(BINARY, RAW)
+                .explicitFrom(BINARY, RAW, VARIANT)
                 .injectiveFrom(WHEN_LENGTH_FITS, BINARY, VARBINARY)
                 .injectiveFrom(WHEN_BINARY_LENGTH_FITS_UTF8, CHAR, VARCHAR)
                 .build();
@@ -252,35 +256,55 @@ public final class LogicalTypeCasts {
         castTo(TINYINT)
                 .implicitFrom(TINYINT)
                 .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARIANT)
                 .injectiveFrom(TINYINT)
                 .build();
 
         castTo(SMALLINT)
                 .implicitFrom(TINYINT, SMALLINT)
                 .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARIANT)
                 .injectiveFrom(TINYINT, SMALLINT)
                 .build();
 
         castTo(INTEGER)
                 .implicitFrom(TINYINT, SMALLINT, INTEGER)
                 .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARIANT)
                 .injectiveFrom(TINYINT, SMALLINT, INTEGER)
                 .build();
 
         castTo(BIGINT)
                 .implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT)
                 .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARIANT)
                 .injectiveFrom(TINYINT, SMALLINT, INTEGER, BIGINT)
                 .build();
 
         castTo(DECIMAL)
                 .implicitFromFamily(NUMERIC)
                 .explicitFromFamily(CHARACTER_STRING, INTERVAL)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARIANT)
                 .injectiveFrom(WHEN_PRECISION_AND_SCALE_MATCH, DECIMAL)
                 .build();
 
@@ -291,14 +315,22 @@ public final class LogicalTypeCasts {
         castTo(FLOAT)
                 .implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DECIMAL)
                 .explicitFromFamily(NUMERIC, CHARACTER_STRING)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARIANT)
                 .injectiveFrom(FLOAT)
                 .build();
 
         castTo(DOUBLE)
                 .implicitFromFamily(NUMERIC)
                 .explicitFromFamily(CHARACTER_STRING)
-                .explicitFrom(BOOLEAN, TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+                .explicitFrom(
+                        BOOLEAN,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        VARIANT)
                 .injectiveFrom(DOUBLE)
                 .build();
 
@@ -309,6 +341,7 @@ public final class LogicalTypeCasts {
         castTo(BOOLEAN)
                 .implicitFrom(BOOLEAN)
                 .explicitFromFamily(CHARACTER_STRING, INTEGER_NUMERIC)
+                .explicitFrom(VARIANT)
                 .injectiveFrom(BOOLEAN)
                 .build();
 
@@ -319,18 +352,21 @@ public final class LogicalTypeCasts {
         castTo(DATE)
                 .implicitFrom(DATE, TIMESTAMP_WITHOUT_TIME_ZONE)
                 .explicitFromFamily(TIMESTAMP, CHARACTER_STRING)
+                .explicitFrom(VARIANT)
                 .injectiveFrom(DATE)
                 .build();
 
         castTo(TIME_WITHOUT_TIME_ZONE)
                 .implicitFrom(TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE)
                 .explicitFromFamily(TIME, TIMESTAMP, CHARACTER_STRING)
+                .explicitFrom(VARIANT)
                 .injectiveFrom(WHEN_PRECISION_MATCHES, TIME_WITHOUT_TIME_ZONE)
                 .build();
 
         castTo(TIMESTAMP_WITHOUT_TIME_ZONE)
                 .implicitFrom(TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
                 .explicitFromFamily(DATETIME, CHARACTER_STRING, NUMERIC)
+                .explicitFrom(VARIANT)
                 .injectiveFrom(
                         WHEN_PRECISION_MATCHES,
                         TIMESTAMP_WITHOUT_TIME_ZONE,
@@ -346,6 +382,7 @@ public final class LogicalTypeCasts {
         castTo(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
                 .implicitFrom(TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE)
                 .explicitFromFamily(DATETIME, CHARACTER_STRING, NUMERIC)
+                .explicitFrom(VARIANT)
                 .injectiveFrom(
                         WHEN_PRECISION_MATCHES,
                         TIMESTAMP_WITH_LOCAL_TIME_ZONE,
@@ -364,6 +401,46 @@ public final class LogicalTypeCasts {
         castTo(INTERVAL_DAY_TIME)
                 .implicitFrom(INTERVAL_DAY_TIME)
                 .explicitFromFamily(EXACT_NUMERIC, CHARACTER_STRING)
+                .build();
+
+        // -----------------------------------------------------------------------------------------
+        // VARIANT type
+        // -----------------------------------------------------------------------------------------
+
+        // Only a type with a VARIANT kind that holds its value without loss casts to VARIANT.
+        castTo(VARIANT)
+                .implicitFrom(VARIANT)
+                .explicitFrom(
+                        BOOLEAN,
+                        TINYINT,
+                        SMALLINT,
+                        INTEGER,
+                        BIGINT,
+                        FLOAT,
+                        DOUBLE,
+                        DECIMAL,
+                        CHAR,
+                        VARCHAR,
+                        BINARY,
+                        VARBINARY,
+                        DATE,
+                        TIME_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITHOUT_TIME_ZONE,
+                        TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        UUID)
+                .build();
+
+        // -----------------------------------------------------------------------------------------
+        // UUID type
+        // -----------------------------------------------------------------------------------------
+
+        // A UUID can be parsed from a character string and reinterpreted from its 16-byte encoding.
+        // The reverse direction (UUID to CHAR/VARCHAR and to BINARY(16)/BYTES) is declared on the
+        // respective target types.
+        castTo(UUID)
+                .implicitFrom(UUID)
+                .explicitFromFamily(CHARACTER_STRING, BINARY_STRING)
+                .explicitFrom(VARIANT)
                 .build();
     }
 
@@ -635,6 +712,24 @@ public final class LogicalTypeCasts {
             return supportsStructuredCasting(
                     sourceType, targetType, (s, t) -> supportsCasting(s, t, allowExplicit));
 
+        } else if (sourceRoot == VARIANT && targetRoot == ARRAY) {
+            // A variant array casts to ARRAY<T> when VARIANT casts to the single element type T.
+            // Explicit only, so no accidental coercion. Each runtime element is cast to T by the
+            // array cast rule; a per-element mismatch fails there, not here.
+            return allowExplicit
+                    && supportsCasting(sourceType, ((ArrayType) targetType).getElementType(), true);
+        } else if (sourceRoot == VARIANT && (targetRoot == ROW || targetRoot == STRUCTURED_TYPE)) {
+            // A variant object casts to ROW or STRUCTURED when VARIANT casts to every field type.
+            return allowExplicit
+                    && targetType.getChildren().stream()
+                            .allMatch(field -> supportsCasting(sourceType, field, true));
+        } else if (sourceRoot == VARIANT && targetRoot == MAP) {
+            // A variant object casts to MAP<STRING, V> when the key is a character string, since
+            // VARIANT object keys are always strings, and VARIANT casts to the value type V.
+            final List<LogicalType> mapChildren = targetType.getChildren();
+            return allowExplicit
+                    && mapChildren.get(0).is(CHARACTER_STRING)
+                    && supportsCasting(sourceType, mapChildren.get(1), true);
         } else if (sourceRoot == RAW
                         && !targetType.is(BINARY_STRING)
                         && !targetType.is(CHARACTER_STRING)
@@ -648,9 +743,11 @@ public final class LogicalTypeCasts {
             // BITMAP can only be cast to BYTES (unbounded VARBINARY), because trimming or padding
             // would corrupt the serialized bitmap data.
             return allowExplicit && getLength(targetType) == VarBinaryType.MAX_LENGTH;
-        } else if (sourceRoot == VARIANT) {
-            // a VARIANT can only be explicitly cast to a supported scalar type
-            return allowExplicit && supportsVariantToScalarCast(targetType);
+        } else if (sourceRoot == UUID && (targetRoot == BINARY || targetRoot == VARBINARY)) {
+            // A UUID maps to and from its 16-byte encoding.
+            return allowExplicit && uuidFitsBinaryType(targetType);
+        } else if (targetRoot == UUID && (sourceRoot == BINARY || sourceRoot == VARBINARY)) {
+            return allowExplicit && uuidFitsBinaryType(sourceType);
         }
 
         if (implicitCastingRules.get(targetRoot).contains(sourceRoot)) {
@@ -660,6 +757,16 @@ public final class LogicalTypeCasts {
             return explicitCastingRules.get(targetRoot).contains(sourceRoot);
         }
         return false;
+    }
+
+    /**
+     * Whether a UUID's 16-byte encoding fits the given binary type. BINARY is fixed width, so only
+     * BINARY(16) fits; a VARBINARY(n) fits when n >= 16, with the exact length checked at runtime.
+     */
+    private static boolean uuidFitsBinaryType(LogicalType binaryType) {
+        return binaryType.is(BINARY)
+                ? getLength(binaryType) == UuidType.BYTE_LENGTH
+                : getLength(binaryType) >= UuidType.BYTE_LENGTH;
     }
 
     private static boolean supportsStructuredCasting(
@@ -729,45 +836,6 @@ public final class LogicalTypeCasts {
             return true;
         }
         return false;
-    }
-
-    private static boolean supportsVariantToScalarCast(LogicalType targetType) {
-        switch (targetType.getTypeRoot()) {
-            case BOOLEAN:
-            case TINYINT:
-            case SMALLINT:
-            case INTEGER:
-            case BIGINT:
-            case FLOAT:
-            case DOUBLE:
-            case DECIMAL:
-            case BINARY:
-            case VARBINARY:
-            case DATE:
-            case TIMESTAMP_WITHOUT_TIME_ZONE:
-            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                return true;
-            default:
-                // TIME has no counterpart in the Variant type model. CHARACTER_STRING is handled by
-                // the display-oriented VariantToStringCastRule and is intentionally not offered as
-                // a
-                // user-facing cast here.
-                return false;
-        }
-    }
-
-    /**
-     * Returns a hint pointing to the function that performs a conceptually related operation when
-     * an explicit cast is unsupported, or empty when no specific hint applies.
-     */
-    public static Optional<String> getUnsupportedCastHint(
-            LogicalType sourceType, LogicalType targetType) {
-        if (sourceType.is(VARIANT) && targetType.is(CHARACTER_STRING)) {
-            return Optional.of(
-                    "Use the JSON_STRING function to convert a VARIANT to its JSON string "
-                            + "representation.");
-        }
-        return Optional.empty();
     }
 
     private static CastingRuleBuilder castTo(LogicalTypeRoot targetType) {

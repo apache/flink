@@ -34,11 +34,14 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.QueryOperation;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
@@ -47,7 +50,6 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRe
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_PROPERTIES;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 
 /**
@@ -58,6 +60,25 @@ import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
  */
 @Internal
 public class OperationExpressionsUtils {
+
+    /**
+     * Functions that denote a property of the {@link org.apache.flink.table.api.GroupWindow} they
+     * are called on.
+     */
+    public static final Set<FunctionDefinition> WINDOW_PROPERTIES =
+            new HashSet<>(
+                    Arrays.asList(
+                            BuiltInFunctionDefinitions.WINDOW_START,
+                            BuiltInFunctionDefinitions.WINDOW_END,
+                            BuiltInFunctionDefinitions.PROCTIME,
+                            BuiltInFunctionDefinitions.ROWTIME));
+
+    /** Functions that declare the sort order of an expression in a {@code orderBy}. */
+    public static final Set<FunctionDefinition> ORDERING =
+            new HashSet<>(
+                    Arrays.asList(
+                            BuiltInFunctionDefinitions.ORDER_ASC,
+                            BuiltInFunctionDefinitions.ORDER_DESC));
 
     // --------------------------------------------------------------------------------------------
     // Pre-expression resolution utils

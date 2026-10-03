@@ -391,7 +391,8 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         minCleanUpIntervalMillis,
                         leftTypeInfo,
                         rightTypeInfo,
-                        joinFunction);
+                        joinFunction,
+                        earlyFireDelay == null ? -1L : earlyFireDelay);
         // TODO: add async version procJoinFunc to use AsyncKeyedCoProcessOperator
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,
@@ -428,7 +429,8 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         rightTypeInfo,
                         joinFunction,
                         windowBounds.getLeftTimeIdx(),
-                        windowBounds.getRightTimeIdx());
+                        windowBounds.getRightTimeIdx(),
+                        earlyFireDelay == null ? -1L : earlyFireDelay);
         // TODO: add async version rowJoinFunc to use AsyncKeyedCoProcessOperator
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,

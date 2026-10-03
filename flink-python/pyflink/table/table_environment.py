@@ -45,9 +45,9 @@ from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
-from pyflink.table.types import _create_type_verifier, RowType, DataType, \
+from pyflink.table.types import _create_type_verifier, RowType, DataType, TimestampType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
-    _to_java_data_type
+    to_arrow_type, _to_java_data_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
     udtaf, TableAggregateFunction
 from pyflink.table.utils import to_expression_jarray
@@ -59,6 +59,64 @@ __all__ = [
     'StreamTableEnvironment',
     'TableEnvironment'
 ]
+
+
+_TIMESTAMP_UNITS_PER_SECOND = {
+    's': 1,
+    'ms': 1_000,
+    'us': 1_000_000,
+    'ns': 1_000_000_000,
+}
+
+
+def _cast_arrow_timestamp(array, target_type):
+    import pyarrow as pa
+    import pyarrow.compute as pc
+
+    if isinstance(array, pa.ChunkedArray):
+        chunks = [
+            _cast_arrow_timestamp(chunk, target_type) for chunk in array.chunks
+        ]
+        return pa.chunked_array(chunks, type=target_type)
+    if array.type == target_type:
+        return array
+
+    source_units = _TIMESTAMP_UNITS_PER_SECOND[array.type.unit]
+    target_units = _TIMESTAMP_UNITS_PER_SECOND[target_type.unit]
+    values = array.view(pa.int64())
+    if source_units > target_units:
+        divisor = source_units // target_units
+        quotient = pc.divide_checked(values, divisor)
+        remainder = pc.subtract_checked(
+            values, pc.multiply_checked(quotient, divisor))
+        # Arrow integer division truncates toward zero. Timestamp precision reduction
+        # needs floor division to preserve the local date and time before the epoch.
+        values = pc.subtract_checked(
+            quotient,
+            pc.cast(pc.less(remainder, 0), pa.int64()),
+        )
+    elif source_units < target_units:
+        values = pc.multiply_checked(values, target_units // source_units)
+    return values.view(target_type)
+
+
+def _contains_timezone_aware_timestamp(arrow_type):
+    import pyarrow as pa
+
+    if pa.types.is_timestamp(arrow_type):
+        return arrow_type.tz is not None
+    if pa.types.is_struct(arrow_type):
+        return any(
+            _contains_timezone_aware_timestamp(field.type) for field in arrow_type
+        )
+    if pa.types.is_list(arrow_type):
+        return _contains_timezone_aware_timestamp(arrow_type.value_type)
+    if pa.types.is_map(arrow_type):
+        return (
+            _contains_timezone_aware_timestamp(arrow_type.key_type)
+            or _contains_timezone_aware_timestamp(arrow_type.item_type)
+        )
+    return False
 
 
 @PublicEvolving()
@@ -1469,11 +1527,17 @@ class TableEnvironment(object):
         elements = [schema.to_sql_type(element) for element in elements]
         return self._from_elements(elements, schema)
 
-    def _from_elements(self, elements: List, schema: DataType) -> Table:
+    def _from_elements(
+            self,
+            elements: List,
+            schema: DataType,
+            table_schema: Schema = None) -> Table:
         """
         Creates a table from a collection of elements.
 
         :param elements: The elements to create a table from.
+        :param schema: Data type used to serialize the elements.
+        :param table_schema: Optional declarative schema for the resulting source table.
         :return: The result :class:`~pyflink.table.Table`.
         """
         # serializes to a file, and we read the file in java
@@ -1482,7 +1546,8 @@ class TableEnvironment(object):
         try:
             with temp_file:
                 serializer.serialize(elements, temp_file)
-            j_schema = _to_java_data_type(schema)
+            j_schema = (table_schema._j_schema if table_schema is not None
+                        else _to_java_data_type(schema))
             gateway = get_gateway()
             PythonTableUtils = gateway.jvm \
                 .org.apache.flink.table.utils.python.PythonTableUtils
@@ -1491,6 +1556,94 @@ class TableEnvironment(object):
             return Table(j_table, self)
         finally:
             atexit.register(lambda: os.unlink(temp_file.name))
+
+    def _from_arrow(
+            self,
+            table,
+            row_type: RowType,
+            table_schema: Schema = None,
+            splits_num: int = 1) -> Table:
+        """Creates a table from a PyArrow Table through the Arrow table source."""
+        import pyarrow as pa
+
+        if not isinstance(table, pa.Table):
+            raise TypeError(f"table must be a pyarrow.Table, but was {type(table).__name__}")
+        if isinstance(splits_num, bool) or not isinstance(splits_num, int):
+            raise TypeError("splits_num must be an integer")
+        if splits_num <= 0:
+            raise ValueError("splits_num must be greater than 0")
+
+        field_names = row_type.field_names()
+        field_types = row_type.field_types()
+        try:
+            compatible_table = table.rename_columns(field_names)
+            for index, (field, data_type) in enumerate(zip(table.schema, field_types)):
+                source_column = compatible_table.column(index)
+                column = source_column
+                target_type = column.type
+                if isinstance(data_type, TimestampType):
+                    target_type = to_arrow_type(data_type)
+                    if column.type.tz is not None:
+                        target_type = pa.timestamp(
+                            target_type.unit, tz=column.type.tz)
+                if column.type != target_type:
+                    if pa.types.is_timestamp(column.type):
+                        column = _cast_arrow_timestamp(column, target_type)
+                    else:
+                        column = column.cast(target_type, safe=False)
+                if column is source_column:
+                    continue
+                target_field = pa.field(
+                    field_names[index],
+                    target_type,
+                    field.nullable,
+                    field.metadata,
+                )
+                compatible_table = compatible_table.set_column(
+                    index,
+                    target_field,
+                    column,
+                )
+        except (
+            pa.ArrowInvalid,
+            pa.ArrowNotImplementedError,
+            pa.ArrowTypeError,
+            TypeError,
+            ValueError,
+        ) as e:
+            raise TypeError(
+                f"Could not convert pyarrow.Table to the inferred Flink schema: {row_type}"
+            ) from e
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with tempfile.NamedTemporaryFile(delete=False, dir=temp_dir) as temp_file:
+                with pa.ipc.new_stream(temp_file, compatible_table.schema) as writer:
+                    if compatible_table.num_rows > 0:
+                        max_chunksize = -(-compatible_table.num_rows // splits_num)
+                        writer.write_table(
+                            compatible_table, max_chunksize=max_chunksize)
+
+            jvm = get_gateway().jvm
+            if table_schema is None:
+                source_schema = _to_java_data_type(row_type).notNull()
+                source_schema = source_schema.bridgedTo(
+                    load_java_class('org.apache.flink.table.data.RowData'))
+            else:
+                source_schema = table_schema._j_schema
+            create_descriptor = jvm.org.apache.flink.table.runtime.arrow.ArrowUtils \
+                .createArrowTableSourceDesc
+            if any(
+                _contains_timezone_aware_timestamp(field.type)
+                for field in compatible_table.schema
+            ):
+                descriptor = create_descriptor(
+                    source_schema,
+                    temp_file.name,
+                    self.get_config().get_local_timezone(),
+                )
+            else:
+                descriptor = create_descriptor(source_schema, temp_file.name)
+            return Table(getattr(self._j_tenv, "from")(descriptor), self)
 
     def from_pandas(self, pdf: 'pandas.DataFrame',
                     schema: Union[RowType, List[str], Tuple[str], List[DataType],

@@ -20,9 +20,11 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.file;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
+import org.apache.flink.util.ExecutorUtils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
@@ -32,6 +34,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -66,6 +72,59 @@ class ProducerMergedPartitionFileIndexTest {
         partitionFileIndex.release();
 
         assertThat(numExpectedRegions).isEqualTo(numGetRegions);
+    }
+
+    @Test
+    @Timeout(60)
+    void testConcurrentPartitionFileIndexes() throws Exception {
+        ProducerMergedPartitionFileIndex firstIndex = createIndex(".index-1");
+        ProducerMergedPartitionFileIndex secondIndex = createIndex(".index-2");
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        final int numIterations = 10_000;
+
+        try {
+            Future<Void> firstTask =
+                    executor.submit(() -> repeatedlySpillAndRead(firstIndex, numIterations));
+            Future<Void> secondTask =
+                    executor.submit(() -> repeatedlySpillAndRead(secondIndex, numIterations));
+
+            firstTask.get();
+            secondTask.get();
+        } finally {
+            ExecutorUtils.gracefulShutdown(10_000L, TimeUnit.MILLISECONDS, executor);
+            firstIndex.release();
+            secondIndex.release();
+        }
+    }
+
+    private ProducerMergedPartitionFileIndex createIndex(String fileName) {
+        return new ProducerMergedPartitionFileIndex(
+                1, indexFilePath.resolveSibling(fileName), 256, 1);
+    }
+
+    private static Void repeatedlySpillAndRead(
+            ProducerMergedPartitionFileIndex index, int numIterations) {
+        for (int iteration = 0; iteration < numIterations; iteration++) {
+            int bufferIndex = iteration % 2 * 2;
+            index.addBuffers(
+                    List.of(
+                            new ProducerMergedPartitionFileIndex.FlushedBuffer(
+                                    0, bufferIndex, iteration, 1)));
+
+            if (iteration > 0) {
+                // The region written in the previous iteration was just evicted to the index file
+                // by the addBuffers above (the cache holds a single region), so this read must go
+                // through the spill file.
+                int previousBufferIndex = (iteration - 1) % 2 * 2;
+                assertThat(index.getRegion(new TieredStorageSubpartitionId(0), previousBufferIndex))
+                        .get()
+                        .extracting(
+                                ProducerMergedPartitionFileIndex.FixedSizeRegion
+                                        ::getRegionStartOffset)
+                        .isEqualTo((long) iteration - 1);
+            }
+        }
+        return null;
     }
 
     private Tuple2<Integer, Integer> generateFlushedBuffers(

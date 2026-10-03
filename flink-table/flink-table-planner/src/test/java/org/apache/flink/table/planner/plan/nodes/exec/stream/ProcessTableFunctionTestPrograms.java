@@ -25,8 +25,10 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ClearStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ComplexValueViewFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EagerAndValueViewStateTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ImplicitCastingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalDayArgFunction;
@@ -52,6 +54,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoStateTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoWithDefaultStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowDataRowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
@@ -72,6 +75,10 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingJoinFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ValueViewFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.VariantTableArgFunction;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -928,6 +935,57 @@ public class ProcessTableFunctionTestPrograms {
                             "INSERT INTO sink SELECT * FROM f(columnList1 => NULL, columnList3 => DESCRIPTOR(a, b, c))")
                     .build();
 
+    public static final TableTestProgram PROCESS_VARIANT =
+            TableTestProgram.of(
+                            "process-variant",
+                            "takes nullable, optional, and not nullable VARIANT arguments")
+                    .setupTemporarySystemFunction("f", VariantFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{null, null, {\"a\":[1,\"b\"]}}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "variant1 => NULL, "
+                                    + "variant3 => PARSE_JSON('{\"a\":[1,\"b\"]}'))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_VARIANT_TABLE_ARG =
+            TableTestProgram.of("process-variant-table-arg", "table argument with a VARIANT column")
+                    .setupTemporarySystemFunction("f", VariantTableArgFunction.class)
+                    .setupSql(
+                            "CREATE VIEW t AS SELECT * FROM "
+                                    + "(VALUES ('Bob', PARSE_JSON('{\"a\":1}')), "
+                                    + "('Alice', PARSE_JSON('[1,\"b\"]'))) AS T(name, v)")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, {\"a\":1}]}]",
+                                            "+I[Alice, {+I[Alice, [1,\"b\"]]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_VARIANT_STATE =
+            TableTestProgram.of("process-variant-state", "state entry with a VARIANT field")
+                    .setupTemporarySystemFunction("f", VariantStateFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {VariantScore(v=null), +I[Bob, 12]}]",
+                                            "+I[Alice, {VariantScore(v=null), +I[Alice, 42]}]",
+                                            "+I[Bob, {VariantScore(v=12), +I[Bob, 99]}]",
+                                            "+I[Bob, {VariantScore(v=99), +I[Bob, 100]}]",
+                                            "+I[Alice, {VariantScore(v=42), +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
     public static final TableTestProgram PROCESS_TIME_CONVERSIONS =
             TableTestProgram.of(
                             "process-time-conversions",
@@ -1341,6 +1399,32 @@ public class ProcessTableFunctionTestPrograms {
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
                     .build();
 
+    public static final TableTestProgram PROCESS_EAGER_AND_VALUE_VIEW_STATE_TIME =
+            TableTestProgram.of(
+                            "process-eager-and-value-view-state-time",
+                            "eager value state and value view accessed from both eval() and onTimer()")
+                    .setupTemporarySystemFunction("f", EagerAndValueViewStateTimeFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {Score(s='null', i=null), null, +I[Bob, 1, 1970-01-01T00:00:00Z]}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer t for 2 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Score(s='null', i=null), null, +I[Alice, 1, 1970-01-01T00:00:00.001Z]}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Alice, {Registering timer t for 3 at time 1 watermark -1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Score(s='null', i=1), 1, +I[Bob, 2, 1970-01-01T00:00:00.002Z]}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Score(s='null', i=2), 2, +I[Bob, 3, 1970-01-01T00:00:00.003Z]}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {Timer t fired at time 2 watermark 2}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Score(s='null', i=30), 103, +I[Bob, 4, 1970-01-01T00:00:00.004Z]}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Alice, {Timer t fired at time 3 watermark 3}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {Score(s='null', i=31), 104, +I[Bob, 5, 1970-01-01T00:00:00.005Z]}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Score(s='null', i=32), 105, +I[Bob, 6, 1970-01-01T00:00:00.006Z]}, 1970-01-01T00:00:00.006Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
+                    .build();
+
     public static final TableTestProgram PROCESS_CHAINED_TIME =
             TableTestProgram.of(
                             "process-chained-time",
@@ -1446,6 +1530,41 @@ public class ProcessTableFunctionTestPrograms {
                             "SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))",
                             TableRuntimeException.class,
                             "Timers are not supported in the current PTF declaration.")
+                    .build();
+
+    public static final TableTestProgram PROCESS_VALUE_STATE =
+            TableTestProgram.of("process-value-state", "value view state entry")
+                    .setupTemporarySystemFunction("f", ValueViewFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {null, KeyedStateValueView, +I[Bob, 12]}]",
+                                            "+I[Alice, {null, KeyedStateValueView, +I[Alice, 42]}]",
+                                            "+I[Bob, {1, KeyedStateValueView, +I[Bob, 99]}]",
+                                            "+I[Bob, {2, KeyedStateValueView, +I[Bob, 100]}]",
+                                            "+I[Alice, {1, KeyedStateValueView, +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_COMPLEX_VALUE_STATE =
+            TableTestProgram.of(
+                            "process-complex-value-state", "value view with composite value type")
+                    .setupTemporarySystemFunction("f", ComplexValueViewFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {null, KeyedStateValueView, +I[Bob, 12]}]",
+                                            "+I[Alice, {null, KeyedStateValueView, +I[Alice, 42]}]",
+                                            "+I[Bob, {(1970-01-01T00:00:00.001Z,[12]), KeyedStateValueView, +I[Bob, 99]}]",
+                                            "+I[Bob, {(1970-01-01T00:00:00.002Z,[12, 99]), KeyedStateValueView, +I[Bob, 100]}]",
+                                            "+I[Alice, {(1970-01-01T00:00:00.001Z,[42]), KeyedStateValueView, +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
                     .build();
 
     public static final TableTestProgram PROCESS_LIST_STATE =
@@ -1646,14 +1765,8 @@ public class ProcessTableFunctionTestPrograms {
                                             "`out` STRING")
                                     .addOption("sink-changelog-mode-enforced", "I,UA,D")
                                     .addOption("sink.supports-delete-by-key", "true")
-                                    .consumedValues(
-                                            "+I[Bob, score 5 in city London]",
-                                            "+I[Alice, score 2 in city Zurich]",
-                                            "+U[Bob, score 3 in city London]",
-                                            "+U[Bob, score 3 in city Berlin]",
-                                            "-D[Bob, null]",
-                                            "+I[Bob, score 2 in city Berlin]",
-                                            "-D[Alice, null]")
+                                    .consumedValues("+I[Bob, score 2 in city Berlin]")
+                                    .testMaterializedData()
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT `name`, `out` FROM f("
@@ -2042,5 +2155,19 @@ public class ProcessTableFunctionTestPrograms {
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f("
                                     + "r => TABLE v PARTITION BY (suite_name, test_name) ORDER BY (window_time ASC, c DESC), i => 1)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_ROW_DATA_CONVERSION_TABLE =
+            TableTestProgram.of(
+                            "process-row-data-conversion",
+                            "table argument with a non-default RowData conversion class")
+                    .setupTemporarySystemFunction("f", RowDataRowSemanticTableFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{Hello Bob!}]", "+I[{Hello Alice!}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(input => TABLE t)")
                     .build();
 }

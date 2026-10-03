@@ -181,12 +181,7 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes>
-									<include>software.amazon.awssdk:*</include>
-									<include>org.apache.httpcomponents:*</include>
-									<include>commons-logging:*</include>
-									<include>org.reactivestreams:*</include>
-									<include>io.netty:*</include>
-									<include>com.typesafe.netty:*</include>
+									<include>*:*</include>
 								</includes>
 							</artifactSet>
 							<relocations>

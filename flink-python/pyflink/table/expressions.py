@@ -20,6 +20,7 @@ from typing import Union
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
+from pyflink.table.literal import _to_java_literal_value
 from pyflink.table.types import _to_java_data_type, DataType
 from pyflink.table.udf import UserDefinedFunctionWrapper
 from pyflink.util.api_stability_decorators import PublicEvolving
@@ -31,8 +32,9 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'current_watermark', 'local_time', 'local_timestamp',
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
-           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json',
-           'json_string', 'json_object', 'json_object_agg', 'json_array', 'json_array_agg',
+           'concat_ws', 'uuid', 'uuid_v4', 'uuid_v7', 'null_of', 'log', 'with_columns',
+           'without_columns', 'json', 'json_string', 'json_object', 'json_object_agg',
+           'json_array', 'json_array_agg',
            'call', 'call_sql', 'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date',
            'to_timestamp', 'convert_tz', 'unix_timestamp', 'descriptor']
 
@@ -115,10 +117,14 @@ def lit(v, data_type: DataType = None) -> Expression:
 
         >>> tab.select(col("key"), lit("abc"))
     """
-    if data_type is None:
-        return _unary_op("lit", v)
-    else:
-        return _binary_op("lit", v, _to_java_data_type(data_type))
+    gateway = get_gateway()
+    j_data_type = _to_java_data_type(data_type) if data_type is not None else None
+    _j_literal_value = _to_java_literal_value(v, data_type)
+    return Expression(
+        gateway.jvm.org.apache.flink.table.utils.python.PythonTableUtils.createLiteral(
+            _j_literal_value, j_data_type
+        )
+    )
 
 
 @PublicEvolving()
@@ -760,11 +766,33 @@ def concat_ws(separator: Union[str, Expression[str]],
 def uuid() -> Expression[str]:
     """
     Returns an UUID (Universally Unique Identifier) string (e.g.,
-    "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly
+    "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 9562 version 4 (pseudo randomly
     generated) UUID. The UUID is generated using a cryptographically strong pseudo random number
     generator.
     """
     return _leaf_op("uuid")
+
+
+@PublicEvolving()
+def uuid_v4() -> Expression:
+    """
+    Returns a random RFC 9562 version 4 (pseudo randomly generated) UUID value. The UUID is
+    generated using a cryptographically strong pseudo random number generator.
+
+    Compared to uuid(), this function returns a value of the UUID data type.
+    """
+    return _leaf_op("uuidV4")
+
+
+@PublicEvolving()
+def uuid_v7() -> Expression:
+    """
+    Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current timestamp
+    and a random component.
+
+    Compared to uuid(), this function returns a value of the UUID data type.
+    """
+    return _leaf_op("uuidV7")
 
 
 @PublicEvolving()

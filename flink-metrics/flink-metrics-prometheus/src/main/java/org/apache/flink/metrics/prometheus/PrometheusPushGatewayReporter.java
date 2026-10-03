@@ -25,13 +25,17 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.util.Preconditions;
 
-import io.prometheus.client.exporter.BasicAuthHttpConnectionFactory;
+import io.prometheus.client.exporter.DefaultHttpConnectionFactory;
+import io.prometheus.client.exporter.HttpConnectionFactory;
 import io.prometheus.client.exporter.PushGateway;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 
 /**
@@ -58,7 +62,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
         this.pushGateway = new PushGateway(hostUrl);
         if (username != null && password != null) {
             this.pushGateway.setConnectionFactory(
-                    new BasicAuthHttpConnectionFactory(username, password));
+                    new JdkBasicAuthHttpConnectionFactory(username, password));
             this.basicAuthEnabled = true;
         } else {
             this.basicAuthEnabled = false;
@@ -95,5 +99,27 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
             }
         }
         super.close();
+    }
+
+    private static final class JdkBasicAuthHttpConnectionFactory implements HttpConnectionFactory {
+        private final HttpConnectionFactory connectionFactory = new DefaultHttpConnectionFactory();
+        private final String authorizationHeader;
+
+        private JdkBasicAuthHttpConnectionFactory(String username, String password) {
+            // Use the JDK encoder because simpleclient's implementation requires JAXB.
+            authorizationHeader =
+                    "Basic "
+                            + Base64.getEncoder()
+                                    .encodeToString(
+                                            (username + ":" + password)
+                                                    .getBytes(StandardCharsets.UTF_8));
+        }
+
+        @Override
+        public HttpURLConnection create(String url) throws IOException {
+            final HttpURLConnection connection = connectionFactory.create(url);
+            connection.setRequestProperty("Authorization", authorizationHeader);
+            return connection;
+        }
     }
 }

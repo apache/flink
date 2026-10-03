@@ -146,6 +146,11 @@ public final class ResolvedCatalogTable
     }
 
     @Override
+    public Optional<UnresolvedIdentifier> getConnection() {
+        return origin.getConnection();
+    }
+
+    @Override
     public ResolvedCatalogTable copy(Map<String, String> options) {
         return new ResolvedCatalogTable(origin.copy(options), resolvedSchema);
     }

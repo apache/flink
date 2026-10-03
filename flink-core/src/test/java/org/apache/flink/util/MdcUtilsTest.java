@@ -19,6 +19,8 @@
 package org.apache.flink.util;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MdcOptions;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
@@ -41,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -128,7 +131,72 @@ class MdcUtilsTest {
     void testJobIdLoggedByWrappingMechanism(
             final String scenario, final ThrowingConsumer<JobID, Exception> action)
             throws Exception {
-        assertJobIDLogged(scenario, jobID -> action.accept(jobID));
+        assertJobIDLogged(scenario, action);
+    }
+
+    /**
+     * Expected strings are literals rather than values computed from the truncation constants:
+     * computing them would make the test agree with the production formula even when that formula
+     * is wrong. Job names use a distinct character per position so that the head and tail
+     * boundaries in each literal can be checked by eye against the input.
+     */
+    private static Stream<Arguments> jobThreadNameSuffixCases() {
+        final JobID jobID = new JobID();
+        final String hexJobId = jobID.toHexString();
+        final String nameAtCap = "0123456789abcdefghijABCDEFGHIJxy";
+        return Stream.of(
+                Arguments.of(
+                        "short name kept verbatim",
+                        new JobInfoImpl(jobID, "my-job"),
+                        " (job: my-job / " + hexJobId + ")"),
+                Arguments.of(
+                        "padded name stripped",
+                        new JobInfoImpl(jobID, "  my-job  "),
+                        " (job: my-job / " + hexJobId + ")"),
+                Arguments.of(
+                        "name at the cap kept verbatim",
+                        new JobInfoImpl(jobID, nameAtCap),
+                        " (job: " + nameAtCap + " / " + hexJobId + ")"),
+                Arguments.of(
+                        "one character over the cap is elided in the middle",
+                        new JobInfoImpl(jobID, nameAtCap + "z"),
+                        " (job: 0123456789abcdefghij...EFGHIJxyz / " + hexJobId + ")"),
+                Arguments.of(
+                        "long name keeps head and tail (v1)",
+                        new JobInfoImpl(jobID, "0123456789abcdefghijABCDEFGHIJ-job-v1"),
+                        " (job: 0123456789abcdefghij...IJ-job-v1 / " + hexJobId + ")"),
+                Arguments.of(
+                        "empty name omitted",
+                        new JobInfoImpl(jobID, ""),
+                        " (job: " + hexJobId + ")"),
+                Arguments.of(
+                        "blank name omitted",
+                        new JobInfoImpl(jobID, "   "),
+                        " (job: " + hexJobId + ")"),
+                Arguments.of(
+                        "null name omitted", nullNameJobInfo(jobID), " (job: " + hexJobId + ")"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("jobThreadNameSuffixCases")
+    void testJobThreadNameSuffix(
+            final String scenario, final JobInfo jobInfo, final String expectedSuffix) {
+        assertThat(MdcUtils.jobThreadNameSuffix(jobInfo)).isEqualTo(expectedSuffix);
+    }
+
+    /** {@link JobInfoImpl} rejects a null name, so null handling needs a hand-written one. */
+    private static JobInfo nullNameJobInfo(JobID jobID) {
+        return new JobInfo() {
+            @Override
+            public JobID getJobId() {
+                return jobID;
+            }
+
+            @Override
+            public String getJobName() {
+                return null;
+            }
+        };
     }
 
     @Test
@@ -242,6 +310,30 @@ class MdcUtilsTest {
         assertThat(context)
                 .as(scenario)
                 .isEqualTo(Collections.singletonMap(MdcUtils.JOB_ID, jobID.toHexString()));
+    }
+
+    private static Stream<Arguments> blankMdcKeyNameCases() {
+        return Stream.of(
+                Arguments.of("empty string", ""),
+                Arguments.of("whitespace only", "   "),
+                Arguments.of("null key name", (String) null));
+    }
+
+    @ParameterizedTest
+    @MethodSource("blankMdcKeyNameCases")
+    void testBlankMdcKeyNameFallsBackToConfigKey(final String scenario, final String mdcKeyName) {
+        final JobID jobID = new JobID();
+        final Configuration conf = new Configuration();
+        final Map<String, String> keyMapping = new HashMap<>();
+        keyMapping.put("job.key-1", mdcKeyName);
+        conf.set(MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS, keyMapping);
+        conf.setString("job.key-1", "val-1");
+
+        final Map<String, String> context = MdcUtils.asContextData(jobID, conf);
+        assertThat(context)
+                .as(scenario)
+                .containsEntry(MdcUtils.JOB_ID, jobID.toHexString())
+                .containsEntry("job.key-1", "val-1");
     }
 
     // --- JobMdcRegistry integration: registry-first lookup ---

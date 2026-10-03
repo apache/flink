@@ -73,6 +73,11 @@ public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
         final Map<String, String> tableOptions = mergeContext.getMergedTableOptions();
         final TableDistribution distribution =
                 mergeContext.getMergedTableDistribution().orElse(null);
+        final UnresolvedIdentifier connection =
+                sqlCreateTable
+                        .getConnection()
+                        .map(c -> UnresolvedIdentifier.of(c.names))
+                        .orElse(null);
         final String comment = sqlCreateTable.getComment();
         final CatalogTable catalogTable =
                 CatalogTable.newBuilder()
@@ -81,6 +86,7 @@ public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
                         .distribution(distribution)
                         .options(tableOptions)
                         .partitionKeys(partitionKeys)
+                        .connection(connection)
                         .build();
         return context.getCatalogManager().resolveCatalogTable(catalogTable);
     }

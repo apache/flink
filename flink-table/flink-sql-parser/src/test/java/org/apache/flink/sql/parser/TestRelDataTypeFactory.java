@@ -85,6 +85,7 @@ final class TestRelDataTypeFactory extends SqlTypeFactoryImpl implements Extende
             this.className = className;
             this.typeList = typeList;
             this.fieldNameList = fieldNameList;
+            computeDigest();
         }
 
         @Override

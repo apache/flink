@@ -74,6 +74,7 @@ public class TestBarrierHandlerFactory {
                 actionRegistration,
                 enableCheckpointsAfterTasksFinish,
                 RecoveryCheckpointTrigger.NO_OP,
+                stateWriter,
                 inputGate);
     }
 }

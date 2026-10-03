@@ -22,6 +22,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.CheckpointingMode;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
@@ -123,6 +124,7 @@ public class InputProcessorUtil {
 
         Clock clock = SystemClock.getInstance();
         CheckpointingMode checkpointingMode = CheckpointingOptions.getCheckpointingMode(jobConf);
+        ChannelStateWriter channelStateWriter = checkpointCoordinator.getChannelStateWriter();
         switch (checkpointingMode) {
             case EXACTLY_ONCE:
                 int numberOfChannels =
@@ -141,7 +143,8 @@ public class InputProcessorUtil {
                         inputs,
                         clock,
                         numberOfChannels,
-                        recoveryCheckpointTrigger);
+                        recoveryCheckpointTrigger,
+                        channelStateWriter);
             case AT_LEAST_ONCE:
                 if (CheckpointingOptions.isUnalignedCheckpointEnabled(jobConf)) {
                     throw new IllegalStateException(
@@ -175,7 +178,8 @@ public class InputProcessorUtil {
             CheckpointableInput[] inputs,
             Clock clock,
             int numberOfChannels,
-            RecoveryCheckpointTrigger recoveryCheckpointTrigger) {
+            RecoveryCheckpointTrigger recoveryCheckpointTrigger,
+            ChannelStateWriter channelStateWriter) {
         boolean enableCheckpointAfterTasksFinished =
                 config.getConfiguration()
                         .get(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH);
@@ -189,6 +193,7 @@ public class InputProcessorUtil {
                     BarrierAlignmentUtil.createRegisterTimerCallback(mailboxExecutor, timerService),
                     enableCheckpointAfterTasksFinished,
                     recoveryCheckpointTrigger,
+                    channelStateWriter,
                     inputs);
         } else {
             return SingleCheckpointBarrierHandler.aligned(

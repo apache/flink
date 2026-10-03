@@ -32,7 +32,10 @@ public class PythonAggregateFunctionInfo extends PythonFunctionInfo {
     private final boolean distinct;
 
     public PythonAggregateFunctionInfo(
-            PythonFunction pythonFunction, Object[] inputs, int filterArg, boolean isDistinct) {
+            PythonFunction pythonFunction,
+            PythonFunctionInput[] inputs,
+            int filterArg,
+            boolean isDistinct) {
         super(pythonFunction, inputs);
         this.filterArg = filterArg;
         this.distinct = isDistinct;

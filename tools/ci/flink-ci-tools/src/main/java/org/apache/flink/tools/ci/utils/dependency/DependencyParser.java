@@ -39,13 +39,21 @@ import java.util.stream.Stream;
 /** Parsing utils for the Maven dependency plugin. */
 public class DependencyParser {
 
+    // Maven logs the plugin as "maven-dependency-plugin" up to 3.8 and as "dependency" (the goal
+    // prefix) from 3.9 on; both spellings are accepted so the parsers work on either Maven version.
+    private static final String DEPENDENCY_PLUGIN = "(?:maven-)?dependency(?:-plugin)?";
+
     private static final Pattern DEPENDENCY_COPY_NEXT_MODULE_PATTERN =
             Pattern.compile(
-                    ".*maven-dependency-plugin:[^:]+:copy .* @ (?<module>[^ _]+)(?:_[0-9.]+)? --.*");
+                    ".*"
+                            + DEPENDENCY_PLUGIN
+                            + ":[^:]+:copy .* @ (?<module>[^ _]+)(?:_[0-9.]+)? --.*");
 
     private static final Pattern DEPENDENCY_TREE_NEXT_MODULE_PATTERN =
             Pattern.compile(
-                    ".*maven-dependency-plugin:[^:]+:tree .* @ (?<module>[^ _]+)(?:_[0-9.]+)? --.*");
+                    ".*"
+                            + DEPENDENCY_PLUGIN
+                            + ":[^:]+:tree .* @ (?<module>[^ _]+)(?:_[0-9.]+)? --.*");
 
     /** See {@link DependencyParserTreeTest} for examples. */
     private static final Pattern DEPENDENCY_TREE_ITEM_PATTERN =

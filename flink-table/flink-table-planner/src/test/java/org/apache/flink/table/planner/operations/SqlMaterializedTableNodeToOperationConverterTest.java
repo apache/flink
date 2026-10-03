@@ -850,13 +850,6 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "Column mismatch at position 4: Original column is [`d` STRING], "
                                 + "but new column is [`d` INT]."),
                 TestSpec.of(
-                        "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, CAST('d' AS STRING) AS d FROM t3",
-                        "When modifying the query of a materialized table, currently only support "
-                                + "appending columns at the end of original schema, dropping, "
-                                + "renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position 4: Original column is [`d` STRING], "
-                                + "but new column is [`d` STRING NOT NULL]."),
-                TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT '123'",
                         "ALTER query for MATERIALIZED TABLE "
                                 + "with schema containing non persisted columns is not supported, "

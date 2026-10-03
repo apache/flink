@@ -21,6 +21,8 @@ package org.apache.flink.core.fs;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.LimitedConnectionsFileSystem.ConnectionLimitingSettings;
+import org.apache.flink.core.plugin.MetricsAware;
+import org.apache.flink.metrics.MetricGroup;
 
 import java.io.IOException;
 import java.net.URI;
@@ -29,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A wrapping factory that adds a {@link LimitedConnectionsFileSystem} to a file system. */
 @Internal
-public class ConnectionLimitingFactory implements FileSystemFactory {
+public class ConnectionLimitingFactory implements FileSystemFactory, MetricsAware {
 
     private final FileSystemFactory factory;
 
@@ -57,6 +59,16 @@ public class ConnectionLimitingFactory implements FileSystemFactory {
     @Override
     public void configure(Configuration config) {
         factory.configure(config);
+    }
+
+    /**
+     * Forwards metric registration to the wrapped factory when it supports {@link MetricsAware}.
+     */
+    @Override
+    public void setMetricGroup(MetricGroup metricGroup) {
+        if (factory instanceof MetricsAware) {
+            ((MetricsAware) factory).setMetricGroup(metricGroup);
+        }
     }
 
     @Override

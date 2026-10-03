@@ -21,7 +21,7 @@ under the License.
 	<parent>
 		<groupId>org.apache</groupId>
 		<artifactId>apache</artifactId>
-		<version>35</version>
+		<version>39</version>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
@@ -127,8 +127,8 @@ under the License.
 		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
 		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m -XX:+IgnoreUnrecognizedVMOptions ${surefire.module.config}</flink.surefire.baseArgLine>
-		<flink.shaded.version>21.0</flink.shaded.version>
-		<flink.shaded.jackson.version>2.20.1</flink.shaded.jackson.version>
+		<flink.shaded.version>22.0</flink.shaded.version>
+		<flink.shaded.jackson.version>2.22.2</flink.shaded.jackson.version>
 		<flink.shaded.jsonpath.version>2.10.0</flink.shaded.jsonpath.version>
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
 		<source.java.version>11</source.java.version>
@@ -140,6 +140,9 @@ under the License.
 			 and thus is changing back to java 1.6 on each maven re-import -->
 		<maven.compiler.source>${source.java.version}</maven.compiler.source>
 		<maven.compiler.target>${target.java.version}</maven.compiler.target>
+		<!-- Apache parent pom 39 puts 8 here, IDEA uses it for project setting,
+		 so override with actual value -->
+		<maven.compiler.release>${source.java.version}</maven.compiler.release>
 		<scala.macros.version>2.1.1</scala.macros.version>
 		<scala.version>2.12.21</scala.version>
 		<scala.binary.version>2.12</scala.binary.version>
@@ -151,7 +154,7 @@ under the License.
 		<avro.version>1.11.5</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
 		<jackson.mapper.asl.version>1.9.14.jdk17-redhat-00001</jackson.mapper.asl.version>
-		<jackson-bom.version>2.21.3</jackson-bom.version>
+		<jackson-bom.version>2.22.2</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
 		<junit4.version>4.13.2</junit4.version>
@@ -161,7 +164,7 @@ under the License.
 		<hamcrest.version>1.3</hamcrest.version>
 		<assertj.version>3.27.7</assertj.version>
 		<py4j.version>0.10.9.7</py4j.version>
-		<beam.version>2.54.0</beam.version>
+		<beam.version>2.75.0</beam.version>
 		<protoc.version>4.32.1</protoc.version>
 		<okhttp.version>3.14.9</okhttp.version>
 		<testcontainers.version>2.0.5</testcontainers.version>
@@ -182,7 +185,8 @@ under the License.
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<checkstyle.version>10.18.2</checkstyle.version>
 		<spotless.skip>false</spotless.skip>
-		<spotless.version>2.43.0</spotless.version>
+		<spotless.version>2.46.1</spotless.version>
+		<aosp.version>1.28.0</aosp.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
 		<spotless.delimiter>package</spotless.delimiter>
 		<spotless.license.header>
@@ -356,13 +360,13 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-asm-9</artifactId>
-				<version>9.9.1-${flink.shaded.version}</version>
+				<version>9.10.1-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-guava</artifactId>
-				<version>33.5.0-jre-${flink.shaded.version}</version>
+				<version>33.7.1-jre-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
@@ -380,13 +384,13 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty</artifactId>
-				<version>4.2.6.Final-${flink.shaded.version}</version>
+				<version>4.2.17.Final-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
-				<version>2.0.74.Final-${flink.shaded.version}</version>
+				<version>2.0.81.Final-${flink.shaded.version}</version>
 				<scope>test</scope>
 			</dependency>
 
@@ -923,7 +927,7 @@ under the License.
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-bom</artifactId>
-				<version>4.2.15.Final</version>
+				<version>4.2.17.Final</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -1077,6 +1081,10 @@ under the License.
 			<activation>
 				<jdk>[11,)</jdk>
 			</activation>
+
+			<properties>
+				<aosp.version>1.24.0</aosp.version>
+			</properties>
 		</profile>
 
 		<profile>
@@ -1108,6 +1116,7 @@ under the License.
 
 			<properties>
 				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava17,</surefire.excludedGroups.jdk>
+				<aosp.version>1.28.0</aosp.version>
 			</properties>
 
 			<build>
@@ -1208,6 +1217,9 @@ under the License.
 
 			<properties>
 				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava25,</surefire.excludedGroups.jdk>
+				<!-- Minimum Hadoop version working with jdk 25 according to https://issues.apache.org/jira/browse/HADOOP-19212 -->
+				<flink.hadoop.version>3.4.3</flink.hadoop.version>
+				<aosp.version>1.30.0</aosp.version>
 			</properties>
 
 			<build>
@@ -1218,16 +1230,6 @@ under the License.
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
 								<excludedGroups>${surefire.excludedGroups.github-actions}${surefire.excludedGroups.adaptive-scheduler}${surefire.excludedGroups.jdk}</excludedGroups>
-							</configuration>
-						</plugin>
-						<plugin>
-							<groupId>com.diffplug.spotless</groupId>
-							<artifactId>spotless-maven-plugin</artifactId>
-							<configuration>
-								<!-- Current google format does not run on Java 25.
-									 Don't upgrade it in this profile because it formats code differently.
-									 Re-evaluate once support for Java 11 is dropped. -->
-								<skip>true</skip>
 							</configuration>
 						</plugin>
 					</plugins>
@@ -1879,7 +1881,7 @@ under the License.
 						<configuration>
 							<rules>
 								<requireMavenVersion>
-									<version>[3.8.6]</version>
+									<version>[3.9.16]</version>
 								</requireMavenVersion>
 								<requireJavaVersion>
 									<version>${target.java.version}</version>
@@ -2094,7 +2096,7 @@ under the License.
 			<plugin>
 				<groupId>org.commonjava.maven.plugins</groupId>
 				<artifactId>directory-maven-plugin</artifactId>
-				<version>0.1</version>
+				<version>1.0</version>
 				<executions>
 					<execution>
 						<id>directories</id>
@@ -2116,7 +2118,7 @@ under the License.
 			<plugin>
 				<groupId>org.cyclonedx</groupId>
 				<artifactId>cyclonedx-maven-plugin</artifactId>
-				<version>2.9.1</version>
+				<version>2.9.3</version>
 				<executions>
 					<execution>
 						<phase>package</phase>
@@ -2133,7 +2135,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.8.0</version>
+					<version>3.16.0</version>
 					<configuration>
 						<!-- Make sure that we only use Java 11 compatible APIs -->
 						<source>${source.java.version}</source>
@@ -2142,6 +2144,7 @@ under the License.
 						<release combine.self="override"/>
 						<!-- The semantics of this option are reversed, see MCOMPILER-209. -->
 						<useIncrementalCompilation>false</useIncrementalCompilation>
+						<useModulePath>false</useModulePath>
 						<compilerArgs>
 							<!-- Prevents recompilation due to missing package-info.class, see MCOMPILER-205 -->
 							<arg>-Xpkginfo:always</arg>
@@ -2210,7 +2213,7 @@ under the License.
 						</upToDateChecking>
 						<java>
 							<googleJavaFormat>
-								<version>1.24.0</version>
+								<version>${aosp.version}</version>
 								<style>AOSP</style>
 							</googleJavaFormat>
 
@@ -2220,6 +2223,7 @@ under the License.
 							</importOrder>
 
 							<removeUnusedImports />
+							<removeWildcardImports />
 						</java>
 					</configuration>
 					<executions>
@@ -2345,7 +2349,7 @@ under the License.
 				<plugin>
 					<groupId>com.github.siom79.japicmp</groupId>
 					<artifactId>japicmp-maven-plugin</artifactId>
-					<version>0.18.5</version>
+					<version>0.26.2</version>
 					<configuration>
 						<oldVersion>
 							<dependency>

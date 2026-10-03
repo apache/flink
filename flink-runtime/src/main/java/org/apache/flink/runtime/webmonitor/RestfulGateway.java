@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.application.ArchivedApplication;
@@ -188,10 +189,12 @@ public interface RestfulGateway extends RpcGateway {
     /**
      * Requests the thread dump from the JobManager.
      *
+     * @param mode dump granularity; when {@code null} the cluster default is used.
      * @param timeout timeout of the asynchronous operation
      * @return Future containing the thread dump information
      */
-    CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Duration timeout);
+    CompletableFuture<ThreadDumpInfo> requestThreadDump(
+            ThreadDumpMode mode, @RpcTimeout Duration timeout);
 
     /**
      * Triggers a checkpoint with the given savepoint directory as a target.

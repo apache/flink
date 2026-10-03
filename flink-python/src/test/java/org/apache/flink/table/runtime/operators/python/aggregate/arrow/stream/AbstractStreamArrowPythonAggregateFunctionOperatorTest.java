@@ -23,7 +23,9 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.python.InputRef;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
@@ -48,7 +50,7 @@ abstract class AbstractStreamArrowPythonAggregateFunctionOperatorTest
                             new PythonFunctionInfo(
                                     PythonScalarFunctionOperatorTestBase.DummyPythonFunction
                                             .INSTANCE,
-                                    new Integer[] {0})
+                                    new PythonFunctionInput[] {new InputRef(0)})
                         },
                         inputType,
                         outputType,

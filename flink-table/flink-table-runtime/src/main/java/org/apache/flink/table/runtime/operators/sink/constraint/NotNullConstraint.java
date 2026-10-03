@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.sink.constraint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.types.RowKind;
 
 import javax.annotation.Nullable;
 
@@ -32,20 +33,35 @@ final class NotNullConstraint implements Constraint {
     private final NotNullEnforcementStrategy enforcementStrategy;
     private final int[] notNullFieldIndices;
     private final String[] notNullFieldNames;
+    // Whether the input is a key-only-delete pipeline, in which a DELETE tombstone carries only its
+    // key and sets all non-key fields to null regardless of nullability constraints.
+    private final boolean keyOnlyDeletes;
+    // Aligned with notNullFieldIndices: true if the field is part of the primary key.
+    private final boolean[] keyField;
 
     NotNullConstraint(
             NotNullEnforcementStrategy enforcementStrategy,
             int[] notNullFieldIndices,
-            String[] notNullFieldNames) {
+            String[] notNullFieldNames,
+            boolean keyOnlyDeletes,
+            boolean[] keyField) {
         this.enforcementStrategy = enforcementStrategy;
         this.notNullFieldIndices = notNullFieldIndices;
         this.notNullFieldNames = notNullFieldNames;
+        this.keyOnlyDeletes = keyOnlyDeletes;
+        this.keyField = keyField;
     }
 
     @Nullable
     @Override
     public RowData enforce(RowData input) {
+        // A key-only DELETE legitimately carries null in its non-key columns, so skip those.
+        // Key columns and all columns of other row kinds are always enforced.
+        final boolean partialDelete = keyOnlyDeletes && input.getRowKind() == RowKind.DELETE;
         for (int i = 0; i < notNullFieldIndices.length; i++) {
+            if (partialDelete && !keyField[i]) {
+                continue;
+            }
             final int index = notNullFieldIndices[i];
             if (input.isNullAt(index)) {
                 switch (enforcementStrategy) {

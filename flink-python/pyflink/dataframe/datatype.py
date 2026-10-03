@@ -27,6 +27,10 @@ from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ["DataType"]
 
+_INT_MIN = -(1 << 31)
+_INT_MAX = (1 << 31) - 1
+_BIGINT_MIN = -(1 << 63)
+_BIGINT_MAX = (1 << 63) - 1
 _PEP_604_UNION_TYPE = getattr(types, "UnionType", None)
 
 _BASIC_TYPE_HINT_FACTORIES: Dict[Any, Callable[[], TableDataType]] = {

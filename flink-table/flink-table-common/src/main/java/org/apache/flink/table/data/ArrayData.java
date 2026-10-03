@@ -164,6 +164,7 @@ public interface ArrayData {
                 break;
             case BINARY:
             case VARBINARY:
+            case UUID:
                 elementGetter = ArrayData::getBinary;
                 break;
             case DECIMAL:

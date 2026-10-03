@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.codegen.CodeGenException;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.logical.utils.UuidUtils;
 
 import org.apache.calcite.avatica.util.ByteString;
 import org.apache.calcite.rel.type.RelDataType;
@@ -100,6 +101,11 @@ public class RexLiteralUtil {
             case VARBINARY:
                 if (value instanceof ByteString) {
                     return ((ByteString) value).getBytes();
+                }
+                break;
+            case UUID:
+                if (value instanceof java.util.UUID) {
+                    return UuidUtils.toBytes((java.util.UUID) value);
                 }
                 break;
             case DECIMAL:

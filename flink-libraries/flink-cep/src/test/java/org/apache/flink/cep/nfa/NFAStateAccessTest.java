@@ -27,18 +27,18 @@ import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.cep.utils.TestSharedBuffer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that check if we do not degrade NFA computation in case of State accesses. */
-public class NFAStateAccessTest {
+class NFAStateAccessTest {
 
     @Test
-    public void testComplexBranchingAfterZeroOrMore() throws Exception {
+    void testComplexBranchingAfterZeroOrMore() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         Event startEvent = new Event(40, "c", 1.0);
@@ -80,13 +80,13 @@ public class NFAStateAccessTest {
                 NFATestHarness.forPattern(pattern).withSharedBuffer(sharedBuffer).build();
         nfaTestHarness.consumeRecords(inputEvents);
 
-        assertEquals(58, sharedBuffer.getStateReads());
-        assertEquals(41, sharedBuffer.getStateWrites());
-        assertEquals(99, sharedBuffer.getStateAccesses());
+        assertThat(sharedBuffer.getStateReads()).isEqualTo(58);
+        assertThat(sharedBuffer.getStateWrites()).isEqualTo(41);
+        assertThat(sharedBuffer.getStateAccesses()).isEqualTo(99);
     }
 
     @Test
-    public void testIterativeWithABACPattern() throws Exception {
+    void testIterativeWithABACPattern() throws Exception {
         List<StreamRecord<Event>> inputEvents = new ArrayList<>();
 
         final Event startEvent1 = new Event(40, "start", 1.0);
@@ -148,8 +148,8 @@ public class NFAStateAccessTest {
                 NFATestHarness.forPattern(pattern).withSharedBuffer(sharedBuffer).build();
         nfaTestHarness.consumeRecords(inputEvents);
 
-        assertEquals(90, sharedBuffer.getStateReads());
-        assertEquals(34, sharedBuffer.getStateWrites());
-        assertEquals(124, sharedBuffer.getStateAccesses());
+        assertThat(sharedBuffer.getStateReads()).isEqualTo(90);
+        assertThat(sharedBuffer.getStateWrites()).isEqualTo(34);
+        assertThat(sharedBuffer.getStateAccesses()).isEqualTo(124);
     }
 }

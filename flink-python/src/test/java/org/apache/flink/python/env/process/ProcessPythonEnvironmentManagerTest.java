@@ -53,6 +53,7 @@ import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManage
 import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_FILE;
 import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManager.PYTHON_REQUIREMENTS_INSTALL_DIR;
 import static org.apache.flink.python.env.process.ProcessPythonEnvironmentManager.PYTHON_WORKING_DIR;
+import static org.apache.flink.python.util.PythonEnvironmentManagerUtils.PYFLINK_UDF_RUNNER_DIR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ProcessPythonEnvironmentManager}. */
@@ -226,6 +227,44 @@ class ProcessPythonEnvironmentManagerTest {
                                     PYTHON_FILES_DIR,
                                     "dir0",
                                     "test_dir")));
+        }
+    }
+
+    @Test
+    void testProcessEnvironmentOnlyContainsManagedVariables() throws Exception {
+        Map<String, String> pythonFiles = new HashMap<>();
+        pythonFiles.put(String.join(File.separator, tmpDir, "file1"), "test_file1.py");
+        PythonDependencyInfo dependencyInfo =
+                new PythonDependencyInfo(pythonFiles, null, null, new HashMap<>(), "python");
+        // what the TaskManager process would pass on
+        Map<String, String> systemEnv = new HashMap<>();
+        systemEnv.put(PYFLINK_UDF_RUNNER_DIR, "");
+        systemEnv.put("PYTHONPATH", "/inherited/pythonpath");
+        systemEnv.put("INHERITED_SECRET", "must-not-be-passed-on");
+
+        try (ProcessPythonEnvironmentManager environmentManager =
+                new ProcessPythonEnvironmentManager(
+                        dependencyInfo, new String[] {tmpDir}, systemEnv, new JobID())) {
+            environmentManager.open();
+            String baseDir = environmentManager.getBaseDirectory();
+
+            ProcessPythonEnvironment environment =
+                    (ProcessPythonEnvironment) environmentManager.createEnvironment();
+
+            // the worker inherits the process environment; only what the manager set is passed on
+            assertThat(environment.getEnv())
+                    .doesNotContainKeys("INHERITED_SECRET", PYFLINK_UDF_RUNNER_DIR)
+                    .containsEntry(
+                            "PYTHONPATH",
+                            String.join(
+                                    File.pathSeparator,
+                                    String.join(File.separator, baseDir, PYTHON_FILES_DIR, "file1"),
+                                    "/inherited/pythonpath"))
+                    .containsEntry("python", "python")
+                    .containsEntry("BOOT_LOG_DIR", baseDir)
+                    .containsEntry(PYFLINK_GATEWAY_DISABLED, "true");
+            // the derivation itself still sees the whole environment
+            assertThat(environmentManager.getPythonEnv()).containsKey("INHERITED_SECRET");
         }
     }
 

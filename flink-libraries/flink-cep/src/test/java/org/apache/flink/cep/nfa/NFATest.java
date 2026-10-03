@@ -28,9 +28,8 @@ import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -42,12 +41,12 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.cep.utils.NFAUtils.compile;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link NFA}. */
-public class NFATest extends TestLogger {
+class NFATest {
     @Test
-    public void testSimpleNFA() throws Exception {
+    void testSimpleNFA() throws Exception {
         List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
         streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
@@ -87,11 +86,11 @@ public class NFATest extends TestLogger {
         Collection<Map<String, List<Event>>> actualPatterns =
                 nfaTestHarness.consumeRecords(streamEvents);
 
-        assertEquals(expectedPatterns, actualPatterns);
+        assertThat(actualPatterns).isEqualTo(expectedPatterns);
     }
 
     @Test
-    public void testTimeoutWindowPruningWithinFirstAndLast() throws Exception {
+    void testTimeoutWindowPruningWithinFirstAndLast() throws Exception {
         List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
         streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
@@ -113,11 +112,11 @@ public class NFATest extends TestLogger {
         Collection<Map<String, List<Event>>> actualPatterns =
                 nfaTestHarness.consumeRecords(streamEvents);
 
-        assertEquals(expectedPatterns, actualPatterns);
+        assertThat(actualPatterns).isEqualTo(expectedPatterns);
     }
 
     @Test
-    public void testTimeoutWindowPruningWithinPreviousAndNext() throws Exception {
+    void testTimeoutWindowPruningWithinPreviousAndNext() throws Exception {
         List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
         streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
@@ -147,7 +146,7 @@ public class NFATest extends TestLogger {
         Collection<Map<String, List<Event>>> actualPatterns =
                 nfaTestHarness.consumeRecords(streamEvents);
 
-        assertEquals(expectedPatterns, actualPatterns);
+        assertThat(actualPatterns).isEqualTo(expectedPatterns);
     }
 
     /**
@@ -155,7 +154,7 @@ public class NFATest extends TestLogger {
      * The reason is that the right window side (later elements) is exclusive.
      */
     @Test
-    public void testWindowBorders() throws Exception {
+    void testWindowBorders() throws Exception {
         List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
         streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
@@ -169,7 +168,7 @@ public class NFATest extends TestLogger {
         Collection<Map<String, List<Event>>> actualPatterns =
                 nfaTestHarness.consumeRecords(streamEvents);
 
-        assertEquals(expectedPatterns, actualPatterns);
+        assertThat(actualPatterns).isEqualTo(expectedPatterns);
     }
 
     /**
@@ -177,7 +176,7 @@ public class NFATest extends TestLogger {
      * semantics (left side inclusive and right side exclusive).
      */
     @Test
-    public void testTimeoutWindowPruningWindowBorders() throws Exception {
+    void testTimeoutWindowPruningWindowBorders() throws Exception {
         List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
         streamEvents.add(new StreamRecord<>(new Event(1, "start", 1.0), 1L));
@@ -199,11 +198,11 @@ public class NFATest extends TestLogger {
         Collection<Map<String, List<Event>>> actualPatterns =
                 nfaTestHarness.consumeRecords(streamEvents);
 
-        assertEquals(expectedPatterns, actualPatterns);
+        assertThat(actualPatterns).isEqualTo(expectedPatterns);
     }
 
     @Test
-    public void testNFASerialization() throws Exception {
+    void testNFASerialization() throws Exception {
         Pattern<Event, ?> pattern1 =
                 Pattern.<Event>begin("start")
                         .where(SimpleCondition.of(value -> value.getName().equals("a")))
@@ -305,7 +304,7 @@ public class NFATest extends TestLogger {
             NFAState copy =
                     serializer.duplicate().deserialize(new DataInputViewStreamWrapper(bais));
             bais.close();
-            assertEquals(nfaState, copy);
+            assertThat(copy).isEqualTo(nfaState);
         }
     }
 

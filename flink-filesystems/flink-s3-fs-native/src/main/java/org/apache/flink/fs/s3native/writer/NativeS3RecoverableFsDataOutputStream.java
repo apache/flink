@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.s3native.writer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.s3native.writer.NativeS3Recoverable.PartETag;
@@ -26,7 +27,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.BufferedOutputStream;
@@ -51,6 +51,12 @@ import java.util.concurrent.locks.ReentrantLock;
  * {@link ReentrantLock} guards the critical sections in {@link #close()}, {@link
  * #closeForCommit()}, and {@link #persist()} to ensure safe cleanup of local resources without
  * corrupting S3 state.
+ *
+ * <p>This stream never aborts its multipart upload. The upload may be referenced by a {@link
+ * NativeS3Recoverable} in a retained checkpoint or savepoint, and the stream cannot know whether
+ * that is the case. Aborting it would make the referencing snapshot unrecoverable. Abandoned
+ * uploads are expected to be removed by an S3 lifecycle rule for incomplete multipart uploads, as
+ * with the Hadoop-based S3 file system.
  */
 @NotThreadSafe
 class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
@@ -96,7 +102,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
             long minPartSize,
             List<PartETag> existingParts,
             long numBytesInParts,
-            @Nullable File incompleteTailFile)
+            File incompleteTailFile)
             throws IOException {
         this.s3AccessHelper = s3AccessHelper;
         this.key = key;
@@ -198,8 +204,8 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         currentOutputStream.close();
 
         // Do not delete the temp file if uploadPart fails: propagate the original exception
-        // unmasked and let close() perform cleanup. nextPartNumber is only advanced on success so a
-        // failed attempt does not leave a gap in the part sequence.
+        // unmasked and let the cleanup path (close() or the closeForCommit() failure handler)
+        // delete it. nextPartNumber is only advanced on success.
         NativeS3ObjectOperations.UploadPartResult result =
                 s3AccessHelper.uploadPart(
                         key, uploadId, nextPartNumber, currentTempFile, currentPartSize);
@@ -208,7 +214,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         completedParts.add(new PartETag(result.getPartNumber(), result.getETag()));
         numBytesInParts += currentPartSize;
 
-        Files.delete(currentTempFile.toPath());
+        Files.deleteIfExists(currentTempFile.toPath());
     }
 
     @Override
@@ -219,17 +225,39 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
                 throw new IOException("Stream is already closed");
             }
 
-            currentOutputStream.close();
+            final NativeS3Recoverable recoverable;
+            try {
+                currentOutputStream.close();
 
-            if (currentPartSize > 0) {
-                uploadCurrentPart();
-            } else {
-                Files.delete(currentTempFile.toPath());
+                if (currentPartSize > 0) {
+                    uploadCurrentPart();
+                } else {
+                    Files.deleteIfExists(currentTempFile.toPath());
+                }
+
+                recoverable =
+                        new NativeS3Recoverable(
+                                key, uploadId, new ArrayList<>(completedParts), numBytesInParts);
+            } catch (IOException e) {
+                // Only local resources are released. The upload is deliberately left open: a
+                // previous persist() may have handed it out in a recoverable that a completed
+                // checkpoint references, and aborting it would break recovery from that
+                // checkpoint. See the class-level Javadoc.
+                closed = true;
+                LOG.warn(
+                        "Failed to close multipart upload for commit (key={}, uploadId={}). The "
+                                + "upload is left open because a checkpoint may still reference "
+                                + "it; an S3 lifecycle rule is expected to remove it if unused.",
+                        key,
+                        uploadId,
+                        e);
+                try {
+                    releaseLocalResources();
+                } catch (IOException cleanup) {
+                    e.addSuppressed(cleanup);
+                }
+                throw e;
             }
-
-            NativeS3Recoverable recoverable =
-                    new NativeS3Recoverable(
-                            key, uploadId, new ArrayList<>(completedParts), numBytesInParts);
 
             closed = true;
             return new NativeS3Committer(s3AccessHelper, recoverable);
@@ -249,7 +277,7 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
 
             if (currentPartSize > 0) {
                 currentOutputStream.flush();
-                incompletePartKey = key + "/.incomplete/" + uploadId + "/" + UUID.randomUUID();
+                incompletePartKey = ".incomplete/" + uploadId + "/" + UUID.randomUUID();
                 s3AccessHelper.putObject(incompletePartKey, currentTempFile);
                 incompletePartLength = currentPartSize;
             }
@@ -272,39 +300,38 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
         try {
             if (!closed) {
                 closed = true;
-                IOException cleanupException = null;
-                if (currentOutputStream != null) {
-                    try {
-                        currentOutputStream.close();
-                    } catch (IOException e) {
-                        cleanupException = ExceptionUtils.firstOrSuppressed(e, cleanupException);
-                    }
-                }
-                if (currentTempFile != null && currentTempFile.exists()) {
-                    try {
-                        Files.delete(currentTempFile.toPath());
-                    } catch (IOException e) {
-                        cleanupException = ExceptionUtils.firstOrSuppressed(e, cleanupException);
-                    }
-                }
-
-                try {
-                    s3AccessHelper.abortMultiPartUpload(key, uploadId);
-                } catch (IOException e) {
-                    LOG.warn(
-                            "Multipart upload failed (key={}, uploadId={}). "
-                                    + "S3 lifecycle rules should eventually clean up the incomplete upload.",
-                            key,
-                            uploadId,
-                            e);
-                }
-                if (cleanupException != null) {
-                    throw cleanupException;
-                }
+                releaseLocalResources();
             }
         } finally {
             unlock();
         }
+    }
+
+    /** Closes the local buffer and deletes only the local temp file. */
+    private void releaseLocalResources() throws IOException {
+        IOException collected = null;
+        if (currentOutputStream != null) {
+            try {
+                currentOutputStream.close();
+            } catch (IOException e) {
+                collected = ExceptionUtils.firstOrSuppressed(e, collected);
+            }
+        }
+        if (currentTempFile != null) {
+            try {
+                deleteTempFile(currentTempFile);
+            } catch (IOException e) {
+                collected = ExceptionUtils.firstOrSuppressed(e, collected);
+            }
+        }
+        if (collected != null) {
+            throw collected;
+        }
+    }
+
+    @VisibleForTesting
+    protected void deleteTempFile(File file) throws IOException {
+        Files.deleteIfExists(file.toPath());
     }
 
     private void lock() throws IOException {

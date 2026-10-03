@@ -33,6 +33,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ProcTimeIntervalJoin}. */
@@ -49,7 +51,7 @@ class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testProcTimeInnerJoinWithCommonBounds() throws Exception {
         ProcTimeIntervalJoin joinProcessFunc =
                 new ProcTimeIntervalJoin(
-                        FlinkJoinType.INNER, -10, 20, 15, rowType, rowType, joinFunction);
+                        FlinkJoinType.INNER, -10, 20, 15, rowType, rowType, joinFunction, -1L);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
         testHarness.open();
@@ -108,7 +110,7 @@ class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     void testProcTimeInnerJoinWithNegativeBounds() throws Exception {
         ProcTimeIntervalJoin joinProcessFunc =
                 new ProcTimeIntervalJoin(
-                        FlinkJoinType.INNER, -10, -5, 2, rowType, rowType, joinFunction);
+                        FlinkJoinType.INNER, -10, -5, 2, rowType, rowType, joinFunction, -1L);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -164,6 +166,84 @@ class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         expectedOutput.add(insertRecord(2L, "2a2", 2L, "2b7"));
         expectedOutput.add(insertRecord(1L, "1a3", 1L, "1b12"));
 
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    /** Early fire on processing time, then a match retracts the speculative pad. */
+    @Test
+    void testProcTimeLeftOuterEarlyFireThenMatch() throws Exception {
+        ProcTimeIntervalJoin joinProcessFunc =
+                new ProcTimeIntervalJoin(
+                        FlinkJoinType.LEFT, -5, 9, 0, rowType, rowType, joinFunction, 3L);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+        testHarness.open();
+
+        testHarness.setProcessingTime(10);
+        testHarness.processElement1(insertRecord(1L, "a"));
+        // One cleanup timer plus one early-fire timer at 10 + 3 = 13.
+        assertThat(testHarness.numProcessingTimeTimers()).isEqualTo(2);
+
+        // Fire the early-fire timer: the unmatched left row is speculatively padded.
+        testHarness.setProcessingTime(13);
+
+        // A right row matches the early-fired left row.
+        testHarness.setProcessingTime(14);
+        testHarness.processElement2(insertRecord(1L, "b"));
+
+        // Advance past cleanup: no further pad.
+        testHarness.setProcessingTime(40);
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(1L, "a", null, null));
+        expectedOutput.add(updateBeforeRecord(1L, "a", null, null));
+        expectedOutput.add(updateAfterRecord(1L, "a", 1L, "b"));
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    /** With early fire disabled the processing-time inner join behaves exactly as before. */
+    @Test
+    void testProcTimeInnerJoinIgnoresEarlyFire() throws Exception {
+        ProcTimeIntervalJoin joinProcessFunc =
+                new ProcTimeIntervalJoin(
+                        FlinkJoinType.INNER, -5, 9, 0, rowType, rowType, joinFunction, 3L);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+        testHarness.open();
+
+        testHarness.setProcessingTime(10);
+        testHarness.processElement1(insertRecord(1L, "a"));
+        // No early-fire timer for an inner join.
+        assertThat(testHarness.numProcessingTimeTimers()).isEqualTo(1);
+
+        testHarness.setProcessingTime(13);
+        testHarness.setProcessingTime(40);
+
+        List<Object> expectedOutput = new ArrayList<>();
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    /** Delay larger than the window span still pads an unmatched row exactly once. */
+    @Test
+    void testProcTimeLeftOuterEarlyFireDelayExceedsSpan() throws Exception {
+        // Window span is 5 + 9 = 14; the delay exceeds it so cleanup may reach the row first.
+        ProcTimeIntervalJoin joinProcessFunc =
+                new ProcTimeIntervalJoin(
+                        FlinkJoinType.LEFT, -5, 9, 0, rowType, rowType, joinFunction, 20L);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+        testHarness.open();
+
+        testHarness.setProcessingTime(10);
+        testHarness.processElement1(insertRecord(1L, "a"));
+        // Cleanup at 16, early fire at 30: advancing past both must still emit a single pad.
+        testHarness.setProcessingTime(35);
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(1L, "a", null, null));
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.ThreadDumpMode;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -475,7 +476,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     @Override
     public CompletableFuture<ThreadDumpInfo> requestThreadDump(
-            ResourceID taskManagerId, Duration timeout) {
+            ResourceID taskManagerId, ThreadDumpMode mode, Duration timeout) {
         final Function<ResourceID, CompletableFuture<ThreadDumpInfo>> function =
                 this.requestThreadDumpFunction;
 

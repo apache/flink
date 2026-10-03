@@ -24,8 +24,6 @@ import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.bitmap.Bitmap;
-import org.apache.flink.types.bitmap.RoaringBitmapData;
-import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -95,10 +93,9 @@ class ClassDataTypeConverterTest {
                         TimeIntervalUnit.class,
                         new AtomicDataType(new SymbolType<>()).bridgedTo(TimeIntervalUnit.class)),
                 of(Row.class, null),
+                of(java.util.UUID.class, DataTypes.UUID()),
                 of(Variant.class, DataTypes.VARIANT()),
-                of(BinaryVariant.class, DataTypes.VARIANT().bridgedTo(BinaryVariant.class)),
-                of(Bitmap.class, DataTypes.BITMAP().bridgedTo(Bitmap.class)),
-                of(RoaringBitmapData.class, DataTypes.BITMAP().bridgedTo(RoaringBitmapData.class)));
+                of(Bitmap.class, DataTypes.BITMAP()));
     }
 
     @ParameterizedTest(name = "[{index}] class: {0} type: {1}")

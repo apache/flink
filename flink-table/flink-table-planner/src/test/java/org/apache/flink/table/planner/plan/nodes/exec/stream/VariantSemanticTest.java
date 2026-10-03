@@ -91,7 +91,7 @@ public class VariantSemanticTest extends SemanticTestBase {
                     .runFailingSql(
                             "INSERT INTO sink_t SELECT PARSE_JSON(v) FROM t",
                             TableRuntimeException.class,
-                            "Failed to parse json string")
+                            "Failed to parse JSON string")
                     .build();
 
     static final TableTestProgram TRY_PARSE_JSON_HANDLE_MALFORMED_JSON =
@@ -109,6 +109,28 @@ public class VariantSemanticTest extends SemanticTestBase {
                                     .consumedValues(Row.of(BUILDER.of((byte) 1)), new Row(1))
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT TRY_PARSE_JSON(v) FROM t")
+                    .build();
+
+    static final TableTestProgram VARIANT_OMITTED_FROM_INSERT_COLUMN_LIST =
+            TableTestProgram.of(
+                            "variant-omitted-from-insert-column-list",
+                            "validates that VARIANT columns omitted from an INSERT column list are filled with NULL")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("k INT")
+                                    .producedValues(Row.of(1))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "k INT",
+                                            "v VARIANT",
+                                            "a ARRAY<VARIANT>",
+                                            "r ROW<f VARIANT>",
+                                            "m MAP<STRING, VARIANT>")
+                                    .consumedValues(Row.of(1, null, null, null, null))
+                                    .build())
+                    .runSql("INSERT INTO sink_t (k) SELECT k FROM t")
                     .build();
 
     static final Variant V1 = BUILDER.of(1);
@@ -191,6 +213,35 @@ public class VariantSemanticTest extends SemanticTestBase {
                                     .consumedValues(Row.of(1), Row.of(2), new Row(1), new Row(1))
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT udf(v) FROM t")
+                    .build();
+
+    static final TableTestProgram VARIANT_IN_VIEW =
+            TableTestProgram.of("variant-in-view", "validates variant unparsing through a view")
+                    .setupTemporarySystemFunction("udf", VariantIdentity.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("v VARIANT")
+                                    .producedValues(
+                                            Row.of(
+                                                    BUILDER.object()
+                                                            .add("k", BUILDER.of(1))
+                                                            .build()),
+                                            Row.of(BUILDER.array().add(BUILDER.of("x")).build()),
+                                            new Row(1))
+                                    .build())
+                    .setupSql("CREATE VIEW variant_view AS SELECT udf(v) AS v FROM t")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("v VARIANT")
+                                    .consumedValues(
+                                            Row.of(
+                                                    BUILDER.object()
+                                                            .add("k", BUILDER.of(1))
+                                                            .build()),
+                                            Row.of(BUILDER.array().add(BUILDER.of("x")).build()),
+                                            new Row(1))
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT v FROM variant_view")
                     .build();
 
     static final TableTestProgram VARIANT_AS_UDAF_ARG =
@@ -458,6 +509,7 @@ public class VariantSemanticTest extends SemanticTestBase {
                 BUILTIN_AGG,
                 BUILTIN_AGG_WITH_RETRACTION,
                 VARIANT_AS_UDF_ARG,
+                VARIANT_IN_VIEW,
                 VARIANT_AS_UDAF_ARG,
                 VARIANT_AS_AGG_KEY,
                 VARIANT_ARRAY_ACCESS,
@@ -465,7 +517,14 @@ public class VariantSemanticTest extends SemanticTestBase {
                 VARIANT_OBJECT_ACCESS,
                 VARIANT_NESTED_ACCESS,
                 VARIANT_ARRAY_ERROR_ACCESS,
-                VARIANT_OBJECT_ERROR_ACCESS);
+                VARIANT_OBJECT_ERROR_ACCESS,
+                VARIANT_OMITTED_FROM_INSERT_COLUMN_LIST);
+    }
+
+    public static class VariantIdentity extends ScalarFunction {
+        public Variant eval(Variant v) {
+            return v;
+        }
     }
 
     public static class MyUdf extends ScalarFunction {

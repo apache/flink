@@ -19,12 +19,14 @@
 package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
+import org.apache.flink.table.planner.utils.InternalConfigOptions;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -45,6 +47,34 @@ import java.util.List;
  */
 @Internal
 public final class LateralSnapshotJoinUtil {
+
+    /**
+     * Label for {@code FlinkLogicalLateralSnapshotJoin#getLoadCompletedCondition()} when the load
+     * phase completes at the wall-clock time the query was compiled (the default, used when the
+     * user does not provide {@code load_completed_time}).
+     */
+    public static final String LOAD_COMPLETED_CONDITION_COMPILE_TIME = "compile_time";
+
+    /**
+     * Label for {@code FlinkLogicalLateralSnapshotJoin#getLoadCompletedCondition()} when the load
+     * phase completes at a user-provided {@code load_completed_time}.
+     */
+    public static final String LOAD_COMPLETED_CONDITION_USER_TIME = "user_time";
+
+    /**
+     * Resolves the {@code load_completed_time} used by a {@code compile_time} LATERAL SNAPSHOT
+     * join, i.e. one where the user did not provide the argument.
+     *
+     * <p>Uses {@link InternalConfigOptions#TABLE_QUERY_START_EPOCH_TIME}: {@link
+     * org.apache.flink.table.planner.delegation.PlannerBase#beforeTranslation} records it once
+     * before optimization begins, so every SNAPSHOT call reduced during that optimization run
+     * resolves to the same value. If the config is absent, we fall back to wall clock time.
+     */
+    public static long resolveDefaultLoadCompletedTime(TableConfig tableConfig) {
+        return tableConfig
+                .getOptional(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME)
+                .orElseGet(System::currentTimeMillis);
+    }
 
     /**
      * {@code true} when {@code definition} is the {@link BuiltInFunctionDefinitions#SNAPSHOT}

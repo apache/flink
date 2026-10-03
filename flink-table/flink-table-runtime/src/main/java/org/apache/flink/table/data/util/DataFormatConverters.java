@@ -68,7 +68,6 @@ import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.bitmap.Bitmap;
-import org.apache.flink.types.bitmap.RoaringBitmapData;
 import org.apache.flink.types.variant.Variant;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -158,8 +157,7 @@ public class DataFormatConverters {
                 DataTypes.INTERVAL(DataTypes.SECOND(3)).bridgedTo(long.class),
                 LongConverter.INSTANCE);
 
-        t2C.put(DataTypes.BITMAP().bridgedTo(Bitmap.class), BitmapConverter.INSTANCE);
-        t2C.put(DataTypes.BITMAP().bridgedTo(RoaringBitmapData.class), BitmapConverter.INSTANCE);
+        t2C.put(DataTypes.BITMAP(), BitmapConverter.INSTANCE);
 
         TYPE_TO_CONVERTER = Collections.unmodifiableMap(t2C);
     }
@@ -757,15 +755,6 @@ public class DataFormatConverters {
         public static final BitmapConverter INSTANCE = new BitmapConverter();
 
         private BitmapConverter() {}
-
-        @Override
-        Bitmap toInternalImpl(Bitmap value) {
-            if (!(value instanceof RoaringBitmapData)) {
-                throw new UnsupportedOperationException(
-                        "Unsupported bitmap type: " + value.getClass().getSimpleName() + ".");
-            }
-            return value;
-        }
 
         @Override
         Bitmap toExternalImpl(RowData row, int column) {

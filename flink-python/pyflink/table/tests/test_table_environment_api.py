@@ -17,9 +17,13 @@
 ################################################################################
 import datetime
 import decimal
+import os
 import sys
+import tempfile
 import unittest
+from unittest.mock import MagicMock, patch
 
+import pyarrow as pa
 from py4j.protocol import Py4JJavaError
 from typing import Iterable
 
@@ -38,12 +42,125 @@ from pyflink.table.catalog import ObjectPath, CatalogBaseTable, CatalogDescripto
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col, source_watermark
 from pyflink.table.table_descriptor import TableDescriptor
+from pyflink.table.table_environment import TableEnvironment
 from pyflink.table.types import RowType, Row, UserDefinedType
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import (PyFlinkStreamTableTestCase, PyFlinkUTTestCase,
                                              _load_specific_flink_module_jars)
 from pyflink.util.java_utils import get_j_env_configuration
+
+
+class ArrowTimestampConversionTests(unittest.TestCase):
+
+    def _write_from_arrow(
+            self,
+            table,
+            row_type,
+            splits_num=1):
+        table_environment = object.__new__(TableEnvironment)
+        table_environment._j_tenv = MagicMock()
+        setattr(table_environment._j_tenv, 'from', MagicMock(return_value=object()))
+
+        batches = []
+        arrow_schemas = []
+        gateway = MagicMock()
+        descriptor_factory = gateway.jvm.org.apache.flink.table.runtime.arrow \
+            .ArrowUtils.createArrowTableSourceDesc
+
+        def capture_batches(source_schema, file_name, *args):
+            with pa.ipc.open_stream(file_name) as reader:
+                arrow_schemas.append(reader.schema)
+                batches.extend(reader)
+            return object()
+
+        descriptor_factory.side_effect = capture_batches
+        with patch(
+            'pyflink.table.table_environment.get_gateway', return_value=gateway
+        ):
+            table_environment._from_arrow(
+                table,
+                row_type,
+                table_schema=MagicMock(),
+                splits_num=splits_num,
+            )
+        return batches, arrow_schemas[0]
+
+    def test_from_arrow_preserves_existing_batches(self):
+        table = pa.table({
+            'id': pa.chunked_array(
+                [pa.array([value], type=pa.int64()) for value in range(4)]
+            )
+        })
+        row_type = DataTypes.ROW([DataTypes.FIELD('id', DataTypes.BIGINT())])
+        batches, _ = self._write_from_arrow(
+            table, row_type, splits_num=2)
+
+        self.assertEqual([batch.num_rows for batch in batches], [1, 1, 1, 1])
+
+    def test_from_arrow_handles_split_boundaries(self):
+        row_type = DataTypes.ROW([DataTypes.FIELD('id', DataTypes.BIGINT())])
+        cases = [
+            (pa.table({'id': range(5)}), 2, [3, 2]),
+            (pa.table({'id': range(2)}), 5, [1, 1]),
+        ]
+        for table, splits_num, expected_batch_sizes in cases:
+            with self.subTest(splits_num=splits_num, rows=table.num_rows):
+                batches, _ = self._write_from_arrow(
+                    table, row_type, splits_num=splits_num)
+                self.assertEqual(
+                    [batch.num_rows for batch in batches], expected_batch_sizes)
+
+    def test_from_arrow_rejects_invalid_split_counts(self):
+        table = pa.table({'id': [1]})
+        row_type = DataTypes.ROW([DataTypes.FIELD('id', DataTypes.BIGINT())])
+        invalid_splits = [
+            (True, TypeError, 'must be an integer'),
+            (1.5, TypeError, 'must be an integer'),
+            (0, ValueError, 'must be greater than 0'),
+            (-1, ValueError, 'must be greater than 0'),
+        ]
+        for splits_num, error_type, message in invalid_splits:
+            with self.subTest(splits_num=splits_num):
+                with self.assertRaisesRegex(error_type, message):
+                    self._write_from_arrow(table, row_type, splits_num=splits_num)
+
+    def test_from_arrow_writes_schema_only_empty_stream(self):
+        table = pa.table({
+            'id': pa.array([], type=pa.int64()),
+        })
+        row_type = DataTypes.ROW([DataTypes.FIELD('id', DataTypes.BIGINT())])
+
+        batches, arrow_schema = self._write_from_arrow(
+            table, row_type, splits_num=5)
+
+        self.assertEqual(batches, [])
+        self.assertEqual(arrow_schema, table.schema)
+
+    def test_from_arrow_floors_pre_epoch_timestamp_precision(self):
+        table = pa.table({
+            'ts': pa.array([-1], type=pa.timestamp('us')),
+        })
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD('ts', DataTypes.TIMESTAMP(3)),
+        ])
+
+        batches, _ = self._write_from_arrow(table, row_type)
+
+        self.assertEqual(
+            batches[0].column(0).to_pylist(),
+            [datetime.datetime.fromisoformat('1969-12-31T23:59:59.999')],
+        )
+
+    def test_from_arrow_cleans_temporary_directory(self):
+        table = pa.table({'id': [1]})
+        row_type = DataTypes.ROW([DataTypes.FIELD('id', DataTypes.BIGINT())])
+
+        with tempfile.TemporaryDirectory() as temp_root:
+            with patch('pyflink.table.table_environment.tempfile.tempdir', temp_root):
+                self._write_from_arrow(table, row_type)
+
+            self.assertEqual(os.listdir(temp_root), [])
 
 
 class TableEnvironmentTest(PyFlinkUTTestCase):

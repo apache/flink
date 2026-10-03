@@ -24,6 +24,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
+import org.junit.jupiter.api.Nested;
+
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,37 +34,24 @@ import java.util.List;
 import java.util.Objects;
 
 /** Tests for {@link ExternalSerializer}. */
-abstract class ExternalSerializerTest<T> extends SerializerTestInstance<T> {
+class ExternalSerializerTest {
 
-    @SuppressWarnings("unchecked")
-    ExternalSerializerTest(TestSpec<T> testSpec) {
-        super(
-                ExternalSerializer.of(testSpec.dataType),
-                (Class<T>) testSpec.dataType.getConversionClass(),
-                testSpec.length,
-                testSpec.instances.toArray(
-                        (T[]) Array.newInstance(testSpec.dataType.getConversionClass(), 0)));
-    }
-
-    @Override
-    protected boolean allowNullInstances(TypeSerializer<T> serializer) {
-        return true;
-    }
-
-    static final class ExternalSerializer1Test extends ExternalSerializerTest {
-        public ExternalSerializer1Test() {
+    @Nested
+    final class ExternalSerializer1Test extends ExternalSerializerTestBase<Integer> {
+        ExternalSerializer1Test() {
             super(
-                    TestSpec.forDataType(DataTypes.INT())
+                    TestSpec.<Integer>forDataType(DataTypes.INT())
                             .withLength(4)
                             .addInstance(18)
                             .addInstance(42));
         }
     }
 
-    static final class ExternalSerializer2Test extends ExternalSerializerTest {
-        public ExternalSerializer2Test() {
+    @Nested
+    final class ExternalSerializer2Test extends ExternalSerializerTestBase<Row> {
+        ExternalSerializer2Test() {
             super(
-                    TestSpec.forDataType(
+                    TestSpec.<Row>forDataType(
                                     DataTypes.ROW(
                                             DataTypes.FIELD("age", DataTypes.INT()),
                                             DataTypes.FIELD("name", DataTypes.STRING())))
@@ -71,10 +60,11 @@ abstract class ExternalSerializerTest<T> extends SerializerTestInstance<T> {
         }
     }
 
-    static final class ExternalSerializer3Test extends ExternalSerializerTest {
-        public ExternalSerializer3Test() {
+    @Nested
+    final class ExternalSerializer3Test extends ExternalSerializerTestBase<ImmutableTestPojo> {
+        ExternalSerializer3Test() {
             super(
-                    TestSpec.forDataType(
+                    TestSpec.<ImmutableTestPojo>forDataType(
                                     DataTypes.STRUCTURED(
                                             ImmutableTestPojo.class,
                                             DataTypes.FIELD("age", DataTypes.INT()),
@@ -84,10 +74,12 @@ abstract class ExternalSerializerTest<T> extends SerializerTestInstance<T> {
         }
     }
 
-    static final class ExternalSerializer4Test extends ExternalSerializerTest {
-        public ExternalSerializer4Test() {
+    @Nested
+    final class ExternalSerializer4Test
+            extends ExternalSerializerTestBase<List<ImmutableTestPojo>> {
+        ExternalSerializer4Test() {
             super(
-                    TestSpec.forDataType(
+                    TestSpec.<List<ImmutableTestPojo>>forDataType(
                                     DataTypes.ARRAY(
                                                     DataTypes.STRUCTURED(
                                                             ImmutableTestPojo.class,
@@ -106,12 +98,31 @@ abstract class ExternalSerializerTest<T> extends SerializerTestInstance<T> {
         }
     }
 
-    static final class ExternalSerializer5Test extends ExternalSerializerTest {
-        public ExternalSerializer5Test() {
+    @Nested
+    final class ExternalSerializer5Test extends ExternalSerializerTestBase<Integer[]> {
+        ExternalSerializer5Test() {
             super(
-                    TestSpec.forDataType(DataTypes.ARRAY(DataTypes.INT()))
+                    TestSpec.<Integer[]>forDataType(DataTypes.ARRAY(DataTypes.INT()))
                             .addInstance(new Integer[] {0, 1, null, 3})
                             .addInstance(new Integer[0]));
+        }
+    }
+
+    abstract static class ExternalSerializerTestBase<T> extends SerializerTestInstance<T> {
+
+        @SuppressWarnings("unchecked")
+        ExternalSerializerTestBase(TestSpec<T> testSpec) {
+            super(
+                    ExternalSerializer.of(testSpec.dataType),
+                    (Class<T>) testSpec.dataType.getConversionClass(),
+                    testSpec.length,
+                    testSpec.instances.toArray(
+                            (T[]) Array.newInstance(testSpec.dataType.getConversionClass(), 0)));
+        }
+
+        @Override
+        protected boolean allowNullInstances(TypeSerializer<T> serializer) {
+            return true;
         }
     }
 

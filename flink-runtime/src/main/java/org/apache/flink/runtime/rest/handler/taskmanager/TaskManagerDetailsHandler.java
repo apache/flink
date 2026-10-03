@@ -119,7 +119,7 @@ public class TaskManagerDetailsHandler
                 .exceptionally(
                         (Throwable throwable) -> {
                             final Throwable strippedThrowable =
-                                    ExceptionUtils.stripExecutionException(throwable);
+                                    ExceptionUtils.stripCompletionException(throwable);
 
                             if (strippedThrowable instanceof UnknownTaskExecutorException) {
                                 throw new CompletionException(

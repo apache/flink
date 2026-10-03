@@ -46,6 +46,7 @@ import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.UuidType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
@@ -89,6 +90,7 @@ class FlinkTypeFactoryTest {
                 new TimeType(),
                 new TimestampType(3),
                 new LocalZonedTimestampType(3),
+                new UuidType(),
                 new ArrayType(new DoubleType()),
                 new MapType(new DoubleType(), VarCharType.STRING_TYPE),
                 RowType.of(new DoubleType(), VarCharType.STRING_TYPE),

@@ -28,6 +28,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.TableFunction;
@@ -80,6 +81,9 @@ class DataTypeExtractorTest {
 
                 // simple extraction of BYTES
                 TestSpec.forType(byte[].class).expectDataType(DataTypes.BYTES()),
+
+                // automatic extraction of UUID for Table/SQL
+                TestSpec.forType(java.util.UUID.class).expectDataType(DataTypes.UUID()),
 
                 // extraction from hint conversion class
                 TestSpec.forType(
@@ -448,6 +452,38 @@ class DataTypeExtractorTest {
                 TestSpec.forType("Invalid data view", AccumulatorWithInvalidView.class)
                         .expectErrorMessage(
                                 "Annotated list views should have a logical type of ARRAY."),
+                TestSpec.forType(
+                                "Value view with default extraction",
+                                AccumulatorWithDefaultValueView.class)
+                        .expectDataType(
+                                DataTypes.STRUCTURED(
+                                        AccumulatorWithDefaultValueView.class,
+                                        DataTypes.FIELD(
+                                                "valueView",
+                                                ValueView.newValueViewDataType(DataTypes.INT())))),
+                TestSpec.forType(
+                                "Value view with custom extraction for atomic type",
+                                AccumulatorWithCustomValueView.class)
+                        .expectDataType(
+                                DataTypes.STRUCTURED(
+                                        AccumulatorWithCustomValueView.class,
+                                        DataTypes.FIELD(
+                                                "valueView",
+                                                ValueView.newValueViewDataType(DataTypes.INT())))),
+                TestSpec.forType(
+                                "Value view with custom extraction for composite type",
+                                AccumulatorWithRowValueView.class)
+                        .expectDataType(
+                                DataTypes.STRUCTURED(
+                                        AccumulatorWithRowValueView.class,
+                                        DataTypes.FIELD(
+                                                "valueView",
+                                                ValueView.newValueViewDataType(
+                                                        DataTypes.ROW(
+                                                                DataTypes.FIELD(
+                                                                        "s", DataTypes.STRING()),
+                                                                DataTypes.FIELD(
+                                                                        "i", DataTypes.INT())))))),
                 TestSpec.forGeneric(
                                 "Assigning constructor for tuples",
                                 TableFunction.class,
@@ -1071,6 +1107,23 @@ class DataTypeExtractorTest {
     public static class AccumulatorWithInvalidView {
         @DataTypeHint("INT")
         public ListView<?> listView;
+    }
+
+    /** Accumulator with default extraction for value view. */
+    public static class AccumulatorWithDefaultValueView {
+        public ValueView<Integer> valueView;
+    }
+
+    /** Accumulator with custom extraction for value view of an atomic type. */
+    public static class AccumulatorWithCustomValueView {
+        @DataTypeHint("INT")
+        public ValueView<?> valueView;
+    }
+
+    /** Accumulator with custom extraction for value view of a composite type. */
+    public static class AccumulatorWithRowValueView {
+        @DataTypeHint("ROW<s STRING, i INT>")
+        public ValueView<Row> valueView;
     }
 
     // --------------------------------------------------------------------------------------------

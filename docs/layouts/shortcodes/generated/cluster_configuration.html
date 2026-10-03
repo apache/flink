@@ -63,6 +63,12 @@
             <td>The shutdown timeout for cluster services like executors.</td>
         </tr>
         <tr>
+            <td><h5>cluster.thread-dump.default-mode</h5></td>
+            <td style="word-wrap: break-word;">FULL</td>
+            <td><p>Enum</p></td>
+            <td>Default granularity of the JobManager/TaskManager thread-dump REST endpoint when no explicit <code class="highlighter-rouge">mode</code> query parameter is supplied. The default is <code class="highlighter-rouge">FULL</code> to preserve historical behavior; operators of large clusters are strongly encouraged to switch to <code class="highlighter-rouge">LITE</code> to avoid heartbeat timeouts caused by long safepoint pauses.<br /><br />Possible values:<ul><li>"LITE": Stack traces only, without lock information. Negligible JVM pause.</li><li>"FULL": Additionally collects locked monitors and j.u.c. synchronizers, equivalent to jstack -l. Pauses the JVM in a safepoint for a duration that scales with heap size and thread count, which can take seconds on large TaskManagers.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>cluster.thread-dump.stacktrace-max-depth</h5></td>
             <td style="word-wrap: break-word;">50</td>
             <td>Integer</td>

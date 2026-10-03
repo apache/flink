@@ -25,7 +25,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
-import org.apache.flink.types.bitmap.RoaringBitmapData;
+import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.Variant;
 
 import java.math.BigDecimal;
@@ -91,10 +91,6 @@ public final class ValueDataTypeConverter {
             // don't let the class-based extraction kick in if array elements differ
             return convertToArrayType((Object[]) value)
                     .map(dt -> dt.notNull().bridgedTo(value.getClass()));
-        } else if (value instanceof Variant) {
-            convertedDataType = DataTypes.VARIANT();
-        } else if (value instanceof RoaringBitmapData) {
-            convertedDataType = DataTypes.BITMAP();
         }
 
         final Optional<DataType> resultType;
@@ -106,7 +102,16 @@ public final class ValueDataTypeConverter {
             // DATE, TIME with java.sql.Time, and arrays of primitive types
             resultType = ClassDataTypeConverter.extractDataType(value.getClass());
         }
-        return resultType.map(dt -> dt.notNull().bridgedTo(value.getClass()));
+        return resultType.map(
+                dt -> {
+                    final DataType notNullDataType = dt.notNull();
+                    // Because they are interfaces, and we want to avoid bridgeTo internal
+                    // conversion classes.
+                    if (value instanceof Variant || value instanceof Bitmap) {
+                        return notNullDataType;
+                    }
+                    return notNullDataType.bridgedTo(value.getClass());
+                });
     }
 
     private static DataType convertToCharType(String string) {

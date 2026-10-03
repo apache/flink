@@ -45,8 +45,11 @@ public class ScalaSuffixChecker {
     private static final Logger LOG = LoggerFactory.getLogger(ScalaSuffixChecker.class);
 
     // [INFO] --- maven-dependency-plugin:3.1.1:tree (default-cli) @ flink-annotations ---
+    // [INFO] --- dependency:3.1.1:tree (default-cli) @ flink-annotations ---
+    // Maven logs the plugin as "maven-dependency-plugin" up to 3.8 and as "dependency" (the goal
+    // prefix) from 3.9 on; both spellings are accepted so the parser works on either Maven version.
     private static final Pattern moduleNamePattern =
-            Pattern.compile(".* --- maven-dependency-plugin.* @ (.*) ---.*");
+            Pattern.compile(".* --- (?:maven-)?dependency(?:-plugin)?:.* @ (.*) ---.*");
 
     // [INFO] +- junit:junit:jar:4.13.2:test
     // [INFO] |  \- org.hamcrest:hamcrest-core:jar:1.3:test

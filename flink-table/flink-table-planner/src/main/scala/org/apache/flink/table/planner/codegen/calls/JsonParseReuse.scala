@@ -57,7 +57,7 @@ object JsonParseReuse {
         val lastInputName = CodeGenUtils.newName(ctx, "jsonParsedInput")
         val methodName = CodeGenUtils.newName(ctx, "parseJson")
         val typeName = classOf[SqlJsonUtils.JsonValueContext].getName
-        val inputType = CodeGenUtils.BINARY_STRING
+        val inputType = CodeGenUtils.boxedTypeTermForType(input.resultType)
         ctx.addReusableMember(s"$typeName $varName;")
         ctx.addReusableMember(s"$inputType $lastInputName;")
 

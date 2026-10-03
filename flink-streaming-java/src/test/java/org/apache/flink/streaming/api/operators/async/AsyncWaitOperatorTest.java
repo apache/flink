@@ -1399,6 +1399,66 @@ public class AsyncWaitOperatorTest {
         testProcessingTimeAlwaysTimeoutFunctionWithRetry(AsyncDataStream.OutputMode.UNORDERED);
     }
 
+    /** A timeout firing while a retry is already queued must still emit its result. */
+    @Test
+    void testTimeoutRaceWithRetry() throws Exception {
+        ControllableExceptionThenTimeoutFunction.releaseCompletion = new CountDownLatch(1);
+        ControllableExceptionThenTimeoutFunction.completionEnqueued = new CountDownLatch(1);
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithRetry(
+                        new ControllableExceptionThenTimeoutFunction(),
+                        TIMEOUT,
+                        1,
+                        AsyncDataStream.OutputMode.UNORDERED,
+                        exceptionRetryStrategy)) {
+
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
+
+            // start the async call; its timeout timer is now registered at TIMEOUT
+            synchronized (testHarness.getCheckpointLock()) {
+                testHarness.processElement(new StreamRecord<>(1, 1L));
+            }
+
+            // let the async call complete exceptionally, then wait until the resulting retry mail
+            // is actually enqueued in the mailbox
+            ControllableExceptionThenTimeoutFunction.releaseCompletion.countDown();
+            ControllableExceptionThenTimeoutFunction.completionEnqueued.await();
+
+            // fire the timeout while the retry mail is still queued, then run both mails in order
+            testHarness.setProcessingTime(TIMEOUT + 1L);
+            drainMailbox(testHarness);
+
+            assertThat(testHarness.getOutput()).containsExactly(new StreamRecord<>(-1, 1L));
+        }
+    }
+
+    private static class ControllableExceptionThenTimeoutFunction
+            extends AlwaysTimeoutWithDefaultValueAsyncFunction {
+        private static final long serialVersionUID = 2L;
+
+        // released by the test to let the async call complete exceptionally
+        static CountDownLatch releaseCompletion;
+        // counted down once the exceptional completion has been enqueued into the mailbox
+        static CountDownLatch completionEnqueued;
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            tryCounts.merge(input, 1, Integer::sum);
+            CompletableFuture.runAsync(
+                    () -> {
+                        try {
+                            releaseCompletion.await();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                        resultFuture.completeExceptionally(new Exception("Dummy error"));
+                        completionEnqueued.countDown();
+                    });
+        }
+    }
+
     /**
      * Test the AsyncWaitOperator with an always-timeout async function under ordered mode and
      * processing time.

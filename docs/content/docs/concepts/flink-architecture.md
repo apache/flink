@@ -80,7 +80,7 @@ failures, among others. This process consists of three different components:
   * **JobMaster** 
 
     A _JobMaster_ is responsible for managing the execution of a single
-    [JobGraph]({{< ref "docs/concepts/glossary" >}}#logical-graph).
+    [JobGraph]({{< ref "docs/concepts/glossary" >}}#job-graph).
     Multiple jobs can run simultaneously in a Flink cluster, each having its
     own JobMaster.
 

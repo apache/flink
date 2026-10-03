@@ -19,7 +19,6 @@
 package org.apache.flink.fs.s3native.writer;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.fs.s3native.NativeS3FileIoUtils;
 import org.apache.flink.fs.s3native.S3EncryptionConfig;
 import org.apache.flink.fs.s3native.S3ExceptionUtils;
@@ -89,11 +88,6 @@ import java.util.stream.Collectors;
  *   <li>SSE-C (customer-provided keys) via a KeyProvider interface
  *   <li>Client-side encryption via an EncryptionHandler interface
  * </ul>
- *
- * <p><b>S3 URI Handling:</b> The {@link #extractKey(Path)} and {@link #extractBucketName(Path)}
- * methods expect URIs in the standard {@code s3://bucket/key} format. Other formats like path-style
- * ({@code https://s3.amazonaws.com/bucket/key}) or virtual-hosted-style ({@code
- * https://bucket.s3.amazonaws.com/key}) are not currently supported.
  */
 @Internal
 public class NativeS3ObjectOperations {
@@ -452,44 +446,6 @@ public class NativeS3ObjectOperations {
 
     public String getBucketName() {
         return bucketName;
-    }
-
-    /**
-     * Extracts the S3 object key from a Flink Path.
-     *
-     * <p>Expected URI format: {@code s3://bucket-name/path/to/object}
-     *
-     * <p><b>Limitations:</b> This method only supports the standard S3 URI format. Other URI
-     * formats are NOT supported:
-     *
-     * <ul>
-     *   <li>{@code https://bucket.s3.amazonaws.com/path/to/object} (virtual-hosted style)
-     *   <li>{@code https://s3.amazonaws.com/bucket/path/to/object} (path style)
-     *   <li>{@code s3a://} or {@code s3n://} schemes (Hadoop-specific)
-     * </ul>
-     *
-     * @param path the Flink Path with s3:// scheme
-     * @return the object key (path portion without leading slash)
-     */
-    public static String extractKey(Path path) {
-        String pathStr = path.toUri().getPath();
-        if (pathStr.startsWith("/")) {
-            pathStr = pathStr.substring(1);
-        }
-        return pathStr;
-    }
-
-    /**
-     * Extracts the S3 bucket name from a Flink Path.
-     *
-     * <p>Expected URI format: {@code s3://bucket-name/path/to/object}
-     *
-     * @param path the Flink Path with s3:// scheme
-     * @return the bucket name (host portion of the URI)
-     * @see #extractKey(Path) for URI format limitations
-     */
-    public static String extractBucketName(Path path) {
-        return path.toUri().getHost();
     }
 
     public static class UploadPartResult {

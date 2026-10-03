@@ -31,8 +31,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDERING;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_ASC;
+import static org.apache.flink.table.operations.utils.OperationExpressionsUtils.ORDERING;
 
 /** Utility class for creating a valid {@link SortQueryOperation} operation. */
 @Internal

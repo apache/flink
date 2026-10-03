@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.RecoveryCheckpointTrigger;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -121,6 +122,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                 },
                 enableCheckpointsAfterTasksFinish,
                 RecoveryCheckpointTrigger.NO_OP,
+                ChannelStateWriter.NO_OP,
                 inputs);
     }
 
@@ -133,6 +135,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             DelayableTimer registerTimer,
             boolean enableCheckpointAfterTasksFinished,
             RecoveryCheckpointTrigger recoveryCheckpointTrigger,
+            ChannelStateWriter channelStateWriter,
             CheckpointableInput... inputs) {
         return new SingleCheckpointBarrierHandler(
                 taskName,
@@ -141,7 +144,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                 clock,
                 numOpenChannels,
                 new AlternatingWaitingForFirstBarrierUnaligned(
-                        false, new ChannelState(inputs, recoveryCheckpointTrigger)),
+                        false,
+                        new ChannelState(inputs, recoveryCheckpointTrigger, channelStateWriter)),
                 false,
                 registerTimer,
                 inputs,
@@ -178,6 +182,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             DelayableTimer registerTimer,
             boolean enableCheckpointAfterTasksFinished,
             RecoveryCheckpointTrigger recoveryCheckpointTrigger,
+            ChannelStateWriter channelStateWriter,
             CheckpointableInput... inputs) {
         return new SingleCheckpointBarrierHandler(
                 taskName,
@@ -186,7 +191,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                 clock,
                 numOpenChannels,
                 new AlternatingWaitingForFirstBarrier(
-                        new ChannelState(inputs, recoveryCheckpointTrigger)),
+                        new ChannelState(inputs, recoveryCheckpointTrigger, channelStateWriter)),
                 true,
                 registerTimer,
                 inputs,

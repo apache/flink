@@ -290,8 +290,12 @@ class GroupWindowTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase
   def testNonPartitionedSessionWindow(): Unit = {
     val sqlQuery = "SELECT COUNT(*) AS cnt FROM MyTable2 GROUP BY SESSION(ts, INTERVAL '30' MINUTE)"
     assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
-      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
-      .isInstanceOf[TableException]
+      .isInstanceOf(classOf[TableException])
+      // the rule's reason comes first, the plan is marked so that tools can strip it
+      .hasMessageStartingWith(
+        "Cannot generate a valid execution plan for the given query: Window SessionGroupWindow(")
+      .hasMessageContaining("is not supported right now.\n\nPlan:\nFlinkLogicalWindowAggregate(")
+      .hasCauseInstanceOf(classOf[TableException])
   }
 
   @TestTemplate

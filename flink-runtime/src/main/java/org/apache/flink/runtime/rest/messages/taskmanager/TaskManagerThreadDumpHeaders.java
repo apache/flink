@@ -29,7 +29,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /** Headers for the {@link TaskManagerThreadDumpHandler}. */
 public class TaskManagerThreadDumpHeaders
         implements RuntimeMessageHeaders<
-                EmptyRequestBody, ThreadDumpInfo, TaskManagerMessageParameters> {
+                EmptyRequestBody, ThreadDumpInfo, TaskManagerThreadDumpMessageParameters> {
 
     private static final TaskManagerThreadDumpHeaders INSTANCE = new TaskManagerThreadDumpHeaders();
 
@@ -44,8 +44,8 @@ public class TaskManagerThreadDumpHeaders
     }
 
     @Override
-    public TaskManagerMessageParameters getUnresolvedMessageParameters() {
-        return new TaskManagerMessageParameters();
+    public TaskManagerThreadDumpMessageParameters getUnresolvedMessageParameters() {
+        return new TaskManagerThreadDumpMessageParameters();
     }
 
     @Override
