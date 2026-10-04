@@ -141,8 +141,8 @@ public class SqlNodeConverters {
 
     private static void registerConnectionConverters() {
         register(new SqlCreateConnectionConverter());
-        register(new SqlShowConnectionsConverter());
         register(new SqlDescribeConnectionConverter());
+        register(new SqlShowConnectionsConverter());
         register(new SqlShowCreateConnectionConverter());
     }
 
