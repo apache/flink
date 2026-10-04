@@ -75,7 +75,7 @@ public class DropConnectionOperation implements DropOperation {
         params.put("isSystemConnection", isSystemConnection);
 
         return OperationUtils.formatWithChildren(
-                "DROP CONNECTION", params, Collections.emptyList(), Operation::asSummaryString);
+                "DROP CONNECTION", params, List.of(), Operation::asSummaryString);
     }
 
     @Override
