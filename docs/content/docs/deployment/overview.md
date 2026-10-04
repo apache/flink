@@ -231,6 +231,11 @@ This behavior can be configured through the [`execution.terminate-application-on
 Regular job completions (by the sources shutting down) are supported.
 {{< /hint >}}
 
+{{< hint info >}}
+For low-throughput applications, the JobManager and TaskManager of an Application Mode cluster can also be run together in a
+single process. See [Application Mode in a MiniCluster]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}#application-mode-in-a-minicluster).
+{{< /hint >}}
+
 ### Session Mode
 
 *Session mode* assumes an already running cluster and uses the resources of that cluster to execute any 
