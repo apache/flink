@@ -706,7 +706,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         return clusterConfigurationParser.parse(args);
     }
 
-    protected static Configuration loadConfiguration(
+    public static Configuration loadConfiguration(
             EntrypointClusterConfiguration entrypointClusterConfiguration) {
         final Configuration dynamicProperties =
                 ConfigurationUtils.createConfiguration(
