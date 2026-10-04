@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -79,7 +80,10 @@ public class DropConnectionOperation implements DropOperation {
 
     @Override
     public TableResultInternal execute(Context ctx) {
-        // TODO(FLINK-38262): Handle temporary system connections outside the catalog namespace.
+        // TODO: FLINK-38262 Handle temporary system connections outside the catalog namespace.
+        if (isSystemConnection) {
+            throw new ValidationException("DROP TEMPORARY SYSTEM CONNECTION is not supported yet.");
+        }
         if (isTemporary) {
             ctx.getCatalogManager().dropTemporaryConnection(connectionIdentifier, ifExists);
         } else {
