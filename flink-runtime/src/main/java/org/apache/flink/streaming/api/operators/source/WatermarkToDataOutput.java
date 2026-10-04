@@ -74,15 +74,23 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
     @Override
     public void emitWatermark(Watermark watermark) {
         final long newWatermark = watermark.getTimestamp();
-        if (newWatermark <= maxWatermarkSoFar) {
-            return;
+        final boolean watermarkAdvanced = newWatermark > maxWatermarkSoFar;
+        if (watermarkAdvanced) {
+            maxWatermarkSoFar = newWatermark;
+            watermarkEmitted.updateCurrentEffectiveWatermark(maxWatermarkSoFar);
         }
 
-        maxWatermarkSoFar = newWatermark;
-        watermarkEmitted.updateCurrentEffectiveWatermark(maxWatermarkSoFar);
-
         try {
+            // Emitting a watermark implicitly marks this output as active, independently of whether
+            // the watermark advances the effective watermark (see WatermarkOutput). Otherwise a
+            // source that resumes with watermarks that are not larger than the max watermark so far
+            // would stay idle downstream. The activation must therefore not be gated on the
+            // monotonicity check below.
             markActiveInternally();
+
+            if (!watermarkAdvanced) {
+                return;
+            }
 
             output.emitWatermark(
                     new org.apache.flink.streaming.api.watermark.Watermark(newWatermark));

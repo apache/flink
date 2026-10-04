@@ -181,6 +181,57 @@ class CreateConnectionITCase extends BatchTestBase {
                 .containsExactly(Row.of("tmp_conn"));
     }
 
+    @Test
+    void testDescribeTemporaryConnection() {
+        tEnv().executeSql(
+                        "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
+                                + "WITH ('type' = 'default', 'k' = 'v', 'comment' = 'option comment', "
+                                + "'password' = 'super-secret')");
+
+        List<Row> rows = collectRows("DESCRIBE CONNECTION my_conn");
+
+        assertThat(rows)
+                .containsExactly(
+                        Row.of("type", "default"),
+                        Row.of("option:comment", "option comment"),
+                        Row.of("option:k", "v"),
+                        Row.of("comment", "hi there"),
+                        Row.of("temporary", "true"));
+    }
+
+    @Test
+    void testDescribeSecretOnlyConnectionIncludesDefaultType() {
+        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'secret')");
+
+        assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
+                .containsExactly(Row.of("type", "default"), Row.of("temporary", "true"));
+    }
+
+    @Test
+    void testDescribePermanentConnectionIncludesScope() throws Exception {
+        ObjectIdentifier identifier = connectionIdentifier("my_conn");
+        catalogManager()
+                .getCatalog(catalogManager().getCurrentCatalog())
+                .orElseThrow()
+                .createConnection(
+                        identifier.toObjectPath(),
+                        CatalogConnection.of(Map.of("k", "v"), null),
+                        false);
+
+        assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
+                .containsExactly(
+                        Row.of("type", "default"),
+                        Row.of("option:k", "v"),
+                        Row.of("temporary", "false"));
+    }
+
+    @Test
+    void testDescribeMissingConnectionRejected() {
+        assertThatThrownBy(() -> tEnv().executeSql("DESCRIBE CONNECTION missing_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Connection with identifier");
+    }
+
     private List<Row> collectRows(String sql) {
         TableResult result = tEnv().executeSql(sql);
         return CollectionUtil.iteratorToList(result.collect());

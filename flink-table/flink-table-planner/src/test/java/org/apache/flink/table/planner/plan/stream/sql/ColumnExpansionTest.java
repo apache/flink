@@ -483,7 +483,6 @@ class ColumnExpansionTest {
         final String sql =
                 "SELECT * FROM snapshot_probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE snapshot_build_hidden, on_time => DESCRIPTOR(rt), "
-                        + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                         + ") AS s ON snapshot_probe.pk = s.bk";
 
@@ -529,7 +528,6 @@ class ColumnExpansionTest {
         final String sql =
                 "SELECT * FROM snapshot_probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE snapshot_build_pushed, on_time => DESCRIPTOR(rt), "
-                        + "load_completed_condition => 'user_time', "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                         + ") AS s ON snapshot_probe.pk = s.bk";
 

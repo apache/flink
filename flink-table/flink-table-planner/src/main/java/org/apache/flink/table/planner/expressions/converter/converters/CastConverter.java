@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.expressions.converter.converters;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule;
 
@@ -35,11 +34,10 @@ class CastConverter extends CustomizedConverter {
         checkArgumentNumber(call, 2);
 
         final RexNode child = context.toRexNode(call.getChildren().get(0));
-        final TypeLiteralExpression targetType = (TypeLiteralExpression) call.getChildren().get(1);
+        // Not the literal target type: its top-level nullability must not override the input's.
         final RelDataType targetRelDataType =
                 context.getTypeFactory()
-                        .createFieldTypeFromLogicalType(
-                                targetType.getOutputDataType().getLogicalType());
+                        .createFieldTypeFromLogicalType(call.getOutputDataType().getLogicalType());
 
         return context.getRelBuilder()
                 .getRexBuilder()

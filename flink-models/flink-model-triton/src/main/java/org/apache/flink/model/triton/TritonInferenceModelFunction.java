@@ -315,7 +315,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                 @Override
                                 public void onResponse(Call call, Response response)
                                         throws IOException {
-                                    try {
+                                    try (response) {
                                         if (!response.isSuccessful()) {
                                             // Let handleErrorResponseWithRetry classify 4xx vs 5xx
                                             // and route to retry / default-value fallback. The
@@ -435,8 +435,6 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                                 e,
                                                 /* countAsBreakerFailure */ false,
                                                 /* retryable */ false);
-                                    } finally {
-                                        response.close();
                                     }
                                 }
                             });

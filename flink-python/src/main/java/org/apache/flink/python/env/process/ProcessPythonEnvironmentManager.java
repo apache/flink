@@ -59,7 +59,9 @@ public final class ProcessPythonEnvironmentManager extends AbstractPythonEnviron
                 PythonEnvironmentManagerUtils.getPythonUdfRunnerScript(
                         dependencyInfo.getPythonExec(), env);
 
-        return new ProcessPythonEnvironment(runnerScript, env);
+        // only what this manager sets; the worker inherits the rest of the TaskManager's
+        // environment
+        return new ProcessPythonEnvironment(runnerScript, getManagedEnvironmentVariables());
     }
 
     /**

@@ -87,9 +87,13 @@ class StreamPhysicalCalc(
     }
 
     // Every column in every candidate is, by construction of
-    // FlinkRelMdUniqueKeys.getProjectUniqueKeys, guaranteed to be a trivial
-    // pass-through of an input field - never a risky expression to evaluate.
-    val keyIndices = outputUpsertKeys.flatMap(bitSet => bitSet.map(_.intValue())).toSet.toArray
+    // FlinkRelMdUniqueKeys.getProjectUniqueKeys, guaranteed to be a pass-through
+    // of an input field or an injective expression.
+    val keyIndices = outputUpsertKeys
+      .flatMap(bitSet => bitSet.map(_.intValue()))
+      .toSet
+      .toArray
+      .sorted
     if (keyIndices.nonEmpty) {
       keyIndices
     } else {

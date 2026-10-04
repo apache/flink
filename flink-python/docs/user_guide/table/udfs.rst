@@ -22,7 +22,7 @@ Python User-defined Functions
 
 User-defined functions are important features, because they significantly extend the expressiveness of Python Table API programs.
 
-**NOTE:** Python UDF execution requires Python version (3.9, 3.10, 3.11 or 3.12) with PyFlink installed. It's required on both the client side and the cluster side.
+**NOTE:** Python UDF execution requires Python version (3.9, 3.10, 3.11, 3.12 or 3.13) with PyFlink installed. It's required on both the client side and the cluster side.
 
 Scalar Functions
 =================

@@ -99,7 +99,7 @@ msgid "Java 11"
 msgstr ""
 
 #: ../../user_guide/table_api_tutorial.rst:63
-msgid "Python 3.9, 3.10, 3.11 or 3.12"
+msgid "Python 3.9, 3.10, 3.11, 3.12 or 3.13"
 msgstr ""
 
 #: ../../user_guide/table_api_tutorial.rst:65

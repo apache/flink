@@ -118,6 +118,7 @@ public class ChannelStateFilteringHandler implements Closeable {
             throws IOException {
 
         if (gateIndex < 0 || gateIndex >= gateHandlers.length) {
+            sourceBuffer.recycleBuffer();
             throw new IllegalStateException(
                     "Invalid gateIndex: "
                             + gateIndex
@@ -127,6 +128,7 @@ public class ChannelStateFilteringHandler implements Closeable {
 
         GateFilterHandler<?> gateHandler = gateHandlers[gateIndex];
         if (gateHandler == null) {
+            sourceBuffer.recycleBuffer();
             throw new IllegalStateException(
                     "No handler for gateIndex "
                             + gateIndex

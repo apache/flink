@@ -19,6 +19,7 @@ package org.apache.flink.streaming.util.keys;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Keys;
@@ -29,11 +30,20 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.EnumTypeInfo;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Stack;
 
 import static java.util.Objects.requireNonNull;
 
@@ -115,6 +125,92 @@ public final class KeySelectorUtil {
                 compositeType.createComparator(
                         logicalKeyPositions, new boolean[] {true}, 0, executionConfig);
         return new OneKeySelector<>(comparator);
+    }
+
+    /**
+     * Validates that a given type of element (as encoded by the provided {@link TypeInformation})
+     * can be used as a key. This is done by searching depth-first the key type and checking if each
+     * of the composite types satisfies the required conditions (see {@link
+     * #isKeyTypeHashable(TypeInformation)}).
+     *
+     * @param keyType The {@link TypeInformation} of the key.
+     * @return The validated key type.
+     * @throws InvalidProgramException If the key type, or one of its contained types, cannot be
+     *     used as a key.
+     */
+    @SuppressWarnings("rawtypes")
+    public static <KEY> TypeInformation<KEY> validateKeyType(TypeInformation<KEY> keyType) {
+        Stack<TypeInformation<?>> stack = new Stack<>();
+        stack.push(keyType);
+
+        List<TypeInformation<?>> unsupportedTypes = new ArrayList<>();
+
+        while (!stack.isEmpty()) {
+            TypeInformation<?> typeInfo = stack.pop();
+
+            if (!isKeyTypeHashable(typeInfo)) {
+                unsupportedTypes.add(typeInfo);
+            }
+
+            if (typeInfo instanceof TupleTypeInfoBase) {
+                for (int i = 0; i < typeInfo.getArity(); i++) {
+                    stack.push(((TupleTypeInfoBase) typeInfo).getTypeAt(i));
+                }
+            }
+        }
+
+        if (!unsupportedTypes.isEmpty()) {
+            throw new InvalidProgramException(
+                    "Type "
+                            + keyType
+                            + " cannot be used as key. Contained "
+                            + "UNSUPPORTED key types: "
+                            + StringUtils.join(unsupportedTypes, ", ")
+                            + ". Look "
+                            + "at the keyBy() documentation for the conditions a type has to satisfy in order to be "
+                            + "eligible for a key.");
+        }
+
+        return keyType;
+    }
+
+    /**
+     * Checks that a given type of element (as encoded by the provided {@link TypeInformation}) can
+     * be used as a key.
+     *
+     * @param type The {@link TypeInformation} of the type to check.
+     * @return {@code false} if:
+     *     <ol>
+     *       <li>it is a POJO type but does not override the {@link Object#hashCode()} method and
+     *           relies on the {@link Object#hashCode()} implementation.
+     *       <li>it is an array of any type (see {@link PrimitiveArrayTypeInfo}, {@link
+     *           BasicArrayTypeInfo}, {@link ObjectArrayTypeInfo}).
+     *       <li>it is enum type
+     *     </ol>
+     *     , {@code true} otherwise.
+     */
+    private static boolean isKeyTypeHashable(TypeInformation<?> type) {
+        try {
+            return (type instanceof PojoTypeInfo)
+                    ? !type.getTypeClass()
+                            .getMethod("hashCode")
+                            .getDeclaringClass()
+                            .equals(Object.class)
+                    : !(isArrayType(type) || isEnumType(type));
+        } catch (NoSuchMethodException ignored) {
+            // this should never happen as we are just searching for the hashCode() method.
+        }
+        return false;
+    }
+
+    private static boolean isArrayType(TypeInformation<?> type) {
+        return type instanceof PrimitiveArrayTypeInfo
+                || type instanceof BasicArrayTypeInfo
+                || type instanceof ObjectArrayTypeInfo;
+    }
+
+    private static boolean isEnumType(TypeInformation<?> type) {
+        return type instanceof EnumTypeInfo;
     }
 
     // ------------------------------------------------------------------------

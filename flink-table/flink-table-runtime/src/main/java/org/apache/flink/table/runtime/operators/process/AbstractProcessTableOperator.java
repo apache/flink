@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -52,6 +53,7 @@ import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.dataview.DataViewUtils;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.ProcessTableRunner;
+import org.apache.flink.table.runtime.generated.ProcessTableRunner.StateHandle;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.process.TimeConverter.InstantTimeConverter;
 import org.apache.flink.table.runtime.operators.process.TimeConverter.LocalDateTimeConverter;
@@ -92,7 +94,7 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
     private transient PassThroughCollectorBase evalCollector;
     private transient PassAllCollector onTimerCollector;
     private transient StateDescriptor<?, ?>[] stateDescriptors;
-    private transient State[] stateHandles;
+    private transient StateHandle[] stateHandles;
 
     private transient @Nullable MapState<StringData, Long> namedTimersMapState;
     private transient @Nullable InternalTimerService<StringData> namedTimerService;
@@ -133,8 +135,6 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
 
         processTableRunner.initialize(
                 stateHandles,
-                stateHashCode,
-                stateEquals,
                 shouldEmitRowtime(),
                 runnerContext,
                 runnerOnTimerContext,
@@ -375,6 +375,10 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
                                 stateName,
                                 ExternalSerializer.of(keyDataType),
                                 ExternalSerializer.of(valueDataType));
+            } else if (DataViewUtils.isDataView(type, ValueView.class)) {
+                final DataType valueDataType = dataType.getChildren().get(0);
+                stateDescriptor =
+                        new ValueStateDescriptor<>(stateName, ExternalSerializer.of(valueDataType));
             } else {
                 stateDescriptor =
                         new ValueStateDescriptor<>(stateName, InternalSerializers.create(type));
@@ -391,7 +395,7 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
     }
 
     private void setStateHandles() {
-        final State[] stateHandles = new State[stateDescriptors.length];
+        final StateHandle[] stateHandles = new StateHandle[stateDescriptors.length];
         for (int i = 0; i < stateDescriptors.length; i++) {
             final KeyedStateStore keyedStateStore =
                     getKeyedStateStore().orElseThrow(IllegalStateException::new);
@@ -408,9 +412,29 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
             } else {
                 throw new IllegalStateException("Unknown state descriptor:" + stateDescriptor);
             }
-            stateHandles[i] = stateHandle;
+            // The kind must be derived from the declared type, not the descriptor, because both
+            // eager value state and value views use a ValueStateDescriptor.
+            final LogicalType type = stateInfos.get(i).getDataType().getLogicalType();
+            final StateHandle.Kind kind = deriveStateKind(type);
+            // Hash function and equaliser are only used by eager value state to reduce state
+            // updates; views access state lazily and don't need them.
+            final boolean isEagerValue = kind == StateHandle.Kind.EAGER_VALUE;
+            final HashFunction hashFunction = isEagerValue ? stateHashCode[i] : null;
+            final RecordEqualiser equaliser = isEagerValue ? stateEquals[i] : null;
+            stateHandles[i] = new StateHandle(kind, stateHandle, hashFunction, equaliser);
         }
         this.stateHandles = stateHandles;
+    }
+
+    private static StateHandle.Kind deriveStateKind(LogicalType type) {
+        if (DataViewUtils.isDataView(type, ListView.class)) {
+            return StateHandle.Kind.LIST_VIEW;
+        } else if (DataViewUtils.isDataView(type, MapView.class)) {
+            return StateHandle.Kind.MAP_VIEW;
+        } else if (DataViewUtils.isDataView(type, ValueView.class)) {
+            return StateHandle.Kind.VALUE_VIEW;
+        }
+        return StateHandle.Kind.EAGER_VALUE;
     }
 
     private boolean shouldEmitRowtime() {

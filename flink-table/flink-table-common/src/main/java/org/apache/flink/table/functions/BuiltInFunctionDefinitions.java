@@ -964,8 +964,6 @@ public final class BuiltInFunctionDefinitions {
                                             StaticArgumentTrait.REQUIRE_FULL_DELETE)),
                             StaticArgument.scalar("on_time", DataTypes.DESCRIPTOR(), true),
                             StaticArgument.scalar(
-                                    "load_completed_condition", DataTypes.STRING(), true),
-                            StaticArgument.scalar(
                                     "load_completed_time", DataTypes.TIMESTAMP_LTZ(3), true),
                             StaticArgument.scalar(
                                     "load_completed_idle_timeout",
@@ -3479,8 +3477,7 @@ public final class BuiltInFunctionDefinitions {
                     .callSyntax("CAST", SqlCallSyntax.CAST)
                     .kind(SCALAR)
                     .inputTypeStrategy(SpecificInputTypeStrategies.CAST)
-                    .outputTypeStrategy(
-                            nullableIfArgs(ConstantArgumentCount.to(0), TypeStrategies.argument(1)))
+                    .outputTypeStrategy(SpecificTypeStrategies.CAST)
                     .build();
 
     public static final BuiltInFunctionDefinition TRY_CAST =

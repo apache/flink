@@ -84,6 +84,20 @@ public abstract class MapWriter<T> extends ArrowFieldWriter<T> {
         }
     }
 
+    @Override
+    public void finish() {
+        super.finish();
+        keyWriter.finish();
+        valueWriter.finish();
+    }
+
+    @Override
+    public void reset() {
+        super.reset();
+        keyWriter.reset();
+        valueWriter.reset();
+    }
+
     // ------------------------------------------------------------------------------------------
 
     /** {@link MapWriter} for {@link RowData} input. */

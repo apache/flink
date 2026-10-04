@@ -42,7 +42,10 @@ import static org.apache.flink.state.table.SavepointConnectorOptions.STATE_READE
 import static org.apache.flink.state.table.SavepointConnectorOptionsUtil.getOperatorIdentifier;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 
-/** Dynamic source factory for {@link SavepointDynamicTableSource}. */
+/**
+ * Dynamic source factory for {@link SavepointDynamicTableSource} and {@link
+ * NonKeyedDynamicTableSource}.
+ */
 public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFactory {
 
     @Override
@@ -83,6 +86,24 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
                         operatorIdentifier);
             case WINDOWED_FLAT:
                 return createFlattenedWindowDynamicTableSource(
+                        context,
+                        options,
+                        serializerConfig,
+                        stateBackendType,
+                        statePath,
+                        operatorIdentifier);
+            case LIST:
+            case UNION:
+                return createOperatorStateDynamicTableSource(
+                        context,
+                        options,
+                        serializerConfig,
+                        stateBackendType,
+                        statePath,
+                        operatorIdentifier,
+                        readerMode);
+            case BROADCAST:
+                return createBroadcastStateDynamicTableSource(
                         context,
                         options,
                         serializerConfig,
@@ -277,6 +298,85 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
     }
 
     /**
+     * Creates a {@link NonKeyedDynamicTableSource} for a table exposing a single operator {@code
+     * ListState}/{@code UnionState}. The state name is resolved from {@link
+     * SavepointConnectorOptions#FLATTENED_STATE_NAME}.
+     */
+    private DynamicTableSource createOperatorStateDynamicTableSource(
+            Context context,
+            Configuration options,
+            SerializerConfig serializerConfig,
+            String stateBackendType,
+            String statePath,
+            OperatorIdentifier operatorIdentifier,
+            SavepointConnectorOptions.StateReaderMode readerMode) {
+
+        OperatorStateTableMapping.validateSchema(context.getCatalogTable());
+
+        RowType rowType = (RowType) context.getPhysicalRowDataType().getLogicalType();
+
+        String stateName = validateAndGetFlattenedStateName(options);
+
+        // Defer I/O to scan time by creating the mapping lazily.
+        Supplier<OperatorStateTableMapping> mappingSupplier =
+                () ->
+                        OperatorStateTableMapping.from(
+                                stateName,
+                                statePath,
+                                operatorIdentifier,
+                                serializerConfig,
+                                readerMode);
+
+        return new NonKeyedDynamicTableSource<>(
+                stateBackendType,
+                statePath,
+                operatorIdentifier,
+                mappingSupplier,
+                rowType,
+                "Operator State Savepoint Table Source",
+                OperatorStateDataStreamScanProvider::new);
+    }
+
+    /**
+     * Creates a {@link NonKeyedDynamicTableSource} for a table exposing a single operator {@code
+     * BroadcastState}. The state name is resolved from {@link
+     * SavepointConnectorOptions#FLATTENED_STATE_NAME}.
+     */
+    private DynamicTableSource createBroadcastStateDynamicTableSource(
+            Context context,
+            Configuration options,
+            SerializerConfig serializerConfig,
+            String stateBackendType,
+            String statePath,
+            OperatorIdentifier operatorIdentifier) {
+
+        BroadcastStateTableMapping.validateSchema(context.getCatalogTable());
+
+        RowType rowType = (RowType) context.getPhysicalRowDataType().getLogicalType();
+
+        String stateName = validateAndGetFlattenedStateName(options);
+
+        // Defer I/O to scan time by creating the mapping lazily.
+        Supplier<BroadcastStateTableMapping> mappingSupplier =
+                () ->
+                        BroadcastStateTableMapping.from(
+                                context.getCatalogTable(),
+                                stateName,
+                                statePath,
+                                operatorIdentifier,
+                                serializerConfig);
+
+        return new NonKeyedDynamicTableSource<>(
+                stateBackendType,
+                statePath,
+                operatorIdentifier,
+                mappingSupplier,
+                rowType,
+                "Broadcast State Savepoint Table Source",
+                BroadcastStateDataStreamScanProvider::new);
+    }
+
+    /**
      * Validates {@code options} against the required/optional option sets extended with {@link
      * SavepointConnectorOptions#FLATTENED_STATE_NAME}, and returns the resolved state name — shared
      * by every table kind whose columns represent a single named state's flattened value fields (or
@@ -336,13 +436,12 @@ public class SavepointDynamicTableSourceFactory implements DynamicTableSourceFac
         // Multiple values can be read so registering placeholders
         options.add(STATE_NAME_PLACEHOLDER);
 
-        // Selects between the general and flattened keyed-state table schemas; set automatically
-        // by StateCatalog.
+        // Selects the table schema / row shape; set automatically by StateCatalog.
         options.add(STATE_READER_MODE);
 
-        // Required only for STATE_READER_MODE == KEYED_FLAT/WINDOWED_FLAT (enforced in
-        // validateAndGetFlattenedStateName); listed here as optional so that generic option
-        // introspection (docs, Table API tooling) can discover it regardless of mode.
+        // Required only for STATE_READER_MODE == KEYED_FLAT/WINDOWED_FLAT/LIST/UNION/BROADCAST
+        // (enforced in validateAndGetFlattenedStateName); listed here as optional so that generic
+        // option introspection (docs, Table API tooling) can discover it regardless of mode.
         options.add(SavepointConnectorOptions.FLATTENED_STATE_NAME);
 
         return options;

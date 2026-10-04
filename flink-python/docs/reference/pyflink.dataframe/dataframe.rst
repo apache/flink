@@ -25,6 +25,11 @@ Transformation methods return new DataFrames and support fluent chaining. They b
 plans lazily without starting a Flink job; execution is triggered by an action such as
 ``DataFrame.collect`` or ``DataFrame.to_pandas``.
 
+Columns can also be referenced as attributes, such as ``df.name``, when their names are valid
+Python identifiers, do not start with an underscore, are not keywords, and do not conflict with
+existing DataFrame attributes. Use bracket access for other names, such as ``df["select"]``,
+``df["_name"]``, or ``df["first name"]``.
+
 Example::
 
     >>> import pyflink.dataframe as pf
@@ -32,6 +37,7 @@ Example::
     >>> result = df.select("id", "name") \
     ...            .with_column("id_doubled", pf.col("id") * 2) \
     ...            .filter(pf.col("id") > 0)
+    >>> names = df.select(df.name)
 
 DataFrame
 ---------
@@ -60,6 +66,7 @@ Transformations
     DataFrame.rename
     DataFrame.filter
     DataFrame.where
+    DataFrame.explode
     DataFrame.drop_duplicates
     DataFrame.distinct
     DataFrame.unique
@@ -68,7 +75,9 @@ Transformations
     DataFrame.limit
     DataFrame.offset
     DataFrame.head
+    DataFrame.flat_map
     DataFrame.__getitem__
+    DataFrame.__getattr__
 
 Set Operations
 --------------
@@ -84,6 +93,16 @@ Set Operations
     DataFrame.intersect_all
     DataFrame.minus
     DataFrame.minus_all
+
+Joins
+-----
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.join
 
 Aggregations
 ------------

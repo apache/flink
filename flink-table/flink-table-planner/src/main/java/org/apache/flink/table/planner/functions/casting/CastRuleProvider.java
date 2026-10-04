@@ -101,6 +101,7 @@ public class CastRuleProvider {
                 .addRule(VariantToArrayCastRule.INSTANCE)
                 .addRule(VariantToRowCastRule.INSTANCE)
                 .addRule(VariantToMapCastRule.INSTANCE)
+                .addRule(PrimitiveToVariantCastRule.INSTANCE)
                 // Bitmap rules
                 .addRule(BitmapToStringCastRule.INSTANCE)
                 .addRule(BitmapToBinaryCastRule.INSTANCE)

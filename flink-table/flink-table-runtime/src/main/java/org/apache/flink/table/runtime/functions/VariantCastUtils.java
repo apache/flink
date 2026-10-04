@@ -21,22 +21,30 @@ package org.apache.flink.table.runtime.functions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.binary.StringUtf8Utils;
 import org.apache.flink.table.types.logical.utils.UuidUtils;
 import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
+import org.apache.flink.types.variant.BinaryVariantUtil;
 import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantBuilder;
+import org.apache.flink.types.variant.VariantTypeException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.TimeZone;
 
 /**
- * Runtime helpers for casting a {@code VARIANT} value to a SQL type.
+ * Runtime helpers for casting between a {@code VARIANT} value and a SQL type.
  *
  * <p>A cast never reinterprets the stored value: one kind is not read as another, and a numeric
  * value is never wrapped or rounded to make it fit. Any numeric kind therefore reaches an integer
@@ -48,6 +56,9 @@ import java.util.TimeZone;
  * regular cast into the same type. A value longer than the target is trimmed, fractional seconds
  * beyond the target precision are truncated, and the fixed width targets {@code CHAR(n)} and {@code
  * BINARY(n)} pad a shorter value.
+ *
+ * <p>A cast into {@code VARIANT} keeps the kind of the SQL type, so an integer keeps its width and
+ * a timestamp keeps the precision it was declared with.
  */
 @Internal
 public final class VariantCastUtils {
@@ -59,12 +70,24 @@ public final class VariantCastUtils {
      */
     private static final double LONG_MAGNITUDE_LIMIT = -(double) Long.MIN_VALUE;
 
-    private static final int TIMESTAMP_PRECISION = 6;
+    /** The highest timestamp precision a {@code VARIANT} stores with microseconds. */
+    public static final int TIMESTAMP_PRECISION = 6;
+
+    /**
+     * The largest string or binary value a {@code VARIANT} holds, in bytes. A {@code VARIANT} is
+     * limited to 16 MiB, and a long string or binary value spends 5 bytes of that on its header.
+     */
+    public static final int MAX_PAYLOAD_BYTES =
+            BinaryVariantUtil.SIZE_LIMIT - 1 - BinaryVariantUtil.U32_SIZE;
 
     private static final int TIMESTAMP_NANOS_PRECISION = 9;
 
     // TIME is millisecond-of-day at runtime, so it renders with three fractional-second digits.
     private static final int TIME_PRECISION = 3;
+
+    private static final String NULL_NODE = "NULL";
+
+    private static final VariantBuilder BUILDER = Variant.newBuilder();
 
     private VariantCastUtils() {}
 
@@ -172,23 +195,24 @@ public final class VariantCastUtils {
 
     /**
      * Reads any numeric variant as a {@code float}. Dropping decimal digits is expected of an
-     * approximate type, but a magnitude outside the {@code FLOAT} range is rejected.
+     * approximate type, but a finite magnitude outside the {@code FLOAT} range is rejected. A
+     * stored {@code NaN} or infinity is kept as is.
      */
     public static float toFloat(Variant variant) {
-        final float value = numeric(variant, "FLOAT").floatValue();
-        if (!Float.isFinite(value)) {
+        final Number number = numeric(variant, "FLOAT");
+        final float value = number.floatValue();
+        if (!Float.isFinite(value) && Double.isFinite(number.doubleValue())) {
             throw overflow(variant.get(), "FLOAT");
         }
         return value;
     }
 
-    /** Reads any numeric variant as a {@code double}. See {@link #toFloat(Variant)}. */
+    /**
+     * Reads any numeric variant as a {@code double}. Every numeric kind fits the {@code DOUBLE}
+     * range, so only decimal digits can be dropped, and a stored {@code NaN} or infinity is kept.
+     */
     public static double toDouble(Variant variant) {
-        final double value = numeric(variant, "DOUBLE").doubleValue();
-        if (!Double.isFinite(value)) {
-            throw overflow(variant.get(), "DOUBLE");
-        }
-        return value;
+        return numeric(variant, "DOUBLE").doubleValue();
     }
 
     /**
@@ -304,29 +328,56 @@ public final class VariantCastUtils {
      * use {@code JSON_STRING} for the JSON form. A value longer than {@code targetLength} is
      * trimmed and a {@code CHAR} target pads a shorter one, both counted in code points rather than
      * UTF-16 units. A binary value must be well-formed UTF-8, and is rejected rather than decoded
-     * into {@code U+FFFD}.
+     * into {@code U+FFFD}. Printing uses {@link #toPrintString} instead.
      *
      * @param sessionZone the session time zone, applied to a {@code TIMESTAMP_LTZ} value
      */
     public static BinaryStringData toStringValue(
             Variant variant, TimeZone sessionZone, int targetLength, boolean charTarget) {
-        final String value = renderValue(variant, sessionZone, targetLength, charTarget);
+        final String value = renderValue(variant, sessionZone, targetLength, charTarget, false);
         // numChars and substring both count code points, so a character outside the BMP fills one
         // position rather than the two UTF-16 units it occupies.
         return variantKey(value, targetLength, charTarget);
     }
 
     /**
-     * Renders a variant as a character string. An array becomes {@code [e1, e2]} and an object
-     * becomes {@code {k1=v1, k2=v2}}, matching how a regular {@code ARRAY} or {@code MAP} casts to
-     * a string. Elements and field values recurse through the same rendering, so a string stays
-     * unquoted at every depth. A scalar renders like a regular cast of its stored kind.
+     * Renders like {@link #toStringValue} but never fails, for printing. An unknown type shows as
+     * {@code <UNKNOWN>}, other undecodable data as {@code <INVALID>}, bytes as {@code x'..'}, and a
+     * variant null as {@code NULL}.
      */
+    public static String toPrintString(final Variant variant, final TimeZone sessionZone) {
+        return renderValue(variant, sessionZone, Integer.MAX_VALUE, false, true);
+    }
+
+    /** Renders a variant. For printing, an undecodable node becomes a placeholder instead. */
     private static String renderValue(
             final Variant variant,
             final TimeZone sessionZone,
             final int targetLength,
-            final boolean charTarget) {
+            final boolean charTarget,
+            final boolean printing) {
+        if (printing) {
+            try {
+                return renderNode(variant, sessionZone, targetLength, charTarget, true);
+            } catch (VariantTypeException e) {
+                return BinaryVariantUtil.undecodableNode(variant);
+            }
+        }
+        return renderNode(variant, sessionZone, targetLength, charTarget, false);
+    }
+
+    /**
+     * Renders one node. An array becomes {@code [e1, e2]} and an object becomes {@code {k1=v1,
+     * k2=v2}}, matching how a regular {@code ARRAY} or {@code MAP} casts to a string. Elements and
+     * field values recurse through the same rendering, so a string stays unquoted at every depth. A
+     * scalar renders like a regular cast of its stored kind.
+     */
+    private static String renderNode(
+            final Variant variant,
+            final TimeZone sessionZone,
+            final int targetLength,
+            final boolean charTarget,
+            final boolean printing) {
         if (variant.isArray()) {
             final int size = variant.getArraySize();
             final StringBuilder sb = new StringBuilder();
@@ -335,7 +386,7 @@ public final class VariantCastUtils {
                 if (i > 0) {
                     sb.append(", ");
                 }
-                sb.append(renderElement(variant.getElement(i), sessionZone));
+                sb.append(renderElement(variant.getElement(i), sessionZone, printing));
             }
             return sb.append(']').toString();
         }
@@ -350,25 +401,31 @@ public final class VariantCastUtils {
                 first = false;
                 sb.append(fieldName)
                         .append('=')
-                        .append(renderElement(variant.getField(fieldName), sessionZone));
+                        .append(renderElement(variant.getField(fieldName), sessionZone, printing));
             }
             return sb.append('}').toString();
         }
-        return renderScalar(variant, sessionZone, targetLength, charTarget);
+        return renderScalar(variant, sessionZone, targetLength, charTarget, printing);
     }
 
     /** Renders one array element or object field value; a nested null shows as {@code NULL}. */
-    private static String renderElement(final Variant element, final TimeZone sessionZone) {
+    private static String renderElement(
+            final Variant element, final TimeZone sessionZone, final boolean printing) {
+        if (printing) {
+            // renderValue shows a null and catches an undecodable element itself.
+            return renderValue(element, sessionZone, Integer.MAX_VALUE, false, true);
+        }
         return element.isNull()
-                ? "NULL"
-                : renderValue(element, sessionZone, Integer.MAX_VALUE, false);
+                ? NULL_NODE
+                : renderValue(element, sessionZone, Integer.MAX_VALUE, false, false);
     }
 
     private static String renderScalar(
             final Variant variant,
             final TimeZone sessionZone,
             final int targetLength,
-            final boolean charTarget) {
+            final boolean charTarget,
+            final boolean printing) {
         final String value;
         switch (variant.getType()) {
             case BOOLEAN:
@@ -391,6 +448,11 @@ public final class VariantCastUtils {
                 value = variant.getString();
                 break;
             case BYTES:
+                if (printing) {
+                    // Printing must not fail on invalid UTF-8, so show hex like a BYTES column.
+                    value = "x'" + EncodingUtils.hex(variant.getBytes()) + "'";
+                    break;
+                }
                 // SQL reads a binary value as UTF-8, the same as a regular BINARY to string cast.
                 final byte[] utf8 = variant.getBytes();
                 final int invalidAt =
@@ -449,6 +511,10 @@ public final class VariantCastUtils {
                 value = variant.getUuid().toString();
                 break;
             case NULL:
+                if (printing) {
+                    value = NULL_NODE;
+                    break;
+                }
                 // Only reachable for a NOT NULL target. A nullable target maps a null-valued
                 // variant to SQL NULL before this method is called.
                 final String targetDescription = characterTarget(targetLength, charTarget);
@@ -491,6 +557,131 @@ public final class VariantCastUtils {
             default:
                 throw unsupportedKind(variant, targetType);
         }
+    }
+
+    public static Variant fromBoolean(boolean value) {
+        return BUILDER.of(value);
+    }
+
+    /**
+     * Stores an integer in the integer kind of its SQL type, so a {@code BIGINT} stays a {@code
+     * BIGINT} whatever its value. The generated code passes the primitive of the source type, which
+     * selects the overload.
+     */
+    public static Variant fromIntegral(byte value) {
+        return BUILDER.of(value);
+    }
+
+    public static Variant fromIntegral(short value) {
+        return BUILDER.of(value);
+    }
+
+    public static Variant fromIntegral(int value) {
+        return BUILDER.of(value);
+    }
+
+    public static Variant fromIntegral(long value) {
+        return BUILDER.of(value);
+    }
+
+    public static Variant fromFloat(float value) {
+        return BUILDER.of(value);
+    }
+
+    public static Variant fromDouble(double value) {
+        return BUILDER.of(value);
+    }
+
+    public static Variant fromDecimal(DecimalData value) {
+        return BUILDER.of(value.toBigDecimal());
+    }
+
+    public static Variant fromString(StringData value) {
+        try {
+            return BUILDER.of(value.toString());
+        } catch (VariantTypeException e) {
+            throw sizeLimitExceeded(e, "string", value.toBytes().length);
+        }
+    }
+
+    public static Variant fromBytes(byte[] value) {
+        try {
+            return BUILDER.of(value);
+        } catch (VariantTypeException e) {
+            throw sizeLimitExceeded(e, "binary", value.length);
+        }
+    }
+
+    private static RuntimeException sizeLimitExceeded(
+            VariantTypeException e, String kind, int bytes) {
+        if (e != BinaryVariantInternalBuilder.VARIANT_SIZE_LIMIT_EXCEPTION) {
+            return e;
+        }
+        return new TableRuntimeException(
+                String.format(
+                        "Cannot cast a %s value of %d bytes to VARIANT. A VARIANT is limited to "
+                                + "16 MiB, so a string or binary value can have at most %d bytes.",
+                        kind, bytes, MAX_PAYLOAD_BYTES));
+    }
+
+    public static Variant fromDate(int epochDay) {
+        return BUILDER.of(LocalDate.ofEpochDay(epochDay));
+    }
+
+    public static Variant fromTime(int millisOfDay) {
+        return BUILDER.of(LocalTime.ofNanoOfDay(millisOfDay * 1_000_000L));
+    }
+
+    /**
+     * Stores a timestamp in the kind its declared precision needs: microseconds up to {@code
+     * TIMESTAMP(6)} and nanoseconds above, whatever the digits of the value. A nanosecond kind only
+     * covers 1677-09-21 to 2262-04-11, so a {@code TIMESTAMP(7)} to {@code TIMESTAMP(9)} value
+     * outside that range fails.
+     */
+    public static Variant fromTimestamp(TimestampData value, int precision) {
+        final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        if (precision <= TIMESTAMP_PRECISION) {
+            builder.appendTimestamp(timestampMicros(value));
+        } else {
+            builder.appendTimestampNanos(timestampNanos(value, "TIMESTAMP(" + precision + ")"));
+        }
+        return builder.build();
+    }
+
+    /** Like {@link #fromTimestamp(TimestampData, int)}, for {@code TIMESTAMP_LTZ}. */
+    public static Variant fromTimestampLtz(TimestampData value, int precision) {
+        final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        if (precision <= TIMESTAMP_PRECISION) {
+            builder.appendTimestampLtz(timestampMicros(value));
+        } else {
+            builder.appendTimestampLtzNanos(
+                    timestampNanos(value, "TIMESTAMP_LTZ(" + precision + ")"));
+        }
+        return builder.build();
+    }
+
+    /** Microseconds since the epoch, which cover every year a {@link TimestampData} can hold. */
+    private static long timestampMicros(TimestampData value) {
+        return value.getMillisecond() * 1_000L + value.getNanoOfMillisecond() / 1_000;
+    }
+
+    private static long timestampNanos(TimestampData value, String sourceType) {
+        try {
+            return Math.addExact(
+                    Math.multiplyExact(value.getMillisecond(), 1_000_000L),
+                    value.getNanoOfMillisecond());
+        } catch (ArithmeticException e) {
+            throw new TableRuntimeException(
+                    String.format(
+                            "Cannot cast the %s value %s to VARIANT. A VARIANT timestamp with "
+                                    + "nanosecond precision only covers 1677-09-21 to 2262-04-11. "
+                                    + "Cast the value to a precision of 6 or less first.",
+                            sourceType, value));
+        }
+    }
+
+    public static Variant fromUuid(byte[] value) {
+        return BUILDER.of(UuidUtils.fromBytes(value));
     }
 
     private static TableRuntimeException unsupportedKind(Variant variant, String targetType) {

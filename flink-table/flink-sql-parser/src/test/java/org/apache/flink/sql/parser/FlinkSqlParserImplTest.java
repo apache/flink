@@ -4167,13 +4167,13 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         // Named arguments and TABLE-typed arg passed to the function.
         sql("select * from t, lateral snapshot("
                         + "input => table s, "
-                        + "load_completed_condition => 'on_time')")
+                        + "load_completed_idle_timeout => interval '10' second)")
                 .ok(
                         "SELECT *\n"
                                 + "FROM `T`,\n"
                                 + "LATERAL TABLE(`SNAPSHOT`("
                                 + "`INPUT` => (TABLE `S`), "
-                                + "`LOAD_COMPLETED_CONDITION` => 'on_time'))");
+                                + "`LOAD_COMPLETED_IDLE_TIMEOUT` => INTERVAL '10' SECOND))");
 
         // LATERAL fn(...) as the first FROM entry (no preceding table).
         sql("select * from lateral ramp(3)").ok("SELECT *\n" + "FROM LATERAL TABLE(`RAMP`(3))");

@@ -26,6 +26,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.util.List;
@@ -42,6 +43,21 @@ public final class SpecificTypeStrategies {
 
     /** See {@link UnusedTypeStrategy}. */
     public static final TypeStrategy UNUSED = new UnusedTypeStrategy();
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#CAST}. */
+    public static final TypeStrategy CAST =
+            callContext -> {
+                final LogicalType sourceType =
+                        callContext.getArgumentDataTypes().get(0).getLogicalType();
+                final DataType targetType = callContext.getArgumentDataTypes().get(1);
+                final boolean nullable =
+                        sourceType.isNullable()
+                                || (sourceType.is(LogicalTypeRoot.VARIANT)
+                                        && !targetType
+                                                .getLogicalType()
+                                                .is(LogicalTypeRoot.VARIANT));
+                return Optional.of(nullable ? targetType.nullable() : targetType.notNull());
+            };
 
     /** See {@link RowTypeStrategy}. */
     public static final TypeStrategy ROW = new RowTypeStrategy();

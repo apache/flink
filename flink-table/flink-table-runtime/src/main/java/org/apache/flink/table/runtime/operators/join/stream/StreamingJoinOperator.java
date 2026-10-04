@@ -157,7 +157,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      * |  |  | if other side is outer
      * |  |  | |  if the matched num in the matched rows == 0, send -D[null+other]
      * |  |  | |  if the matched num in the matched rows > 0, skip
-     * |  |  | |  otherState.update(other, old + 1)
+     * |  |  | |  if matched num == 0 or record is an additional match, otherState.update(other, old + 1)
      * |  |  | endif
      * |  |  | send +I[record+other]s, state.add(record, other.size)
      * |  |  endif
@@ -169,7 +169,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      * |  |  |  if other side is outer
      * |  |  |  |  if the matched num in the matched rows == 0, send -D[null+other]
      * |  |  |  |  if the matched num in the matched rows > 0, skip
-     * |  |  |  |  otherState.update(other, old + 1)
+     * |  |  |  |  if matched num == 0 or record is an additional match, otherState.update(other, old + 1)
      * |  |  |  |  send +I[record+other]s
      * |  |  |  else
      * |  |  |  |  send +I/+U[record+other]s (using input RowKind)
@@ -215,6 +215,8 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
         if (isAccumulateMsg) { // record is accumulate
+            final boolean isAdditionalMatch =
+                    isAdditionalMatch(input, inputSideStateView, inputIsLeft, isSuppress);
             if (inputIsOuter) { // input side is outer
                 Iterator<OuterRecord> associatedRecords =
                         AbstractStreamingJoinOperator.iterator(
@@ -239,9 +241,11 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                                 outputNullPadding(other, !inputIsLeft);
                             } // ignore matched number > 0
                             // otherState.update(other, old + 1)
-                            ((OuterJoinRecordStateView) otherSideStateView)
-                                    .updateNumOfAssociations(
-                                            other, outerRecord.numOfAssociations + 1);
+                            if (outerRecord.numOfAssociations == 0 || isAdditionalMatch) {
+                                ((OuterJoinRecordStateView) otherSideStateView)
+                                        .updateNumOfAssociations(
+                                                other, outerRecord.numOfAssociations + 1);
+                            }
                         }
                         // send +I[record+other]s
                         outRow.setRowKind(RowKind.INSERT);
@@ -271,8 +275,10 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                                 outputNullPadding(outerRecord.record, !inputIsLeft);
                             }
                             // otherState.update(other, old + 1)
-                            otherSideOuterStateView.updateNumOfAssociations(
-                                    outerRecord.record, outerRecord.numOfAssociations + 1);
+                            if (outerRecord.numOfAssociations == 0 || isAdditionalMatch) {
+                                otherSideOuterStateView.updateNumOfAssociations(
+                                        outerRecord.record, outerRecord.numOfAssociations + 1);
+                            }
                             // send +I[record+other]s
                             outRow.setRowKind(RowKind.INSERT);
                             output(input, outerRecord.record, inputIsLeft);
@@ -330,6 +336,29 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 }
             }
         }
+    }
+
+    /**
+     * Returns whether the record adds a new match for other-side records, which indicates that we
+     * have to increase the number of associations for a specific key match.
+     *
+     * <p>Matches are only counted when the other side is outer, so the result is false otherwise
+     * and no lookup happens. If the join key contains the unique key, there is at most one record
+     * per join key, so a match is never additional and no lookup is needed either.
+     *
+     * <p>A suppressed retraction in mini-batch mode removes the matches of a record but keeps it in
+     * state, so the suppressed accumulate message that follows is always an additional match.
+     */
+    private boolean isAdditionalMatch(
+            RowData record, JoinRecordStateView stateView, boolean isLeft, boolean isSuppress)
+            throws Exception {
+        final boolean otherIsOuter = isLeft ? rightIsOuter : leftIsOuter;
+        final JoinInputSideSpec inputSideSpec = isLeft ? leftInputSideSpec : rightInputSideSpec;
+        // TODO FLINK-40841: assumes the replaced record had the same matches, not true for non-equi
+        return otherIsOuter
+                && (isSuppress
+                        || (!inputSideSpec.joinKeyContainsUniqueKey()
+                                && !stateView.hasRecord(record)));
     }
 
     // -------------------------------------------------------------------------------------

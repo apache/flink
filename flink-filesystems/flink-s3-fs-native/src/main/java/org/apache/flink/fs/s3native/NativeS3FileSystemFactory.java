@@ -18,7 +18,6 @@
 
 package org.apache.flink.fs.s3native;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -61,7 +60,6 @@ import java.util.Map;
  * @see NativeS3FileSystem
  * @see org.apache.flink.core.fs.FileSystemFactory
  */
-@Experimental
 public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAware {
 
     private static final Logger LOG = LoggerFactory.getLogger(NativeS3FileSystemFactory.class);

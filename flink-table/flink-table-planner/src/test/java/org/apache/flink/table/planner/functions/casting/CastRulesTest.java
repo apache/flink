@@ -42,6 +42,7 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.bitmap.Bitmap;
 import org.apache.flink.types.variant.BinaryVariant;
+import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.types.variant.VariantBuilder;
 
@@ -60,6 +61,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1911,14 +1914,13 @@ class CastRulesTest {
                         // shown as NULL
                         .fromCase(VARIANT(), VARIANT_ARRAY, fromString("[1, two, FALSE, NULL]"))
                         .fromCase(VARIANT(), VARIANT_OBJECT, fromString("{k=[1, 2]}"))
-                        // printing renders every variant as JSON instead, so a nested string is
-                        // quoted and a null is the JSON null
+                        // printing renders the same way but never fails
                         .fromCasePrinting(
-                                VARIANT(), VARIANT_ARRAY, fromString("[1,\"two\",false,null]"))
-                        .fromCasePrinting(VARIANT(), VARIANT_OBJECT, fromString("{\"k\":[1,2]}"))
-                        .fromCasePrinting(
-                                VARIANT(), VARIANT_BUILDER.of("foo"), fromString("\"foo\""))
-                        .fromCasePrinting(VARIANT(), VARIANT_BUILDER.of(42), fromString("42")),
+                                VARIANT(), VARIANT_ARRAY, fromString("[1, two, FALSE, NULL]"))
+                        .fromCasePrinting(VARIANT(), VARIANT_OBJECT, fromString("{k=[1, 2]}"))
+                        .fromCasePrinting(VARIANT(), VARIANT_BUILDER.of("foo"), fromString("foo"))
+                        .fromCasePrinting(VARIANT(), VARIANT_BUILDER.of(42), fromString("42"))
+                        .fromCasePrinting(VARIANT(), VARIANT_BUILDER.ofNull(), fromString("NULL")),
                 // A bounded character target pads and trims like any other cast into it, and its
                 // length counts code points, so a character outside the BMP fills one position
                 // even though it occupies two UTF-16 units.
@@ -1947,6 +1949,165 @@ class CastRulesTest {
                                 VARIANT_BUILDER.of(NON_BMP + NON_BMP + NON_BMP),
                                 fromString(NON_BMP + NON_BMP))
                         .fromCase(VARIANT(), VARIANT_BUILDER.of("a"), fromString("a")),
+                CastTestSpecBuilder.testCastTo(VARIANT())
+                        .fromCase(BOOLEAN(), true, VARIANT_BUILDER.of(true))
+                        // an integer keeps the width of its SQL type, even when a smaller one fits
+                        .fromCase(TINYINT(), (byte) 42, VARIANT_BUILDER.of((byte) 42))
+                        .fromCase(SMALLINT(), (short) 42, VARIANT_BUILDER.of((short) 42))
+                        .fromCase(INT(), 42, VARIANT_BUILDER.of(42))
+                        .fromCase(BIGINT(), 1L, VARIANT_BUILDER.of(1L))
+                        .fromCase(BIGINT(), 42L, VARIANT_BUILDER.of(42L))
+                        .fromCase(
+                                BIGINT(),
+                                DEFAULT_NEGATIVE_BIGINT,
+                                VARIANT_BUILDER.of(DEFAULT_NEGATIVE_BIGINT))
+                        .fromCase(BIGINT(), Long.MAX_VALUE, VARIANT_BUILDER.of(Long.MAX_VALUE))
+                        .fromCase(FLOAT(), 1.5f, VARIANT_BUILDER.of(1.5f))
+                        .fromCase(DOUBLE(), 1.5d, VARIANT_BUILDER.of(1.5d))
+                        .fromCase(DOUBLE(), Double.MAX_VALUE, VARIANT_BUILDER.of(Double.MAX_VALUE))
+                        // a VARIANT is not limited to JSON, so NaN and infinity are kept
+                        .fromCase(FLOAT(), Float.NaN, VARIANT_BUILDER.of(Float.NaN))
+                        .fromCase(
+                                FLOAT(),
+                                Float.POSITIVE_INFINITY,
+                                VARIANT_BUILDER.of(Float.POSITIVE_INFINITY))
+                        .fromCase(DOUBLE(), Double.NaN, VARIANT_BUILDER.of(Double.NaN))
+                        .fromCase(
+                                DOUBLE(),
+                                Double.NEGATIVE_INFINITY,
+                                VARIANT_BUILDER.of(Double.NEGATIVE_INFINITY))
+                        // a decimal keeps its scale
+                        .fromCase(
+                                DECIMAL(4, 2),
+                                fromBigDecimal(new BigDecimal("12.50"), 4, 2),
+                                VARIANT_BUILDER.of(new BigDecimal("12.50")))
+                        .fromCase(
+                                DECIMAL(38, 0),
+                                fromBigDecimal(new BigDecimal("9".repeat(38)), 38, 0),
+                                VARIANT_BUILDER.of(new BigDecimal("9".repeat(38))))
+                        // a string is wrapped, never parsed as JSON
+                        .fromCase(
+                                STRING(), fromString("{\"a\":1}"), VARIANT_BUILDER.of("{\"a\":1}"))
+                        .fromCase(CHAR(4), fromString("ab  "), VARIANT_BUILDER.of("ab  "))
+                        .fromCase(
+                                BYTES(),
+                                new byte[] {1, 2, 3},
+                                VARIANT_BUILDER.of(new byte[] {1, 2, 3}))
+                        .fromCase(DATE(), DATE, VARIANT_BUILDER.of(LocalDate.parse("2021-09-24")))
+                        // VARIANT stores TIME in microseconds, so every Flink TIME fits exactly,
+                        // since the runtime keeps milliseconds
+                        .fromCase(TIME(), TIME, VARIANT_BUILDER.of(LocalTime.parse("12:34:56.123")))
+                        .fromCase(
+                                TIME(0),
+                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56)),
+                                VARIANT_BUILDER.of(LocalTime.of(12, 34, 56)))
+                        .fromCase(
+                                TIME(3),
+                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 123_000_000)),
+                                VARIANT_BUILDER.of(LocalTime.of(12, 34, 56, 123_000_000)))
+                        .fromCase(TIME(0), 0, VARIANT_BUILDER.of(LocalTime.MIDNIGHT))
+                        .fromCase(
+                                TIME(3),
+                                DateTimeUtils.toInternal(LocalTime.of(23, 59, 59, 999_000_000)),
+                                VARIANT_BUILDER.of(LocalTime.of(23, 59, 59, 999_000_000)))
+                        // microsecond precision and below is stored as a TIMESTAMP
+                        .fromCase(
+                                TIMESTAMP(3),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.parse("2021-09-24T12:34:56.123")),
+                                VARIANT_BUILDER.of(LocalDateTime.parse("2021-09-24T12:34:56.123")))
+                        .fromCase(
+                                TIMESTAMP(6),
+                                TIMESTAMP,
+                                VARIANT_BUILDER.of(
+                                        LocalDateTime.parse("2021-09-24T12:34:56.123456")))
+                        // micros before the epoch are negative, 1969-12-31T23:59:59.999999 is -1
+                        .fromCase(
+                                TIMESTAMP(6),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.parse("1969-12-31T23:59:59.999999")),
+                                VARIANT_BUILDER.of(
+                                        LocalDateTime.parse("1969-12-31T23:59:59.999999")))
+                        .fromCase(
+                                TIMESTAMP_LTZ(6),
+                                TimestampData.fromInstant(
+                                        Instant.parse("1969-12-31T23:59:59.999999Z")),
+                                VARIANT_BUILDER.of(Instant.parse("1969-12-31T23:59:59.999999Z")))
+                        // a microsecond precision holds any year, so a late date still casts
+                        .fromCase(
+                                TIMESTAMP(6),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.parse("3000-01-01T00:00")),
+                                VARIANT_BUILDER.of(LocalDateTime.parse("3000-01-01T00:00")))
+                        // a precision above 6 is stored with nanoseconds, even for a value that has
+                        // no digits below a microsecond
+                        .fromCase(
+                                TIMESTAMP(9),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.parse("2021-09-24T12:34:56.123456789")),
+                                VARIANT_BUILDER.of(
+                                        LocalDateTime.parse("2021-09-24T12:34:56.123456789")))
+                        .fromCase(
+                                TIMESTAMP(9),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.parse("2021-09-24T12:34:56.123456")),
+                                timestampNanosVariant(
+                                        LocalDateTime.parse("2021-09-24T12:34:56.123456")))
+                        .fromCase(
+                                TIMESTAMP_LTZ(3),
+                                TimestampData.fromInstant(
+                                        Instant.parse("2022-01-04T12:34:56.123Z")),
+                                VARIANT_BUILDER.of(Instant.parse("2022-01-04T12:34:56.123Z")))
+                        .fromCase(
+                                TIMESTAMP_LTZ(9),
+                                TIMESTAMP_LTZ,
+                                VARIANT_BUILDER.of(TIMESTAMP_LTZ.toInstant()))
+                        .fromCase(
+                                TIMESTAMP_LTZ(9),
+                                TimestampData.fromInstant(Instant.parse("2022-01-04T12:34:56Z")),
+                                timestampLtzNanosVariant(Instant.parse("2022-01-04T12:34:56Z")))
+                        // nanoseconds only cover 1677-09-21 to 2262-04-11
+                        .fail(
+                                TIMESTAMP(9),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.parse("3000-01-01T00:00")),
+                                TableRuntimeException.class,
+                                "1677-09-21 to 2262-04-11")
+                        .fail(
+                                TIMESTAMP_LTZ(7),
+                                TimestampData.fromInstant(Instant.parse("1500-01-01T00:00:00Z")),
+                                TableRuntimeException.class,
+                                "1677-09-21 to 2262-04-11")
+                        .fromCase(UUID(), UUID_BYTES, VARIANT_BUILDER.of(UUID_VALUE))
+                        // a SQL NULL stays a SQL NULL rather than becoming a variant null
+                        .fromCase(INT(), null, null)
+                        .fromCase(STRING(), null, null),
+                // a constructed type casts element by element, and a NULL element stays SQL NULL
+                CastTestSpecBuilder.testCastTo(ARRAY(VARIANT()))
+                        .fromCase(
+                                ARRAY(INT()),
+                                new GenericArrayData(new Integer[] {1, null}),
+                                new GenericArrayData(new Object[] {VARIANT_BUILDER.of(1), null})),
+                CastTestSpecBuilder.testCastTo(ROW(FIELD("a", VARIANT()), FIELD("b", VARIANT())))
+                        .fromCase(
+                                ROW(FIELD("a", INT()), FIELD("b", STRING())),
+                                GenericRowData.of(7, null),
+                                GenericRowData.of(VARIANT_BUILDER.of(7), null)),
+                CastTestSpecBuilder.testCastTo(MAP(STRING(), VARIANT()))
+                        .fromCase(
+                                MAP(STRING(), INT()),
+                                mapData(entry(fromString("a"), 1)),
+                                mapData(entry(fromString("a"), VARIANT_BUILDER.of(1)))),
+                CastTestSpecBuilder.testCastTo(MAP(VARIANT(), STRING()))
+                        .fromCase(
+                                MAP(INT(), STRING()),
+                                mapData(entry(1, fromString("a"))),
+                                mapData(entry(VARIANT_BUILDER.of(1), fromString("a")))),
+                CastTestSpecBuilder.testCastTo(MULTISET(VARIANT()))
+                        .fromCase(
+                                MULTISET(INT()),
+                                mapData(entry(1, 2)),
+                                mapData(entry(VARIANT_BUILDER.of(1), 2))),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(true), true)
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(false), false)
@@ -1999,11 +2160,22 @@ class CastRulesTest {
                                 VARIANT(), VARIANT_BUILDER.of(new BigDecimal("123.456")), 123.456f)
                         // a magnitude a FLOAT cannot represent is still rejected
                         .fail(VARIANT(), VARIANT_BUILDER.of(1e40d), TableRuntimeException.class)
+                        // a stored NaN or infinity is not an overflow and is kept
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(Double.NaN), Float.NaN)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(Double.POSITIVE_INFINITY),
+                                Float.POSITIVE_INFINITY)
                         .fail(VARIANT(), VARIANT_BUILDER.of("x"), TableRuntimeException.class),
                 CastTestSpecBuilder.testCastTo(DOUBLE())
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(1.5d), 1.5d)
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(1.5f), 1.5d)
                         .fromCase(VARIANT(), VARIANT_BUILDER.of(3), 3.0d)
+                        .fromCase(VARIANT(), VARIANT_BUILDER.of(Double.NaN), Double.NaN)
+                        .fromCase(
+                                VARIANT(),
+                                VARIANT_BUILDER.of(Float.NEGATIVE_INFINITY),
+                                Double.NEGATIVE_INFINITY)
                         .fromCase(
                                 VARIANT(), VARIANT_BUILDER.of(new BigDecimal("123.456")), 123.456d)
                         .fail(VARIANT(), VARIANT_BUILDER.of("x"), TableRuntimeException.class),
@@ -2754,6 +2926,20 @@ class CastRulesTest {
             int years, int months, int days, int hours, int minutes, int seconds, int nanos) {
         return TimestampData.fromLocalDateTime(
                 LocalDateTime.of(years, months, days, hours, minutes, seconds, nanos));
+    }
+
+    /** A nanosecond timestamp, which {@link VariantBuilder} only builds for sub-micro digits. */
+    private static Variant timestampNanosVariant(LocalDateTime value) {
+        final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        builder.appendTimestampNanos(
+                ChronoUnit.NANOS.between(Instant.EPOCH, value.toInstant(ZoneOffset.UTC)));
+        return builder.build();
+    }
+
+    private static Variant timestampLtzNanosVariant(Instant value) {
+        final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        builder.appendTimestampLtzNanos(ChronoUnit.NANOS.between(Instant.EPOCH, value));
+        return builder.build();
     }
 
     private static TimestampData timestampDataFromInstant(

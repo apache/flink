@@ -25,6 +25,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
@@ -48,6 +49,8 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
     private transient int maxArrowBatchSize;
 
     private transient ArrowSerializer arrowSerializer;
+
+    private final FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat batchFormat;
 
     public ArrowPythonScalarFunctionOperator(
             Configuration config,
@@ -86,6 +89,11 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
                 udfOutputType,
                 udfInputGeneratedProjection,
                 forwardedFieldGeneratedProjection);
+        batchFormat =
+                scalarFunctions[0].getPythonFunction().getPythonFunctionKind()
+                                == PythonFunctionKind.ARROW
+                        ? FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat.ARROW
+                        : FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat.PANDAS;
     }
 
     @Override
@@ -100,14 +108,14 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
     @Override
     public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
         return createArrowTypeCoderInfoDescriptorProto(
-                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false, batchFormat);
     }
 
     @Override
     public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
             RowType runnerOutputType) {
         return createArrowTypeCoderInfoDescriptorProto(
-                runnerOutputType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
+                runnerOutputType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false, batchFormat);
     }
 
     @Override

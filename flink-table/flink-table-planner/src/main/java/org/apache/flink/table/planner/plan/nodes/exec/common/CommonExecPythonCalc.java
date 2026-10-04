@@ -28,8 +28,11 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.python.InputRef;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.functions.python.PythonFunctionInput;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.table.functions.python.ResultRef;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
@@ -156,7 +159,10 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                 extractPythonScalarFunctionInfos(cseResult, classLoader);
         int[] pythonUdfInputOffsets = extractResult.f0;
         PythonFunctionInfo[] pythonFunctionInfos = extractResult.f1;
-
+        boolean[] hasColumn = new boolean[pythonFunctionInfos.length];
+        for (int i = 0; i < pythonFunctionInfos.length; i++) {
+            hasColumn[i] = validateArrowInputs(pythonFunctionInfos[i], hasColumn);
+        }
         LogicalType[] inputLogicalTypes =
                 ((InternalTypeInfo<RowData>) inputTransform.getOutputType()).toRowFieldTypes();
         InternalTypeInfo<RowData> pythonOperatorInputTypeInfo =
@@ -192,7 +198,9 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                                 .anyMatch(
                                         x ->
                                                 PythonUtil.containsPythonCall(
-                                                        x, PythonFunctionKind.PANDAS)));
+                                                                x, PythonFunctionKind.PANDAS)
+                                                        || PythonUtil.containsPythonCall(
+                                                                x, PythonFunctionKind.ARROW)));
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
@@ -201,6 +209,26 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                 pythonOperatorResultTyeInfo,
                 inputTransform.getParallelism(),
                 false);
+    }
+
+    private static boolean validateArrowInputs(
+            PythonFunctionInfo function, boolean[] resultHasColumn) {
+        boolean hasColumn = false;
+        for (PythonFunctionInput input : function.getInputs()) {
+            if (input instanceof PythonFunctionInfo) {
+                hasColumn |= validateArrowInputs((PythonFunctionInfo) input, resultHasColumn);
+            } else if (input instanceof InputRef) {
+                hasColumn = true;
+            } else if (input instanceof ResultRef) {
+                hasColumn |= resultHasColumn[((ResultRef) input).getIndex()];
+            }
+        }
+        if (function.getPythonFunction().getPythonFunctionKind() == PythonFunctionKind.ARROW
+                && !hasColumn) {
+            throw new TableException(
+                    "Arrow scalar UDFs require at least one column-valued argument.");
+        }
+        return hasColumn;
     }
 
     private Tuple2<int[], PythonFunctionInfo[]> extractPythonScalarFunctionInfos(

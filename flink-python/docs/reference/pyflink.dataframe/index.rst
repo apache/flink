@@ -29,6 +29,7 @@ This page gives an overview of all public PyFlink DataFrame APIs.
     udf
     creation
     io
+    catalog
     sql
     datatype
     environment

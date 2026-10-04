@@ -588,12 +588,16 @@ class SpillingWithFilteringHandler extends AbstractSpillingHandler {
         Buffer buffer = bufferWithContext.context;
         try {
             if (buffer.readableBytes() > 0) {
+                // Resolve the target serializer before retaining, so a failure here cannot leak
+                // the retained buffer reference.
+                DataOutputSerializer serializer =
+                        segmentSerializerFor(getMappedChannels(channelInfo).getChannelInfo());
                 filteringHandler.filterAndRewrite(
                         channelInfo.getGateIdx(),
                         oldSubtaskIndex,
                         channelInfo.getInputChannelIdx(),
                         buffer.retainBuffer(),
-                        segmentSerializerFor(getMappedChannels(channelInfo).getChannelInfo()));
+                        serializer);
             }
         } finally {
             buffer.recycleBuffer();

@@ -42,6 +42,27 @@ class JavaCodeSplitterTest {
     }
 
     @Test
+    void testSplitIsDeterministic() throws Exception {
+        String code =
+                FileUtils.readFileUtf8(
+                        new File(
+                                JavaCodeSplitterTest.class
+                                        .getClassLoader()
+                                        .getResource("splitter/code/TestSplitJavaCode.java")
+                                        .toURI()));
+
+        try {
+            // call splitImpl directly to bypass the result cache and actually re-run the splitter
+            String first = JavaCodeSplitter.splitImpl(code, 100, 3);
+            String second = JavaCodeSplitter.splitImpl(code, 100, 3);
+
+            assertThat(second).isEqualTo(first);
+        } finally {
+            CodeSplitUtil.getCounter().set(0L);
+        }
+    }
+
+    @Test
     @Disabled("Disabled in because of https://issues.apache.org/jira/browse/FLINK-27702")
     void testInvalidJavaCode() {
         assertThatThrownBy(

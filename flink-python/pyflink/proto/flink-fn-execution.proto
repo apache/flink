@@ -64,6 +64,9 @@ message UserDefinedFunction {
 
   // Whether it's pandas UDF
   bool is_pandas_udf = 5;
+
+  // Whether the scalar UDF consumes and returns Arrow arrays directly
+  bool is_arrow_udf = 6;
 }
 
 // Async execution configuration for async functions
@@ -526,6 +529,11 @@ message CoderInfoDescriptor {
 
   message ArrowType {
     Schema schema = 1;
+    enum BatchFormat {
+      PANDAS = 0;
+      ARROW = 1;
+    }
+    BatchFormat batch_format = 2;
   }
 
   // only used in batch over window

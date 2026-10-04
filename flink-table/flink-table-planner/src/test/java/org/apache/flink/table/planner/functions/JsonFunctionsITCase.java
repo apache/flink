@@ -1051,20 +1051,20 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f1)",
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         .testTableApiRuntimeError(
                                 $("f1").parseJson(),
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         // allowDuplicateKeys: false (the default) rejects duplicate keys
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f2, false)",
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         .testTableApiRuntimeError(
                                 $("f2").parseJson(false),
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         // allowDuplicateKeys: true keeps the last occurrence of the duplicated key
                         .testResult(
                                 jsonString($("f2").parseJson(true)),
@@ -1096,6 +1096,53 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_STRING(TRY_PARSE_JSON(f2, true))",
                                 "{\"a\":2}",
                                 STRING()),
+                // Input is parsed from its UTF-8 bytes. A NUL or a BOM must not be read as a
+                // UTF-16 or UTF-32 hint that turns invalid JSON into a value. Only input that is
+                // not valid UTF-8 reports the index of the invalid byte.
+                // FROM_BASE64 wraps the decoded bytes without validating them, so 'Iv8i' yields
+                // the invalid UTF-8 bytes 22 FF 22.
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.PARSE_JSON,
+                                "input bytes are always read as UTF-8")
+                        .onFieldsWithData("1\u0000", "\u00001", "\uFEFF1", "[\u65E5]", "Iv8i")
+                        .andDataTypes(
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull())
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f0)",
+                                "Unexpected character ((CTRL-CHAR, code 0)): Expected space separating root-level values")
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f1)",
+                                "Illegal character ((CTRL-CHAR, code 0)): only regular white space")
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f2)",
+                                TableRuntimeException.class,
+                                "Failed to parse JSON string: \uFEFF1")
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f3)",
+                                TableRuntimeException.class,
+                                "Failed to parse JSON string: [\u65E5]")
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(FROM_BASE64(f4))",
+                                TableRuntimeException.class,
+                                "Failed to parse JSON string: Invalid UTF-8 byte at index 1 of 3."),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.TRY_PARSE_JSON,
+                                "input bytes are always read as UTF-8")
+                        .onFieldsWithData("1\u0000", "\u00001", "\uFEFF1", "Iv8i")
+                        .andDataTypes(
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull())
+                        .testSqlResult("JSON_STRING(TRY_PARSE_JSON(f0))", null, STRING())
+                        .testSqlResult("JSON_STRING(TRY_PARSE_JSON(f1))", null, STRING())
+                        .testSqlResult("JSON_STRING(TRY_PARSE_JSON(f2))", null, STRING())
+                        .testSqlResult(
+                                "JSON_STRING(TRY_PARSE_JSON(FROM_BASE64(f3)))", null, STRING()),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.PARSE_JSON,
                                 "VARIANT expression preceding another expression in a"

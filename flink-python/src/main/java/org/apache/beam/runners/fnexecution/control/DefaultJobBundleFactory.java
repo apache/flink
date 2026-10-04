@@ -227,7 +227,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                                         if (refCount > 0) {
                                             LOG.warn(
                                                     "Expiring environment {} with {} remaining bundle references. Taking note to clean it up during shutdown if the references are not removed by then.",
-                                                    notification.getKey(),
+                                                    notification.getKey().getUrn(),
                                                     refCount);
                                             evictedActiveClients.add(client);
                                         }
@@ -698,7 +698,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                 // the next one will be added via Throwable#addSuppressed.
                 closed = true;
             } catch (Exception e) {
-                LOG.warn("Error cleaning up servers {}", environment.getEnvironment(), e);
+                LOG.warn("Error cleaning up servers {}", environment.getEnvironment().getUrn(), e);
             }
             // TODO: Wait for executor shutdown?
         }
@@ -712,7 +712,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             Preconditions.checkState(refCount >= 0, "Reference count must not be negative.");
             if (refCount == 0) {
                 // Close environment after it was removed from cache and all bundles finished.
-                LOG.info("Closing environment {}", environment.getEnvironment());
+                LOG.info("Closing environment {}", environment.getEnvironment().getUrn());
                 close();
             }
             return refCount;
