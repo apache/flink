@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.application.ApplicationDispatcherLeaderProcessFactoryFactory;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
@@ -38,7 +39,11 @@ import org.apache.flink.runtime.rest.ApplicationRestEndpointFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -52,6 +57,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 final class ApplicationModeMiniCluster extends MiniCluster {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ApplicationModeMiniCluster.class);
 
     private final Configuration configuration;
     private final PackagedProgram program;
@@ -113,6 +120,27 @@ final class ApplicationModeMiniCluster extends MiniCluster {
             FutureUtils.forward(component.getShutDownFuture(), applicationShutDownFuture);
         }
         return components;
+    }
+
+    /**
+     * Nothing replaces a TaskManager that fails, so the whole process has to fail instead, like a
+     * TaskManager process does in a distributed cluster. That leaves the restart to the process
+     * supervisor, with high availability recovering the job.
+     */
+    @Override
+    protected FatalErrorHandler createTaskManagerFatalErrorHandler(int index) {
+        return exception -> {
+            if (closeRequestedFuture.isDone()) {
+                LOG.debug("Ignoring TaskManager #{} error during shutdown.", index, exception);
+                return;
+            }
+            LOG.error("TaskManager #{} failed. Shutting the MiniCluster down.", index, exception);
+            if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception)) {
+                FlinkSecurityManager.forceProcessExit(1);
+            } else {
+                closeAsync();
+            }
+        };
     }
 
     @Override

@@ -172,9 +172,6 @@ public class MiniCluster implements AutoCloseableAsync {
     @GuardedBy("lock")
     private final List<TaskExecutor> taskManagers;
 
-    private final TerminatingFatalErrorHandlerFactory
-            taskManagerTerminatingFatalErrorHandlerFactory =
-                    new TerminatingFatalErrorHandlerFactory();
     private final Supplier<Reference<RpcSystem>> rpcSystemSupplier;
 
     private CompletableFuture<Void> terminationFuture;
@@ -782,13 +779,25 @@ public class MiniCluster implements AutoCloseableAsync {
                             useLocalCommunication(),
                             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                             workingDirectory.createSubWorkingDirectory("tm_" + taskManagers.size()),
-                            taskManagerTerminatingFatalErrorHandlerFactory.create(
-                                    taskManagers.size()),
+                            createTaskManagerFatalErrorHandler(taskManagers.size()),
                             delegationTokenReceiverRepository);
 
             taskExecutor.start();
             taskManagers.add(taskExecutor);
         }
+    }
+
+    /**
+     * Creates the {@link FatalErrorHandler} for the {@link TaskExecutor} with the given index. By
+     * default, a fatal error closes that TaskManager and leaves the rest of the MiniCluster
+     * running.
+     *
+     * @param index into the {@link #taskManagers} collection to identify the correct {@link
+     *     TaskExecutor}.
+     */
+    @GuardedBy("lock")
+    protected FatalErrorHandler createTaskManagerFatalErrorHandler(int index) {
+        return new TerminatingFatalErrorHandler(index);
     }
 
     @VisibleForTesting
@@ -1574,22 +1583,6 @@ public class MiniCluster implements AutoCloseableAsync {
         public void onFatalError(Throwable exception) {
             LOG.warn("Error in MiniCluster. Shutting the MiniCluster down.", exception);
             closeAsync();
-        }
-    }
-
-    private class TerminatingFatalErrorHandlerFactory {
-
-        /**
-         * Create a new {@link TerminatingFatalErrorHandler} for the {@link TaskExecutor} with the
-         * given index.
-         *
-         * @param index into the {@link #taskManagers} collection to identify the correct {@link
-         *     TaskExecutor}.
-         * @return {@link TerminatingFatalErrorHandler} for the given index
-         */
-        @GuardedBy("lock")
-        private TerminatingFatalErrorHandler create(int index) {
-            return new TerminatingFatalErrorHandler(index);
         }
     }
 

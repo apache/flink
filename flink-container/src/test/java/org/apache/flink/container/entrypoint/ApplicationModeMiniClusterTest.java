@@ -21,9 +21,12 @@ package org.apache.flink.container.entrypoint;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.event.Level;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -32,6 +35,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ApplicationModeMiniCluster}. */
 class ApplicationModeMiniClusterTest {
+
+    @RegisterExtension
+    private final LoggerAuditingExtension loggerAuditingExtension =
+            new LoggerAuditingExtension(ApplicationModeMiniCluster.class, Level.WARN);
 
     private MiniClusterConfiguration miniClusterConfiguration;
     private PackagedProgram program;
@@ -83,6 +90,19 @@ class ApplicationModeMiniClusterTest {
         assertThat(miniCluster.closeAsync()).isCompleted();
         assertThat(miniCluster.getCloseRequestedFuture()).isCompleted();
         assertThat(miniCluster.getApplicationShutDownFuture()).isNotDone();
+    }
+
+    @Test
+    void taskManagerFatalErrorIgnoredAfterCloseRequested() {
+        final ApplicationModeMiniCluster miniCluster =
+                new ApplicationModeMiniCluster(miniClusterConfiguration, program);
+        miniCluster.closeAsync();
+
+        miniCluster
+                .createTaskManagerFatalErrorHandler(0)
+                .onFatalError(new RuntimeException("error during shutdown"));
+
+        assertThat(loggerAuditingExtension.getMessages()).isEmpty();
     }
 
     public static class NoOpProgram {

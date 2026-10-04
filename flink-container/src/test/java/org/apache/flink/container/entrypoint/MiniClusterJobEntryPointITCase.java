@@ -397,6 +397,32 @@ class MiniClusterJobEntryPointITCase {
         }
     }
 
+    @Test
+    void taskManagerFatalErrorExitsProcessWithoutDiscardingHAData() throws Exception {
+        final List<String> arguments =
+                applicationArguments(
+                        StuckOnCancelJob.class,
+                        List.of(
+                                dynamicProperty(
+                                        CheckpointingOptions.CHECKPOINTING_INTERVAL, "500 ms"),
+                                dynamicProperty(
+                                        TaskManagerOptions.TASK_CANCELLATION_TIMEOUT, "2 s"),
+                                dynamicProperty(
+                                        TaskManagerOptions.TASK_CANCELLATION_INTERVAL, "500 ms")));
+
+        final Process process = startProcess("process", MiniClusterJobEntryPoint.class, arguments);
+        try {
+            assertThat(awaitExit(process, "process"))
+                    .as("the process exits so supervisor can restart")
+                    .isEqualTo(1);
+            assertThat(zooKeeperNodeExists(executionPlanZooKeeperPath()))
+                    .as("the job's HA metadata survives the error")
+                    .isTrue();
+        } finally {
+            stop(process);
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(classes = {RecordingJob.class, FailingJob.class})
     void shutdownOnApplicationFinishExitsWithApplicationsExitCode(Class<?> jobClass)
@@ -716,6 +742,45 @@ class MiniClusterJobEntryPointITCase {
                     StandardOpenOption.CREATE,
                     StandardOpenOption.APPEND);
             throw new IllegalStateException("The application fails before submitting a job.");
+        }
+    }
+
+    /**
+     * A job that can't be cancelled: one task ignores interrupts, and another fails once the first
+     * is stuck, so the failover's cancellation times out and the TaskManager hits a fatal error.
+     */
+    public static final class StuckOnCancelJob {
+
+        private static volatile boolean stuck;
+
+        public static void main(String[] args) throws Exception {
+            final StreamExecutionEnvironment env =
+                    StreamExecutionEnvironment.getExecutionEnvironment();
+            env.fromSequence(1, Long.MAX_VALUE)
+                    .map(StuckOnCancelJob::failOnceStuck)
+                    .disableChaining()
+                    .map(StuckOnCancelJob::ignoreInterrupts)
+                    .disableChaining()
+                    .sinkTo(new DiscardingSink<>());
+            env.execute();
+        }
+
+        private static long failOnceStuck(long value) {
+            if (stuck) {
+                throw new IllegalStateException("Failing so that the stuck task is cancelled.");
+            }
+            return value;
+        }
+
+        private static long ignoreInterrupts(long value) {
+            stuck = true;
+            while (true) {
+                try {
+                    Thread.sleep(Long.MAX_VALUE);
+                } catch (InterruptedException e) {
+                    // ignored, like user code that doesn't respond to cancellation
+                }
+            }
         }
     }
 

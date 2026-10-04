@@ -57,13 +57,19 @@ public final class MiniClusterJobEntryPoint {
 
     private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(30);
 
+    /** The safeguard's default, as used by the other cluster entrypoints. */
+    private static final Duration JVM_SHUTDOWN_SAFEGUARD_DELAY = Duration.ofSeconds(5);
+
+    /** Shorter than the safeguard delay, so that a slow close is logged before the JVM halts. */
+    private static final Duration SHUTDOWN_HOOK_TIMEOUT = Duration.ofSeconds(4);
+
     private static final AtomicBoolean STOPPING = new AtomicBoolean();
 
     public static void main(String[] args) {
         EnvironmentInformation.logEnvironmentInfo(
                 LOG, MiniClusterJobEntryPoint.class.getSimpleName(), args);
         SignalHandler.register(LOG);
-        JvmShutdownSafeguard.installAsShutdownHook(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG, JVM_SHUTDOWN_SAFEGUARD_DELAY.toMillis());
 
         final StandaloneApplicationClusterConfiguration clusterConfiguration =
                 ClusterEntrypointUtils.parseParametersOrExit(
@@ -113,8 +119,9 @@ public final class MiniClusterJobEntryPoint {
                 .addShutdownHook(
                         new Thread(
                                 () -> {
-                                    STOPPING.set(true);
-                                    closeQuietly(miniCluster);
+                                    if (STOPPING.compareAndSet(false, true)) {
+                                        closeQuietly(miniCluster, SHUTDOWN_HOOK_TIMEOUT);
+                                    }
                                 }));
 
         CompletableFuture.anyOf(
@@ -123,11 +130,13 @@ public final class MiniClusterJobEntryPoint {
                 .handle((ignored, throwable) -> null)
                 .join();
 
-        if (STOPPING.get()) {
+        // only one of this and the shutdown hook closes the MiniCluster, so that a close that
+        // times out here isn't waited for again during JVM shutdown
+        if (!STOPPING.compareAndSet(false, true)) {
             return 0;
         }
 
-        miniCluster.closeAsync().get(SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        closeQuietly(miniCluster, SHUTDOWN_TIMEOUT);
         program.close();
 
         final CompletableFuture<ApplicationStatus> applicationShutDown =
@@ -150,9 +159,9 @@ public final class MiniClusterJobEntryPoint {
                 .build();
     }
 
-    private static void closeQuietly(final MiniCluster miniCluster) {
+    private static void closeQuietly(final MiniCluster miniCluster, final Duration timeout) {
         try {
-            miniCluster.closeAsync().get(SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+            miniCluster.closeAsync().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             LOG.warn("Error closing MiniCluster during shutdown.", e);
         }
