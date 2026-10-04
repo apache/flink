@@ -79,6 +79,7 @@ public class DropConnectionOperation implements DropOperation {
 
     @Override
     public TableResultInternal execute(Context ctx) {
+        // TODO(FLINK-38262): Handle temporary system connections outside the catalog namespace.
         if (isTemporary) {
             ctx.getCatalogManager().dropTemporaryConnection(connectionIdentifier, ifExists);
         } else {
