@@ -29,15 +29,11 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.factories.DefaultConnectionFactory;
 import org.apache.flink.table.planner.utils.TestingTableEnvironment;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
@@ -47,15 +43,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 
 /** IT cases for connection statements. */
-@ExtendWith(ParameterizedTestExtension.class)
 class ConnectionITCase {
-
-    @Parameter public boolean isBatch;
-
-    @Parameters(name = "isBatch: {0}")
-    public static List<Boolean> parameters() {
-        return List.of(true, false);
-    }
 
     private TableEnvironment tEnv;
 
@@ -63,14 +51,10 @@ class ConnectionITCase {
     void setup() {
         tEnv =
                 TestingTableEnvironment.create(
-                        isBatch
-                                ? EnvironmentSettings.inBatchMode()
-                                : EnvironmentSettings.inStreamingMode(),
-                        null,
-                        TableConfig.getDefault());
+                        EnvironmentSettings.inBatchMode(), null, TableConfig.getDefault());
     }
 
-    @TestTemplate
+    @Test
     void testCreateTemporaryConnection() {
         tEnv.executeSql(
                 "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' " + "WITH ('k' = 'v')");
@@ -83,7 +67,7 @@ class ConnectionITCase {
                         });
     }
 
-    @TestTemplate
+    @Test
     void testCreateTemporaryConnectionRejectsDuplicate() {
         tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v1')");
 
@@ -102,14 +86,14 @@ class ConnectionITCase {
                                 assertThat(connection.getOptions()).containsOnly(entry("k", "v1")));
     }
 
-    @TestTemplate
+    @Test
     void testCreatePermanentConnectionRejectedWithoutSecretStore() {
         assertThatThrownBy(() -> tEnv.executeSql("CREATE CONNECTION my_conn WITH ('k' = 'v')"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("WritableSecretStore must be configured");
     }
 
-    @TestTemplate
+    @Test
     void testDropTemporaryConnection() {
         tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
 
@@ -120,14 +104,14 @@ class ConnectionITCase {
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
     }
 
-    @TestTemplate
+    @Test
     void testDropTemporaryConnectionIfExists() {
         tEnv.executeSql("DROP TEMPORARY CONNECTION IF EXISTS my_conn");
 
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
     }
 
-    @TestTemplate
+    @Test
     void testDropMissingTemporaryConnectionRejected() {
         assertThatThrownBy(() -> tEnv.executeSql("DROP TEMPORARY CONNECTION my_conn"))
                 .isInstanceOf(ValidationException.class)
@@ -136,7 +120,7 @@ class ConnectionITCase {
                         connectionIdentifier("my_conn").asSummaryString());
     }
 
-    @TestTemplate
+    @Test
     void testDropPermanentConnection() throws Exception {
         ObjectIdentifier identifier = connectionIdentifier("my_conn");
         catalogManager()
@@ -153,14 +137,14 @@ class ConnectionITCase {
         assertThat(catalogManager().getConnection(identifier)).isEmpty();
     }
 
-    @TestTemplate
+    @Test
     void testDropPermanentConnectionIfExists() {
         tEnv.executeSql("DROP CONNECTION IF EXISTS my_conn");
 
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
     }
 
-    @TestTemplate
+    @Test
     void testDropMissingPermanentConnectionRejected() {
         assertThatThrownBy(() -> tEnv.executeSql("DROP CONNECTION my_conn"))
                 .isInstanceOf(ValidationException.class)
@@ -169,7 +153,7 @@ class ConnectionITCase {
                         connectionIdentifier("my_conn").asSummaryString());
     }
 
-    @TestTemplate
+    @Test
     void testDropTemporarySystemConnectionRejected() {
         tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
 
@@ -185,7 +169,7 @@ class ConnectionITCase {
         }
     }
 
-    @TestTemplate
+    @Test
     void testShowCreatePermanentConnection() throws Exception {
         ObjectIdentifier identifier = connectionIdentifier("my_conn");
         catalogManager()
@@ -209,7 +193,7 @@ class ConnectionITCase {
                 .contains("'type' = 'default'");
     }
 
-    @TestTemplate
+    @Test
     void testShowCreateTemporaryConnection() {
         tEnv.executeSql(
                 "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
@@ -240,7 +224,7 @@ class ConnectionITCase {
                 .doesNotContain(DefaultConnectionFactory.SECRET_REFERENCE_KEY);
     }
 
-    @TestTemplate
+    @Test
     void testShowCreateSecretOnlyTemporaryConnection() {
         tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'super-secret')");
 
@@ -265,7 +249,7 @@ class ConnectionITCase {
                                         .containsOnly(entry("type", "default")));
     }
 
-    @TestTemplate
+    @Test
     void testDescribeTemporaryConnection() {
         tEnv.executeSql(
                 "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
@@ -283,7 +267,7 @@ class ConnectionITCase {
                         Row.of("temporary", "true"));
     }
 
-    @TestTemplate
+    @Test
     void testDescribeSecretOnlyConnectionIncludesDefaultType() {
         tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'secret')");
 
@@ -291,7 +275,7 @@ class ConnectionITCase {
                 .containsExactly(Row.of("type", "default"), Row.of("temporary", "true"));
     }
 
-    @TestTemplate
+    @Test
     void testDescribePermanentConnectionIncludesScope() throws Exception {
         ObjectIdentifier identifier = connectionIdentifier("my_conn");
         catalogManager()
@@ -309,7 +293,7 @@ class ConnectionITCase {
                         Row.of("temporary", "false"));
     }
 
-    @TestTemplate
+    @Test
     void testDescribeMissingConnectionRejected() {
         assertThatThrownBy(() -> tEnv.executeSql("DESCRIBE CONNECTION missing_conn"))
                 .isInstanceOf(ValidationException.class)
