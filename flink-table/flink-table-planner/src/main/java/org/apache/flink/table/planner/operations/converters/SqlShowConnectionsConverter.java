@@ -42,7 +42,7 @@ public class SqlShowConnectionsConverter extends AbstractSqlShowConverter<SqlSho
             SqlShowConnections sqlShowCall,
             @Nullable String catalogName,
             @Nullable String databaseName,
-            String prep,
+            @Nullable String prep,
             @Nullable ShowLikeOperator likeOp) {
         return new ShowConnectionsOperation(catalogName, databaseName, prep, likeOp);
     }
