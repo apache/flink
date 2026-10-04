@@ -83,7 +83,7 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
         return new MemoryArchivedApplicationStore();
     }
 
-    protected static void configureExecution(
+    public static void configureExecution(
             final Configuration configuration, final PackagedProgram program) throws Exception {
         configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
         ConfigUtils.encodeCollectionToConfig(
