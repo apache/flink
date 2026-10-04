@@ -160,6 +160,11 @@ If [High Availability]({{< ref "docs/deployment/ha/overview" >}}) is configured,
 The application is given a fixed job ID derived from the `high-availability.cluster-id` (or from `--job-id`, if given), so a restarted process recovers the existing job from the high availability metadata rather than starting a new one.
 Stopping the process with `SIGTERM` keeps the high availability metadata, so that it can be recovered in the same way.
 
+Task failures are handled by the application's restart strategy within the process, in the same way as in a distributed cluster.
+A fatal error in the JobManager or the TaskManager cannot be recovered within the process, because there is no other process to take over.
+Examples are an `OutOfMemoryError`, or a task that does not stop within [`task.cancellation.timeout`]({{< ref "docs/deployment/config" >}}#task-cancellation-timeout).
+In these cases the process exits with a non-zero exit code, keeping the high availability metadata, so it should be run under a supervisor that restarts it, such as Kubernetes or systemd.
+
 Without High Availability, a restarted process starts the application again from the beginning (or from `--fromSavepoint`, if given).
 
 #### When the application finishes
