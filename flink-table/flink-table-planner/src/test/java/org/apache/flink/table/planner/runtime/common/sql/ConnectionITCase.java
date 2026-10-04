@@ -190,16 +190,7 @@ class ConnectionITCase {
     }
 
     @TestTemplate
-    void testShowConnections() {
-        tEnv.executeSql("CREATE TEMPORARY CONNECTION b_conn WITH ('k' = 'v')");
-        tEnv.executeSql("CREATE TEMPORARY CONNECTION a_conn WITH ('k' = 'v')");
-
-        assertThat(collectRows("SHOW CONNECTIONS"))
-                .containsExactly(Row.of("a_conn"), Row.of("b_conn"));
-    }
-
-    @TestTemplate
-    void testShowPermanentAndTemporaryConnections() throws Exception {
+    void testShowConnections() throws Exception {
         ObjectIdentifier identifier = connectionIdentifier("permanent_conn");
         catalogManager()
                 .getCatalog(identifier.getCatalogName())
@@ -208,12 +199,13 @@ class ConnectionITCase {
                         identifier.toObjectPath(),
                         CatalogConnection.of(Map.of("k", "v"), null),
                         false);
-        tEnv.executeSql("CREATE TEMPORARY CONNECTION temporary_conn WITH ('k' = 'v')");
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION b_conn WITH ('k' = 'v')");
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION a_conn WITH ('k' = 'v')");
 
         assertThat(collectRows("SHOW CONNECTIONS"))
-                .containsExactly(Row.of("permanent_conn"), Row.of("temporary_conn"));
+                .containsExactly(Row.of("a_conn"), Row.of("b_conn"), Row.of("permanent_conn"));
         assertThat(collectRows("SHOW CONNECTIONS FROM " + identifier.getDatabaseName()))
-                .containsExactly(Row.of("permanent_conn"), Row.of("temporary_conn"));
+                .containsExactly(Row.of("a_conn"), Row.of("b_conn"), Row.of("permanent_conn"));
     }
 
     @TestTemplate
