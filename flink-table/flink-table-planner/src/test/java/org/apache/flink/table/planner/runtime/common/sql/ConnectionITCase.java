@@ -33,6 +33,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -134,7 +135,7 @@ class ConnectionITCase {
     }
 
     @TestTemplate
-    void testShowCreateTemporaryConnection() {
+    void testShowCreateTemporaryConnection() throws Exception {
         tEnv.executeSql(
                 "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
                         + "WITH ('type' = 'default', 'k' = 'v', 'password' = 'super-secret')");
@@ -165,7 +166,7 @@ class ConnectionITCase {
     }
 
     @TestTemplate
-    void testShowCreateSecretOnlyTemporaryConnection() {
+    void testShowCreateSecretOnlyTemporaryConnection() throws Exception {
         tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'super-secret')");
 
         List<Row> rows = collectRows("SHOW CREATE CONNECTION my_conn");
@@ -209,7 +210,34 @@ class ConnectionITCase {
     }
 
     @TestTemplate
-    void testShowConnectionsLike() {
+    void testShowConnectionsInDatabase() throws Exception {
+        tEnv.executeSql("CREATE DATABASE other_db");
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION current_conn WITH ('k' = 'v')");
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION other_db.temporary_conn WITH ('k' = 'v')");
+        catalogManager()
+                .getCatalog(catalogManager().getCurrentCatalog())
+                .orElseThrow()
+                .createConnection(
+                        ObjectIdentifier.of(
+                                        catalogManager().getCurrentCatalog(),
+                                        "other_db",
+                                        "permanent_conn")
+                                .toObjectPath(),
+                        CatalogConnection.of(Map.of("k", "v"), null),
+                        false);
+
+        for (String preposition : List.of("IN", "FROM")) {
+            for (String database :
+                    List.of("other_db", catalogManager().getCurrentCatalog() + ".other_db")) {
+                assertThat(collectRows("SHOW CONNECTIONS " + preposition + " " + database))
+                        .containsExactly(Row.of("permanent_conn"), Row.of("temporary_conn"));
+            }
+        }
+        assertThat(collectRows("SHOW CONNECTIONS")).containsExactly(Row.of("current_conn"));
+    }
+
+    @TestTemplate
+    void testShowConnectionsLike() throws Exception {
         tEnv.executeSql("CREATE TEMPORARY CONNECTION prod_conn WITH ('k' = 'v')");
         tEnv.executeSql("CREATE TEMPORARY CONNECTION tmp_conn WITH ('k' = 'v')");
 
@@ -220,7 +248,7 @@ class ConnectionITCase {
     }
 
     @TestTemplate
-    void testDescribeTemporaryConnection() {
+    void testDescribeTemporaryConnection() throws Exception {
         tEnv.executeSql(
                 "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
                         + "WITH ('type' = 'default', 'k' = 'v', 'comment' = 'option comment', "
@@ -238,7 +266,7 @@ class ConnectionITCase {
     }
 
     @TestTemplate
-    void testDescribeSecretOnlyConnectionIncludesDefaultType() {
+    void testDescribeSecretOnlyConnectionIncludesDefaultType() throws Exception {
         tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'secret')");
 
         assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
@@ -270,9 +298,11 @@ class ConnectionITCase {
                 .hasMessageContaining("Connection with identifier");
     }
 
-    private List<Row> collectRows(String sql) {
+    private List<Row> collectRows(String sql) throws Exception {
         TableResult result = tEnv.executeSql(sql);
-        return CollectionUtil.iteratorToList(result.collect());
+        try (CloseableIterator<Row> rows = result.collect()) {
+            return CollectionUtil.iteratorToList(rows);
+        }
     }
 
     private CatalogManager catalogManager() {
