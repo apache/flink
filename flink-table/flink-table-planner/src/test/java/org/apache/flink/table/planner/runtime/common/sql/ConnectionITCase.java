@@ -131,7 +131,9 @@ class ConnectionITCase {
     void testDropMissingTemporaryConnectionRejected() {
         assertThatThrownBy(() -> tEnv.executeSql("DROP TEMPORARY CONNECTION my_conn"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Temporary connection with identifier");
+                .hasMessage(
+                        "Temporary connection with identifier '%s' does not exist.",
+                        connectionIdentifier("my_conn").asSummaryString());
     }
 
     @TestTemplate
@@ -162,7 +164,9 @@ class ConnectionITCase {
     void testDropMissingPermanentConnectionRejected() {
         assertThatThrownBy(() -> tEnv.executeSql("DROP CONNECTION my_conn"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Connection with identifier");
+                .hasMessage(
+                        "Connection with identifier '%s' does not exist.",
+                        connectionIdentifier("my_conn").asSummaryString());
     }
 
     @TestTemplate
