@@ -27,6 +27,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Stream;
 
@@ -34,6 +35,12 @@ import static java.nio.charset.StandardCharsets.UTF_16;
 import static java.nio.charset.StandardCharsets.UTF_16BE;
 import static java.nio.charset.StandardCharsets.UTF_16LE;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.flink.types.variant.BinaryVariantUtil.DECIMAL16;
+import static org.apache.flink.types.variant.BinaryVariantUtil.DECIMAL4;
+import static org.apache.flink.types.variant.BinaryVariantUtil.DECIMAL8;
+import static org.apache.flink.types.variant.BinaryVariantUtil.MAX_SHORT_STR_SIZE;
+import static org.apache.flink.types.variant.BinaryVariantUtil.U32_SIZE;
+import static org.apache.flink.types.variant.BinaryVariantUtil.primitiveHeader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -200,5 +207,61 @@ class BinaryVariantInternalBuilderTest {
         ArrayList<Float> floatList = new ArrayList<>(Collections.nCopies(25, 4.2f));
 
         assertThatCode(() -> floatList.forEach(builder::appendFloat)).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, MAX_SHORT_STR_SIZE, MAX_SHORT_STR_SIZE + 1})
+    void testAppendStringStoresUtf8BytesAsTheyAre(final int length) {
+        final String str = "x".repeat(length);
+        final byte[] utf8 = str.getBytes(UTF_8);
+        // The bytes follow one other byte, so a range that ignores its offset reads the wrong ones.
+        final byte[] buffer = new byte[1 + length];
+        System.arraycopy(utf8, 0, buffer, 1, length);
+        final BinaryVariantInternalBuilder fromRange = new BinaryVariantInternalBuilder(false);
+        fromRange.appendString(buffer, 1, length);
+        final BinaryVariantInternalBuilder fromArray = new BinaryVariantInternalBuilder(false);
+        fromArray.appendString(utf8);
+
+        final BinaryVariant variant = fromRange.build();
+        final byte[] value = variant.getValue();
+        final int headerSize = 1 + (length > MAX_SHORT_STR_SIZE ? U32_SIZE : 0);
+        assertThat(Arrays.copyOfRange(value, headerSize, value.length)).isEqualTo(utf8);
+        assertThat(variant.getString()).isEqualTo(str);
+        assertThat(variant).isEqualTo(fromArray.build());
+    }
+
+    @ParameterizedTest(name = "unscaled={0}, scale={1}")
+    @MethodSource("unscaledDecimals")
+    void testAppendDecimalFromUnscaledLong(
+            final long unscaled, final int scale, final int decimalType) {
+        final BigDecimal decimal = BigDecimal.valueOf(unscaled, scale);
+        final BinaryVariantInternalBuilder fromLong = new BinaryVariantInternalBuilder(false);
+        fromLong.appendDecimal(unscaled, scale);
+        final BinaryVariantInternalBuilder fromBigDecimal = new BinaryVariantInternalBuilder(false);
+        fromBigDecimal.appendDecimal(decimal);
+
+        final BinaryVariant variant = fromLong.build();
+        assertThat(variant).isEqualTo(fromBigDecimal.build());
+        assertThat(variant.getValue()[0]).isEqualTo(primitiveHeader(decimalType));
+        assertThat(variant.getDecimal()).isEqualByComparingTo(decimal);
+    }
+
+    private static Stream<Arguments> unscaledDecimals() {
+        return Stream.of(
+                Arguments.of(0L, 0, DECIMAL4),
+                Arguments.of(999_999_999L, 9, DECIMAL4),
+                Arguments.of(-999_999_999L, 9, DECIMAL4),
+                Arguments.of(1_000_000_000L, 0, DECIMAL8),
+                Arguments.of(-1_000_000_000L, 0, DECIMAL8),
+                Arguments.of(1L, 10, DECIMAL8),
+                Arguments.of(999_999_999_999_999_999L, 18, DECIMAL8),
+                Arguments.of(-999_999_999_999_999_999L, 18, DECIMAL8),
+                Arguments.of(1_000_000_000_000_000_000L, 0, DECIMAL16),
+                Arguments.of(-1_000_000_000_000_000_000L, 0, DECIMAL16),
+                Arguments.of(1L, 19, DECIMAL16),
+                Arguments.of(Long.MAX_VALUE, 38, DECIMAL16),
+                Arguments.of(Long.MIN_VALUE, 0, DECIMAL16),
+                // A negative scale is rescaled to 0.
+                Arguments.of(5L, -1, DECIMAL4));
     }
 }
