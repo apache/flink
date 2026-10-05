@@ -57,8 +57,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * LateralSnapshotJoin} {@code RelNode} / {@code StreamExecLateralSnapshotJoin} operator as SQL,
  * whose execution semantics are already fully covered by the SQL semantic tests ({@code
  * LateralSnapshotJoinSemanticTests}) and {@code LateralSnapshotJoinITCase}. {@code
- * LateralSnapshotJoinTableApiSemanticTestPrograms} keeps only a few execution smokes on top of
- * this.
+ * LateralSnapshotJoinSemanticTestPrograms#INNER_JOIN_TABLE_API} keeps a single execution smoke on
+ * top of this.
  */
 public class LateralSnapshotJoinTableApiTest extends TableTestBase {
 

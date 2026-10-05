@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.ApiExpression;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -32,6 +34,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.descriptor;
+import static org.apache.flink.table.api.Expressions.lit;
 
 /**
  * Deterministic result {@link TableTestProgram} definitions for the {@code LATERAL SNAPSHOT}
@@ -57,7 +64,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
             "load_completed_time => CAST(TIMESTAMP '2100-01-01 00:00:00' AS TIMESTAMP_LTZ(3))";
 
     /** Event time of the flip-trigger row; equal to the {@link #MID_FLIP} timestamp. */
-    static final String FLIP_TRIGGER_TS = "00:00:10";
+    private static final String FLIP_TRIGGER_TS = "00:00:10";
 
     /** A build-side key that never matches any probe row. */
     private static final String FLIP_TRIGGER_KEY = "__flip_trigger__";
@@ -337,6 +344,42 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                     .build();
 
     // ------------------------------------------------------------------------------------------
+    // Table API
+    //
+    // The Table API is a thin wrapper that converges on the same plan/operator as SQL (asserted by
+    // LateralSnapshotJoinTableApiTest), so a single execution smoke is enough here.
+    // ------------------------------------------------------------------------------------------
+
+    public static final TableTestProgram INNER_JOIN_TABLE_API =
+            TableTestProgram.of(
+                            "lateral-snapshot-inner-join-table-api",
+                            "LATERAL SNAPSHOT inner join expressed through the Table API")
+                    .setupTableSource(throttledProbe(defaultProbe(), 40L))
+                    .setupTableSource(appendBuild(withFlipTrigger(defaultBuild())))
+                    .setupTableSink(
+                            keyValueSink()
+                                    .consumedValues(
+                                            "+I[a, 100, a, 10]",
+                                            "+I[a, 100, a, 11]",
+                                            "+I[b, 200, b, 20]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("probe")
+                                            .joinLateral(
+                                                    call(
+                                                            "SNAPSHOT",
+                                                            env.from("b").asArgument("input"),
+                                                            descriptor("bts").asArgument("on_time"),
+                                                            loadCompletedTime(FLIP_TRIGGER_TS)
+                                                                    .asArgument(
+                                                                            "load_completed_time")),
+                                                    $("pk").isEqual($("bk")))
+                                            .select($("pk"), $("pv"), $("bk"), $("bv")),
+                            "sink")
+                    .build();
+
+    // ------------------------------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------------------------------
 
@@ -360,14 +403,14 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                 + condition;
     }
 
-    static List<Row> defaultProbe() {
+    private static List<Row> defaultProbe() {
         return Arrays.asList(
                 Row.of("a", 100, ts("00:01:00")),
                 Row.of("b", 200, ts("00:01:01")),
                 Row.of("c", 300, ts("00:01:02")));
     }
 
-    static List<Row> defaultBuild() {
+    private static List<Row> defaultBuild() {
         return Arrays.asList(
                 Row.of("a", 10, ts("00:00:01")),
                 Row.of("b", 20, ts("00:00:02")),
@@ -384,7 +427,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
      * Appends a non-matching build row at the {@link #FLIP_TRIGGER_TS} timestamp; its watermark
      * flips the operator to the JOIN phase mid-stream (all real build rows are earlier).
      */
-    static List<Row> withFlipTrigger(List<Row> data) {
+    private static List<Row> withFlipTrigger(List<Row> data) {
         final List<Row> withTrigger = new ArrayList<>(data);
         withTrigger.add(Row.of(FLIP_TRIGGER_KEY, 0, ts(FLIP_TRIGGER_TS)));
         return withTrigger;
@@ -397,7 +440,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                 .build();
     }
 
-    static SourceTestStep throttledProbe(List<Row> data, long sleepMillis) {
+    private static SourceTestStep throttledProbe(List<Row> data, long sleepMillis) {
         return SourceTestStep.newBuilder("probe")
                 .addSchema(PROBE_SCHEMA)
                 .addOptions(throttleOptions(sleepMillis))
@@ -405,7 +448,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                 .build();
     }
 
-    static SourceTestStep appendBuild(List<Row> data) {
+    private static SourceTestStep appendBuild(List<Row> data) {
         return SourceTestStep.newBuilder("b")
                 .addSchema(BUILD_SCHEMA)
                 .producedValues(data.toArray(new Row[0]))
@@ -426,7 +469,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                 .build();
     }
 
-    static SinkTestStep.Builder keyValueSink() {
+    private static SinkTestStep.Builder keyValueSink() {
         return SinkTestStep.newBuilder("sink")
                 .addSchema("pk STRING", "pv INT", "bk STRING", "bv INT")
                 .testMaterializedData();
@@ -439,7 +482,16 @@ public class LateralSnapshotJoinSemanticTestPrograms {
         return options;
     }
 
-    static LocalDateTime ts(String time) {
+    private static LocalDateTime ts(String time) {
         return LocalDateTime.parse("2020-01-01T" + time);
+    }
+
+    /**
+     * Builds the {@code load_completed_time} argument as a Table API expression equivalent to the
+     * SQL {@code CAST(TIMESTAMP '2020-01-01 <time>' AS TIMESTAMP_LTZ(3))} used by the SQL programs
+     * for the same flip timestamp.
+     */
+    private static ApiExpression loadCompletedTime(String time) {
+        return lit(ts(time)).cast(DataTypes.TIMESTAMP_LTZ(3));
     }
 }
