@@ -154,10 +154,9 @@ class CastRuleProviderTest {
 
     @Test
     void testResolvePrimitiveToVariant() {
-        assertThat(CastRuleProvider.resolve(INT, VARIANT))
-                .isSameAs(PrimitiveToVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(INT, VARIANT)).isSameAs(ToVariantCastRule.INSTANCE);
         assertThat(CastRuleProvider.resolve(STRING_TYPE, VARIANT))
-                .isSameAs(PrimitiveToVariantCastRule.INSTANCE);
+                .isSameAs(ToVariantCastRule.INSTANCE);
         assertThat(CastRuleProvider.exists(DECIMAL(10, 2).getLogicalType(), VARIANT)).isTrue();
         assertThat(CastRuleProvider.exists(TIMESTAMP(9).getLogicalType(), VARIANT)).isTrue();
         assertThat(CastRuleProvider.exists(TIMESTAMP_LTZ().getLogicalType(), VARIANT)).isTrue();
@@ -165,7 +164,7 @@ class CastRuleProviderTest {
         assertThat(CastRuleProvider.exists(BYTES().getLogicalType(), VARIANT)).isTrue();
         assertThat(CastRuleProvider.exists(UUID().getLogicalType(), VARIANT)).isTrue();
 
-        // only a nanosecond timestamp can fail, since that kind covers a limited range of years
+        // a nanosecond timestamp covers a limited range of years, and a TIME only one day
         assertThat(CastRuleProvider.canFail(INT, VARIANT)).isFalse();
         assertThat(CastRuleProvider.canFail(DOUBLE().getLogicalType(), VARIANT)).isFalse();
         assertThat(CastRuleProvider.canFail(FLOAT().getLogicalType(), VARIANT)).isFalse();
@@ -173,6 +172,17 @@ class CastRuleProviderTest {
         assertThat(CastRuleProvider.canFail(TIMESTAMP(9).getLogicalType(), VARIANT)).isTrue();
         assertThat(CastRuleProvider.canFail(TIMESTAMP_LTZ(3).getLogicalType(), VARIANT)).isFalse();
         assertThat(CastRuleProvider.canFail(TIMESTAMP_LTZ(7).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(TIME().getLogicalType(), VARIANT)).isTrue();
+        // a DISTINCT type fails like its source type
+        assertThat(CastRuleProvider.canFail(DISTINCT_INT, VARIANT)).isFalse();
+        assertThat(
+                        CastRuleProvider.canFail(
+                                DistinctType.newBuilder(
+                                                ObjectIdentifier.of("a", "b", "c"),
+                                                TIMESTAMP(9).getLogicalType())
+                                        .build(),
+                                VARIANT))
+                .isTrue();
 
         // a string or binary type fails only when its declared length allows a value over 16 MiB,
         // and a character takes up to 4 bytes in UTF-8

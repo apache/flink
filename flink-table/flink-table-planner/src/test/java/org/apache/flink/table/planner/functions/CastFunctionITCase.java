@@ -19,10 +19,12 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -551,6 +553,17 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .testSqlResult(
                                 "TRY_CAST(REPEAT(f0, 17000000) AS VARIANT)", null, VARIANT()),
                 // nanoseconds only cover 1677-09-21 to 2262-04-11, while microseconds hold any year
+                // only a source or a function can produce a TIME outside one day
+                TestSetSpec.forExpression("Cast a TIME outside one day to VARIANT")
+                        .onFieldsWithData(-1000)
+                        .andDataTypes(INT())
+                        .withFunction(TimeOfMillisFunction.class)
+                        .testSqlRuntimeError(
+                                "CAST(TimeOfMillisFunction(f0) AS VARIANT)",
+                                TableRuntimeException.class,
+                                "A TIME holds the milliseconds of one day")
+                        .testSqlResult(
+                                "TRY_CAST(TimeOfMillisFunction(f0) AS VARIANT)", null, VARIANT()),
                 TestSetSpec.forExpression("Cast a late TIMESTAMP to VARIANT")
                         .onFieldsWithData(
                                 LocalDateTime.parse("3000-01-01T00:00"),
@@ -2481,5 +2494,13 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     private static boolean isTimestampToNumeric(LogicalType srcType, LogicalType trgType) {
         return srcType.is(LogicalTypeFamily.TIMESTAMP) && trgType.is(LogicalTypeFamily.NUMERIC);
+    }
+
+    /** Passes its argument through as the milliseconds of the day of a {@code TIME}. */
+    public static class TimeOfMillisFunction extends ScalarFunction {
+        public @DataTypeHint(value = "TIME(0)", bridgedTo = Integer.class) Integer eval(
+                Integer millisOfDay) {
+            return millisOfDay;
+        }
     }
 }
