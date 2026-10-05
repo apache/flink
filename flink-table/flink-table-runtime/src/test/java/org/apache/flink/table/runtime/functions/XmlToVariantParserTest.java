@@ -25,7 +25,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.xml.sax.SAXException;
 
+import javax.xml.transform.stream.StreamSource;
+import javax.xml.validation.SchemaFactory;
+
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -232,9 +237,9 @@ class XmlToVariantParserTest {
                         new BigDecimal("123456789012345678901234567890")),
                 arguments("decimal", "12.50", Variant.Type.DECIMAL, new BigDecimal("12.50")),
                 arguments("decimal", ".5", Variant.Type.DECIMAL, new BigDecimal("0.5")),
-                arguments("decimal", "1e5", Variant.Type.DECIMAL, new BigDecimal("100000")),
                 arguments("float", "1.5", Variant.Type.FLOAT, 1.5f),
                 arguments("double", "1.5E3", Variant.Type.DOUBLE, 1500.0),
+                arguments("double", "-.5e+2", Variant.Type.DOUBLE, -50.0),
                 arguments("date", "2026-09-23", Variant.Type.DATE, LocalDate.of(2026, 9, 23)),
                 arguments(
                         "time",
@@ -283,7 +288,7 @@ class XmlToVariantParserTest {
     }
 
     @ParameterizedTest(name = "{0}: {1}")
-    @MethodSource("untypedValues")
+    @MethodSource({"untypedValues", "invalidLexicalForms"})
     void testXsiTypeThatDoesNotApply(String xsiType, String text) {
         final Variant value = parseTyped(xsiType, text);
         assertThat(value.getField("$").getString()).isEqualTo(text);
@@ -310,8 +315,77 @@ class XmlToVariantParserTest {
                 arguments("date", "2026-09-23Z"),
                 arguments("time", "12:30:45Z"),
                 arguments("dateTime", "2026-09-23"),
+                // Valid in XML Schema, but rejected by the Java parsers.
+                arguments("date", "10000-01-01"),
+                arguments("dateTime", "10000-01-01T00:00:00"),
+                arguments("time", "24:00:00"),
+                arguments("dateTime", "2026-09-23T24:00:00"),
                 arguments("anyURI", "urn:x"),
                 arguments("Int", "5"));
+    }
+
+    /** Values that the Java parsers accept, but XML Schema doesn't. */
+    static Stream<Arguments> invalidLexicalForms() {
+        return Stream.of(
+                arguments("float", "1f"),
+                arguments("float", "1.5F"),
+                arguments("float", "1d"),
+                arguments("double", "1.5D"),
+                arguments("float", "0x1.8p1"),
+                arguments("double", "0x1.8p1"),
+                // Digits from other scripts: Arabic-Indic three, and fullwidth one and two.
+                arguments("int", "\u0663"), // ٣
+                arguments("long", "\uff11\uff12"), // １２
+                arguments("integer", "\u0663"), // ٣
+                arguments("decimal", "\u0663"), // ٣
+                arguments("decimal", "1e5"),
+                arguments("time", "12:30"),
+                arguments("dateTime", "2026-09-23T12:30"),
+                arguments("dateTime", "2026-09-23t12:30:00"),
+                arguments("dateTime", "2026-09-23T12:30:00z"),
+                arguments("dateTime", "2026-09-23T12:30:00+01:00[Europe/Paris]"));
+    }
+
+    // The XML Schema validator of the JDK is the reference for which values are valid. It
+    // implements
+    // XML Schema 1.0, so values that only 1.1 allows, like the year 0000, can't be typed values
+    // here.
+
+    @ParameterizedTest(name = "{0}: {1}")
+    @MethodSource("typedValues")
+    void testTypedValuesAreValidInXmlSchema(String xsiType, String text) throws Exception {
+        assertThat(isValidInXmlSchema(xsiType, text)).isTrue();
+    }
+
+    @ParameterizedTest(name = "{0}: {1}")
+    @MethodSource("invalidLexicalForms")
+    void testInvalidLexicalFormsAreInvalidInXmlSchema(String xsiType, String text)
+            throws Exception {
+        assertThat(isValidInXmlSchema(xsiType, text)).isFalse();
+    }
+
+    /** The validator checks the text against the xsi:type of the element, without a schema. */
+    private static boolean isValidInXmlSchema(String xsiType, String text) throws Exception {
+        final String xml =
+                String.format(
+                        "<a xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
+                                + " xmlns:xs=\"http://www.w3.org/2001/XMLSchema\""
+                                + " xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\""
+                                + " xsi:type=\"%s\">%s</a>",
+                        xsiType.contains(":") ? xsiType : "xs:" + xsiType, text);
+        try {
+            SchemaFactory.newDefaultInstance()
+                    .newSchema()
+                    .newValidator()
+                    .validate(new StreamSource(new StringReader(xml)));
+            return true;
+        } catch (SAXException e) {
+            // Any other error, e.g. an unknown type, is a mistake in the test.
+            if (!e.getMessage().startsWith("cvc-datatype-valid")) {
+                throw e;
+            }
+            return false;
+        }
     }
 
     private Variant parseTyped(String xsiType, String text) {

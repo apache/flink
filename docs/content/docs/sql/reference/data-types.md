@@ -1628,7 +1628,9 @@ or the `$` field if the element has other attributes. The prefix of the type is 
 `xsd:int`, and `int` are the same type. If the element has child elements or no text, the type isn't
 listed below, or the text isn't a valid value of the type, the text stays a `STRING` and `xsi:type`
 is kept as an attribute. For example, `<a xsi:type="int">5</a>` maps to `{"a":5}`, and
-`<a xsi:type="int">five</a>` maps to `{"a":{"$":"five","@xsi:type":"int"}}`.
+`<a xsi:type="int">five</a>` maps to `{"a":{"$":"five","@xsi:type":"int"}}`. The text has to be in
+the lexical form that XML Schema defines for the type, so `1e5` isn't a `decimal`, `1f` isn't a
+`float`, and `12:30` isn't a `time`. Years after 9999 and the time `24:00:00` stay a `STRING` as well.
 
 | `xsi:type`                   | Stored `VARIANT` kind                        |
 |------------------------------|----------------------------------------------|
