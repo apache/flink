@@ -587,7 +587,9 @@ public class BinaryVariantInternalBuilder {
     // the
     // input variant, we can directly copy the binary slice.
     public void appendVariant(BinaryVariant v) {
-        appendVariantImpl(v.getValue(), v.getMetadata(), v.getPos());
+        // A nested variant, such as a field or an element of another variant, starts at its own
+        // position in the shared buffer. getValue() would copy it to position 0 instead.
+        appendVariantImpl(v.rawValue(), v.getMetadata(), v.getPos());
     }
 
     private void appendVariantImpl(byte[] value, byte[] metadata, int pos) {
@@ -748,10 +750,13 @@ public class BinaryVariantInternalBuilder {
         }
     }
 
-    // Choose the smallest unsigned integer type that can store `value`. It must be within
-    // `[0, U24_MAX]`.
+    // Choose the smallest unsigned integer type that can store `value`. A size, offset or id above
+    // `U24_MAX` only occurs in a variant over the size limit.
     private int getIntegerSize(int value) {
-        assert value >= 0 && value <= U24_MAX;
+        assert value >= 0;
+        if (value > U24_MAX) {
+            throw VARIANT_SIZE_LIMIT_EXCEPTION;
+        }
         if (value <= U8_MAX) {
             return 1;
         }
