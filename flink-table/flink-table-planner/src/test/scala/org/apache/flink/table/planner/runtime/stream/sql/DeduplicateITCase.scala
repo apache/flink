@@ -306,6 +306,63 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enable
   }
 
   @TestTemplate
+  def testFirstRowOnNonTimeAttributeFollowedByUnboundedAgg(): Unit = {
+    val data = List((1, 100L, "a"), (1, 10L, "b"), (2, 1L, "c"))
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      """
+        |SELECT SUM(b) FROM (
+        |  SELECT a, b
+        |  FROM (
+        |    SELECT *,
+        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) as rowNum
+        |    FROM T
+        |  )
+        |  WHERE rowNum = 1
+        |)
+      """.stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    // SUM over the first rows: 10 for key 1 (replacing 100) + 1 for key 2
+    assertThat(sink.getRetractResults).isEqualTo(List("11"))
+  }
+
+  @TestTemplate
+  def testFirstRowOnTimeAndNonTimeAttributeFollowedByUnboundedAgg(): Unit = {
+    val data = List((1, 100L, "a"), (1, 10L, "b"), (2, 1L, "c"))
+    val t = StreamingEnvUtil
+      .fromCollection(env, data)
+      .assignTimestampsAndWatermarks(new RowtimeExtractor)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      """
+        |SELECT SUM(b) FROM (
+        |  SELECT a, b
+        |  FROM (
+        |    SELECT *,
+        |      ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime, c) as rowNum
+        |    FROM T
+        |  )
+        |  WHERE rowNum = 1
+        |)
+      """.stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    // SUM over the first rows: 10 for key 1 (replacing 100) + 1 for key 2
+    assertThat(sink.getRetractResults).isEqualTo(List("11"))
+  }
+
+  @TestTemplate
   def testLastRowOnRowtime(): Unit = {
     val t = StreamingEnvUtil
       .fromCollection(env, rowtimeTestData)
