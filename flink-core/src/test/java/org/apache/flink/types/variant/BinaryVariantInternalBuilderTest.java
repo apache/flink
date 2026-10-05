@@ -39,6 +39,7 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.DECIMAL16;
 import static org.apache.flink.types.variant.BinaryVariantUtil.DECIMAL4;
 import static org.apache.flink.types.variant.BinaryVariantUtil.DECIMAL8;
 import static org.apache.flink.types.variant.BinaryVariantUtil.MAX_SHORT_STR_SIZE;
+import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U32_SIZE;
 import static org.apache.flink.types.variant.BinaryVariantUtil.primitiveHeader;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -199,6 +200,51 @@ class BinaryVariantInternalBuilderTest {
         BinaryVariant variant = BinaryVariantInternalBuilder.parseJson(number, false);
         assertThat(variant.getType()).isSameAs(Variant.Type.DOUBLE);
         assertThat(variant.getDouble()).isEqualTo(Double.parseDouble(number));
+    }
+
+    @Test
+    void testContainerOfExactlyTheSizeLimitFails() {
+        // A binary value of this length fills the 16 MiB alone, so no header fits around it.
+        final byte[] payload = new byte[SIZE_LIMIT - 1 - U32_SIZE];
+
+        final BinaryVariantInternalBuilder arrayBuilder = new BinaryVariantInternalBuilder(false);
+        arrayBuilder.appendBinary(payload);
+        final ArrayList<Integer> offsets = new ArrayList<>(Collections.singletonList(0));
+        assertThatThrownBy(() -> arrayBuilder.finishWritingArray(0, offsets))
+                .isSameAs(BinaryVariantInternalBuilder.VARIANT_SIZE_LIMIT_EXCEPTION);
+
+        final BinaryVariantInternalBuilder objectBuilder = new BinaryVariantInternalBuilder(false);
+        final int id = objectBuilder.addKey("a");
+        objectBuilder.appendBinary(payload);
+        final ArrayList<BinaryVariantInternalBuilder.FieldEntry> fields =
+                new ArrayList<>(
+                        Collections.singletonList(
+                                new BinaryVariantInternalBuilder.FieldEntry("a", id, 0)));
+        assertThatThrownBy(() -> objectBuilder.finishWritingObject(0, fields))
+                .isSameAs(BinaryVariantInternalBuilder.VARIANT_SIZE_LIMIT_EXCEPTION);
+    }
+
+    @Test
+    void testAppendNestedVariant() throws IOException {
+        final BinaryVariant source =
+                BinaryVariantInternalBuilder.parseJson(
+                        "{\"a\":[7,8,9],\"b\":\"hello\",\"c\":{\"d\":true}}", false);
+        final VariantBuilder builder = Variant.newBuilder();
+
+        final Variant array =
+                builder.array()
+                        .add(source.getField("a"))
+                        .add(source.getField("b"))
+                        .add(source.getField("c"))
+                        .build();
+        assertThat(array.toJson()).isEqualTo("[[7,8,9],\"hello\",{\"d\":true}]");
+
+        final Variant object =
+                builder.object()
+                        .add("x", source.getField("c").getField("d"))
+                        .add("y", source.getField("a").getElement(2))
+                        .build();
+        assertThat(object.toJson()).isEqualTo("{\"x\":true,\"y\":9}");
     }
 
     @Test
