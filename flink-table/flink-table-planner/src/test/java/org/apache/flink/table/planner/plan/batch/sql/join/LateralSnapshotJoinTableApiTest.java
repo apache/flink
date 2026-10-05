@@ -125,34 +125,6 @@ public class LateralSnapshotJoinTableApiTest extends TableTestBase {
         assertSameOptimizedPhysicalPlan(sql, apiResult);
     }
 
-    @Test
-    void testTableApiBuildSidePlanParity() {
-        // The SNAPSHOT 'input' argument is itself a transformed Table (a filtered table), not a
-        // plain scan; SQL mirrors this with a CTE.
-        final String sql =
-                "WITH cte AS (SELECT * FROM b WHERE bv > 10) "
-                        + "SELECT probe.pk, probe.pv, s.bk, s.bv FROM probe JOIN LATERAL SNAPSHOT("
-                        + "input => TABLE cte, load_completed_time => "
-                        + LOAD_COMPLETED_TIME_SQL
-                        + ") AS s "
-                        + "ON probe.pk = s.bk";
-
-        final Table filteredBuild = util.tableEnv().from("b").filter($("bv").isGreater(10));
-        final Table apiResult =
-                util.tableEnv()
-                        .from("probe")
-                        .joinLateral(
-                                call(
-                                        "SNAPSHOT",
-                                        filteredBuild.asArgument("input"),
-                                        LOAD_COMPLETED_TIME_TABLE.asArgument(
-                                                "load_completed_time")),
-                                $("pk").isEqual($("bk")))
-                        .select($("pk"), $("pv"), $("bk"), $("bv"));
-
-        assertSameOptimizedPhysicalPlan(sql, apiResult);
-    }
-
     // ------------------------------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------------------------------

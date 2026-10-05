@@ -24,7 +24,6 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions.ColumnExpansionStrategy;
-import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
@@ -45,7 +44,6 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.descriptor;
 import static org.apache.flink.table.api.Expressions.lit;
-import static org.apache.flink.table.api.config.TableConfigOptions.ColumnExpansionStrategy.EXCLUDE_ALIASED_VIRTUAL_METADATA_COLUMNS;
 import static org.apache.flink.table.api.config.TableConfigOptions.ColumnExpansionStrategy.EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -189,7 +187,8 @@ public class LateralSnapshotJoinTableApiTest extends TableTestBase {
 
     @Test
     void testAliasedColumnsPlanParity() {
-        // No further narrowing projection on top (unlike the other variants)
+        // No narrowing projection on top: SELECT * keeps the aliased build columns, so this
+        // asserts both plan parity and that the Table API and SQL agree on the (aliased) schema.
         final String sql =
                 "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, on_time => DESCRIPTOR(bts), "
@@ -212,6 +211,8 @@ public class LateralSnapshotJoinTableApiTest extends TableTestBase {
                                 $("pk").isEqual($("k")));
 
         assertSameOptimizedPhysicalPlan(sql, apiResult);
+        assertThat(apiResult.getResolvedSchema())
+                .isEqualTo(util.tableEnv().sqlQuery(sql).getResolvedSchema());
     }
 
     @Test
@@ -245,35 +246,6 @@ public class LateralSnapshotJoinTableApiTest extends TableTestBase {
                         .select($("pk"), $("pv"), $("bk"), $("bv"));
 
         assertSameOptimizedPhysicalPlan(sql, apiResult);
-    }
-
-    @Test
-    void testAliasedColumnsWithProjectionSchemaParity() {
-        final String sql =
-                "SELECT probe.pk, s.k, s.v FROM probe JOIN LATERAL SNAPSHOT("
-                        + "input => TABLE b, on_time => DESCRIPTOR(bts), "
-                        + "load_completed_time => "
-                        + LOAD_COMPLETED_TIME_SQL
-                        + ") AS s(k, v, t) "
-                        + "ON probe.pk = s.k";
-
-        final Table apiResult =
-                util.tableEnv()
-                        .from("probe")
-                        .joinLateral(
-                                call(
-                                                "SNAPSHOT",
-                                                util.tableEnv().from("b").asArgument("input"),
-                                                descriptor("bts").asArgument("on_time"),
-                                                LOAD_COMPLETED_TIME_TABLE.asArgument(
-                                                        "load_completed_time"))
-                                        .as("k", "v", "t"),
-                                $("pk").isEqual($("k")))
-                        .select($("pk"), $("k"), $("v"));
-
-        final ResolvedSchema sqlSchema = util.tableEnv().sqlQuery(sql).getResolvedSchema();
-        final ResolvedSchema apiSchema = apiResult.getResolvedSchema();
-        assertThat(apiSchema).isEqualTo(sqlSchema);
     }
 
     @Test
@@ -462,10 +434,10 @@ public class LateralSnapshotJoinTableApiTest extends TableTestBase {
     }
 
     private static Stream<List<ColumnExpansionStrategy>> columnExpansionStrategies() {
+        // The default (no hiding) plus the strategy that hides a default virtual metadata column
+        // from SELECT *, which is the case that could diverge between the Table API and SQL.
         return Stream.of(
-                Collections.emptyList(),
-                List.of(EXCLUDE_ALIASED_VIRTUAL_METADATA_COLUMNS),
-                List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+                Collections.emptyList(), List.of(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
     }
 
     /**

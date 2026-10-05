@@ -390,7 +390,7 @@ public class LateralSnapshotJoinSemanticTestPrograms {
         return withTrigger;
     }
 
-    static SourceTestStep probe(List<Row> data) {
+    private static SourceTestStep probe(List<Row> data) {
         return SourceTestStep.newBuilder("probe")
                 .addSchema(PROBE_SCHEMA)
                 .producedValues(data.toArray(new Row[0]))

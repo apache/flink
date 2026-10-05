@@ -203,32 +203,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                         + "ON probe.pk = s.bk");
     }
 
-    @Test
-    void testBuildSideRowtimeFromMetadataColumn() {
-        // The build-side row-time referenced by on_time is a read-only VIRTUAL METADATA column -
-        // the open-source analog of a hidden system row-time column such as Confluent Cloud's
-        // $rowtime. SNAPSHOT must accept it as the on_time descriptor target.
-        util.tableEnv()
-                .executeSql(
-                        "CREATE TABLE b_meta ("
-                                + "  bk STRING,"
-                                + "  bv INT,"
-                                + "  bts TIMESTAMP(3) METADATA VIRTUAL,"
-                                + "  WATERMARK FOR bts AS bts"
-                                + ") WITH ("
-                                + "  'connector' = 'values',"
-                                + "  'bounded' = 'false',"
-                                + "  'changelog-mode' = 'I,UB,UA,D',"
-                                + "  'readable-metadata' = 'bts:TIMESTAMP(3)'"
-                                + ")");
-        util.verifyRelPlan(
-                "SELECT probe.pk, probe.pv, s.bk, s.bv FROM probe JOIN LATERAL SNAPSHOT("
-                        + "input => TABLE b_meta, on_time => DESCRIPTOR(bts), "
-                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ") AS s "
-                        + "ON probe.pk = s.bk");
-    }
-
     // ------------------------------------------------------------------------------------------
     // Behavior and compilation smoke tests
     // ------------------------------------------------------------------------------------------

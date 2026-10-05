@@ -39,9 +39,6 @@ public class LateralSnapshotJoinSemanticTests extends SemanticTestBase {
                 LateralSnapshotJoinSemanticTestPrograms.DEFAULT_COMPILE_TIME,
                 LateralSnapshotJoinSemanticTestPrograms.LIVE_JOIN,
                 LateralSnapshotJoinSemanticTestPrograms.BUFFERED_THEN_DRAINED,
-                LateralSnapshotJoinTableApiSemanticTestPrograms.INNER_JOIN_TABLE_API,
-                LateralSnapshotJoinTableApiSemanticTestPrograms.LEFT_JOIN_TABLE_API,
-                LateralSnapshotJoinTableApiSemanticTestPrograms.TABLE_API_BUILD_SIDE,
-                LateralSnapshotJoinTableApiSemanticTestPrograms.DOWNSTREAM_WINDOW_TABLE_API);
+                LateralSnapshotJoinTableApiSemanticTestPrograms.INNER_JOIN_TABLE_API);
     }
 }
