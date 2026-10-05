@@ -348,10 +348,11 @@ public class SystemTypeInference {
                                     fields.addAll(deriveRowtimeField(callContext, resolvedArgs));
                                 }
 
-                                // Nothing to show at all: no pass-through, no rowtime, and the
-                                // function itself returned ROW<>. Fall back to EXPR$0 as output.
                                 if (fields.isEmpty()) {
-                                    fields.add(DataTypes.FIELD("EXPR$0", functionDataType));
+                                    throw new ValidationException(
+                                            String.format(
+                                                    "Function '%s' must produce at least one output column.",
+                                                    callContext.getName()));
                                 }
 
                                 final List<Field> uniqueFields = makeFieldNamesUnique(fields);

@@ -203,7 +203,7 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    void testEmptyFunctionOutputWithPartitionByHasNoPhantomColumn() {
+    void testNoPhantomColumn() {
         util.addTemporarySystemFunction("f", EmptyOutputFunction.class);
         assertThat(
                         util.tableEnv()
@@ -214,14 +214,11 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    void testEmptyFunctionOutputWithoutColumnsFallsBackToExprZero() {
+    void testEmptyFunctionOutputWithoutColumns() {
         util.addTemporarySystemFunction("f", EmptyOutputRowSemanticFunction.class);
-        assertThat(
-                        util.tableEnv()
-                                .sqlQuery("SELECT * FROM f(r => TABLE t)")
-                                .getResolvedSchema()
-                                .getColumnNames())
-                .containsExactly("EXPR$0");
+        assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM f(r => TABLE t)"))
+                .satisfies(
+                        anyCauseMatches("Function 'f' must produce at least one output column."));
     }
 
     @Test
