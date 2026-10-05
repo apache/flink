@@ -27,20 +27,88 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.runtime.functions.VariantCastUtils;
+import org.apache.flink.table.types.logical.CharType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.lang.reflect.Array;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TimeZone;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 
 /** Utils for catalog and source to filter partition or row. */
 public class FilterUtils {
+
+    private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
+
+    /**
+     * Casts of a VARIANT element that can be evaluated, by target type, using the same {@link
+     * VariantCastUtils} helpers as the generated code of {@code VariantToPrimitiveCastRule}.
+     */
+    private static final Map<LogicalTypeRoot, BiFunction<Variant, LogicalType, Object>>
+            VARIANT_CASTS = new EnumMap<>(LogicalTypeRoot.class);
+
+    static {
+        VARIANT_CASTS.put(LogicalTypeRoot.BOOLEAN, (variant, type) -> variant.getBoolean());
+        VARIANT_CASTS.put(
+                LogicalTypeRoot.TINYINT,
+                (variant, type) ->
+                        (byte)
+                                VariantCastUtils.toIntegral(
+                                        variant, Byte.MIN_VALUE, Byte.MAX_VALUE, "TINYINT"));
+        VARIANT_CASTS.put(
+                LogicalTypeRoot.SMALLINT,
+                (variant, type) ->
+                        (short)
+                                VariantCastUtils.toIntegral(
+                                        variant, Short.MIN_VALUE, Short.MAX_VALUE, "SMALLINT"));
+        VARIANT_CASTS.put(
+                LogicalTypeRoot.INTEGER,
+                (variant, type) ->
+                        (int)
+                                VariantCastUtils.toIntegral(
+                                        variant, Integer.MIN_VALUE, Integer.MAX_VALUE, "INT"));
+        VARIANT_CASTS.put(
+                LogicalTypeRoot.BIGINT,
+                (variant, type) ->
+                        VariantCastUtils.toIntegral(
+                                variant, Long.MIN_VALUE, Long.MAX_VALUE, "BIGINT"));
+        VARIANT_CASTS.put(
+                LogicalTypeRoot.FLOAT, (variant, type) -> VariantCastUtils.toFloat(variant));
+        VARIANT_CASTS.put(
+                LogicalTypeRoot.DOUBLE, (variant, type) -> VariantCastUtils.toDouble(variant));
+        VARIANT_CASTS.put(
+                LogicalTypeRoot.CHAR,
+                (variant, type) ->
+                        VariantCastUtils.toStringValue(
+                                        variant, UTC, ((CharType) type).getLength(), true)
+                                .toString());
+        VARIANT_CASTS.put(
+                LogicalTypeRoot.VARCHAR,
+                (variant, type) ->
+                        VariantCastUtils.toStringValue(
+                                        variant, UTC, ((VarCharType) type).getLength(), false)
+                                .toString());
+    }
 
     public static boolean shouldPushDown(ResolvedExpression expr, Set<String> filterableFields) {
         if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
@@ -54,8 +122,8 @@ public class FilterUtils {
 
     public static boolean isRetainedAfterApplyingFilterPredicates(
             List<ResolvedExpression> predicates,
-            Function<String, Comparable<?>> getter,
-            @Nullable Function<int[], Comparable<?>> nestedFieldGetter) {
+            Function<String, ?> getter,
+            @Nullable Function<int[], ?> nestedFieldGetter) {
         for (ResolvedExpression predicate : predicates) {
             if (predicate instanceof CallExpression) {
                 FunctionDefinition definition =
@@ -115,6 +183,19 @@ public class FilterUtils {
             return true;
         }
 
+        if (isElementAccess(expr, filterableFields)) {
+            return true;
+        }
+
+        // A cast makes an element of a VARIANT comparable, e.g. CAST(v['k'] AS INT).
+        if (isCall(expr, CAST) || isCall(expr, TRY_CAST)) {
+            final ResolvedExpression element = expr.getResolvedChildren().get(0);
+            return VARIANT_CASTS.containsKey(
+                            expr.getOutputDataType().getLogicalType().getTypeRoot())
+                    && element.getOutputDataType().getLogicalType().is(LogicalTypeRoot.VARIANT)
+                    && isElementAccess(element, filterableFields);
+        }
+
         if (expr instanceof CallExpression && expr.getChildren().size() == 1) {
             if (((CallExpression) expr).getFunctionDefinition().equals(UPPER)
                     || ((CallExpression) expr).getFunctionDefinition().equals(LOWER)) {
@@ -126,16 +207,60 @@ public class FilterUtils {
         return false;
     }
 
+    private static boolean isElementAccess(ResolvedExpression expr, Set<String> filterableFields) {
+        if (!isCall(expr, AT)) {
+            return false;
+        }
+        final ResolvedExpression container = expr.getResolvedChildren().get(0);
+        final ResolvedExpression key = expr.getResolvedChildren().get(1);
+        return isFilterableField(container, filterableFields)
+                && key instanceof ValueLiteralExpression
+                && isEvaluableKey(
+                        container.getOutputDataType().getLogicalType(),
+                        key.getOutputDataType().getLogicalType());
+    }
+
+    /** A map lookup only finds the key if the literal has the key's Java type. */
+    private static boolean isEvaluableKey(LogicalType containerType, LogicalType keyType) {
+        if (!containerType.is(LogicalTypeRoot.MAP)) {
+            return true;
+        }
+        final LogicalType mapKeyType = ((MapType) containerType).getKeyType();
+        return mapKeyType.is(keyType.getTypeRoot())
+                || (mapKeyType.is(LogicalTypeFamily.CHARACTER_STRING)
+                        && keyType.is(LogicalTypeFamily.CHARACTER_STRING));
+    }
+
+    private static boolean isCall(Expression expr, FunctionDefinition definition) {
+        return expr instanceof CallExpression
+                && ((CallExpression) expr).getFunctionDefinition().equals(definition);
+    }
+
+    private static boolean isFilterableField(
+            ResolvedExpression expr, Set<String> filterableFields) {
+        if (expr instanceof FieldReferenceExpression) {
+            return filterableFields.contains(((FieldReferenceExpression) expr).getName());
+        }
+        if (expr instanceof NestedFieldReferenceExpression) {
+            return filterableFields.contains(((NestedFieldReferenceExpression) expr).getName());
+        }
+        return false;
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static boolean binaryFilterApplies(
             CallExpression binExpr,
-            Function<String, Comparable<?>> getter,
-            Function<int[], Comparable<?>> nestedFieldGetter) {
+            Function<String, ?> getter,
+            Function<int[], ?> nestedFieldGetter) {
         List<Expression> children = binExpr.getChildren();
         Preconditions.checkArgument(children.size() == 2);
 
         Comparable lhsValue = getValue(children.get(0), getter, nestedFieldGetter);
         Comparable rhsValue = getValue(children.get(1), getter, nestedFieldGetter);
+        if (lhsValue == null || rhsValue == null) {
+            // A comparison with NULL is never true, e.g. for an array index out of bounds.
+            return false;
+        }
         FunctionDefinition functionDefinition = binExpr.getFunctionDefinition();
         if (BuiltInFunctionDefinitions.GREATER_THAN.equals(functionDefinition)) {
             return lhsValue.compareTo(rhsValue) > 0;
@@ -154,14 +279,44 @@ public class FilterUtils {
         }
     }
 
+    /** Returns NULL for a missing field, an out-of-range index or a container of the wrong kind. */
+    private static @Nullable Variant getVariantElement(Variant variant, Object key) {
+        if (key instanceof String) {
+            return variant.isObject() ? variant.getField((String) key) : null;
+        }
+        final int index = ((Number) key).intValue();
+        return variant.isArray() && 1 <= index && index <= variant.getArraySize()
+                ? variant.getElement(index - 1)
+                : null;
+    }
+
+    /** Casts a VARIANT element like the generated code: an error yields NULL for TRY_CAST. */
+    private static @Nullable Object castVariant(
+            @Nullable Variant variant, LogicalType targetType, boolean tryCast) {
+        if (variant == null || variant.isNull()) {
+            return null;
+        }
+        try {
+            return VARIANT_CASTS.get(targetType.getTypeRoot()).apply(variant, targetType);
+        } catch (RuntimeException e) {
+            if (tryCast) {
+                return null;
+            }
+            throw e;
+        }
+    }
+
     private static boolean isComparable(Class<?> clazz) {
         return Comparable.class.isAssignableFrom(clazz);
     }
 
     private static Comparable<?> getValue(
-            Expression expr,
-            Function<String, Comparable<?>> getter,
-            Function<int[], Comparable<?>> nestedFieldGetter) {
+            Expression expr, Function<String, ?> getter, Function<int[], ?> nestedFieldGetter) {
+        return (Comparable<?>) getRawValue(expr, getter, nestedFieldGetter);
+    }
+
+    private static Object getRawValue(
+            Expression expr, Function<String, ?> getter, Function<int[], ?> nestedFieldGetter) {
         if (expr instanceof ValueLiteralExpression) {
             Optional<?> value =
                     ((ValueLiteralExpression) expr)
@@ -169,7 +324,7 @@ public class FilterUtils {
                                     ((ValueLiteralExpression) expr)
                                             .getOutputDataType()
                                             .getConversionClass());
-            return (Comparable<?>) value.orElse(null);
+            return value.orElse(null);
         }
 
         if (expr instanceof FieldReferenceExpression) {
@@ -183,6 +338,37 @@ public class FilterUtils {
             } else {
                 throw new RuntimeException("NestedFieldReferenceExpression not supported!");
             }
+        }
+
+        if (isCall(expr, CAST) || isCall(expr, TRY_CAST)) {
+            return castVariant(
+                    (Variant) getRawValue(expr.getChildren().get(0), getter, nestedFieldGetter),
+                    ((CallExpression) expr).getOutputDataType().getLogicalType(),
+                    isCall(expr, TRY_CAST));
+        }
+
+        if (isCall(expr, AT)) {
+            final Object container =
+                    getRawValue(expr.getChildren().get(0), getter, nestedFieldGetter);
+            final Object key = getRawValue(expr.getChildren().get(1), getter, nestedFieldGetter);
+            if (container == null || key == null) {
+                return null;
+            }
+            if (container instanceof Map) {
+                return ((Map<?, ?>) container).get(key);
+            }
+            if (container.getClass().isArray()) {
+                // SQL array indices are 1-based.
+                final int index = ((Number) key).intValue();
+                return 1 <= index && index <= Array.getLength(container)
+                        ? Array.get(container, index - 1)
+                        : null;
+            }
+            if (container instanceof Variant) {
+                return getVariantElement((Variant) container, key);
+            }
+            throw new UnsupportedOperationException(
+                    String.format("Unsupported container for %s: %s.", expr, container.getClass()));
         }
 
         if (expr instanceof CallExpression && expr.getChildren().size() == 1) {

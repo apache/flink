@@ -23,9 +23,15 @@ import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantBuilder;
+
+import java.util.Map;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecTableSourceScan}. */
 public class TableSourceScanTestPrograms {
+
+    private static final VariantBuilder VARIANT_BUILDER = Variant.newBuilder();
 
     static final Row[] BEFORE_DATA = {
         Row.of(1, 1L, "hi", DateTimeUtils.toLocalDateTime(1586937601000L)),
@@ -103,6 +109,44 @@ public class TableSourceScanTestPrograms {
                                     .consumedAfterRestore("+I[4, 4, foo]", "+I[5, 2, foo bar]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT * FROM source_t WHERE a > 1")
+                    .build();
+
+    public static final TableTestProgram FILTER_PUSHDOWN_ON_COLLECTION_ELEMENTS =
+            TableTestProgram.of(
+                            "table-source-scan-filter-pushdown-on-collection-elements",
+                            "validates table source scan with pushed filters on array, map and"
+                                    + " variant elements")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema(
+                                            "a INT",
+                                            "arr ARRAY<INT>",
+                                            "m MAP<STRING, INT>",
+                                            "v VARIANT")
+                                    .addOption("filterable-fields", "arr;m;v")
+                                    .producedBeforeRestore(
+                                            collectionRow(1, 2, 2, 2),
+                                            collectionRow(2, 1, 2, 2),
+                                            collectionRow(3, 2, 1, 2),
+                                            collectionRow(4, 2, 2, 1))
+                                    .producedAfterRestore(
+                                            collectionRow(5, 3, 3, 3),
+                                            // empty containers: every element access is NULL
+                                            Row.of(
+                                                    6,
+                                                    new Integer[0],
+                                                    Map.of(),
+                                                    VARIANT_BUILDER.object().build()))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT")
+                                    .consumedBeforeRestore("+I[1]")
+                                    .consumedAfterRestore("+I[5]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a FROM source_t"
+                                    + " WHERE arr[1] > 1 AND m['k'] > 1 AND CAST(v['k'] AS INT) > 1")
                     .build();
 
     public static final TableTestProgram LIMIT_PUSHDOWN =
@@ -260,4 +304,12 @@ public class TableSourceScanTestPrograms {
                             "INSERT INTO sink_one_t SELECT a, c FROM source_t",
                             "INSERT INTO sink_two_t SELECT a, b FROM source_t")
                     .build();
+
+    private static Row collectionRow(int a, int arrayElement, int mapValue, int variantField) {
+        return Row.of(
+                a,
+                new Integer[] {arrayElement},
+                Map.of("k", mapValue),
+                VARIANT_BUILDER.object().add("k", VARIANT_BUILDER.of(variantField)).build());
+    }
 }

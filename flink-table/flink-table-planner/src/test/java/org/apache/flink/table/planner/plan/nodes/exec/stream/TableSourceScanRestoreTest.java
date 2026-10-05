@@ -24,6 +24,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /** Restore tests for {@link StreamExecTableSourceScan}. */
 public class TableSourceScanRestoreTest extends RestoreTestBase {
@@ -38,11 +39,19 @@ public class TableSourceScanRestoreTest extends RestoreTestBase {
                 TableSourceScanTestPrograms.PROJECT_PUSHDOWN,
                 TableSourceScanTestPrograms.PROJECT_PUSHDOWN_DISABLED,
                 TableSourceScanTestPrograms.FILTER_PUSHDOWN,
+                TableSourceScanTestPrograms.FILTER_PUSHDOWN_ON_COLLECTION_ELEMENTS,
                 TableSourceScanTestPrograms.LIMIT_PUSHDOWN,
                 TableSourceScanTestPrograms.PARTITION_PUSHDOWN,
                 TableSourceScanTestPrograms.READING_METADATA,
                 TableSourceScanTestPrograms.MULTIPLE_PUSHDOWNS,
                 TableSourceScanTestPrograms.SOURCE_WATERMARK,
                 TableSourceScanTestPrograms.REUSE_SOURCE);
+    }
+
+    @Override
+    protected Map<Integer, List<TableTestProgram>> programsToIgnore() {
+        return Map.of(
+                // plans of this program exist only for version 2
+                1, List.of(TableSourceScanTestPrograms.FILTER_PUSHDOWN_ON_COLLECTION_ELEMENTS));
     }
 }
