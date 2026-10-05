@@ -40,8 +40,10 @@ import java.util.Collections;
 import java.util.List;
 
 import static java.util.stream.Collectors.toList;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunction;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SNAPSHOT;
 
 /** Utility class for creating a valid {@link CorrelatedFunctionQueryOperation} operation. */
 @Internal
@@ -103,8 +105,7 @@ final class CorrelatedFunctionTableFactory {
             // SNAPSHOT is PROCESS_TABLE rather than TABLE but is valid in a LATERAL join.
             Expression firstChild = children.get(0);
             if (!isFunctionOfKind(firstChild, FunctionKind.TABLE)
-                    && !(firstChild instanceof CallExpression
-                            && isSnapshot(((CallExpression) firstChild).getFunctionDefinition()))) {
+                    && !isFunction(firstChild, SNAPSHOT)) {
                 throw fail();
             }
 
