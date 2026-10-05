@@ -93,6 +93,7 @@ import org.apache.flink.table.planner.plan.schema.DataStreamTable$;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.plan.utils.LateralSnapshotJoinUtil;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
@@ -290,7 +291,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             final QueryOperation right = join.getChildren().get(1);
             final boolean isLateralSnapshotJoin =
                     right instanceof CorrelatedFunctionQueryOperation
-                            && isSnapshot(
+                            && LateralSnapshotJoinUtil.isSnapshotFunction(
                                     ((CorrelatedFunctionQueryOperation) right)
                                             .getResolvedFunction()
                                             .getDefinition());
@@ -396,7 +397,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                     correlatedFunction.getResolvedFunction();
             // SNAPSHOT is currently the only PTF valid in a lateral join and hence the only
             // function accepting table args.
-            if (isSnapshot(contextFunction.getDefinition())) {
+            if (LateralSnapshotJoinUtil.isSnapshotFunction(contextFunction.getDefinition())) {
                 return convertCorrelatedFunctionWithTableArgs(correlatedFunction);
             }
             final List<RexNode> parameters = convertToRexNodes(correlatedFunction.getArguments());
@@ -448,12 +449,6 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                                             .getLogicalType());
             return createTableFunctionScan(
                     correlatedFunction.getResolvedFunction(), args, inputs, outputType);
-        }
-
-        private boolean isSnapshot(FunctionDefinition definition) {
-            // SNAPSHOT is currently the only PTF valid as the build side of a lateral join; the
-            // lateral-join-specific handling in this converter keys off this single predicate.
-            return definition.equals(BuiltInFunctionDefinitions.SNAPSHOT);
         }
 
         /**

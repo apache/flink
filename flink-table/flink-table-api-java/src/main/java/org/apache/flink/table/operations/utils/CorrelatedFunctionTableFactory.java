@@ -102,13 +102,13 @@ final class CorrelatedFunctionTableFactory {
 
             // SNAPSHOT is PROCESS_TABLE rather than TABLE but is valid in a LATERAL join.
             Expression firstChild = children.get(0);
-            if (!isFunctionOfKind(children.get(0), FunctionKind.TABLE)
+            if (!isFunctionOfKind(firstChild, FunctionKind.TABLE)
                     && !(firstChild instanceof CallExpression
                             && isSnapshot(((CallExpression) firstChild).getFunctionDefinition()))) {
                 throw fail();
             }
 
-            CallExpression tableCall = (CallExpression) children.get(0);
+            CallExpression tableCall = (CallExpression) firstChild;
             return createFunctionCall(tableCall, aliases, tableCall.getResolvedChildren());
         }
 
