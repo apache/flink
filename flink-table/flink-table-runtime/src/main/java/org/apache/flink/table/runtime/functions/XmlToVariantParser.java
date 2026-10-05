@@ -34,7 +34,6 @@ import javax.xml.stream.XMLStreamReader;
 
 import java.io.StringReader;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -51,7 +50,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
+import static java.util.Map.entry;
 import static org.apache.flink.types.variant.BinaryVariantInternalBuilder.toVariantDecimal;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.microsSinceEpoch;
@@ -230,8 +231,46 @@ public final class XmlToVariantParser {
     /** Parses the text of an element with {@code xsi:type}. */
     private static final class XmlSchemaTypes {
 
-        // Parsing a BigInteger or BigDecimal is quadratic in the number of digits.
-        private static final int MAX_NUMBER_LENGTH = 1000;
+        // Parsing a BigDecimal is quadratic in the number of digits, and no value of the types
+        // below needs that many characters.
+        private static final int MAX_LENGTH = 1000;
+
+        // The lexical spaces of XML Schema 1.1. The Java parsers accept more, e.g. 1f for a float,
+        // non-ASCII digits, an exponent in a decimal, or a time without seconds.
+
+        // https://www.w3.org/TR/xmlschema11-2/#integer, which byte, short, int, and long inherit.
+        private static final Pattern INTEGER_FORM = Pattern.compile("[\\-+]?[0-9]+");
+        // https://www.w3.org/TR/xmlschema11-2/#decimal
+        private static final Pattern DECIMAL_FORM =
+                Pattern.compile("(\\+|-)?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)");
+        // https://www.w3.org/TR/xmlschema11-2/#float, the same form as for double.
+        private static final Pattern FLOAT_FORM =
+                Pattern.compile(
+                        "(\\+|-)?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([Ee](\\+|-)?[0-9]+)?|(\\+|-)?INF|NaN");
+        // https://www.w3.org/TR/xmlschema11-2/#date, without the time zone.
+        private static final String DATE_FORM =
+                "-?([1-9][0-9]{3,}|0[0-9]{3})-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])";
+        // https://www.w3.org/TR/xmlschema11-2/#time, without the time zone.
+        private static final String TIME_FORM =
+                "(([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]+)?|(24:00:00(\\.0+)?))";
+        // https://www.w3.org/TR/xmlschema11-2/#dateTime, the time zone of date, time, and dateTime.
+        private static final String TIMEZONE_FORM =
+                "(Z|(\\+|-)((0[0-9]|1[0-3]):[0-5][0-9]|14:00))?";
+        private static final Map<String, Pattern> LEXICAL_FORMS =
+                Map.ofEntries(
+                        entry("byte", INTEGER_FORM),
+                        entry("short", INTEGER_FORM),
+                        entry("int", INTEGER_FORM),
+                        entry("long", INTEGER_FORM),
+                        entry("integer", INTEGER_FORM),
+                        entry("decimal", DECIMAL_FORM),
+                        entry("float", FLOAT_FORM),
+                        entry("double", FLOAT_FORM),
+                        entry("date", Pattern.compile(DATE_FORM + TIMEZONE_FORM)),
+                        entry("time", Pattern.compile(TIME_FORM + TIMEZONE_FORM)),
+                        entry(
+                                "dateTime",
+                                Pattern.compile(DATE_FORM + "T" + TIME_FORM + TIMEZONE_FORM)));
 
         private XmlSchemaTypes() {}
 
@@ -241,8 +280,12 @@ public final class XmlToVariantParser {
          * VariantEncoder}, but whether the type applies has to be known while reading.
          */
         static @Nullable Consumer<BinaryVariantInternalBuilder> parse(String text, String xsiType) {
+            final String type = localPart(xsiType.trim());
+            if (!hasLexicalForm(type, text)) {
+                return null;
+            }
             try {
-                switch (localPart(xsiType.trim())) {
+                switch (type) {
                     case "string":
                         return builder -> builder.appendString(text);
                     case "boolean":
@@ -271,19 +314,11 @@ public final class XmlToVariantParser {
                             return builder -> builder.appendLong(value);
                         }
                     case "integer":
-                        {
-                            // BigInteger rejects a fractional part. The variant has no unbounded
-                            // integer type, so an integer is stored as a decimal.
-                            final BigDecimal value =
-                                    toVariantDecimal(
-                                            new BigDecimal(
-                                                    new BigInteger(checkNumberLength(text))));
-                            return builder -> builder.appendDecimal(value);
-                        }
                     case "decimal":
                         {
-                            final BigDecimal value =
-                                    toVariantDecimal(new BigDecimal(checkNumberLength(text)));
+                            // The variant has no unbounded integer type, so an integer is stored
+                            // as a decimal.
+                            final BigDecimal value = toVariantDecimal(new BigDecimal(text));
                             return builder -> builder.appendDecimal(value);
                         }
                     case "float":
@@ -331,11 +366,9 @@ public final class XmlToVariantParser {
             return type.substring(type.lastIndexOf(':') + 1);
         }
 
-        private static String checkNumberLength(String text) {
-            if (text.length() > MAX_NUMBER_LENGTH) {
-                throw new NumberFormatException("The number is too long.");
-            }
-            return text;
+        private static boolean hasLexicalForm(String type, String text) {
+            final Pattern form = LEXICAL_FORMS.get(type);
+            return form == null || (text.length() <= MAX_LENGTH && form.matcher(text).matches());
         }
 
         static @Nullable Boolean parseBoolean(String text) {
