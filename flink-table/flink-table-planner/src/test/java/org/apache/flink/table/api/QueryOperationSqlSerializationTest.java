@@ -91,7 +91,11 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 QueryOperationTestPrograms.INLINE_FUNCTION_SERIALIZATION,
                 QueryOperationTestPrograms.ML_PREDICT_MODEL_API,
                 QueryOperationTestPrograms.ASYNC_ML_PREDICT_MODEL_API,
-                QueryOperationTestPrograms.ASYNC_ML_PREDICT_TABLE_API_MAP_EXPRESSION_CONFIG);
+                QueryOperationTestPrograms.ASYNC_ML_PREDICT_TABLE_API_MAP_EXPRESSION_CONFIG,
+                QueryOperationTestPrograms.SNAPSHOT_INNER_JOIN,
+                QueryOperationTestPrograms.SNAPSHOT_LEFT_JOIN,
+                QueryOperationTestPrograms.SNAPSHOT_TRANSFORMED_BUILD_SIDE,
+                QueryOperationTestPrograms.SNAPSHOT_OPTIONAL_ARGS);
     }
 
     @ParameterizedTest
