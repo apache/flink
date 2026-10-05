@@ -47,7 +47,7 @@ public class ParseJsonFunction extends BuiltInScalarFunction {
             return BinaryVariantInternalBuilder.parseJson(jsonStr.toString(), allowDuplicateKeys);
         } catch (Throwable e) {
             throw new TableRuntimeException(
-                    String.format("Failed to parse json string: %s", jsonStr), e);
+                    String.format("Failed to parse JSON string: %s", jsonStr), e);
         }
     }
 }

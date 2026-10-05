@@ -1051,20 +1051,20 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f1)",
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         .testTableApiRuntimeError(
                                 $("f1").parseJson(),
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         // allowDuplicateKeys: false (the default) rejects duplicate keys
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f2, false)",
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         .testTableApiRuntimeError(
                                 $("f2").parseJson(false),
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         // allowDuplicateKeys: true keeps the last occurrence of the duplicated key
                         .testResult(
                                 jsonString($("f2").parseJson(true)),
