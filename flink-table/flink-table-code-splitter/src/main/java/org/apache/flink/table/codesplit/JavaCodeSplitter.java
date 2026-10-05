@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 
 import org.apache.flink.shaded.guava33.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.util.concurrent.ExecutionError;
 import org.apache.flink.shaded.guava33.com.google.common.util.concurrent.UncheckedExecutionException;
 
 import java.time.Duration;
@@ -47,11 +48,19 @@ public class JavaCodeSplitter {
                     .build();
 
     public static String split(String code, int maxMethodLength, int maxClassMemberCount) {
+        checkArgument(code != null && !code.isEmpty(), "code cannot be empty");
+        checkArgument(maxMethodLength > 0, "maxMethodLength must be greater than 0");
+        checkArgument(maxClassMemberCount > 0, "maxClassMemberCount must be greater than 0");
+
+        if (code.length() <= maxMethodLength) {
+            return code;
+        }
+
         SplitKey key = new SplitKey(code, maxMethodLength, maxClassMemberCount);
         try {
             return SPLIT_CACHE.get(
                     key, () -> splitImpl(code, maxMethodLength, maxClassMemberCount));
-        } catch (ExecutionException | UncheckedExecutionException e) {
+        } catch (ExecutionException | UncheckedExecutionException | ExecutionError e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             throw new RuntimeException(
                     "JavaCodeSplitter failed. This is a bug. Please file an issue.", cause);
@@ -60,13 +69,6 @@ public class JavaCodeSplitter {
 
     @VisibleForTesting
     static String splitImpl(String code, int maxMethodLength, int maxClassMemberCount) {
-        checkArgument(code != null && !code.isEmpty(), "code cannot be empty");
-        checkArgument(maxMethodLength > 0, "maxMethodLength must be greater than 0");
-        checkArgument(maxClassMemberCount > 0, "maxClassMemberCount must be greater than 0");
-
-        if (code.length() <= maxMethodLength) {
-            return code;
-        }
 
         // reset counter so identical input yields identical output
         CodeSplitUtil.reset();
