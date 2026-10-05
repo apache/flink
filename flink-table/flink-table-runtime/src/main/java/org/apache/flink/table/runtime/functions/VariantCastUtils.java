@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.StringData;
@@ -593,14 +594,61 @@ public final class VariantCastUtils {
     }
 
     public static Variant fromDecimal(DecimalData value) {
-        return BUILDER.of(value.toBigDecimal());
+        final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        appendDecimal(builder, value);
+        return builder.build();
     }
 
+    /** Like {@link #fromDecimal(DecimalData)}, but writes into a shared builder. */
+    static void appendDecimal(BinaryVariantInternalBuilder builder, DecimalData value) {
+        if (value.isCompact()) {
+            builder.appendDecimal(value.toUnscaledLong(), value.scale());
+        } else {
+            builder.appendDecimal(value.toBigDecimal());
+        }
+    }
+
+    /**
+     * Stores the UTF-8 bytes of the string as they are. A {@link StringData} may hold invalid
+     * UTF-8, which the variant spec does not allow, so such a value is decoded first and every
+     * malformed sequence is stored as the U+FFFD replacement character.
+     */
     public static Variant fromString(StringData value) {
+        final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
         try {
-            return BUILDER.of(value.toString());
+            appendString(builder, value);
+            return builder.build();
         } catch (VariantTypeException e) {
-            throw sizeLimitExceeded(e, "string", value.toBytes().length);
+            throw sizeLimitExceeded(e, "string", ((BinaryStringData) value).getSizeInBytes());
+        }
+    }
+
+    /** Like {@link #fromString(StringData)}, but writes into a shared builder. */
+    static void appendString(BinaryVariantInternalBuilder builder, StringData value) {
+        final BinaryStringData string = (BinaryStringData) value;
+        if (string.getBinarySection() == null) {
+            // A string that only exists as a Java object, such as a literal or a function result,
+            // is valid UTF-8 once encoded. Encoding it here skips the binary form and the check.
+            builder.appendString(string.getJavaObject());
+            return;
+        }
+        final MemorySegment[] segments = string.getSegments();
+        final int length = string.getSizeInBytes();
+        final byte[] utf8;
+        final int offset;
+        // Read a string that lies in the first heap segment in place, which saves copying it out.
+        if (!segments[0].isOffHeap() && string.getOffset() + length <= segments[0].size()) {
+            utf8 = segments[0].getHeapMemory();
+            offset = string.getOffset();
+        } else {
+            utf8 = string.toBytes();
+            offset = 0;
+        }
+        if (StringUtf8Utils.firstInvalidUtf8ByteIndex(utf8, offset, length) >= 0) {
+            // The same decoding StringData#toString falls back to for invalid UTF-8.
+            builder.appendString(new String(utf8, offset, length, StandardCharsets.UTF_8));
+        } else {
+            builder.appendString(utf8, offset, length);
         }
     }
 
