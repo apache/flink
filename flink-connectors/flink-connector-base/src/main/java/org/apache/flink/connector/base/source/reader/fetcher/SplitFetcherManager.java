@@ -267,6 +267,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
                         errorHandler,
                         () -> {
                             fetchers.remove(fetcherId);
+                            elementsQueue.releaseProducer(fetcherId);
                             // We need this to synchronize status of fetchers to concurrent partners
                             // as
                             // ConcurrentHashMap's aggregate status methods including size, isEmpty,
