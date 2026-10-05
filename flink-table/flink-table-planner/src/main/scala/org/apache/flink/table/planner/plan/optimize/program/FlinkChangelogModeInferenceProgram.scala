@@ -254,7 +254,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = ModifyKindSetTrait.INSERT_ONLY
         createNewNode(rel, children, providedTrait, requiredTrait, requester)
 
-      case rank: StreamPhysicalRank if RankUtil.isDeduplication(rank) =>
+      case rank: StreamPhysicalRank if RankUtil.isDeduplicationOnTimeAttribute(rank) =>
         val children = visitChildren(rel, ModifyKindSetTrait.ALL_CHANGES)
         val tableConfig = unwrapTableConfig(rank)
 
@@ -276,7 +276,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
         createNewNode(rel, children, providedTrait, requiredTrait, requester)
 
-      case rank: StreamPhysicalRank if !RankUtil.isDeduplication(rank) =>
+      case rank: StreamPhysicalRank =>
         // Rank supports consuming all changes
         val children = visitChildren(rel, ModifyKindSetTrait.ALL_CHANGES)
         createNewNode(rel, children, ModifyKindSetTrait.ALL_CHANGES, requiredTrait, requester)
