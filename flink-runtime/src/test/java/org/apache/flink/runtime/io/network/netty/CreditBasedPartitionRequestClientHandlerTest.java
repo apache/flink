@@ -54,6 +54,7 @@ import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
@@ -68,6 +69,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestQueueTest.blockChannel;
@@ -726,6 +728,69 @@ class CreditBasedPartitionRequestClientHandlerTest {
                         String.format(
                                 "The handler should wrap the exception %s as %s, but it does not.",
                                 cause, expectedClass));
+    }
+
+    @Test
+    void testChannelInactiveErrorContainsLocalAndRemoteAddress() {
+        final InetSocketAddress localAddress = new InetSocketAddress("127.0.0.1", 12345);
+        final InetSocketAddress remoteAddress = new InetSocketAddress("127.0.0.2", 54321);
+        final CreditBasedPartitionRequestClientHandler handler =
+                new CreditBasedPartitionRequestClientHandler();
+        handler.setConnectionId(new ConnectionID(ResourceID.generate(), remoteAddress, 0));
+        final EmbeddedChannel channel =
+                createEmbeddedChannelWithAddresses(localAddress, remoteAddress, handler);
+
+        channel.close();
+
+        assertThatThrownBy(handler::checkError)
+                .isInstanceOf(RemoteTransportException.class)
+                .hasMessageContaining("Connection unexpectedly closed by remote task manager")
+                .hasMessageContaining(remoteAddress.toString())
+                .hasMessageContaining("local address: '" + localAddress + "'");
+    }
+
+    @Test
+    void testConnectionResetErrorContainsLocalAndRemoteAddress() {
+        final InetSocketAddress localAddress = new InetSocketAddress("127.0.0.1", 12345);
+        final InetSocketAddress remoteAddress = new InetSocketAddress("127.0.0.2", 54321);
+        final CreditBasedPartitionRequestClientHandler handler =
+                new CreditBasedPartitionRequestClientHandler();
+        handler.setConnectionId(new ConnectionID(ResourceID.generate(), remoteAddress, 0));
+        final EmbeddedChannel channel =
+                createEmbeddedChannelWithAddresses(
+                        localAddress,
+                        remoteAddress,
+                        new ChannelInboundHandlerAdapter() {
+                            @Override
+                            public void channelRead(ChannelHandlerContext ctx, Object msg)
+                                    throws Exception {
+                                throw new IOException("Connection reset by peer");
+                            }
+                        },
+                        handler);
+
+        channel.writeInbound(1);
+
+        assertThatThrownBy(handler::checkError)
+                .isInstanceOf(RemoteTransportException.class)
+                .hasMessageContaining("Lost connection to task manager")
+                .hasMessageContaining(remoteAddress.toString())
+                .hasMessageContaining("local address: '" + localAddress + "'");
+    }
+
+    private static EmbeddedChannel createEmbeddedChannelWithAddresses(
+            SocketAddress localAddress, SocketAddress remoteAddress, ChannelHandler... handlers) {
+        return new EmbeddedChannel(handlers) {
+            @Override
+            protected SocketAddress localAddress0() {
+                return localAddress;
+            }
+
+            @Override
+            protected SocketAddress remoteAddress0() {
+                return remoteAddress;
+            }
+        };
     }
 
     @Test
