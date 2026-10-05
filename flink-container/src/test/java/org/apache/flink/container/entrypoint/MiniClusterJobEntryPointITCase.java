@@ -183,6 +183,31 @@ class MiniClusterJobEntryPointITCase {
     }
 
     @Test
+    void applicationErrorIsReportedAsFailedJobWhileProcessStaysUp() throws Exception {
+        final List<String> arguments = applicationArguments(FailingJob.class, List.of());
+
+        final Process first = startProcess("first", MiniClusterJobEntryPoint.class, arguments);
+        try {
+            awaitJobState(first, "first", "FAILED");
+            assertStaysUp(first, "first");
+        } finally {
+            stop(first);
+        }
+        assertThat(mainInvocations()).isEqualTo(1);
+
+        final Process second = startProcess("second", MiniClusterJobEntryPoint.class, arguments);
+        try {
+            awaitClusterServing(second, "second");
+            assertStaysUp(second, "second");
+            assertThat(mainInvocations())
+                    .as("the restarted process must not run main() again")
+                    .isEqualTo(1);
+        } finally {
+            stop(second);
+        }
+    }
+
+    @Test
     void standaloneApplicationClusterRestartAfterApplicationFinishes() throws Exception {
         final Configuration taskManagerMemory = new Configuration();
         taskManagerMemory.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1536m"));
@@ -346,6 +371,83 @@ class MiniClusterJobEntryPointITCase {
         fail(
                 "The job was not resumed within %s; %d attempts exited with %s.",
                 TIMEOUT, exitCodes.size(), exitCodes);
+    }
+
+    @Test
+    void restoresJobFromSavepointGivenOnCommandLine() throws Exception {
+        final Process first =
+                startProcess("first", MiniClusterJobEntryPoint.class, unboundedJobArguments());
+        final String savepointPath;
+        try {
+            awaitRest(
+                    first,
+                    "first",
+                    checkpointsPath(),
+                    "a completed checkpoint",
+                    json -> json.at("/latest/completed/id").asLong() >= 1);
+            savepointPath = stopWithSavepoint(first, "first");
+            awaitJobState(first, "first", "FINISHED");
+        } finally {
+            stop(first);
+        }
+
+        // a separate HA cluster, as for a job moved to a new deployment, so that the job can only
+        // be restored from the savepoint and not recovered from HA metadata
+        final List<String> arguments =
+                new ArrayList<>(
+                        List.of(
+                                "--fromSavepoint",
+                                savepointPath,
+                                dynamicProperty(
+                                        HighAvailabilityOptions.HA_CLUSTER_ID,
+                                        haClusterId + "-restored")));
+        arguments.addAll(unboundedJobArguments());
+
+        final Process second = startProcess("second", MiniClusterJobEntryPoint.class, arguments);
+        try {
+            final JsonNode restored =
+                    awaitRest(
+                                    second,
+                                    "second",
+                                    checkpointsPath(),
+                                    "a restored savepoint",
+                                    json -> json.at("/latest/restored/id").isNumber())
+                            .at("/latest/restored");
+            assertThat(restored.get("is_savepoint").asBoolean()).isTrue();
+            assertThat(restored.get("external_path").asText()).isEqualTo(savepointPath);
+
+            awaitJobState(second, "second", "RUNNING");
+        } finally {
+            stop(second);
+        }
+    }
+
+    /** Stops the job with a savepoint, as the operator does for a savepoint upgrade. */
+    private String stopWithSavepoint(Process process, String name) throws Exception {
+        final JsonNode trigger =
+                postRest(
+                        "/jobs/" + jobId + "/stop",
+                        OBJECT_MAPPER
+                                .createObjectNode()
+                                .put(
+                                        "targetDirectory",
+                                        tempDir.resolve("savepoints").toUri().toString())
+                                .put("drain", false));
+        final JsonNode operation =
+                awaitRest(
+                                process,
+                                name,
+                                "/jobs/"
+                                        + jobId
+                                        + "/savepoints/"
+                                        + trigger.get("request-id").asText(),
+                                "the savepoint",
+                                json -> "COMPLETED".equals(json.at("/status/id").asText()))
+                        .get("operation");
+        assertThat(operation.has("failure-cause"))
+                .as("the savepoint failed: %s", operation.get("failure-cause"))
+                .isFalse();
+        return operation.get("location").asText();
     }
 
     private List<String> unboundedJobArguments() {
@@ -645,6 +747,21 @@ class MiniClusterJobEntryPointITCase {
             // REST endpoint not up yet
             return Optional.empty();
         }
+    }
+
+    private JsonNode postRest(String path, JsonNode body) throws Exception {
+        final HttpRequest request =
+                HttpRequest.newBuilder(URI.create("http://localhost:" + restPort + path))
+                        .timeout(REQUEST_TIMEOUT)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+                        .build();
+        final HttpResponse<String> response =
+                HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode())
+                .as("POST %s returned %s", path, response.body())
+                .isBetween(200, 299);
+        return OBJECT_MAPPER.readTree(response.body());
     }
 
     private String checkpointsPath() {
