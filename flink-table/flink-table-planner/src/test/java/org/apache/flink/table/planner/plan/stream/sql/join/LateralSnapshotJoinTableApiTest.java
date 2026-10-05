@@ -332,7 +332,9 @@ public class LateralSnapshotJoinTableApiTest extends TableTestBase {
     }
 
     // ------------------------------------------------------------------------------------------
-    // Negative cases (validation errors caught at plan time, so no execution is needed)
+    // Negative cases for the Table-API-specific equi-join validation in JoinOperationFactory.
+    // Validations shared with SQL (missing on_time, unknown on_time column, standalone SNAPSHOT)
+    // are covered by LateralSnapshotJoinTest and not repeated here.
     // ------------------------------------------------------------------------------------------
 
     @Test
@@ -353,72 +355,6 @@ public class LateralSnapshotJoinTableApiTest extends TableTestBase {
         assertThatThrownBy(() -> util.tableEnv().from("probe").joinLateral(snapshotCall()))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("At least one equi-join predicate is required.");
-    }
-
-    @Test
-    void testRejectStandaloneSnapshotCall() {
-        // SNAPSHOT is only valid as the build side of a LATERAL join; a standalone call is rejected
-        // by the planner (ForbidSnapshotOutsideLateralRule) when the plan is produced.
-        assertThatThrownBy(
-                        () ->
-                                util.tableEnv()
-                                        .fromCall(
-                                                "SNAPSHOT",
-                                                util.tableEnv().from("b").asArgument("input"),
-                                                descriptor("bts").asArgument("on_time"))
-                                        .explain())
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "The SNAPSHOT function can only be used as the build side "
-                                + "(right-hand side) of a LATERAL join");
-    }
-
-    @Test
-    void testRejectMissingOnTime() {
-        // on_time is optional in the signature but required for the streaming join; its absence is
-        // rejected by the planner. Confirms the Table API reaches that shared validation.
-        assertThatThrownBy(
-                        () ->
-                                util.tableEnv()
-                                        .from("probe")
-                                        .joinLateral(
-                                                call(
-                                                        "SNAPSHOT",
-                                                        util.tableEnv()
-                                                                .from("b")
-                                                                .asArgument("input"),
-                                                        LOAD_COMPLETED_TIME_TABLE.asArgument(
-                                                                "load_completed_time")),
-                                                $("pk").isEqual($("bk")))
-                                        .select($("pk"), $("pv"), $("bk"), $("bv"))
-                                        .explain())
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("LATERAL SNAPSHOT requires the 'on_time' argument");
-    }
-
-    @Test
-    void testRejectUnknownOnTimeColumn() {
-        // The on_time descriptor references a column that does not exist on the build side.
-        assertThatThrownBy(
-                        () ->
-                                util.tableEnv()
-                                        .from("probe")
-                                        .joinLateral(
-                                                call(
-                                                        "SNAPSHOT",
-                                                        util.tableEnv()
-                                                                .from("b")
-                                                                .asArgument("input"),
-                                                        descriptor("nonexistent")
-                                                                .asArgument("on_time"),
-                                                        LOAD_COMPLETED_TIME_TABLE.asArgument(
-                                                                "load_completed_time")),
-                                                $("pk").isEqual($("bk")))
-                                        .select($("pk"), $("pv"), $("bk"), $("bv"))
-                                        .explain())
-                .isInstanceOf(ValidationException.class)
-                .hasStackTraceContaining(
-                        "Argument 'on_time' of SNAPSHOT references column 'nonexistent'");
     }
 
     // ------------------------------------------------------------------------------------------
