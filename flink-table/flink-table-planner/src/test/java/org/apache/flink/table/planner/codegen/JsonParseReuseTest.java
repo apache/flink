@@ -466,4 +466,45 @@ class JsonParseReuseTest {
                 .as("JSON_LENGTH + JSON_TYPE on the same input should parse once")
                 .isOne();
     }
+
+    @Test
+    void testJsonLengthAfterSkippedJsonTypeIsResetPerRow() {
+        final String sql =
+                "SELECT id, CASE WHEN id > 1 THEN JSON_TYPE(j) END, JSON_LENGTH(j) "
+                        + "FROM (VALUES (2, '[1,2,3]'), (1, '[1]')) AS t(id, j)";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2, "array", 3), Row.of(1, null, 1));
+    }
+
+    @Test
+    void testJsonTypeAfterSkippedJsonLengthIsResetPerRow() {
+        final String sql =
+                "SELECT id, CASE WHEN id > 1 THEN JSON_LENGTH(j) END, JSON_TYPE(j) "
+                        + "FROM (VALUES (2, '[1,2,3]'), (1, '{\"a\":1}')) AS t(id, j)";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(Row.of(2, 3, "array"), Row.of(1, null, "object"));
+    }
+
+    @Test
+    void testJsonLengthAfterShortCircuitedJsonTypeInFilterIsResetPerRow() {
+        final String sql =
+                "SELECT id, JSON_LENGTH(j) "
+                        + "FROM (VALUES (2, '[1,2,3]'), (1, '[1]')) AS t(id, j) "
+                        + "WHERE id > 1 OR JSON_TYPE(j) = 'array'";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2, 3), Row.of(1, 1));
+    }
+
+    @Test
+    void testJsonValueAfterSkippedJsonTypeIsResetPerRow() {
+        final String sql =
+                "SELECT id, CASE WHEN id > 1 THEN JSON_TYPE(j) END, JSON_VALUE(j, '$.a') "
+                        + "FROM (VALUES (2, '{\"a\":\"x\"}'), (1, '{\"a\":\"y\"}')) AS t(id, j)";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2, "object", "x"), Row.of(1, null, "y"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_TYPE + JSON_VALUE on the same input should parse once")
+                .isOne();
+    }
 }
