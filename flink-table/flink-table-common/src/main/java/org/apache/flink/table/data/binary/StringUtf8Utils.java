@@ -19,6 +19,7 @@ package org.apache.flink.table.data.binary;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.table.data.StringData;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -298,6 +299,25 @@ public final class StringUtf8Utils {
             return start;
         }
         return -1;
+    }
+
+    /**
+     * Returns the UTF-8 bytes of the given string. Every malformed sequence is replaced by the
+     * U+FFFD replacement character, the same as {@link StringData#toString()} decodes it. The
+     * returned array may be shared with the string, so it must not be modified.
+     */
+    public static byte[] toValidUtf8Bytes(final StringData string) {
+        final BinaryStringData binaryString = (BinaryStringData) string;
+        if (binaryString.getBinarySection() == null) {
+            // A string that only exists as a Java object, such as a literal or a function result,
+            // is valid UTF-8 once encoded. Encoding it here skips the binary form and the check.
+            return encodeUTF8(binaryString.getJavaObject());
+        }
+        final byte[] bytes = binaryString.toBytes();
+        if (firstInvalidUtf8ByteIndex(bytes, 0, bytes.length) < 0) {
+            return bytes;
+        }
+        return encodeUTF8(defaultDecodeUTF8(bytes, 0, bytes.length));
     }
 
     public static String decodeUTF8(MemorySegment input, int offset, int byteLen) {

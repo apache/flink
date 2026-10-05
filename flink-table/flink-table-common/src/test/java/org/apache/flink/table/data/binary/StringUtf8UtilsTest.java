@@ -87,6 +87,26 @@ class StringUtf8UtilsTest {
                 .hasMessageContaining("Invalid UTF-8 byte at index 2 of 3");
     }
 
+    @Test
+    void testToValidUtf8Bytes() {
+        final byte[] valid = "Grüße, 世界 🚀".getBytes(StandardCharsets.UTF_8);
+
+        // Valid bytes are returned as they are.
+        assertThat(StringUtf8Utils.toValidUtf8Bytes(StringData.fromBytes(valid))).isSameAs(valid);
+
+        // Every malformed sequence becomes U+FFFD, as when the string is decoded.
+        assertThat(StringUtf8Utils.toValidUtf8Bytes(StringData.fromBytes(bytes('a', 0xFF, 'b'))))
+                .isEqualTo("a\uFFFDb".getBytes(StandardCharsets.UTF_8));
+        assertThat(StringUtf8Utils.toValidUtf8Bytes(StringData.fromBytes(bytes('a', 0xC3))))
+                .isEqualTo("a\uFFFD".getBytes(StandardCharsets.UTF_8));
+
+        // A Java string is encoded without building its binary form. An unpaired surrogate has no
+        // UTF-8 form, so encoding stores '?' in its place.
+        final BinaryStringData javaString = BinaryStringData.fromString("a\uD800b");
+        assertThat(StringUtf8Utils.toValidUtf8Bytes(javaString)).isEqualTo(bytes('a', '?', 'b'));
+        assertThat(javaString.getBinarySection()).isNull();
+    }
+
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"Hello, world", "Café au lait", "é", "a😀b"})
     void testDecodeUtf8RoundTrip(String input) {

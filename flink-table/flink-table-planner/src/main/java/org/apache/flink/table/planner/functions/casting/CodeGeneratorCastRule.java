@@ -76,6 +76,15 @@ public interface CodeGeneratorCastRule<IN, OUT> extends CastRule<IN, OUT> {
         String declareTypeSerializer(LogicalType type);
 
         /**
+         * Declare a field that holds the given object. The class of the object must be public,
+         * because the generated code refers to it by name. The object must be serializable, because
+         * the planner copies it into the generated class and ships it with that class.
+         *
+         * @return the field term
+         */
+        String declareReusableObject(Object object, String fieldPrefix);
+
+        /**
          * @return field term. The field is going to be declared as final.
          */
         String declareClassField(String type, String field, String initialization);

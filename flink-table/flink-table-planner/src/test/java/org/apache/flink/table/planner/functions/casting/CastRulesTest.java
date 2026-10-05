@@ -38,6 +38,7 @@ import org.apache.flink.table.data.utils.CastExecutor;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.functions.CastFunctionITCase;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.bitmap.Bitmap;
@@ -369,6 +370,12 @@ class CastRulesTest {
                                                     "c", STRING().getLogicalType()),
                                             new StructuredType.StructuredAttribute(
                                                     "d", ARRAY(STRING()).getLogicalType())))
+                            .build());
+
+    private static final DataType MY_DISTINCT_INT =
+            DataTypes.of(
+                    DistinctType.newBuilder(
+                                    ObjectIdentifier.of("a", "b", "money"), INT().getLogicalType())
                             .build());
 
     // Rebuilds a variant object field at position 0, matching the form a ROW cast produces when it
@@ -2078,7 +2085,15 @@ class CastRulesTest {
                                 TimestampData.fromInstant(Instant.parse("1500-01-01T00:00:00Z")),
                                 TableRuntimeException.class,
                                 "1677-09-21 to 2262-04-11")
+                        // a TIME holds the milliseconds of one day
+                        .fail(
+                                TIME(),
+                                -1,
+                                TableRuntimeException.class,
+                                "A TIME holds the milliseconds of one day")
                         .fromCase(UUID(), UUID_BYTES, VARIANT_BUILDER.of(UUID_VALUE))
+                        // a DISTINCT type is stored like its source type
+                        .fromCase(MY_DISTINCT_INT, 42, VARIANT_BUILDER.of(42))
                         // a SQL NULL stays a SQL NULL rather than becoming a variant null
                         .fromCase(INT(), null, null)
                         .fromCase(STRING(), null, null),
