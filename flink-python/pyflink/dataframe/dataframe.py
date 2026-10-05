@@ -77,10 +77,7 @@ T = TypeVar("T")
 
 
 def _validate_row_count(n: int) -> None:
-    if isinstance(n, bool) or not isinstance(n, int):
-        raise TypeError("n must be an integer")
-    if n < 0:
-        raise ValueError("n must be non-negative")
+    _require_int(n, "n", 0)
     if n > _INT_MAX:
         raise ValueError(f"n must be less than or equal to {_INT_MAX}")
 

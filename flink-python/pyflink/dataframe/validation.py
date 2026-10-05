@@ -24,6 +24,7 @@ A wrong type raises :class:`TypeError` and a wrong value of the right type raise
 subclass and ``take(True)`` is almost certainly a mistake.
 """
 
+import math
 from typing import Any, Sequence
 
 
@@ -37,6 +38,8 @@ def _require_int(value: Any, name: str, minimum: int) -> None:
 def _require_number(value: Any, name: str, minimum: float) -> None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(f"{name} must be a number")
+    if not math.isfinite(value):
+        raise ValueError(f"{name} must be finite, got {value}")
     if value < minimum:
         raise ValueError(f"{name} must be at least {minimum}, got {value}")
 

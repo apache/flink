@@ -316,10 +316,14 @@ class IterationTests(PyFlinkStreamDataFrameTestCase):
             (TypeError, "batch_size", lambda: dataframe.iter_batches(batch_size=True)),
             (ValueError, "batch_format", lambda: dataframe.iter_batches(batch_format="arrow")),
             (ValueError, "batch_format", lambda: dataframe.take_batch(1, batch_format="polars")),
-            (ValueError, "n must be non-negative", lambda: dataframe.take(-1)),
+            (ValueError, "n must be at least 0", lambda: dataframe.take(-1)),
             (TypeError, "n must be an integer", lambda: dataframe.take(1.5)),
             (TypeError, "n must be an integer", lambda: dataframe.take(True)),
             (ValueError, "timeout", lambda: dataframe.take(1, timeout=-1)),
+            (ValueError, "timeout must be finite", lambda: dataframe.take(
+                1, timeout=float("inf"))),
+            (ValueError, "timeout must be finite", lambda: dataframe.take_batch(
+                1, timeout=float("nan"))),
             (TypeError, "timeout", lambda: dataframe.take(1, timeout="1")),
             (TypeError, "timeout", lambda: dataframe.take_batch(1, timeout=True)),
             (ValueError, "not supported", lambda: multiset.iter_batches()),
