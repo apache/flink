@@ -35,6 +35,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -102,14 +104,14 @@ class CompressibleFSDataInputStreamTest {
         assertThat(readBuffer).asString(StandardCharsets.UTF_8).isEqualTo(prefix);
     }
 
-    private static Stream<Arguments> testSeekParameters() {
+    private static Stream<Arguments> compressionDecorators() {
         return Stream.of(
                 Arguments.of(new UncompressedStreamCompressionDecorator()),
                 Arguments.of(new SnappyStreamCompressionDecorator()));
     }
 
     @ParameterizedTest
-    @MethodSource("testSeekParameters")
+    @MethodSource("compressionDecorators")
     void testSeek(StreamCompressionDecorator streamCompressionDecorator) throws IOException {
         final List<String> records = Arrays.asList("first", "second", "third", "fourth", "fifth");
         final Map<String, Long> positions = new HashMap<>();
@@ -148,5 +150,48 @@ class CompressibleFSDataInputStreamTest {
             verifyRecordPrefix(compressibleInputStream, positions, "third", "thi");
             verifyRecord(compressibleInputStream, positions, "fifth");
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("compressionDecorators")
+    void testBulkReadIsForwardedToDelegate(StreamCompressionDecorator streamCompressionDecorator)
+            throws IOException {
+        final byte[] record = new byte[64 * 1024];
+        new Random(42).nextBytes(record);
+
+        byte[] storedBytes;
+        try (final TestingOutputStream outputStream = new TestingOutputStream();
+                final CompressibleFSDataOutputStream compressibleOutputStream =
+                        new CompressibleFSDataOutputStream(
+                                outputStream, streamCompressionDecorator)) {
+            compressibleOutputStream.write(record);
+            compressibleOutputStream.flush();
+            storedBytes = outputStream.toByteArray();
+        }
+
+        final AtomicInteger singleByteReads = new AtomicInteger();
+        try (final FSDataInputStream inputStream =
+                        new InputStreamFSInputWrapper(new ByteArrayInputStream(storedBytes)) {
+                            @Override
+                            public int read() throws IOException {
+                                singleByteReads.incrementAndGet();
+                                return super.read();
+                            }
+                        };
+                final FSDataInputStream compressibleInputStream =
+                        new CompressibleFSDataInputStream(
+                                inputStream, streamCompressionDecorator)) {
+            final byte[] readBuffer = new byte[record.length];
+            int offset = 0;
+            while (offset < readBuffer.length) {
+                final int read =
+                        compressibleInputStream.read(
+                                readBuffer, offset, readBuffer.length - offset);
+                assertThat(read).isPositive();
+                offset += read;
+            }
+            assertThat(readBuffer).isEqualTo(record);
+        }
+        assertThat(singleByteReads).hasValue(0);
     }
 }
