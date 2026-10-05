@@ -101,6 +101,11 @@ public class BinaryVariantInternalBuilder {
     // UTF-32 hint and could turn input that is not valid JSON into a value.
     private static final JsonFactory JSON_FACTORY =
             new JsonFactoryBuilder().disable(JsonFactory.Feature.CHARSET_DETECTION).build();
+    // An unscaled value fits DECIMAL4 or DECIMAL8 when its magnitude is below 10^precision.
+    private static final long DECIMAL4_UNSCALED_LIMIT =
+            BigInteger.TEN.pow(MAX_DECIMAL4_PRECISION).longValueExact();
+    private static final long DECIMAL8_UNSCALED_LIMIT =
+            BigInteger.TEN.pow(MAX_DECIMAL8_PRECISION).longValueExact();
 
     public BinaryVariantInternalBuilder(boolean allowDuplicateKeys) {
         this.allowDuplicateKeys = allowDuplicateKeys;
@@ -185,18 +190,33 @@ public class BinaryVariantInternalBuilder {
     }
 
     public void appendString(String str) {
-        byte[] text = str.getBytes(StandardCharsets.UTF_8);
-        boolean longStr = text.length > MAX_SHORT_STR_SIZE;
-        checkCapacity((longStr ? 1 + U32_SIZE : 1) + text.length);
+        appendString(str.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Appends a string given as UTF-8 bytes. The bytes are copied as they are, so the caller must
+     * make sure they are valid UTF-8, which the variant spec requires of every string.
+     */
+    public void appendString(byte[] utf8) {
+        appendString(utf8, 0, utf8.length);
+    }
+
+    /**
+     * Like {@link #appendString(byte[])}, for the UTF-8 bytes {@code utf8[offset, offset +
+     * length)}.
+     */
+    public void appendString(byte[] utf8, int offset, int length) {
+        boolean longStr = length > MAX_SHORT_STR_SIZE;
+        checkCapacity(1 + (longStr ? U32_SIZE : 0) + length);
         if (longStr) {
             writeBuffer[writePos++] = primitiveHeader(LONG_STR);
-            writeLong(writeBuffer, writePos, text.length, U32_SIZE);
+            writeLong(writeBuffer, writePos, length, U32_SIZE);
             writePos += U32_SIZE;
         } else {
-            writeBuffer[writePos++] = shortStrHeader(text.length);
+            writeBuffer[writePos++] = shortStrHeader(length);
         }
-        System.arraycopy(text, 0, writeBuffer, writePos, text.length);
-        writePos += text.length;
+        System.arraycopy(utf8, offset, writeBuffer, writePos, length);
+        writePos += length;
     }
 
     public void appendNull() {
@@ -292,6 +312,36 @@ public class BinaryVariantInternalBuilder {
                 writeBuffer[writePos + i] = sign;
             }
             writePos += 16;
+        }
+    }
+
+    /**
+     * Appends a decimal given as its unscaled value and scale. The result is the same as {@link
+     * #appendDecimal(BigDecimal)} for {@code BigDecimal.valueOf(unscaled, scale)}, but a decimal
+     * that fits {@link BinaryVariantUtil#DECIMAL4} or {@link BinaryVariantUtil#DECIMAL8} is written
+     * without building a {@link BigDecimal}.
+     */
+    public void appendDecimal(long unscaled, int scale) {
+        if (scale < 0
+                || scale > MAX_DECIMAL8_PRECISION
+                || unscaled <= -DECIMAL8_UNSCALED_LIMIT
+                || unscaled >= DECIMAL8_UNSCALED_LIMIT) {
+            appendDecimal(BigDecimal.valueOf(unscaled, scale));
+            return;
+        }
+        checkCapacity(2 + 8);
+        if (scale <= MAX_DECIMAL4_PRECISION
+                && unscaled > -DECIMAL4_UNSCALED_LIMIT
+                && unscaled < DECIMAL4_UNSCALED_LIMIT) {
+            writeBuffer[writePos++] = primitiveHeader(DECIMAL4);
+            writeBuffer[writePos++] = (byte) scale;
+            writeLong(writeBuffer, writePos, unscaled, 4);
+            writePos += 4;
+        } else {
+            writeBuffer[writePos++] = primitiveHeader(DECIMAL8);
+            writeBuffer[writePos++] = (byte) scale;
+            writeLong(writeBuffer, writePos, unscaled, 8);
+            writePos += 8;
         }
     }
 
