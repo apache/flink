@@ -264,7 +264,7 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     }
 
     @Test
-    void testRejectNonDeterministicBuildColumnWithPrimaryKey() {
+    void testRejectNonDeterministicUpdatingBuildColumnWithPrimaryKey() {
         // The LSJ operator keys its state by the whole build row, so retractions are matched by
         // exact row equality. A non-deterministic build column therefore breaks retraction even
         // when the build side has a unique key (FLINK-40890). TRY_RESOLVE must reject it.
@@ -287,7 +287,7 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     }
 
     @Test
-    void testAcceptDeterministicBuildColumnWithPrimaryKey() {
+    void testAcceptDeterministicUpdatingBuildColumnWithPrimaryKey() {
         // Counterpart to the rejection test: a deterministic build column over the same
         // primary-keyed, updating source must still pass TRY_RESOLVE (no over-rejection).
         enableTryResolve();
@@ -302,30 +302,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                         + ") AS s ON probe.pk = s.bk";
 
         assertThatCode(() -> util.tableEnv().explainSql(sql)).doesNotThrowAnyException();
-    }
-
-    private void enableTryResolve() {
-        util.tableEnv()
-                .getConfig()
-                .set(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
-                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
-    }
-
-    private void createUpdatingPkBuildSource() {
-        util.tableEnv()
-                .executeSql(
-                        "CREATE TABLE b_pk ("
-                                + "  bk STRING,"
-                                + "  bv INT,"
-                                + "  bts TIMESTAMP(3),"
-                                + "  WATERMARK FOR bts AS bts,"
-                                + "  PRIMARY KEY (bk) NOT ENFORCED"
-                                + ") WITH ("
-                                + "  'connector' = 'values',"
-                                + "  'bounded' = 'false',"
-                                + "  'changelog-mode' = 'I,UA,D'"
-                                + ")");
     }
 
     @Test
@@ -749,5 +725,29 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                         () ->
                                 new AssertionError(
                                         "No LateralSnapshotJoinOperator found in the plan."));
+    }
+
+    private void enableTryResolve() {
+        util.tableEnv()
+                .getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+    }
+
+    private void createUpdatingPkBuildSource() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE b_pk ("
+                                + "  bk STRING,"
+                                + "  bv INT,"
+                                + "  bts TIMESTAMP(3),"
+                                + "  WATERMARK FOR bts AS bts,"
+                                + "  PRIMARY KEY (bk) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'bounded' = 'false',"
+                                + "  'changelog-mode' = 'I,UA,D'"
+                                + ")");
     }
 }
