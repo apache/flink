@@ -306,7 +306,29 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
             return;
         }
         closed = true;
-        closeCachedStream();
+        // Both the cached stream and the original (remote) stream belong to this wrapper:
+        // FileCacheEntry#open hands the original stream over and keeps no reference to it, so
+        // nobody else can close it. Leaving it open leaks whatever the remote file system holds
+        // for it (for S3A: a leased connection of the HTTP connection pool). Close both, and if
+        // both fail keep the first exception and attach the second as suppressed.
+        IOException failure = null;
+        try {
+            closeCachedStream();
+        } catch (IOException e) {
+            failure = e;
+        }
+        try {
+            originalStream.close();
+        } catch (IOException e) {
+            if (failure == null) {
+                failure = e;
+            } else {
+                failure.addSuppressed(e);
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
     }
 
     public boolean isClosed() {
