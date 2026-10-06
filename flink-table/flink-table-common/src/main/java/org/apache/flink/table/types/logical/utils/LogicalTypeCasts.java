@@ -730,6 +730,23 @@ public final class LogicalTypeCasts {
             return allowExplicit
                     && mapChildren.get(0).is(CHARACTER_STRING)
                     && supportsCasting(sourceType, mapChildren.get(1), true);
+        } else if (targetRoot == VARIANT
+                && (sourceRoot == ARRAY
+                        || sourceRoot == MAP
+                        || sourceRoot == ROW
+                        || sourceRoot == STRUCTURED_TYPE)) {
+            // An ARRAY becomes a variant array, and a MAP, ROW or STRUCTURED a variant object, so
+            // every element, value or field must cast to VARIANT. Object keys are strings, so a
+            // MAP needs a character string key, which is never converted from another type.
+            final List<LogicalType> sourceChildren = sourceType.getChildren();
+            if (sourceRoot == MAP) {
+                return allowExplicit
+                        && sourceChildren.get(0).is(CHARACTER_STRING)
+                        && supportsCasting(sourceChildren.get(1), targetType, true);
+            }
+            return allowExplicit
+                    && sourceChildren.stream()
+                            .allMatch(child -> supportsCasting(child, targetType, true));
         } else if (sourceRoot == RAW
                         && !targetType.is(BINARY_STRING)
                         && !targetType.is(CHARACTER_STRING)

@@ -86,7 +86,9 @@ import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.array;
 import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.util.CollectionUtil.entry;
 import static org.apache.flink.util.CollectionUtil.map;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -165,6 +167,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         specs.addAll(variantRowCasts());
         specs.addAll(variantMapCasts());
         specs.addAll(primitiveToVariantCasts());
+        specs.addAll(constructedToVariantCasts());
         return specs;
     }
 
@@ -711,15 +714,172 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 $("f3").cast(MAP(VARIANT(), STRING())).at(lit(1L).cast(VARIANT())),
                                 "CAST(f3 AS MAP<VARIANT, STRING>)[CAST(CAST(1 AS BIGINT) AS VARIANT)]",
                                 null,
+                                STRING()));
+    }
+
+    private static List<TestSetSpec> constructedToVariantCasts() {
+        final DataType person = ROW(FIELD("id", BIGINT()), FIELD("name", STRING()));
+        return List.of(
+                // A VARIANT object sorts its keys, so CAST to STRING shows the fields by name.
+                TestSetSpec.forExpression("Cast a constructed type to VARIANT and back")
+                        .onFieldsWithData(
+                                new Integer[] {1, null},
+                                Row.of("ada", 7L, new String[] {"x", null}),
+                                map(entry("a", 1)))
+                        .andDataTypes(
+                                ARRAY(INT()),
+                                ROW(
+                                        FIELD("name", STRING()),
+                                        FIELD("id", BIGINT()),
+                                        FIELD("tags", ARRAY(STRING()))),
+                                MAP(STRING(), INT()))
+                        .testResult(
+                                $("f0").cast(VARIANT()).cast(ARRAY(INT())),
+                                "CAST(CAST(f0 AS VARIANT) AS ARRAY<INT>)",
+                                new Integer[] {1, null},
+                                ARRAY(INT()))
+                        .testResult(
+                                $("f1").cast(VARIANT())
+                                        .cast(
+                                                ROW(
+                                                        FIELD("name", STRING()),
+                                                        FIELD("id", BIGINT()),
+                                                        FIELD("tags", ARRAY(STRING())))),
+                                "CAST(CAST(f1 AS VARIANT) AS ROW<name STRING, id BIGINT, tags ARRAY<STRING>>)",
+                                Row.of("ada", 7L, new String[] {"x", null}),
+                                ROW(
+                                        FIELD("name", STRING()),
+                                        FIELD("id", BIGINT()),
+                                        FIELD("tags", ARRAY(STRING()))))
+                        .testResult(
+                                $("f2").cast(VARIANT()).cast(MAP(STRING(), INT())),
+                                "CAST(CAST(f2 AS VARIANT) AS MAP<STRING, INT>)",
+                                map(entry("a", 1)),
+                                MAP(STRING(), INT()))
+                        .testResult(
+                                $("f1").cast(VARIANT()).cast(STRING()),
+                                "CAST(CAST(f1 AS VARIANT) AS STRING)",
+                                "{id=7, name=ada, tags=[x, NULL]}",
+                                STRING())
+                        // a field can be read back by its key
+                        .testSqlResult("CAST(CAST(f1 AS VARIANT)['id'] AS BIGINT)", 7L, BIGINT()),
+                // a ROW element becomes one VARIANT, while a NULL element stays SQL NULL. Calcite
+                // turns a plain SQL CAST from an ARRAY of ROW to an ARRAY of another type into a
+                // MULTISET, so SQL uses TRY_CAST and the Table API is not tested as SQL.
+                TestSetSpec.forExpression("Cast ROW elements to VARIANT elements and back")
+                        .onFieldsWithData(
+                                new Row[] {Row.of(7L, "ada"), null},
+                                map(entry("a", Row.of(7L, "ada"))))
+                        .andDataTypes(ARRAY(person), MAP(STRING(), person))
+                        .testTableApiResult(
+                                $("f0").cast(ARRAY(VARIANT())).cast(ARRAY(person)),
+                                new Row[] {Row.of(7L, "ada"), null},
+                                ARRAY(person))
+                        .testSqlResult(
+                                "CAST(TRY_CAST(f0 AS ARRAY<VARIANT>) AS ARRAY<ROW<id BIGINT, name STRING>>)",
+                                new Row[] {Row.of(7L, "ada"), null},
+                                ARRAY(person))
+                        .testTableApiResult(
+                                $("f0").cast(ARRAY(VARIANT())).cast(ARRAY(STRING())),
+                                new String[] {"{id=7, name=ada}", null},
+                                ARRAY(STRING()))
+                        .testSqlResult(
+                                "CAST(TRY_CAST(f0 AS ARRAY<VARIANT>) AS ARRAY<STRING>)",
+                                new String[] {"{id=7, name=ada}", null},
+                                ARRAY(STRING()))
+                        .testResult(
+                                $("f1").cast(MAP(STRING(), VARIANT())).cast(MAP(STRING(), person)),
+                                "CAST(CAST(f1 AS MAP<STRING, VARIANT>) AS MAP<STRING, ROW<id BIGINT, name STRING>>)",
+                                map(entry("a", Row.of(7L, "ada"))),
+                                MAP(STRING(), person)),
+                // A ROW is keyed by its field names. The SQL ROW constructor names them EXPR$0,
+                // EXPR$1 and so on, and a CAST to a named ROW renames them.
+                TestSetSpec.forExpression("Cast a ROW constructor to VARIANT")
+                        .onFieldsWithData(1, "a")
+                        .andDataTypes(INT(), STRING())
+                        .testSqlResult(
+                                "CAST(CAST(ROW(f0, f1) AS VARIANT) AS STRING)",
+                                "{EXPR$0=1, EXPR$1=a}",
+                                STRING())
+                        .testSqlResult(
+                                "CAST(CAST(CAST(ROW(f0, f1) AS ROW<id INT, name STRING>) AS VARIANT) AS STRING)",
+                                "{id=1, name=a}",
+                                STRING())
+                        .testTableApiResult(
+                                row($("f0"), $("f1")).cast(VARIANT()).cast(STRING()),
+                                "{f0=1, f1=a}",
+                                STRING())
+                        .testTableApiResult(
+                                row($("f0").as("id"), $("f1").as("name"))
+                                        .cast(VARIANT())
+                                        .cast(STRING()),
+                                "{id=1, name=a}",
+                                STRING())
+                        // a STRUCTURED value is keyed by its attribute names
+                        .testSqlResult(
+                                "CAST(CAST(OBJECT_OF('com.example.Person', 'id', f0, 'name', f1) AS VARIANT) AS STRING)",
+                                "{id=1, name=a}",
                                 STRING()),
-                // a whole constructed value does not cast into a single VARIANT yet
-                TestSetSpec.forExpression("Cast a constructed type to VARIANT")
+                TestSetSpec.forExpression("Cast a constructed literal to VARIANT")
                         .onFieldsWithData(0)
+                        // a cast from VARIANT to STRING is nullable, since a variant null becomes
+                        // a SQL NULL
+                        .testResult(
+                                array(1, 2).cast(VARIANT()).cast(STRING()),
+                                "CAST(CAST(ARRAY[1, 2] AS VARIANT) AS STRING)",
+                                "[1, 2]",
+                                STRING())
+                        .testSqlResult(
+                                "CAST(CAST(MAP['a', 1, 'b', 2] AS VARIANT) AS STRING)",
+                                "{a=1, b=2}",
+                                STRING())
+                        // a variant object sorts its keys, for a MAP as for a ROW
+                        .testSqlResult(
+                                "CAST(CAST(MAP['b', 2, 'a', 1] AS VARIANT) AS STRING)",
+                                "{a=1, b=2}",
+                                STRING()),
+                // a nested VARIANT is embedded as is, including a field of another VARIANT
+                TestSetSpec.forExpression("Cast a constructed type with a VARIANT to VARIANT")
+                        .onFieldsWithData("{\"a\":[1,2],\"b\":\"x\"}")
+                        .andDataTypes(STRING())
+                        .testSqlResult(
+                                "CAST(CAST(ARRAY[PARSE_JSON(f0)['a'], PARSE_JSON(f0)['b']] AS VARIANT) AS STRING)",
+                                "[[1, 2], x]",
+                                STRING())
+                        .testSqlResult(
+                                "CAST(CAST(CAST(ROW(PARSE_JSON(f0)) AS ROW<v VARIANT>) AS VARIANT) AS STRING)",
+                                "{v={a=[1, 2], b=x}}",
+                                STRING()),
+                TestSetSpec.forExpression("Cast a failing constructed type to VARIANT")
+                        .onFieldsWithData("x")
+                        .andDataTypes(STRING())
+                        // a VARIANT object key cannot be NULL, and NULLIF makes the key NULL at
+                        // runtime
+                        .testSqlRuntimeError(
+                                "CAST(MAP[NULLIF(f0, 'x'), 1] AS VARIANT)",
+                                TableRuntimeException.class,
+                                "A VARIANT object key cannot be NULL.")
+                        .testSqlResult(
+                                "TRY_CAST(MAP[NULLIF(f0, 'x'), 1] AS VARIANT)", null, VARIANT())
+                        // two strings of 9 MiB do not fit into the 16 MiB of a VARIANT together
+                        .testSqlResult(
+                                "TRY_CAST(ARRAY[REPEAT(f0, 9437184), REPEAT(f0, 9437184)] AS VARIANT)",
+                                null,
+                                VARIANT()),
+                // every leaf needs a VARIANT kind, and a map key is never converted to a string
+                TestSetSpec.forExpression("Cast an unsupported constructed type to VARIANT")
+                        .onFieldsWithData(map(entry(1, "a")))
+                        .andDataTypes(MAP(INT(), STRING()))
                         .testSqlValidationError(
-                                "CAST(ARRAY[1, 2] AS VARIANT)",
+                                "CAST(f0 AS VARIANT)", "Cast function cannot convert value")
+                        .testTableApiValidationError($("f0").cast(VARIANT()), "Unsupported cast")
+                        .testSqlValidationError(
+                                "CAST(ARRAY[INTERVAL '1' DAY] AS VARIANT)",
                                 "Cast function cannot convert value")
-                        .testTableApiValidationError(
-                                lit(new int[] {1, 2}).cast(VARIANT()), "Unsupported cast"));
+                        // MULTISET has no variant counterpart
+                        .testSqlValidationError(
+                                "CAST(MULTISET[1, 1] AS VARIANT)",
+                                "Cast function cannot convert value"));
     }
 
     private static List<TestSetSpec> variantArrayCasts() {
