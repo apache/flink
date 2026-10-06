@@ -58,8 +58,8 @@ SELECT * FROM DEDUPLICATE_KEEP_FIRST(
 |:----------|:---------|:------------|
 | `input` | Yes | The input table (insert-only or updating). Use `PARTITION BY` to deduplicate per key; all rows for a key are routed to the same parallel instance. Without `PARTITION BY`, the whole input is a single group processed at parallelism 1, so only the first row of the entire stream is emitted and every later row is dropped regardless of its content. |
 | `on_time` | No | A `DESCRIPTOR` naming a single rowtime attribute. When provided, the row with the smallest event time per key is kept and emitted once the watermark passes that timestamp (late rows are dropped). When omitted, the function keeps the first row observed for a key (arrival order). Requires insert-only input; combining `on_time` with an updating input is rejected at planning time. |
-| `state_ttl` | No | An `INTERVAL` giving the processing-time retention for the per-key deduplication state. Defaults to no TTL (state retained indefinitely). After a key's state expires, a later record for that key starts a new deduplication period and may be emitted again. `INTERVAL '0'` disables retention. |
-| `reset_ttl_on_duplicate` | No | Whether a later duplicate refreshes the key's `state_ttl`. Defaults to `TRUE`, so retention tracks the most recent occurrence of a key. Only meaningful together with `state_ttl`. |
+| `state_ttl` | No | An `INTERVAL` giving the processing-time retention for the per-key deduplication state. If omitted, falls back to `table.exec.state.ttl`, which retains state indefinitely at its default of 0. After a key's state expires, a later record for that key starts a new deduplication period and may be emitted again. `INTERVAL '0'` disables retention. |
+| `reset_ttl_on_duplicate` | No | Whether a later duplicate refreshes the key's `state_ttl`. Defaults to `TRUE`, so retention tracks the most recent occurrence of a key. Only meaningful when a TTL applies, whether set through `state_ttl` or inherited from `table.exec.state.ttl`. |
 
 ### Output Schema
 
@@ -150,6 +150,7 @@ With `on_time`, the record with the smallest event time per key is kept (here `c
 
 ```sql
 -- Input (updating changelog):
+-- -D[user_name:'Vas', action:'logout']  key not seen yet         -> ignored
 -- +I[user_name:'Vas', action:'login']   first record for the key -> emitted
 -- +I[user_name:'Vas', action:'login']   duplicate                -> swallowed
 -- -U[user_name:'Vas', action:'login']   retraction               -> swallowed
@@ -164,7 +165,7 @@ SELECT * FROM DEDUPLICATE_KEEP_FIRST(
 -- +I[user_name:'Vas', action:'login']
 ```
 
-The input may be an updating changelog. `DEDUPLICATE_KEEP_FIRST` keeps the first record observed per key and swallows every later change to that key (duplicate, `-U`, `+U`, `-D`), so the output stays insert-only. Event-time mode (`on_time`) is not supported with updating input.
+The input may be an updating changelog. `DEDUPLICATE_KEEP_FIRST` keeps the first `+I` or `+U` observed per key and swallows every later change to that key (duplicate, `-U`, `+U`, `-D`), so the output stays insert-only. A `-U` or `-D` for a key that has not been seen yet is ignored and does not mark the key as seen, so the next `+I` or `+U` for that key is still emitted. Event-time mode (`on_time`) is not supported with updating input.
 
 #### Table API
 
