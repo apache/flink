@@ -39,21 +39,25 @@ public class DeduplicateKeepFirstSemanticTests extends SemanticTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                DeduplicateKeepFirstTestPrograms.KEYED_KEEP_FIRST,
-                DeduplicateKeepFirstTestPrograms.KEYED_KEEP_FIRST_TABLE_API,
-                DeduplicateKeepFirstTestPrograms.KEYED_KEEP_FIRST_TABLE_API_WITH_ARGS,
-                DeduplicateKeepFirstTestPrograms.MULTI_KEY_INDEPENDENCE,
+                DeduplicateKeepFirstTestPrograms.KEYED,
+                DeduplicateKeepFirstTestPrograms.TABLE_API,
+                DeduplicateKeepFirstTestPrograms.TABLE_API_WITH_ARGS,
+                DeduplicateKeepFirstTestPrograms.MULTI_KEY,
                 DeduplicateKeepFirstTestPrograms.MULTI_COLUMN_KEY,
-                DeduplicateKeepFirstTestPrograms.NULL_PARTITION_KEY,
+                DeduplicateKeepFirstTestPrograms.NULL_KEY,
                 DeduplicateKeepFirstTestPrograms.NO_PARTITION_BY,
-                DeduplicateKeepFirstTestPrograms.RESET_ON_TTL_OFF,
-                DeduplicateKeepFirstTestPrograms.RESET_TTL_ON_DUPLICATE_FALSE,
-                DeduplicateKeepFirstTestPrograms.INPUT_COLUMN_NAMED_EVENT_TIME,
-                DeduplicateKeepFirstTestPrograms.WHOLE_ROW_AS_KEY,
-                DeduplicateKeepFirstTestPrograms.EVENT_TIME_KEEP_EARLIEST,
-                DeduplicateKeepFirstTestPrograms.EVENT_TIME_LATER_ARRIVAL_EARLIER_WINS,
-                DeduplicateKeepFirstTestPrograms.EVENT_TIME_LATE_EVENT_DROPPED,
-                DeduplicateKeepFirstTestPrograms.UPDATING_INPUT_SWALLOWED,
-                DeduplicateKeepFirstTestPrograms.ON_TIME_WITH_UPDATING_INPUT_FAILS);
+                DeduplicateKeepFirstTestPrograms.RESET_WITH_ZERO_TTL,
+                DeduplicateKeepFirstTestPrograms.NO_TTL_RESET,
+                DeduplicateKeepFirstTestPrograms.EVENT_TIME_COLUMN_CLASH,
+                DeduplicateKeepFirstTestPrograms.WHOLE_ROW_KEY,
+                DeduplicateKeepFirstTestPrograms.EVENT_TIME,
+                DeduplicateKeepFirstTestPrograms.EVENT_TIME_MULTI_KEY,
+                DeduplicateKeepFirstTestPrograms.EVENT_TIME_LATE_DROPPED,
+                DeduplicateKeepFirstTestPrograms.UPDATING_INPUT,
+                DeduplicateKeepFirstTestPrograms.UNSEEN_RETRACTION_IGNORED,
+                DeduplicateKeepFirstTestPrograms.UPDATING_EVENT_TIME_FAILS,
+                DeduplicateKeepFirstTestPrograms.NEGATIVE_TTL_FAILS,
+                DeduplicateKeepFirstTestPrograms.NON_LITERAL_TTL_FAILS,
+                DeduplicateKeepFirstTestPrograms.NON_LITERAL_RESET_FAILS);
     }
 }
