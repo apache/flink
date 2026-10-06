@@ -37,7 +37,7 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[SUM($2)], EXPR$3=[COUNT()])
 GroupAggregate(groupBy=[cat, gmt_date], select=[cat, gmt_date, SUM(cnt) AS EXPR$2, COUNT(*) AS EXPR$3])
 +- Exchange(distribution=[hash[cat, gmt_date]])
    +- Calc(select=[cat, gmt_date, cnt], where=[(gmt_date = CURRENT_DATE())])
-      +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt], metadata=[]]], fields=[cat, gmt_date, cnt])
+      +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt]]], fields=[cat, gmt_date, cnt])
 ]]>
     </Resource>
   </TestCase>
@@ -64,7 +64,7 @@ GroupAggregate(groupBy=[cat, hh], select=[cat, hh, SUM(cnt) AS EXPR$2, COUNT(*) 
 +- Exchange(distribution=[hash[cat, hh]])
    +- Calc(select=[cat, hh, cnt], where=[(SUBSTR(CAST(ts AS VARCHAR(2147483647)), 1, 2) = hh)])
       +- Calc(select=[cat, cnt, ts, SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2) AS hh])
-         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[cat, cnt, ts], metadata=[]]], fields=[cat, cnt, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[cat, cnt, ts]]], fields=[cat, cnt, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -92,7 +92,7 @@ Calc(select=[gmt_date, ts, 'fruit' AS cat, SUBSTR(CAST(ts AS VARCHAR(2147483647)
 +- GroupAggregate(groupBy=[gmt_date, ts], select=[gmt_date, ts, SUM(cnt) AS EXPR$4])
    +- Exchange(distribution=[hash[gmt_date, ts]])
       +- Calc(select=[gmt_date, ts, cnt], where=[((gmt_date = CURRENT_DATE()) AND (cat = 'fruit') AND (ts = CURRENT_TIME()))])
-         +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt, ts], metadata=[]]], fields=[cat, gmt_date, cnt, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt, ts]]], fields=[cat, gmt_date, cnt, ts])
 ]]>
     </Resource>
   </TestCase>

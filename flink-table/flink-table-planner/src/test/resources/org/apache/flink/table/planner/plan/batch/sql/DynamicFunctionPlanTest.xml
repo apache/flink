@@ -38,7 +38,7 @@ Calc(select=[cat, CAST(CURRENT_DATE() AS DATE) AS gmt_date, EXPR$2, EXPR$3])
 +- HashAggregate(isMerge=[false], groupBy=[cat], select=[cat, SUM(cnt) AS EXPR$2, COUNT(*) AS EXPR$3])
    +- Exchange(distribution=[hash[cat]])
       +- Calc(select=[cat, cnt], where=[(gmt_date = CURRENT_DATE())])
-         +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt], metadata=[]]], fields=[cat, gmt_date, cnt])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt]]], fields=[cat, gmt_date, cnt])
 ]]>
     </Resource>
   </TestCase>
@@ -65,7 +65,7 @@ Calc(select=[cat, SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2) AS hh, 
 +- HashAggregate(isMerge=[false], groupBy=[cat], select=[cat, SUM(cnt) AS EXPR$2, COUNT(*) AS EXPR$3])
    +- Exchange(distribution=[hash[cat]])
       +- Calc(select=[cat, cnt], where=[(SUBSTR(CAST(ts AS VARCHAR(2147483647)), 1, 2) = SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2))])
-         +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, cnt, ts], metadata=[]]], fields=[cat, cnt, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, cnt, ts]]], fields=[cat, cnt, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -94,7 +94,7 @@ Calc(select=[gmt_date, CAST(CURRENT_TIME() AS TIME(0)) AS ts, 'fruit' AS cat, SU
    +- Exchange(distribution=[hash[gmt_date]])
       +- LocalHashAggregate(groupBy=[gmt_date], select=[gmt_date, Partial_SUM(cnt) AS sum$0])
          +- Calc(select=[gmt_date, cnt], where=[((gmt_date = CURRENT_DATE()) AND (cat = 'fruit') AND (ts = CURRENT_TIME()))])
-            +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt, ts], metadata=[]]], fields=[cat, gmt_date, cnt, ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt, ts]]], fields=[cat, gmt_date, cnt, ts])
 ]]>
     </Resource>
   </TestCase>
