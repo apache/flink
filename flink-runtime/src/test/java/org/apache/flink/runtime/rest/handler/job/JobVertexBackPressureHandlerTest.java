@@ -48,8 +48,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -125,7 +127,7 @@ class JobVertexBackPressureHandlerTest {
                 new JobVertexBackPressureHandler(
                         () -> CompletableFuture.completedFuture(restfulGateway),
                         Duration.ofSeconds(10),
-                        Collections.emptyMap(),
+                        Map.of(),
                         JobVertexBackPressureHeaders.getInstance(),
                         new MetricFetcher() {
                             private long updateCount = 0;
@@ -216,8 +218,8 @@ class JobVertexBackPressureHandlerTest {
                         EmptyRequestBody.getInstance(),
                         new JobVertexMessageParameters(),
                         pathParameters,
-                        Collections.emptyMap(),
-                        Collections.emptyList());
+                        Map.of(),
+                        List.of());
 
         final CompletableFuture<JobVertexBackPressureInfo>
                 jobVertexBackPressureInfoCompletableFuture =
@@ -271,8 +273,8 @@ class JobVertexBackPressureHandlerTest {
                         EmptyRequestBody.getInstance(),
                         new JobVertexMessageParameters(),
                         pathParameters,
-                        Collections.emptyMap(),
-                        Collections.emptyList());
+                        Map.of(),
+                        List.of());
 
         final CompletableFuture<JobVertexBackPressureInfo>
                 jobVertexBackPressureInfoCompletableFuture =
@@ -305,7 +307,7 @@ class JobVertexBackPressureHandlerTest {
                 new JobVertexBackPressureHandler(
                         () -> CompletableFuture.completedFuture(restfulGateway),
                         Duration.ofSeconds(10),
-                        Collections.emptyMap(),
+                        Map.of(),
                         JobVertexBackPressureHeaders.getInstance(),
                         new MetricFetcher() {
                             private long updateCount = 0;
@@ -336,8 +338,8 @@ class JobVertexBackPressureHandlerTest {
                         EmptyRequestBody.getInstance(),
                         new JobVertexMessageParameters(),
                         pathParameters,
-                        Collections.emptyMap(),
-                        Collections.emptyList());
+                        Map.of(),
+                        List.of());
 
         final CompletableFuture<JobVertexBackPressureInfo>
                 jobVertexBackPressureInfoCompletableFuture =
@@ -436,7 +438,7 @@ class JobVertexBackPressureHandlerTest {
     /**
      * The handler must not throw when a subtask's attempts are pruned concurrently (by {@code
      * SubtaskMetricStore.retainAttempts()}) between its {@code size()}/{@code containsKey()} checks
-     * and the {@code keySet().iterator().next()} read. See FLINK-36146.
+     * and the {@code keySet().iterator().next()} read.
      */
     @Test
     void testGetBackPressureWhenAttemptsRemovedConcurrently() throws Exception {
@@ -455,7 +457,7 @@ class JobVertexBackPressureHandlerTest {
                         .get(0);
         Field attemptsField = SubtaskMetricStore.class.getDeclaredField("attempts");
         attemptsField.setAccessible(true);
-        @SuppressWarnings("unchecked")
+
         Map<Integer, ComponentMetricStore> originalAttempts =
                 (Map<Integer, ComponentMetricStore>) attemptsField.get(subtask);
         attemptsField.set(subtask, new SelfEmptyingOnKeySet(originalAttempts));
@@ -464,7 +466,7 @@ class JobVertexBackPressureHandlerTest {
                 new JobVertexBackPressureHandler(
                         () -> CompletableFuture.completedFuture(restfulGateway),
                         Duration.ofSeconds(10),
-                        Collections.emptyMap(),
+                        Map.of(),
                         JobVertexBackPressureHeaders.getInstance(),
                         new MetricFetcher() {
                             @Override
@@ -490,8 +492,8 @@ class JobVertexBackPressureHandlerTest {
                         EmptyRequestBody.getInstance(),
                         new JobVertexMessageParameters(),
                         pathParameters,
-                        Collections.emptyMap(),
-                        Collections.emptyList());
+                        Map.of(),
+                        List.of());
 
         assertThatCode(() -> handler.handleRequest(request, restfulGateway))
                 .doesNotThrowAnyException();
@@ -505,13 +507,35 @@ class JobVertexBackPressureHandlerTest {
             super(initial);
         }
 
-        @Override
-        public KeySetView<Integer, ComponentMetricStore> keySet() {
+        private void emptyOnce() {
             if (!emptied) {
                 emptied = true;
                 clear();
             }
+        }
+
+        @Override
+        public KeySetView<Integer, ComponentMetricStore> keySet() {
+            emptyOnce();
             return super.keySet();
+        }
+
+        @Override
+        public KeySetView<Integer, ComponentMetricStore> keySet(ComponentMetricStore mappedValue) {
+            emptyOnce();
+            return super.keySet(mappedValue);
+        }
+
+        @Override
+        public Collection<ComponentMetricStore> values() {
+            emptyOnce();
+            return super.values();
+        }
+
+        @Override
+        public Set<Entry<Integer, ComponentMetricStore>> entrySet() {
+            emptyOnce();
+            return super.entrySet();
         }
     }
 }
