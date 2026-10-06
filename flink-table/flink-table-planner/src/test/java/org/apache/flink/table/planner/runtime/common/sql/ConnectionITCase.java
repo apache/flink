@@ -145,7 +145,7 @@ class ConnectionITCase {
     }
 
     @Test
-    void testDropMissingPermanentConnectionRejected() {
+    void testDropMissing() {
         assertThatThrownBy(() -> tEnv.executeSql("DROP CONNECTION my_conn"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
