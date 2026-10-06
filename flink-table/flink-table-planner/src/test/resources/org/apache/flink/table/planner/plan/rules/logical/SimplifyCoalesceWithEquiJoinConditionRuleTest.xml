@@ -33,9 +33,9 @@ LogicalProject(order_id=[COALESCE($3, $0)])
 Calc(select=[COALESCE(order_id0, order_id) AS order_id])
 +- Join(joinType=[FullOuterJoin], where=[=(order_id, order_id0)], select=[order_id, order_id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
    :- Exchange(distribution=[hash[order_id]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id], metadata=[]]], fields=[order_id])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id]]], fields=[order_id])
    +- Exchange(distribution=[hash[order_id]])
-      +- TableSourceScan(table=[[default_catalog, default_database, order_details, project=[order_id], metadata=[]]], fields=[order_id])
+      +- TableSourceScan(table=[[default_catalog, default_database, order_details, project=[order_id]]], fields=[order_id])
 ]]>
     </Resource>
   </TestCase>
@@ -56,9 +56,9 @@ LogicalProject(order_id=[$3])
 Calc(select=[order_id0 AS order_id])
 +- Join(joinType=[InnerJoin], where=[=(order_id, order_id0)], select=[order_id, order_id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
    :- Exchange(distribution=[hash[order_id]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id], metadata=[]]], fields=[order_id])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id]]], fields=[order_id])
    +- Exchange(distribution=[hash[order_id]])
-      +- TableSourceScan(table=[[default_catalog, default_database, order_details, project=[order_id], metadata=[]]], fields=[order_id])
+      +- TableSourceScan(table=[[default_catalog, default_database, order_details, project=[order_id]]], fields=[order_id])
 ]]>
     </Resource>
   </TestCase>
@@ -76,7 +76,7 @@ LogicalProject(order_id=[COALESCE($3, $0)], amount=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id, amount], metadata=[]]], fields=[order_id, amount])
+TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id, amount]]], fields=[order_id, amount])
 ]]>
     </Resource>
   </TestCase>
@@ -99,10 +99,10 @@ LogicalProject(order_id_str=[CAST(COALESCE($3.order_id, $0)):VARCHAR(2147483647)
 Calc(select=[CAST(COALESCE(r.order_id, order_id) AS VARCHAR(2147483647)) AS order_id_str])
 +- Join(joinType=[LeftOuterJoin], where=[=(order_id, $f2)], select=[order_id, r, $f2], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
    :- Exchange(distribution=[hash[order_id]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id], metadata=[]]], fields=[order_id])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id]]], fields=[order_id])
    +- Exchange(distribution=[hash[$f2]])
       +- Calc(select=[r, r.order_id AS $f2])
-         +- TableSourceScan(table=[[default_catalog, default_database, order_details_row, project=[r], metadata=[]]], fields=[r])
+         +- TableSourceScan(table=[[default_catalog, default_database, order_details_row, project=[r]]], fields=[r])
 ]]>
     </Resource>
   </TestCase>
@@ -123,7 +123,7 @@ LogicalProject(val=[COALESCE($4, CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF
 Calc(select=[COALESCE(detail, CAST(amount AS VARCHAR(2147483647))) AS val])
 +- Join(joinType=[LeftOuterJoin], where=[=(order_id, order_id0)], select=[order_id, amount, order_id0, detail], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
    :- Exchange(distribution=[hash[order_id]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id, amount], metadata=[]]], fields=[order_id, amount])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id, amount]]], fields=[order_id, amount])
    +- Exchange(distribution=[hash[order_id]])
       +- TableSourceScan(table=[[default_catalog, default_database, order_details]], fields=[order_id, detail])
 ]]>
@@ -143,7 +143,7 @@ LogicalProject(order_id=[COALESCE($0, $3)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, order_details, project=[order_id], metadata=[]]], fields=[order_id])
+TableSourceScan(table=[[default_catalog, default_database, order_details, project=[order_id]]], fields=[order_id])
 ]]>
     </Resource>
   </TestCase>
@@ -161,7 +161,7 @@ LogicalProject(order_id=[$0], amount=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id, amount], metadata=[]]], fields=[order_id, amount])
+TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id, amount]]], fields=[order_id, amount])
 ]]>
     </Resource>
   </TestCase>
@@ -179,7 +179,7 @@ LogicalProject(val=[COALESCE($3, $0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id], metadata=[]]], fields=[order_id])
+TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id]]], fields=[order_id])
 ]]>
     </Resource>
   </TestCase>
@@ -200,9 +200,9 @@ LogicalProject(val=[$1])
 Calc(select=[user_id AS val])
 +- Join(joinType=[InnerJoin], where=[=(order_id, order_id0)], select=[order_id, user_id, order_id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
    :- Exchange(distribution=[hash[order_id]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id, user_id]]], fields=[order_id, user_id])
    +- Exchange(distribution=[hash[order_id]])
-      +- TableSourceScan(table=[[default_catalog, default_database, order_details, project=[order_id], metadata=[]]], fields=[order_id])
+      +- TableSourceScan(table=[[default_catalog, default_database, order_details, project=[order_id]]], fields=[order_id])
 ]]>
     </Resource>
   </TestCase>
@@ -220,7 +220,7 @@ LogicalProject(val=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, orders, project=[user_id], metadata=[]]], fields=[user_id])
+TableSourceScan(table=[[default_catalog, default_database, orders, project=[user_id]]], fields=[user_id])
 ]]>
     </Resource>
   </TestCase>
@@ -241,9 +241,9 @@ LogicalProject(val=[COALESCE($3, $1)])
 Calc(select=[COALESCE(order_id0, user_id) AS val])
 +- Join(joinType=[LeftOuterJoin], where=[=(order_id, order_id0)], select=[order_id, user_id, order_id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
    :- Exchange(distribution=[hash[order_id]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id, user_id]]], fields=[order_id, user_id])
    +- Exchange(distribution=[hash[order_id]])
-      +- TableSourceScan(table=[[default_catalog, default_database, order_details, project=[order_id], metadata=[]]], fields=[order_id])
+      +- TableSourceScan(table=[[default_catalog, default_database, order_details, project=[order_id]]], fields=[order_id])
 ]]>
     </Resource>
   </TestCase>
@@ -261,7 +261,7 @@ LogicalProject(order_id=[COALESCE($3, $0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id], metadata=[]]], fields=[order_id])
+TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id]]], fields=[order_id])
 ]]>
     </Resource>
   </TestCase>
@@ -280,7 +280,7 @@ LogicalProject(order_id_str=[CAST(COALESCE($3, $0)):VARCHAR(2147483647) CHARACTE
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[CAST(order_id AS VARCHAR(2147483647)) AS order_id_str])
-+- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id], metadata=[]]], fields=[order_id])
++- TableSourceScan(table=[[default_catalog, default_database, orders, project=[order_id]]], fields=[order_id])
 ]]>
     </Resource>
   </TestCase>

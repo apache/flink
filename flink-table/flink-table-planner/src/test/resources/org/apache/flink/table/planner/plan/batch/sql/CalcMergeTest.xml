@@ -89,7 +89,7 @@ LogicalProject(a=[$0], a1=[$1])
       <![CDATA[
 Calc(select=[a, a1], where=[(a1 > 10)])
 +- Calc(select=[a, random_udf(a) AS a1])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[]]], fields=[a])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a]]], fields=[a])
 ]]>
     </Resource>
   </TestCase>
@@ -108,7 +108,7 @@ LogicalProject(a2=[random_udf($0)])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[random_udf(random_udf(a)) AS a2], where=[(b > 10)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -128,7 +128,7 @@ LogicalProject(a=[$0], a1=[$1])
       <![CDATA[
 Calc(select=[a, a1], where=[(a1 > '10')])
 +- Calc(select=[a, SUBSTR(CAST(random_udf(a) AS VARCHAR(2147483647)), 1, 2) AS a1])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a], metadata=[]]], fields=[a])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a]]], fields=[a])
 ]]>
     </Resource>
   </TestCase>
@@ -148,7 +148,7 @@ LogicalProject(a=[$0], b=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b], where=[(a = b)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -168,7 +168,7 @@ LogicalProject(a2=[random_udf($0)], a3=[random_udf($0)])
       <![CDATA[
 Calc(select=[random_udf(a1) AS a2, random_udf(a1) AS a3])
 +- Calc(select=[random_udf(a) AS a1, b], where=[(b > 10)])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, b]]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -187,7 +187,7 @@ LogicalProject(a=[$0], c=[$2])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, c], where=[(CAST(c AS BIGINT) > 10)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, c], metadata=[]]], fields=[a, c])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], project=[a, c]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>

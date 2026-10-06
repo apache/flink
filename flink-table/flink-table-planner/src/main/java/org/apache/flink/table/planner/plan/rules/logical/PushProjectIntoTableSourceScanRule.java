@@ -113,8 +113,7 @@ public class PushProjectIntoTableSourceScanRule
         // The source supports metadata and wants them to be projected even if projection push-down
         // (for physical columns) is not supported.
         if (supportsMetadata(source)) {
-            if (Arrays.stream(sourceTable.abilitySpecs())
-                    .anyMatch(spec -> spec instanceof ReadingMetadataSpec)) {
+            if (hasReadingMetadataSpec(sourceTable)) {
                 return false;
             }
 
@@ -196,15 +195,20 @@ public class PushProjectIntoTableSourceScanRule
         }
     }
 
-    private boolean supportsProjectionPushDown(DynamicTableSource tableSource) {
+    private static boolean supportsProjectionPushDown(DynamicTableSource tableSource) {
         return tableSource instanceof SupportsProjectionPushDown;
     }
 
-    private boolean supportsMetadata(DynamicTableSource tableSource) {
+    private static boolean hasReadingMetadataSpec(TableSourceTable source) {
+        return Arrays.stream(source.abilitySpecs())
+                .anyMatch(spec -> spec instanceof ReadingMetadataSpec);
+    }
+
+    private static boolean supportsMetadata(DynamicTableSource tableSource) {
         return tableSource instanceof SupportsReadingMetadata;
     }
 
-    private boolean supportsNestedProjection(DynamicTableSource tableSource) {
+    private static boolean supportsNestedProjection(DynamicTableSource tableSource) {
         return supportsProjectionPushDown(tableSource)
                 && ((SupportsProjectionPushDown) tableSource).supportsNestedProjection();
     }
@@ -348,7 +352,10 @@ public class PushProjectIntoTableSourceScanRule
                             .map(col -> col.getMetadataKey().orElse(col.getName()))
                             .collect(Collectors.toList());
 
-            abilitySpecs.add(new ReadingMetadataSpec(projectedMetadataKeys, newProducedType));
+            // An earlier ReadingMetadataSpec must be narrowed even if no metadata is projected.
+            if (!projectedMetadataKeys.isEmpty() || hasReadingMetadataSpec(source)) {
+                abilitySpecs.add(new ReadingMetadataSpec(projectedMetadataKeys, newProducedType));
+            }
         }
 
         return newProducedType;

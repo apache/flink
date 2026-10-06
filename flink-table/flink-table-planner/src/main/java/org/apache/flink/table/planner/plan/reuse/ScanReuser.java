@@ -278,7 +278,8 @@ public class ScanReuser {
             sourceAbilitySpecs.add(
                     new ProjectPushDownSpec(projectedPhysicalFields, newProducedType));
         }
-        if (supportsReadingMeta) {
+        // The source is created from scratch, so it has not read any metadata before.
+        if (supportsReadingMeta && !usedMetadataNames.isEmpty()) {
             sourceAbilitySpecs.add(new ReadingMetadataSpec(usedMetadataNames, newProducedType));
         }
         return newProducedType;

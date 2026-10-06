@@ -41,10 +41,10 @@ Calc(select=[a, b])
 +- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (rowtime >= (rowtime0 - 10000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0], earlyFireDelay=[5000], earlyFireTimeMode=[ROWTIME])
    :- Exchange(distribution=[hash[a]])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -73,10 +73,10 @@ Calc(select=[a, b], changelogMode=[I])
 +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0], earlyFireDelay=[5000], earlyFireTimeMode=[ROWTIME], changelogMode=[I])
    :- Exchange(distribution=[hash[a]], changelogMode=[I])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime], changelogMode=[I])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime], changelogMode=[I])
    +- Exchange(distribution=[hash[a]], changelogMode=[I])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime]]], fields=[a, b, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -105,10 +105,10 @@ Calc(select=[a, b])
 +- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (rowtime >= (rowtime0 - 10000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0], earlyFireDelay=[5000], earlyFireTimeMode=[ROWTIME])
    :- Exchange(distribution=[hash[a]])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -137,10 +137,10 @@ Calc(select=[a, b], changelogMode=[I])
 +- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=10000, leftUpperBound=5000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, +(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 5000:INTERVAL SECOND)))], select=[a, rowtime, a0, b, rowtime0], earlyFireDelay=[5000], earlyFireTimeMode=[ROWTIME], changelogMode=[I])
    :- Exchange(distribution=[hash[a]], changelogMode=[I])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime], changelogMode=[I])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime], changelogMode=[I])
    +- Exchange(distribution=[hash[a]], changelogMode=[I])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime]]], fields=[a, b, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -171,12 +171,12 @@ Calc(select=[a, b])
    :  +- Calc(select=[a, proctime])
    :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
    :        +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
             +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -205,10 +205,10 @@ Calc(select=[a, b])
 +- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (rowtime >= (rowtime0 - 10000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0], earlyFireDelay=[5000], earlyFireTimeMode=[ROWTIME])
    :- Exchange(distribution=[hash[a]])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -237,10 +237,10 @@ Calc(select=[a, b], changelogMode=[I,UA])
 +- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0], earlyFireDelay=[5000], earlyFireTimeMode=[ROWTIME], changelogMode=[I,UA])
    :- Exchange(distribution=[hash[a]], changelogMode=[I])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime], changelogMode=[I])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime], changelogMode=[I])
    +- Exchange(distribution=[hash[a]], changelogMode=[I])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime]]], fields=[a, b, rowtime], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

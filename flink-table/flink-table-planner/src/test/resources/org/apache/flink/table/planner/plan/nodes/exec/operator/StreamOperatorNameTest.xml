@@ -27,21 +27,21 @@ LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
 Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- ChangelogNormalize(key=[a, b])
    +- Exchange(distribution=[hash[a, b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- ChangelogNormalize(key=[a, b])
    +- Exchange(distribution=[hash[a, b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -102,13 +102,13 @@ LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
 Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- ChangelogNormalize(key=[a, b])
    +- Exchange(distribution=[hash[a, b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- ChangelogNormalize(key=[a, b])
    +- Exchange(distribution=[hash[a, b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])
 
 == Physical Execution Plan ==
 {
@@ -116,7 +116,7 @@ Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b], upsertMa
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -470,20 +470,20 @@ LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
 +- DropUpdateBefore
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
 +- DropUpdateBefore
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -532,12 +532,12 @@ LogicalSink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
 +- DropUpdateBefore
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
 +- DropUpdateBefore
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])
 
 == Physical Execution Plan ==
 {
@@ -545,7 +545,7 @@ Sink(table=[default_catalog.default_database.MySink], fields=[c, a, b])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b]]], fields=[c, a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -594,20 +594,20 @@ LogicalAggregate(group=[{0}], b=[MAX($1)])
 == Optimized Physical Plan ==
 GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])
 +- Exchange(distribution=[hash[a]])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Optimized Execution Plan ==
 GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])
 +- Exchange(distribution=[hash[a]])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -634,12 +634,12 @@ LogicalAggregate(group=[{0}], b=[MAX($1)])
 == Optimized Physical Plan ==
 GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])
 +- Exchange(distribution=[hash[a]])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Optimized Execution Plan ==
 GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])
 +- Exchange(distribution=[hash[a]])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -647,7 +647,7 @@ GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -679,22 +679,22 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
 +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(*) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
 +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(*) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -748,14 +748,14 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
 +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(*) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
 +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, COUNT(*) AS EXPR$2, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -763,7 +763,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -817,7 +817,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
          +- LocalGroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(distinct$0 b) AS count$0, DISTINCT(b) AS distinct$0])
             +- Calc(select=[a, b, MOD(HASH_CODE(b), 1024) AS $f2])
                +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Optimized Execution Plan ==
 GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1])
@@ -827,15 +827,15 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
          +- LocalGroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(distinct$0 b) AS count$0, DISTINCT(b) AS distinct$0])
             +- Calc(select=[a, b, MOD(HASH_CODE(b), 1024) AS $f2])
                +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -911,7 +911,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
          +- LocalGroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(distinct$0 b) AS count$0, DISTINCT(b) AS distinct$0])
             +- Calc(select=[a, b, MOD(HASH_CODE(b), 1024) AS $f2])
                +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Optimized Execution Plan ==
 GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1])
@@ -921,7 +921,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
          +- LocalGroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(distinct$0 b) AS count$0, DISTINCT(b) AS distinct$0])
             +- Calc(select=[a, b, MOD(HASH_CODE(b), 1024) AS $f2])
                +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -929,7 +929,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1009,12 +1009,12 @@ Calc(select=[a, b])
    :  +- Calc(select=[a, proctime])
    :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
    :        +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b])
@@ -1023,20 +1023,20 @@ Calc(select=[a, b])
    :  +- Calc(select=[a, proctime])
    :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
    :        +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1073,9 +1073,9 @@ Calc(select=[a, b])
     } ]
   }, {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1170,12 +1170,12 @@ Calc(select=[a, b])
    :  +- Calc(select=[a, proctime])
    :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
    :        +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b])
@@ -1184,12 +1184,12 @@ Calc(select=[a, b])
    :  +- Calc(select=[a, proctime])
    :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
    :        +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -1197,7 +1197,7 @@ Calc(select=[a, b])
     "id" : ,
     "type" : "Source: A[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1236,7 +1236,7 @@ Calc(select=[a, b])
     "id" : ,
     "type" : "Source: B[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1331,12 +1331,12 @@ Calc(select=[a, b])
    :  +- Calc(select=[a, proctime])
    :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
    :        +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b])
@@ -1345,20 +1345,20 @@ Calc(select=[a, b])
    :  +- Calc(select=[a, proctime])
    :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
    :        +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1395,9 +1395,9 @@ Calc(select=[a, b])
     } ]
   }, {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1481,12 +1481,12 @@ Calc(select=[a, b])
    :  +- Calc(select=[a, proctime])
    :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
    :        +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b])
@@ -1495,12 +1495,12 @@ Calc(select=[a, b])
    :  +- Calc(select=[a, proctime])
    :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
    :        +- Calc(select=[a, PROCTIME() AS proctime, rowtime])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, proctime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, PROCTIME() AS proctime, rowtime])
-               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -1508,7 +1508,7 @@ Calc(select=[a, b])
     "id" : ,
     "type" : "Source: A[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A, project=[a, rowtime]]], fields=[a, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1547,7 +1547,7 @@ Calc(select=[a, b])
     "id" : ,
     "type" : "Source: B[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1742,7 +1742,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
       +- LocalWindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[rowtime], size=[5 s])], select=[b, COUNT(*) AS count1$0, SUM(a) AS sum$1, slice_end('w$) AS $slice_end])
          +- Calc(select=[b, a, rowtime])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
@@ -1751,15 +1751,15 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
       +- LocalWindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[rowtime], size=[5 s])], select=[b, COUNT(*) AS count1$0, SUM(a) AS sum$1, slice_end('w$) AS $slice_end])
          +- Calc(select=[b, a, rowtime])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1838,7 +1838,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
       +- LocalWindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[rowtime], size=[5 s])], select=[b, COUNT(*) AS count1$0, SUM(a) AS sum$1, slice_end('w$) AS $slice_end])
          +- Calc(select=[b, a, rowtime])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
@@ -1847,7 +1847,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
       +- LocalWindowAggregate(groupBy=[b], window=[TUMBLE(time_col=[rowtime], size=[5 s])], select=[b, COUNT(*) AS count1$0, SUM(a) AS sum$1, slice_end('w$) AS $slice_end])
          +- Calc(select=[b, a, rowtime])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -1855,7 +1855,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -2229,22 +2229,22 @@ Calc(select=[b, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -2296,14 +2296,14 @@ Calc(select=[b, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, COUNT(a) AS w0$o0])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -2311,7 +2311,7 @@ Calc(select=[b, w0$o0 AS $1])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -2797,22 +2797,22 @@ Calc(select=[a])
 +- TemporalSort(orderBy=[rowtime ASC, c ASC])
    +- Exchange(distribution=[single])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c], metadata=[]]], fields=[a, rowtime, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c]]], fields=[a, rowtime, c])
 
 == Optimized Execution Plan ==
 Calc(select=[a])
 +- TemporalSort(orderBy=[rowtime ASC, c ASC])
    +- Exchange(distribution=[single])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c], metadata=[]]], fields=[a, rowtime, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c]]], fields=[a, rowtime, c])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c], metadata=[]]], fields=[a, rowtime, c])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c]]], fields=[a, rowtime, c])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c], metadata=[]]], fields=[a, rowtime, c])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c]]], fields=[a, rowtime, c])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -2866,14 +2866,14 @@ Calc(select=[a])
 +- TemporalSort(orderBy=[rowtime ASC, c ASC])
    +- Exchange(distribution=[single])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c], metadata=[]]], fields=[a, rowtime, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c]]], fields=[a, rowtime, c])
 
 == Optimized Execution Plan ==
 Calc(select=[a])
 +- TemporalSort(orderBy=[rowtime ASC, c ASC])
    +- Exchange(distribution=[single])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c], metadata=[]]], fields=[a, rowtime, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c]]], fields=[a, rowtime, c])
 
 == Physical Execution Plan ==
 {
@@ -2881,7 +2881,7 @@ Calc(select=[a])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c], metadata=[]]], fields=[a, rowtime, c])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime, c]]], fields=[a, rowtime, c])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -2936,7 +2936,7 @@ Calc(select=[a])
    +- Exchange(distribution=[single])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
          +- Calc(select=[a, PROCTIME() AS proctime, c, rowtime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[a])
@@ -2944,15 +2944,15 @@ Calc(select=[a])
    +- Exchange(distribution=[single])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
          +- Calc(select=[a, PROCTIME() AS proctime, c, rowtime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -3018,7 +3018,7 @@ Calc(select=[a])
    +- Exchange(distribution=[single])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
          +- Calc(select=[a, PROCTIME() AS proctime, c, rowtime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[a])
@@ -3026,7 +3026,7 @@ Calc(select=[a])
    +- Exchange(distribution=[single])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
          +- Calc(select=[a, PROCTIME() AS proctime, c, rowtime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -3034,7 +3034,7 @@ Calc(select=[a])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -3101,7 +3101,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, a, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
@@ -3109,15 +3109,15 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, a, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -3184,7 +3184,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, a, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
@@ -3192,7 +3192,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, a, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -3200,7 +3200,7 @@ Calc(select=[b, window_start, window_end, EXPR$3, EXPR$4])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -3501,14 +3501,14 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
    :        +- Exchange(distribution=[hash[a]])
    :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
    :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, cnt, uv])
          +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
             +- Exchange(distribution=[hash[a]])
                +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
@@ -3519,22 +3519,22 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
    :        +- Exchange(distribution=[hash[a]])
    :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
    :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, cnt, uv])
          +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
             +- Exchange(distribution=[hash[a]])
                +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -3582,9 +3582,9 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     } ]
   }, {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -3691,14 +3691,14 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
    :        +- Exchange(distribution=[hash[a]])
    :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
    :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, cnt, uv])
          +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
             +- Exchange(distribution=[hash[a]])
                +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
@@ -3709,14 +3709,14 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
    :        +- Exchange(distribution=[hash[a]])
    :           +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
    :              +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, window_start, window_end, cnt, uv])
          +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])
             +- Exchange(distribution=[hash[a]])
                +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -3724,7 +3724,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime]]], fields=[a, c, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -3774,7 +3774,7 @@ Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])
     "id" : ,
     "type" : "Source: MyTable2[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c, rowtime]]], fields=[a, c, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,

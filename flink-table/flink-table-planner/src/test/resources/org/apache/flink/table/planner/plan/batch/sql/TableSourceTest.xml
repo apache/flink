@@ -30,7 +30,7 @@ LogicalProject(a=[$0])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a], where=[(IFNULL(a, 1) = 1)])
-+- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, filter=[], project=[a], metadata=[]]], fields=[a])
++- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, filter=[], project=[a]]], fields=[a])
 ]]>
     </Resource>
   </TestCase>
@@ -77,7 +77,7 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], ne
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id, deepNested_nested1_name AS nestedName, nested_value AS nestedValue, deepNested_nested2_flag AS nestedFlag, deepNested_nested2_num AS nestedNum])
-+- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value], metadata=[]]], fields=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value])
++- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value]]], fields=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value])
 ]]>
     </Resource>
   </TestCase>
@@ -99,7 +99,7 @@ LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[ITEM(result_data_arr, id).value AS EXPR$0, ITEM(result_data_map, 'item').value AS EXPR$1])
-+- TableSourceScan(table=[[default_catalog, default_database, NestedItemTable, project=[result_data_arr, result_data_map, id], metadata=[]]], fields=[result_data_arr, result_data_map, id])
++- TableSourceScan(table=[[default_catalog, default_database, NestedItemTable, project=[result_data_arr, result_data_map, id]]], fields=[result_data_arr, result_data_map, id])
 ]]>
     </Resource>
   </TestCase>
@@ -117,7 +117,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
       <![CDATA[
 HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a], metadata=[], aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0])
+   +- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a], aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0])
 ]]>
     </Resource>
   </TestCase>
@@ -133,7 +133,7 @@ LogicalProject(a=[$0], c=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c], metadata=[]]], fields=[a, c])
+TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -150,7 +150,7 @@ LogicalProject(a=[$0], c=[$2], EXPR$2=[PROCTIME()])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, c, PROCTIME_MATERIALIZE(PROCTIME()) AS EXPR$2])
-+- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c], metadata=[]]], fields=[a, c])
++- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, project=[a, c]]], fields=[a, c])
 ]]>
     </Resource>
   </TestCase>

@@ -30,7 +30,7 @@ LogicalProject(a=[$0], b=[$1], ts=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], metadata=[], watermark=[-(t, 10000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, t])
+TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], watermark=[-(t, 10000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, t])
 ]]>
     </Resource>
   </TestCase>
@@ -48,7 +48,7 @@ LogicalProject(a=[$0], b=[$1], ts=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], metadata=[], watermark=[-(t, 10000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, t])
+TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], watermark=[-(t, 10000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, t])
 ]]>
     </Resource>
   </TestCase>
@@ -66,7 +66,7 @@ LogicalProject(a=[$0], b=[$1], ts=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], metadata=[], watermark=[-(t, ITEM(ARRAY(10000:INTERVAL SECOND, 1000:INTERVAL SECOND), 1))], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, t])
+TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], watermark=[-(t, ITEM(ARRAY(10000:INTERVAL SECOND, 1000:INTERVAL SECOND), 1))], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, t])
 ]]>
     </Resource>
   </TestCase>
@@ -84,7 +84,7 @@ LogicalProject(a=[$0], b=[$1], ts=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], metadata=[], watermark=[-(t, 10000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, t])
+TableSourceScan(table=[[default_catalog, default_database, t1, project=[a, b, t], watermark=[-(t, 10000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a, b, t])
 ]]>
     </Resource>
   </TestCase>
@@ -179,7 +179,7 @@ LogicalProject(e=[$2.d.e], d=[$2.d])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c.d.e AS e, c.d AS d])
-+- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[c], metadata=[], watermark=[-(c.d.f, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[c])
++- TableSourceScan(table=[[default_catalog, default_database, NestedTable, project=[c], watermark=[-(c.d.f, 5000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[c])
 ]]>
     </Resource>
   </TestCase>
