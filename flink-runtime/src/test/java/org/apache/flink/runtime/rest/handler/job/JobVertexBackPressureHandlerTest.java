@@ -27,6 +27,8 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo.TaskQueryScopeInfo;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore.ComponentMetricStore;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore.SubtaskMetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexBackPressureHeaders;
@@ -40,6 +42,7 @@ import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,12 +51,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.rest.messages.JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH;
 import static org.apache.flink.runtime.rest.messages.JobVertexBackPressureInfo.VertexBackPressureLevel.LOW;
 import static org.apache.flink.runtime.rest.messages.JobVertexBackPressureInfo.VertexBackPressureLevel.OK;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 /** Tests for {@link JobVertexBackPressureHandler}. */
 class JobVertexBackPressureHandlerTest {
@@ -426,5 +431,87 @@ class JobVertexBackPressureHandlerTest {
                                 .map(SubtaskBackPressureInfo::getSubtask)
                                 .collect(Collectors.toList()))
                 .containsExactly(0, 1);
+    }
+
+    /**
+     * The handler must not throw when a subtask's attempts are pruned concurrently (by {@code
+     * SubtaskMetricStore.retainAttempts()}) between its {@code size()}/{@code containsKey()} checks
+     * and the {@code keySet().iterator().next()} read. See FLINK-36146.
+     */
+    @Test
+    void testGetBackPressureWhenAttemptsRemovedConcurrently() throws Exception {
+        MetricStore multipleAttemptsMetricStore = new MetricStore();
+        for (MetricDump metricDump : getMultipleAttemptsMetricDumps()) {
+            multipleAttemptsMetricStore.add(metricDump);
+        }
+
+        // Empty subtask 0's attempts in the window between the handler's check and its iteration.
+        SubtaskMetricStore subtask =
+                multipleAttemptsMetricStore
+                        .getTaskMetricStore(
+                                TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
+                                TEST_JOB_VERTEX_ID.toString())
+                        .getAllSubtaskMetricStores()
+                        .get(0);
+        Field attemptsField = SubtaskMetricStore.class.getDeclaredField("attempts");
+        attemptsField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<Integer, ComponentMetricStore> originalAttempts =
+                (Map<Integer, ComponentMetricStore>) attemptsField.get(subtask);
+        attemptsField.set(subtask, new SelfEmptyingOnKeySet(originalAttempts));
+
+        JobVertexBackPressureHandler handler =
+                new JobVertexBackPressureHandler(
+                        () -> CompletableFuture.completedFuture(restfulGateway),
+                        Duration.ofSeconds(10),
+                        Collections.emptyMap(),
+                        JobVertexBackPressureHeaders.getInstance(),
+                        new MetricFetcher() {
+                            @Override
+                            public MetricStore getMetricStore() {
+                                return multipleAttemptsMetricStore;
+                            }
+
+                            @Override
+                            public void update() {}
+
+                            @Override
+                            public long getLastUpdateTime() {
+                                return 0;
+                            }
+                        });
+
+        Map<String, String> pathParameters = new HashMap<>();
+        pathParameters.put(
+                JobIDPathParameter.KEY, TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString());
+        pathParameters.put(JobVertexIdPathParameter.KEY, TEST_JOB_VERTEX_ID.toString());
+        HandlerRequest<EmptyRequestBody> request =
+                HandlerRequest.resolveParametersAndCreate(
+                        EmptyRequestBody.getInstance(),
+                        new JobVertexMessageParameters(),
+                        pathParameters,
+                        Collections.emptyMap(),
+                        Collections.emptyList());
+
+        assertThatCode(() -> handler.handleRequest(request, restfulGateway))
+                .doesNotThrowAnyException();
+    }
+
+    private static final class SelfEmptyingOnKeySet
+            extends ConcurrentHashMap<Integer, ComponentMetricStore> {
+        private boolean emptied;
+
+        private SelfEmptyingOnKeySet(Map<Integer, ComponentMetricStore> initial) {
+            super(initial);
+        }
+
+        @Override
+        public KeySetView<Integer, ComponentMetricStore> keySet() {
+            if (!emptied) {
+                emptied = true;
+                clear();
+            }
+            return super.keySet();
+        }
     }
 }
