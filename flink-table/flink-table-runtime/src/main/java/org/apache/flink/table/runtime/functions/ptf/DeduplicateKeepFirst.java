@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.functions.ptf;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.data.GenericRowData;
@@ -40,6 +41,8 @@ import javax.annotation.Nullable;
 
 import java.util.stream.IntStream;
 
+/** Implementation of the {@code DEDUPLICATE_KEEP_FIRST} process table function. */
+@Internal
 public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
 
     private static final long serialVersionUID = 1L;
@@ -100,24 +103,32 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
             throws Exception {
         // state_ttl is applied at plan time via getTimeToLive(); the PTF codegen still requires
         // a parameter for every declared argument, so it is unused here.
-        final Long rowtime = ctx.timeContext(Long.class).time();
+        final RowKind kind = input.getRowKind();
+        if (kind == RowKind.UPDATE_BEFORE || kind == RowKind.DELETE) {
+            return;
+        }
+
+        final TimeContext<Long> context = ctx.timeContext(Long.class);
+        final Long rowtime = context.time();
 
         if (rowtime != null) { // watermark mode
-            final Long watermark = ctx.timeContext(Long.class).tableWatermark();
+            final Long watermark = context.tableWatermark();
             if (watermark != null && rowtime < watermark) {
                 return;
             }
 
             if (seen.getValue() == null) { // not yet emitted → buffer the earliest candidate
                 final RowData currLowest = candidate.getValue();
-                if (currLowest == null || rowtime < currLowest.getLong(eventTimeIndex)) {
-                    if (currLowest != null) {
-                        ctx.timeContext(Long.class).clearTimer(currLowest.getLong(eventTimeIndex));
+                final Long currentLowestEventTime =
+                        currLowest == null ? null : currLowest.getLong(eventTimeIndex);
+                if (currentLowestEventTime == null || rowtime < currentLowestEventTime) {
+                    if (currentLowestEventTime != null) {
+                        context.clearTimer(currentLowestEventTime);
                     }
                     // object reuse may overwrite the input's memory before the timer fires
                     candidate.setValue(
                             candidateSerializer.copy(materializeCandidate(input, rowtime)));
-                    ctx.timeContext(Long.class).registerOnTime(rowtime);
+                    context.registerOnTime(rowtime);
                 }
             } else { // already emitted → drop, optionally refresh the TTL
                 if (resetTtlOnDuplicate == null || resetTtlOnDuplicate) {

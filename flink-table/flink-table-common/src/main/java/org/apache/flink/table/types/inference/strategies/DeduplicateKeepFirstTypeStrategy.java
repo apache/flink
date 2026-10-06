@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.inference.strategies;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.api.ValidationException;
@@ -38,11 +39,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class DeduplicateKeepFirstTypeStrategy {
+/** Type strategies for the {@code DEDUPLICATE_KEEP_FIRST} process table function. */
+@Internal
+public final class DeduplicateKeepFirstTypeStrategy {
 
     public static final int ARG_INPUT = 0;
     public static final int ARG_STATE_TTL = 1;
     public static final int ARG_RESET_TTL_ON_DUPLICATE = 2;
+    private static final String SEEN_STATE_NAME = "seen";
+    private static final String CANDIDATE_STATE_NAME = "candidate";
 
     public static final InputTypeStrategy INPUT_TYPE_STRATEGY =
             new ValidationOnlyInputTypeStrategy() {
@@ -85,8 +90,6 @@ public class DeduplicateKeepFirstTypeStrategy {
                 return Optional.of(DataTypes.ROW(outputFields).notNull());
             };
 
-    private static final String SEEN_STATE_NAME = "seen";
-
     public static final StateTypeStrategy SEEN_STATE_TYPE_STRATEGY =
             new StateTypeStrategy() {
                 @Override
@@ -100,8 +103,6 @@ public class DeduplicateKeepFirstTypeStrategy {
                     return callContext.getArgumentValue(ARG_STATE_TTL, Duration.class);
                 }
             };
-
-    private static final String CANDIDATE_STATE_NAME = "candidate";
 
     public static final StateTypeStrategy CANDIDATE_STATE_TYPE_STRATEGY =
             new StateTypeStrategy() {
@@ -185,4 +186,6 @@ public class DeduplicateKeepFirstTypeStrategy {
         }
         return Optional.empty();
     }
+
+    private DeduplicateKeepFirstTypeStrategy() {}
 }

@@ -1,0 +1,144 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 5,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`user_events`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "action",
+              "dataType" : "VARCHAR(2147483647)"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`user_name` VARCHAR(2147483647), `action` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, user_events]], fields=[user_name, action])"
+  }, {
+    "id" : 6,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_name` VARCHAR(2147483647), `action` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[user_name]])"
+  }, {
+    "id" : 7,
+    "type" : "stream-exec-process-table-function_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_name` VARCHAR(2147483647), `action` VARCHAR(2147483647)>",
+    "description" : "ProcessTableFunction(invocation=[DEDUPLICATE_KEEP_FIRST(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT(), DEFAULT(), DEFAULT())], uid=[DEDUPLICATE_KEEP_FIRST], select=[user_name,action], rowType=[RecordType(VARCHAR(2147483647) user_name, VARCHAR(2147483647) action)])",
+    "uid" : "DEDUPLICATE_KEEP_FIRST",
+    "functionCall" : {
+      "kind" : "CALL",
+      "internalName" : "$DEDUPLICATE_KEEP_FIRST$1",
+      "operands" : [ {
+        "kind" : "TABLE_ARG_CALL",
+        "inputIndex" : 0,
+        "partitionKeys" : [ 0 ],
+        "type" : "ROW<`user_name` VARCHAR(2147483647), `action` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "INTERVAL SECOND(6)"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "DESCRIPTOR"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "ROW<`user_name` VARCHAR(2147483647), `action` VARCHAR(2147483647)> NOT NULL"
+    },
+    "inputChangelogModes" : [ [ "INSERT" ] ],
+    "outputChangelogMode" : [ "INSERT" ],
+    "inputUpsertKeys" : [ [ ] ]
+  }, {
+    "id" : 8,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "action",
+              "dataType" : "VARCHAR(2147483647)"
+            } ]
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "upsertMaterializeStrategy" : "MAP",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_name` VARCHAR(2147483647), `action` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_name, action])"
+  } ],
+  "edges" : [ {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

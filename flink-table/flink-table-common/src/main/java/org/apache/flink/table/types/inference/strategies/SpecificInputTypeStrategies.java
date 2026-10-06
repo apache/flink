@@ -143,7 +143,7 @@ public final class SpecificInputTypeStrategies {
             FromChangelogTypeStrategy.INPUT_TYPE_STRATEGY;
 
     /** Input strategy for {@link BuiltInFunctionDefinitions#DEDUPLICATE_KEEP_FIRST}. */
-    public static final InputTypeStrategy DEDUPLICATE_KEEP_FIRST_TYPE_STRATEGY =
+    public static final InputTypeStrategy DEDUPLICATE_KEEP_FIRST_INPUT_TYPE_STRATEGY =
             DeduplicateKeepFirstTypeStrategy.INPUT_TYPE_STRATEGY;
 
     /** Input strategy for {@link BuiltInFunctionDefinitions#SNAPSHOT}. */
