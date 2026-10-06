@@ -253,7 +253,8 @@ public class CheckpointCoordinator {
     @GuardedBy("lock")
     private final Set<OperatorID> backlogOperators = new HashSet<>();
 
-    private boolean baseLocationsForCheckpointInitialized = false;
+    // Written on the IO executor.
+    private volatile boolean baseLocationsForCheckpointInitialized = false;
 
     private boolean forceFullSnapshot;
 
@@ -637,9 +638,6 @@ public class CheckpointCoordinator {
             CompletableFuture<CheckpointPlan> checkpointPlanFuture =
                     checkpointPlanCalculator.calculateCheckpointPlan();
 
-            boolean initializeBaseLocations = !baseLocationsForCheckpointInitialized;
-            baseLocationsForCheckpointInitialized = true;
-
             CompletableFuture<Void> masterTriggerCompletionPromise = new CompletableFuture<>();
 
             final CompletableFuture<PendingCheckpoint> pendingCheckpointCompletableFuture =
@@ -679,8 +677,7 @@ public class CheckpointCoordinator {
                                                     initializeCheckpointLocation(
                                                             pendingCheckpoint.getCheckpointID(),
                                                             request.props,
-                                                            request.externalSavepointLocation,
-                                                            initializeBaseLocations);
+                                                            request.externalSavepointLocation);
                                             return Tuple2.of(
                                                     pendingCheckpoint, checkpointStorageLocation);
                                         } catch (Throwable e) {
@@ -874,8 +871,7 @@ public class CheckpointCoordinator {
     private CheckpointStorageLocation initializeCheckpointLocation(
             long checkpointID,
             CheckpointProperties props,
-            @Nullable String externalSavepointLocation,
-            boolean initializeBaseLocations)
+            @Nullable String externalSavepointLocation)
             throws Exception {
         final CheckpointStorageLocation checkpointStorageLocation;
         if (props.isSavepoint()) {
@@ -883,8 +879,9 @@ public class CheckpointCoordinator {
                     checkpointStorageView.initializeLocationForSavepoint(
                             checkpointID, externalSavepointLocation);
         } else {
-            if (initializeBaseLocations) {
+            if (!baseLocationsForCheckpointInitialized) {
                 checkpointStorageView.initializeBaseLocationsForCheckpoint();
+                baseLocationsForCheckpointInitialized = true;
             }
             checkpointStorageLocation =
                     checkpointStorageView.initializeLocationForCheckpoint(checkpointID);

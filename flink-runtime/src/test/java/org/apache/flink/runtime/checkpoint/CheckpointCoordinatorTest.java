@@ -68,6 +68,7 @@ import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
@@ -123,6 +124,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -4049,6 +4051,91 @@ class CheckpointCoordinatorTest {
         assertThat(fs.exists(jobCheckpointPath)).isFalse();
     }
 
+    @Test
+    void testEagerBaseLocationsInitializationNotRepeatedOnTrigger() throws Exception {
+        BaseLocationsTrackingCheckpointStorage storage =
+                new BaseLocationsTrackingCheckpointStorage(TempDirUtils.newFolder(tmpFolder), 0);
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointStorage(storage)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        assertThat(checkpointCoordinator.isPeriodicCheckpointingConfigured()).isTrue();
+        assertThat(storage.getInitializeBaseLocationsCalls()).isOne();
+
+        triggerCheckpointAndRunTimer(checkpointCoordinator);
+        assertThat(storage.getInitializeBaseLocationsCalls()).isOne();
+
+        checkpointCoordinator.shutdown();
+    }
+
+    @Test
+    void testBaseLocationsInitializedOnFirstCheckpointAfterSavepoint() throws Exception {
+        BaseLocationsTrackingCheckpointStorage storage =
+                new BaseLocationsTrackingCheckpointStorage(TempDirUtils.newFolder(tmpFolder), 0);
+        CheckpointCoordinator checkpointCoordinator =
+                buildCoordinatorWithoutPeriodicCheckpointing(storage);
+
+        String savepointDir = TempDirUtils.newFolder(tmpFolder).getAbsolutePath();
+        checkpointCoordinator.triggerSavepoint(savepointDir, SavepointFormatType.CANONICAL);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isOne();
+        assertThat(storage.getInitializeBaseLocationsCalls()).isZero();
+
+        triggerCheckpointAndRunTimer(checkpointCoordinator);
+        assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isEqualTo(2);
+        assertThat(storage.getInitializeBaseLocationsCalls()).isOne();
+
+        checkpointCoordinator.shutdown();
+    }
+
+    @Test
+    void testBaseLocationsInitializationRetriedAfterFailureAndNotRepeatedAfterSuccess()
+            throws Exception {
+        BaseLocationsTrackingCheckpointStorage storage =
+                new BaseLocationsTrackingCheckpointStorage(TempDirUtils.newFolder(tmpFolder), 1);
+        CheckpointCoordinator checkpointCoordinator =
+                buildCoordinatorWithoutPeriodicCheckpointing(storage);
+
+        CompletableFuture<CompletedCheckpoint> failedCheckpoint =
+                triggerCheckpointAndRunTimer(checkpointCoordinator);
+        assertThat(failedCheckpoint).isCompletedExceptionally();
+        assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isZero();
+        assertThat(storage.getInitializeBaseLocationsCalls()).isOne();
+
+        triggerCheckpointAndRunTimer(checkpointCoordinator);
+        assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isOne();
+        assertThat(storage.getInitializeBaseLocationsCalls()).isEqualTo(2);
+
+        triggerCheckpointAndRunTimer(checkpointCoordinator);
+        assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isEqualTo(2);
+        assertThat(storage.getInitializeBaseLocationsCalls()).isEqualTo(2);
+
+        checkpointCoordinator.shutdown();
+    }
+
+    private CheckpointCoordinator buildCoordinatorWithoutPeriodicCheckpointing(
+            CheckpointStorage storage) throws Exception {
+        return new CheckpointCoordinatorBuilder()
+                .setCheckpointCoordinatorConfiguration(
+                        CheckpointCoordinatorConfiguration.builder()
+                                .setCheckpointInterval(Long.MAX_VALUE)
+                                .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                                .build())
+                .setCheckpointStorage(storage)
+                .setTimer(manuallyTriggeredScheduledExecutor)
+                .build(EXECUTOR_RESOURCE.getExecutor());
+    }
+
+    private CompletableFuture<CompletedCheckpoint> triggerCheckpointAndRunTimer(
+            CheckpointCoordinator checkpointCoordinator) {
+        CompletableFuture<CompletedCheckpoint> checkpoint =
+                checkpointCoordinator.triggerCheckpoint(false);
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        return checkpoint;
+    }
+
     private CheckpointCoordinator getCheckpointCoordinator(ExecutionGraph graph) throws Exception {
         return new CheckpointCoordinatorBuilder()
                 .setCheckpointCoordinatorConfiguration(
@@ -4215,6 +4302,40 @@ class CheckpointCoordinatorTest {
                 public CheckpointStorageLocation initializeLocationForCheckpoint(long checkpointId)
                         throws IOException {
                     throw new IOException("disk is error!");
+                }
+            };
+        }
+    }
+
+    /** Counts base location initializations, failing the first {@code failuresBeforeSuccess}. */
+    private static class BaseLocationsTrackingCheckpointStorage
+            extends FileSystemCheckpointStorage {
+        private final AtomicInteger initializeBaseLocationsCalls = new AtomicInteger();
+        private final int failuresBeforeSuccess;
+
+        BaseLocationsTrackingCheckpointStorage(File checkpointDir, int failuresBeforeSuccess) {
+            super(checkpointDir.toURI());
+            this.failuresBeforeSuccess = failuresBeforeSuccess;
+        }
+
+        int getInitializeBaseLocationsCalls() {
+            return initializeBaseLocationsCalls.get();
+        }
+
+        @Override
+        public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
+            return new FsCheckpointStorageAccess(
+                    getCheckpointPath(),
+                    getSavepointPath(),
+                    jobId,
+                    getMinFileSizeThreshold(),
+                    getWriteBufferSize()) {
+                @Override
+                public void initializeBaseLocationsForCheckpoint() throws IOException {
+                    if (initializeBaseLocationsCalls.incrementAndGet() <= failuresBeforeSuccess) {
+                        throw new IOException("Failed to initialize base locations");
+                    }
+                    super.initializeBaseLocationsForCheckpoint();
                 }
             };
         }
