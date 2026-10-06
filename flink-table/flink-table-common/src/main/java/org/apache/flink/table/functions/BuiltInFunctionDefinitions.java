@@ -109,7 +109,7 @@ import static org.apache.flink.table.types.inference.TypeStrategies.varyingStrin
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_ELEMENT_ARG;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_OF_ENTRIES_ARG;
-import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.DEDUPLICATE_KEEP_FIRST_TYPE_STRATEGY;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.DEDUPLICATE_KEEP_FIRST_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.FROM_CHANGELOG_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
@@ -960,7 +960,7 @@ public final class BuiltInFunctionDefinitions {
                                     "state_ttl", DataTypes.INTERVAL(DataTypes.SECOND()), true),
                             StaticArgument.scalar(
                                     "reset_ttl_on_duplicate", DataTypes.BOOLEAN(), true))
-                    .inputTypeStrategy(DEDUPLICATE_KEEP_FIRST_TYPE_STRATEGY)
+                    .inputTypeStrategy(DEDUPLICATE_KEEP_FIRST_INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(DEDUPLICATE_KEEP_FIRST_OUTPUT_TYPE_STRATEGY)
                     .stateTypeStrategies(DeduplicateKeepFirstTypeStrategy.stateTypeStrategies())
                     .runtimeClass(

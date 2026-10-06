@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
+import java.time.Duration;
 import java.time.Instant;
 
 /** Restore {@link TableTestProgram}s for the built-in DEDUPLICATE_KEEP_FIRST PTF. */
@@ -90,5 +92,60 @@ public class DeduplicateKeepFirstRestoreTestPrograms {
                             "INSERT INTO sink SELECT user_name, action FROM DEDUPLICATE_KEEP_FIRST("
                                     + "input => TABLE user_events PARTITION BY user_name, "
                                     + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram TTL_EXPIRED_RESTORE =
+            TableTestProgram.of(
+                            "deduplicate-keep-first-ttl-expired-restore",
+                            "the 'seen' state in the savepoint has outlived state_ttl by the time "
+                                    + "the test restores it, so an already-seen key is emitted "
+                                    + "again in a new deduplication period")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("user_events")
+                                    .addSchema(USER_EVENTS_SCHEMA)
+                                    .producedBeforeRestore(
+                                            Row.of("Vas", "login"), Row.of("Vas", "click"))
+                                    .producedAfterRestore(Row.of("Vas", "logout"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(USER_EVENTS_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, "Vas", "login"))
+                                    .consumedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, "Vas", "logout"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM DEDUPLICATE_KEEP_FIRST("
+                                    + "input => TABLE user_events PARTITION BY user_name, "
+                                    + "state_ttl => INTERVAL '10' SECOND)")
+                    .build();
+
+    public static final TableTestProgram GLOBAL_TTL_EXPIRED_RESTORE =
+            TableTestProgram.of(
+                            "deduplicate-keep-first-global-ttl-expired-restore",
+                            "without state_ttl, the 'seen' state falls back to "
+                                    + "table.exec.state.ttl and has expired by the time the test "
+                                    + "restores it, so an already-seen key is emitted again")
+                    .setupConfig(
+                            ExecutionConfigOptions.IDLE_STATE_RETENTION, Duration.ofSeconds(10))
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("user_events")
+                                    .addSchema(USER_EVENTS_SCHEMA)
+                                    .producedBeforeRestore(
+                                            Row.of("Vas", "login"), Row.of("Vas", "click"))
+                                    .producedAfterRestore(Row.of("Vas", "logout"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(USER_EVENTS_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, "Vas", "login"))
+                                    .consumedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, "Vas", "logout"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM DEDUPLICATE_KEEP_FIRST("
+                                    + "input => TABLE user_events PARTITION BY user_name)")
                     .build();
 }
