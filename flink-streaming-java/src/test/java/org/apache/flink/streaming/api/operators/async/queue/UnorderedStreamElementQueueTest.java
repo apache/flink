@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators.async.queue;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import org.junit.jupiter.api.Test;
 
@@ -94,6 +95,32 @@ class UnorderedStreamElementQueueTest {
         assertThat(queue.size()).isZero();
         assertThat(queue.isEmpty()).isTrue();
         assertThat(popCompleted(queue)).isEmpty();
+    }
+
+    /**
+     * Tests that a watermark status separates the records before and after it, like a watermark.
+     */
+    @Test
+    void testWatermarkStatusCompletionOrder() {
+        final UnorderedStreamElementQueue<Integer> queue = new UnorderedStreamElementQueue<>(4);
+
+        ResultFuture<Integer> record1 = putSuccessfully(queue, new StreamRecord<>(1, 0L));
+        putSuccessfully(queue, WatermarkStatus.IDLE);
+        ResultFuture<Integer> record2 = putSuccessfully(queue, new StreamRecord<>(2, 1L));
+
+        // R2 is behind the watermark status, so it must not be emitted before R1
+        record2.complete(Collections.singletonList(12));
+
+        assertThat(popCompleted(queue)).isEmpty();
+
+        record1.complete(Collections.singletonList(11));
+
+        assertThat(popCompleted(queue))
+                .containsExactly(
+                        new StreamRecord<>(11, 0L),
+                        WatermarkStatus.IDLE,
+                        new StreamRecord<>(12, 1L));
+        assertThat(queue.isEmpty()).isTrue();
     }
 
     /**
