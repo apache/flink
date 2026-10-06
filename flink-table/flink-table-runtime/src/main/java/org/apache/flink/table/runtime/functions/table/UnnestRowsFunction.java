@@ -60,6 +60,7 @@ public class UnnestRowsFunction extends UnnestRowsFunctionBase {
         private static final long serialVersionUID = 1L;
 
         private final ArrayData.ElementGetter elementGetter;
+        private final int rowArity;
 
         public CollectionUnnestFunction(
                 SpecializedContext context,
@@ -67,14 +68,21 @@ public class UnnestRowsFunction extends UnnestRowsFunctionBase {
                 ArrayData.ElementGetter elementGetter) {
             super(context, elementType, false);
             this.elementGetter = elementGetter;
+            this.rowArity = getRowArity(elementType);
         }
 
         public void eval(ArrayData arrayData) {
-            evalArrayData(arrayData, elementGetter, (element, position) -> collect(element));
+            evalArrayData(
+                    arrayData,
+                    elementGetter,
+                    (element, position) -> collect(normalizeCollectionElement(element, rowArity)));
         }
 
         public void eval(MapData mapData) {
-            evalMultisetData(mapData, elementGetter, (element, position) -> collect(element));
+            evalMultisetData(
+                    mapData,
+                    elementGetter,
+                    (element, position) -> collect(normalizeCollectionElement(element, rowArity)));
         }
     }
 

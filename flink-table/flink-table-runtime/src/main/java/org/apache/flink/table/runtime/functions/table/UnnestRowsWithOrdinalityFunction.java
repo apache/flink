@@ -45,8 +45,7 @@ public class UnnestRowsWithOrdinalityFunction extends UnnestRowsFunctionBase {
             SpecializedContext context,
             LogicalType elementType,
             ArrayData.ElementGetter elementGetter) {
-        return new CollectionUnnestWithOrdinalityFunction(
-                context, wrapWithOrdinality(elementType), elementGetter);
+        return new CollectionUnnestWithOrdinalityFunction(context, elementType, elementGetter);
     }
 
     @Override
@@ -67,13 +66,15 @@ public class UnnestRowsWithOrdinalityFunction extends UnnestRowsFunctionBase {
         private static final long serialVersionUID = 1L;
 
         private final ArrayData.ElementGetter elementGetter;
+        private final int rowArity;
 
         public CollectionUnnestWithOrdinalityFunction(
                 SpecializedContext context,
                 LogicalType elementType,
                 ArrayData.ElementGetter elementGetter) {
-            super(context, elementType, true);
+            super(context, wrapWithOrdinality(elementType), true);
             this.elementGetter = elementGetter;
+            this.rowArity = getRowArity(elementType);
         }
 
         public void eval(ArrayData arrayData) {
@@ -85,11 +86,12 @@ public class UnnestRowsWithOrdinalityFunction extends UnnestRowsFunctionBase {
         }
 
         private void collectWithOrdinality(Object element, int position) {
-            if (element instanceof RowData) {
-                RowData row = (RowData) element;
+            final Object normalizedElement = normalizeCollectionElement(element, rowArity);
+            if (normalizedElement instanceof RowData) {
+                RowData row = (RowData) normalizedElement;
                 collect(new JoinedRowData(row.getRowKind(), row, GenericRowData.of(position)));
             } else {
-                collect(GenericRowData.of(element, position));
+                collect(GenericRowData.of(normalizedElement, position));
             }
         }
     }
