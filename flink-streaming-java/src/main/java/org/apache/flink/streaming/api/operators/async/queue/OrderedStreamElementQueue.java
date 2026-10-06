@@ -144,6 +144,9 @@ public final class OrderedStreamElementQueue<OUT> implements StreamElementQueue<
         if (streamElement.isWatermark()) {
             return new WatermarkQueueEntry<>((Watermark) streamElement);
         }
+        if (streamElement.isWatermarkStatus()) {
+            return new WatermarkStatusQueueEntry<>(streamElement.asWatermarkStatus());
+        }
         throw new UnsupportedOperationException("Cannot enqueue " + streamElement);
     }
 }
