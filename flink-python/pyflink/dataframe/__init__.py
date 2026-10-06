@@ -57,6 +57,7 @@ from pyflink.dataframe.convert import (
     range,
 )
 from pyflink.dataframe.context import (
+    create_statement_set,
     get_or_create_table_environment,
     get_table_environment,
     set_table_environment,
@@ -100,4 +101,5 @@ __all__ = [
     "set_table_environment",
     "get_table_environment",
     "get_or_create_table_environment",
+    "create_statement_set",
 ]

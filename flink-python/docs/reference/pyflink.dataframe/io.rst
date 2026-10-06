@@ -50,6 +50,36 @@ Writers
     DataFrame.write_json
     DataFrame.write_parquet
 
+Writing to multiple sinks
+-------------------------
+
+Writers submit their jobs immediately by default. To submit several writes as one job,
+create a statement set and pass it to each writer with ``statement_set=``. These calls
+only stage the writes; ``execute()`` submits them together and returns a
+:class:`~pyflink.table.TableResult`. Use ``wait()`` on that result to await completion::
+
+    import pyflink.dataframe as pf
+
+    pf.config.set("execution.runtime-mode", "batch")
+    events = pf.from_records([(1, "login")], schema=["id", "event"])
+    statement_set = pf.create_statement_set()
+    events.write_json("file:///tmp/events-json", statement_set=statement_set)
+    events.write_generic(
+        "filesystem",
+        options={"path": "file:///tmp/events-csv", "format": "csv"},
+        statement_set=statement_set,
+    )
+    result = statement_set.execute()
+    result.wait()
+
+``statement_set.explain()`` inspects the combined plan without executing or clearing the staged
+writes.
+The statement set and all its DataFrames must use the same TableEnvironment. Flink can
+reuse shared sources and sub-plans across the sinks, subject to optimizer configuration.
+The sinks share job backpressure and failover; this does not guarantee cross-sink transactions.
+Executing the statement set clears its staged writes. Client actions such as ``collect()``
+and ``to_pandas()`` execute separately and are not added to the statement set.
+
 Filesystem sources and sinks
 ----------------------------
 

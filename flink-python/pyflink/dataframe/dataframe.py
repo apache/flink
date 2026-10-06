@@ -52,6 +52,7 @@ from pyflink.table.expressions import (
     lit as table_lit,
 )
 from pyflink.table.table import Table
+from pyflink.table.statement_set import StatementSet
 from pyflink.table.types import ArrayType, MapType, MultisetType, RowType
 from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.util.api_stability_decorators import PublicEvolving
@@ -1823,12 +1824,14 @@ class DataFrame:
         partition_commit_policy_kind: Optional[str] = None,
         connector_options: Optional[Dict[str, str]] = None,
         format_options: Optional[Dict[str, str]] = None,
+        statement_set: Optional[StatementSet] = None,
     ) -> None:
         """
         Write Parquet files using Flink's filesystem connector.
 
-        The filesystem connector and Parquet format must be available to Flink. The write
-        is submitted immediately and waits for completion for local or MiniCluster execution.
+        The filesystem connector and Parquet format must be available to Flink. By default,
+        the write is submitted immediately and waits for completion for local or MiniCluster
+        execution. Passing ``statement_set`` stages the write without executing it.
         Sink columns are derived from this DataFrame's schema. Writes default to append in both
         batch and streaming execution. Explicit overwrite requires batch execution and is rejected
         by the filesystem connector in streaming execution. Partitioned overwrite replaces only
@@ -1888,10 +1891,14 @@ class DataFrame:
             leave dictionary values unchanged; conflicting explicit values are rejected.
             For INT64 timestamp encoding, use ``{"write.int64.timestamp": "true",
             "timestamp.time.unit": "micros"}``. The default encoding is INT96.
+        :param statement_set: Optional :class:`~pyflink.table.StatementSet` to stage the write in.
+            It must use the same TableEnvironment as this DataFrame. Call its ``execute()``
+            method to submit all staged writes together.
         :raises TypeError: If an argument has an invalid type.
         :raises ValueError: If the path is empty, the write mode is unsupported, the partition
             specification is empty or contains empty or duplicate names, or options conflict
-            or contain reserved, empty or duplicate keys.
+            or contain reserved, empty or duplicate keys, or the statement set belongs to a
+            different TableEnvironment.
 
         Example::
 
@@ -1932,7 +1939,13 @@ class DataFrame:
             extra_connector_options=connector_options,
             extra_format_options=format_options,
         )
-        self._write("filesystem", options, mode=mode, partition_by=partition_by)
+        self._write(
+            "filesystem",
+            options,
+            mode=mode,
+            partition_by=partition_by,
+            statement_set=statement_set,
+        )
 
     @PublicEvolving()
     def write_json(
@@ -1957,12 +1970,14 @@ class DataFrame:
         partition_commit_policy_kind: Optional[str] = None,
         connector_options: Optional[Dict[str, str]] = None,
         format_options: Optional[Dict[str, str]] = None,
+        statement_set: Optional[StatementSet] = None,
     ) -> None:
         """
         Write newline-delimited JSON files using Flink's filesystem connector.
 
-        The filesystem connector and JSON format must be available to Flink. The write
-        is submitted immediately and waits for completion for local or MiniCluster execution.
+        The filesystem connector and JSON format must be available to Flink. By default,
+        the write is submitted immediately and waits for completion for local or MiniCluster
+        execution. Passing ``statement_set`` stages the write without executing it.
         Sink columns are derived from this DataFrame's schema. Writes default to append in both
         batch and streaming execution. Explicit overwrite requires batch execution and is rejected
         by the filesystem connector in streaming execution. Partitioned overwrite replaces only
@@ -2025,10 +2040,14 @@ class DataFrame:
             the ``json.`` prefix, for example ``{"timestamp-format.standard": "ISO-8601"}``.
             ``None`` parameters leave dictionary values unchanged; conflicting explicit values
             are rejected.
+        :param statement_set: Optional :class:`~pyflink.table.StatementSet` to stage the write in.
+            It must use the same TableEnvironment as this DataFrame. Call its ``execute()``
+            method to submit all staged writes together.
         :raises TypeError: If an argument has an invalid type.
         :raises ValueError: If the path is empty, the write mode is unsupported, the partition
             specification is empty or contains empty or duplicate names, or options conflict
-            or contain reserved, empty or duplicate keys.
+            or contain reserved, empty or duplicate keys, or the statement set belongs to a
+            different TableEnvironment.
 
         Example::
 
@@ -2071,22 +2090,39 @@ class DataFrame:
             extra_connector_options=connector_options,
             extra_format_options=format_options,
         )
-        self._write("filesystem", options, mode=mode, partition_by=partition_by)
+        self._write(
+            "filesystem",
+            options,
+            mode=mode,
+            partition_by=partition_by,
+            statement_set=statement_set,
+        )
 
     @PublicEvolving()
-    def write_generic(self, connector: str, *, options: Dict[str, str]) -> None:
+    def write_generic(
+        self,
+        connector: str,
+        *,
+        options: Dict[str, str],
+        statement_set: Optional[StatementSet] = None,
+    ) -> None:
         """
         Write this DataFrame using a connector and its raw Table connector options.
 
-        The connector must be available through Flink's factory discovery mechanism. The write is
-        submitted immediately and waits for completion when using local or MiniCluster execution.
+        The connector must be available through Flink's factory discovery mechanism. By default,
+        the write is submitted immediately and waits for completion for local or MiniCluster
+        execution. Passing ``statement_set`` stages the write without executing it.
         Sink columns are derived from this DataFrame's output schema.
 
         :param connector: Factory identifier used as the ``connector`` Table option.
         :param options: Connector options, excluding the reserved ``connector`` option.
+        :param statement_set: Optional :class:`~pyflink.table.StatementSet` to stage the write in.
+            It must use the same TableEnvironment as this DataFrame. Call its ``execute()``
+            method to submit all staged writes together.
         :raises TypeError: If an argument has an invalid type.
         :raises ValueError: If the connector or an option key is empty, if ``options`` contains
-            the reserved ``connector`` key, or if Flink rejects the connector or its options.
+            the reserved ``connector`` key, if Flink rejects the connector or its options, or
+            if the statement set belongs to a different TableEnvironment.
 
         Example::
 
@@ -2102,7 +2138,7 @@ class DataFrame:
 
         .. versionadded:: 2.4.0
         """
-        self._write(connector, options)
+        self._write(connector, options, statement_set=statement_set)
 
     def _write(
         self,
@@ -2111,6 +2147,7 @@ class DataFrame:
         *,
         mode: str = "append",
         partition_by: Optional[Union[str, List[str]]] = None,
+        statement_set: Optional[StatementSet] = None,
     ) -> None:
         from pyflink.dataframe.errors import _raise_as_value_error
         from pyflink.dataframe.io import _build_generic_descriptor
@@ -2121,27 +2158,38 @@ class DataFrame:
             raise ValueError("mode must be 'append' or 'overwrite'")
         descriptor = _build_generic_descriptor(connector, options, partition_by=partition_by)
         try:
-            self._execute_insert(descriptor, mode == "overwrite")
+            self._execute_insert(descriptor, mode == "overwrite", statement_set=statement_set)
         except Exception as error:
             _raise_as_value_error(error)
 
     @PublicEvolving()
-    def write_catalog_table(self, path: str, *, overwrite: bool = False) -> None:
+    def write_catalog_table(
+        self,
+        path: str,
+        *,
+        overwrite: bool = False,
+        statement_set: Optional[StatementSet] = None,
+    ) -> None:
         """
         Write this DataFrame to a table registered in a catalog.
 
         ``path`` is ``table_name``, ``db_name.table_name``, or ``catalog_name.db_name.table_name``.
         Missing parts are resolved against the current catalog and database, see
         :func:`~pyflink.dataframe.use_catalog` and :func:`~pyflink.dataframe.use_database`. The
-        write runs right away. On a local or MiniCluster setup the call blocks until the write is
-        done.
+        write runs right away by default. On a local or MiniCluster setup the call blocks until
+        the write is done. Passing ``statement_set`` stages the write without executing it.
 
         :param path: Path of the catalog table.
         :param overwrite: Whether existing data should be replaced, like ``INSERT OVERWRITE``.
             Not every connector supports overwriting.
-        :raises TypeError: If ``path`` is not a string or ``overwrite`` is not a bool.
+        :param statement_set: Optional :class:`~pyflink.table.StatementSet` to stage the write in.
+            It must use the same TableEnvironment as this DataFrame. Call its ``execute()``
+            method to submit all staged writes together.
+        :raises TypeError: If ``path`` is not a string, ``overwrite`` is not a bool, or
+            ``statement_set`` is neither a StatementSet nor ``None``.
         :raises ValueError: If ``path`` is empty, malformed, or does not name a table, or if the
-            DataFrame's columns do not match the table.
+            DataFrame's columns do not match the table, or the statement set belongs to a
+            different TableEnvironment.
 
         Example::
 
@@ -2160,13 +2208,27 @@ class DataFrame:
         if not isinstance(overwrite, bool):
             raise TypeError("overwrite must be a bool")
         try:
-            self._execute_insert(path, overwrite)
+            self._execute_insert(path, overwrite, statement_set=statement_set)
         except Exception as error:
             _raise_as_value_error(error)
 
     def _execute_insert(
-        self, target: Union[str, TableDescriptor], overwrite: bool = False
+        self,
+        target: Union[str, TableDescriptor],
+        overwrite: bool = False,
+        *,
+        statement_set: Optional[StatementSet] = None,
     ) -> None:
+        if statement_set is not None:
+            if not isinstance(statement_set, StatementSet):
+                raise TypeError("statement_set must be a StatementSet or None")
+            if self._table._t_env._j_tenv != statement_set._t_env._j_tenv:
+                raise ValueError(
+                    "DataFrame and statement_set must belong to the same TableEnvironment"
+                )
+            statement_set.add_insert(target, self._table, overwrite=overwrite)
+            return
+
         result = self._table.execute_insert(target, overwrite=overwrite)
         execution_target = self._table._t_env.get_config().get(
             "execution.target", None
