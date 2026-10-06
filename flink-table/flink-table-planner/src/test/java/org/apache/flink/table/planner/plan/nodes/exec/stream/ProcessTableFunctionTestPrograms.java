@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BroadcastTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ClearAllTimersKeepsStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ClearStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ComplexValueViewFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
@@ -118,7 +119,6 @@ import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTable
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PASS_THROUGH_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_BROADCAST_RULES_SOURCE;
-import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_CITY_SOURCE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_MULTI_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE_LATE_EVENTS;
@@ -1993,7 +1993,19 @@ public class ProcessTableFunctionTestPrograms {
                                             Row.of("Dave", 4, Instant.ofEpochMilli(4)),
                                             Row.of("Frank", 5, Instant.ofEpochMilli(6)))
                                     .build())
-                    .setupTableSource(TIMED_CITY_SOURCE)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("city")
+                                    .addSchema(
+                                            "name STRING",
+                                            "city STRING",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                                    .producedValues(
+                                            Row.of("Bob", "London", Instant.ofEpochMilli(0)),
+                                            Row.of("Charly", "Paris", Instant.ofEpochMilli(2)),
+                                            Row.of("Dave", "Berlin", Instant.ofEpochMilli(4)),
+                                            Row.of("Eve", "Rome", Instant.ofEpochMilli(5)))
+                                    .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
                                     .addSchema(TIMED_MULTI_BASE_SINK_SCHEMA)
@@ -2009,6 +2021,34 @@ public class ProcessTableFunctionTestPrograms {
                                     + "scoreTable => TABLE t PARTITION BY name, "
                                     + "cityTable => TABLE city PARTITION BY name, "
                                     + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_CLEAR_ALL_TIMERS_KEEPS_STATE =
+            TableTestProgram.of(
+                            "process-clear-all-timers-keeps-state",
+                            "clearing all timers does not clear the state")
+                    .setupTemporarySystemFunction("f", ClearAllTimersKeepsStateFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(TIMED_SOURCE_SCHEMA)
+                                    .producedValues(
+                                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                                            Row.of("Bob", 2, Instant.ofEpochMilli(2)),
+                                            Row.of("Bob", 3, Instant.ofEpochMilli(3)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, count 1, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, count 1, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, count 2, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, count 3, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Alice, timeout with count 1, 1970-01-01T00:00:01.001Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
                     .build();
 
     public static final TableTestProgram PROCESS_UPDATING_MULTI_INPUT =
