@@ -44,6 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -149,12 +150,17 @@ public class ForStDBTtlCompactFiltersManager {
 
     public void configCompactFilter(
             @Nonnull StateDescriptor<?, ?> stateDesc, TypeSerializer<?> stateSerializer) {
+        // A V1 list state is registered with a ListSerializer<TtlValue<E>>; the compaction filter
+        // works on the elements, so unwrap it here.
+        TypeSerializer<?> listElementSerializer =
+                stateDesc instanceof ListStateDescriptor
+                        ? ((ListSerializer<?>) stateSerializer).getElementSerializer()
+                        : null;
         configCompactFilter(
                 stateDesc.getName(),
                 stateDesc.getTtlConfig(),
-                stateDesc instanceof ListStateDescriptor,
-                stateDesc instanceof MapStateDescriptor,
-                stateSerializer);
+                listElementSerializer,
+                stateDesc instanceof MapStateDescriptor);
     }
 
     /**
@@ -168,20 +174,29 @@ public class ForStDBTtlCompactFiltersManager {
             @Nonnull org.apache.flink.api.common.state.v2.StateDescriptor<?> stateDesc,
             TypeSerializer<?> stateSerializer) {
         org.apache.flink.api.common.state.v2.StateDescriptor.Type type = stateDesc.getType();
+        // Unlike V1, a V2 ListStateDescriptor carries the element serializer itself (for a TTL
+        // state: TtlSerializer<E>), and ForStListState stores the elements delimited with that
+        // serializer. So the registered state serializer is already the list element serializer.
+        TypeSerializer<?> listElementSerializer =
+                type == org.apache.flink.api.common.state.v2.StateDescriptor.Type.LIST
+                        ? stateSerializer
+                        : null;
         configCompactFilter(
                 stateDesc.getStateId(),
                 stateDesc.getTtlConfig(),
-                type == org.apache.flink.api.common.state.v2.StateDescriptor.Type.LIST,
-                type == org.apache.flink.api.common.state.v2.StateDescriptor.Type.MAP,
-                stateSerializer);
+                listElementSerializer,
+                type == org.apache.flink.api.common.state.v2.StateDescriptor.Type.MAP);
     }
 
+    /**
+     * @param listElementSerializer the element serializer of a list state (the TTL-wrapped element
+     *     serializer), or {@code null} if the state is not a list state.
+     */
     private void configCompactFilter(
             String stateName,
             StateTtlConfig ttlConfig,
-            boolean isListState,
-            boolean isMapState,
-            TypeSerializer<?> stateSerializer) {
+            @Nullable TypeSerializer<?> listElementSerializer,
+            boolean isMapState) {
         if (ttlConfig.isEnabled() && ttlConfig.getCleanupStrategies().inRocksdbCompactFilter()) {
             FlinkCompactionFilterFactory compactionFilterFactory =
                     compactionFilterFactories.get(stateName);
@@ -209,9 +224,8 @@ public class ForStDBTtlCompactFiltersManager {
             }
 
             FlinkCompactionFilter.Config config;
-            if (isListState) {
-                TypeSerializer<?> elemSerializer =
-                        ((ListSerializer<?>) stateSerializer).getElementSerializer();
+            if (listElementSerializer != null) {
+                TypeSerializer<?> elemSerializer = listElementSerializer;
                 int len = elemSerializer.getLength();
                 if (len > 0) {
                     config =
