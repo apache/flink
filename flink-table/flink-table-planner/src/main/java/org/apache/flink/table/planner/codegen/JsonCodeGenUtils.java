@@ -25,7 +25,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import java.lang.reflect.Method;
 
-import scala.Tuple2;
 import scala.collection.Seq;
 
 /** Utilities for the code generation of JSON functions. */
@@ -41,23 +40,21 @@ public final class JsonCodeGenUtils {
      */
     public static GeneratedExpression generateJsonType(
             CodeGeneratorContext ctx, LogicalType returnType, Seq<GeneratedExpression> operands) {
-        return GenerateUtils.generateCallWithStmtIfArgsNotNull(
+        return GenerateUtils.generateCallIfArgsNotNull(
                 ctx,
                 returnType,
                 operands,
                 true,
                 false,
                 argTerms -> {
-                    Tuple2<String, String> parsedCall =
+                    final String call =
                             generateCallOnParsedInput(
                                     ctx,
                                     operands,
                                     argTerms,
                                     BuiltInMethods.JSON_TYPE(),
                                     BuiltInMethods.JSON_TYPE_PATH());
-                    String resultExpr =
-                            CodeGenUtils.BINARY_STRING() + ".fromString(" + parsedCall._2() + ")";
-                    return new Tuple2<>(parsedCall._1(), resultExpr);
+                    return CodeGenUtils.BINARY_STRING() + ".fromString(" + call + ")";
                 });
     }
 
@@ -69,7 +66,7 @@ public final class JsonCodeGenUtils {
      */
     public static GeneratedExpression generateJsonLength(
             CodeGeneratorContext ctx, LogicalType returnType, Seq<GeneratedExpression> operands) {
-        return GenerateUtils.generateCallWithStmtIfArgsNotNull(
+        return GenerateUtils.generateCallIfArgsNotNull(
                 ctx,
                 returnType,
                 operands,
@@ -88,10 +85,8 @@ public final class JsonCodeGenUtils {
      * Builds the call against the shared parsed input: the whole-document overload, or the path
      * overload with the {@code isPathDefinite} flag resolved from the path literal at plan time via
      * {@link SqlJsonUtils#isPathDefinite(String)}.
-     *
-     * @return an empty statement and the call expression
      */
-    private static Tuple2<String, String> generateCallOnParsedInput(
+    private static String generateCallOnParsedInput(
             CodeGeneratorContext ctx,
             Seq<GeneratedExpression> operands,
             Seq<String> argTerms,
@@ -99,20 +94,18 @@ public final class JsonCodeGenUtils {
             Method withPath) {
         final String parsed = JsonParseReuse.parseSharedInput(ctx, operands).resultTerm();
         if (argTerms.length() == 1) {
-            return new Tuple2<>("", CodeGenUtils.qualifyMethod(wholeDocument) + "(" + parsed + ")");
+            return CodeGenUtils.qualifyMethod(wholeDocument) + "(" + parsed + ")";
         }
 
         final String pathSpec = operands.apply(1).literalValue().get().toString();
         final boolean isPathDefinite = SqlJsonUtils.isPathDefinite(pathSpec);
-        return new Tuple2<>(
-                "",
-                CodeGenUtils.qualifyMethod(withPath)
-                        + "("
-                        + parsed
-                        + ", "
-                        + argTerms.apply(1)
-                        + ".toString(), "
-                        + isPathDefinite
-                        + ")");
+        return CodeGenUtils.qualifyMethod(withPath)
+                + "("
+                + parsed
+                + ", "
+                + argTerms.apply(1)
+                + ".toString(), "
+                + isPathDefinite
+                + ")";
     }
 }
