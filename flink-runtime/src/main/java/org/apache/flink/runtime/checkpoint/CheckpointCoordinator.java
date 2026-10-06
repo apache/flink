@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.FinishedTaskStateProvider.PartialFinishingNotSupportedByStateException;
@@ -352,7 +353,12 @@ public class CheckpointCoordinator {
         try {
             this.checkpointStorageView = checkpointStorage.createCheckpointStorage(job);
 
-            if (isPeriodicCheckpointingConfigured()) {
+            if (!chkConfig.isCreateDirectoriesOnJobStart()) {
+                LOG.info(
+                        "Checkpoint directories for job {} will be created when the first checkpoint is triggered ({}=false).",
+                        job,
+                        CheckpointingOptions.CREATE_DIRECTORIES_ON_JOB_START.key());
+            } else if (isPeriodicCheckpointingConfigured()) {
                 checkpointStorageView.initializeBaseLocationsForCheckpoint();
                 baseLocationsForCheckpointInitialized = true;
             }

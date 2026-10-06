@@ -76,6 +76,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     private final boolean pauseSourcesUntilFirstCheckpoint;
 
+    private final boolean createDirectoriesOnJobStart;
+
     /**
      * @deprecated use {@link #builder()}.
      */
@@ -105,7 +107,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 checkpointIdOfIgnoredInFlightData,
                 false,
                 false,
-                false);
+                false,
+                true);
     }
 
     private CheckpointCoordinatorConfiguration(
@@ -122,7 +125,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             long checkpointIdOfIgnoredInFlightData,
             boolean enableCheckpointsAfterTasksFinish,
             boolean recoverOutputOnDownstreamTask,
-            boolean pauseSourcesUntilFirstCheckpoint) {
+            boolean pauseSourcesUntilFirstCheckpoint,
+            boolean createDirectoriesOnJobStart) {
 
         if (checkpointIntervalDuringBacklog < MINIMAL_CHECKPOINT_TIME) {
             // interval of max value means disable periodic checkpoint
@@ -164,6 +168,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         this.enableCheckpointsAfterTasksFinish = enableCheckpointsAfterTasksFinish;
         this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
         this.pauseSourcesUntilFirstCheckpoint = pauseSourcesUntilFirstCheckpoint;
+        this.createDirectoriesOnJobStart = createDirectoriesOnJobStart;
     }
 
     public long getCheckpointInterval() {
@@ -222,6 +227,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         return recoverOutputOnDownstreamTask;
     }
 
+    public boolean isCreateDirectoriesOnJobStart() {
+        return createDirectoriesOnJobStart;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -242,7 +251,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 && tolerableCheckpointFailureNumber == that.tolerableCheckpointFailureNumber
                 && checkpointIdOfIgnoredInFlightData == that.checkpointIdOfIgnoredInFlightData
                 && enableCheckpointsAfterTasksFinish == that.enableCheckpointsAfterTasksFinish
-                && recoverOutputOnDownstreamTask == that.recoverOutputOnDownstreamTask;
+                && recoverOutputOnDownstreamTask == that.recoverOutputOnDownstreamTask
+                && createDirectoriesOnJobStart == that.createDirectoriesOnJobStart;
     }
 
     @Override
@@ -259,7 +269,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 tolerableCheckpointFailureNumber,
                 checkpointIdOfIgnoredInFlightData,
                 enableCheckpointsAfterTasksFinish,
-                recoverOutputOnDownstreamTask);
+                recoverOutputOnDownstreamTask,
+                createDirectoriesOnJobStart);
     }
 
     @Override
@@ -289,6 +300,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 + enableCheckpointsAfterTasksFinish
                 + ", recoverOutputOnDownstreamTask="
                 + recoverOutputOnDownstreamTask
+                + ", createDirectoriesOnJobStart="
+                + createDirectoriesOnJobStart
                 + '}';
     }
 
@@ -332,6 +345,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         private boolean enableCheckpointsAfterTasksFinish;
         private boolean recoverOutputOnDownstreamTask;
         private boolean pauseSourcesUntilFirstCheckpoint;
+        private boolean createDirectoriesOnJobStart = true;
 
         public CheckpointCoordinatorConfiguration build() {
             return new CheckpointCoordinatorConfiguration(
@@ -348,7 +362,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                     checkpointIdOfIgnoredInFlightData,
                     enableCheckpointsAfterTasksFinish,
                     recoverOutputOnDownstreamTask,
-                    pauseSourcesUntilFirstCheckpoint);
+                    pauseSourcesUntilFirstCheckpoint,
+                    createDirectoriesOnJobStart);
         }
 
         public CheckpointCoordinatorConfigurationBuilder setCheckpointInterval(
@@ -431,6 +446,12 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         public CheckpointCoordinatorConfigurationBuilder setRecoverOutputOnDownstreamTask(
                 boolean recoverOutputOnDownstreamTask) {
             this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setCreateDirectoriesOnJobStart(
+                boolean createDirectoriesOnJobStart) {
+            this.createDirectoriesOnJobStart = createDirectoriesOnJobStart;
             return this;
         }
     }

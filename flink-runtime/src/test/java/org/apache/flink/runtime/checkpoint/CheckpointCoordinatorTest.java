@@ -4052,7 +4052,7 @@ class CheckpointCoordinatorTest {
     }
 
     @Test
-    void testEagerBaseLocationsInitializationNotRepeatedOnTrigger() throws Exception {
+    void testBaseLocationsInitializedOnJobStartNotRepeatedOnTrigger() throws Exception {
         BaseLocationsTrackingCheckpointStorage storage =
                 new BaseLocationsTrackingCheckpointStorage(TempDirUtils.newFolder(tmpFolder), 0);
         CheckpointCoordinator checkpointCoordinator =
@@ -4065,6 +4065,36 @@ class CheckpointCoordinatorTest {
         assertThat(storage.getInitializeBaseLocationsCalls()).isOne();
 
         triggerCheckpointAndRunTimer(checkpointCoordinator);
+        assertThat(storage.getInitializeBaseLocationsCalls()).isOne();
+
+        checkpointCoordinator.shutdown();
+    }
+
+    @Test
+    void testBaseLocationsInitializedOnFirstCheckpointWhenCreateDirectoriesOnJobStartDisabled()
+            throws Exception {
+        BaseLocationsTrackingCheckpointStorage storage =
+                new BaseLocationsTrackingCheckpointStorage(TempDirUtils.newFolder(tmpFolder), 0);
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(
+                                CheckpointCoordinatorConfiguration.builder()
+                                        .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                                        .setCreateDirectoriesOnJobStart(false)
+                                        .build())
+                        .setCheckpointStorage(storage)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        assertThat(checkpointCoordinator.isPeriodicCheckpointingConfigured()).isTrue();
+        assertThat(storage.getInitializeBaseLocationsCalls()).isZero();
+
+        triggerCheckpointAndRunTimer(checkpointCoordinator);
+        assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isOne();
+        assertThat(storage.getInitializeBaseLocationsCalls()).isOne();
+
+        triggerCheckpointAndRunTimer(checkpointCoordinator);
+        assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isEqualTo(2);
         assertThat(storage.getInitializeBaseLocationsCalls()).isOne();
 
         checkpointCoordinator.shutdown();

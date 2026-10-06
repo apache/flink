@@ -27,11 +27,13 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.CachedDataStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
@@ -86,6 +88,8 @@ import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1254,5 +1258,23 @@ class StreamGraphGeneratorTest {
         public Set<AbstractID> listCompletedClusterDatasets() {
             return new HashSet<>(completedClusterDatasetIds);
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testCreateDirectoriesOnJobStartIsForwardedToCheckpointSettings(boolean createOnJobStart)
+            throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.set(CheckpointingOptions.CREATE_DIRECTORIES_ON_JOB_START, createOnJobStart);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.enableCheckpointing(1000);
+        env.fromData(1, 2, 3).sinkTo(new DiscardingSink<>());
+
+        JobCheckpointingSettings settings =
+                env.getStreamGraph().getJobGraph().getCheckpointingSettings();
+
+        assertThat(settings.getCheckpointCoordinatorConfiguration().isCreateDirectoriesOnJobStart())
+                .isEqualTo(createOnJobStart);
     }
 }
