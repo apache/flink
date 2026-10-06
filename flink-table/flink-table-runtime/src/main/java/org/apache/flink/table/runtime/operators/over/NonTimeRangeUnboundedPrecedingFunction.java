@@ -87,6 +87,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
             GeneratedAggsHandleFunction genAggsHandler,
             GeneratedRecordEqualiser genRecordEqualiser,
             GeneratedRecordEqualiser genSortKeyEqualiser,
+            GeneratedRecordEqualiser genAccEqualiser,
             GeneratedRecordComparator genSortKeyComparator,
             LogicalType[] accTypes,
             LogicalType[] inputFieldTypes,
@@ -97,6 +98,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
                 genAggsHandler,
                 genRecordEqualiser,
                 genSortKeyEqualiser,
+                genAccEqualiser,
                 genSortKeyComparator,
                 accTypes,
                 inputFieldTypes,
@@ -154,7 +156,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
             emitUpdatesForIds(
                     ids,
                     ids.size() - 1,
-                    accMapState.get(inputSortKey), // prevAcc
+                    getAccFromState(inputSortKey), // prevAcc
                     aggFuncs.getAccumulators(), // currAcc
                     origRowKind,
                     insRow,
@@ -163,7 +165,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
 
         // Add/Update state
         valueMapState.put(id, insRow);
-        accMapState.put(inputSortKey, aggFuncs.getAccumulators());
+        putAccInState(inputSortKey, aggFuncs.getAccumulators());
         sortedListState.update(sortedList);
         idState.update(++id);
 
@@ -183,7 +185,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
             RowData accData = aggFuncs.createAccumulators();
             aggFuncs.setAccumulators(accData);
         } else {
-            RowData prevAcc = accMapState.get(sortedList.get(prevIndex).f0);
+            RowData prevAcc = getAccFromState(sortedList.get(prevIndex).f0);
             if (prevAcc == null) {
                 RowData accData = aggFuncs.createAccumulators();
                 aggFuncs.setAccumulators(accData);
@@ -285,9 +287,9 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
             // Update currAcc with the updated aggFunc
             currAcc = aggFuncs.getAccumulators();
             // Get previous accumulator
-            RowData prevAcc = accMapState.get(curSortKey);
+            RowData prevAcc = getAccFromState(curSortKey);
 
-            if (prevAcc.equals(currAcc)) {
+            if (accEqualiser.equals(prevAcc, currAcc)) {
                 // Previous accumulator is the same as the current accumulator.
                 // This means all the ids will have no change in the accumulated value.
                 // Skip sending downstream updates in such cases to reduce network traffic
@@ -307,7 +309,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
             }
 
             // update accumulated state for sortKey
-            accMapState.put(curSortKey, currAcc);
+            putAccInState(curSortKey, currAcc);
         }
     }
 
@@ -351,7 +353,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         emitUpdatesForIds(
                 ids,
                 removeIndex,
-                accMapState.get(curSortKey), // prevAcc
+                getAccFromState(curSortKey), // prevAcc
                 aggFuncs.getAccumulators(), // currAcc
                 RowKind.DELETE,
                 delRow,
@@ -366,7 +368,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         if (ids.isEmpty()) {
             accMapState.remove(curSortKey);
         } else {
-            accMapState.put(curSortKey, aggFuncs.getAccumulators());
+            putAccInState(curSortKey, aggFuncs.getAccumulators());
         }
         sortedListState.update(sortedList);
 
