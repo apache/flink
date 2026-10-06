@@ -345,6 +345,29 @@ public class BinaryVariantInternalBuilder {
         }
     }
 
+    /**
+     * Appends a JSON number literal the way {@link #parseJson(String, boolean)} stores it: as the
+     * smallest integer that holds it, else as a decimal, else as a double. A caller that holds JSON
+     * in another form, such as a tree built by its own Jackson, uses this so its numbers match
+     * {@code PARSE_JSON}. The literal is read with the same parser and number handling as {@code
+     * PARSE_JSON}, so surrounding whitespace is allowed.
+     *
+     * @throws IOException if {@code literal} is not exactly one JSON number, or is out of the range
+     *     of a double. The builder must not be used after that.
+     */
+    void appendJsonNumber(String literal) throws IOException {
+        try (JsonParser parser = JSON_FACTORY.createParser(literal)) {
+            final JsonToken token = parser.nextToken();
+            if (token != JsonToken.VALUE_NUMBER_INT && token != JsonToken.VALUE_NUMBER_FLOAT) {
+                throw new JsonParseException(parser, "Expected a JSON number but got " + token);
+            }
+            buildJson(parser);
+            if (parser.nextToken() != null) {
+                throw new JsonParseException(parser, "Unexpected content after the JSON number");
+            }
+        }
+    }
+
     // The variant spec requires a scale in [0, 38] and a precision of at most 38.
     private static BigDecimal toVariantDecimal(BigDecimal d) {
         BigDecimal result = d;
