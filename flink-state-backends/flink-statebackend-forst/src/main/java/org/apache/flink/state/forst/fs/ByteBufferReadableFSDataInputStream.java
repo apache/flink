@@ -20,6 +20,7 @@ package org.apache.flink.state.forst.fs;
 
 import org.apache.flink.core.fs.ByteBufferReadable;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.util.IOUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -128,11 +129,18 @@ public class ByteBufferReadableFSDataInputStream extends FSDataInputStream {
         }
 
         int result;
-        if (fsDataInputStream instanceof ByteBufferReadable) {
-            result = ((ByteBufferReadable) fsDataInputStream).read(position, bb);
-        } else {
-            fsDataInputStream.seek(position);
-            result = readFullyFromFSDataInputStream(fsDataInputStream, bb);
+        try {
+            if (fsDataInputStream instanceof ByteBufferReadable) {
+                result = ((ByteBufferReadable) fsDataInputStream).read(position, bb);
+            } else {
+                fsDataInputStream.seek(position);
+                result = readFullyFromFSDataInputStream(fsDataInputStream, bb);
+            }
+        } catch (Exception ex) {
+            // The stream is neither returned to the pool nor closed otherwise: close it here so
+            // that a failed read does not leak the underlying (remote) stream.
+            IOUtils.closeQuietly(fsDataInputStream);
+            throw ex;
         }
 
         boolean offered;
