@@ -210,12 +210,14 @@ class JsonParseReuseTest {
         // calls on the same computed input (TRIM) must still share a parse
         final String sql =
                 "SELECT JSON_VALUE(TRIM(json_data), '$.type'), "
-                        + "JSON_QUERY(TRIM(json_data), '$.address') FROM json_src";
+                        + "JSON_QUERY(TRIM(json_data), '$.address'), "
+                        + "JSON_TYPE(TRIM(json_data)), "
+                        + "JSON_LENGTH(TRIM(json_data)) FROM json_src";
         final List<Row> rows = collect(sql);
         assertThat(rows)
                 .containsExactlyInAnyOrder(
-                        Row.of("account", "{\"city\":\"Munich\"}"),
-                        Row.of("admin", "{\"city\":\"Berlin\"}"));
+                        Row.of("account", "{\"city\":\"Munich\"}", "object", 4),
+                        Row.of("admin", "{\"city\":\"Berlin\"}", "object", 4));
         final String code = extractGeneratedCode(sql);
         assertThat(countJsonParse(code))
                 .as("Calls on the same computed input should parse once")
