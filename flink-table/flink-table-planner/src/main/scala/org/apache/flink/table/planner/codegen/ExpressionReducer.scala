@@ -281,10 +281,13 @@ class ExpressionReducer(
           // to ensure the division is non-zero when the operator is DIVIDE
           if (call.getOperator.getKind.equals(SqlKind.DIVIDE)) {
             val ops = call.getOperands
-            // according to BuiltInFunctionDefinitions, the DEVIDE's second op must be numeric.
+            val divisor = ops.get(ops.size() - 1)
+
+            // according to BuiltInFunctionDefinitions, the DEVIDE's second op must be numeric
+            assert(RexUtil.isDeterministic(divisor))
             // The divisor may itself be an unreduced constant expression, e.g. 1 / (2 + 3),
             // in which case it is evaluated together with the division below.
-            ops.get(ops.size() - 1) match {
+            divisor match {
               case divisionLiteral: RexLiteral =>
                 val isZero = divisionLiteral.getValue match {
                   case d: java.lang.Double => d == 0.0
