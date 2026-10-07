@@ -203,7 +203,7 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    void testNoPhantomColumn() {
+    void testPartitionOnlyColumnOutput() {
         util.addTemporarySystemFunction("f", EmptyOutputFunction.class);
         assertThat(
                         util.tableEnv()
