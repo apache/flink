@@ -403,16 +403,15 @@ public class SystemTypeInference {
         }
 
         private List<Field> deriveFunctionOutputFields(DataType functionDataType) {
-            final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
-            final List<String> fieldNames = DataType.getFieldNames(functionDataType);
-
-            if (fieldTypes.isEmpty()) {
-                // Before the system type inference was introduced, SQL and
-                // Table API chose a different default field name.
-                // EXPR$0 is chosen for best-effort backwards compatibility for
-                // SQL users.
+            final boolean isScalarOutput =
+                    !LogicalTypeChecks.isCompositeType(functionDataType.getLogicalType());
+            if (isScalarOutput) {
+                // Scalar output has no field name of its own; EXPR$0 is kept for
+                // backwards compatibility with the pre-system-type-inference default.
                 return List.of(DataTypes.FIELD("EXPR$0", functionDataType));
             }
+            final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
+            final List<String> fieldNames = DataType.getFieldNames(functionDataType);
             return IntStream.range(0, fieldTypes.size())
                     .mapToObj(pos -> DataTypes.FIELD(fieldNames.get(pos), fieldTypes.get(pos)))
                     .collect(Collectors.toList());
