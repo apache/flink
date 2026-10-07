@@ -248,6 +248,8 @@ Once the first full checkpoint completes, all subsequent checkpoints will be tak
 Consequently, once a checkpoint succeeds you can manually delete the original snapshot. You can not do
 this earlier, because without any completed checkpoints Flink will - upon failure - try to recover from the initial snapshot.
 
+The [Changelog state backend]({{< ref "docs/ops/state/state_backends#upgrading-existing-jobs" >}}) cannot take the enforced full checkpoint, so jobs with Changelog enabled must be resumed in *CLAIM* mode.
+
 <div style="text-align: center">
   {{< img src="/fig/restore-mode-no_claim.svg" alt="NO_CLAIM claim mode" width="70%" >}}
 </div>
