@@ -3190,7 +3190,9 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeRoot.BOOLEAN))))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.VARIANT())))
+                    .outputTypeStrategy(
+                            nullableIfArgs(
+                                    ConstantArgumentCount.of(0), explicit(DataTypes.VARIANT())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ParseJsonFunction")
                     .build();
