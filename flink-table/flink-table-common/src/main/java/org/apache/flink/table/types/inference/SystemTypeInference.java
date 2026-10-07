@@ -348,6 +348,12 @@ public class SystemTypeInference {
                                     fields.addAll(deriveRowtimeField(callContext, resolvedArgs));
                                 }
 
+                                if (fields.isEmpty()) {
+                                    throw new ValidationException(
+                                            "A function must produce at least one output column, "
+                                                    + "but the resolved output type is empty.");
+                                }
+
                                 final List<Field> uniqueFields = makeFieldNamesUnique(fields);
 
                                 return DataTypes.ROW(uniqueFields).notNull();
@@ -403,16 +409,11 @@ public class SystemTypeInference {
         }
 
         private List<Field> deriveFunctionOutputFields(DataType functionDataType) {
-            final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
-            final List<String> fieldNames = DataType.getFieldNames(functionDataType);
-
-            if (fieldTypes.isEmpty()) {
-                // Before the system type inference was introduced, SQL and
-                // Table API chose a different default field name.
-                // EXPR$0 is chosen for best-effort backwards compatibility for
-                // SQL users.
+            if (!LogicalTypeChecks.isCompositeType(functionDataType.getLogicalType())) {
                 return List.of(DataTypes.FIELD("EXPR$0", functionDataType));
             }
+            final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
+            final List<String> fieldNames = DataType.getFieldNames(functionDataType);
             return IntStream.range(0, fieldTypes.size())
                     .mapToObj(pos -> DataTypes.FIELD(fieldNames.get(pos), fieldTypes.get(pos)))
                     .collect(Collectors.toList());

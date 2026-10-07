@@ -19,16 +19,21 @@
 package org.apache.flink.table.runtime.functions.ptf;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
+import org.apache.flink.table.runtime.dataview.DataViewUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import java.util.LinkedHashMap;
@@ -109,10 +114,36 @@ public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunctio
                                                 ctx ->
                                                         strategy.inferType(ctx)
                                                                 .map(
-                                                                        DataTypeUtils
-                                                                                ::toInternalDataType),
+                                                                        BuiltInProcessTableFunction
+                                                                                ::toInternalStateType),
                                                 strategy.getTimeToLive(callContext).orElse(null))));
         return result;
+    }
+
+    /**
+     * Converts a state type to its internal representation. For {@link ValueView}/{@link
+     * MapView}/{@link ListView} only the value/key/element types are internalized; the view wrapper
+     * is preserved, unlike {@link DataTypeUtils#toInternalDataType} which would rewrite the whole
+     * view to {@code RowData}.
+     */
+    private static DataType toInternalStateType(final DataType stateType) {
+        final LogicalType logicalType = stateType.getLogicalType();
+        if (DataViewUtils.isDataView(logicalType, ValueView.class)) {
+            final DataType valueType = stateType.getChildren().get(0);
+            return ValueView.newValueViewDataType(DataTypeUtils.toInternalDataType(valueType));
+        }
+        if (DataViewUtils.isDataView(logicalType, MapView.class)) {
+            final DataType mapType = stateType.getChildren().get(0);
+            return MapView.newMapViewDataType(
+                    DataTypeUtils.toInternalDataType(mapType.getChildren().get(0)),
+                    DataTypeUtils.toInternalDataType(mapType.getChildren().get(1)));
+        }
+        if (DataViewUtils.isDataView(logicalType, ListView.class)) {
+            final DataType arrayType = stateType.getChildren().get(0);
+            return ListView.newListViewDataType(
+                    DataTypeUtils.toInternalDataType(arrayType.getChildren().get(0)));
+        }
+        return DataTypeUtils.toInternalDataType(stateType);
     }
 
     @Override
