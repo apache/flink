@@ -497,8 +497,9 @@ Resuming from both savepoints and checkpoints is supported:
 
 {{< hint warning >}}
 The Changelog state backend does not support the default `NO_CLAIM` mode. A job with Changelog enabled
-that is resumed in `NO_CLAIM` mode restores successfully, but its first checkpoint fails with an
-`IllegalStateException` stating that the state backend does not support enforcing a full snapshot.
+that is resumed in `NO_CLAIM` mode restores successfully, but its checkpoints then fail with an
+`IllegalStateException` stating that the state backend does not support enforcing a full snapshot,
+so the job never completes a checkpoint.
 Set [`execution.state-recovery.claim-mode`]({{< ref "docs/deployment/config#execution-state-recovery-claim-mode" >}})
 to `CLAIM` (or pass `-claimMode CLAIM` to `bin/flink run`) whenever you resume a job with Changelog enabled.
 {{< /hint >}}

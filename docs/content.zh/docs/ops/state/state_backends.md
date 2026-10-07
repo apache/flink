@@ -489,7 +489,7 @@ env.enable_changelog_statebackend(true)
 
 {{< hint warning >}}
 Changelog state backend 不支持默认的 `NO_CLAIM` 模式。开启 Changelog 的作业以 `NO_CLAIM` 模式恢复时可以恢复成功，
-但第一个 checkpoint 会失败，并抛出 `IllegalStateException`，提示该 state backend 不支持强制创建完整 snapshot。
+但之后的 checkpoint 都会失败，并抛出 `IllegalStateException`，提示该 state backend 不支持强制创建完整 snapshot，因此作业始终无法完成任何 checkpoint。
 恢复开启 Changelog 的作业时，请将 [`execution.state-recovery.claim-mode`]({{< ref "docs/deployment/config#execution-state-recovery-claim-mode" >}})
 设置为 `CLAIM`（或在 `bin/flink run` 中指定 `-claimMode CLAIM`）。
 {{< /hint >}}
