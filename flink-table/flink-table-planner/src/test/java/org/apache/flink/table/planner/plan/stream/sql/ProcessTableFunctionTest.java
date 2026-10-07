@@ -78,6 +78,7 @@ import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the type inference and planning part of {@link ProcessTableFunction}. */
@@ -125,6 +126,57 @@ class ProcessTableFunctionTest extends TableTestBase {
     void testScalarArgsNoUid() {
         util.addTemporarySystemFunction("f", ScalarArgsFunction.class);
         util.verifyRelPlan("SELECT * FROM f(i => 1, b => true)");
+    }
+
+    @Test
+    void testInsertWithColumnListSetSemanticTable() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        util.verifyRelPlanInsert(
+                "INSERT INTO t_keyed_sink (`out`, `name`) "
+                        + "SELECT `out`, `name` FROM f(r => TABLE t PARTITION BY name, i => 1)");
+    }
+
+    @Test
+    void testInsertWithColumnListRowSemanticTable() {
+        util.addTemporarySystemFunction("f", RowSemanticTableFunction.class);
+        util.verifyRelPlanInsert(
+                "INSERT INTO t_keyed_sink (`out`) SELECT `out` FROM f(r => TABLE t, i => 1)");
+    }
+
+    @Test
+    void testInsertWithColumnListSetSemanticTableAndPadding() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        // reorders the query columns and pads `name0` and `count` with NULL
+        util.verifyRelPlanInsert(
+                "INSERT INTO t_no_pk_sink (`mode`, `name`) "
+                        + "SELECT `out`, `name` FROM f(r => TABLE t PARTITION BY name, i => 1)");
+    }
+
+    @Test
+    void testInsertWithStaticPartitionSetSemanticTable() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE t_partitioned_sink (`name` STRING, `out` STRING, `p` STRING) "
+                                + "PARTITIONED BY (`p`) "
+                                + "WITH ('connector' = 'filesystem', 'path' = '/non', 'format' = 'testcsv')");
+        util.verifyRelPlanInsert(
+                "INSERT INTO t_partitioned_sink PARTITION (`p` = 'x') "
+                        + "SELECT `name`, `out` FROM f(r => TABLE t PARTITION BY name, i => 1)");
+    }
+
+    @Test
+    void testStatementSetWithColumnListSetSemanticTable() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        assertThatCode(
+                        () ->
+                                util.tableEnv()
+                                        .explainSql(
+                                                "EXECUTE STATEMENT SET BEGIN "
+                                                        + "INSERT INTO t_sink SELECT `out` FROM f(r => TABLE t PARTITION BY name, i => 1);"
+                                                        + "INSERT INTO t_keyed_sink (`out`, `name`) SELECT `out`, `name` FROM f(r => TABLE t PARTITION BY name, i => 1);"
+                                                        + "END"))
+                .doesNotThrowAnyException();
     }
 
     @Test
