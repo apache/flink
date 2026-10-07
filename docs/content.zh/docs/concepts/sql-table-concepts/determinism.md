@@ -180,6 +180,8 @@ Flink SQL 基于[动态表上的连续查询（continuous query）]({{< ref "doc
 2. 在一个变化的源表上 Lookup Join
 3. [CDC 源表]({{< ref "docs/connectors/table/kafka" >}}#cdc-changelog-source)携带了元数据字段（系统列，不属于实体行本身）
 
+即使能够推导出更新键，过滤条件或 Regular Join 条件中的不确定函数同样会造成 NDU 问题：条件决定了一行及其之后的撤回消息是否被输出，例如 CDC 表上的 `WHERE b > UNIX_TIMESTAMP() - 300` 可能过滤掉某行的撤回消息，而该行的插入消息此前已经通过。`TRY_RESOLVE` 模式会拒绝这类条件。
+
 注意：基于 TTL 淘汰内部状态数据产生的不确定性造成的异常将作为一个运行时容错处理策略单独讨论([FLINK-24666](https://issues.apache.org/jira/browse/FLINK-24666))。
 
 ### 3.3 如何消除流查询的不确定性影响

@@ -507,4 +507,180 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
 
         util.verifyJsonPlan(sql);
     }
+
+    @Test
+    void testCdcWithNonDeterministicFilterSinkWithPk() {
+        // from NonDeterministicDagTest#testCdcWithNonDeterministicFilter
+        util.doVerifyPlanInsert(
+                "insert into sink_with_pk\n"
+                        + "select t1.a, t1.b, t1.c\n"
+                        + "from cdc t1\n"
+                        + "where t1.b > UNIX_TIMESTAMP() - 300",
+                new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
+                false,
+                new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()});
+    }
+
+    @Test
+    void testNonDeterministicFilterOnUpsertKeyColumn() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        // a condition on the key column alone is rejected as well, the key only decides which
+        // row is retracted
+        final String sql = "INSERT INTO sink_with_pk SELECT a, b, c FROM cdc WHERE ndFunc(a) > 100";
+
+        assertThatThrownBy(() -> tEnv.compilePlanSql(sql))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("non deterministic function")
+                .hasMessageContaining("ndFunc");
+    }
+
+    @Test
+    void testDeterministicFilterOnCdcSourceIsAllowed() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        util.verifyJsonPlan("INSERT INTO sink_with_pk SELECT a, b, c FROM cdc WHERE b > 100");
+    }
+
+    @Test
+    void testNonDeterministicKeyFilterOnUpsertSourceWithoutChangelogNormalize() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        tEnv.executeSql(
+                "CREATE TEMPORARY TABLE upsert_src4 (\n"
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c STRING,\n"
+                        + "  PRIMARY KEY (a) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'changelog-mode' = 'I,UA,D'\n"
+                        + ")");
+
+        // a condition on the key column only keeps the Calc on the scan, no ChangelogNormalize
+        // is planned that could carry the condition
+        final String sql =
+                "INSERT INTO sink_with_pk SELECT a, b, c FROM upsert_src4 WHERE a > RAND_INTEGER(10)";
+
+        assertThatThrownBy(() -> tEnv.compilePlanSql(sql))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("non deterministic function")
+                .hasMessageContaining("RAND_INTEGER");
+    }
+
+    @Test
+    void testNonDeterministicKeyFilterBelowChangelogNormalize() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        tEnv.executeSql(
+                "CREATE TEMPORARY TABLE upsert_src5 (\n"
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c STRING,\n"
+                        + "  PRIMARY KEY (a) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'changelog-mode' = 'I,UA,D'\n"
+                        + ")");
+
+        // PushCalcPastChangelogNormalizeRule moves the key-only part of the condition into a Calc
+        // below the ChangelogNormalize and keeps the non-key part inside it
+        final String sql =
+                "INSERT INTO sink_with_pk SELECT a, b, c FROM upsert_src5"
+                        + " WHERE a > RAND_INTEGER(10) AND b > 100";
+
+        assertThatThrownBy(() -> tEnv.compilePlanSql(sql))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("non deterministic function")
+                .hasMessageContaining("RAND_INTEGER");
+    }
+
+    @Test
+    void testNonDeterministicFilterAboveReusedChangelogNormalize() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        // without projection push-down both scans share one digest, the ChangelogNormalize is
+        // marked as source-reused and PushCalcPastChangelogNormalizeRule leaves the differing
+        // conditions in Calcs above it
+        tEnv.executeSql(
+                "CREATE TEMPORARY TABLE upsert_src6 (\n"
+                        + "  a INT,\n"
+                        + "  b BIGINT,\n"
+                        + "  c STRING,\n"
+                        + "  d BIGINT,\n"
+                        + "  PRIMARY KEY (a) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'changelog-mode' = 'I,UA,D',\n"
+                        + "  'enable-projection-push-down' = 'false'\n"
+                        + ")");
+
+        final String sql =
+                "INSERT INTO sink_with_pk SELECT t1.a, t1.b, t2.c FROM"
+                        + " (SELECT * FROM upsert_src6 WHERE b > UNIX_TIMESTAMP() - 300) t1"
+                        + " JOIN (SELECT * FROM upsert_src6 WHERE d < RAND_INTEGER(10)) t2"
+                        + " ON t1.a = t2.a";
+
+        assertThatThrownBy(() -> tEnv.compilePlanSql(sql))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("non deterministic function")
+                .hasMessageContaining("UNIX_TIMESTAMP");
+    }
+
+    @Test
+    void testNonDeterministicKeyFilterOnDeleteByKeyPipeline() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                        NonDeterministicUpdateStrategy.TRY_RESOLVE);
+
+        tEnv.executeSql(
+                "CREATE TEMPORARY TABLE delete_by_key_src (\n"
+                        + "  id INT,\n"
+                        + "  name STRING,\n"
+                        + "  v INT,\n"
+                        + "  PRIMARY KEY (id) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'changelog-mode' = 'I,UA,D',\n"
+                        + "  'source.produces-delete-by-key' = 'true'\n"
+                        + ")");
+        tEnv.executeSql(
+                "CREATE TEMPORARY TABLE delete_by_key_sink (\n"
+                        + "  id INT,\n"
+                        + "  name STRING,\n"
+                        + "  v INT,\n"
+                        + "  PRIMARY KEY (id) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false',\n"
+                        + "  'sink-changelog-mode-enforced' = 'I,UA,D',\n"
+                        + "  'sink.supports-delete-by-key' = 'true'\n"
+                        + ")");
+
+        // key-only deletes are forwarded through the Calc without a ChangelogNormalize
+        final String sql =
+                "INSERT INTO delete_by_key_sink SELECT id, name, v FROM delete_by_key_src"
+                        + " WHERE id = RAND_INTEGER(10)";
+
+        assertThatThrownBy(() -> tEnv.compilePlanSql(sql))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining("non deterministic function")
+                .hasMessageContaining("RAND_INTEGER");
+    }
 }

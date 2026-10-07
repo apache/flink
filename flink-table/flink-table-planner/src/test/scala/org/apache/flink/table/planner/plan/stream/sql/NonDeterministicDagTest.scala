@@ -36,7 +36,7 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.assertj.core.api.Assertions.{assertThatCode, assertThatThrownBy}
+import org.assertj.core.api.Assertions.{assertThatCode, assertThatExceptionOfType, assertThatThrownBy}
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
@@ -607,13 +607,22 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
 
   @TestTemplate
   def testCdcWithNonDeterministicFilter(): Unit = {
-    // TODO should throw error if tryResolve is true after FLINK-28737 was fixed
-    util.verifyExecPlanInsert(s"""
-                                 |insert into sink_with_pk
-                                 |select t1.a, t1.b, t1.c
-                                 |from cdc t1
-                                 |where t1.b > UNIX_TIMESTAMP() - 300
-                                 |""".stripMargin)
+    val callable: ThrowingCallable = () =>
+      util.verifyExecPlanInsert(s"""
+                                   |insert into sink_with_pk
+                                   |select t1.a, t1.b, t1.c
+                                   |from cdc t1
+                                   |where t1.b > UNIX_TIMESTAMP() - 300
+                                   |""".stripMargin)
+
+    if (tryResolve) {
+      assertThatExceptionOfType(classOf[TableException])
+        .isThrownBy(callable)
+        .withMessageContaining(
+          "exists non deterministic function: 'UNIX_TIMESTAMP' in condition: '>($1, -(UNIX_TIMESTAMP(), 300))' which may cause wrong result")
+    } else {
+      assertThatCode(callable).doesNotThrowAnyException()
+    }
   }
 
   @TestTemplate
