@@ -269,10 +269,10 @@ Calc(select=[a, b])
 +- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (rowtime >= (rowtime0 - 10000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0], earlyFireDelay=[5000], earlyFireTimeMode=[PROCTIME])
    :- Exchange(distribution=[hash[a]])
    :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime])
    +- Exchange(distribution=[hash[a]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 ]]>
     </Resource>
   </TestCase>
