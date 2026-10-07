@@ -58,6 +58,8 @@ import static org.apache.flink.util.CollectionUtil.entry;
 
 /** Test {@link BuiltInFunctionDefinitions#MAP} and its return type. */
 public class MapFunctionITCase extends BuiltInFunctionTestBase {
+    private static final String NO_KEY_EQUALITY =
+            "Map keys of type VARIANT cannot be compared, because the type has no equality. Cast the keys to a comparable type first.";
     private static final LocalDate TEST_DATE_1 = LocalDate.of(1985, 11, 4);
     private static final LocalDate TEST_DATE_2 = LocalDate.of(2018, 7, 26);
     private static final LocalTime TEST_TIME_1 = LocalTime.of(17, 18, 19);
@@ -658,13 +660,14 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                 "MAP_CONTAINS_KEY(f3, ARRAY[1, 2])",
                                 true,
                                 DataTypes.BOOLEAN())
-                        // there is no VARIANT literal, so the key is built with PARSE_JSON
-                        .testResult(
-                                map(call("PARSE_JSON", "1"), lit(1))
-                                        .mapContainsKey(call("PARSE_JSON", "1")),
+                        // a VARIANT key has no equality, so the lookup is rejected
+                        .testTableApiValidationError(
+                                map(lit("1").parseJson(), lit(1))
+                                        .mapContainsKey(lit("1").parseJson()),
+                                NO_KEY_EQUALITY)
+                        .testSqlValidationError(
                                 "MAP_CONTAINS_KEY(MAP[PARSE_JSON('1'), 1], PARSE_JSON('1'))",
-                                true,
-                                DataTypes.BOOLEAN().notNull()),
+                                NO_KEY_EQUALITY),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.MAP_CONTAINS_KEY, "Documented examples")
                         .onFieldsWithData(1)
@@ -887,6 +890,13 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "MAP_UNION(f7, ARRAY[1, 2, 3, 4])",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "MAP_UNION(<COMMON>, <COMMON>...)"));
+                                        + "MAP_UNION(<COMMON>, <COMMON>...)")
+                        .testTableApiValidationError(
+                                map(lit("1").parseJson(), lit(1))
+                                        .mapUnion(map(lit("1").parseJson(), lit(2))),
+                                NO_KEY_EQUALITY)
+                        .testSqlValidationError(
+                                "MAP_UNION(MAP[PARSE_JSON('1'), 1], MAP[PARSE_JSON('1'), 2])",
+                                NO_KEY_EQUALITY));
     }
 }

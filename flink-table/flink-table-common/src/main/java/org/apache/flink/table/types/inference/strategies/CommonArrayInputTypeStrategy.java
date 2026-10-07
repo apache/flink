@@ -28,6 +28,15 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 public final class CommonArrayInputTypeStrategy extends CommonCollectionInputTypeStrategy {
 
     public CommonArrayInputTypeStrategy(ArgumentCount argumentCount) {
-        super(argumentCount, "All arguments requires to be a ARRAY type", LogicalTypeRoot.ARRAY);
+        this(argumentCount, false);
+    }
+
+    public CommonArrayInputTypeStrategy(
+            ArgumentCount argumentCount, boolean requiresElementEquality) {
+        super(
+                argumentCount,
+                "All arguments requires to be a ARRAY type",
+                LogicalTypeRoot.ARRAY,
+                requiresElementEquality);
     }
 }

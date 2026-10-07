@@ -1733,6 +1733,11 @@ one, where it compares values:
   argument
 - as an operand of a comparison such as `=`, `<>`, `<`, `IS DISTINCT FROM`, or `IN`, which includes
   join conditions
+- as the array element or map key that a function compares, as in `ARRAY_CONTAINS`,
+  `ARRAY_DISTINCT`, `ARRAY_POSITION`, `ARRAY_REMOVE`, `ARRAY_UNION`, `ARRAY_EXCEPT`,
+  `ARRAY_INTERSECT`, `MAP_CONTAINS_KEY`, `MAP_UNION`, and `MAP_FROM_ENTRIES`
+- as an argument of a function that orders values, such as `GREATEST`, `LEAST`, `MIN`, `MAX`,
+  `ARRAY_SORT`, `ARRAY_MIN`, and `ARRAY_MAX`
 
 Such a query fails before it runs. Cast the value to a concrete type first, or use `TRY_CAST` when
 some values do not fit the type. A `VARIANT` can still be selected, read with field access, checked

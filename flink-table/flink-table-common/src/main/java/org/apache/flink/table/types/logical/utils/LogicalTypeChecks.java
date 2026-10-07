@@ -283,6 +283,10 @@ public final class LogicalTypeChecks {
             return true;
         }
 
+        if (!isComparableKeyType(firstType) || !isComparableKeyType(secondType)) {
+            return false;
+        }
+
         if (firstType.getTypeRoot() == secondType.getTypeRoot()) {
             return areTypesOfSameRootComparable(firstType, secondType, requiredComparison);
         }
