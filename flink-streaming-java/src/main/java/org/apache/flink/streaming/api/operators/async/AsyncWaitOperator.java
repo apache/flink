@@ -368,11 +368,10 @@ public class AsyncWaitOperator<IN, OUT>
                     assert delegator.delayedRetryTimer != null;
                     // cancel delayedRetryTimer timer first
                     delegator.cancelRetryTimer();
-
                     // fire an attempt intermediately not rely on successfully canceling the retry
                     // timer for two reasons: 1. cancel retry timer can not be 100% safe 2. there's
                     // protection for repeated retries
-                    tryOnce(delegator);
+                    delegator.finish();
                 }
                 inFlightDelayRetryHandlers.clear();
             }
@@ -484,8 +483,11 @@ public class AsyncWaitOperator<IN, OUT>
          */
         private final AtomicBoolean retryAwaiting = new AtomicBoolean(false);
 
-        // set once the timeout fired; makes the result terminal and bypass the retry path
+        // Timeout owns completion once this is set; callbacks from old attempts must be ignored.
         private final AtomicBoolean timedOut = new AtomicBoolean(false);
+
+        // The final drain attempt owns completion once input finishes.
+        private final AtomicBoolean finishing = new AtomicBoolean(false);
 
         public RetryableResultHandlerDelegator(
                 StreamRecord<IN> inputRecord,
@@ -519,7 +521,7 @@ public class AsyncWaitOperator<IN, OUT>
                 // force reset retryAwaiting to prevent the handler to trigger retry unnecessarily
                 retryAwaiting.set(false);
 
-                userFunction.timeout(resultHandler.inputRecord.getValue(), this);
+                userFunction.timeout(resultHandler.inputRecord.getValue(), resultHandler);
             }
         }
 
@@ -527,59 +529,73 @@ public class AsyncWaitOperator<IN, OUT>
         public void complete(Collection<OUT> results) {
             Preconditions.checkNotNull(
                     results, "Results must not be null, use empty collection to emit nothing");
-            if (shouldProcessResultForRetry()) {
-                processRetryInMailBox(results, null);
-            } else {
-                cancelRetryTimer();
-
-                resultHandler.complete(results);
-            }
+            processRetryInMailBox(results, null);
         }
 
         @Override
         public void completeExceptionally(Throwable error) {
-            if (shouldProcessResultForRetry()) {
-                processRetryInMailBox(null, error);
-            } else {
-                cancelRetryTimer();
-
-                resultHandler.completeExceptionally(error);
-            }
+            processRetryInMailBox(null, error);
         }
 
         @Override
         public void complete(CollectionSupplier<OUT> supplier) {
             Preconditions.checkNotNull(
                     supplier, "Runnable must not be null, return empty collection to emit nothing");
-            if (shouldProcessResultForRetry()) {
-                mailboxExecutor.execute(
-                        () -> {
-                            Collection<OUT> results;
-                            try {
-                                results = supplier.get();
-                            } catch (Throwable t) {
-                                processRetry(null, t);
-                                return;
-                            }
-                            processRetry(results, null);
-                        },
-                        "RetryableResultHandlerDelegator#complete");
-            } else {
-                cancelRetryTimer();
+            if (isCompleted()) {
+                return;
+            }
+            final boolean finishWithoutRetry = retryDisabledOnFinish.get();
+            mailboxExecutor.execute(
+                    () -> {
+                        if (isCompleted()) {
+                            return;
+                        }
+                        if (finishWithoutRetry) {
+                            cancelRetryTimer();
+                            resultHandler.complete(supplier);
+                            return;
+                        }
+                        Collection<OUT> results;
+                        try {
+                            results = supplier.get();
+                        } catch (Throwable t) {
+                            processRetry(null, t);
+                            return;
+                        }
+                        processRetry(results, null);
+                    },
+                    "RetryableResultHandlerDelegator#complete");
+        }
 
-                resultHandler.complete(supplier);
+        private boolean isCompleted() {
+            return timedOut.get() || finishing.get() || resultHandler.completed.get();
+        }
+
+        private void finish() throws Exception {
+            if (finishing.compareAndSet(false, true)) {
+                currentAttempts++;
+                userFunction.asyncInvoke(resultHandler.inputRecord.getValue(), resultHandler);
             }
         }
 
-        private boolean shouldProcessResultForRetry() {
-            return !timedOut.get()
-                    && !retryDisabledOnFinish.get()
-                    && resultHandler.inputRecord.isRecord();
-        }
-
         private void processRetryInMailBox(Collection<OUT> results, Throwable error) {
+            if (isCompleted()) {
+                return;
+            }
+            final boolean finishWithoutRetry = retryDisabledOnFinish.get();
             mailboxExecutor.execute(
-                    () -> processRetry(results, error), "delayed retry or complete");
+                    () -> {
+                        if (isCompleted()) {
+                            return;
+                        }
+                        if (finishWithoutRetry) {
+                            cancelRetryTimer();
+                            completeWithoutRetry(results, error);
+                        } else {
+                            processRetry(results, error);
+                        }
+                    },
+                    "delayed retry or complete");
         }
 
         private boolean isTimeout() {
@@ -588,9 +604,7 @@ public class AsyncWaitOperator<IN, OUT>
 
         private void processRetry(Collection<OUT> results, Throwable error) throws Exception {
             // Ignore terminal or repeated results, including mail queued before the timeout.
-            if (timedOut.get()
-                    || resultHandler.completed.get()
-                    || !retryAwaiting.compareAndSet(false, true)) {
+            if (isCompleted() || !retryAwaiting.compareAndSet(false, true)) {
                 return;
             }
 
@@ -627,18 +641,21 @@ public class AsyncWaitOperator<IN, OUT>
                 if (currentAttempts > 1) {
                     inFlightDelayRetryHandlers.remove(this);
                 }
-                // retry unsatisfied, complete it
-                if (null != results) {
-                    resultHandler.complete(results);
-                } else {
-                    resultHandler.completeExceptionally(error);
-                }
+                completeWithoutRetry(results, error);
+            }
+        }
+
+        private void completeWithoutRetry(Collection<OUT> results, Throwable error) {
+            if (null != results) {
+                resultHandler.complete(results);
+            } else {
+                resultHandler.completeExceptionally(error);
             }
         }
 
         private void doRetry() throws Exception {
             // fire a retry only when it is in awaiting state, otherwise timeout may already happen
-            if (retryAwaiting.compareAndSet(true, false)) {
+            if (!retryDisabledOnFinish.get() && retryAwaiting.compareAndSet(true, false)) {
                 tryOnce(this);
             }
         }
