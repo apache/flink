@@ -212,11 +212,11 @@ $ bin/flink run -s :savepointPath -claimMode :mode -n [:runArgs]
 
 一旦第一个全量的 checkpoint 完成后，所有后续的 checkpoint 会照常创建。所以，一旦一个 checkpoint 成功制作，就可以删除原快照。在此之前不能删除原快照，因为没有任何完成的 checkpoint，Flink 会在故障时尝试从初始的快照恢复。
 
-[Changelog state backend]({{< ref "docs/ops/state/state_backends#upgrading-existing-jobs" >}}) 无法创建强制的全量 checkpoint，因此开启 Changelog 的作业必须以 *CLAIM* 模式恢复。
-
 <div style="text-align: center">
   {{< img src="/fig/restore-mode-no_claim.svg" alt="NO_CLAIM mode" width="70%" >}}
 </div>
+
+[Changelog state backend]({{< ref "docs/ops/state/state_backends#upgrading-existing-jobs" >}}) 不支持强制创建全量 checkpoint，因此开启 Changelog 的作业必须以 *CLAIM* 模式恢复。
 
 **CLAIM**
 
