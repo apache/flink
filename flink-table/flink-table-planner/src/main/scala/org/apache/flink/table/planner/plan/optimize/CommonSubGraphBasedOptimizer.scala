@@ -76,6 +76,9 @@ abstract class CommonSubGraphBasedOptimizer extends Optimizer {
    *   a list of RelNode represents an optimized RelNode DAG.
    */
   override def optimize(roots: Seq[RelNode]): Seq[RelNode] = {
+    // validate before the optimizer rewrites the keys that the query asks for
+    KeyTypeValidator.validate(toJava(roots))
+
     // resolve hints before optimizing
     val queryHintsResolver = new QueryHintsResolver()
     val resolvedHintRoots = queryHintsResolver.resolve(toJava(roots))

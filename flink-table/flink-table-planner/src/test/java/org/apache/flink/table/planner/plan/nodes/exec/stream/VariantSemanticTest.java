@@ -145,16 +145,16 @@ public class VariantSemanticTest extends SemanticTestBase {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .addSchema("fv VARIANT", "lv VARIANT", "c BIGINT", "dc BIGINT")
+                                    .addSchema("fv VARIANT", "lv VARIANT", "c BIGINT")
                                     .consumedValues(
-                                            Row.of(V1, V1, 1, 1),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, V1, V1, 1, 1),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, V1, V2, 2, 2),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, V1, V2, 2, 2),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, V1, V2, 3, 2))
+                                            Row.of(V1, V1, 1),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, V1, V1, 1),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, V1, V2, 2),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, V1, V2, 2),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, V1, V2, 3))
                                     .build())
                     .runSql(
-                            "INSERT INTO sink_t SELECT FIRST_VALUE(v), LAST_VALUE(v), COUNT(v), COUNT(DISTINCT v) FROM t")
+                            "INSERT INTO sink_t SELECT FIRST_VALUE(v), LAST_VALUE(v), COUNT(v) FROM t")
                     .build();
 
     static final TableTestProgram BUILTIN_AGG_WITH_RETRACTION =
@@ -172,18 +172,18 @@ public class VariantSemanticTest extends SemanticTestBase {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .addSchema("fv VARIANT", "lv VARIANT", "c BIGINT", "dc BIGINT")
+                                    .addSchema("fv VARIANT", "lv VARIANT", "c BIGINT")
                                     .consumedValues(
-                                            Row.of(V1, V1, 1, 1),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, V1, V1, 1, 1),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, V1, V2, 2, 2),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, V1, V2, 2, 2),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, V1, V2, 3, 2),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, V1, V2, 3, 2),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, V2, V2, 2, 1))
+                                            Row.of(V1, V1, 1),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, V1, V1, 1),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, V1, V2, 2),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, V1, V2, 2),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, V1, V2, 3),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, V1, V2, 3),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, V2, V2, 2))
                                     .build())
                     .runSql(
-                            "INSERT INTO sink_t SELECT FIRST_VALUE(v), LAST_VALUE(v), COUNT(v), COUNT(DISTINCT v) FROM t")
+                            "INSERT INTO sink_t SELECT FIRST_VALUE(v), LAST_VALUE(v), COUNT(v) FROM t")
                     .build();
 
     static final TableTestProgram VARIANT_AS_UDF_ARG =
@@ -277,25 +277,115 @@ public class VariantSemanticTest extends SemanticTestBase {
                     .build();
 
     static final TableTestProgram VARIANT_AS_AGG_KEY =
-            TableTestProgram.of("variant-as-agg-key", "validates variant as agg key")
+            TableTestProgram.of(
+                            "variant-as-agg-key", "validates that a variant cannot be an agg key")
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema("k VARIANT", "v INTEGER")
-                                    .producedValues(
-                                            Row.of(BUILDER.of(1), 1),
-                                            Row.of(BUILDER.of(2), 2),
-                                            Row.of(BUILDER.of(1), 2))
+                                    .producedValues(Row.of(BUILDER.of(1), 1))
                                     .build())
+                    .runFailingSql(
+                            "SELECT k, SUM(v) AS total FROM t GROUP BY k",
+                            ValidationException.class,
+                            "Column 'k' of type VARIANT cannot be used as a grouping key, "
+                                    + "because the type has no equality. "
+                                    + "Cast the value to a comparable type first.")
+                    .build();
+
+    static final SourceTestStep OBJECTS_WITH_DIFFERENT_KEYS_SOURCE =
+            SourceTestStep.newBuilder("t")
+                    .addSchema("s STRING")
+                    .producedValues(
+                            Row.of("{\"a\":1,\"b\":2}"),
+                            Row.of("{\"b\":2,\"a\":1}"),
+                            Row.of("{\"a\":1,\"c\":3}"))
+                    .build();
+
+    static final TableTestProgram VARIANT_FIELD_CAST_AS_AGG_KEY =
+            TableTestProgram.of(
+                            "variant-field-cast-as-agg-key",
+                            "validates that casting a variant field before grouping forms one group")
+                    .setupTableSource(OBJECTS_WITH_DIFFERENT_KEYS_SOURCE)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .addSchema("k VARIANT", "total INTEGER")
+                                    .addSchema("a INT", "cnt BIGINT")
                                     .consumedValues(
-                                            Row.of(1, 1),
-                                            Row.of(2, 2),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1, 1),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, 3))
+                                            Row.of(1, 1L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1, 1L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, 2L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1, 2L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, 3L))
                                     .build())
-                    .runSql("INSERT INTO sink_t SELECT k, SUM(v) AS total FROM t GROUP BY k")
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a, COUNT(*) FROM "
+                                    + "(SELECT CAST(PARSE_JSON(s)['a'] AS INT) AS a FROM t) GROUP BY a")
+                    .build();
+
+    static final TableTestProgram VARIANT_FIELD_AS_AGG_KEY =
+            TableTestProgram.of(
+                            "variant-field-as-agg-key",
+                            "validates that a variant field cannot be an agg key")
+                    .setupTableSource(OBJECTS_WITH_DIFFERENT_KEYS_SOURCE)
+                    .runFailingSql(
+                            "SELECT a, COUNT(*) FROM (SELECT PARSE_JSON(s)['a'] AS a FROM t) GROUP BY a",
+                            ValidationException.class,
+                            "Column 'a' of type VARIANT cannot be used as a grouping key")
+                    .build();
+
+    static final TableTestProgram VARIANT_OBJECT_AS_DISTINCT_KEY =
+            TableTestProgram.of(
+                            "variant-object-as-distinct-key",
+                            "validates that a variant cannot be a DISTINCT key")
+                    .setupTableSource(OBJECTS_WITH_DIFFERENT_KEYS_SOURCE)
+                    .runFailingSql(
+                            "SELECT COUNT(DISTINCT PARSE_JSON(s)) FROM t",
+                            ValidationException.class,
+                            "of type VARIANT cannot be used as an argument of a DISTINCT aggregate")
+                    .runFailingSql(
+                            "SELECT DISTINCT PARSE_JSON(s) FROM t",
+                            ValidationException.class,
+                            "of type VARIANT cannot be used as a grouping key")
+                    .build();
+
+    static final TableTestProgram VARIANT_FIELD_EQUALS_VARIANT =
+            TableTestProgram.of(
+                            "variant-field-equals-variant",
+                            "validates that variants cannot be compared with = or IS [NOT] DISTINCT FROM")
+                    .setupTableSource(OBJECTS_WITH_DIFFERENT_KEYS_SOURCE)
+                    .runFailingSql(
+                            "SELECT s FROM t WHERE PARSE_JSON(s)['a'] = PARSE_JSON('1')",
+                            ValidationException.class,
+                            "An expression of type VARIANT cannot be used in a comparison with '='")
+                    // the SQL converter expands IS [NOT] DISTINCT FROM into =
+                    .runFailingSql(
+                            "SELECT s FROM t WHERE PARSE_JSON(s)['a'] IS DISTINCT FROM PARSE_JSON('1')",
+                            ValidationException.class,
+                            "An expression of type VARIANT cannot be used in a comparison with '='")
+                    .runFailingSql(
+                            "SELECT s FROM t WHERE PARSE_JSON(s)['a'] IS NOT DISTINCT FROM PARSE_JSON('1')",
+                            ValidationException.class,
+                            "An expression of type VARIANT cannot be used in a comparison with '='")
+                    .build();
+
+    static final TableTestProgram VARIANT_FIELD_AS_JOIN_KEY =
+            TableTestProgram.of(
+                            "variant-field-as-join-key",
+                            "validates that a variant field cannot be a join key")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("l")
+                                    .addSchema("s STRING")
+                                    .producedValues(Row.of("{\"id\":7,\"x\":1}"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("r")
+                                    .addSchema("s STRING")
+                                    .producedValues(Row.of("{\"y\":2,\"id\":7}"))
+                                    .build())
+                    .runFailingSql(
+                            "SELECT PARSE_JSON(l.s)['x'], PARSE_JSON(r.s)['y'] "
+                                    + "FROM l JOIN r ON PARSE_JSON(l.s)['id'] = PARSE_JSON(r.s)['id']",
+                            ValidationException.class,
+                            "An expression of type VARIANT cannot be used in a comparison with '='")
                     .build();
 
     public static final SourceTestStep VARIANT_ARRAY_SOURCE =
@@ -512,6 +602,11 @@ public class VariantSemanticTest extends SemanticTestBase {
                 VARIANT_IN_VIEW,
                 VARIANT_AS_UDAF_ARG,
                 VARIANT_AS_AGG_KEY,
+                VARIANT_FIELD_CAST_AS_AGG_KEY,
+                VARIANT_FIELD_AS_AGG_KEY,
+                VARIANT_OBJECT_AS_DISTINCT_KEY,
+                VARIANT_FIELD_EQUALS_VARIANT,
+                VARIANT_FIELD_AS_JOIN_KEY,
                 VARIANT_ARRAY_ACCESS,
                 VARIANT_ARRAY_ACCESS_WITH_DIFFERENT_INDEX_TYPES,
                 VARIANT_OBJECT_ACCESS,

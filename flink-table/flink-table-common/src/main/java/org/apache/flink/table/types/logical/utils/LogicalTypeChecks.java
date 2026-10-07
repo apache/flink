@@ -257,6 +257,17 @@ public final class LogicalTypeChecks {
                 firstType.copy(true), secondType.copy(true), requiredComparison);
     }
 
+    /**
+     * Checks whether a (possibly nested) logical type contains no VARIANT, which every grouping,
+     * join, partition and sort key and every operand of a comparison operator needs.
+     *
+     * <p>A VARIANT value has many valid binary encodings, so two equal values can differ in their
+     * bytes.
+     */
+    public static boolean isComparableKeyType(LogicalType logicalType) {
+        return !hasNested(logicalType, t -> t.is(LogicalTypeRoot.VARIANT));
+    }
+
     private static boolean areComparableWithNormalizedNullability(
             LogicalType firstType,
             LogicalType secondType,
