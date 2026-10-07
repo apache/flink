@@ -1010,6 +1010,137 @@ LogicalProject(a=[$0], b=[$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testExistsWithCorrelatedOnWhere_Union1">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE EXISTS (SELECT e FROM r WHERE l.a = r.d AND d > 10 UNION SELECT i FROM t WHERE i < 100)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[EXISTS({
+LogicalUnion(all=[false])
+  LogicalProject(e=[$1])
+    LogicalFilter(condition=[AND(=($cor0.a, $0), >($0, 10))])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
+  LogicalProject(i=[$0])
+    LogicalFilter(condition=[<($0, 100)])
+      LogicalTableScan(table=[[default_catalog, default_database, t]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $3)], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, l]])
+   +- LogicalProject(a=[$0], $f1=[true])
+      +- LogicalAggregate(group=[{0}])
+         +- LogicalProject(a=[$0])
+            +- LogicalUnion(all=[false])
+               :- LogicalProject(a=[$0], e=[$1])
+               :  +- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $2)], joinType=[inner])
+               :     :- LogicalAggregate(group=[{0}])
+               :     :  +- LogicalProject(a=[$0])
+               :     :     +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+               :     +- LogicalProject(e=[$1], d=[$0])
+               :        +- LogicalFilter(condition=[>($0, 10)])
+               :           +- LogicalTableScan(table=[[default_catalog, default_database, r]])
+               +- LogicalProject(a=[$0], i=[$1])
+                  +- LogicalJoin(condition=[true], joinType=[inner])
+                     :- LogicalAggregate(group=[{0}])
+                     :  +- LogicalProject(a=[$0])
+                     :     +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+                     +- LogicalProject(i=[$0])
+                        +- LogicalFilter(condition=[<($0, 100)])
+                           +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelatedOnWhere_Union2">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE EXISTS (SELECT e FROM r WHERE l.a = r.d AND d > 10 UNION SELECT i FROM t WHERE l.c = t.k AND i < 100)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[EXISTS({
+LogicalUnion(all=[false])
+  LogicalProject(e=[$1])
+    LogicalFilter(condition=[AND(=($cor0.a, $0), >($0, 10))])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
+  LogicalProject(i=[$0])
+    LogicalFilter(condition=[AND(=($cor0.c, $2), <($0, 100))])
+      LogicalTableScan(table=[[default_catalog, default_database, t]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalJoin(condition=[AND(IS NOT DISTINCT FROM($0, $3), IS NOT DISTINCT FROM($2, $4))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, l]])
+   +- LogicalProject(a=[$0], c=[$1], $f2=[true])
+      +- LogicalAggregate(group=[{0, 1}])
+         +- LogicalProject(a=[$0], c=[$1])
+            +- LogicalUnion(all=[false])
+               :- LogicalProject(a=[$0], c=[$1], e=[$2])
+               :  +- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $3)], joinType=[inner])
+               :     :- LogicalAggregate(group=[{0, 1}])
+               :     :  +- LogicalProject(a=[$0], c=[$2])
+               :     :     +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+               :     +- LogicalProject(e=[$1], d=[$0])
+               :        +- LogicalFilter(condition=[>($0, 10)])
+               :           +- LogicalTableScan(table=[[default_catalog, default_database, r]])
+               +- LogicalProject(a=[$0], c=[$1], i=[$2])
+                  +- LogicalJoin(condition=[IS NOT DISTINCT FROM($1, $3)], joinType=[inner])
+                     :- LogicalAggregate(group=[{0, 1}])
+                     :  +- LogicalProject(a=[$0], c=[$2])
+                     :     +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+                     +- LogicalProject(i=[$0], k=[$2])
+                        +- LogicalFilter(condition=[AND(<($0, 100), IS NOT NULL($2))])
+                           +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExistsWithCorrelatedOnWhere_UnsupportedCondition2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l WHERE EXISTS  (SELECT * FROM (SELECT * FROM r WHERE r.d = l.a AND r.e > 100) s LEFT JOIN t ON s.f = t.k AND l.b = t.j)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalJoin(condition=[AND(=($2, $5), =($cor1.b, $4))], joinType=[left])
+  LogicalProject(d=[$0], e=[$1], f=[$2])
+    LogicalFilter(condition=[AND(=($0, $cor1.a), >($1, 100))])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
+})], variablesSet=[[$cor1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, l]])
+   +- LogicalProject(d3=[$0], b=[$1], $f2=[true])
+      +- LogicalAggregate(group=[{0, 1}])
+         +- LogicalProject(d3=[$3], b=[$4])
+            +- LogicalJoin(condition=[AND(=($2, $7), =($4, $6))], joinType=[left])
+               :- LogicalJoin(condition=[true], joinType=[inner])
+               :  :- LogicalProject(d=[$0], e=[$1], f=[$2], d3=[$0])
+               :  :  +- LogicalFilter(condition=[AND(>($1, 100), IS NOT NULL($0))])
+               :  :     +- LogicalTableScan(table=[[default_catalog, default_database, r]])
+               :  +- LogicalAggregate(group=[{0}])
+               :     +- LogicalProject(b=[$1])
+               :        +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExistsWithUncorrelatedOnLateralTable1">
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE EXISTS (SELECT * FROM r, LATERAL TABLE(table_func(f)) AS T(f1))]]>
@@ -3028,6 +3159,94 @@ LogicalProject(b=[$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInWithCorrelatedOnWhere_Union1">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE b IN (SELECT e FROM r WHERE l.a = r.d AND d > 10 UNION SELECT i FROM t WHERE i < 100)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[IN($1, {
+LogicalUnion(all=[false])
+  LogicalProject(e=[$1])
+    LogicalFilter(condition=[AND(=($cor0.a, $0), >($0, 10))])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
+  LogicalProject(i=[$0])
+    LogicalFilter(condition=[<($0, 100)])
+      LogicalTableScan(table=[[default_catalog, default_database, t]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalJoin(condition=[AND(IS NOT DISTINCT FROM($0, $3), =($1, $4))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, l]])
+   +- LogicalUnion(all=[false])
+      :- LogicalProject(a=[$0], e=[$1])
+      :  +- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $2)], joinType=[inner])
+      :     :- LogicalAggregate(group=[{0}])
+      :     :  +- LogicalProject(a=[$0])
+      :     :     +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+      :     +- LogicalProject(e=[$1], d=[$0])
+      :        +- LogicalFilter(condition=[>($0, 10)])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, r]])
+      +- LogicalProject(a=[$0], i=[$1])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalAggregate(group=[{0}])
+            :  +- LogicalProject(a=[$0])
+            :     +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+            +- LogicalProject(i=[$0])
+               +- LogicalFilter(condition=[<($0, 100)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithCorrelatedOnWhere_Union2">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM l WHERE b IN (SELECT e FROM r WHERE l.a = r.d AND d > 10 UNION SELECT i FROM t WHERE l.c = t.k AND i < 100)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[IN($1, {
+LogicalUnion(all=[false])
+  LogicalProject(e=[$1])
+    LogicalFilter(condition=[AND(=($cor0.a, $0), >($0, 10))])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
+  LogicalProject(i=[$0])
+    LogicalFilter(condition=[AND(=($cor0.c, $2), <($0, 100))])
+      LogicalTableScan(table=[[default_catalog, default_database, t]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalJoin(condition=[AND(IS NOT DISTINCT FROM($0, $3), IS NOT DISTINCT FROM($2, $4), =($1, $5))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, l]])
+   +- LogicalUnion(all=[false])
+      :- LogicalProject(a=[$0], c=[$1], e=[$2])
+      :  +- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $3)], joinType=[inner])
+      :     :- LogicalAggregate(group=[{0, 1}])
+      :     :  +- LogicalProject(a=[$0], c=[$2])
+      :     :     +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+      :     +- LogicalProject(e=[$1], d=[$0])
+      :        +- LogicalFilter(condition=[>($0, 10)])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, r]])
+      +- LogicalProject(a=[$0], c=[$1], i=[$2])
+         +- LogicalJoin(condition=[IS NOT DISTINCT FROM($1, $3)], joinType=[inner])
+            :- LogicalAggregate(group=[{0, 1}])
+            :  +- LogicalProject(a=[$0], c=[$2])
+            :     +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+            +- LogicalProject(i=[$0], k=[$2])
+               +- LogicalFilter(condition=[AND(<($0, 100), IS NOT NULL($2))])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testInWithUncorrelatedOnHaving1">
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) AS s FROM x GROUP BY b HAVING COUNT(*) > 2 AND b IN (SELECT d FROM y)]]>
@@ -3837,7 +4056,8 @@ LogicalProject(b=[$1])
    :  :  +- LogicalProject(i1=[$0], c=[CASE(IS NOT NULL($2), $2, 0)], ck=[CASE(IS NOT NULL($3), $3, 0)])
    :  :     +- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $1)], joinType=[left])
    :  :        :- LogicalAggregate(group=[{0}])
-   :  :        :  +- LogicalTableScan(table=[[default_catalog, default_database, l]])
+   :  :        :  +- LogicalProject(a=[$0])
+   :  :        :     +- LogicalTableScan(table=[[default_catalog, default_database, l]])
    :  :        +- LogicalAggregate(group=[{0}], c=[COUNT()], ck=[COUNT($1)])
    :  :           +- LogicalProject(i1=[$0], i=[$0])
    :  :              +- LogicalFilter(condition=[IS NOT NULL($0)])
@@ -4312,6 +4532,43 @@ LogicalProject(b=[$1])
          +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
             +- LogicalProject(e1=[$0], e=[$0])
                +- LogicalFilter(condition=[AND(<($1, 100), IS NOT NULL($0))])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, z]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInWithUncorrelatedOnWhere_UnsupportedCondition1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM x WHERE a IN (SELECT c FROM y WHERE x.b IN (SELECT e FROM z))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[IN($cor0.b, {
+LogicalProject(e=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, z]])
+})])
+    LogicalTableScan(table=[[default_catalog, default_database, y]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalJoin(condition=[AND(=($1, $3), =($0, $2))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, x]])
+   +- LogicalAggregate(group=[{0, 1}])
+      +- LogicalProject(c=[$0], b=[$2])
+         +- LogicalJoin(condition=[=($2, $3)], joinType=[inner])
+            :- LogicalJoin(condition=[true], joinType=[inner])
+            :  :- LogicalTableScan(table=[[default_catalog, default_database, y]])
+            :  +- LogicalAggregate(group=[{0}])
+            :     +- LogicalProject(b=[$1])
+            :        +- LogicalTableScan(table=[[default_catalog, default_database, x]])
+            +- LogicalAggregate(group=[{0}])
+               +- LogicalProject(e=[$0])
                   +- LogicalTableScan(table=[[default_catalog, default_database, z]])
 ]]>
     </Resource>
