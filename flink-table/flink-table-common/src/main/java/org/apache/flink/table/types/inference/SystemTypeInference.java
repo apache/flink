@@ -348,13 +348,6 @@ public class SystemTypeInference {
                                     fields.addAll(deriveRowtimeField(callContext, resolvedArgs));
                                 }
 
-                                if (fields.isEmpty()) {
-                                    throw new ValidationException(
-                                            String.format(
-                                                    "Function '%s' must produce at least one output column.",
-                                                    callContext.getName()));
-                                }
-
                                 final List<Field> uniqueFields = makeFieldNamesUnique(fields);
 
                                 return DataTypes.ROW(uniqueFields).notNull();
@@ -417,7 +410,6 @@ public class SystemTypeInference {
                 // backwards compatibility with the pre-system-type-inference default.
                 return List.of(DataTypes.FIELD("EXPR$0", functionDataType));
             }
-            // For composite types, extract field names/types and build output
             final List<DataType> fieldTypes = DataType.getFieldDataTypes(functionDataType);
             final List<String> fieldNames = DataType.getFieldNames(functionDataType);
             return IntStream.range(0, fieldTypes.size())

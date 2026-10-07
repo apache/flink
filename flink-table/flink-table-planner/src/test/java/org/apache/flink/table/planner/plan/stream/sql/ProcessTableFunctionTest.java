@@ -214,11 +214,14 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    void testEmptyFunctionOutputWithoutColumns() {
+    void testZeroColumnOutput() {
         util.addTemporarySystemFunction("f", EmptyOutputRowSemanticFunction.class);
-        assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM f(r => TABLE t)"))
-                .satisfies(
-                        anyCauseMatches("Function 'f' must produce at least one output column."));
+        assertThat(
+                        util.tableEnv()
+                                .sqlQuery("SELECT * FROM f(r => TABLE t)")
+                                .getResolvedSchema()
+                                .getColumnNames())
+                .isEmpty();
     }
 
     @Test
