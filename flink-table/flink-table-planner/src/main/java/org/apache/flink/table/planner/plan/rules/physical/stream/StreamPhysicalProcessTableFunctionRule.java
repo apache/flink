@@ -85,7 +85,7 @@ public class StreamPhysicalProcessTableFunctionRule extends ConverterRule {
                 (BridgingSqlFunction.WithTableFunction) rexCall.getOperator();
         final List<RexNode> operands = rexCall.getOperands();
         final List<RelNode> newInputs =
-                applyDistributionOnInputs(function, operands, rel.getInputs());
+                applyDistributionOnInputs(rexCall, function, operands, rel.getInputs());
         final RelTraitSet providedTraitSet =
                 rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
         return new StreamPhysicalProcessTableFunction(
@@ -93,9 +93,14 @@ public class StreamPhysicalProcessTableFunctionRule extends ConverterRule {
     }
 
     private static List<RelNode> applyDistributionOnInputs(
+            RexCall call,
             BridgingSqlFunction.WithTableFunction function,
             List<RexNode> operands,
             List<RelNode> inputs) {
+        // Broadcast tables report SET semantics towards Calcite, so the broadcast distribution is
+        // derived from the static argument traits
+        final boolean[] broadcastByInput =
+                StreamPhysicalProcessTableFunction.broadcastByInput(call, inputs.size());
         return Ord.zip(operands).stream()
                 .filter(operand -> operand.e instanceof RexTableArgCall)
                 .map(
@@ -108,15 +113,19 @@ public class StreamPhysicalProcessTableFunctionRule extends ConverterRule {
                             return applyDistributionOnInput(
                                     tableArgCall,
                                     tableCharacteristic,
+                                    broadcastByInput[tableArgCall.getInputIndex()],
                                     inputs.get(tableArgCall.getInputIndex()));
                         })
                 .collect(Collectors.toList());
     }
 
     private static RelNode applyDistributionOnInput(
-            RexTableArgCall tableOperand, TableCharacteristic tableCharacteristic, RelNode input) {
+            RexTableArgCall tableOperand,
+            TableCharacteristic tableCharacteristic,
+            boolean isBroadcast,
+            RelNode input) {
         final FlinkRelDistribution requiredDistribution =
-                deriveDistribution(tableOperand, tableCharacteristic);
+                deriveDistribution(tableOperand, tableCharacteristic, isBroadcast);
         final RelTraitSet requiredTraitSet =
                 input.getCluster()
                         .getPlanner()
@@ -127,7 +136,12 @@ public class StreamPhysicalProcessTableFunctionRule extends ConverterRule {
     }
 
     private static FlinkRelDistribution deriveDistribution(
-            RexTableArgCall tableOperand, TableCharacteristic tableCharacteristic) {
+            RexTableArgCall tableOperand,
+            TableCharacteristic tableCharacteristic,
+            boolean isBroadcast) {
+        if (isBroadcast) {
+            return FlinkRelDistribution.BROADCAST_DISTRIBUTED();
+        }
         if (tableCharacteristic.semantics == Semantics.SET) {
             final int[] partitionKeys = tableOperand.getPartitionKeys();
             if (partitionKeys.length == 0) {

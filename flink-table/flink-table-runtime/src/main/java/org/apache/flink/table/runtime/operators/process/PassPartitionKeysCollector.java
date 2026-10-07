@@ -38,14 +38,22 @@ public class PassPartitionKeysCollector extends PassThroughCollectorBase {
             Output<StreamRecord<RowData>> output,
             ChangelogMode changelogMode,
             List<RuntimeTableSemantics> tableSemantics) {
-        super(output, changelogMode, tableSemantics.size());
+        // Broadcast tables contribute no partition columns to the output, so they are excluded
+        // from the prefix repetition. The array stays indexed by input position.
+        super(output, changelogMode, (int) mainTablePositions(tableSemantics).count());
         partitionKeys = new ProjectedRowData[tableSemantics.size()];
-        IntStream.range(0, tableSemantics.size())
+        mainTablePositions(tableSemantics)
                 .forEach(
                         pos ->
                                 partitionKeys[pos] =
                                         ProjectedRowData.from(
                                                 tableSemantics.get(pos).partitionByColumns()));
+    }
+
+    /** Returns the input positions of tables with row or set semantics. */
+    private static IntStream mainTablePositions(List<RuntimeTableSemantics> tableSemantics) {
+        return IntStream.range(0, tableSemantics.size())
+                .filter(pos -> !tableSemantics.get(pos).hasBroadcastSemantics());
     }
 
     @Override

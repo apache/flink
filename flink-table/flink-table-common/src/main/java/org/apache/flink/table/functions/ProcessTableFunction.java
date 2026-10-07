@@ -24,6 +24,7 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.annotation.StateKind;
 import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
@@ -79,6 +80,15 @@ import java.time.LocalDateTime;
  * which case only one virtual processor handles the entire table, thereby losing scalability
  * benefits.
  *
+ * <h2>Table Argument with Broadcast Semantics</h2>
+ *
+ * <p>A PTF that takes at least one table with row or set semantics can additionally take a table
+ * with broadcast semantics ({@link ArgumentTrait#BROADCAST_SEMANTIC_TABLE}). Every row of a
+ * broadcast table is sent to all virtual processors, independently of any key partitioning.
+ * Broadcast tables are intended for low-throughput data such as rules, configuration, or control
+ * events. They enable parameterizing a PTF instance during runtime, avoiding downtime due to
+ * restarts. See the section about broadcast state below.
+ *
  * <h1>Implementation</h1>
  *
  * <p>The behavior of a {@link ProcessTableFunction} can be defined by implementing a custom
@@ -130,8 +140,9 @@ import java.time.LocalDateTime;
  * <h2>Arguments</h2>
  *
  * <p>The {@link ArgumentHint} annotation enables declaring the name, data type, and kind of each
- * argument (i.e. ArgumentTrait.SCALAR, ArgumentTrait.ROW_SEMANTIC_TABLE, or
- * ArgumentTrait.SET_SEMANTIC_TABLE). It allows specifying other traits for table arguments as well:
+ * argument (i.e. ArgumentTrait.SCALAR, ArgumentTrait.ROW_SEMANTIC_TABLE,
+ * ArgumentTrait.SET_SEMANTIC_TABLE, or ArgumentTrait.BROADCAST_SEMANTIC_TABLE). It allows
+ * specifying other traits for table arguments as well:
  *
  * <pre>{@code
  * // Function that has two arguments:
@@ -378,6 +389,63 @@ import java.time.LocalDateTime;
  * }
  * }</pre>
  *
+ * <h2>Broadcast State</h2>
+ *
+ * <p>Broadcast state enables patterns such as a rule engine where rules are dynamically updated at
+ * runtime, or dynamic configuration that influences the processing of the main table(s).
+ *
+ * <p>Broadcast state is tightly coupled to a broadcast semantic table. A table argument declared
+ * with {@link ArgumentTrait#BROADCAST_SEMANTIC_TABLE} acts as a "side" or "control" input. Every
+ * row of a broadcast table is sent to all virtual processors, regardless of any PARTITION BY
+ * clause. A PTF can store this broadcast information in state entries declared with
+ * {@code @StateHint(StateKind.BROADCAST)}. This broadcast state is shared across all sets and can
+ * be read when processing rows from the main table(s).
+ *
+ * <p>The following rules apply to broadcast tables and broadcast state:
+ *
+ * <ul>
+ *   <li>At least one table argument with row or set semantics must be declared next to broadcast
+ *       tables. Multiple broadcast tables and multiple broadcast state entries are supported.
+ *   <li>Broadcast state can only be modified while processing a broadcast row. This includes
+ *       clearing broadcast state. When processing rows of the main table(s), broadcast state is
+ *       read-only.
+ *   <li>While processing a broadcast row, there is no key context. State entries that are scoped to
+ *       a set are passed as null, results can not be emitted via {@code collect()}, and timers
+ *       cannot be registered or cleared. {@link Context#clearAllState()} only clears broadcast
+ *       state in this case.
+ *   <li>It is the responsibility of the PTF implementer to maintain identical broadcast state
+ *       across all virtual processors, i.e. broadcast state should only be updated
+ *       deterministically based on the broadcast rows.
+ * </ul>
+ *
+ * <p>Note: The system decides which input row is streamed through the virtual processor next. A
+ * change to a broadcast state entry has no effect on rows of the main table(s) that have been
+ * processed before.
+ *
+ * <pre>{@code
+ * // Function that filters sentences using a dynamically updated list of bad words
+ * class RuleFunction extends ProcessTableFunction<String> {
+ *   public void eval(
+ *       @StateHint(StateKind.BROADCAST) MapView<String, Boolean> badWords,
+ *       @ArgumentHint(ROW_SEMANTIC_TABLE) Row data,
+ *       @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rules) throws Exception {
+ *     // Write access to broadcast state for the broadcast table
+ *     if (rules != null) {
+ *       badWords.put(rules.getFieldAs("word"), true);
+ *       return;
+ *     }
+ *     // Read access to broadcast state for the main table
+ *     String sentence = data.getFieldAs("sentence");
+ *     for (String word : sentence.split(" ")) {
+ *       if (badWords.contains(word)) {
+ *         return;
+ *       }
+ *     }
+ *     collect(sentence);
+ *   }
+ * }
+ * }</pre>
+ *
  * <h1>Time and Timers</h1>
  *
  * <p>A PTF supports event time natively. Time-based services are available via {@link
@@ -584,6 +652,9 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
          * backed by a data view. For eager value state, semantically this is equal to setting all
          * fields of the state entry to null shortly before the eval() method returns.
          *
+         * <p>A broadcast state entry (see {@link StateKind#BROADCAST}) can only be cleared while
+         * processing a table with broadcast semantics.
+         *
          * @param stateName name of the state entry; either reflectively extracted or manually
          *     defined via {@link StateHint#name()}.
          */
@@ -593,14 +664,25 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
          * Clears all state entries within the virtual partition once the eval() method returns.
          *
          * <p>Semantically, this is equal to calling {@link #clearState(String)} on all state
-         * entries.
+         * entries that are accessible in the current context.
+         *
+         * <p>A broadcast state entry (see {@link StateKind#BROADCAST}) can only be cleared while
+         * processing a table with broadcast semantics.
          */
         void clearAllState();
 
-        /** Clears all timers within the virtual partition. */
+        /**
+         * Clears all timers within the virtual partition.
+         *
+         * <p>While processing a table with broadcast semantics, this is a no-op.
+         */
         void clearAllTimers();
 
-        /** Clears the virtual partition including timers and state. */
+        /**
+         * Clears the virtual partition including timers and state.
+         *
+         * <p>This is a shortcut for {@link #clearAllState()} and {@link #clearAllTimers()}.
+         */
         void clearAll();
 
         /**

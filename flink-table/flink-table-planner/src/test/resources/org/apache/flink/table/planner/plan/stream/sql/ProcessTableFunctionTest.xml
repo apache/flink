@@ -16,6 +16,153 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testBroadcastTableWithMultipleTables">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(in1 => TABLE t PARTITION BY name, rules1 => TABLE t_rules, in2 => TABLE t PARTITION BY name, rules2 => TABLE t_rules)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], name0=[$1], out=[$2])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1), TABLE(#2) PARTITION BY($0), TABLE(#3), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, VARCHAR(5) name0, VARCHAR(2147483647) out)])
+   :- LogicalProject(name=[$0], score=[$1])
+   :  +- LogicalProject(name=[$0], score=[$1])
+   :     +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+   :- LogicalProject(name=[$0], weight=[$1])
+   :  +- LogicalProject(name=[$0], weight=[$1])
+   :     +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 1 }]])
+   :- LogicalProject(name=[$0], score=[$1])
+   :  +- LogicalProject(name=[$0], score=[$1])
+   :     +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+   +- LogicalProject(name=[$0], weight=[$1])
+      +- LogicalProject(name=[$0], weight=[$1])
+         +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 1 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1), TABLE(#2) PARTITION BY($0), TABLE(#3), DEFAULT(), DEFAULT())], uid=[f], select=[name,name0,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(5) name0, VARCHAR(2147483647) out)])
+:- Exchange(distribution=[hash[name]])(reuse_id=[1])
+:  +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+:- Exchange(distribution=[broadcast])(reuse_id=[2])
+:  +- Calc(select=['Bob' AS name, 1 AS weight])
+:     +- Values(tuples=[[{ _UTF-16LE'Bob', 1 }]])
+:- Reused(reference_id=[1])
++- Reused(reference_id=[2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testBroadcastTableWithOnTime">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(input => TABLE t_watermarked PARTITION BY name, rule => TABLE t_watermarked_rules, on_time => DESCRIPTOR(ts))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], out=[$1], rowtime=[$2])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) out, TIMESTAMP_LTZ(3) *ROWTIME* rowtime)])
+   :- LogicalProject(name=[$0], score=[$1], ts=[$2])
+   :  +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, t_watermarked]])
+   +- LogicalProject(name=[$0], weight=[$1], ts=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, t_watermarked_rules]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT())], uid=[f], select=[name,out,rowtime], rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) out, TIMESTAMP_LTZ(3) *ROWTIME* rowtime)])
+:- Exchange(distribution=[hash[name]])
+:  +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+:     +- TableSourceScan(table=[[default_catalog, default_database, t_watermarked]], fields=[name, score, ts])
++- Exchange(distribution=[broadcast])
+   +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+      +- TableSourceScan(table=[[default_catalog, default_database, t_watermarked_rules]], fields=[name, weight, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testBroadcastTableWithRowSemanticTable">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(input => TABLE t, rule => TABLE t_rules)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0), TABLE(#1), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+   :- LogicalProject(name=[$0], score=[$1])
+   :  +- LogicalProject(name=[$0], score=[$1])
+   :     +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+   +- LogicalProject(name=[$0], weight=[$1])
+      +- LogicalProject(name=[$0], weight=[$1])
+         +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 1 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0), TABLE(#1), DEFAULT(), DEFAULT())], uid=[f], select=[EXPR$0], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+:- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=['Bob' AS name, 1 AS weight])
+      +- Values(tuples=[[{ _UTF-16LE'Bob', 1 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testBroadcastTableWithSetSemanticTable">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(input => TABLE t PARTITION BY name, rules => TABLE t_rules)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], out=[$1])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+   :- LogicalProject(name=[$0], score=[$1])
+   :  +- LogicalProject(name=[$0], score=[$1])
+   :     +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+   +- LogicalProject(name=[$0], weight=[$1])
+      +- LogicalProject(name=[$0], weight=[$1])
+         +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 1 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1), DEFAULT(), DEFAULT())], uid=[f], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+:- Exchange(distribution=[hash[name]])
+:  +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
++- Exchange(distribution=[broadcast])
+   +- Calc(select=['Bob' AS name, 1 AS weight])
+      +- Values(tuples=[[{ _UTF-16LE'Bob', 1 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testBroadcastTableWithUpdates">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(input => TABLE t PARTITION BY name, rule => TABLE t_updating)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$0], EXPR$0=[$1])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1), DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) EXPR$0)])
+   :- LogicalProject(name=[$0], score=[$1])
+   :  +- LogicalProject(name=[$0], score=[$1])
+   :     +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+   +- LogicalProject(name=[$0], EXPR$1=[$1])
+      +- LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
+         +- LogicalProject(name=[$0])
+            +- LogicalProject(name=[$0], score=[$1])
+               +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), TABLE(#1), DEFAULT(), DEFAULT())], uid=[f], select=[name,EXPR$0], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) EXPR$0)], changelogMode=[I])
+:- Exchange(distribution=[hash[name]], changelogMode=[I])
+:  +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]], changelogMode=[I])
++- Exchange(distribution=[broadcast], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[name], select=[name, COUNT(*) AS EXPR$1], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[name]], changelogMode=[I])
+         +- Calc(select=[name], changelogMode=[I])
+            +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testDescriptors">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(columnList1 => DESCRIPTOR(a), columnList2 => DESCRIPTOR(b, c), columnList3 => DESCRIPTOR())]]>

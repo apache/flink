@@ -86,7 +86,7 @@ public class ProcessTableOperatorFactory extends AbstractStreamOperatorFactory<R
                 Arrays.stream(generatedStateEquals)
                         .map(g -> g.newInstance(classLoader))
                         .toArray(RecordEqualiser[]::new);
-        if (tableSemantics.stream().anyMatch(RuntimeTableSemantics::hasSetSemantics)) {
+        if (requiresMultiInput()) {
             return new ProcessSetTableOperator(
                     parameters,
                     tableSemantics,
@@ -112,10 +112,19 @@ public class ProcessTableOperatorFactory extends AbstractStreamOperatorFactory<R
     @Override
     @SuppressWarnings("rawtypes")
     public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-        if (tableSemantics.stream().anyMatch(RuntimeTableSemantics::hasSetSemantics)) {
+        if (requiresMultiInput()) {
             return ProcessSetTableOperator.class;
         } else {
             return ProcessRowTableOperator.class;
         }
+    }
+
+    /**
+     * The multi-input operator is required for set semantics (keyed) and whenever a broadcast table
+     * is present (a table with row semantics next to broadcast tables is a non-keyed multi-input).
+     */
+    private boolean requiresMultiInput() {
+        return tableSemantics.stream().anyMatch(RuntimeTableSemantics::hasSetSemantics)
+                || tableSemantics.stream().anyMatch(RuntimeTableSemantics::hasBroadcastSemantics);
     }
 }

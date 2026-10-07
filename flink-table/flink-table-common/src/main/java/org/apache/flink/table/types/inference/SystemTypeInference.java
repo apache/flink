@@ -112,6 +112,9 @@ public class SystemTypeInference {
                         systemArgs,
                         origin.getInputTypeStrategy(),
                         origin.disableSystemArguments()));
+        if (functionKind == FunctionKind.PROCESS_TABLE) {
+            checkBroadcastState(systemArgs, origin.getStateTypeStrategies());
+        }
         builder.stateTypeStrategies(origin.getStateTypeStrategies());
         builder.outputTypeStrategy(
                 deriveSystemOutputStrategy(
@@ -251,13 +254,54 @@ public class SystemTypeInference {
                 staticArgs.stream()
                         .filter(arg -> arg.is(StaticArgumentTrait.TABLE))
                         .collect(Collectors.toList());
-        if (tableArgs.size() <= 1) {
+        if (tableArgs.isEmpty()) {
             return;
         }
-        if (tableArgs.stream().anyMatch(arg -> !arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
+        // Broadcast tables are side inputs and are excluded from the rules below
+        final List<StaticArgument> mainTableArgs =
+                tableArgs.stream()
+                        .filter(arg -> !arg.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE))
+                        .collect(Collectors.toList());
+        if (mainTableArgs.isEmpty()) {
             throw new ValidationException(
-                    "All table arguments must use set semantics if multiple table arguments are declared.");
+                    "Table arguments with broadcast semantics require at least one table argument "
+                            + "with row or set semantics.");
         }
+        if (mainTableArgs.size() == 1) {
+            return;
+        }
+        if (mainTableArgs.stream()
+                .anyMatch(arg -> !arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
+            throw new ValidationException(
+                    "All main table arguments must use set semantics if multiple table arguments are declared.");
+        }
+    }
+
+    private static void checkBroadcastState(
+            @Nullable List<StaticArgument> staticArgs,
+            Map<String, StateTypeStrategy> stateTypeStrategies) {
+        final boolean hasBroadcastTables =
+                staticArgs != null
+                        && staticArgs.stream()
+                                .anyMatch(
+                                        arg ->
+                                                arg.is(
+                                                        StaticArgumentTrait
+                                                                .BROADCAST_SEMANTIC_TABLE));
+        if (hasBroadcastTables) {
+            return;
+        }
+        stateTypeStrategies.entrySet().stream()
+                .filter(e -> e.getValue().isBroadcast())
+                .findFirst()
+                .ifPresent(
+                        e -> {
+                            throw new ValidationException(
+                                    String.format(
+                                            "Broadcast state entry '%s' requires at least one table "
+                                                    + "argument with broadcast semantics.",
+                                            e.getKey()));
+                        });
     }
 
     private static void checkPassThroughColumns(List<StaticArgument> staticArgs) {
@@ -694,7 +738,12 @@ public class SystemTypeInference {
                                 }
                                 checkRowSemantics(staticArg, semantics);
                                 checkSetSemantics(staticArg, semantics);
-                                tableSemantics.add(semantics);
+                                checkBroadcastSemantics(staticArg, semantics);
+                                // Broadcast tables are side inputs without a key context and are
+                                // therefore excluded from co-partitioning.
+                                if (!staticArg.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE)) {
+                                    tableSemantics.add(semantics);
+                                }
                             });
             checkCoPartitioning(tableSemantics);
         }
@@ -744,6 +793,18 @@ public class SystemTypeInference {
                     || semantics.orderByColumns().length > 0) {
                 throw new ValidationException(
                         "PARTITION BY or ORDER BY are not supported for table arguments with row semantics.");
+            }
+        }
+
+        private static void checkBroadcastSemantics(
+                StaticArgument staticArg, TableSemantics semantics) {
+            if (!staticArg.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE)) {
+                return;
+            }
+            if (semantics.partitionByColumns().length > 0
+                    || semantics.orderByColumns().length > 0) {
+                throw new ValidationException(
+                        "PARTITION BY or ORDER BY are not supported for table arguments with broadcast semantics.");
             }
         }
 

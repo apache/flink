@@ -127,12 +127,8 @@ public class StaticArgument {
             boolean isOptional,
             EnumSet<StaticArgumentTrait> traits) {
         Preconditions.checkNotNull(conversionClass, "Conversion class must not be null.");
-        final EnumSet<StaticArgumentTrait> enrichedTraits = EnumSet.copyOf(traits);
-        enrichedTraits.add(StaticArgumentTrait.TABLE);
-        if (!enrichedTraits.contains(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
-            enrichedTraits.add(StaticArgumentTrait.ROW_SEMANTIC_TABLE);
-        }
-        return new StaticArgument(name, null, conversionClass, isOptional, enrichedTraits);
+        return new StaticArgument(
+                name, null, conversionClass, isOptional, enrichTableTraits(traits));
     }
 
     /**
@@ -181,7 +177,9 @@ public class StaticArgument {
             EnumSet<StaticArgumentTrait> traits) {
         final EnumSet<StaticArgumentTrait> enrichedTraits = EnumSet.copyOf(traits);
         enrichedTraits.add(StaticArgumentTrait.TABLE);
-        if (!enrichedTraits.contains(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+        // Default to row semantics unless another root table semantics is declared.
+        if (!enrichedTraits.contains(StaticArgumentTrait.SET_SEMANTIC_TABLE)
+                && !enrichedTraits.contains(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE)) {
             enrichedTraits.add(StaticArgumentTrait.ROW_SEMANTIC_TABLE);
         }
         return enrichedTraits;
@@ -355,6 +353,18 @@ public class StaticArgument {
                                     + "An argument must be declared as either scalar, table, or model.",
                             name));
         }
+        traits.forEach(
+                trait ->
+                        trait.getIncompatibleWith().stream()
+                                .filter(traits::contains)
+                                .findFirst()
+                                .ifPresent(
+                                        incompatible -> {
+                                            throw new ValidationException(
+                                                    String.format(
+                                                            "Invalid argument traits for argument '%s'. Trait %s is incompatible with %s.",
+                                                            name, trait, incompatible));
+                                        }));
         traits.forEach(
                 trait ->
                         trait.getRequirements()

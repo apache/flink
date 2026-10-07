@@ -92,6 +92,9 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       case RelDistribution.Type.HASH_DISTRIBUTED =>
         filterKeys(upsertKeys, ImmutableBitSet.of(rel.getDistribution.getKeys), immutableColumns)
       case RelDistribution.Type.SINGLETON => upsertKeys
+      // Broadcast replicates rows to all instances but preserves the stream's keys (e.g. a
+      // broadcast side input of a process table function).
+      case RelDistribution.Type.BROADCAST_DISTRIBUTED => upsertKeys
       case t => throw new UnsupportedOperationException("Unsupported distribution type: " + t)
     }
   }

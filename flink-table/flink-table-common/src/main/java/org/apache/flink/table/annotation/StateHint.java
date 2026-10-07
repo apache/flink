@@ -44,15 +44,28 @@ import java.lang.annotation.Target;
  * qualify as a data type for state entries. For example, {@code @StateHint(name = "count", type
  * = @DataTypeHint("ROW<count BIGINT>"))} is a state entry with the data type BIGINT named "count".
  *
- * <p>Note: A state entry is partitioned by a key and can not be accessed globally. The partitioning
- * (or a single partition in case of no partitioning) is defined by the corresponding function call.
+ * <p>Note: By default (i.e. {@link StateKind#PER_SET}), a state entry is partitioned by a key and
+ * can not be accessed globally. The partitioning (or a single partition in case of no partitioning)
+ * is defined by the corresponding function call. Use {@link StateKind#BROADCAST} for a state entry
+ * that is shared across all sets and fed by a {@link ArgumentTrait#BROADCAST_SEMANTIC_TABLE}.
  *
  * @see FunctionHint
+ * @see StateKind
  */
 @PublicEvolving
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.PARAMETER})
 public @interface StateHint {
+
+    /**
+     * The kind of the state entry.
+     *
+     * <p>By default, the state entry is scoped to the set created by the PARTITION BY clause. It
+     * uses Flink's keyed state.
+     *
+     * @see StateKind
+     */
+    StateKind value() default StateKind.PER_SET;
 
     /**
      * The name of the state entry. It must be unique among other state entries.
