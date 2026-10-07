@@ -41,6 +41,10 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
 
     private static final int MAGIC_NUMBER = 0x98761432;
 
+    // One-time migration support: flink-s3-fs-native (NativeS3RecoverableSerializer) duplicates
+    // this decoder to restore state after switching to that plugin (FLINK-40943).
+    // Do not change the format without keeping that decoder in sync.
+
     /** Do not instantiate, use reusable {@link #INSTANCE} instead. */
     private S3RecoverableSerializer() {}
 
