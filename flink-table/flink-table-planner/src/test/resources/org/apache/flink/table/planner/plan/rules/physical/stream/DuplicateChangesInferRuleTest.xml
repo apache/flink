@@ -514,7 +514,7 @@ LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c]
       <![CDATA[
 Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
-   +- LookupJoin(table=[default_catalog.default_database.dim_src], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], duplicateChanges=[DISALLOW])
+   +- LookupJoin(table=[default_catalog.default_database.dim_src, project=[a], metadata=[]], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
          +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
             +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
@@ -539,7 +539,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
       <![CDATA[
 Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
-   +- LookupJoin(table=[default_catalog.default_database.dim_src], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], duplicateChanges=[ALLOW])
+   +- LookupJoin(table=[default_catalog.default_database.dim_src, project=[a], metadata=[]], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], duplicateChanges=[ALLOW])
       +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
          +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
             +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])

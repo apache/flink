@@ -1837,7 +1837,7 @@ Calc(select=[user_id, name, order_id, age])
    :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
    +- Exchange(distribution=[hash[user_id]])
       +- Calc(select=[user_id, age])
-         +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=user_id], select=[user_id, id, age])
+         +- LookupJoin(table=[default_catalog.default_database.LookupTable, project=[id, age], metadata=[]], joinType=[InnerJoin], lookup=[id=user_id], select=[user_id, id, age])
             +- TableSourceScan(table=[[default_catalog, default_database, StreamTable, project=[user_id], metadata=[]]], fields=[user_id])
 ]]>
     </Resource>
