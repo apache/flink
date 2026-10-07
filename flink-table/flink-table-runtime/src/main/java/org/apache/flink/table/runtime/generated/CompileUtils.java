@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -75,20 +74,10 @@ public final class CompileUtils {
         COMPILED_EXPRESSION_CACHE.cleanUp();
     }
 
-    static final String WARM_UP_CLASS = "JaninoWarmUp";
-    static final String WARM_UP_CODE =
-            "public class JaninoWarmUp { public long eval(long a, long b) { return a + b; } }";
+    private static final int WARM_UP_RUNS = 10;
 
-    private static final AtomicBoolean WARMED_UP = new AtomicBoolean(false);
-
-    /**
-     * Compiles a throwaway class on a daemon thread so the Janino compiler is loaded and JIT-warmed
-     * off the critical path, before the first real compile. Idempotent per JVM and best-effort.
-     */
-    public static void warmUp() {
-        if (!WARMED_UP.compareAndSet(false, true)) {
-            return;
-        }
+    // warm up Janino on class load, off the critical path, before the first real compile
+    static {
         final Thread thread = new Thread(CompileUtils::doWarmUp, "flink-janino-warmup");
         thread.setDaemon(true);
         thread.start();
@@ -96,14 +85,24 @@ public final class CompileUtils {
 
     @VisibleForTesting
     static Class<?> doWarmUp() {
+        Class<?> compiled = null;
         try {
-            // framework classloader: warm-up class is java.lang-only; a job classloader may be gone
-            return compile(CompileUtils.class.getClassLoader(), WARM_UP_CLASS, WARM_UP_CODE);
+            // distinct names so each is a real cook; framework classloader outlives any job's
+            for (int i = 0; i < WARM_UP_RUNS; i++) {
+                final String name = "JaninoWarmUp" + i;
+                compiled =
+                        compile(
+                                CompileUtils.class.getClassLoader(),
+                                name,
+                                "public class "
+                                        + name
+                                        + " { public long eval(long a, long b) { return a + b; } }");
+            }
         } catch (Throwable t) {
-            // best-effort: a warm-up failure (even a fatal one) only costs a missed warm-up
+            // best-effort: a warm-up failure only costs a missed warm-up
             CODE_LOG.warn("Janino warm-up failed", t);
-            return null;
         }
+        return compiled;
     }
 
     /**

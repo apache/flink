@@ -29,7 +29,6 @@ import java.net.URLClassLoader;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CompileUtils}. */
@@ -58,7 +57,6 @@ class CompileUtilsTest {
         Class<?> warmed = CompileUtils.doWarmUp();
         assertThat(warmed).isNotNull();
         assertThat(warmed.getMethod("eval", long.class, long.class)).isNotNull();
-        assertThatCode(CompileUtils::warmUp).doesNotThrowAnyException();
     }
 
     @Test
