@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.table.runtime.generated.CompileUtils;
 import org.apache.flink.table.runtime.generated.GeneratedClass;
 
 /** Stream operator factory for code gen operator. */
@@ -36,9 +37,13 @@ public class CodeGenOperatorFactory<OUT> extends AbstractStreamOperatorFactory<O
     @Override
     public <T extends StreamOperator<OUT>> T createStreamOperator(
             StreamOperatorParameters<OUT> parameters) {
+        final ClassLoader userCodeClassLoader =
+                parameters.getContainingTask().getUserCodeClassLoader();
+        // one-shot background Janino warm-up (the first cold compile on a TM is not sped up)
+        CompileUtils.warmUp();
         return (T)
                 generatedClass.newInstance(
-                        parameters.getContainingTask().getUserCodeClassLoader(),
+                        userCodeClassLoader,
                         generatedClass.getReferences(),
                         parameters.getContainingTask(),
                         parameters.getStreamConfig(),
