@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A thread-safe in-memory implementation of the {@link JobResultStore}. */
@@ -75,6 +76,11 @@ public class EmbeddedJobResultStore extends AbstractThreadsafeJobResultStore {
         super(Executors.directExecutor());
         final CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
         if (cleanJobResultTtl != null) {
+            checkArgument(
+                    cleanJobResultTtl.toMillis() > 0,
+                    "The %s must be positive, but was %s.",
+                    JobResultStoreOptions.CLEAN_JOB_RESULT_TTL.key(),
+                    cleanJobResultTtl);
             cacheBuilder.expireAfterAccess(cleanJobResultTtl.toMillis(), TimeUnit.MILLISECONDS);
         }
         this.cleanJobResults = cacheBuilder.build();

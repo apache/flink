@@ -89,5 +89,12 @@ public class JobResultStoreOptions {
                                     + "result was marked as clean. This option does not affect the "
                                     + "file system based job result store which removes the job "
                                     + "results on commit unless "
-                                    + "job-result-store.delete-on-commit is disabled.");
+                                    + "job-result-store.delete-on-commit is disabled. Note that, "
+                                    + "once an entry is evicted, the job result store no longer "
+                                    + "knows that the job existed: submitting the same job ID "
+                                    + "again afterwards, for instance as part of a different "
+                                    + "application, may be accepted and the job may run a second "
+                                    + "time. Submitting the same application again is still "
+                                    + "rejected because the application result store is not "
+                                    + "subject to this time limit.");
 }

@@ -63,7 +63,7 @@ public class HighAvailabilityServicesUtils {
 
         switch (highAvailabilityMode) {
             case NONE:
-                return new EmbeddedHaServices(executor);
+                return new EmbeddedHaServices(executor, config);
 
             case ZOOKEEPER:
                 return createZooKeeperHaServices(config, executor, fatalErrorHandler);

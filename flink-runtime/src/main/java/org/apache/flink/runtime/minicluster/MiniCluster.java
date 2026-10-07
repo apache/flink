@@ -614,7 +614,7 @@ public class MiniCluster implements AutoCloseableAsync {
             // therefore, SingletonHighAvailabilityServicesFactory is utilized here
             return new SingletonHighAvailabilityServicesFactory(
                     (config, embeddedLeaderElectionExecutor) ->
-                            new EmbeddedHaServices(embeddedLeaderElectionExecutor));
+                            new EmbeddedHaServices(embeddedLeaderElectionExecutor, config));
         } else {
             return new RegularHighAvailabilityServicesFactory();
         }

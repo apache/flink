@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests the eviction of the clean job result entries of the {@link EmbeddedJobResultStore}. The
@@ -75,9 +76,31 @@ class EmbeddedJobResultStoreTtlTest {
         assertThat(jobResultStore.hasJobResultEntryAsync(entry.getJobId()).join()).isFalse();
     }
 
+    @Test
+    void testZeroTtlIsRejected() {
+        assertThatThrownBy(() -> new EmbeddedJobResultStore(Duration.ZERO))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testNegativeTtlIsRejected() {
+        assertThatThrownBy(() -> new EmbeddedJobResultStore(Duration.ofMillis(-1)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testNonPositiveTtlConfigurationIsRejected() {
+        assertThatThrownBy(() -> new EmbeddedJobResultStore(configurationWithTtl(Duration.ZERO)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private static Configuration configurationWithTtl() {
+        return configurationWithTtl(TTL);
+    }
+
+    private static Configuration configurationWithTtl(Duration ttl) {
         final Configuration configuration = new Configuration();
-        configuration.set(JobResultStoreOptions.CLEAN_JOB_RESULT_TTL, TTL);
+        configuration.set(JobResultStoreOptions.CLEAN_JOB_RESULT_TTL, ttl);
         return configuration;
     }
 
