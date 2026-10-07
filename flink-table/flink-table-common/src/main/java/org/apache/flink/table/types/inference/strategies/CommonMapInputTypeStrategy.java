@@ -28,6 +28,14 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 public final class CommonMapInputTypeStrategy extends CommonCollectionInputTypeStrategy {
 
     public CommonMapInputTypeStrategy(ArgumentCount argumentCount) {
-        super(argumentCount, "All arguments requires to be a MAP type", LogicalTypeRoot.MAP);
+        this(argumentCount, false);
+    }
+
+    public CommonMapInputTypeStrategy(ArgumentCount argumentCount, boolean requiresKeyEquality) {
+        super(
+                argumentCount,
+                "All arguments requires to be a MAP type",
+                LogicalTypeRoot.MAP,
+                requiresKeyEquality);
     }
 }

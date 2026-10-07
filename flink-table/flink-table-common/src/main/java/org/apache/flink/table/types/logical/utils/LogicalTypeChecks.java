@@ -249,6 +249,12 @@ public final class LogicalTypeChecks {
         }
     }
 
+    /**
+     * Checks whether two types support the required comparison with each other.
+     *
+     * <p>NULL is comparable with every type. A type that contains a VARIANT is never comparable,
+     * see {@link #isComparableKeyType(LogicalType)}.
+     */
     public static boolean areComparable(
             LogicalType firstType,
             LogicalType secondType,
@@ -281,6 +287,10 @@ public final class LogicalTypeChecks {
         // everything is comparable with null, it should return null in that case
         if (firstType.is(LogicalTypeRoot.NULL) || secondType.is(LogicalTypeRoot.NULL)) {
             return true;
+        }
+
+        if (!isComparableKeyType(firstType) || !isComparableKeyType(secondType)) {
+            return false;
         }
 
         if (firstType.getTypeRoot() == secondType.getTypeRoot()) {
