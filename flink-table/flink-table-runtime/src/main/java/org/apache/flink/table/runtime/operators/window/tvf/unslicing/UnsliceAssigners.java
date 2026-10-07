@@ -229,7 +229,7 @@ public class UnsliceAssigners {
 
         private TimeWindow createWindow(RowData element) {
             if (element.isNullAt(windowStartIndex) || element.isNullAt(windowEndIndex)) {
-                throw new RuntimeException("RowTime field should not be null.");
+                throw new RuntimeException("Both window start and window end should not be null.");
             }
             // Precision for row timestamp is always 3
             final long windowStartTime = element.getTimestamp(windowStartIndex, 3).getMillisecond();
