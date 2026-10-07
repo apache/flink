@@ -85,10 +85,10 @@ public class LateralSnapshotJoinTestPrograms {
                                     + "SNAPSHOT(input => TABLE b) AS s ON probe.pk = s.bk")
                     .build();
 
-    public static final TableTestProgram INNER_JOIN_WITH_NON_EQUI_CONDITION =
+    public static final TableTestProgram COMPLEX_PRED =
             TableTestProgram.of(
-                            "lateral-snapshot-join-non-equi",
-                            "batch LATERAL SNAPSHOT join with an additional non-equi predicate")
+                            "lateral-snapshot-join-complex-pred",
+                            "batch LATERAL SNAPSHOT join on an equi-key with an additional non-equi predicate")
                     .setupTableSource(probe())
                     .setupTableSource(build())
                     .setupTableSink(
@@ -101,6 +101,32 @@ public class LateralSnapshotJoinTestPrograms {
                             "INSERT INTO sink SELECT pk, pv, bk, bv FROM probe JOIN LATERAL "
                                     + "SNAPSHOT(input => TABLE b) AS s "
                                     + "ON probe.pk = s.bk AND s.bv > 10")
+                    .build();
+
+    public static final TableTestProgram NON_EQUI =
+            TableTestProgram.of(
+                            "lateral-snapshot-join-non-equi",
+                            "batch LATERAL SNAPSHOT join with only a non-equi condition (no equi-key) "
+                                    + "uses a broadcast nested-loop join")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("probe")
+                                    .addSchema("pk STRING", "pv INT")
+                                    .producedValues(
+                                            Row.of("a", 5), Row.of("b", 15), Row.of("c", 25))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("b")
+                                    .addSchema("bk STRING", "bv INT")
+                                    .producedValues(Row.of("a", 10), Row.of("b", 20))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("pv INT", "bv INT")
+                                    .consumedValues(Row.of(5, 10), Row.of(5, 20), Row.of(15, 20))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT pv, bv FROM probe JOIN LATERAL "
+                                    + "SNAPSHOT(input => TABLE b) AS s ON probe.pv < s.bv")
                     .build();
 
     public static final TableTestProgram SNAPSHOT_ARGUMENTS_IGNORED =

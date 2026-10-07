@@ -389,7 +389,7 @@ If a `LATERAL SNAPSHOT` join produces no output, first check whether it is stuck
 **Syntax**
 
 The build side is wrapped in the `SNAPSHOT` table function, which is called with `LATERAL`. The outer (probe-side) table must be an append-only table. 
-Both `INNER JOIN` and `LEFT [OUTER] JOIN` are supported. The join requires at least one conjunctive equality predicate; additional non-equi predicates are allowed in the `ON` clause.
+Both `INNER JOIN` and `LEFT [OUTER] JOIN` are supported. An equality predicate is recommended but not required: the `ON` clause may contain equality and non-equi predicates in any combination. A join with at least one equality predicate is partitioned on the join key and runs in parallel; a join without one runs single-threaded, so prefer an equality predicate for better performance.
 
 ```sql
 SELECT [column_list]

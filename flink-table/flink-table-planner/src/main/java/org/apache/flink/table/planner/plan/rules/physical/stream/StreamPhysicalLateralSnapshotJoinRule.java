@@ -56,7 +56,8 @@ public class StreamPhysicalLateralSnapshotJoinRule extends ConverterRule {
         final RelTraitSet providedTraitSet =
                 rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
 
-        // Both inputs are hash-partitioned on their join keys.
+        // Both inputs are hash-partitioned on their join keys, or co-located with a singleton
+        // distribution when the join has no equi-key
         final JoinInfo joinInfo = join.analyzeCondition();
         final RelNode newLeft = convertInput(join.getLeft(), joinInfo.leftKeys);
         final RelNode newRight = convertInput(join.getRight(), joinInfo.rightKeys);
