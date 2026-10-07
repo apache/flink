@@ -36,6 +36,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.Phase;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
@@ -146,6 +147,22 @@ class LateralSnapshotJoinOperatorTest {
                     + "    }\n"
                     + "}\n";
 
+    /**
+     * Non-equi join condition that matches when the probe id (field 0) is less than the build
+     * row-time (field 2). Used to exercise the generated condition in empty-key (keyless) mode.
+     */
+    private static final String PROBE_ID_LT_BUILD_RT_JOIN_FUNC_CODE =
+            "public class LateralSnapshotJoinConditionIdLtRt extends "
+                    + "org.apache.flink.api.common.functions.AbstractRichFunction "
+                    + "implements org.apache.flink.table.runtime.generated.JoinCondition {\n"
+                    + "    public LateralSnapshotJoinConditionIdLtRt(Object[] reference) {}\n"
+                    + "    @Override public boolean apply("
+                    + "        org.apache.flink.table.data.RowData in1,"
+                    + "        org.apache.flink.table.data.RowData in2) {\n"
+                    + "        return in1.getLong(0) < in2.getLong(2);\n"
+                    + "    }\n"
+                    + "}\n";
+
     private static GeneratedJoinCondition newTrueCondition() {
         return new GeneratedJoinCondition(
                 "LateralSnapshotJoinConditionStub", ALWAYS_TRUE_JOIN_FUNC_CODE, new Object[0]);
@@ -154,6 +171,13 @@ class LateralSnapshotJoinOperatorTest {
     private static GeneratedJoinCondition newMatchValCondition() {
         return new GeneratedJoinCondition(
                 "LateralSnapshotJoinConditionMatchVal", MATCH_VAL_JOIN_FUNC_CODE, new Object[0]);
+    }
+
+    private static GeneratedJoinCondition newProbeIdLtBuildRtCondition() {
+        return new GeneratedJoinCondition(
+                "LateralSnapshotJoinConditionIdLtRt",
+                PROBE_ID_LT_BUILD_RT_JOIN_FUNC_CODE,
+                new Object[0]);
     }
 
     // ----------------------------------------------------------------- Operator / harness
@@ -198,6 +222,20 @@ class LateralSnapshotJoinOperatorTest {
             newHarness(LateralSnapshotJoinOperator op) throws Exception {
         return new KeyedTwoInputStreamOperatorTestHarness<>(
                 op, PROBE_KEY_SELECTOR, BUILD_KEY_SELECTOR, KEY_TYPE);
+    }
+
+    /**
+     * Harness that runs the operator in non-key (SINGLETON) mode: both inputs use {@link
+     * EmptyRowDataKeySelector}, so every row maps to one empty key. This is the shape a LATERAL
+     * SNAPSHOT join takes when it doesn't have an equality predicate.
+     */
+    private static KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
+            newEmptyKeyHarness(LateralSnapshotJoinOperator op) throws Exception {
+        return new KeyedTwoInputStreamOperatorTestHarness<>(
+                op,
+                EmptyRowDataKeySelector.INSTANCE,
+                EmptyRowDataKeySelector.INSTANCE,
+                EmptyRowDataKeySelector.INSTANCE.getProducedType());
     }
 
     private static KeySelector<RowData, RowData> nullSafeStringKeySelector(final int keyIdx) {
@@ -506,6 +544,76 @@ class LateralSnapshotJoinOperatorTest {
             assertThat(h.numEventTimeTimers()).isZero();
             h.getOperator().setCurrentKey(stringKey("k1"));
             assertThat(op.getProbeBufferSeq().value()).isNull();
+        }
+    }
+
+    @Test
+    void emptyKeyModeInnerNonEquiJoin() throws Exception {
+        // INNER JOIN with an empty keyset and a non-equi condition (probe.id < build.rt). This
+        // happens if the join has no equality predicate (or it was folded away). The empty key puts
+        // all build rows in one group; the generated condition then selects the matching ones.
+        LateralSnapshotJoinOperator op =
+                newOperator(
+                        false, newProbeIdLtBuildRtCondition(), new boolean[0], 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newEmptyKeyHarness(op)) {
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 10L));
+            addBuildChange(h, insertRecord("k2", "v2", 20L));
+
+            // LOAD phase: buffered probe id=15 matches only k2 at the flip (15 < 20, not < 10).
+            addProbeRecord(h, 15L, "px", "p1");
+            addProbeWm(h, 80L); // lets the flip drain the buffered probe
+            addBuildWm(h, 100L); // flip to JOIN
+            assertPhase(op, Phase.JOIN);
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(h, row(15L, "px", "p1", "k2", "v2", 20L));
+
+            // JOIN phase: id=5 matches k1 and k2; id=18 matches k2; id=25 matches none (no output).
+            addProbeRecord(h, 5L, "py", "p2");
+            addProbeRecord(h, 18L, "pz", "p3");
+            addProbeRecord(h, 25L, "pz", "p4");
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(
+                    h,
+                    row(5L, "py", "p2", "k1", "v1", 10L),
+                    row(5L, "py", "p2", "k2", "v2", 20L),
+                    row(18L, "pz", "p3", "k2", "v2", 20L));
+        }
+    }
+
+    @Test
+    void emptyKeyModeLeftOuterNonEquiJoin() throws Exception {
+        // LEFT OUTER JOIN with an empty keyset and a non-equi condition (probe.id < build.rt). A
+        // probe that matches no build row in the group is emitted null-padded.
+        LateralSnapshotJoinOperator op =
+                newOperator(true, newProbeIdLtBuildRtCondition(), new boolean[0], 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newEmptyKeyHarness(op)) {
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 10L));
+            addBuildChange(h, insertRecord("k2", "v2", 20L));
+
+            // LOAD phase: buffered probe id=100 matches no build row -> null-padded at the flip.
+            addProbeRecord(h, 100L, "px", "p1");
+            addProbeWm(h, 80L); // lets the flip drain the buffered probe
+            addBuildWm(h, 100L); // flip to JOIN
+            assertPhase(op, Phase.JOIN);
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(h, row(100L, "px", "p1", null, null, null));
+
+            // JOIN phase: id=5 matches k1 and k2; id=18 matches k2; id=25 matches none
+            // (null-padded).
+            addProbeRecord(h, 5L, "py", "p2");
+            addProbeRecord(h, 18L, "pz", "p3");
+            addProbeRecord(h, 25L, "pzz", "p4");
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(
+                    h,
+                    row(5L, "py", "p2", "k1", "v1", 10L),
+                    row(5L, "py", "p2", "k2", "v2", 20L),
+                    row(18L, "pz", "p3", "k2", "v2", 20L),
+                    row(25L, "pzz", "p4", null, null, null));
         }
     }
 

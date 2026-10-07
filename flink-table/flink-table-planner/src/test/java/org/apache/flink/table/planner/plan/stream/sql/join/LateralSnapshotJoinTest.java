@@ -207,6 +207,46 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                         + "ON probe.pk = s.bk");
     }
 
+    @Test
+    void testNonEquiInnerLateralSnapshotJoin() {
+        // An INNER LATERAL SNAPSHOT join without an equi-key runs with a SINGLETON distribution
+        // (single-threaded), like other Flink joins without an equi-key.
+        util.verifyRelPlan(
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s "
+                        + "ON probe.pv > s.bv");
+    }
+
+    @Test
+    void testNonEquiLeftLateralSnapshotJoin() {
+        // A LEFT OUTER LATERAL SNAPSHOT join without an equi-key runs with a SINGLETON distribution
+        // (single-threaded), like other Flink joins without an equi-key.
+        util.verifyRelPlan(
+                "SELECT * FROM probe LEFT JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s "
+                        + "ON probe.pv > s.bv");
+    }
+
+    @Test
+    void testLocalPredicateOnJoinKeyColumn() {
+        // Reproduces FLINK-40902: a local filter on the same column that carries the equi-join
+        // predicate (probe.pk = s.bk together with WHERE probe.pk = 'key1') must still plan as a
+        // LATERAL SNAPSHOT join. Calcite folds the equi-key to a constant on each side (pk = 'key1'
+        // AND bk = 'key1') and simplifies the join condition away; the join then runs single-
+        // threaded (SINGLETON).
+        util.verifyRelPlan(
+                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b, on_time => DESCRIPTOR(bts), "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s "
+                        + "ON probe.pk = s.bk "
+                        + "WHERE probe.pk = 'key1'");
+    }
+
     // ------------------------------------------------------------------------------------------
     // Behavior and compilation smoke tests
     // ------------------------------------------------------------------------------------------
@@ -508,20 +548,6 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                 .hasMessageContaining(
                         "The probe (left) input of LATERAL SNAPSHOT join doesn't support "
                                 + "consuming update and delete changes");
-    }
-
-    @Test
-    void testRejectMissingEqualityPredicate() {
-        final String sql =
-                "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
-                        + "input => TABLE b, on_time => DESCRIPTOR(bts), "
-                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
-                        + ") AS s "
-                        + "ON probe.pv > s.bv";
-        assertThatThrownBy(() -> util.verifyRelPlan(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "LATERAL SNAPSHOT join requires at least one equality predicate.");
     }
 
     @Test
