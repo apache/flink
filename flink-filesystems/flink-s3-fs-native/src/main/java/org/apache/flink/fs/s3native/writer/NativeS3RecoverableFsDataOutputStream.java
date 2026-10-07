@@ -277,7 +277,10 @@ class NativeS3RecoverableFsDataOutputStream extends RecoverableFsDataOutputStrea
 
             if (currentPartSize > 0) {
                 currentOutputStream.flush();
-                incompletePartKey = ".incomplete/" + uploadId + "/" + UUID.randomUUID();
+                // Keep the side object in the target's directory, so that anything scoped to the
+                // target's key prefix (for example IAM or session policies) covers it as well.
+                final String parent = key.substring(0, key.lastIndexOf('/') + 1);
+                incompletePartKey = parent + ".incomplete/" + uploadId + "/" + UUID.randomUUID();
                 s3AccessHelper.putObject(incompletePartKey, currentTempFile);
                 incompletePartLength = currentPartSize;
             }
