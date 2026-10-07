@@ -52,7 +52,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *     +-- part 1: PART bytes, uploaded as a completed multipart upload part
  *     +-- tail: any bytes written after part 1, not yet part of a completed multipart part
  *
- *   side object ("&lt;key&gt;/.incomplete/&lt;uploadId&gt;/&lt;uuid&gt;", see #incompletePrefix())
+ *   side object ("&lt;dir&gt;/.incomplete/&lt;uploadId&gt;/&lt;uuid&gt;", see #incompletePrefix())
+ *     - lives in the target object's directory ("&lt;dir&gt;/" is empty for a root-level key)
  *     - written by persist() only when there IS a tail, so that the tail bytes survive a
  *       writer restart
  *     - read back by recover(), which downloads it locally and appends it to the in-progress
@@ -98,7 +99,7 @@ class NativeS3RecoverableWriterRecoveryITCase {
     }
 
     private String incompletePrefix(String uploadId) {
-        return ".incomplete/" + uploadId + "/";
+        return key.substring(0, key.lastIndexOf('/') + 1) + ".incomplete/" + uploadId + "/";
     }
 
     @Test
