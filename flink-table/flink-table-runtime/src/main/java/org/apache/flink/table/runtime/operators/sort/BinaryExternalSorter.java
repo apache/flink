@@ -54,6 +54,7 @@ import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -176,7 +177,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
             AbstractRowDataSerializer<RowData> inputSerializer,
             BinaryRowDataSerializer serializer,
             NormalizedKeyComputer normalizedKeyComputer,
-            RecordComparator comparator,
+            Supplier<RecordComparator> comparatorFactory,
             int maxNumFileHandles,
             boolean compressionEnabled,
             int compressionBlockSize,
@@ -189,7 +190,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                 inputSerializer,
                 serializer,
                 normalizedKeyComputer,
-                comparator,
+                comparatorFactory,
                 maxNumFileHandles,
                 compressionEnabled,
                 compressionBlockSize,
@@ -205,7 +206,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
             AbstractRowDataSerializer<RowData> inputSerializer,
             BinaryRowDataSerializer serializer,
             NormalizedKeyComputer normalizedKeyComputer,
-            RecordComparator comparator,
+            Supplier<RecordComparator> comparatorFactory,
             int maxNumFileHandles,
             boolean compressionEnabled,
             int compressionBlockSize,
@@ -224,6 +225,11 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
         checkNotNull(ioManager);
         checkNotNull(normalizedKeyComputer);
         checkNotNull(memoryManager);
+
+        // Generated comparators may keep per-call state in member fields (e.g. after code
+        // splitting), so the sorting thread and the merging path must not share an instance.
+        final RecordComparator sortComparator = comparatorFactory.get();
+        final RecordComparator mergeComparator = comparatorFactory.get();
         this.serializer = (BinaryRowDataSerializer) serializer.duplicate();
         this.memorySegmentSize = memoryManager.getPageSize();
 
@@ -275,7 +281,11 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
             this.sortReadMemory.add(pool);
             final BinaryInMemorySortBuffer buffer =
                     BinaryInMemorySortBuffer.createBuffer(
-                            normalizedKeyComputer, inputSerializer, serializer, comparator, pool);
+                            normalizedKeyComputer,
+                            inputSerializer,
+                            serializer,
+                            sortComparator,
+                            pool);
 
             // add to empty queue
             CircularElement element = new CircularElement(i, buffer);
@@ -314,7 +324,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                         maxNumFileHandles,
                         channelManager,
                         (BinaryRowDataSerializer) serializer.duplicate(),
-                        comparator,
+                        mergeComparator,
                         compressionEnabled,
                         compressionCodecFactory,
                         compressionBlockSize);
@@ -329,7 +339,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                         circularQueues,
                         ioManager,
                         (BinaryRowDataSerializer) serializer.duplicate(),
-                        comparator);
+                        mergeComparator);
 
         // start the thread that handles merging from second storage
         this.mergeThread =

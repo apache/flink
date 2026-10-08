@@ -28,7 +28,6 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedNormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
-import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
@@ -84,7 +83,7 @@ public class SortOperator extends TableStreamOperator<RowData>
         this.binarySerializer = new BinaryRowDataSerializer(inputSerializer.getArity());
 
         NormalizedKeyComputer computer = gComputer.newInstance(cl);
-        RecordComparator comparator = gComparator.newInstance(cl);
+        GeneratedRecordComparator genComparator = gComparator;
         gComputer = null;
         gComparator = null;
 
@@ -98,7 +97,7 @@ public class SortOperator extends TableStreamOperator<RowData>
                         inputSerializer,
                         binarySerializer,
                         computer,
-                        comparator,
+                        () -> genComparator.newInstance(cl),
                         maxNumFileHandles,
                         compressionEnabled,
                         compressionBlockSize,
