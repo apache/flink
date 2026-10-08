@@ -1346,6 +1346,27 @@ public class FunctionITCase extends StreamingTestBase {
         assertThat(actual).containsExactly(Row.of(10), Row.of(30));
     }
 
+    /** Pins the IF guard interaction with the RexLocalRef cache (IF is not scoped like CASE). */
+    @Test
+    void testCalcIfGuardShortCircuit() {
+        final List<Row> sourceData = List.of(Row.of(""), Row.of("1.5"));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+        tEnv().executeSql("CREATE TABLE SourceTable (s STRING) WITH ('connector' = 'COLLECTION')");
+
+        final List<Row> actual =
+                CollectionUtil.iteratorToList(
+                        tEnv().executeSql(
+                                        "SELECT IF(s IS NULL OR CHAR_LENGTH(s) = 0,"
+                                                + " CAST(NULL AS DOUBLE),"
+                                                + " CAST(s AS DOUBLE))"
+                                                + " FROM SourceTable")
+                                .collect());
+
+        assertThat(actual).containsExactly(Row.of((Object) null), Row.of(1.5d));
+    }
+
     @Test
     void testStructuredScalarFunction() throws Exception {
         final List<Row> sourceData =
