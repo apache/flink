@@ -45,6 +45,16 @@ DataFrame table UDFs support synchronous functions, callable classes and instanc
 declaration forms, type inference, lifecycle, and examples, and
 :meth:`~pyflink.dataframe.DataFrame.flat_map` for row input and output semantics.
 
+Aggregate Functions
+===================
+
+Use :func:`pyflink.dataframe.udaf` to declare an aggregate for
+:meth:`~pyflink.dataframe.DataFrame.agg`,
+:meth:`~pyflink.dataframe.GroupedDataFrame.agg`, or :func:`pyflink.dataframe.sql`.
+General UDAFs use the Table API's ``AggregateFunction`` accumulator protocol.
+Pandas UDAFs also accept ordinary functions and callable classes or instances.
+See :func:`pyflink.dataframe.udaf` for type declarations, execution modes, and examples.
+
 API Reference
 =============
 
@@ -55,3 +65,4 @@ API Reference
 
     udf
     udtf
+    udaf
