@@ -80,8 +80,21 @@ final class JoinOperationFactory {
             JoinType joinType,
             ResolvedExpression condition,
             boolean correlated) {
-        boolean alwaysTrue = ExpressionUtils.extractValue(condition, Boolean.class).orElse(false);
+        // Unlike other lateral joins with a table function (which only allow an empty/literal-true
+        // condition), a lateral SNAPSHOT join supports an ON predicate.
+        final boolean isLateralSnapshot =
+                correlated
+                        && right instanceof CorrelatedFunctionQueryOperation
+                        && CorrelatedFunctionTableFactory.isSnapshot(
+                                ((CorrelatedFunctionQueryOperation) right)
+                                        .getResolvedFunction()
+                                        .getDefinition());
+        if (isLateralSnapshot) {
+            return;
+        }
 
+        final boolean alwaysTrue =
+                ExpressionUtils.extractValue(condition, Boolean.class).orElse(false);
         if (alwaysTrue) {
             return;
         }
