@@ -964,17 +964,24 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
         DBOptions dbOptions = new DBOptions(this.forstHandle.getDbOptions());
         dbOptions.setDbLogDir("");
 
-        RocksDB restoreDb =
-                ForStOperationUtils.openDB(
-                        dbName,
-                        columnFamilyDescriptors,
-                        columnFamilyHandles,
-                        createColumnFamilyOptions(
-                                this.forstHandle.getColumnFamilyOptionsFactory(), "default"),
-                        dbOptions);
+        RocksDB restoreDb;
+        try {
+            restoreDb =
+                    ForStOperationUtils.openDB(
+                            dbName,
+                            columnFamilyDescriptors,
+                            columnFamilyHandles,
+                            createColumnFamilyOptions(
+                                    this.forstHandle.getColumnFamilyOptionsFactory(), "default"),
+                            dbOptions);
+        } catch (Exception e) {
+            IOUtils.closeQuietly(dbOptions);
+            throw e;
+        }
 
         return new RestoredDBInstance(
                 restoreDb,
+                dbOptions,
                 columnFamilyHandles,
                 columnFamilyDescriptors,
                 stateMetaInfoSnapshots,
@@ -995,6 +1002,10 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
 
         @Nonnull final RocksDB db;
 
+        // A native copy that shares the backend's resources, e.g. the slot-shared write buffer
+        // manager and block cache with managed memory, so it must be closed with the DB.
+        @Nonnull final DBOptions dbOptions;
+
         @Nonnull final ColumnFamilyHandle defaultColumnFamilyHandle;
 
         @Nonnull final List<ColumnFamilyHandle> columnFamilyHandles;
@@ -1011,12 +1022,14 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
 
         RestoredDBInstance(
                 @Nonnull RocksDB db,
+                @Nonnull DBOptions dbOptions,
                 @Nonnull List<ColumnFamilyHandle> columnFamilyHandles,
                 @Nonnull List<ColumnFamilyDescriptor> columnFamilyDescriptors,
                 @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
                 @Nonnull IncrementalRemoteKeyedStateHandle srcStateHandle,
                 @Nonnull String instancePath) {
             this.db = db;
+            this.dbOptions = dbOptions;
             this.defaultColumnFamilyHandle = columnFamilyHandles.remove(0);
             this.columnFamilyHandles = columnFamilyHandles;
             this.columnFamilyDescriptors = columnFamilyDescriptors;
@@ -1036,6 +1049,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
             IOUtils.closeQuietly(defaultColumnFamilyHandle);
             IOUtils.closeAllQuietly(columnFamilyHandles);
             IOUtils.closeQuietly(db);
+            IOUtils.closeQuietly(dbOptions);
             IOUtils.closeAllQuietly(columnFamilyOptions);
             IOUtils.closeQuietly(readOptions);
         }
