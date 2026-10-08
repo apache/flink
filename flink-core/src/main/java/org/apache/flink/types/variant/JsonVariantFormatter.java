@@ -28,7 +28,9 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
+import java.util.ArrayDeque;
 import java.util.Base64;
+import java.util.Deque;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_FORMATTER;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ_FORMATTER;
@@ -70,43 +72,69 @@ public final class JsonVariantFormatter {
         return sb.toString();
     }
 
+    // Renders the node and its descendants via an explicit work stack, so deep nesting cannot
+    // overflow.
     private void append(
-            final byte[] value, final byte[] metadata, final int pos, final StringBuilder sb) {
-        final int start = sb.length();
-        try {
-            appendNode(value, metadata, pos, sb);
-        } catch (VariantTypeException e) {
-            if (!lenient) {
-                throw e;
+            final byte[] value, final byte[] metadata, final int startPos, final StringBuilder sb) {
+        final Deque<Object> stack = new ArrayDeque<>();
+        stack.push(startPos);
+        while (!stack.isEmpty()) {
+            final Object top = stack.peek();
+            if (top instanceof ContainerFrame) {
+                final ContainerFrame frame = (ContainerFrame) top;
+                if (frame.index == frame.childPositions.length) {
+                    sb.append(frame.closing);
+                    stack.pop();
+                    continue;
+                }
+                if (frame.index != 0) {
+                    sb.append(',');
+                }
+                if (frame.keys != null) {
+                    sb.append(frame.keys[frame.index]);
+                    sb.append(':');
+                }
+                stack.push(frame.childPositions[frame.index++]);
+                continue;
             }
-            // Drop the node's partial output, such as a dangling key.
-            sb.setLength(start);
-            appendQuoted(sb, BinaryVariantUtil.undecodableNode(value, pos));
+            final int pos = (Integer) top;
+            stack.pop();
+            final int start = sb.length();
+            try {
+                appendNode(value, metadata, pos, sb, stack);
+            } catch (VariantTypeException e) {
+                if (!lenient) {
+                    throw e;
+                }
+                // Drop the node's partial output, such as a dangling key.
+                sb.setLength(start);
+                appendQuoted(sb, BinaryVariantUtil.undecodableNode(value, pos));
+            }
         }
     }
 
-    private void appendNode(byte[] value, byte[] metadata, int pos, StringBuilder sb) {
+    // Decodes a container's header before writing anything so a malformed one leaves sb untouched
+    // for the lenient reset path.
+    private void appendNode(
+            byte[] value, byte[] metadata, int pos, StringBuilder sb, Deque<Object> stack) {
         switch (BinaryVariantUtil.getType(value, pos)) {
             case OBJECT:
                 handleObject(
                         value,
                         pos,
                         (size, idSize, offsetSize, idStart, offsetStart, dataStart) -> {
-                            sb.append('{');
+                            final int[] childPositions = new int[size];
+                            final String[] keys = new String[size];
                             for (int i = 0; i < size; ++i) {
                                 int id = readUnsigned(value, idStart + idSize * i, idSize);
                                 int offset =
                                         readUnsigned(
                                                 value, offsetStart + offsetSize * i, offsetSize);
-                                int elementPos = dataStart + offset;
-                                if (i != 0) {
-                                    sb.append(',');
-                                }
-                                sb.append(escapeJson(getMetadataKey(metadata, id)));
-                                sb.append(':');
-                                append(value, metadata, elementPos, sb);
+                                childPositions[i] = dataStart + offset;
+                                keys[i] = escapeJson(getMetadataKey(metadata, id));
                             }
-                            sb.append('}');
+                            sb.append('{');
+                            stack.push(new ContainerFrame(childPositions, keys, '}'));
                             return null;
                         });
                 break;
@@ -115,18 +143,15 @@ public final class JsonVariantFormatter {
                         value,
                         pos,
                         (size, offsetSize, offsetStart, dataStart) -> {
-                            sb.append('[');
+                            final int[] childPositions = new int[size];
                             for (int i = 0; i < size; ++i) {
                                 int offset =
                                         readUnsigned(
                                                 value, offsetStart + offsetSize * i, offsetSize);
-                                int elementPos = dataStart + offset;
-                                if (i != 0) {
-                                    sb.append(',');
-                                }
-                                append(value, metadata, elementPos, sb);
+                                childPositions[i] = dataStart + offset;
                             }
-                            sb.append(']');
+                            sb.append('[');
+                            stack.push(new ContainerFrame(childPositions, null, ']'));
                             return null;
                         });
                 break;
@@ -221,6 +246,20 @@ public final class JsonVariantFormatter {
                 break;
             default:
                 throw unexpectedType(BinaryVariantUtil.getType(value, pos));
+        }
+    }
+
+    private static final class ContainerFrame {
+        private final int[] childPositions;
+        // Quoted "key" tokens for an object, or null for an array.
+        private final String[] keys;
+        private final char closing;
+        private int index;
+
+        private ContainerFrame(int[] childPositions, String[] keys, char closing) {
+            this.childPositions = childPositions;
+            this.keys = keys;
+            this.closing = closing;
         }
     }
 
