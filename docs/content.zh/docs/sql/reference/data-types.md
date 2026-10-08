@@ -1705,8 +1705,8 @@ A scalar value can also be cast to a `VARIANT` with `CAST` or `TRY_CAST`. Only a
 - A constructed type casts element by element when its element, field, or value type casts to
   `VARIANT`, for example `ARRAY<INT>` to `ARRAY<VARIANT>`. A `NULL` element stays a SQL `NULL`. A
   whole `ARRAY`, `MAP`, or `ROW` does not cast into a single `VARIANT` yet.
-- Two `VARIANT` values are equal only when their binary encodings match. So as a `MAP` key or a
-  `MULTISET` element, a `1` cast from `INT` does not match a `1` cast from `BIGINT` or parsed by
+- As a `MAP` key or a `MULTISET` element, two `VARIANT` values match only when their binary
+  encodings match. So a `1` cast from `INT` does not match a `1` cast from `BIGINT` or parsed by
   `PARSE_JSON('1')`.
 
 ```sql
@@ -1718,6 +1718,32 @@ CAST(CAST('NaN' AS DOUBLE) AS VARIANT)       -- NaN, stored as a DOUBLE
 CAST(INTERVAL '2' DAY AS VARIANT)            -- fails at validation
 CAST(ARRAY[1, NULL] AS ARRAY<VARIANT>)       -- [1, NULL], each element a VARIANT, the NULL stays SQL NULL
 CAST(ARRAY[1, 2] AS VARIANT)                 -- fails at validation, not supported yet
+```
+
+A `VARIANT` has no equality and no order, because one value has many valid binary encodings. The
+objects `{"a": 1, "b": 2}` and `{"b": 2, "a": 1}` hold the same value, and so do a `1` stored as a
+`TINYINT` and a `1` stored as a `BIGINT`. So a query cannot use a `VARIANT`, or a type that contains
+one, where it compares values:
+
+- as a grouping key, including `GROUPING SETS`, window aggregations, and `SELECT DISTINCT`
+- as the argument of a `DISTINCT` aggregate, such as `COUNT(DISTINCT v)`
+- in `UNION`, `INTERSECT`, `INTERSECT ALL`, `EXCEPT`, and `EXCEPT ALL`, while `UNION ALL` is allowed
+- as an `ORDER BY` key
+- as a `PARTITION BY` or `ORDER BY` key of an `OVER` window, of `MATCH_RECOGNIZE`, or of a table
+  argument
+- as an operand of a comparison such as `=`, `<>`, `<`, `IS DISTINCT FROM`, or `IN`, which includes
+  join conditions
+
+Such a query fails before it runs. Cast the value to a concrete type first, or use `TRY_CAST` when
+some values do not fit the type. A `VARIANT` can still be selected, read with field access, checked
+with `IS NULL`, cast, and passed to aggregate functions such as `COUNT`, `FIRST_VALUE`, and
+`LAST_VALUE`.
+
+```sql
+SELECT v['a'], COUNT(*) FROM t GROUP BY v['a']                             -- fails
+SELECT CAST(v['a'] AS INT), COUNT(*) FROM t GROUP BY CAST(v['a'] AS INT)   -- one group per number
+SELECT * FROM t WHERE v['a'] = PARSE_JSON('1')                             -- fails
+SELECT * FROM t WHERE CAST(v['a'] AS INT) = 1                              -- compares the number
 ```
 
 **Declaration**
