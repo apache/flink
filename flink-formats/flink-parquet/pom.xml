@@ -332,7 +332,7 @@ under the License.
 						</goals>
 						<configuration>
 							<sourceDirectories>
-								<sourceDirectory>${project.basedir}/src/test/resources/protobuf</sourceDirectory>
+								<sourceDirectory>${project.basedir}/src/test/proto</sourceDirectory>
 							</sourceDirectories>
 							<!-- Same path as before, so stale xolstice output under avro's test root cannot compile twice. -->
 							<outputDirectory>${project.build.directory}/generated-test-sources/protobuf/java</outputDirectory>
