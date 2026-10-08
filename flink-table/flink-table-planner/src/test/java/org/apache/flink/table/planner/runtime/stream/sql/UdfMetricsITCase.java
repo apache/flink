@@ -45,6 +45,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -77,6 +78,10 @@ class UdfMetricsITCase {
     private static final List<Row> SOURCE_ROWS = Arrays.asList(Row.of(1), Row.of(2), Row.of(3));
 
     private static final long SLEEP_MILLIS = 20;
+
+    // Delay before an async UDF completes its future, so the recorded dispatch-to-completion
+    // span is measurably non-zero.
+    private static final long ASYNC_DELAY_MILLIS = 5;
 
     // Matches the processing-time metric of any UDF, for asserting that none is registered.
     private static final String ANY_PROCESSING_TIME_PATTERN = "\\.udf\\..*\\.udfProcessingTime";
@@ -153,7 +158,9 @@ class UdfMetricsITCase {
 
         public void eval(CompletableFuture<Integer> future, Integer i) {
             executor.schedule(
-                    () -> future.complete(i == null ? null : i * 2), 5, TimeUnit.MILLISECONDS);
+                    () -> future.complete(i == null ? null : i * 2),
+                    ASYNC_DELAY_MILLIS,
+                    TimeUnit.MILLISECONDS);
         }
     }
 
@@ -191,7 +198,7 @@ class UdfMetricsITCase {
                             future.complete(i);
                         }
                     },
-                    5,
+                    ASYNC_DELAY_MILLIS,
                     TimeUnit.MILLISECONDS);
         }
     }
@@ -213,7 +220,10 @@ class UdfMetricsITCase {
         }
 
         public void eval(CompletableFuture<Collection<Integer>> future, Integer i) {
-            executor.schedule(() -> future.complete(Arrays.asList(i, i)), 5, TimeUnit.MILLISECONDS);
+            executor.schedule(
+                    () -> future.complete(Arrays.asList(i, i)),
+                    ASYNC_DELAY_MILLIS,
+                    TimeUnit.MILLISECONDS);
         }
     }
 
@@ -372,6 +382,46 @@ class UdfMetricsITCase {
                 .isEqualTo(SOURCE_ROWS.size());
     }
 
+    /**
+     * Completes exceptionally the first {@code numFailures} invocations, then succeeds. Exercises
+     * the async <em>table</em> completion-exception counter, which lives in a different delegate
+     * from the async scalar one.
+     */
+    public static class AsyncFlakyRows extends AsyncTableFunction<Integer> {
+        private final int numFailures;
+        private final AtomicInteger failures = new AtomicInteger();
+        private transient ScheduledExecutorService executor;
+
+        public AsyncFlakyRows(int numFailures) {
+            this.numFailures = numFailures;
+        }
+
+        @Override
+        public void open(FunctionContext context) {
+            executor = Executors.newSingleThreadScheduledExecutor();
+        }
+
+        @Override
+        public void close() {
+            if (executor != null) {
+                executor.shutdownNow();
+            }
+        }
+
+        public void eval(CompletableFuture<Collection<Integer>> future, Integer i) {
+            executor.schedule(
+                    () -> {
+                        if (failures.getAndIncrement() < numFailures) {
+                            future.completeExceptionally(new RuntimeException("boom"));
+                        } else {
+                            future.complete(Collections.singletonList(i));
+                        }
+                    },
+                    ASYNC_DELAY_MILLIS,
+                    TimeUnit.MILLISECONDS);
+        }
+    }
+
     @Test
     void testAsyncScalarMetricsRecorded() throws Exception {
         StreamTableEnvironment tEnv = createTableEnv(true);
@@ -381,9 +431,14 @@ class UdfMetricsITCase {
 
         JobID jobId = execute(tEnv, "INSERT INTO sink SELECT asyncudf(id) FROM src");
 
-        // The processing time spans dispatch to off-thread completion; one sample per input row.
-        assertThat(histogram(jobId, processingTimePattern("asyncudf")).getCount())
-                .isEqualTo(SOURCE_ROWS.size());
+        // One sample per input row (interval 1).
+        Histogram processingTime = histogram(jobId, processingTimePattern("asyncudf"));
+        assertThat(processingTime.getCount()).isEqualTo(SOURCE_ROWS.size());
+        // Every completion is scheduled ASYNC_DELAY_MILLIS out, so the smallest recorded value must
+        // still cover that delay. A count assertion alone would also hold if timing began at
+        // completion and recorded near-zero spans instead of dispatch-to-completion.
+        assertThat(processingTime.getStatistics().getMin())
+                .isGreaterThanOrEqualTo(TimeUnit.MILLISECONDS.toNanos(ASYNC_DELAY_MILLIS));
         assertThat(counter(jobId, exceptionCountPattern("asyncudf")).getCount()).isZero();
     }
 
@@ -424,8 +479,32 @@ class UdfMetricsITCase {
         // finishes normally: an exceptional completion is a soft error, not a job failure.
         JobID jobId = execute(tEnv, "INSERT INTO sink SELECT flakyudf(id) FROM src");
 
-        assertThat(counter(jobId, exceptionCountPattern("flakyudf")).getCount())
-                .isGreaterThanOrEqualTo(1);
+        // Exactly two: invocations are serialized above and table.exec.async-scalar.max-attempts
+        // defaults to 3, so the first row fails twice and succeeds on its third attempt while the
+        // remaining rows see a counter that has already reached the failure budget.
+        assertThat(counter(jobId, exceptionCountPattern("flakyudf")).getCount()).isEqualTo(2);
+    }
+
+    @Test
+    void testAsyncTableCompletionExceptionCounted() throws Exception {
+        StreamTableEnvironment tEnv = createTableEnv(true);
+        // Serialize invocations so the shared failure counter drives a deterministic retry.
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_CONCURRENT_OPERATIONS, 1);
+        tEnv.createTemporarySystemFunction("flakytableudf", new AsyncFlakyRows(2));
+        createSource(tEnv, "src", "id INT");
+        createBlackHoleSink(tEnv, "sink", "v INT");
+
+        JobID jobId =
+                execute(
+                        tEnv,
+                        "INSERT INTO sink SELECT x FROM src, "
+                                + "LATERAL TABLE(flakytableudf(id)) AS T(x)");
+
+        // The async table delegate counts exceptional completions independently of the scalar one,
+        // and table.exec.async-table.max-retries leaves room for both failures, so the job still
+        // finishes.
+        assertThat(counter(jobId, exceptionCountPattern("flakytableudf")).getCount()).isEqualTo(2);
     }
 
     @Test
