@@ -79,6 +79,29 @@ public enum ArgumentTrait {
     SET_SEMANTIC_TABLE(true, StaticArgumentTrait.SET_SEMANTIC_TABLE),
 
     /**
+     * An argument that accepts a table with broadcast semantics. This trait only applies to {@link
+     * ProcessTableFunction} (PTF).
+     *
+     * <p>A table with broadcast semantics serves as a side input next to tables with {@link
+     * #ROW_SEMANTIC_TABLE} or {@link #SET_SEMANTIC_TABLE}. Every row of a broadcast table is sent
+     * to all virtual processors, independent of the key context defined by the PARTITION BY clause.
+     * The PTF can store the broadcast information in state entries of kind {@link
+     * StateKind#BROADCAST}. When processing rows of the main table(s), broadcast state entries are
+     * available for read access.
+     *
+     * <p>While processing a broadcast row, the PTF can only modify {@link StateKind#BROADCAST}
+     * state entries. State entries that are scoped to a set are passed as null. The PTF must not
+     * emit results via {@code collect()} or register/clear timers.
+     *
+     * <p>A change to a broadcast state entry has no effect on rows of the main table(s) that have
+     * been processed before. Rows of different tables are not processed in a deterministic order.
+     *
+     * <p>A signature may declare multiple broadcast table arguments, but must declare at least one
+     * {@link #ROW_SEMANTIC_TABLE} or {@link #SET_SEMANTIC_TABLE} argument next to them.
+     */
+    BROADCAST_SEMANTIC_TABLE(true, StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE),
+
+    /**
      * Defines that a PARTITION BY clause is optional for {@link #SET_SEMANTIC_TABLE}. By default,
      * it is mandatory for improving the parallel execution by distributing the table by key.
      *

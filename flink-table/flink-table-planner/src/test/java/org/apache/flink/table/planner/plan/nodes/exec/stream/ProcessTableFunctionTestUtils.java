@@ -24,6 +24,7 @@ import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.annotation.StateKind;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.ListView;
@@ -60,6 +61,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.annotation.ArgumentTrait.BROADCAST_SEMANTIC_TABLE;
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
 import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
 import static org.apache.flink.table.annotation.ArgumentTrait.REQUIRE_FULL_DELETE;
@@ -163,6 +165,60 @@ public class ProcessTableFunctionTestUtils {
                             Row.of("Bob", 5, Instant.ofEpochMilli(10)),
                             Row.of("Bob", 6, Instant.ofEpochMilli(12)),
                             Row.of("Bob", 7, Instant.ofEpochMilli(22)))
+                    .build();
+
+    /**
+     * Rules for broadcast state. The names don't overlap with {@link #MULTI_VALUES} and {@link
+     * #CITY_VALUES}. Thus, results are deterministic independent of the order in which main and
+     * broadcast tables are processed.
+     */
+    public static final String BROADCAST_RULES_VALUES =
+            "CREATE VIEW rules AS SELECT * FROM "
+                    + "(VALUES ('Dave', 3), ('Eve', 4)) AS T(name, weight)";
+
+    /** Rules for broadcast state with time attribute. */
+    public static final SourceTestStep TIMED_BROADCAST_RULES_SOURCE =
+            SourceTestStep.newBuilder("rules")
+                    .addSchema(
+                            "name STRING",
+                            "weight INT",
+                            "ts TIMESTAMP_LTZ(3)",
+                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                    .producedValues(
+                            Row.of("Dave", 3, Instant.ofEpochMilli(2)),
+                            Row.of("Eve", 4, Instant.ofEpochMilli(5)))
+                    .build();
+
+    /**
+     * Rules for broadcast state that are only available before restore. The watermark declaration
+     * is not required by the function but enables waiting for emitted rows in restore tests.
+     */
+    public static final SourceTestStep BROADCAST_RULES_SOURCE =
+            SourceTestStep.newBuilder("rules")
+                    .addSchema(
+                            "name STRING",
+                            "weight INT",
+                            "ts TIMESTAMP_LTZ(3)",
+                            "WATERMARK FOR ts AS ts")
+                    .producedBeforeRestore(
+                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                            Row.of("Alice", 2, Instant.ofEpochMilli(1)),
+                            Row.of("Bob", 10, Instant.ofEpochMilli(2)))
+                    .build();
+
+    /**
+     * Main table for broadcast state. The row before restore is a marker for {@link
+     * BroadcastStateFunction} such that its output doesn't depend on the order in which main and
+     * broadcast tables are processed.
+     */
+    public static final SourceTestStep BROADCAST_RESTORE_SOURCE =
+            SourceTestStep.newBuilder("t")
+                    .addSchema(TIMED_SOURCE_SCHEMA)
+                    .producedBeforeRestore(Row.of("Bob", -1, Instant.ofEpochMilli(0)))
+                    .producedAfterRestore(
+                            Row.of("Bob", 99, Instant.ofEpochMilli(1)),
+                            Row.of("Alice", 42, Instant.ofEpochMilli(2)),
+                            Row.of("Charly", 7, Instant.ofEpochMilli(3)))
                     .build();
 
     /** Corresponds to {@link AppendProcessTableFunctionBase}. */
@@ -1385,6 +1441,247 @@ public class ProcessTableFunctionTestUtils {
 
     private static String toModeSummary(ChangelogMode mode) {
         return MODE_SUMMARY.get(mode.toString());
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Broadcast state
+    // --------------------------------------------------------------------------------------------
+
+    /** Testing function. */
+    public static class BroadcastStateFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                @StateHint ValueView<Integer> count,
+                @StateHint(StateKind.BROADCAST) MapView<String, Integer> weights,
+                @StateHint(StateKind.BROADCAST) ValueView<Integer> totalWeight,
+                @StateHint(StateKind.BROADCAST) RuleStats stats,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row input,
+                @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rule)
+                throws Exception {
+            if (rule != null) {
+                // Write access to broadcast state
+                final String name = rule.getFieldAs("name");
+                final int weight = rule.getFieldAs("weight");
+                weights.put(name, weight);
+                totalWeight.setValue(
+                        Optional.ofNullable(totalWeight.getValue()).orElse(0) + weight);
+                stats.rules++;
+                stats.lastName = name;
+                return;
+            }
+            if (input.<Integer>getFieldAs("score") < 0) {
+                // Marker row that is independent of the broadcast table
+                collectObjects(input);
+                return;
+            }
+            // Read access to broadcast state, keyed state is accessible as usual
+            final int c = Optional.ofNullable(count.getValue()).orElse(0) + 1;
+            count.setValue(c);
+            collectObjects(
+                    input, c, weights.get(input.getFieldAs("name")), totalWeight.getValue(), stats);
+        }
+    }
+
+    /** POJO for broadcast state. */
+    public static class RuleStats {
+        public int rules;
+        public String lastName;
+
+        @Override
+        public String toString() {
+            return String.format("RuleStats(rules=%s, lastName=%s)", rules, lastName);
+        }
+    }
+
+    /** Testing function that only performs lookups. Results are deterministic. */
+    public static class BroadcastLookupFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint ValueView<Integer> count,
+                @StateHint Score score,
+                @StateHint(StateKind.BROADCAST) MapView<String, Integer> weights,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row input,
+                @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rules)
+                throws Exception {
+            if (rules != null) {
+                // Keyed state has no key context
+                assertThat(count).isNull();
+                assertThat(score).isNull();
+                // Clearing keyed state has no effect
+                ctx.clearState("count");
+                weights.put(rules.getFieldAs("name"), rules.getFieldAs("weight"));
+                return;
+            }
+            final int c = Optional.ofNullable(count.getValue()).orElse(0) + 1;
+            count.setValue(c);
+            collectObjects(
+                    input,
+                    c,
+                    // Always fruitless
+                    weights.get(input.getFieldAs("name")),
+                    weights.getClass().getSimpleName());
+            // Fires once all tables (including broadcast tables) have been processed
+            ctx.timeContext(Long.class).registerOnTime("end", Long.MAX_VALUE);
+        }
+
+        public void onTimer(
+                ValueView<Integer> count, Score score, MapView<String, Integer> weights) {
+            collectObjects(count.getValue(), toSortedString(weights));
+        }
+    }
+
+    /** Testing function that filters by a broadcast block list. */
+    public static class BroadcastFilterFunction extends ProcessTableFunction<String> {
+        public void eval(
+                @StateHint(StateKind.BROADCAST) MapView<String, Boolean> blocked,
+                @ArgumentHint(ROW_SEMANTIC_TABLE) Row input,
+                @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rule)
+                throws Exception {
+            if (rule != null) {
+                blocked.put(rule.getFieldAs("name"), true);
+                return;
+            }
+            if (!blocked.contains(input.getFieldAs("name"))) {
+                collect("not blocked");
+            }
+        }
+    }
+
+    /** Testing function with multiple partitioned and broadcast tables. */
+    public static class MultiBroadcastFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint(StateKind.BROADCAST) MapView<String, Integer> weights,
+                @StateHint(StateKind.BROADCAST) RuleStats stats,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in1,
+                @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rules1,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in2,
+                @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rules2)
+                throws Exception {
+            // The order in which tables are processed is not deterministic, thus, the content of
+            // broadcast state is only verified via its invariants
+            if (rules1 != null) {
+                final String name = rules1.getFieldAs("name");
+                final Integer weight = rules1.getFieldAs("weight");
+                weights.put(name, weight);
+                assertThat(weights.get(name)).isEqualTo(weight);
+            } else if (rules2 != null) {
+                stats.rules++;
+                stats.lastName = rules2.getFieldAs("name");
+            } else {
+                final Row r = in1 != null ? in1 : in2;
+                // Broadcast state is readable and consistent
+                assertThat(stats.rules).isBetween(0, 2);
+                assertThat(stats.lastName).isIn(null, "Dave", "Eve");
+                assertThat(weights.get("Dave")).isIn(null, 3);
+                assertThat(weights.get("Eve")).isIn(null, 4);
+                collectObjects(in1, in2, weights.get(r.getFieldAs("name")));
+                // Modifications of eager broadcast state are discarded for main tables
+                stats.lastName = "discarded";
+                // Fires once all tables (including broadcast tables) have been processed
+                ctx.timeContext(Long.class).registerOnTime("end", Long.MAX_VALUE);
+            }
+        }
+
+        public void onTimer(MapView<String, Integer> weights, RuleStats stats) {
+            collectObjects(toSortedString(weights), stats);
+        }
+    }
+
+    /**
+     * Testing function with time next to a broadcast table with time attribute. The final timer
+     * fires once all tables (including broadcast tables) have been processed.
+     */
+    public static class BroadcastTimersFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint(StateKind.BROADCAST) MapView<String, Long> ruleTimes,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row input,
+                @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rule)
+                throws Exception {
+            final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+            if (rule != null) {
+                // Time is available for broadcast tables
+                ruleTimes.put(rule.getFieldAs("name"), timeCtx.time());
+                return;
+            }
+            collectObjects(
+                    String.format("Processing input row %s at time %s", input, timeCtx.time()));
+            // Exceeds all input timestamps, thus, only fires at the end of all tables
+            timeCtx.registerOnTime("end", 1000L);
+        }
+
+        public void onTimer(MapView<String, Long> ruleTimes) throws Exception {
+            collectObjects(toSortedString(ruleTimes));
+        }
+    }
+
+    /** Testing function that clears broadcast state. */
+    public static class BroadcastClearStateFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint ValueView<Integer> count,
+                @StateHint(StateKind.BROADCAST) MapView<String, Integer> weights,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row input,
+                @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rule)
+                throws Exception {
+            if (rule != null) {
+                weights.put(rule.getFieldAs("name"), rule.getFieldAs("weight"));
+                // Only clears broadcast state, i.e. 'Dave' is removed but keyed state is not
+                // affected
+                if (rule.getFieldAs("name").equals("Dave")) {
+                    ctx.clearAllState();
+                }
+                return;
+            }
+            count.setValue(Optional.ofNullable(count.getValue()).orElse(0) + 1);
+            ctx.timeContext(Long.class).registerOnTime("end", Long.MAX_VALUE);
+        }
+
+        public void onTimer(ValueView<Integer> count, MapView<String, Integer> weights)
+                throws Exception {
+            collectObjects(count.getValue(), toSortedString(weights));
+        }
+    }
+
+    private static String toSortedString(MapView<String, ?> map) {
+        return map.getMap().entrySet().stream()
+                .map(Objects::toString)
+                .sorted()
+                .collect(Collectors.joining(", ", "{", "}"));
+    }
+
+    /** Testing function. */
+    public static class InvalidBroadcastCollectFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row input,
+                @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rule) {
+            collectObjects(input, rule);
+        }
+    }
+
+    /** Testing function. */
+    public static class InvalidBroadcastTimerFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row input,
+                @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rule) {
+            if (rule != null) {
+                ctx.timeContext(Long.class).registerOnTime(42L);
+            }
+        }
+    }
+
+    /** Testing function. */
+    public static class InvalidBroadcastStateWriteFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                @StateHint(StateKind.BROADCAST) MapView<String, Integer> weights,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row input,
+                @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rule)
+                throws Exception {
+            if (input != null) {
+                weights.put(input.getFieldAs("name"), 42);
+            }
+        }
     }
 
     /** POJO expecting BIGINT. */

@@ -459,7 +459,11 @@ public class BridgingSqlFunction extends SqlFunction {
             final TableCharacteristic.Semantics semantics;
             // Report SET semantics if it may apply - which allows the use of PARTITION BY
             if (arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)
-                    || arg.hasConditionalTrait(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+                    || arg.hasConditionalTrait(StaticArgumentTrait.SET_SEMANTIC_TABLE)
+                    // Calcite allows at most one table with row semantics, therefore broadcast
+                    // tables are declared as SET semantics in RexNodes but validated by
+                    // SystemTypeInference
+                    || arg.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE)) {
                 semantics = TableCharacteristic.Semantics.SET;
             } else if (arg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
                 semantics = TableCharacteristic.Semantics.ROW;

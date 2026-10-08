@@ -22,6 +22,11 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.AtomicTypeWrappingFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BroadcastClearStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BroadcastFilterFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BroadcastLookupFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BroadcastStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BroadcastTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ClearStateFunction;
@@ -35,12 +40,16 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ImplicitCastingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalDayArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalYearArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidBroadcastCollectFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidBroadcastStateWriteFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidBroadcastTimerFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidPassThroughTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidRowKindFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidRowSemanticTableTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.LateTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ListStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MapStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiBroadcastFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputOrderByFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputWithScalarArgsFunction;
@@ -96,6 +105,9 @@ import static org.apache.flink.table.api.Expressions.descriptor;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASIC_VALUES;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BROADCAST_RESTORE_SOURCE;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BROADCAST_RULES_SOURCE;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BROADCAST_RULES_VALUES;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.CITY_VALUES;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.KEYED_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.KEYED_TIMED_BASE_SINK_SCHEMA;
@@ -105,6 +117,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTable
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MULTI_VALUES_SOURCE_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PASS_THROUGH_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_BASE_SINK_SCHEMA;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_BROADCAST_RULES_SOURCE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_CITY_SOURCE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_MULTI_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE;
@@ -1665,6 +1678,219 @@ public class ProcessTableFunctionTestPrograms {
                                             "+I[Alice, {{Alice=2, oldAlice=1}, KeyedStateMapViewWithKeysNotNull, +I[Alice, 400]}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_BROADCAST_STATE =
+            TableTestProgram.of(
+                            "process-broadcast-state",
+                            "broadcast table next to a set semantic table")
+                    .setupTemporarySystemFunction("f", BroadcastLookupFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupSql(BROADCAST_RULES_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, 12], 1, null, KeyedStateMapViewWithKeysNotNull}]",
+                                            "+I[Alice, {+I[Alice, 42], 1, null, KeyedStateMapViewWithKeysNotNull}]",
+                                            "+I[Bob, {+I[Bob, 99], 2, null, KeyedStateMapViewWithKeysNotNull}]",
+                                            "+I[Bob, {+I[Bob, 100], 3, null, KeyedStateMapViewWithKeysNotNull}]",
+                                            "+I[Alice, {+I[Alice, 400], 2, null, KeyedStateMapViewWithKeysNotNull}]",
+                                            "+I[Bob, {3, {Dave=3, Eve=4}}]",
+                                            "+I[Alice, {2, {Dave=3, Eve=4}}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(input => TABLE t PARTITION BY name, rules => TABLE rules)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_BROADCAST_STATE_TABLE_API =
+            TableTestProgram.of(
+                            "process-broadcast-state-table-api",
+                            "broadcast table next to a set semantic table in Table API")
+                    .setupTemporarySystemFunction("f", BroadcastLookupFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupSql(BROADCAST_RULES_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[Bob, 12], 1, null, KeyedStateMapViewWithKeysNotNull}]",
+                                            "+I[Alice, {+I[Alice, 42], 1, null, KeyedStateMapViewWithKeysNotNull}]",
+                                            "+I[Bob, {+I[Bob, 99], 2, null, KeyedStateMapViewWithKeysNotNull}]",
+                                            "+I[Bob, {+I[Bob, 100], 3, null, KeyedStateMapViewWithKeysNotNull}]",
+                                            "+I[Alice, {+I[Alice, 400], 2, null, KeyedStateMapViewWithKeysNotNull}]",
+                                            "+I[Bob, {3, {Dave=3, Eve=4}}]",
+                                            "+I[Alice, {2, {Dave=3, Eve=4}}]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            "f",
+                                            env.from("t")
+                                                    .partitionBy($("name"))
+                                                    .asArgument("input"),
+                                            env.from("rules").asArgument("rules")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram PROCESS_BROADCAST_MULTI_INPUT =
+            TableTestProgram.of(
+                            "process-broadcast-multi-input",
+                            "multiple broadcast tables next to multiple set semantic tables")
+                    .setupTemporarySystemFunction("f", MultiBroadcastFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupSql(CITY_VALUES)
+                    .setupSql(BROADCAST_RULES_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(MULTI_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, Bob, {null, +I[Bob, London], null}]",
+                                            "+I[Bob, Bob, {+I[Bob, 12], null, null}]",
+                                            "+I[Alice, Alice, {null, +I[Alice, Berlin], null}]",
+                                            "+I[Alice, Alice, {+I[Alice, 42], null, null}]",
+                                            "+I[Charly, Charly, {null, +I[Charly, Paris], null}]",
+                                            "+I[Bob, Bob, {+I[Bob, 99], null, null}]",
+                                            "+I[Bob, Bob, {+I[Bob, 100], null, null}]",
+                                            "+I[Alice, Alice, {+I[Alice, 400], null, null}]",
+                                            "+I[Bob, Bob, {{Dave=3, Eve=4}, RuleStats(rules=2, lastName=Eve)}]",
+                                            "+I[Alice, Alice, {{Dave=3, Eve=4}, RuleStats(rules=2, lastName=Eve)}]",
+                                            "+I[Charly, Charly, {{Dave=3, Eve=4}, RuleStats(rules=2, lastName=Eve)}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "in1 => TABLE t PARTITION BY name, "
+                                    + "rules1 => TABLE rules, "
+                                    + "in2 => TABLE city PARTITION BY name, "
+                                    + "rules2 => TABLE rules)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_BROADCAST_ROW_SEMANTIC =
+            TableTestProgram.of(
+                            "process-broadcast-row-semantic",
+                            "broadcast table next to a row semantic table")
+                    .setupTemporarySystemFunction("f", BroadcastFilterFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupSql(BROADCAST_RULES_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[not blocked]",
+                                            "+I[not blocked]",
+                                            "+I[not blocked]",
+                                            "+I[not blocked]",
+                                            "+I[not blocked]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(input => TABLE t, rule => TABLE rules)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_BROADCAST_ON_TIME =
+            TableTestProgram.of(
+                            "process-broadcast-on-time",
+                            "broadcast table with time attribute next to a set semantic table")
+                    .setupTemporarySystemFunction("f", BroadcastTimersFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSource(TIMED_BROADCAST_RULES_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {Processing input row +I[Bob, 1, 1970-01-01T00:00:00Z] at time 0}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, 1, 1970-01-01T00:00:00.001Z] at time 1}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 2, 1970-01-01T00:00:00.002Z] at time 2}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 3, 1970-01-01T00:00:00.003Z] at time 3}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 4, 1970-01-01T00:00:00.004Z] at time 4}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 5, 1970-01-01T00:00:00.005Z] at time 5}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 6, 1970-01-01T00:00:00.006Z] at time 6}, 1970-01-01T00:00:00.006Z]",
+                                            "+I[Alice, {{Dave=2, Eve=5}}, 1970-01-01T00:00:01Z]",
+                                            "+I[Bob, {{Dave=2, Eve=5}}, 1970-01-01T00:00:01Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "input => TABLE t PARTITION BY name, "
+                                    + "rule => TABLE rules, "
+                                    + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_BROADCAST_CLEAR_STATE =
+            TableTestProgram.of(
+                            "process-broadcast-clear-state",
+                            "clearing state for a broadcast table only affects broadcast state")
+                    .setupTemporarySystemFunction("f", BroadcastClearStateFunction.class)
+                    .setupSql(MULTI_VALUES)
+                    .setupSql(BROADCAST_RULES_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {3, {Eve=4}}]", "+I[Alice, {2, {Eve=4}}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(input => TABLE t PARTITION BY name, rule => TABLE rules)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_BROADCAST_STATE_RESTORE =
+            TableTestProgram.of(
+                            "process-broadcast-state-restore",
+                            "broadcast state is restored before main table is processed")
+                    .setupTemporarySystemFunction("f", BroadcastStateFunction.class)
+                    .setupTableSource(BROADCAST_RESTORE_SOURCE)
+                    .setupTableSource(BROADCAST_RULES_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[Bob, {+I[Bob, -1, 1970-01-01T00:00:00Z]}]")
+                                    .consumedAfterRestore(
+                                            "+I[Bob, {+I[Bob, 99, 1970-01-01T00:00:00.001Z], 1, 10, 13, RuleStats(rules=3, lastName=Bob)}]",
+                                            "+I[Alice, {+I[Alice, 42, 1970-01-01T00:00:00.002Z], 1, 2, 13, RuleStats(rules=3, lastName=Bob)}]",
+                                            "+I[Charly, {+I[Charly, 7, 1970-01-01T00:00:00.003Z], 1, null, 13, RuleStats(rules=3, lastName=Bob)}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(input => TABLE t PARTITION BY name, rule => TABLE rules)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_INVALID_BROADCAST_COLLECT =
+            TableTestProgram.of(
+                            "process-invalid-broadcast-collect",
+                            "error if results are emitted for a broadcast table")
+                    .setupTemporarySystemFunction("f", InvalidBroadcastCollectFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupSql(BROADCAST_RULES_VALUES)
+                    .runFailingSql(
+                            "SELECT * FROM f(input => TABLE t PARTITION BY name, rule => TABLE rules)",
+                            TableRuntimeException.class,
+                            "Emitting results via collect() is not supported while processing a "
+                                    + "table with broadcast semantics.")
+                    .build();
+
+    public static final TableTestProgram PROCESS_INVALID_BROADCAST_TIMER =
+            TableTestProgram.of(
+                            "process-invalid-broadcast-timer",
+                            "error if timers are registered for a broadcast table")
+                    .setupTemporarySystemFunction("f", InvalidBroadcastTimerFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupSql(BROADCAST_RULES_VALUES)
+                    .runFailingSql(
+                            "SELECT * FROM f(input => TABLE t PARTITION BY name, rule => TABLE rules)",
+                            TableRuntimeException.class,
+                            "Timers are not supported while processing a table with broadcast semantics.")
+                    .build();
+
+    public static final TableTestProgram PROCESS_INVALID_BROADCAST_STATE_WRITE =
+            TableTestProgram.of(
+                            "process-invalid-broadcast-state-write",
+                            "error if broadcast state is modified for a set semantic table")
+                    .setupTemporarySystemFunction("f", InvalidBroadcastStateWriteFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupSql(BROADCAST_RULES_VALUES)
+                    .runFailingSql(
+                            "SELECT * FROM f(input => TABLE t PARTITION BY name, rule => TABLE rules)",
+                            TableRuntimeException.class,
+                            "Broadcast state entry 'weights' is read-only while processing a table "
+                                    + "with row or set semantics.")
                     .build();
 
     public static final TableTestProgram PROCESS_MULTI_INPUT =

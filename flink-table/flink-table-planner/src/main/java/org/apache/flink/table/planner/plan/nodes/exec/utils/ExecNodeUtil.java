@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -386,6 +387,26 @@ public class ExecNodeUtil {
                         inputIdx ->
                                 transformation.addInput(
                                         inputs.get(inputIdx), keySelectors.get(inputIdx)));
+        return transformation;
+    }
+
+    /** Create a (non-keyed) {@link MultipleInputTransformation}. */
+    public static <I, O> MultipleInputTransformation<O> createMultiInputTransformation(
+            List<Transformation<I>> inputs,
+            TransformationMetadata transformationMeta,
+            StreamOperatorFactory<O> operatorFactory,
+            TypeInformation<O> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        final MultipleInputTransformation<O> transformation =
+                new MultipleInputTransformation<>(
+                        transformationMeta.getName(),
+                        operatorFactory,
+                        outputType,
+                        parallelism,
+                        parallelismConfigured);
+        transformationMeta.fill(transformation);
+        inputs.forEach(transformation::addInput);
         return transformation;
     }
 

@@ -34,11 +34,14 @@ class DefaultStateTypeStrategy implements StateTypeStrategy {
 
     private final TypeStrategy typeStrategy;
     private final @Nullable Duration timeToLive;
+    private final boolean broadcast;
 
-    DefaultStateTypeStrategy(TypeStrategy typeStrategy, @Nullable Duration timeToLive) {
+    DefaultStateTypeStrategy(
+            TypeStrategy typeStrategy, @Nullable Duration timeToLive, boolean broadcast) {
         this.typeStrategy =
                 Preconditions.checkNotNull(typeStrategy, "Type strategy must not be null.");
         this.timeToLive = timeToLive;
+        this.broadcast = broadcast;
     }
 
     @Override
@@ -52,6 +55,11 @@ class DefaultStateTypeStrategy implements StateTypeStrategy {
     }
 
     @Override
+    public boolean isBroadcast() {
+        return broadcast;
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -60,12 +68,13 @@ class DefaultStateTypeStrategy implements StateTypeStrategy {
             return false;
         }
         final DefaultStateTypeStrategy that = (DefaultStateTypeStrategy) o;
-        return Objects.equals(typeStrategy, that.typeStrategy)
+        return broadcast == that.broadcast
+                && Objects.equals(typeStrategy, that.typeStrategy)
                 && Objects.equals(timeToLive, that.timeToLive);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(typeStrategy, timeToLive);
+        return Objects.hash(typeStrategy, timeToLive, broadcast);
     }
 }

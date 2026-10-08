@@ -300,6 +300,15 @@ is scoped by a key context.
 It is also possible not to provide a key (if the argument is declared with `ArgumentTrait.OPTIONAL_PARTITION_BY`), in
 which case only one virtual processor handles the entire table, thereby losing scalability benefits.
 
+### Table Argument with Broadcast Semantics
+
+A PTF that takes at least one table with row or set semantics can additionally take a table with broadcast semantics.
+Every row of a broadcast table is sent to all virtual processors, independently of any key partitioning. Broadcast tables
+are intended for low-throughput data such as rules, configuration, or control events. They enable parameterizing a
+PTF instance during runtime, avoiding downtime due to restarts.
+
+See [Broadcast State](#broadcast-state) for more information.
+
 Call Syntax
 -----------
 
@@ -1293,7 +1302,9 @@ A PTF can process multiple tables simultaneously. This enables a variety of use 
 
 The `eval()` method can specify multiple table arguments to support multiple inputs. All table arguments must be declared
 with set semantics and use consistent partitioning. In other words, the number of columns and their data types in the
-`PARTITION BY` clause must match across all involved table arguments.
+`PARTITION BY` clause must match across all involved table arguments. Tables with [broadcast semantics](#broadcast-state)
+are excluded from this rule. They can be declared next to a table with row semantics or one or more tables with set
+semantics.
 
 Rows from either input are passed to the function one at a time. Thus, only one table argument is non-null at a time. Use
 null checks to determine which input is currently being processed.
@@ -1372,6 +1383,97 @@ The result will look similar to:
 +----+--------------------------------+--------------------------------+--------------------------------+
 ```
 
+### Broadcast State
+
+Broadcast state enables patterns such as a **rule engine** where rules are dynamically updated at runtime, or **dynamic
+configuration** that influences the processing of the main table(s).
+
+Broadcast state is tightly coupled to a broadcast semantic table. A table argument declared with `ArgumentTrait.BROADCAST_SEMANTIC_TABLE`
+defines a broadcast semantic table, which acts as a "side" or "control" input. Every row of a broadcast table is
+sent to *all* virtual processors, regardless of any `PARTITION BY` clause. A PTF can store this broadcast information in
+state entries declared with `@StateHint(StateKind.BROADCAST)`. This *broadcast state* is shared across all sets and can
+be read when processing rows from the main table(s).
+
+The following example filters a stream of sentences using a dynamically updated list of bad words. The list is broadcast
+to all virtual processors, and processing the rows of the main table is embarrassingly parallelizable.
+
+{{< tabs "5a6f7b2c-7c1e-4a8e-9f2a-2b3c4d5e6f70" >}}
+{{< tab "Java" >}}
+```java
+TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+env.executeSql("CREATE VIEW Sentences(sentence) AS VALUES ('Hello World'), ('Bad words are bad')");
+env.executeSql("CREATE VIEW BadWords(word) AS VALUES ('bad')");
+
+env.createFunction("RuleFilter", RuleFilter.class);
+
+env
+  .executeSql("SELECT * FROM RuleFilter(data => TABLE Sentences, rules => TABLE BadWords)")
+  .print();
+
+// --------------------
+// Function declaration
+// --------------------
+
+// Function that filters sentences based on a dynamic set of rules
+public static class RuleFilter extends ProcessTableFunction<String> {
+
+  public void eval(
+      @StateHint(StateKind.BROADCAST) MapView<String, Boolean> badWords,
+      @ArgumentHint(ROW_SEMANTIC_TABLE) Row data,
+      @ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rules
+  ) throws Exception {
+    // Process row from table BadWords: write access to broadcast state
+    if (rules != null) {
+      badWords.put(rules.getFieldAs("word"), true);
+      return;
+    }
+
+    // Process row from table Sentences: read access to broadcast state
+    String sentence = data.getFieldAs("sentence");
+    for (String word : sentence.toLowerCase().split(" ")) {
+      if (badWords.contains(word)) {
+        return;
+      }
+    }
+    collect(sentence);
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+The result will look similar to:
+
+```text
++----+--------------------------------+
+| op |                         EXPR$0 |
++----+--------------------------------+
+| +I |                    Hello World |
++----+--------------------------------+
+```
+
+{{< hint warning >}}
+Similar to other multi-table PTFs, the system decides which input row is streamed through the virtual processor next. A
+change to a broadcast state entry has no effect on rows of the main table(s) that have been processed before. In the
+example above, a sentence might pass the filter if it arrives before the corresponding bad word.
+{{< /hint >}}
+
+The following rules apply to broadcast tables and broadcast state:
+
+- At least one table argument with row or set semantics must be declared next to broadcast tables. Multiple broadcast
+  tables and multiple broadcast state entries are supported.
+- A broadcast table cannot be partitioned as it is broadcast to all virtual processors.
+- Broadcast state can only be modified while processing a broadcast row. When processing rows of the main table(s),
+  broadcast state is read-only.
+- While processing a broadcast row, there is no key context. State entries that are scoped to a set are passed as `null`,
+  results can not be emitted via `collect()`, and timers cannot be registered or cleared. `Context#clearAllState()`
+  only clears broadcast state in this case.
+- Broadcast state can be declared as `MapView` (recommended for many entries), `ValueView`, or eager value state (i.e. a
+  row or POJO). `ListView` and state TTL are not supported.
+- It is the responsibility of the PTF implementer to maintain identical broadcast state across all virtual processors,
+  i.e. broadcast state should only be updated deterministically based on the broadcast rows.
+
 ### Efficiency and Design Principles
 
 A high number of input tables can negatively impact a single TaskManager or subtask. Network buffers must be allocated
@@ -1393,7 +1495,7 @@ the surrounding operators of the query. The state entries of a PTF can be persis
 surrounding query or the PTF itself changes. As long as the schema of the state entries remains unchanged.
 
 For future query evolution, the framework enforces a unique identifier (UID) for all PTFs that operate on tables with set
-semantics. The UID can be provided through the implicit `uid` string argument. It is used when persisting the PTF's state
+or broadcast semantics. The UID can be provided through the implicit `uid` string argument. It is used when persisting the PTF's state
 entries to checkpoints or savepoints. If the `uid` argument is not specified, the function name will be used by the framework,
 ensuring one unique PTF invocation per statement. If a PTF is invoked multiple times, validation will require a manually
 specified UID to ensure it is unique across the entire Flink job.

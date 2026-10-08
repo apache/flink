@@ -58,6 +58,9 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     protected PassThroughCollectorBase evalCollector;
     protected PassAllCollector onTimerCollector;
 
+    // Whether a table argument with broadcast semantics is currently processed
+    private boolean processingBroadcast;
+
     // Current input table
     protected int inputIndex = -1;
     protected RowData inputRow;
@@ -86,14 +89,22 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
 
     public void ingestTableEvent(int pos, RowData row, int timeColumn, long watermark) {
         evalCollector.setPrefix(pos, row);
+        ingestRow(pos, row, timeColumn, watermark);
+        if (emitRowtime && rowtime != null) {
+            evalCollector.setRowtime(rowtime);
+        }
+    }
+
+    public void ingestBroadcastTableEvent(int pos, RowData row, int timeColumn, long watermark) {
+        // Broadcast rows have no key context and never emit, thus, there is no output prefix
+        ingestRow(pos, row, timeColumn, watermark);
+    }
+
+    private void ingestRow(int pos, RowData row, int timeColumn, long watermark) {
         if (timeColumn == -1) {
             rowtime = null;
         } else {
-            final long inputTime = row.getTimestamp(timeColumn, 3).getMillisecond();
-            if (emitRowtime) {
-                evalCollector.setRowtime(inputTime);
-            }
-            rowtime = inputTime;
+            rowtime = row.getTimestamp(timeColumn, 3).getMillisecond();
         }
         inputIndex = pos;
         inputRow = row;
@@ -111,8 +122,12 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     }
 
     public void clearAllState() {
+        // Only state entries that are accessible in the current processing context are cleared,
+        // i.e. either the state of the current set or the broadcast state.
         for (StateHandle stateHandle : stateHandles) {
-            stateHandle.cleared = true;
+            if (processingBroadcast == stateHandle.broadcast) {
+                stateHandle.cleared = true;
+            }
         }
     }
 
@@ -132,8 +147,21 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
         return timerName;
     }
 
+    public boolean isProcessingBroadcast() {
+        return processingBroadcast;
+    }
+
     public void processEval() throws Exception {
         processMethod(this::callEval);
+    }
+
+    public void processBroadcastEval() throws Exception {
+        processingBroadcast = true;
+        try {
+            processMethod(this::callEval);
+        } finally {
+            processingBroadcast = false;
+        }
     }
 
     public void processOnTimer() throws Exception {
@@ -169,6 +197,12 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
                 // Views access Flink state lazily; nothing to move eagerly.
                 continue;
             }
+            if (processingBroadcast && !stateHandle.broadcast) {
+                // Keyed state has no key context. The generated code passes null to the function,
+                // resetting avoids converting a stale entry of a previously processed key.
+                stateHandle.toFunction = null;
+                continue;
+            }
             final ValueState<RowData> valueState = (ValueState<RowData>) stateHandle.state;
             stateHandle.toFunction = valueState.value();
         }
@@ -177,7 +211,16 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     @SuppressWarnings("unchecked")
     private void moveStateFromFunction() throws IOException {
         for (StateHandle stateHandle : stateHandles) {
+            if (processingBroadcast && !stateHandle.broadcast) {
+                // Keyed state has no key context and is not accessible
+                continue;
+            }
             if (stateHandle.kind == Kind.EAGER_VALUE) {
+                if (!processingBroadcast && stateHandle.broadcast) {
+                    // Broadcast state is read-only while processing other tables, thus,
+                    // modifications of eager value state are discarded
+                    continue;
+                }
                 moveValueStateFromFunction(stateHandle);
             } else if (stateHandle.cleared) {
                 stateHandle.state.clear();
@@ -236,6 +279,10 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
         }
 
         private final Kind kind;
+
+        /** Whether {@link #state} is an adapter for Flink's broadcast state. */
+        private final boolean broadcast;
+
         private final State state;
         private final @Nullable HashFunction hashFunction;
         private final @Nullable RecordEqualiser equaliser;
@@ -256,10 +303,12 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
 
         public StateHandle(
                 Kind kind,
+                boolean broadcast,
                 State state,
                 @Nullable HashFunction hashFunction,
                 @Nullable RecordEqualiser equaliser) {
             this.kind = kind;
+            this.broadcast = broadcast;
             this.state = state;
             this.hashFunction = hashFunction;
             this.equaliser = equaliser;

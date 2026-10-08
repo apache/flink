@@ -30,11 +30,16 @@ import java.util.Optional;
 public interface StateTypeStrategy extends TypeStrategy {
 
     static StateTypeStrategy of(TypeStrategy typeStrategy) {
-        return new DefaultStateTypeStrategy(typeStrategy, null);
+        return new DefaultStateTypeStrategy(typeStrategy, null, false);
     }
 
     static StateTypeStrategy of(TypeStrategy typeStrategy, @Nullable Duration timeToLive) {
-        return new DefaultStateTypeStrategy(typeStrategy, timeToLive);
+        return new DefaultStateTypeStrategy(typeStrategy, timeToLive, false);
+    }
+
+    static StateTypeStrategy of(
+            TypeStrategy typeStrategy, @Nullable Duration timeToLive, boolean broadcast) {
+        return new DefaultStateTypeStrategy(typeStrategy, timeToLive, broadcast);
     }
 
     /**
@@ -45,4 +50,13 @@ public interface StateTypeStrategy extends TypeStrategy {
      * global defaults.
      */
     Optional<Duration> getTimeToLive(CallContext callContext);
+
+    /**
+     * Whether the state entry is backed by broadcast (operator) state. In case of broadcast, the
+     * state is shared across all sets instead of being scoped to a set defined by the PARTITION BY
+     * clause.
+     */
+    default boolean isBroadcast() {
+        return false;
+    }
 }

@@ -80,6 +80,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -300,6 +301,11 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                             operatorFactory,
                             planner,
                             runtimeTableSemantics);
+        } else if (runtimeTableSemantics.stream()
+                .anyMatch(RuntimeTableSemantics::hasBroadcastSemantics)) {
+            transform =
+                    createNonKeyedMultiInputTransformation(
+                            inputTransforms, metadata, operatorFactory, runtimeTableSemantics);
         } else {
             transform = createNonKeyedTransformation(inputTransforms, metadata, operatorFactory);
         }
@@ -337,6 +343,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 consumedChangelogMode,
                 tableArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
                 tableArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE),
+                tableArg.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE),
                 timeColumn,
                 upsertKeys);
     }
@@ -352,21 +359,36 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         final List<KeySelector<RowData, RowData>> keySelectors =
                 runtimeTableSemantics.stream()
                         .map(
-                                inputSemantics ->
-                                        KeySelectorUtil.getRowDataSelector(
-                                                planner.getFlinkContext().getClassLoader(),
-                                                inputSemantics.partitionByColumns(),
-                                                (InternalTypeInfo<RowData>)
-                                                        inputTransforms
-                                                                .get(inputSemantics.getInputIndex())
-                                                                .getOutputType()))
+                                inputSemantics -> {
+                                    // Tables with broadcast semantics have no key context
+                                    if (inputSemantics.hasBroadcastSemantics()) {
+                                        return null;
+                                    }
+                                    return (KeySelector<RowData, RowData>)
+                                            KeySelectorUtil.getRowDataSelector(
+                                                    planner.getFlinkContext().getClassLoader(),
+                                                    inputSemantics.partitionByColumns(),
+                                                    (InternalTypeInfo<RowData>)
+                                                            inputTransforms
+                                                                    .get(
+                                                                            inputSemantics
+                                                                                    .getInputIndex())
+                                                                    .getOutputType());
+                                })
                         .collect(Collectors.toList());
+
+        final RowDataKeySelector keySelector =
+                keySelectors.stream()
+                        .filter(Objects::nonNull)
+                        .map(RowDataKeySelector.class::cast)
+                        .findFirst()
+                        .orElseThrow(IllegalStateException::new);
 
         final KeyedMultipleInputTransformation<RowData> transform =
                 ExecNodeUtil.createKeyedMultiInputTransformation(
                         inputTransforms,
                         keySelectors,
-                        ((RowDataKeySelector) keySelectors.get(0)).getProducedType(),
+                        keySelector.getProducedType(),
                         metadata,
                         operatorFactory,
                         InternalTypeInfo.of(getOutputType()),
@@ -376,6 +398,28 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         transform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);
 
         return transform;
+    }
+
+    private Transformation<RowData> createNonKeyedMultiInputTransformation(
+            List<Transformation<RowData>> inputTransforms,
+            TransformationMetadata metadata,
+            ProcessTableOperatorFactory operatorFactory,
+            List<RuntimeTableSemantics> runtimeTableSemantics) {
+        // A table with row semantics next to tables with broadcast semantics. The operator is
+        // chained to the table with row semantics and inherits its parallelism.
+        final Transformation<RowData> rowSemanticTransform =
+                runtimeTableSemantics.stream()
+                        .filter(t -> !t.hasBroadcastSemantics())
+                        .map(s -> inputTransforms.get(s.getInputIndex()))
+                        .findFirst()
+                        .orElseThrow(IllegalStateException::new);
+        return ExecNodeUtil.createMultiInputTransformation(
+                inputTransforms,
+                metadata,
+                operatorFactory,
+                InternalTypeInfo.of(getOutputType()),
+                rowSemanticTransform.getParallelism(),
+                false);
     }
 
     private Transformation<RowData> createNonKeyedTransformation(
@@ -394,11 +438,15 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
 
     private static RuntimeStateInfo createRuntimeStateInfo(
             String name, StateInfo stateInfo, ExecNodeConfig config) {
+        // Broadcast state does not support TTL
+        final long timeToLive =
+                stateInfo.isBroadcast()
+                        ? 0L
+                        : deriveStateTimeToLive(
+                                stateInfo.getTimeToLive().orElse(null),
+                                config.getStateRetentionTime());
         return new RuntimeStateInfo(
-                name,
-                stateInfo.getDataType(),
-                deriveStateTimeToLive(
-                        stateInfo.getTimeToLive().orElse(null), config.getStateRetentionTime()));
+                name, stateInfo.getDataType(), timeToLive, stateInfo.isBroadcast());
     }
 
     private static long deriveStateTimeToLive(

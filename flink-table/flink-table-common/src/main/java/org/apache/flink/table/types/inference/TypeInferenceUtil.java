@@ -388,10 +388,12 @@ public final class TypeInferenceUtil {
 
         private final DataType dataType;
         private final @Nullable Duration timeToLive;
+        private final boolean broadcast;
 
-        private StateInfo(DataType dataType, @Nullable Duration timeToLive) {
+        private StateInfo(DataType dataType, @Nullable Duration timeToLive, boolean broadcast) {
             this.dataType = dataType;
             this.timeToLive = timeToLive;
+            this.broadcast = broadcast;
         }
 
         public DataType getDataType() {
@@ -400,6 +402,11 @@ public final class TypeInferenceUtil {
 
         public Optional<Duration> getTimeToLive() {
             return Optional.ofNullable(timeToLive);
+        }
+
+        /** Whether the state entry is backed by broadcast (operator) state. */
+        public boolean isBroadcast() {
+            return broadcast;
         }
     }
 
@@ -591,8 +598,9 @@ public final class TypeInferenceUtil {
         }
 
         final Duration ttl = stateTypeStrategy.getTimeToLive(callContext).orElse(null);
+        final boolean broadcast = stateTypeStrategy.isBroadcast();
 
-        return new StateInfo(stateType, ttl);
+        return new StateInfo(stateType, ttl, broadcast);
     }
 
     private static boolean isUnknown(DataType dataType) {

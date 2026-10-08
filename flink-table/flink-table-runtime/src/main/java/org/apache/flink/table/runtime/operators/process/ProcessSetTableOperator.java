@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ProcessTableFunction;
-import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.ProcessTableRunner;
 import org.apache.flink.table.runtime.generated.RecordComparator;
@@ -50,7 +49,10 @@ import java.util.stream.IntStream;
 
 /**
  * Implementation of {@link MultipleInputStreamOperator} for {@link ProcessTableFunction} with at
- * least one table with set semantics.
+ * least one table with set semantics or at least one table with broadcast semantics.
+ *
+ * <p>Tables with broadcast semantics have no key context. Similar to tables with set semantics,
+ * they contribute to the operator's watermark.
  */
 public class ProcessSetTableOperator extends AbstractProcessTableOperator
         implements MultipleInputStreamOperator<RowData> {
@@ -101,12 +103,18 @@ public class ProcessSetTableOperator extends AbstractProcessTableOperator
         return IntStream.range(0, tableSemantics.size())
                 .mapToObj(
                         inputIdx -> {
-                            final TableSemantics inputSemantics = tableSemantics.get(inputIdx);
+                            final RuntimeTableSemantics inputSemantics =
+                                    tableSemantics.get(inputIdx);
                             final int timeColumn = inputSemantics.timeColumn();
                             return new AbstractInput<RowData, RowData>(this, inputIdx + 1) {
                                 @Override
                                 public void processElement(StreamRecord<RowData> element)
                                         throws Exception {
+                                    if (inputSemantics.hasBroadcastSemantics()) {
+                                        processBroadcastTableEvent(
+                                                inputIdx, element.getValue(), timeColumn);
+                                        return;
+                                    }
                                     final InputSortBuffer sortBuffer = inputSortBuffers[inputIdx];
                                     if (sortBuffer != null) {
                                         sortBuffer.processElement(element.getValue());
@@ -137,6 +145,13 @@ public class ProcessSetTableOperator extends AbstractProcessTableOperator
         processTableRunner.ingestTableEvent(
                 inputIdx, row, timeColumn, inputWatermarks[inputIdx].getTimestamp());
         processTableRunner.processEval();
+    }
+
+    private void processBroadcastTableEvent(int inputIdx, RowData row, int timeColumn)
+            throws Exception {
+        processTableRunner.ingestBroadcastTableEvent(
+                inputIdx, row, timeColumn, inputWatermarks[inputIdx].getTimestamp());
+        processTableRunner.processBroadcastEval();
     }
 
     // --------------------------------------------------------------------------------------------

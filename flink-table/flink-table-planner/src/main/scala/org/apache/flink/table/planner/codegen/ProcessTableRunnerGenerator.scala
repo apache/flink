@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.codegen.calls.{BridgingFunctionGenUtil, Sc
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{verifyFunctionAwareOutputType, DefaultExpressionEvaluatorFactory}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview.DataViewUtils
 import org.apache.flink.table.runtime.dataview.StateListView.KeyedStateListView
@@ -42,7 +43,7 @@ import org.apache.flink.table.runtime.dataview.StateValueView.KeyedStateValueVie
 import org.apache.flink.table.runtime.generated.{GeneratedProcessTableRunner, ProcessTableRunner}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils
-import org.apache.flink.table.types.inference.TypeInferenceUtil
+import org.apache.flink.table.types.inference.{TypeInference, TypeInferenceUtil}
 import org.apache.flink.table.types.inference.TypeInferenceUtil.StateInfo
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.logical.utils.{LogicalTypeCasts, LogicalTypeChecks}
@@ -114,6 +115,7 @@ object ProcessTableRunnerGenerator {
       TypeInferenceUtil.inferStateInfos(castCallContext, inference.getStateTypeStrategies)
     val stateDataTypes = stateInfos.asScala.values.map(_.getDataType).toSeq
     stateDataTypes.foreach(ExtractionUtils.checkStateDataType)
+    verifyBroadcastStateInfos(stateInfos)
 
     val stateHandlesTerm = "stateHandles"
     val stateEntries = stateInfos.asScala.values.zipWithIndex.toSeq
@@ -133,13 +135,14 @@ object ProcessTableRunnerGenerator {
       ctx,
       udfCall,
       enrichedArgumentDataTypes,
-      externalStateOperands,
+      wrapBroadcastContext(stateEntries, externalStateOperands, inference),
       stateDataTypes,
       udf,
       functionName,
       functionTerm,
       resultCollectorTerm,
-      stateFromFunctionCode)
+      stateFromFunctionCode
+    )
 
     // Generate call to onTimer()
     val onTimerCallCode = generateOnTimerCode(
@@ -195,6 +198,49 @@ object ProcessTableRunnerGenerator {
       new GeneratedProcessTableRunner(name, code, ctx.references.toArray, ctx.tableConfig)
 
     GeneratedRunnerResult(generatedRunner, stateInfos)
+  }
+
+  private def verifyBroadcastStateInfos(stateInfos: util.LinkedHashMap[String, StateInfo]): Unit = {
+    stateInfos.asScala
+      .filter { case (_, stateInfo) => stateInfo.isBroadcast }
+      .foreach {
+        case (name, stateInfo) =>
+          if (
+            DataViewUtils.isDataView(stateInfo.getDataType.getLogicalType, classOf[ListView[_]])
+          ) {
+            throw new ValidationException(
+              s"Broadcast state entry '$name' must not be a ListView. " +
+                s"Use a MapView, ValueView, or an eager value state instead.")
+          }
+          if (stateInfo.getTimeToLive.isPresent) {
+            throw new ValidationException(
+              s"Broadcast state entry '$name' must not declare a time-to-live (TTL).")
+          }
+      }
+  }
+
+  /**
+   * Keyed state has no key context while processing a table with broadcast semantics. In this case,
+   * the function receives null for all state entries that are scoped to a set.
+   */
+  private def wrapBroadcastContext(
+      stateEntries: Seq[(StateInfo, Int)],
+      externalStateOperands: Seq[GeneratedExpression],
+      inference: TypeInference): Seq[GeneratedExpression] = {
+    val hasBroadcastTables = toScala(inference.getStaticArguments)
+      .exists(StreamPhysicalProcessTableFunction.hasBroadcastTables)
+    if (!hasBroadcastTables) {
+      return externalStateOperands
+    }
+    stateEntries.map {
+      case (stateInfo, pos) =>
+        val operand = externalStateOperands(pos)
+        if (stateInfo.isBroadcast) {
+          operand
+        } else {
+          operand.copy(resultTerm = s"(isProcessingBroadcast() ? null : ${operand.resultTerm})")
+        }
+    }
   }
 
   private def generateStateToFunction(
