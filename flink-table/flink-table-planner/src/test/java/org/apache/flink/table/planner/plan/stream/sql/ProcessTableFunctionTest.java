@@ -791,7 +791,6 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     /** Testing function. */
-    /** Testing function. */
     public static class InvalidBroadcastOnlyFunction extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
         public void eval(@ArgumentHint(BROADCAST_SEMANTIC_TABLE) Row rule) {}

@@ -436,7 +436,7 @@ import java.time.LocalDateTime;
  *     }
  *     // Read access to broadcast state for the main table
  *     String sentence = data.getFieldAs("sentence");
- *     for (String word : sentence.split(" ")) {
+ *     for (String word : sentence.toLowerCase().split(" ")) {
  *       if (badWords.contains(word)) {
  *         return;
  *       }
