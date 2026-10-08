@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     import pandas
     import pyarrow
     from pyflink.dataframe.udf import _DataTypeLike
-    from pyflink.dataframe.udtf import _DataFrameUDTFWrapper
+    from pyflink.dataframe.udtf import _DataFrameUDTFCall, _DataFrameUDTFWrapper
     from pyflink.table.table_environment import TableEnvironment
     from pyflink.table.table_schema import TableSchema
 
@@ -1046,6 +1046,76 @@ class DataFrame:
                     sql_factory,
                 )
             )
+
+    @PublicEvolving()
+    def join_lateral(
+        self,
+        table_function_call: Union["_DataFrameUDTFCall", Expression],
+        *,
+        on: Optional[Expression[bool]] = None,
+        ignore_empty: bool = True,
+    ) -> "DataFrame":
+        """
+        Join each input row with the rows emitted by a table function call.
+
+        The function receives the explicit arguments supplied in the call. The result
+        retains the input columns followed by the function's output columns. Output
+        names come from ``alias`` or a named ``TypedDict`` or struct ``return_dtype``.
+        Raw Table API expressions must specify output names with ``alias``. Output
+        names must be non-empty, unique, and distinct from the input column names.
+
+        :param table_function_call: A call to a function declared with
+            :func:`pyflink.dataframe.udtf`, or a Table API table function expression.
+        :param on: Optional boolean join predicate. Left outer lateral joins currently
+            require an omitted or literal ``True`` predicate, as in the Table API.
+        :param ignore_empty: If ``True`` (default), use an inner lateral join. If
+            ``False``, use a left outer lateral join, preserving input rows with no
+            emitted rows and filling the output columns with NULLs.
+        :return: A new DataFrame containing the lateral join result.
+
+        Example::
+
+            >>> from typing import Iterator, TypedDict
+            >>> import pyflink.dataframe as pf
+            >>> @pf.udtf
+            ... def chars(text: str) -> Iterator[str]:
+            ...     yield from text
+            >>> df = pf.from_records([(1, "ab"), (2, "")], schema=["id", "text"])
+            >>> expanded = df.join_lateral(chars(pf.col("text")).alias("ch"))
+            >>> preserved = df.join_lateral(
+            ...     chars(pf.col("text")).alias("ch"), ignore_empty=False)
+            >>> filtered = df.join_lateral(
+            ...     chars(pf.col("text")).alias("ch"), on=pf.col("id") > 0)
+
+        Named multi-field outputs do not require aliases::
+
+            >>> class Token(TypedDict):
+            ...     word: str
+            ...     length: int
+            >>> @pf.udtf
+            ... def tokenize(text: str) -> Iterator[Token]:
+            ...     for word in text.split():
+            ...         yield {"word": word, "length": len(word)}
+            >>> tokens = df.join_lateral(tokenize(pf.col("text")))
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.udtf import _resolve_lateral_expression
+
+        if not isinstance(ignore_empty, bool):
+            raise TypeError("ignore_empty must be a bool")
+        if on is not None and not isinstance(on, Expression):
+            raise TypeError("on must be a boolean expression")
+        expression = _resolve_lateral_expression(table_function_call, self.columns)
+        if ignore_empty:
+            table = self._table.join_lateral(expression)
+            if on is not None:
+                # Filtering an inner lateral join is equivalent to its ON predicate and
+                # avoids the Table API's equi-join validation for ordinary joins.
+                table = table.filter(on)
+        else:
+            table = self._table.left_outer_join_lateral(expression, on)
+        return DataFrame(table)
 
     # ======================== Filtering & Ordering ========================
 

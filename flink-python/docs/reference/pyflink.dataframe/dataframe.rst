@@ -103,6 +103,7 @@ Joins
     :toctree: api/
 
     DataFrame.join
+    DataFrame.join_lateral
 
 Missing-Value Handling
 ----------------------
