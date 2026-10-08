@@ -85,6 +85,16 @@ public class NonTimeOverAggregateITCase extends StreamingWithStateTestBase {
                                 + repeatedDataId
                                 + "',"
                                 + " 'bounded' = 'true')");
+        String appendDataId =
+                TestValuesTableFactory.registerData(
+                        Arrays.asList(Row.of("a", 10, "x"), Row.of("a", 20, "x")));
+        tEnv().executeSql(
+                        "CREATE TABLE src_append (k STRING, ord INT, v STRING) WITH ("
+                                + " 'connector' = 'values',"
+                                + " 'data-id' = '"
+                                + appendDataId
+                                + "',"
+                                + " 'bounded' = 'true')");
     }
 
     @TestTemplate
@@ -122,6 +132,57 @@ public class NonTimeOverAggregateITCase extends StreamingWithStateTestBase {
     }
 
     @TestTemplate
+    void testCollect() throws Exception {
+        assertThat(currentValues("COLLECT(v)"))
+                .containsExactly(
+                        entry(10, "{r=1}"), entry(20, "{q=1, r=1}"), entry(30, "{p=1, q=1, r=1}"));
+    }
+
+    @TestTemplate
+    void testCollectCountsRepeatedValues() throws Exception {
+        assertThat(currentValues("src_repeated", "COLLECT(v)"))
+                .containsExactly(
+                        entry(10, "{r=1}"),
+                        entry(20, "{q=1, r=1}"),
+                        entry(25, "{q=1, r=2}"),
+                        entry(30, "{p=1, q=1, r=2}"));
+    }
+
+    @TestTemplate
+    void testCollectRows() throws Exception {
+        assertThat(currentValues("src_repeated", "COLLECT(v)", "ROWS UNBOUNDED PRECEDING"))
+                .containsExactly(
+                        entry(10, "{r=1}"),
+                        entry(20, "{q=1, r=1}"),
+                        entry(25, "{q=1, r=2}"),
+                        entry(30, "{p=1, q=1, r=2}"));
+    }
+
+    @TestTemplate
+    void testCollectAppendsAfterMaximum() throws Exception {
+        assertThat(currentValues("src_append", "COLLECT(v)"))
+                .containsExactly(entry(10, "{x=1}"), entry(20, "{x=2}"));
+    }
+
+    @TestTemplate
+    void testPercentile() throws Exception {
+        assertThat(currentValues("PERCENTILE(ord, 0.5)"))
+                .containsExactly(entry(10, "10.0"), entry(20, "15.0"), entry(30, "20.0"));
+    }
+
+    @TestTemplate
+    void testCountDistinct() throws Exception {
+        assertThat(currentValues("src_repeated", "COUNT(DISTINCT v)"))
+                .containsExactly(entry(10, "1"), entry(20, "2"), entry(25, "2"), entry(30, "3"));
+    }
+
+    @TestTemplate
+    void testCountDistinctAppendsAfterMaximum() throws Exception {
+        assertThat(currentValues("src_append", "COUNT(DISTINCT v)"))
+                .containsExactly(entry(10, "1"), entry(20, "1"));
+    }
+
+    @TestTemplate
     void testRetractionsOfInsertInBetween() throws Exception {
         assertThat(changelog("src_repeated", "ARRAY_AGG(v)"))
                 .containsExactly(
@@ -137,14 +198,19 @@ public class NonTimeOverAggregateITCase extends StreamingWithStateTestBase {
                         "+U 30 [r, q, r, p]");
     }
 
-    private static String overSql(String table, String agg) {
-        return "SELECT ord, " + agg + " OVER (PARTITION BY k ORDER BY ord) FROM " + table;
+    private static String overSql(String table, String agg, String frame) {
+        return "SELECT ord, "
+                + agg
+                + " OVER (PARTITION BY k ORDER BY ord "
+                + frame
+                + ") FROM "
+                + table;
     }
 
     /** Returns the raw changelog, so that retracted values are visible too. */
     private List<String> changelog(String table, String agg) throws Exception {
         List<String> rows = new ArrayList<>();
-        try (CloseableIterator<Row> it = tEnv().executeSql(overSql(table, agg)).collect()) {
+        try (CloseableIterator<Row> it = tEnv().executeSql(overSql(table, agg, "")).collect()) {
             while (it.hasNext()) {
                 Row row = it.next();
                 rows.add(
@@ -165,13 +231,18 @@ public class NonTimeOverAggregateITCase extends StreamingWithStateTestBase {
     }
 
     private Map<Object, String> currentValues(String agg) throws Exception {
-        return currentValues("src", agg);
+        return currentValues("src", agg, "");
+    }
+
+    private Map<Object, String> currentValues(String table, String agg) throws Exception {
+        return currentValues(table, agg, "");
     }
 
     /** Applies the changelog, keyed on the ordering column, and returns the resulting table. */
-    private Map<Object, String> currentValues(String table, String agg) throws Exception {
+    private Map<Object, String> currentValues(String table, String agg, String frame)
+            throws Exception {
         Map<Object, String> current = new TreeMap<>();
-        try (CloseableIterator<Row> it = tEnv().executeSql(overSql(table, agg)).collect()) {
+        try (CloseableIterator<Row> it = tEnv().executeSql(overSql(table, agg, frame)).collect()) {
             while (it.hasNext()) {
                 Row row = it.next();
                 if (row.getKind() == RowKind.DELETE) {

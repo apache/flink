@@ -24,6 +24,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /** Restore tests for {@link StreamExecOverAggregate}. */
 public class OverAggregateRestoreTest extends RestoreTestBase {
@@ -47,5 +48,16 @@ public class OverAggregateRestoreTest extends RestoreTestBase {
                 OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS,
                 OverAggregateTestPrograms.OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS,
                 OverAggregateTestPrograms.OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS);
+    }
+
+    @Override
+    protected Map<Integer, List<TableTestProgram>> programsToIgnore() {
+        // No version 2 files could be generated for this one, see FLINK-40967. Its version 1 files
+        // keep being restored above.
+        return Map.of(
+                2,
+                List.of(
+                        OverAggregateTestPrograms
+                                .OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS_WITH_OUT_OF_ORDER_RECORDS));
     }
 }

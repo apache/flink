@@ -88,7 +88,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
@@ -102,6 +104,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         producedTransformations = StreamExecOverAggregate.OVER_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
+// Version 2: Keeps the data views of an OVER window ordered by a non-time attribute inside the
+// accumulator instead of in keyed state. Aggregates that use a data view there, such as COLLECT,
+// PERCENTILE and the DISTINCT ones, return correct results from this version on.
+// We introduced a new version, because that changes the layout of their accumulator state. Version
+// 1 plans keep the old layout so that they still restore, and logDataViewOnNonTimeOver tells those
+// users that they have to recompile to get correct results. The uid does not carry the version, so
+// a recompiled plan cannot restore the accumulator state that the version 1 plan left behind.
+@ExecNodeMetadata(
+        name = "stream-exec-over-aggregate",
+        version = 2,
+        producedTransformations = StreamExecOverAggregate.OVER_AGGREGATE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v2_4,
+        minStateVersion = FlinkVersion.v2_4)
 public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
@@ -321,8 +336,17 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         JavaScalaConversionUtil.toScala(aggCalls),
                         new boolean[aggCalls.size()],
                         false, // needInputCount
-                        true, // isStateBackendDataViews
+                        // The non-time functions keep one accumulator per sort key in state.
+                        // State backed data views are bound to the key, not to the sort key, so
+                        // all of those accumulators would share a single view. Keep the views in
+                        // the accumulator instead, so each sort key gets its own copy. A version 1
+                        // plan stays on the shared view, because its state has that layout.
+                        timeAttribute != TimeAttribute.NON_TIME || getVersion() == 1,
                         true); // needDistinctInfo
+
+        if (timeAttribute == TimeAttribute.NON_TIME && getVersion() == 1) {
+            logDataViewOnNonTimeOver(aggInfoList);
+        }
 
         LogicalType[] fieldTypes = inputRowType.getChildren().toArray(new LogicalType[0]);
 
@@ -578,6 +602,41 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         "Non-time attribute sort is not supported for bounded OVER window.");
             default:
                 throw new TableException("Unsupported bounded operation for OVER window.");
+        }
+    }
+
+    /**
+     * Warns that a compiled plan from before the data views of a non-time OVER window moved into
+     * the accumulator keeps returning wrong results.
+     *
+     * <p>Such a plan stays on version 1 so that its state still restores. The results of an
+     * aggregate with a data view do not become correct by restoring it, so the plan has to be
+     * recompiled, and because the operator keeps its uid the recompiled plan cannot restore the
+     * accumulator state that the old one left behind.
+     */
+    private void logDataViewOnNonTimeOver(AggregateInfoList aggInfoList) {
+        final Stream<String> withView =
+                Arrays.stream(aggInfoList.aggInfos())
+                        .filter(aggInfo -> aggInfo.viewSpecs().length > 0)
+                        .map(aggInfo -> aggInfo.agg().getAggregation().getName());
+        // A distinct aggregate keeps its view next to the aggregates, not in its own view specs
+        final Stream<String> distinct =
+                Arrays.stream(aggInfoList.distinctInfos())
+                                .anyMatch(distinctInfo -> distinctInfo.dataViewSpec().isDefined())
+                        ? Stream.of("DISTINCT")
+                        : Stream.empty();
+        final String aggregates =
+                Stream.concat(withView, distinct).distinct().collect(Collectors.joining(", "));
+        if (!aggregates.isEmpty()) {
+            LOG.warn(
+                    "The OVER window ordered by a non-time attribute aggregates with {}, which "
+                            + "keeps data in a data view. This compiled plan is on version 1 of "
+                            + "'stream-exec-over-aggregate', where those aggregates return wrong "
+                            + "results. Recompile the plan to get correct results. The operator "
+                            + "keeps its uid across versions, so a recompiled plan maps the "
+                            + "accumulator state it finds and the restore then fails with a "
+                            + "StateMigrationException. Start such a job without that state.",
+                    aggregates);
         }
     }
 }
