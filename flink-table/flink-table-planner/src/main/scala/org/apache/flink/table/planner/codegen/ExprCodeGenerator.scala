@@ -565,9 +565,12 @@ class ExprCodeGenerator(
    *   - `CASE(when_1, then_1, when_2, then_2, ..., else)`: only `when_1` is unconditional.
    *   - `AND(a_0, a_1, ..., a_n)` / `OR(...)`: only `a_0` is unconditional; subsequent operands are
    *     short-circuited by the operator semantics and the codegen.
+   *   - `IF(cond, then, else)`: only `cond` is unconditional; `IfCallGen` guards `then`/`else`.
    */
   private def conditionalOperandIndices(call: RexCall): Set[Int] = call.getKind match {
     case SqlKind.CASE | SqlKind.AND | SqlKind.OR | SqlKind.COALESCE =>
+      (1 until call.getOperands.size).toSet
+    case SqlKind.OTHER_FUNCTION if call.getOperator == IF =>
       (1 until call.getOperands.size).toSet
     case _ => Set.empty
   }
