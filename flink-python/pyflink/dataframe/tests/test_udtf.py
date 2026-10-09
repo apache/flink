@@ -540,16 +540,16 @@ class DataFrameLateralJoinPlanningTests(PyFlinkDataFrameUTTestCase):
             yield {"value": value, "label": "ok"}
 
         call = named(pf.col("x"))
-        for function_call, names in (
-            (call, ["value", "label"]),
-            (call.alias("v", "l"), ["v", "l"]),
+        inferred_types = [DataTypes.BIGINT().not_null(), DataTypes.STRING().not_null()]
+        for function_call, names, output_types in (
+            (call, ["value", "label"], inferred_types),
+            (call.alias("v", "l"), ["v", "l"], inferred_types),
             (pf.udtf(lambda x: [(x, "ok")], return_dtype="ROW<v BIGINT, l STRING>")(
-                pf.col("x")), ["v", "l"]),
+                pf.col("x")), ["v", "l"], [DataTypes.BIGINT(), DataTypes.STRING()]),
         ):
             with self.subTest(names=names):
                 self.assert_dataframe_schema(source.join_lateral(function_call), ["x"] + names,
-                                             [DataTypes.BIGINT(), DataTypes.BIGINT(),
-                                              DataTypes.STRING()])
+                                             [DataTypes.BIGINT()] + output_types)
         self.assertIsNone(call.output_aliases)
         self.assert_dataframe_schema(source.join_lateral(call), ["x", "value", "label"])
 
