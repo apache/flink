@@ -17,7 +17,15 @@
 
 package org.apache.flink.model.triton;
 
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.factories.utils.FactoryMocks;
+import org.apache.flink.table.ml.AsyncPredictRuntimeProvider;
+
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -42,7 +50,7 @@ class TritonModelProviderFactoryTest {
     void testOptionalOptions() {
         TritonModelProviderFactory factory = new TritonModelProviderFactory();
         assertThat(factory.optionalOptions())
-                .hasSize(14)
+                .hasSize(20)
                 .containsExactlyInAnyOrder(
                         TritonOptions.MODEL_VERSION,
                         TritonOptions.TIMEOUT,
@@ -57,6 +65,35 @@ class TritonModelProviderFactoryTest {
                         TritonOptions.MAX_RETRIES,
                         TritonOptions.RETRY_INITIAL_BACKOFF,
                         TritonOptions.RETRY_MAX_BACKOFF,
-                        TritonOptions.DEFAULT_VALUE);
+                        TritonOptions.DEFAULT_VALUE,
+                        TritonOptions.HEALTH_CHECK_ENABLED,
+                        TritonOptions.HEALTH_CHECK_INTERVAL,
+                        TritonOptions.CIRCUIT_BREAKER_ENABLED,
+                        TritonOptions.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+                        TritonOptions.CIRCUIT_BREAKER_TIMEOUT,
+                        TritonOptions.CIRCUIT_BREAKER_HALF_OPEN_REQUESTS);
+    }
+
+    @Test
+    void testCreateProviderWithHealthCheckAndCircuitBreaker() {
+        final TritonModelProviderFactory factory = new TritonModelProviderFactory();
+        final ResolvedSchema schema =
+                ResolvedSchema.of(Column.physical("text", DataTypes.STRING()));
+        final Map<String, String> options =
+                Map.of(
+                        "provider", "triton",
+                        "endpoint", "http://localhost:8000",
+                        "model-name", "test-model",
+                        "health-check-enabled", "true",
+                        "health-check-interval", "10 s",
+                        "circuit-breaker-enabled", "true",
+                        "circuit-breaker-failure-threshold", "0.25",
+                        "circuit-breaker-timeout", "5 s",
+                        "circuit-breaker-half-open-requests", "2");
+
+        assertThat(
+                        factory.createModelProvider(
+                                FactoryMocks.createModelContext(schema, schema, options)))
+                .isInstanceOf(AsyncPredictRuntimeProvider.class);
     }
 }
