@@ -25,23 +25,42 @@ subclass and ``take(True)`` is almost certainly a mistake.
 """
 
 import math
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence, Union
 
 
-def _require_int(value: Any, name: str, minimum: int) -> None:
+def _require_int(
+    value: Any, name: str, minimum: Optional[int] = None, *, maximum: Optional[int] = None,
+    include_minimum: bool = True,
+) -> None:
+    """Require an integer, optionally constrained by lower and upper bounds."""
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(f"{name} must be an integer")
-    if value < minimum:
-        raise ValueError(f"{name} must be at least {minimum}, got {value}")
+    _require_range(value, name, minimum, maximum, include_minimum)
 
 
-def _require_number(value: Any, name: str, minimum: float) -> None:
+def _require_number(
+    value: Any, name: str, minimum: Optional[float] = None, *, maximum: Optional[float] = None,
+    include_minimum: bool = True,
+) -> None:
+    """Require a finite number, optionally constrained by lower and upper bounds."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(f"{name} must be a number")
     if not math.isfinite(value):
         raise ValueError(f"{name} must be finite, got {value}")
-    if value < minimum:
-        raise ValueError(f"{name} must be at least {minimum}, got {value}")
+    _require_range(value, name, minimum, maximum, include_minimum)
+
+
+def _require_range(
+    value: Union[int, float], name: str, minimum: Optional[float], maximum: Optional[float],
+    include_minimum: bool,
+) -> None:
+    if minimum is not None:
+        if include_minimum and value < minimum:
+            raise ValueError(f"{name} must be at least {minimum}, got {value}")
+        if not include_minimum and value <= minimum:
+            raise ValueError(f"{name} must be greater than {minimum}, got {value}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"{name} must be at most {maximum}, got {value}")
 
 
 def _require_non_empty_str(value: Any, name: str) -> None:

@@ -73,6 +73,15 @@ from pyflink.dataframe.io import (
     read_parquet,
 )
 from pyflink.dataframe.iteration import CloseableIterator
+from pyflink.dataframe.llm import (
+    GenericProvider,
+    ModelProvider,
+    OpenAIProvider,
+    TritonProvider,
+    list_model_providers,
+    set_default_model_provider,
+    set_model_provider,
+)
 from pyflink.dataframe.over_window import following, preceding
 from pyflink.dataframe.sql import sql
 from pyflink.dataframe.udf import udf
@@ -83,6 +92,13 @@ __all__ = [
     "DataFrame",
     "GroupedDataFrame",
     "DataType",
+    "ModelProvider",
+    "OpenAIProvider",
+    "TritonProvider",
+    "GenericProvider",
+    "set_model_provider",
+    "set_default_model_provider",
+    "list_model_providers",
     "col",
     "lit",
     "udf",
