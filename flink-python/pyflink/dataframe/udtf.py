@@ -28,6 +28,8 @@ from typing import (
     get_origin, overload,
 )
 
+from py4j.java_gateway import get_java_class
+
 from pyflink.common import Row
 from pyflink.dataframe.datatype import DataType
 from pyflink.dataframe.udf import (
@@ -46,6 +48,7 @@ from pyflink.dataframe.udf import (
     _validate_determinism_agreement,
     _validate_zero_argument_class,
 )
+from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression
 from pyflink.table.expressions import col, with_columns
 from pyflink.table.types import RowType, _to_java_data_type
@@ -169,7 +172,9 @@ def udtf(
     tuple, ``Row``, or dict for one row. Nested output values follow scalar UDF rules.
 
     When used with :meth:`DataFrame.flat_map`, the function receives a dictionary
-    keyed by input column name. Expression and SQL calls pass the specified arguments.
+    keyed by input column name. :meth:`DataFrame.join_lateral`, expression and SQL
+    calls pass the specified arguments. Use ``alias`` to name lateral join outputs,
+    or declare named fields with a ``TypedDict`` or struct ``return_dtype``.
 
     Example::
 
@@ -418,6 +423,46 @@ def _resolve_flat_map_udtf(
     wrapper = declaration._create_table_wrapper(tuple(input_columns))
     wrapper._set_takes_row_as_input()
     return wrapper(with_columns(col("*"))), output_columns
+
+
+def _resolve_lateral_expression(
+    call: Union[_DataFrameUDTFCall, Expression], input_columns: List[str],
+) -> Expression:
+    if isinstance(call, _DataFrameUDTFCall):
+        expression = call.expression
+        if call.output_aliases is not None:
+            output_names = list(call.output_aliases)
+        elif call.has_named_fields:
+            output_names = cast(RowType, call.return_dtype._to_table_data_type()).field_names()
+            expression = expression.alias(*output_names)
+        else:
+            raise ValueError(
+                "UDTF calls passed to join_lateral require output names; use alias, "
+                "a TypedDict, or a named struct return_dtype.")
+    elif isinstance(call, Expression):
+        expression = call
+        gateway = get_gateway()
+        api_utils = gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
+        definitions = gateway.jvm.org.apache.flink.table.functions.BuiltInFunctionDefinitions
+        j_expression = api_utils.unwrapFromApi(expression._j_expr)
+        if not api_utils.isFunction(j_expression, definitions.AS):
+            raise ValueError("Expression arguments passed to join_lateral require alias.")
+        string_class = get_java_class(gateway.jvm.String)
+        output_names = [
+            child.getValueAs(string_class).get() for child in list(j_expression.getChildren())[1:]
+        ]
+    else:
+        raise TypeError(
+            "table_function_call must be a DataFrame UDTF call or Expression, "
+            f"got {type(call).__name__}")
+
+    if not output_names or not all(output_names) or len(set(output_names)) != len(output_names):
+        raise ValueError("join_lateral output names must be non-empty and unique.")
+    conflicts = set(input_columns).intersection(output_names)
+    if conflicts:
+        raise ValueError(
+            f"join_lateral output names conflict with input columns: {sorted(conflicts)}")
+    return expression
 
 
 def _iter_user_results(result: Any) -> Iterator[Any]:

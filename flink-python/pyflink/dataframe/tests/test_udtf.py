@@ -27,11 +27,15 @@ from typing import (
 )
 
 import cloudpickle
+from py4j.protocol import Py4JJavaError
+
 import pyflink.dataframe as pf
 from pyflink.common import Row
 from pyflink.dataframe.udtf import _resolve_flat_map_udtf
 from pyflink.table import DataTypes
-from pyflink.table.udf import ScalarFunction, TableFunction
+from pyflink.table.expression import Expression
+from pyflink.table.expressions import call as table_call
+from pyflink.table.udf import ScalarFunction, TableFunction, udtf as table_udtf
 from pyflink.testing.test_case_utils import (
     PyFlinkBatchTableTestCase,
     PyFlinkDataFrameUTTestCase,
@@ -527,13 +531,117 @@ class DataFrameUDTFPlanningTests(PyFlinkDataFrameUTTestCase):
         self.assertEqual(events, ["init"])
 
 
-class _DataFrameFlatMapTests:
+class DataFrameLateralJoinPlanningTests(PyFlinkDataFrameUTTestCase):
+    def test_output_names_and_call_reuse(self):
+        source = pf.from_dict({"x": [1]})
+
+        @pf.udtf
+        def named(value) -> Iterator[_Output]:
+            yield {"value": value, "label": "ok"}
+
+        call = named(pf.col("x"))
+        inferred_types = [DataTypes.BIGINT().not_null(), DataTypes.STRING().not_null()]
+        for function_call, names, output_types in (
+            (call, ["value", "label"], inferred_types),
+            (call.alias("v", "l"), ["v", "l"], inferred_types),
+            (pf.udtf(lambda x: [(x, "ok")], return_dtype="ROW<v BIGINT, l STRING>")(
+                pf.col("x")), ["v", "l"], [DataTypes.BIGINT(), DataTypes.STRING()]),
+        ):
+            with self.subTest(names=names):
+                self.assert_dataframe_schema(source.join_lateral(function_call), ["x"] + names,
+                                             [DataTypes.BIGINT()] + output_types)
+        self.assertIsNone(call.output_aliases)
+        self.assert_dataframe_schema(source.join_lateral(call), ["x", "value", "label"])
+
+        @pf.udtf
+        def pair(value, label: str) -> Iterator[Tuple[int, str]]:
+            yield value, label
+
+        result = source.join_lateral(pair(pf.col("x"), pf.lit("ok")).alias("v", "l"))
+        self.assertEqual(result.columns, ["x", "v", "l"])
+
+    def test_raw_expression_aliases(self):
+        source = pf.from_dict({"x": [1]})
+        emit = table_udtf(lambda x: [x], result_types=[DataTypes.BIGINT()])
+        self.t_env.create_temporary_system_function("emit", emit)
+        for expression in (emit(pf.col("x")).alias("out"),
+                           table_call("emit", pf.col("x")).alias("out")):
+            with self.subTest(expression=str(expression)):
+                # Alias names belong to the expression tree, not a Python wrapper.
+                rebuilt = Expression(expression._j_expr)
+                self.assert_dataframe_schema(source.join_lateral(rebuilt), ["x", "out"],
+                                             [DataTypes.BIGINT(), DataTypes.BIGINT()])
+        with self.assertRaisesRegex(ValueError, "require alias"):
+            source.join_lateral(emit(pf.col("x")))
+
+    def test_invalid_calls_and_output_names(self):
+        source = pf.from_dict({"x": [1]})
+        scalar = pf.udtf(lambda x: [x], return_dtype=int)
+        unnamed = scalar(pf.col("x"))
+        named = pf.udtf(lambda x: [(x, "ok")], return_dtype="ROW<x BIGINT, label STRING>")
+        raw = table_udtf(lambda x: [(x, "ok")],
+                         result_types=[DataTypes.BIGINT(), DataTypes.STRING()])(pf.col("x"))
+        cases = (
+            (unnamed, ValueError, "require output names"),
+            (unnamed.alias("x"), ValueError, "conflict"),
+            (named(pf.col("x")), ValueError, "conflict"),
+            (raw.alias("same", "same"), ValueError, "unique"),
+            (raw.alias("", "label"), ValueError, "non-empty"),
+            (raw.alias("x", "label"), ValueError, "conflict"),
+            (None, TypeError, "table_function_call"),
+            (scalar, TypeError, "table_function_call"),
+        )
+        for function_call, error, message in cases:
+            with self.subTest(message=message, function_call=function_call):
+                with self.assertRaisesRegex(error, message):
+                    source.join_lateral(function_call)
+
+    def test_option_types_and_predicate_validation(self):
+        source = pf.from_dict({"x": [1]})
+        emit = pf.udtf(lambda x: [x], return_dtype=int)(pf.col("x")).alias("out")
+        for kwargs in ({"ignore_empty": 0}, {"ignore_empty": None}, {"on": True}, {"on": "x"}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(TypeError):
+                source.join_lateral(emit, **kwargs)
+        for predicate in (pf.lit(1), pf.col("missing") > 0):
+            with self.subTest(predicate=str(predicate)), self.assertRaisesRegex(
+                    Py4JJavaError, "ValidationException"):
+                source.join_lateral(emit, on=predicate)
+
+    def test_predicates_plan_in_stream_and_batch(self):
+        from pyflink.datastream import RuntimeExecutionMode
+
+        emit = pf.udtf(lambda x: [x], return_dtype=int)
+        positive = pf.udf(lambda x: x > 0, return_dtype=bool)
+        for mode in (RuntimeExecutionMode.STREAMING, RuntimeExecutionMode.BATCH):
+            self.env.set_runtime_mode(mode)
+            source = pf.from_dict({"x": [1]})
+            call = emit(pf.col("x") + 1).alias("out")
+            for predicate in (None, pf.col("x") > 0, pf.col("out") > pf.col("x"),
+                              positive(pf.col("out"))):
+                with self.subTest(mode=mode, predicate=str(predicate)):
+                    self.assertIn("PythonCorrelate", source.join_lateral(call, on=predicate)
+                                  .to_table().explain())
+            for predicate in (None, pf.lit(True)):
+                with self.subTest(mode=mode, predicate=str(predicate)):
+                    self.assertIn("PythonCorrelate", source.join_lateral(
+                        call, on=predicate, ignore_empty=False).to_table().explain())
+
+    def test_left_predicate_retains_table_api_restriction(self):
+        source = pf.from_dict({"x": [1]})
+        emit = pf.udtf(lambda x: [x], return_dtype=int)(pf.col("x")).alias("out")
+        with self.assertRaisesRegex(Py4JJavaError, "can only be empty or literal true"):
+            source.join_lateral(emit, on=pf.col("out") > 0, ignore_empty=False)
+
+
+class _DataFrameUDTFTests:
     def setUp(self):
         super().setUp()
         previous = pf.get_table_environment()
         self.addCleanup(pf.set_table_environment, previous)
         pf.set_table_environment(self.t_env)
 
+
+class _DataFrameFlatMapTests(_DataFrameUDTFTests):
     def test_typed_dict_input_and_named_output_pipeline(self):
         class Input(TypedDict):
             count: int
@@ -583,7 +691,7 @@ class _DataFrameFlatMapTests:
         after = expand(pf.col("x")).alias("out")
         combined = first.union_all(second)
         for call in (before, after):
-            lateral = pf.from_table(a.to_table().join_lateral(call.expression)).select("out")
+            lateral = a.join_lateral(call).select("out")
             combined = combined.union_all(lateral)
         self.assertCountEqual(combined.collect(), [Row(1), Row(2)] * 3 + [Row(3), Row(4)])
 
@@ -695,15 +803,57 @@ class _DataFrameFlatMapTests:
         self.assertCountEqual(result.collect(), [Row({"value": 1}), Row({"value": 2})])
 
 
-class DataFrameFlatMapStreamTests(_DataFrameFlatMapTests, PyFlinkStreamDataFrameTestCase):
+class _DataFrameLateralJoinTests(_DataFrameUDTFTests):
+    def test_lateral_join_semantics_and_predicates(self):
+        @pf.udtf
+        def words(text: Optional[str]) -> Iterator[str]:
+            yield from (text or "").split()
+
+        class Token(TypedDict):
+            word: str
+            length: int
+
+        @pf.udtf
+        def tokenize(text: Optional[str]) -> Iterator[Token]:
+            for word in (text or "").split():
+                yield {"word": word, "length": len(word)}
+
+        source = pf.from_records([(0, ""), (1, "a bb"), (2, "z"), (-1, "skip"), (3, None)],
+                                 schema=["id", "text"])
+        call = words(pf.col("text")).alias("word")
+        inner = source.join_lateral(call)
+        left = source.join_lateral(call, ignore_empty=False, on=pf.lit(True))
+        filtered = source.join_lateral(tokenize(pf.col("text")),
+                                       on=(pf.col("id") > 0) & (pf.col("length") > 1))
+        raw = table_udtf(lambda text: (text or "").split(), result_types=[DataTypes.STRING()])
+        legacy = source.join_lateral(raw(pf.col("text")).alias("word"))
+        frames = [("inner", inner), ("left", left), ("filtered", filtered), ("raw", legacy)]
+        combined = None
+        for name, frame in frames:
+            result = frame.select(pf.lit(name).alias("kind"), "id", "text", "word")
+            combined = result if combined is None else combined.union_all(result)
+        emitted = [(1, "a bb", "a"), (1, "a bb", "bb"), (2, "z", "z"), (-1, "skip", "skip")]
+        expected = [Row(name, *row) for name in ("inner", "left", "raw") for row in emitted]
+        expected += [Row("left", 0, "", None), Row("left", 3, None, None),
+                     Row("filtered", 1, "a bb", "bb")]
+        self.assertCountEqual(combined.collect(), expected)
+
+
+class DataFrameUDTFStreamTests(
+    _DataFrameFlatMapTests, _DataFrameLateralJoinTests, PyFlinkStreamDataFrameTestCase
+):
     pass
 
 
-class DataFrameFlatMapBatchTests(_DataFrameFlatMapTests, PyFlinkBatchTableTestCase):
+class DataFrameUDTFBatchTests(
+    _DataFrameFlatMapTests, _DataFrameLateralJoinTests, PyFlinkBatchTableTestCase
+):
     pass
 
 
-class DataFrameFlatMapThreadTests(_DataFrameFlatMapTests, PyFlinkStreamDataFrameTestCase):
+class DataFrameUDTFThreadTests(
+    _DataFrameFlatMapTests, _DataFrameLateralJoinTests, PyFlinkStreamDataFrameTestCase
+):
     def setUp(self):
         super().setUp()
         self.t_env.get_config().set("python.execution-mode", "thread")
