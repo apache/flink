@@ -1346,7 +1346,11 @@ public class FunctionITCase extends StreamingTestBase {
         assertThat(actual).containsExactly(Row.of(10), Row.of(30));
     }
 
-    /** Pins the IF guard interaction with the RexLocalRef cache (IF is not scoped like CASE). */
+    /**
+     * Pins the IF guard interaction with the RexLocalRef cache. Without scoping the ELSE-branch
+     * {@code CAST(s AS DOUBLE)} is hoisted to the method top and throws on {@code s = ""}; with
+     * scoping it stays inside the branch and runs only when the guard is false.
+     */
     @Test
     void testCalcIfGuardShortCircuit() {
         final List<Row> sourceData = List.of(Row.of(""), Row.of("1.5"));
