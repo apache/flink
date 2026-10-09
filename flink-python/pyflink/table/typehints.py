@@ -23,11 +23,27 @@ by UDF type-hint inference so both derive types from a single mapping.
 """
 
 import collections.abc
+import dataclasses
 import datetime
 import decimal
+import sys
 import types
 from functools import partial
-from typing import Any, Callable, Dict, Set, Union, get_args, get_origin, get_type_hints
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    ForwardRef,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from pyflink.table.types import DataType, DataTypes
 
@@ -74,48 +90,156 @@ def _is_typed_dict(type_hint: Any) -> bool:
     )
 
 
+def _is_dataclass_type(type_hint: Any) -> bool:
+    return isinstance(type_hint, type) and dataclasses.is_dataclass(type_hint)
+
+
+def _is_named_tuple_type(type_hint: Any) -> bool:
+    return (
+        isinstance(type_hint, type)
+        and issubclass(type_hint, tuple)
+        and hasattr(type_hint, "_fields")
+    )
+
+
+def _is_composite_type(type_hint: Any) -> bool:
+    return (
+        _is_typed_dict(type_hint)
+        or _is_dataclass_type(type_hint)
+        or _is_named_tuple_type(type_hint)
+    )
+
+
+def _generic_composite_error(type_hint: Any) -> TypeError:
+    return TypeError(
+        f"Cannot infer DataType from type hint '{type_hint}'. Generic composite "
+        "types are not supported. Please specify the data type explicitly."
+    )
+
+
+def _no_fields_error(type_hint: Any) -> TypeError:
+    name = type_hint.__name__ if isinstance(type_hint, type) else type_hint
+    return TypeError(
+        f"Cannot infer DataType from '{name}': it has no fields. "
+        "Please specify the data type explicitly."
+    )
+
+
+def _unresolved_forward_reference_error(hint: Union[ForwardRef, str]) -> TypeError:
+    name = hint.__forward_arg__ if isinstance(hint, ForwardRef) else hint
+    advice = "Please specify the data type explicitly."
+    # typing generics wrap quoted names in ForwardRef, built-in generics keep the bare str
+    if isinstance(hint, str) and sys.version_info < (3, 11):
+        advice = (
+            "Before Python 3.11, quoted names inside built-in generics such as "
+            f"list['{name}'] are not resolved. Use typing.List['{name}'] or specify "
+            "the data type explicitly."
+        )
+    return TypeError(
+        f"Cannot infer DataType from unresolved forward reference '{name}'. {advice}"
+    )
+
+
+def _resolve_field_hints(composite: type) -> Dict[str, Any]:
+    try:
+        return get_type_hints(composite)
+    except (NameError, AttributeError, SyntaxError, TypeError) as exc:
+        raise TypeError(
+            f"Cannot resolve the field type hints of '{composite.__name__}': "
+            f"{exc}. Please specify the data type explicitly."
+        ) from exc
+
+
+def _composite_field_hints(composite: Any) -> List[Tuple[str, Any]]:
+    field_hints = _resolve_field_hints(composite)
+    if _is_typed_dict(composite):
+        return [
+            (name, _typed_dict_field_hint(hint, name in composite.__optional_keys__))
+            for name, hint in field_hints.items()
+        ]
+    if _is_dataclass_type(composite):
+        return [
+            (field.name, field_hints[field.name]) for field in dataclasses.fields(composite)
+        ]
+    unannotated = [name for name in composite._fields if name not in field_hints]
+    if unannotated:
+        raise TypeError(
+            f"Cannot infer DataType from NamedTuple '{composite.__name__}': fields "
+            f"{unannotated} have no type annotations. Declare it with "
+            "typing.NamedTuple or specify the data type explicitly."
+        )
+    return [(name, field_hints[name]) for name in composite._fields]
+
+
+def _typed_dict_field_hint(hint: Any, is_optional_key: bool) -> Any:
+    origin = get_origin(hint)
+    if origin in _TYPED_DICT_KEY_MARKER_OPTIONALITY:
+        is_optional_key = _TYPED_DICT_KEY_MARKER_OPTIONALITY[origin]
+        hint = get_args(hint)[0]
+    return Optional[hint] if is_optional_key else hint
+
+
+def _tuple_field_hints(hint: Any, arguments: Tuple[Any, ...]) -> List[Tuple[str, Any]]:
+    if Ellipsis in arguments:
+        raise TypeError(
+            f"Cannot infer DataType from type hint '{hint}': ROW types need a fixed "
+            "number of elements. Use list[T] for variable-length sequences."
+        )
+    # Before Python 3.11, get_args(Tuple[()]) returns ((),)
+    element_hints = () if arguments == ((),) else arguments
+    return [
+        (f"_{position}", element_hint)
+        for position, element_hint in enumerate(element_hints, start=1)
+    ]
+
+
+def _infer_basic(hint: Any) -> Optional[DataType]:
+    # The dict lookup fails on unhashable hints such as a dataclass instance.
+    if not isinstance(hint, type):
+        return None
+    factory = _BASIC_TYPE_HINT_FACTORIES.get(hint)
+    return factory() if factory is not None else None
+
+
 def _from_python_type(type_hint: Any) -> DataType:
     """Resolve a Python type hint into a table :class:`DataType`.
 
-    Supports the basic scalar types, ``list[T]``/``dict[K, V]`` containers, and
-    ``TypedDict`` (mapped to ``ROW``). Inferred types are ``NOT NULL``;
-    ``Optional[T]``/``T | None`` is the marker that widens a type to nullable,
-    and ``Any`` (an opt-out of the type system) stays nullable ``STRING``.
-    Raises :class:`TypeError` for hints that cannot be resolved unambiguously.
+    Supported hints:
+
+    * basic scalar types such as ``int`` and ``str``
+    * ``list[T]`` and ``dict[K, V]``
+    * ``TypedDict``, dataclass, ``NamedTuple`` and fixed-length ``tuple``, which map
+      to ``ROW``. Tuple fields are named ``_1``, ``_2`` and so on.
+
+    Inferred types are ``NOT NULL``. Use ``Optional[T]`` or ``T | None`` for a
+    nullable type. ``Any`` maps to a nullable ``STRING``.
+
+    Raises :class:`TypeError` for hints that have no single mapping.
     """
 
-    typed_dicts_in_progress: Set[Any] = set()
+    composites_in_progress: Set[Any] = set()
 
-    def infer_typed_dict(hint: Any) -> DataType:
-        if hint in typed_dicts_in_progress:
+    def infer_composite(composite: type) -> DataType:
+        if getattr(composite, "__parameters__", ()):
+            raise _generic_composite_error(composite)
+        if composite in composites_in_progress:
             raise TypeError(
-                f"Cannot infer DataType from TypedDict '{hint.__name__}': it references "
+                f"Cannot infer DataType from '{composite.__name__}': it refers to "
                 "itself, which ROW types cannot represent. "
                 "Please specify the data type explicitly."
             )
-        typed_dicts_in_progress.add(hint)
+        composites_in_progress.add(composite)
         try:
-            return DataTypes.ROW(
-                [
-                    DataTypes.FIELD(
-                        name,
-                        infer_typed_dict_field(
-                            field_hint, name in hint.__optional_keys__
-                        ),
-                    )
-                    for name, field_hint in get_type_hints(hint).items()
-                ]
-            )
+            return infer_row(composite, _composite_field_hints(composite))
         finally:
-            typed_dicts_in_progress.discard(hint)
+            composites_in_progress.discard(composite)
 
-    def infer_typed_dict_field(hint: Any, is_optional_key: bool) -> DataType:
-        origin = get_origin(hint)
-        if origin in _TYPED_DICT_KEY_MARKER_OPTIONALITY:
-            is_optional_key = _TYPED_DICT_KEY_MARKER_OPTIONALITY[origin]
-            hint = get_args(hint)[0]
-        data_type = infer(hint)
-        return data_type.nullable() if is_optional_key else data_type
+    def infer_row(hint: Any, field_hints: List[Tuple[str, Any]]) -> DataType:
+        if not field_hints:
+            raise _no_fields_error(hint)
+        return DataTypes.ROW(
+            [DataTypes.FIELD(name, infer(field_hint)) for name, field_hint in field_hints]
+        )
 
     def infer_union(hint: Any, arguments) -> DataType:
         non_none_types = [
@@ -129,13 +253,27 @@ def _from_python_type(type_hint: Any) -> DataType:
             "Please specify the data type explicitly."
         )
 
-    def infer_basic(hint: Any):
-        factory = _BASIC_TYPE_HINT_FACTORIES.get(hint)
-        return factory() if factory is not None else None
-
     def infer_not_null(hint: Any, origin: Any, arguments) -> DataType:
-        if _is_typed_dict(hint):
-            return infer_typed_dict(hint)
+        if _is_composite_type(hint):
+            return infer_composite(hint)
+
+        if _is_composite_type(origin):
+            raise _generic_composite_error(hint)
+
+        if isinstance(hint, TypeVar):
+            raise TypeError(
+                f"Cannot infer DataType from type variable '{hint}'. "
+                "Please specify the data type explicitly."
+            )
+
+        if hint is tuple or hint is Tuple:
+            raise TypeError(
+                "Cannot infer DataType from tuple without type arguments. "
+                "Use tuple[T1, T2, ...], for example tuple[int, str]."
+            )
+
+        if origin is tuple:
+            return infer_row(hint, _tuple_field_hints(hint, arguments))
 
         if origin is list:
             if not arguments:
@@ -153,7 +291,7 @@ def _from_python_type(type_hint: Any) -> DataType:
                 )
             return DataTypes.MAP(infer(arguments[0]), infer(arguments[1]))
 
-        data_type = infer_basic(hint)
+        data_type = _infer_basic(hint)
         if data_type is not None:
             return data_type
 
@@ -163,6 +301,9 @@ def _from_python_type(type_hint: Any) -> DataType:
         )
 
     def infer(hint: Any) -> DataType:
+        if isinstance(hint, (ForwardRef, str)):
+            raise _unresolved_forward_reference_error(hint)
+
         origin = get_origin(hint)
         arguments = get_args(hint)
 

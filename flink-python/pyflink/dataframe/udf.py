@@ -43,7 +43,7 @@ from pyflink.common import Row
 from pyflink.dataframe.datatype import DataType
 from pyflink.table.expression import Expression
 from pyflink.table.expressions import call as table_call
-from pyflink.table.typehints import _is_typed_dict
+from pyflink.table.typehints import _is_composite_type
 from pyflink.table.types import ArrayType, MapType, RowType
 from pyflink.table.udf import (
     AsyncScalarFunction,
@@ -1051,9 +1051,9 @@ def _convert_to_dtype(dtype_like: _DataTypeLike) -> DataType:
     try:
         return DataType._from_type_hint(dtype_like)
     except (NameError, AttributeError, SyntaxError, TypeError) as exc:
-        if _is_typed_dict(dtype_like):
+        if _is_composite_type(dtype_like):
             raise TypeError(
-                "Cannot resolve return_dtype from the supplied TypedDict; use a "
+                f"Cannot resolve return_dtype from '{dtype_like.__name__}'. Use a "
                 "concrete DataFrame DataType or SQL type string."
             ) from exc
         raise TypeError(
