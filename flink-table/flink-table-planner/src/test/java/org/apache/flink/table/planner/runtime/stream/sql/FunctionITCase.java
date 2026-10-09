@@ -1371,6 +1371,30 @@ public class FunctionITCase extends StreamingTestBase {
         assertThat(actual).containsExactly(Row.of((Object) null), Row.of(1.5d));
     }
 
+    /**
+     * Pins the IFNULL guard interaction with the RexLocalRef cache. IFNULL is COALESCE, so
+     * null_replacement runs only when input is NULL. Input is never NULL here, so the {@code CAST(s
+     * AS DOUBLE)} in null_replacement stays guarded and never throws on {@code s = ""}.
+     */
+    @Test
+    void testCalcIfNullGuardShortCircuit() {
+        final List<Row> sourceData = List.of(Row.of(""), Row.of("1.5"));
+
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+        tEnv().executeSql("CREATE TABLE SourceTable (s STRING) WITH ('connector' = 'COLLECTION')");
+
+        final List<Row> actual =
+                CollectionUtil.iteratorToList(
+                        tEnv().executeSql(
+                                        "SELECT IFNULL(CAST(CHAR_LENGTH(s) AS DOUBLE),"
+                                                + " CAST(s AS DOUBLE))"
+                                                + " FROM SourceTable")
+                                .collect());
+
+        assertThat(actual).containsExactly(Row.of(0.0d), Row.of(3.0d));
+    }
+
     @Test
     void testStructuredScalarFunction() throws Exception {
         final List<Row> sourceData =
