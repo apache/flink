@@ -108,46 +108,25 @@ under the License.
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>com.github.os72</groupId>
-				<artifactId>protoc-jar-maven-plugin</artifactId>
-				<version>3.11.4</version>
+				<groupId>io.github.ascopes</groupId>
+				<artifactId>protobuf-maven-plugin</artifactId>
 				<executions>
 					<execution>
-						<phase>generate-sources</phase>
 						<goals>
-							<goal>run</goal>
+							<goal>generate-test</goal>
 						</goals>
 						<configuration>
-							<protocArtifact>com.google.protobuf:protoc:${protoc.version}</protocArtifact>
-							<includeMavenTypes>direct</includeMavenTypes>
-							<inputDirectories>
-								<include>src/test/proto</include>
-							</inputDirectories>
-							<outputTargets>
-								<outputTarget>
-									<type>java</type>
-									<addSources>none</addSources>
-									<outputDirectory>target/test-proto-sources</outputDirectory>
-								</outputTarget>
-							</outputTargets>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>3.0.0</version>
-				<executions>
-					<execution>
-						<phase>generate-sources</phase>
-						<goals>
-							<goal>add-test-source</goal>
-						</goals>
-						<configuration>
-							<sources>
-								<source>target/test-proto-sources</source>
-							</sources>
+							<sourceDirectories>
+								<sourceDirectory>${project.basedir}/src/test/proto</sourceDirectory>
+							</sourceDirectories>
+							<!-- Provides google/protobuf/timestamp.proto. -->
+							<importDependencies>
+								<importDependency>
+									<groupId>com.google.protobuf</groupId>
+									<artifactId>protobuf-java</artifactId>
+									<version>${protoc.version}</version>
+								</importDependency>
+							</importDependencies>
 						</configuration>
 					</execution>
 				</executions>
