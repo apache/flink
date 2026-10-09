@@ -421,7 +421,7 @@ class TaskTest {
         assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
         assertThat(task.isCanceledOrFailed()).isTrue();
         assertThat(task.getFailureCause()).isNotNull();
-        assertThat(task.getFailureCause().getMessage()).contains("test");
+        assertThat(task.getFailureCause()).hasMessageContaining("test");
 
         taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
@@ -473,7 +473,7 @@ class TaskTest {
 
         task.getExecutingThread().join();
 
-        assertThat(task.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
+        assertThat(task.getExecutionState()).isSameAs(ExecutionState.CANCELED);
         assertThat(task.isCanceledOrFailed()).isTrue();
         assertThat(task.getFailureCause()).isNull();
 
@@ -502,7 +502,7 @@ class TaskTest {
 
         task.getExecutingThread().join();
 
-        assertThat(task.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
+        assertThat(task.getExecutionState()).isSameAs(ExecutionState.CANCELED);
         assertThat(task.isCanceledOrFailed()).isTrue();
         assertThat(task.getFailureCause()).isNull();
 
@@ -530,9 +530,9 @@ class TaskTest {
 
         task.getExecutingThread().join();
 
-        assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
+        assertThat(task.getExecutionState()).isSameAs(ExecutionState.FAILED);
         assertThat(task.isCanceledOrFailed()).isTrue();
-        assertThat(task.getFailureCause().getMessage()).contains(RESTORE_EXCEPTION_MSG);
+        assertThat(task.getFailureCause()).hasMessageContaining(RESTORE_EXCEPTION_MSG);
 
         taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(
@@ -558,9 +558,9 @@ class TaskTest {
 
         task.getExecutingThread().join();
 
-        assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
+        assertThat(task.getExecutionState()).isSameAs(ExecutionState.FAILED);
         assertThat(task.isCanceledOrFailed()).isTrue();
-        assertThat(task.getFailureCause().getMessage()).contains("test");
+        assertThat(task.getFailureCause()).hasMessageContaining("test");
 
         taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
