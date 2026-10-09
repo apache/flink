@@ -20,7 +20,10 @@ package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.SerializerFactory;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 
 /**
  * A {@link TypeSerializer} that can admit a backward-compatible change of the schema of the values
@@ -39,49 +42,122 @@ public interface StateSchemaEvolvingSerializer<T> {
      * Returns a serializer that admits a backward-compatible schema change and migrates the stored
      * values when state is restored, or {@code this} if the job configuration did not opt in.
      *
-     * <p>This is called only on a state's own value serializer, never on an arbitrary serializer
+     * <p>The returned serializer must be equal to this one, with the same hash code: a composite
+     * serializer rebuilt around it then stays equal to the original composite.
+     *
+     * <p>This is called only on a serializer whose values a state backend migrates: the value
+     * serializer of a value, reducing or aggregating state, the element serializer of a list state,
+     * or the value serializer of a map state. It is never called on an arbitrary serializer
      * encountered while walking a type.
      */
     TypeSerializer<T> withStateSchemaEvolution();
 
     /**
-     * Decorates a factory so that the serializer it produces for a state value is armed for schema
-     * evolution.
+     * Returns whether this serializer admits a backward-compatible schema change at restore, either
+     * because it was returned by {@link #withStateSchemaEvolution()} or because it was derived from
+     * such a serializer.
+     */
+    boolean isStateSchemaEvolutionEnabled();
+
+    /**
+     * Decorates a factory so that the serializer it produces for a state of the given type is armed
+     * for schema evolution.
      *
      * <p>Only a caller whose backend migrates restored values through {@link
-     * TypeSerializerSnapshot#migrate} may use this. A caller that does not decorate its factory
-     * keeps today's behavior unchanged.
+     * TypeSerializerSnapshot#migrate} may use this. A serializer produced by an undecorated factory
+     * is never armed.
      */
-    static SerializerFactory arming(SerializerFactory delegate) {
+    static SerializerFactory arming(SerializerFactory delegate, StateDescriptor.Type stateType) {
         // Not a lambda: SerializerFactory's single method is generic, which a lambda cannot
         // implement.
         return new SerializerFactory() {
             @Override
             public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
-                return armStateValueSerializer(delegate.createSerializer(typeInformation));
+                return armStateValueSerializer(
+                        delegate.createSerializer(typeInformation), stateType);
             }
         };
     }
 
     /**
-     * Arms the serializer a state holds for its values, if it supports schema evolution at all.
+     * Arms the serializer of a state of the given type, if it supports schema evolution at all.
      *
-     * <p>The serializer passed in is armed, and nothing below it: there is no descent into a
-     * composite, and no recursion. A serializer nested below the state value is not reached by
-     * {@link TypeSerializerSnapshot#migrate}, so arming one would let a compatibility check report
-     * {@code compatibleAfterMigration} for bytes that nothing ever migrates.
+     * <p>What is armed is decided by the state type, because that is how a state backend chooses
+     * the serializer it calls {@link TypeSerializerSnapshot#migrate} on: the serializer itself for
+     * a value, reducing or aggregating state, the element serializer for a list state, and the
+     * value serializer for a map state. Nothing deeper is armed, because a serializer below that
+     * one is never handed to {@code migrate}, and arming it would let a compatibility check report
+     * {@code compatibleAfterMigration} for bytes that nothing ever migrates. For the same reason a
+     * value state whose value is a list or a map arms nothing inside it, and a map key is never
+     * armed.
      *
-     * <p>The serializers armed here are therefore a subset of those {@code
-     * TtlAwareSerializer#wrapTtlAwareSerializer} descends into, which are the ones some backend
-     * calls {@code migrate} on. Being a subset is what keeps this sound. Widening the descent to
-     * close the gap is only safe once every caller registering the widened shape is known to reach
-     * such a backend, which is not true of the seam as it stands: operator state and broadcast
-     * state register list and map descriptors through it and never migrate.
+     * <p>A list or map serializer whose nested serializer comes back unchanged is returned as the
+     * same instance.
+     *
+     * <p>Operator state and broadcast state also register list and map descriptors but never
+     * migrate values. Since a descriptor caches the serializer it was first initialized with, those
+     * backends reject a serializer for which {@link #isArmed} holds.
      */
     @SuppressWarnings("unchecked")
-    static <T> TypeSerializer<T> armStateValueSerializer(TypeSerializer<T> serializer) {
+    static <T> TypeSerializer<T> armStateValueSerializer(
+            TypeSerializer<T> serializer, StateDescriptor.Type stateType) {
+        switch (stateType) {
+            case VALUE:
+            case REDUCING:
+            case AGGREGATING:
+                return armLeaf(serializer);
+            case LIST:
+                if (serializer instanceof ListSerializer) {
+                    ListSerializer<Object> list = (ListSerializer<Object>) serializer;
+                    TypeSerializer<Object> element = list.getElementSerializer();
+                    TypeSerializer<Object> armedElement = armLeaf(element);
+                    return armedElement == element
+                            ? serializer
+                            : (TypeSerializer<T>) new ListSerializer<>(armedElement);
+                }
+                return serializer;
+            case MAP:
+                if (serializer instanceof MapSerializer) {
+                    MapSerializer<Object, Object> map = (MapSerializer<Object, Object>) serializer;
+                    TypeSerializer<Object> value = map.getValueSerializer();
+                    TypeSerializer<Object> armedValue = armLeaf(value);
+                    return armedValue == value
+                            ? serializer
+                            : (TypeSerializer<T>)
+                                    new MapSerializer<>(map.getKeySerializer(), armedValue);
+                }
+                return serializer;
+            default:
+                return serializer;
+        }
+    }
+
+    /**
+     * Returns whether the given serializer carries a serializer armed for schema evolution where
+     * {@link #armStateValueSerializer} arms one: the serializer itself, the element serializer of a
+     * {@link ListSerializer}, or the value serializer of a {@link MapSerializer}. The check is by
+     * serializer shape, not state type, so it also reports a list or map nested in a value state.
+     */
+    static boolean isArmed(TypeSerializer<?> serializer) {
+        if (serializer instanceof ListSerializer) {
+            return isArmedLeaf(((ListSerializer<?>) serializer).getElementSerializer());
+        }
+        if (serializer instanceof MapSerializer) {
+            return isArmedLeaf(((MapSerializer<?, ?>) serializer).getValueSerializer());
+        }
+        return isArmedLeaf(serializer);
+    }
+
+    /** The only caller of {@link #withStateSchemaEvolution()}; it never descends. */
+    @SuppressWarnings("unchecked")
+    private static <T> TypeSerializer<T> armLeaf(TypeSerializer<T> serializer) {
         return serializer instanceof StateSchemaEvolvingSerializer
                 ? ((StateSchemaEvolvingSerializer<T>) serializer).withStateSchemaEvolution()
                 : serializer;
+    }
+
+    private static boolean isArmedLeaf(TypeSerializer<?> serializer) {
+        return serializer instanceof StateSchemaEvolvingSerializer
+                && ((StateSchemaEvolvingSerializer<?>) serializer).isStateSchemaEvolutionEnabled();
     }
 }

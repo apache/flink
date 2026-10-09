@@ -23,12 +23,16 @@ import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.StateDescriptor.Type;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.StateSchemaEvolvingSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -46,13 +50,15 @@ import org.apache.flink.table.types.logical.RowType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests which state shapes the arming {@link SerializerFactory} decorator reaches. It arms exactly
- * one structural level, so a {@link RowDataSerializer} sitting below any composite serializer stays
- * unarmed and its state fails closed at restore.
+ * Tests which state shapes the arming {@link SerializerFactory} decorator reaches. It arms the
+ * state value, or the element of a list state and the value of a map state, and nothing deeper: a
+ * {@link RowDataSerializer} nested further down, or used as a map key, stays unarmed and its state
+ * fails closed at restore.
  *
  * <p>Every assertion is made on the serializer object actually reached through the state
  * descriptor. {@link RowDataSerializerSchemaEvolutionTest} covers what an armed serializer then
@@ -84,7 +90,7 @@ class RowDataStateSchemaEvolutionArmingTest {
         MapStateDescriptor<Long, List<Tuple2<RowData, Boolean>>> descriptor =
                 new MapStateDescriptor<>("cache", Types.LONG, valueTypeInfo);
 
-        descriptor.initializeSerializerUnlessSet(armingFactory(true));
+        arm(descriptor, true);
 
         ListSerializer<Tuple2<RowData, Boolean>> listSerializer =
                 (ListSerializer<Tuple2<RowData, Boolean>>) descriptor.getValueSerializer();
@@ -114,7 +120,7 @@ class RowDataStateSchemaEvolutionArmingTest {
         ValueStateDescriptor<RowData> descriptor =
                 new ValueStateDescriptor<>("value", InternalTypeInfo.of(ROW_TYPE));
 
-        descriptor.initializeSerializerUnlessSet(armingFactory(true));
+        arm(descriptor, true);
 
         assertThat(((RowDataSerializer) descriptor.getSerializer()).isStateSchemaEvolutionEnabled())
                 .isTrue();
@@ -125,36 +131,77 @@ class RowDataStateSchemaEvolutionArmingTest {
         ValueStateDescriptor<RowData> descriptor =
                 new ValueStateDescriptor<>("value", InternalTypeInfo.of(ROW_TYPE));
 
-        descriptor.initializeSerializerUnlessSet(armingFactory(false));
+        arm(descriptor, false);
 
         assertThat(((RowDataSerializer) descriptor.getSerializer()).isStateSchemaEvolutionEnabled())
                 .isFalse();
     }
 
     @Test
-    void listStateElementIsNotArmed() {
+    void listStateElementIsArmed() {
         ListStateDescriptor<RowData> descriptor =
                 new ListStateDescriptor<>("list", InternalTypeInfo.of(ROW_TYPE));
 
-        descriptor.initializeSerializerUnlessSet(armingFactory(true));
+        arm(descriptor, true);
 
         assertThat(
                         ((RowDataSerializer) descriptor.getElementSerializer())
                                 .isStateSchemaEvolutionEnabled())
+                .isTrue();
+    }
+
+    @Test
+    void mapStateValueIsArmedButItsKeyIsNot() {
+        MapStateDescriptor<RowData, RowData> descriptor =
+                new MapStateDescriptor<>(
+                        "map", InternalTypeInfo.of(ROW_TYPE), InternalTypeInfo.of(ROW_TYPE));
+
+        arm(descriptor, true);
+
+        assertThat(
+                        ((RowDataSerializer) descriptor.getValueSerializer())
+                                .isStateSchemaEvolutionEnabled())
+                .isTrue();
+        assertThat(
+                        ((RowDataSerializer) descriptor.getKeySerializer())
+                                .isStateSchemaEvolutionEnabled())
                 .isFalse();
     }
 
-    private static SerializerFactory armingFactory(boolean schemaEvolutionEnabled) {
+    @Test
+    void armedCompositeEqualsItsUnarmedOriginal() {
+        TypeSerializer<RowData> element =
+                InternalTypeInfo.of(ROW_TYPE).createSerializer(serializerConfig(true));
+        ListSerializer<RowData> list = new ListSerializer<>(element);
+        MapSerializer<Long, RowData> map = new MapSerializer<>(LongSerializer.INSTANCE, element);
+
+        TypeSerializer<List<RowData>> armedList =
+                StateSchemaEvolvingSerializer.armStateValueSerializer(list, Type.LIST);
+        TypeSerializer<Map<Long, RowData>> armedMap =
+                StateSchemaEvolvingSerializer.armStateValueSerializer(map, Type.MAP);
+
+        assertThat(armedList).isNotSameAs(list).isEqualTo(list).hasSameHashCodeAs(list);
+        assertThat(armedMap).isNotSameAs(map).isEqualTo(map).hasSameHashCodeAs(map);
+    }
+
+    /** Initializes the descriptor as a keyed state store on a migrating backend does. */
+    private static void arm(StateDescriptor<?, ?> descriptor, boolean schemaEvolutionEnabled) {
+        SerializerConfig config = serializerConfig(schemaEvolutionEnabled);
+        descriptor.initializeSerializerUnlessSet(
+                StateSchemaEvolvingSerializer.arming(
+                        new SerializerFactory() {
+                            @Override
+                            public <T> TypeSerializer<T> createSerializer(
+                                    TypeInformation<T> typeInformation) {
+                                return typeInformation.createSerializer(config);
+                            }
+                        },
+                        descriptor.getType()));
+    }
+
+    private static SerializerConfig serializerConfig(boolean schemaEvolutionEnabled) {
         Configuration configuration = new Configuration();
         configuration.set(STATE_SCHEMA_EVOLUTION_ENABLED, schemaEvolutionEnabled);
-        SerializerConfig config = new SerializerConfigImpl(configuration);
-        return StateSchemaEvolvingSerializer.arming(
-                new SerializerFactory() {
-                    @Override
-                    public <T> TypeSerializer<T> createSerializer(
-                            TypeInformation<T> typeInformation) {
-                        return typeInformation.createSerializer(config);
-                    }
-                });
+        return new SerializerConfigImpl(configuration);
     }
 }

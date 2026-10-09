@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.StateSchemaEvolvingSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.configuration.ConfigOption;
@@ -276,7 +277,8 @@ class RowDataSerializerSchemaEvolutionTest {
 
         RowDataSerializer stateSerializer =
                 (RowDataSerializer)
-                        StateSchemaEvolvingSerializer.armStateValueSerializer(optedIn(newType));
+                        StateSchemaEvolvingSerializer.armStateValueSerializer(
+                                optedIn(newType), StateDescriptor.Type.VALUE);
 
         // Nested field serializers are built by InternalSerializers inside the RowDataSerializer
         // constructor, so they never carry the opt-in bit. The state bit therefore has to be set on
@@ -566,7 +568,7 @@ class RowDataSerializerSchemaEvolutionTest {
         return new SerializerConfigImpl(configuration);
     }
 
-    /** A serializer the job opted in, but that is not yet a state's own value serializer. */
+    /** A serializer the job opted in, but that has not been armed for any state. */
     private static RowDataSerializer optedIn(RowType rowType) {
         return (RowDataSerializer) InternalTypeInfo.of(rowType).createSerializer(config(true));
     }

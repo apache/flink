@@ -390,7 +390,8 @@ public abstract class AbstractKeyedStateBackend<K>
         InternalKvState<K, ?, ?> kvState = keyValueStatesByName.get(stateDescriptor.getName());
         if (kvState == null) {
             if (!stateDescriptor.isSerializerInitialized()) {
-                stateDescriptor.initializeSerializerUnlessSet(stateValueSerializerFactory());
+                stateDescriptor.initializeSerializerUnlessSet(
+                        stateValueSerializerFactory(stateDescriptor.getType()));
             }
             kvState =
                     MetricsTrackingStateFactory.createStateAndWrapWithMetricsTrackingIfEnabled(
@@ -407,12 +408,12 @@ public abstract class AbstractKeyedStateBackend<K>
     }
 
     /**
-     * The factory a state descriptor registered here uses for its own value serializer. It
+     * The factory a state descriptor of the given type registered here uses for its serializer. It
      * reproduces what {@link StateDescriptor#initializeSerializerUnlessSet(ExecutionConfig)}
      * builds, and arms schema evolution on top of it only when this backend migrates restored
      * values at the object level.
      */
-    private SerializerFactory stateValueSerializerFactory() {
+    private SerializerFactory stateValueSerializerFactory(StateDescriptor.Type stateType) {
         SerializerFactory factory =
                 new SerializerFactory() {
                     @Override
@@ -425,7 +426,7 @@ public abstract class AbstractKeyedStateBackend<K>
                     }
                 };
         return supportsObjectLevelValueMigration()
-                ? StateSchemaEvolvingSerializer.arming(factory)
+                ? StateSchemaEvolvingSerializer.arming(factory, stateType)
                 : factory;
     }
 

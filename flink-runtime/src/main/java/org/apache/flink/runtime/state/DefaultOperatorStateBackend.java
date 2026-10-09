@@ -24,6 +24,8 @@ import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.StateSchemaEvolvingSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -155,6 +157,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
         }
 
         stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+        checkNotArmedForSchemaEvolution(stateDescriptor);
         TypeSerializer<K> broadcastStateKeySerializer =
                 Preconditions.checkNotNull(stateDescriptor.getKeySerializer());
         TypeSerializer<V> broadcastStateValueSerializer =
@@ -284,6 +287,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
         // TODO with eager registration in place, these checks should be moved to restore()
 
         stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+        checkNotArmedForSchemaEvolution(stateDescriptor);
         TypeSerializer<S> partitionStateSerializer =
                 Preconditions.checkNotNull(stateDescriptor.getElementSerializer());
 
@@ -328,6 +332,24 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
         accessedStatesByName.put(name, partitionableListState);
         return partitionableListState;
+    }
+
+    /**
+     * A descriptor keeps the serializer it was first initialized with, so one already used for
+     * keyed state may carry a serializer armed for schema evolution. Operator and broadcast state
+     * never migrate restored values, so accepting it would let a changed schema pass the
+     * compatibility check while the restored values keep their old layout.
+     */
+    private static void checkNotArmedForSchemaEvolution(StateDescriptor<?, ?> stateDescriptor)
+            throws StateMigrationException {
+        if (StateSchemaEvolvingSerializer.isArmed(stateDescriptor.getSerializer())) {
+            throw new StateMigrationException(
+                    "State descriptor '"
+                            + stateDescriptor.getName()
+                            + "' was already used for keyed state with state schema evolution"
+                            + " enabled and cannot be used for operator or broadcast state, which"
+                            + " does not migrate values. Use a separate descriptor instance.");
+        }
     }
 
     private static void checkStateNameAndMode(

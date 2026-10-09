@@ -139,8 +139,8 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
         return schemaEvolutionAllowed;
     }
 
-    @VisibleForTesting
-    boolean isStateSchemaEvolutionEnabled() {
+    @Override
+    public boolean isStateSchemaEvolutionEnabled() {
         return stateSchemaEvolutionEnabled;
     }
 

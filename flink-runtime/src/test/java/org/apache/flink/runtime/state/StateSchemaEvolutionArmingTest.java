@@ -27,12 +27,19 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.StateDescriptor.Type;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.StateSchemaEvolvingSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.ListTypeInfo;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -52,17 +59,21 @@ import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
+import org.apache.flink.util.StateMigrationException;
 
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests the backend capability gate on state schema evolution arming: only a keyed backend that
@@ -156,9 +167,131 @@ class StateSchemaEvolutionArmingTest {
         assertThat(armedFlagOf(descriptor.getValueSerializer())).isFalse();
     }
 
+    @Test
+    void keyedArmedListDescriptorIsRejectedByOperatorState() throws Exception {
+        ListStateDescriptor<Integer> descriptor =
+                new ListStateDescriptor<>("list", StateSchemaEvolvingTestSerializer.typeInfo());
+        keyedStateStore(true).getListState(descriptor);
+
+        assertThatThrownBy(() -> operatorStateBackend().getListState(descriptor))
+                .isInstanceOf(StateMigrationException.class);
+    }
+
+    @Test
+    void keyedArmedMapDescriptorIsRejectedByBroadcastState() {
+        MapStateDescriptor<Integer, Integer> descriptor =
+                new MapStateDescriptor<>(
+                        "broadcast", Types.INT, StateSchemaEvolvingTestSerializer.typeInfo());
+        keyedStateStore(true).getMapState(descriptor);
+
+        assertThatThrownBy(() -> operatorStateBackend().getBroadcastState(descriptor))
+                .isInstanceOf(StateMigrationException.class);
+    }
+
+    @Test
+    void ttlListStateElementIsArmedOnAnObjectLevelMigratingBackend() throws Exception {
+        ListStateDescriptor<Integer> descriptor =
+                new ListStateDescriptor<>("list", StateSchemaEvolvingTestSerializer.typeInfo());
+        descriptor.enableTimeToLive(StateTtlConfig.newBuilder(Duration.ofMinutes(1)).build());
+
+        keyedStateBackend(true).getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, descriptor);
+
+        assertThat(armedFlagOf(descriptor.getElementSerializer())).isTrue();
+    }
+
+    @Test
+    void ttlMapStateValueIsArmedOnAnObjectLevelMigratingBackend() throws Exception {
+        MapStateDescriptor<Integer, Integer> descriptor =
+                new MapStateDescriptor<>(
+                        "map", Types.INT, StateSchemaEvolvingTestSerializer.typeInfo());
+        descriptor.enableTimeToLive(StateTtlConfig.newBuilder(Duration.ofMinutes(1)).build());
+
+        keyedStateBackend(true).getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, descriptor);
+
+        assertThat(armedFlagOf(descriptor.getValueSerializer())).isTrue();
+    }
+
+    @Test
+    void valueStateOfACollectionIsNotArmedThroughTheKeyedStore() {
+        ValueStateDescriptor<List<Integer>> listValue = listValueDescriptor();
+        ValueStateDescriptor<Map<Integer, Integer>> mapValue = mapValueDescriptor();
+
+        DefaultKeyedStateStore store = keyedStateStore(true);
+        store.getState(listValue);
+        store.getState(mapValue);
+
+        assertThat(StateSchemaEvolvingSerializer.isArmed(listValue.getSerializer())).isFalse();
+        assertThat(StateSchemaEvolvingSerializer.isArmed(mapValue.getSerializer())).isFalse();
+    }
+
+    @Test
+    void valueStateOfACollectionIsNotArmedThroughDirectBackendRegistration() throws Exception {
+        ValueStateDescriptor<List<Integer>> listValue = listValueDescriptor();
+        ValueStateDescriptor<Map<Integer, Integer>> mapValue = mapValueDescriptor();
+
+        MockKeyedStateBackend<Integer> backend = keyedStateBackend(true);
+        backend.getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, listValue);
+        backend.getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, mapValue);
+
+        assertThat(StateSchemaEvolvingSerializer.isArmed(listValue.getSerializer())).isFalse();
+        assertThat(StateSchemaEvolvingSerializer.isArmed(mapValue.getSerializer())).isFalse();
+    }
+
+    @Test
+    void compositeWithoutAnEvolvingSerializerIsReturnedUnchanged() {
+        ListSerializer<Integer> list = new ListSerializer<>(IntSerializer.INSTANCE);
+        MapSerializer<Integer, Integer> map =
+                new MapSerializer<>(IntSerializer.INSTANCE, IntSerializer.INSTANCE);
+
+        assertThat(StateSchemaEvolvingSerializer.armStateValueSerializer(list, Type.LIST))
+                .isSameAs(list);
+        assertThat(StateSchemaEvolvingSerializer.armStateValueSerializer(map, Type.MAP))
+                .isSameAs(map);
+    }
+
+    @Test
+    void isArmedReachesEveryShapeArmingReaches() {
+        TypeSerializer<Integer> leaf = new StateSchemaEvolvingTestSerializer();
+
+        assertArmedOnlyAfterArming(leaf, Type.VALUE);
+        assertArmedOnlyAfterArming(new ListSerializer<>(leaf), Type.LIST);
+        assertArmedOnlyAfterArming(new MapSerializer<>(IntSerializer.INSTANCE, leaf), Type.MAP);
+    }
+
+    @Test
+    void isArmedIgnoresTheMapKey() {
+        TypeSerializer<Integer> armedKey =
+                new StateSchemaEvolvingTestSerializer().withStateSchemaEvolution();
+
+        assertThat(
+                        StateSchemaEvolvingSerializer.isArmed(
+                                new MapSerializer<>(armedKey, IntSerializer.INSTANCE)))
+                .isFalse();
+    }
+
+    private static void assertArmedOnlyAfterArming(TypeSerializer<?> serializer, Type stateType) {
+        assertThat(StateSchemaEvolvingSerializer.isArmed(serializer)).isFalse();
+        assertThat(
+                        StateSchemaEvolvingSerializer.isArmed(
+                                StateSchemaEvolvingSerializer.armStateValueSerializer(
+                                        serializer, stateType)))
+                .isTrue();
+    }
+
+    private static ValueStateDescriptor<List<Integer>> listValueDescriptor() {
+        return new ValueStateDescriptor<>(
+                "list-value", new ListTypeInfo<>(StateSchemaEvolvingTestSerializer.typeInfo()));
+    }
+
+    private static ValueStateDescriptor<Map<Integer, Integer>> mapValueDescriptor() {
+        return new ValueStateDescriptor<>(
+                "map-value",
+                new MapTypeInfo<>(Types.INT, StateSchemaEvolvingTestSerializer.typeInfo()));
+    }
+
     private static boolean armedFlagOf(TypeSerializer<Integer> serializer) {
         assertThat(serializer).isInstanceOf(StateSchemaEvolvingTestSerializer.class);
-        return ((StateSchemaEvolvingTestSerializer) serializer).isArmed();
+        return ((StateSchemaEvolvingTestSerializer) serializer).isStateSchemaEvolutionEnabled();
     }
 
     private static DefaultKeyedStateStore keyedStateStore(boolean objectLevelValueMigration) {

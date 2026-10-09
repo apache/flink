@@ -265,7 +265,8 @@ class StreamingRuntimeContextTest {
         // The keyed state store owns the arming; a serializer initialized before delegating to the
         // store would win the descriptor's CAS and leave this unarmed.
         assertThat(serializer).isInstanceOf(StateSchemaEvolvingTestSerializer.class);
-        assertThat(((StateSchemaEvolvingTestSerializer) serializer).isArmed()).isTrue();
+        assertThat(((StateSchemaEvolvingTestSerializer) serializer).isStateSchemaEvolutionEnabled())
+                .isTrue();
     }
 
     @Test
