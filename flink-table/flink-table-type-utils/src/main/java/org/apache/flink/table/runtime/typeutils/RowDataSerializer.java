@@ -559,7 +559,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
                 }
                 LogicalType oldType = oldSnapshot.types[oldPos];
                 LogicalType newType = types[newPos];
-                if (!bothRow(oldType, newType) && !oldType.equals(newType)) {
+                if (!bothRowWithSameNullability(oldType, newType) && !oldType.equals(newType)) {
                     return TypeSerializerSchemaCompatibility.incompatible(); // leaf type changed
                 }
                 alignedNewNested[oldPos] = newNested[newPos];
@@ -585,7 +585,7 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
             for (int i = 0; i < oldSnapshot.types.length; i++) {
                 LogicalType oldType = oldSnapshot.types[i];
                 LogicalType newType = types[i];
-                if (!bothRow(oldType, newType) && !oldType.equals(newType)) {
+                if (!bothRowWithSameNullability(oldType, newType) && !oldType.equals(newType)) {
                     return TypeSerializerSchemaCompatibility.incompatible();
                 }
             }
@@ -621,9 +621,21 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
                     : TypeSerializerSchemaCompatibility.compatibleAfterMigration();
         }
 
-        private static boolean bothRow(LogicalType oldType, LogicalType newType) {
+        /**
+         * Whether a field pair may skip the exact type check and have its contents compared by the
+         * nested snapshot recursion instead.
+         *
+         * <p>That recursion compares the ROW's fields and never the ROW's own nullability, so the
+         * nullability has to be settled here. Without it, narrowing a nullable ROW field to NOT
+         * NULL is accepted and {@code migrate} then carries an existing null straight into the
+         * non-null field. Requiring equality matches how a leaf field is treated, since {@link
+         * LogicalType#equals} compares nullability too.
+         */
+        private static boolean bothRowWithSameNullability(
+                LogicalType oldType, LogicalType newType) {
             return oldType.getTypeRoot() == LogicalTypeRoot.ROW
-                    && newType.getTypeRoot() == LogicalTypeRoot.ROW;
+                    && newType.getTypeRoot() == LogicalTypeRoot.ROW
+                    && oldType.isNullable() == newType.isNullable();
         }
 
         @Override

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
@@ -30,6 +31,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -38,9 +40,17 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.testutils.StateSchemaEvolvingTestSerializer;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend;
+import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
+import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 
 import org.junit.jupiter.api.Test;
@@ -89,6 +99,27 @@ class StateSchemaEvolutionArmingTest {
                 new ValueStateDescriptor<>("value", StateSchemaEvolvingTestSerializer.typeInfo());
 
         keyedStateStore(false).getState(descriptor);
+
+        assertThat(armedFlagOf(descriptor.getSerializer())).isFalse();
+    }
+
+    @Test
+    void directBackendRegistrationIsArmedOnAnObjectLevelMigratingBackend() throws Exception {
+        ValueStateDescriptor<Integer> descriptor =
+                new ValueStateDescriptor<>("value", StateSchemaEvolvingTestSerializer.typeInfo());
+
+        keyedStateBackend(true).getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, descriptor);
+
+        assertThat(armedFlagOf(descriptor.getSerializer())).isTrue();
+    }
+
+    @Test
+    void directBackendRegistrationIsNotArmedWithoutObjectLevelMigration() throws Exception {
+        ValueStateDescriptor<Integer> descriptor =
+                new ValueStateDescriptor<>("value", StateSchemaEvolvingTestSerializer.typeInfo());
+
+        keyedStateBackend(false)
+                .getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, descriptor);
 
         assertThat(armedFlagOf(descriptor.getSerializer())).isFalse();
     }
@@ -143,6 +174,31 @@ class StateSchemaEvolutionArmingTest {
                         serializerFactory());
         store.setSupportKeyedStateApiSetV2();
         return store;
+    }
+
+    /**
+     * A real {@link AbstractKeyedStateBackend}, not the hand-written fake above, because the arming
+     * this exercises lives in {@link AbstractKeyedStateBackend#getOrCreateKeyedState} and window
+     * and async operators reach it directly rather than through {@link DefaultKeyedStateStore}.
+     */
+    private static MockKeyedStateBackend<Integer> keyedStateBackend(
+            boolean objectLevelValueMigration) {
+        return new MockKeyedStateBackendBuilder<>(
+                        new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
+                        IntSerializer.INSTANCE,
+                        StateSchemaEvolutionArmingTest.class.getClassLoader(),
+                        1,
+                        KeyGroupRange.of(0, 0),
+                        new ExecutionConfig(configurationWithSchemaEvolutionEnabled()),
+                        TtlTimeProvider.DEFAULT,
+                        LatencyTrackingStateConfig.disabled(),
+                        SizeTrackingStateConfig.disabled(),
+                        Collections.emptyList(),
+                        UncompressedStreamCompressionDecorator.INSTANCE,
+                        new CloseableRegistry(),
+                        MockSnapshotSupplier.EMPTY)
+                .setSupportsObjectLevelValueMigration(objectLevelValueMigration)
+                .build();
     }
 
     private static DefaultOperatorStateBackend operatorStateBackend() throws Exception {

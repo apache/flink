@@ -307,6 +307,38 @@ class RowDataSerializerSchemaEvolutionTest {
     }
 
     @Test
+    void nestedRowNarrowedToNotNullIsIncompatible() throws IOException {
+        RowType nested = row(new String[] {"a"}, new IntType());
+        RowDataSerializerSnapshot oldSnap =
+                oldSnapshot(row(new String[] {"id", "nested"}, new IntType(), nested));
+        RowDataSerializerSnapshot newSnap =
+                newSnapshot(row(new String[] {"id", "nested"}, new IntType(), nested.copy(false)));
+
+        assertThat(newSnap.resolveSchemaCompatibility(oldSnap).isIncompatible()).isTrue();
+    }
+
+    @Test
+    void nestedRowWidenedToNullableIsIncompatible() throws IOException {
+        RowType nested = row(new String[] {"a"}, new IntType());
+        RowDataSerializerSnapshot oldSnap =
+                oldSnapshot(row(new String[] {"id", "nested"}, new IntType(), nested.copy(false)));
+        RowDataSerializerSnapshot newSnap =
+                newSnapshot(row(new String[] {"id", "nested"}, new IntType(), nested));
+
+        assertThat(newSnap.resolveSchemaCompatibility(oldSnap).isIncompatible()).isTrue();
+    }
+
+    @Test
+    void namelessNestedRowNarrowedToNotNullIsIncompatible() {
+        RowType nested = row(new String[] {"a"}, new IntType());
+        RowDataSerializerSnapshot oldSnap = nameLessSnapshot(new IntType(), nested);
+        RowDataSerializerSnapshot newSnap =
+                newSnapshot(row(new String[] {"id", "nested"}, new IntType(), nested.copy(false)));
+
+        assertThat(newSnap.resolveSchemaCompatibility(oldSnap).isIncompatible()).isTrue();
+    }
+
+    @Test
     void incompatibleNestedRowChangeIsIncompatible() throws IOException {
         RowDataSerializerSnapshot oldSnap =
                 oldSnapshot(
