@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -40,13 +41,23 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.DBOptions;
+import org.forstdb.InfoLogLevel;
+import org.forstdb.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
+import javax.annotation.Nullable;
+
+import java.lang.ref.WeakReference;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -419,6 +430,70 @@ class ForStIncrementalCheckpointRescalingTest {
         }
     }
 
+    /**
+     * A scale-in restore opens temporary DBs with copies of the backend's DB options. The native
+     * options keep everything set on them alive (here a logger; in production the shared write
+     * buffer manager and block cache), so every copy must be closed with its temporary DB.
+     */
+    @TestTemplate
+    void testScalingDownReleasesDBOptions() throws Exception {
+        TrackingLoggerOptionsFactory.LOGGERS.clear();
+
+        scaleDownFromTwoToOne();
+
+        assertThat(TrackingLoggerOptionsFactory.LOGGERS).hasSize(3);
+        CommonTestUtils.waitUtil(
+                () -> {
+                    System.gc();
+                    return TrackingLoggerOptionsFactory.LOGGERS.stream()
+                            .allMatch(logger -> logger.get() == null);
+                },
+                Duration.ofSeconds(30),
+                Duration.ofMillis(100),
+                "The logger of a disposed backend is still referenced by native DB options.");
+    }
+
+    /** Runs in its own frame so that no harness stays reachable from the caller. */
+    @SuppressWarnings("unchecked")
+    private void scaleDownFromTwoToOne() throws Exception {
+        KeyedOneInputStreamOperatorTestHarness<String, String, Integer>[] harness2 =
+                new KeyedOneInputStreamOperatorTestHarness[2];
+        OperatorSubtaskState snapshot2;
+        try {
+            for (int i = 0; i < 2; i++) {
+                harness2[i] = getHarnessTest(keySelector, maxParallelism, 2, i);
+                harness2[i].setStateBackend(getStateBackend(new TrackingLoggerOptionsFactory()));
+                harness2[i].setCheckpointStorage(
+                        new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
+                harness2[i].open();
+            }
+            validHarnessResult(
+                    harness2[0], 1, records[0], records[1], records[2], records[3], records[4]);
+            validHarnessResult(
+                    harness2[1], 1, records[5], records[6], records[7], records[8], records[9]);
+            snapshot2 =
+                    AbstractStreamOperatorTestHarness.repackageState(
+                            harness2[0].snapshot(0, 0), harness2[1].snapshot(0, 0));
+        } finally {
+            closeHarness(harness2);
+        }
+
+        OperatorSubtaskState initState =
+                AbstractStreamOperatorTestHarness.repartitionOperatorState(
+                        snapshot2, maxParallelism, 2, 1, 0);
+        try (KeyedOneInputStreamOperatorTestHarness<String, String, Integer> harness =
+                getHarnessTest(keySelector, maxParallelism, 1, 0)) {
+            harness.setStateBackend(getStateBackend(new TrackingLoggerOptionsFactory()));
+            harness.setCheckpointStorage(
+                    new FileSystemCheckpointStorage("file://" + rootFolder.toAbsolutePath()));
+            harness.setup();
+            harness.initializeState(initState);
+            harness.open();
+
+            validHarnessResult(harness, 2, records);
+        }
+    }
+
     private void closeHarness(KeyedOneInputStreamOperatorTestHarness<?, ?, ?>[] harnessArr)
             throws Exception {
         for (KeyedOneInputStreamOperatorTestHarness<?, ?, ?> harness : harnessArr) {
@@ -458,7 +533,12 @@ class ForStIncrementalCheckpointRescalingTest {
     }
 
     private StateBackend getStateBackend() {
+        return getStateBackend(null);
+    }
+
+    private StateBackend getStateBackend(@Nullable ForStOptionsFactory optionsFactory) {
         ForStStateBackend forStStateBackend = new ForStStateBackend();
+        forStStateBackend.setForStOptions(optionsFactory);
         Configuration configuration = new Configuration();
         configuration.set(USE_INGEST_DB_RESTORE_MODE, useIngestDbRestoreMode);
         return forStStateBackend.configure(configuration, getClass().getClassLoader());
@@ -484,6 +564,31 @@ class ForStIncrementalCheckpointRescalingTest {
             Integer newCount = oldCount != null ? oldCount + 1 : 1;
             counterState.update(newCount);
             out.collect(newCount);
+        }
+    }
+
+    /** Sets a tracked logger on the DB options of every backend. */
+    private static class TrackingLoggerOptionsFactory implements ForStOptionsFactory {
+
+        private static final List<WeakReference<Logger>> LOGGERS = new CopyOnWriteArrayList<>();
+
+        @Override
+        public DBOptions createDBOptions(
+                DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+            Logger logger =
+                    new Logger(currentOptions) {
+                        @Override
+                        protected void log(InfoLogLevel infoLogLevel, String logMsg) {}
+                    };
+            handlesToClose.add(logger);
+            LOGGERS.add(new WeakReference<>(logger));
+            return currentOptions.setLogger(logger);
+        }
+
+        @Override
+        public ColumnFamilyOptions createColumnOptions(
+                ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+            return currentOptions;
         }
     }
 
