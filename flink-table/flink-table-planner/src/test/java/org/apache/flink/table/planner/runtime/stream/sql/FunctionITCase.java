@@ -1310,89 +1310,64 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     /**
-     * Pins the CASE-WHEN guard interaction with the RexLocalRef cache.
-     *
-     * <p>Prior to scoped caching, RexProgramBuilder collapsed the division {@code a / b} into a
-     * single exprList entry; the codegen visitor cached the body and {@code
-     * CalcCodeGenerator.reuseLocalRefCode()} hoisted that body to the top of the generated method,
-     * evaluating {@code a / b} for every row regardless of the surrounding {@code CASE WHEN b > 0}.
-     * Rows with {@code b = 0} then threw {@code java.lang.ArithmeticException: Division undefined}
-     * — caught in the wild on TPC-DS query 34. With scoped caching the division body lives inside
-     * the THEN-branch's generated code and never executes when the guard is false.
+     * Pins the conditional-guard interaction with the RexLocalRef cache across CASE, IF and IFNULL.
+     * Without scoped caching the guarded operand's body is hoisted to the top of the generated
+     * method and evaluated for every row, throwing on inputs the guard was meant to exclude (the
+     * CASE case is a regression from TPC-DS query 34). With scoping the body stays inside its
+     * branch and runs only when the guard selects it.
      */
-    @Test
-    void testCalcCaseGuardShortCircuit() {
-        final List<Row> sourceData =
-                List.of(Row.of(10, 0), Row.of(10, 2), Row.of(20, 0), Row.of(30, 5), Row.of(40, 0));
-
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("inputForTestCalcGuardShortCircuit")
+    void testCalcGuardShortCircuit(
+            String name, String schema, List<Row> sourceData, String sql, List<Row> expected) {
         TestCollectionTableFactory.reset();
         TestCollectionTableFactory.initData(sourceData);
         tEnv().executeSql(
-                        "CREATE TABLE SourceTable (a INT, b INT) WITH ('connector' = 'COLLECTION')");
+                        "CREATE TABLE SourceTable ("
+                                + schema
+                                + ") WITH ('connector' = 'COLLECTION')");
 
-        final List<Row> actual =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql(
-                                        "SELECT a FROM SourceTable WHERE"
-                                                + " (CASE WHEN b > 0"
-                                                + "       THEN CAST(a AS DECIMAL(7,2))"
-                                                + "          / CAST(b AS DECIMAL(7,2))"
-                                                + "       ELSE NULL END) > 1.2")
-                                .collect());
+        final List<Row> actual = CollectionUtil.iteratorToList(tEnv().executeSql(sql).collect());
 
-        // Row(10,2) → 10/2 = 5.0  (>1.2)
-        // Row(30,5) → 30/5 = 6.0  (>1.2)
-        // Rows with b=0 must NOT enter the THEN-branch (the division would fail).
-        assertThat(actual).containsExactly(Row.of(10), Row.of(30));
+        assertThat(actual).containsExactlyElementsOf(expected);
     }
 
-    /**
-     * Pins the IF guard interaction with the RexLocalRef cache. Without scoping the ELSE-branch
-     * {@code CAST(s AS DOUBLE)} is hoisted to the method top and throws on {@code s = ""}; with
-     * scoping it stays inside the branch and runs only when the guard is false.
-     */
-    @Test
-    void testCalcIfGuardShortCircuit() {
-        final List<Row> sourceData = List.of(Row.of(""), Row.of("1.5"));
-
-        TestCollectionTableFactory.reset();
-        TestCollectionTableFactory.initData(sourceData);
-        tEnv().executeSql("CREATE TABLE SourceTable (s STRING) WITH ('connector' = 'COLLECTION')");
-
-        final List<Row> actual =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql(
-                                        "SELECT IF(s IS NULL OR CHAR_LENGTH(s) = 0,"
-                                                + " CAST(NULL AS DOUBLE),"
-                                                + " CAST(s AS DOUBLE))"
-                                                + " FROM SourceTable")
-                                .collect());
-
-        assertThat(actual).containsExactly(Row.of((Object) null), Row.of(1.5d));
-    }
-
-    /**
-     * Pins the IFNULL guard interaction with the RexLocalRef cache. IFNULL is COALESCE, so
-     * null_replacement runs only when input is NULL. Input is never NULL here, so the {@code CAST(s
-     * AS DOUBLE)} in null_replacement stays guarded and never throws on {@code s = ""}.
-     */
-    @Test
-    void testCalcIfNullGuardShortCircuit() {
-        final List<Row> sourceData = List.of(Row.of(""), Row.of("1.5"));
-
-        TestCollectionTableFactory.reset();
-        TestCollectionTableFactory.initData(sourceData);
-        tEnv().executeSql("CREATE TABLE SourceTable (s STRING) WITH ('connector' = 'COLLECTION')");
-
-        final List<Row> actual =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql(
-                                        "SELECT IFNULL(CAST(CHAR_LENGTH(s) AS DOUBLE),"
-                                                + " CAST(s AS DOUBLE))"
-                                                + " FROM SourceTable")
-                                .collect());
-
-        assertThat(actual).containsExactly(Row.of(0.0d), Row.of(3.0d));
+    static Stream<Arguments> inputForTestCalcGuardShortCircuit() {
+        return Stream.of(
+                // b = 0 rows must skip the THEN-branch division.
+                Arguments.of(
+                        "CASE",
+                        "a INT, b INT",
+                        List.of(
+                                Row.of(10, 0),
+                                Row.of(10, 2),
+                                Row.of(20, 0),
+                                Row.of(30, 5),
+                                Row.of(40, 0)),
+                        "SELECT a FROM SourceTable WHERE"
+                                + " (CASE WHEN b > 0"
+                                + "       THEN CAST(a AS DECIMAL(7,2)) / CAST(b AS DECIMAL(7,2))"
+                                + "       ELSE NULL END) > 1.2",
+                        List.of(Row.of(10), Row.of(30))),
+                // ELSE-branch CAST(s AS DOUBLE) must not run when the guard is true.
+                Arguments.of(
+                        "IF",
+                        "s STRING",
+                        List.of(Row.of(""), Row.of("1.5")),
+                        "SELECT IF(s IS NULL OR CHAR_LENGTH(s) = 0,"
+                                + " CAST(NULL AS DOUBLE),"
+                                + " CAST(s AS DOUBLE))"
+                                + " FROM SourceTable",
+                        List.of(Row.of((Object) null), Row.of(1.5d))),
+                // IFNULL is COALESCE; null_replacement must not run as input is never NULL.
+                Arguments.of(
+                        "IFNULL",
+                        "s STRING",
+                        List.of(Row.of(""), Row.of("1.5")),
+                        "SELECT IFNULL(CAST(CHAR_LENGTH(s) AS DOUBLE),"
+                                + " CAST(s AS DOUBLE))"
+                                + " FROM SourceTable",
+                        List.of(Row.of(0.0d), Row.of(3.0d))));
     }
 
     @Test
