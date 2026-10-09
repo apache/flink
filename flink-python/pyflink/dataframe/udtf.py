@@ -37,7 +37,6 @@ from pyflink.dataframe.udf import (
     _convert_to_dtype,
     _create_declaration_context,
     _create_result_normalizer,
-    _data_type_from_type_hint,
     _get_callable_inspection_target,
     _get_callable_return_type_hint,
     _is_typed_dict,
@@ -315,12 +314,12 @@ def _infer_udtf_return_dtype(
             if not fields or Ellipsis in fields:
                 raise TypeError("UDTF tuple outputs must have a fixed number of fields.")
             dtype = DataType.struct([
-                (f"f{index}", _data_type_from_type_hint(field))
+                (f"f{index}", DataType._from_type_hint(field))
                 for index, field in enumerate(fields)
             ])
             has_named_fields = False
         else:
-            dtype = _data_type_from_type_hint(hint)
+            dtype = DataType._from_type_hint(hint)
             has_named_fields = isinstance(dtype._to_table_data_type(), RowType)
     table_type = dtype._to_table_data_type()
     if isinstance(table_type, RowType) and not table_type.fields:
