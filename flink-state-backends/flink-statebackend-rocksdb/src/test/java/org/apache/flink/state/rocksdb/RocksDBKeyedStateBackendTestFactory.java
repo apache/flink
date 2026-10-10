@@ -27,26 +27,25 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TernaryBoolean;
 
-import org.junit.rules.TemporaryFolder;
-
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collections;
 
 import static org.mockito.Mockito.mock;
 
 /** External resource for tests that require an instance of RocksDBKeyedStateBackend. */
-public class RocksDBKeyedStateBackendTestFactory implements AutoCloseable {
+class RocksDBKeyedStateBackendTestFactory implements AutoCloseable {
 
     private MockEnvironment env;
 
     private RocksDBKeyedStateBackend<?> keyedStateBackend;
 
-    public <K> RocksDBKeyedStateBackend<K> create(
-            TemporaryFolder tmp, TypeSerializer<K> keySerializer, int maxKeyGroupNumber)
-            throws Exception {
+    <K> RocksDBKeyedStateBackend<K> create(
+            Path tmp, TypeSerializer<K> keySerializer, int maxKeyGroupNumber) throws Exception {
         EmbeddedRocksDBStateBackend backend = getRocksDBStateBackend(tmp);
         env = MockEnvironment.builder().build();
         JobID jobID = new JobID();
@@ -81,10 +80,8 @@ public class RocksDBKeyedStateBackendTestFactory implements AutoCloseable {
         IOUtils.closeQuietly(env);
     }
 
-    private EmbeddedRocksDBStateBackend getRocksDBStateBackend(TemporaryFolder tmp)
-            throws IOException {
-        String dbPath = tmp.newFolder().getAbsolutePath();
-        String checkpointPath = tmp.newFolder().toURI().toString();
+    private EmbeddedRocksDBStateBackend getRocksDBStateBackend(Path tmp) throws IOException {
+        String dbPath = TempDirUtils.newFolder(tmp).getAbsolutePath();
         EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(TernaryBoolean.TRUE);
         backend.setDbStoragePath(dbPath);
         return backend;

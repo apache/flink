@@ -31,12 +31,12 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import java.io.File;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The tests verify that {@link PriorityQueueStateType#HEAP heap timers} are not serialized into raw
@@ -44,19 +44,19 @@ import static org.junit.Assert.assertThat;
  * timers still need to be serialized into the raw operator state because of RocksDB incremental
  * checkpoints.
  */
-public class HeapTimersSnapshottingTest {
+class HeapTimersSnapshottingTest {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private File temporaryFolder;
 
     @Test
-    public void testNotSerializingTimersInRawStateForSavepoints() throws Exception {
+    void testNotSerializingTimersInRawStateForSavepoints() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
                 getTestHarness()) {
             EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
             backend.setPriorityQueueStateType(PriorityQueueStateType.HEAP);
             testHarness.setStateBackend(backend);
             testHarness.setCheckpointStorage(
-                    new FileSystemCheckpointStorage(temporaryFolder.newFolder().toURI()));
+                    new FileSystemCheckpointStorage(temporaryFolder.toURI()));
             testHarness.open();
             testHarness.processElement(0, 0L);
 
@@ -65,19 +65,19 @@ public class HeapTimersSnapshottingTest {
                             .snapshotWithLocalState(
                                     0L, 1L, SavepointType.savepoint(SavepointFormatType.CANONICAL))
                             .getJobManagerOwnedState();
-            assertThat(state.getRawKeyedState().isEmpty(), equalTo(true));
+            assertThat(state.getRawKeyedState()).isEmpty();
         }
     }
 
     @Test
-    public void testSerializingTimersInRawStateForCheckpoints() throws Exception {
+    void testSerializingTimersInRawStateForCheckpoints() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
                 getTestHarness()) {
             EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
             backend.setPriorityQueueStateType(PriorityQueueStateType.HEAP);
             testHarness.setStateBackend(backend);
             testHarness.setCheckpointStorage(
-                    new FileSystemCheckpointStorage(temporaryFolder.newFolder().toURI()));
+                    new FileSystemCheckpointStorage(temporaryFolder.toURI()));
             testHarness.open();
             testHarness.processElement(0, 0L);
 
@@ -85,7 +85,7 @@ public class HeapTimersSnapshottingTest {
                     testHarness
                             .snapshotWithLocalState(0L, 1L, CheckpointType.CHECKPOINT)
                             .getJobManagerOwnedState();
-            assertThat(state.getRawKeyedState().isEmpty(), equalTo(false));
+            assertThat(state.getRawKeyedState()).isNotEmpty();
         }
     }
 

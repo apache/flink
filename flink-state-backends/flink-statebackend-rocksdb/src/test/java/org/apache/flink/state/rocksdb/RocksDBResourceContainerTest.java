@@ -21,10 +21,9 @@ package org.apache.flink.state.rocksdb;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.BloomFilter;
 import org.rocksdb.Cache;
@@ -40,38 +39,35 @@ import org.rocksdb.WriteOptions;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests to guard {@link RocksDBResourceContainer}. */
-public class RocksDBResourceContainerTest {
+class RocksDBResourceContainerTest {
 
-    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
-
-    @BeforeClass
-    public static void ensureRocksDbNativeLibraryLoaded() throws IOException {
-        NativeLibraryLoader.getInstance().loadLibrary(TMP_FOLDER.newFolder().getAbsolutePath());
+    @BeforeAll
+    static void ensureRocksDbNativeLibraryLoaded(@TempDir Path libDir) throws IOException {
+        NativeLibraryLoader.getInstance().loadLibrary(libDir.toFile().getAbsolutePath());
     }
 
     // ------------------------------------------------------------------------
 
     @Test
-    public void testFreeDBOptionsAfterClose() throws Exception {
+    void testFreeDBOptionsAfterClose() throws Exception {
         RocksDBResourceContainer container = new RocksDBResourceContainer();
         DBOptions dbOptions = container.getDbOptions();
-        assertThat(dbOptions.isOwningHandle(), is(true));
+        assertThat(dbOptions.isOwningHandle()).isTrue();
         container.close();
-        assertThat(dbOptions.isOwningHandle(), is(false));
+        assertThat(dbOptions.isOwningHandle()).isFalse();
     }
 
     @Test
-    public void testFreeMultipleDBOptionsAfterClose() throws Exception {
+    void testFreeMultipleDBOptionsAfterClose() throws Exception {
         RocksDBResourceContainer container = new RocksDBResourceContainer();
         final int optionNumber = 20;
         ArrayList<DBOptions> dbOptions = new ArrayList<>(optionNumber);
@@ -80,7 +76,7 @@ public class RocksDBResourceContainerTest {
         }
         container.close();
         for (DBOptions dbOption : dbOptions) {
-            assertThat(dbOption.isOwningHandle(), is(false));
+            assertThat(dbOption.isOwningHandle()).isFalse();
         }
     }
 
@@ -92,14 +88,14 @@ public class RocksDBResourceContainerTest {
      * @throws Exception if unexpected error happened.
      */
     @Test
-    public void testSharedResourcesAfterClose() throws Exception {
+    void testSharedResourcesAfterClose() throws Exception {
         OpaqueMemoryResource<RocksDBSharedResources> sharedResources = getSharedResources();
         RocksDBResourceContainer container =
                 new RocksDBResourceContainer(PredefinedOptions.DEFAULT, null, sharedResources);
         container.close();
         RocksDBSharedResources rocksDBSharedResources = sharedResources.getResourceHandle();
-        assertThat(rocksDBSharedResources.getCache().isOwningHandle(), is(false));
-        assertThat(rocksDBSharedResources.getWriteBufferManager().isOwningHandle(), is(false));
+        assertThat(rocksDBSharedResources.getCache().isOwningHandle()).isFalse();
+        assertThat(rocksDBSharedResources.getWriteBufferManager().isOwningHandle()).isFalse();
     }
 
     /**
@@ -110,7 +106,7 @@ public class RocksDBResourceContainerTest {
      * @throws Exception if unexpected error happened.
      */
     @Test
-    public void testGetDbOptionsWithSharedResources() throws Exception {
+    void testGetDbOptionsWithSharedResources() throws Exception {
         final int optionNumber = 20;
         OpaqueMemoryResource<RocksDBSharedResources> sharedResources = getSharedResources();
         RocksDBResourceContainer container =
@@ -121,10 +117,9 @@ public class RocksDBResourceContainerTest {
             WriteBufferManager writeBufferManager = getWriteBufferManager(dbOptions);
             writeBufferManagers.add(writeBufferManager);
         }
-        assertThat(writeBufferManagers.size(), is(1));
-        assertThat(
-                writeBufferManagers.iterator().next(),
-                is(sharedResources.getResourceHandle().getWriteBufferManager()));
+        assertThat(writeBufferManagers).hasSize(1);
+        assertThat(writeBufferManagers.iterator().next())
+                .isEqualTo(sharedResources.getResourceHandle().getWriteBufferManager());
         container.close();
     }
 
@@ -136,7 +131,7 @@ public class RocksDBResourceContainerTest {
      * @throws Exception if unexpected error happened.
      */
     @Test
-    public void testGetColumnFamilyOptionsWithSharedResources() throws Exception {
+    void testGetColumnFamilyOptionsWithSharedResources() throws Exception {
         final int optionNumber = 20;
         OpaqueMemoryResource<RocksDBSharedResources> sharedResources = getSharedResources();
         RocksDBResourceContainer container =
@@ -147,8 +142,9 @@ public class RocksDBResourceContainerTest {
             Cache cache = getBlockCache(columnOptions);
             caches.add(cache);
         }
-        assertThat(caches.size(), is(1));
-        assertThat(caches.iterator().next(), is(sharedResources.getResourceHandle().getCache()));
+        assertThat(caches).hasSize(1);
+        assertThat(caches.iterator().next())
+                .isEqualTo(sharedResources.getResourceHandle().getCache());
         container.close();
     }
 
@@ -202,16 +198,16 @@ public class RocksDBResourceContainerTest {
     }
 
     @Test
-    public void testFreeColumnOptionsAfterClose() throws Exception {
+    void testFreeColumnOptionsAfterClose() throws Exception {
         RocksDBResourceContainer container = new RocksDBResourceContainer();
         ColumnFamilyOptions columnFamilyOptions = container.getColumnOptions();
-        assertThat(columnFamilyOptions.isOwningHandle(), is(true));
+        assertThat(columnFamilyOptions.isOwningHandle()).isTrue();
         container.close();
-        assertThat(columnFamilyOptions.isOwningHandle(), is(false));
+        assertThat(columnFamilyOptions.isOwningHandle()).isFalse();
     }
 
     @Test
-    public void testFreeMultipleColumnOptionsAfterClose() throws Exception {
+    void testFreeMultipleColumnOptionsAfterClose() throws Exception {
         RocksDBResourceContainer container = new RocksDBResourceContainer();
         final int optionNumber = 20;
         ArrayList<ColumnFamilyOptions> columnFamilyOptions = new ArrayList<>(optionNumber);
@@ -220,12 +216,12 @@ public class RocksDBResourceContainerTest {
         }
         container.close();
         for (ColumnFamilyOptions columnFamilyOption : columnFamilyOptions) {
-            assertThat(columnFamilyOption.isOwningHandle(), is(false));
+            assertThat(columnFamilyOption.isOwningHandle()).isFalse();
         }
     }
 
     @Test
-    public void testFreeMultipleColumnOptionsWithPredefinedOptions() throws Exception {
+    void testFreeMultipleColumnOptionsWithPredefinedOptions() throws Exception {
         for (PredefinedOptions predefinedOptions : PredefinedOptions.values()) {
             RocksDBResourceContainer container =
                     new RocksDBResourceContainer(predefinedOptions, null);
@@ -236,13 +232,13 @@ public class RocksDBResourceContainerTest {
             }
             container.close();
             for (ColumnFamilyOptions columnFamilyOption : columnFamilyOptions) {
-                assertThat(columnFamilyOption.isOwningHandle(), is(false));
+                assertThat(columnFamilyOption.isOwningHandle()).isFalse();
             }
         }
     }
 
     @Test
-    public void testFreeSharedResourcesAfterClose() throws Exception {
+    void testFreeSharedResourcesAfterClose() throws Exception {
         LRUCache cache = new LRUCache(1024L);
         WriteBufferManager wbm = new WriteBufferManager(1024L, cache);
         RocksDBSharedResources sharedResources =
@@ -255,24 +251,24 @@ public class RocksDBResourceContainerTest {
                 new RocksDBResourceContainer(PredefinedOptions.DEFAULT, null, opaqueResource);
 
         container.close();
-        assertThat(cache.isOwningHandle(), is(false));
-        assertThat(wbm.isOwningHandle(), is(false));
+        assertThat(cache.isOwningHandle()).isFalse();
+        assertThat(wbm.isOwningHandle()).isFalse();
     }
 
     @Test
-    public void testFreeWriteReadOptionsAfterClose() throws Exception {
+    void testFreeWriteReadOptionsAfterClose() throws Exception {
         RocksDBResourceContainer container = new RocksDBResourceContainer();
         WriteOptions writeOptions = container.getWriteOptions();
         ReadOptions readOptions = container.getReadOptions();
-        assertThat(writeOptions.isOwningHandle(), is(true));
-        assertThat(readOptions.isOwningHandle(), is(true));
+        assertThat(writeOptions.isOwningHandle()).isTrue();
+        assertThat(readOptions.isOwningHandle()).isTrue();
         container.close();
-        assertThat(writeOptions.isOwningHandle(), is(false));
-        assertThat(readOptions.isOwningHandle(), is(false));
+        assertThat(writeOptions.isOwningHandle()).isFalse();
+        assertThat(readOptions.isOwningHandle()).isFalse();
     }
 
     @Test
-    public void testGetColumnFamilyOptionsWithPartitionedIndex() throws Exception {
+    void testGetColumnFamilyOptionsWithPartitionedIndex() throws Exception {
         LRUCache cache = new LRUCache(1024L);
         WriteBufferManager wbm = new WriteBufferManager(1024L, cache);
         RocksDBSharedResources sharedResources =
@@ -313,11 +309,13 @@ public class RocksDBResourceContainerTest {
             ColumnFamilyOptions columnOptions = container.getColumnOptions();
             BlockBasedTableConfig actual =
                     (BlockBasedTableConfig) columnOptions.tableFormatConfig();
-            assertThat(actual.indexType(), is(IndexType.kTwoLevelIndexSearch));
-            assertThat(actual.partitionFilters(), is(true));
-            assertThat(actual.pinTopLevelIndexAndFilter(), is(true));
-            assertFalse(actual.filterPolicy() == blockBasedFilter);
+            assertThat(actual.indexType()).isEqualTo(IndexType.kTwoLevelIndexSearch);
+            assertThat(actual.partitionFilters()).isTrue();
+            assertThat(actual.pinTopLevelIndexAndFilter()).isTrue();
+            assertThat(actual.filterPolicy()).isNotSameAs(blockBasedFilter);
         }
-        assertFalse("Block based filter is left unclosed.", blockBasedFilter.isOwningHandle());
+        assertThat(blockBasedFilter.isOwningHandle())
+                .as("Block based filter is left unclosed.")
+                .isFalse();
     }
 }
