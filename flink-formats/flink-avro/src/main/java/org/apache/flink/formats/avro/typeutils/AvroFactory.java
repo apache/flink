@@ -100,11 +100,10 @@ public final class AvroFactory<T> {
         return (schemaString == null) ? null : new Schema.Parser().parse(schemaString);
     }
 
-    @SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "unchecked"})
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static <T> AvroFactory<T> fromSpecific(
             Class<T> type, ClassLoader cl, Optional<Schema> previousSchema) {
-        SpecificData specificData =
-                getSpecificDataForClass((Class<? extends SpecificData>) type, cl);
+        SpecificData specificData = getSpecificDataForClass(type, cl);
         Schema newSchema = extractAvroSpecificSchema(type, specificData);
 
         return new AvroFactory<>(
