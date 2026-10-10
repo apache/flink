@@ -27,8 +27,6 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.CacheSupportedPipelineExecutor;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.core.execution.JobStatusChangedListener;
-import org.apache.flink.core.execution.JobStatusChangedListenerUtils;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
@@ -39,7 +37,6 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterJobClient;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,11 +45,8 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collection;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 
 /**
@@ -150,19 +144,10 @@ public class MiniClusterPipelineExecutorServiceLoader implements PipelineExecuto
     }
 
     private static class MiniClusterExecutor implements CacheSupportedPipelineExecutor {
-        private final ExecutorService executorService =
-                Executors.newFixedThreadPool(
-                        1, new ExecutorThreadFactory("Flink-MiniClusterExecutor-IO"));
         private final MiniCluster miniCluster;
-        private final List<JobStatusChangedListener> jobStatusChangedListeners;
 
         public MiniClusterExecutor(MiniCluster miniCluster) {
             this.miniCluster = miniCluster;
-            this.jobStatusChangedListeners =
-                    JobStatusChangedListenerUtils.createJobStatusChangedListeners(
-                            Thread.currentThread().getContextClassLoader(),
-                            miniCluster.getConfiguration(),
-                            executorService);
         }
 
         @Override
@@ -181,10 +166,7 @@ public class MiniClusterPipelineExecutorServiceLoader implements PipelineExecuto
                     .submitJob(streamGraph)
                     .whenComplete(
                             (ignored, throwable) -> {
-                                if (throwable == null) {
-                                    PipelineExecutorUtils.notifyJobStatusListeners(
-                                            pipeline, streamGraph, jobStatusChangedListeners);
-                                } else {
+                                if (throwable != null) {
                                     LOG.error(
                                             "Failed to submit job graph to mini cluster.",
                                             throwable);

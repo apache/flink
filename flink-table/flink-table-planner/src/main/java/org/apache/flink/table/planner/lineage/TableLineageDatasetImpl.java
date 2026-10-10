@@ -27,16 +27,18 @@ import org.apache.flink.table.catalog.listener.CatalogContext;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 /** Implementation for TableLineageDataSet. */
-public class TableLineageDatasetImpl implements TableLineageDataset {
+public class TableLineageDatasetImpl implements TableLineageDataset, Serializable {
+    private static final long serialVersionUID = 1L;
     @JsonProperty private String name;
     @JsonProperty private String namespace;
-    private CatalogContext catalogContext;
-    private CatalogBaseTable catalogBaseTable;
+    private transient CatalogContext catalogContext;
+    private transient CatalogBaseTable catalogBaseTable;
     @JsonProperty private ObjectPath objectPath;
     @JsonProperty private Map<String, LineageDatasetFacet> facets;
 
