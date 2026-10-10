@@ -518,7 +518,7 @@ public final class TestValuesRuntimeFunctions {
 
         @Override
         public LineageVertex getLineageVertex() {
-            return createLineageVertex(tableName, getNamespace());
+            return createLineageVertex("", getNamespace());
         }
 
         abstract String getNamespace();
@@ -835,7 +835,7 @@ public final class TestValuesRuntimeFunctions {
 
         @Override
         public LineageVertex getLineageVertex() {
-            return createLineageVertex(tableName, LINEAGE_NAMESPACE);
+            return createLineageVertex("", LINEAGE_NAMESPACE);
         }
 
         @Override
