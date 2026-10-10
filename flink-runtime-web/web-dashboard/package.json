@@ -20,7 +20,7 @@
     "@angular/forms": "^21.2.22",
     "@angular/platform-browser": "^21.2.22",
     "@angular/platform-browser-dynamic": "^21.2.22",
-    "@angular/router": "^21.2.22",
+    "@angular/router": "^21.2.24",
     "@antv/g2": "^4.2.12",
     "@dagrejs/dagre": "^3.0.0",
     "core-js": "^3.49.0",
