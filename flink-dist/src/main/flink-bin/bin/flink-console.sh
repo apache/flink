@@ -19,7 +19,7 @@
 
 # Start a Flink service as a console application. Must be stopped with Ctrl-C
 # or with SIGTERM by kill or the controlling process.
-USAGE="Usage: flink-console.sh (taskexecutor|zookeeper|historyserver|standalonesession|standalonejob|kubernetes-session|kubernetes-application|kubernetes-taskmanager|sql-gateway) [args]"
+USAGE="Usage: flink-console.sh (taskexecutor|zookeeper|historyserver|standalonesession|standalonejob|kubernetes-session|kubernetes-application|kubernetes-taskmanager|sql-gateway|minicluster) [args]"
 
 SERVICE=$1
 ARGS=("${@:2}") # get remaining arguments as array
@@ -48,6 +48,10 @@ case $SERVICE in
 
     (standalonejob)
         CLASS_TO_RUN=org.apache.flink.container.entrypoint.StandaloneApplicationClusterEntryPoint
+    ;;
+
+    (minicluster)
+        CLASS_TO_RUN=org.apache.flink.container.entrypoint.MiniClusterJobEntryPoint
     ;;
 
     (kubernetes-session)

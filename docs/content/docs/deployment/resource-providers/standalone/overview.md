@@ -123,6 +123,58 @@ $ ./bin/taskmanager.sh stop
 $ ./bin/standalone-job.sh stop
 ```
 
+### Application Mode in a MiniCluster
+
+An application can also be run with the JobManager and a TaskManager in a single process, using the `bin/minicluster.sh` script.
+This is useful for low-throughput jobs where running a separate TaskManager is not worth the additional resources.
+The process runs the same components as a distributed application cluster, so savepoints, checkpoints, state backends, metrics and the web interface all work in the same way.
+
+The script takes the same arguments as `bin/standalone-job.sh`, except that it always runs in the foreground (so there is no `start` or `stop`) and arguments for the application should be put after `--`:
+
+```bash
+$ ./bin/minicluster.sh --jars local://$(pwd)/examples/streaming/TopSpeedWindowing.jar
+```
+
+The web interface is now available at [localhost:8081](http://localhost:8081). No TaskManager needs to be started.
+
+The full set of arguments is:
+
+```bash
+$ ./bin/minicluster.sh \
+    [--jars <jar>[,<jar>...]] \
+    [--job-classname <class name>] \
+    [--job-id <job id>] \
+    [--fromSavepoint <path> [--allowNonRestoredState]] \
+    [-D <key>=<value> ...] \
+    [-- <application arguments>]
+```
+
+As with `standalone-job.sh`, if `--jars` is not given, the application is loaded from the `usrlib` folder or the classpath.
+
+The MiniCluster has one TaskManager with `taskmanager.numberOfTaskSlots` slots, so the parallelism of the application cannot be greater than this.
+JobManager and TaskManager process memory options (such as `jobmanager.memory.process.size` and `taskmanager.memory.process.size`) do not apply, and the JVM heap size is set by the JVM defaults unless set using `env.java.opts.jobmanager` or `env.java.opts.all`.
+
+#### Restarting the process
+
+If [High Availability]({{< ref "docs/deployment/ha/overview" >}}) is configured, the process can be restarted after a failure and will resume the application from the latest checkpoint.
+The application is given a fixed job ID derived from the `high-availability.cluster-id` (or from `--job-id`, if given), so a restarted process recovers the existing job from the high availability metadata rather than starting a new one.
+Stopping the process with `SIGTERM` keeps the high availability metadata, so that it can be recovered in the same way.
+
+Task failures are handled by the application's restart strategy within the process, in the same way as in a distributed cluster.
+A fatal error in the JobManager or the TaskManager cannot be recovered within the process, because there is no other process to take over.
+Examples are an `OutOfMemoryError`, or a task that does not stop within [`task.cancellation.timeout`]({{< ref "docs/deployment/config" >}}#task-cancellation-timeout).
+In these cases the process exits with a non-zero exit code, keeping the high availability metadata, so it should be run under a supervisor that restarts it, such as Kubernetes or systemd.
+
+Without High Availability, a restarted process starts the application again from the beginning (or from `--fromSavepoint`, if given).
+
+#### When the application finishes
+
+By default, the process exits once the application reaches a terminal state, with an exit code of `0` if the application finished or was cancelled, and a non-zero exit code if it failed.
+If [`execution.shutdown-on-application-finish`]({{< ref "docs/deployment/config" >}}#execution-shutdown-on-application-finish) is set to `false`, the process keeps running after the application finishes, so that its final status can still be retrieved from the web interface and REST API.
+
+Unlike a distributed Application Mode cluster, the process never removes the cluster's high availability metadata, including when the application finishes.
+Whatever manages the deployment is responsible for removing it once it is no longer needed, such as leader election ConfigMaps or ZooKeeper nodes, and the cluster's directory under `high-availability.storageDir`.
+
 ### Session Mode
 
 {{< hint info >}}
@@ -140,6 +192,7 @@ All available configuration options are listed on the [configuration page]({{< r
 The following scripts also allow configuration parameters to be set via dynamic properties:
 * `jobmanager.sh`
 * `standalone-job.sh`
+* `minicluster.sh`
 * `taskmanager.sh`
 * `historyserver.sh`
 
