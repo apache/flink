@@ -18,7 +18,6 @@
 
 import json
 import unittest
-from inspect import signature
 from typing import get_type_hints
 
 import pyflink.dataframe as pf
@@ -168,7 +167,6 @@ class ModelProviderTests(unittest.TestCase):
                     pf.TritonProvider.__init__, pf.GenericProvider.__init__):
             with self.subTest(api=api.__qualname__):
                 self.assertTrue(get_type_hints(api))
-        self.assertEqual(list(signature(pf.set_model_provider).parameters), ["name", "provider"])
 
     def test_generic_provider_rejects_invalid_configuration(self):
         for identifier, options, error in [
@@ -202,30 +200,110 @@ class ModelProviderRegistryTests(unittest.TestCase):
             def to_options(self):
                 raise AssertionError("Registration must not serialize the provider")
 
-        pf.set_model_provider("chat", UnserializedProvider())
-        pf.set_model_provider("embed", pf.GenericProvider("custom"))
+        pf.set_model_provider(name="chat", provider=UnserializedProvider())
+        pf.set_model_provider("embed", provider=pf.GenericProvider("custom"))
 
         names = pf.list_model_providers()
         self.assertEqual(names, ["chat", "embed"])
         names.clear()
         self.assertEqual(pf.list_model_providers(), ["chat", "embed"])
 
+    def test_single_provider_registration_derives_names_without_serializing(self):
+        class UnserializedProvider(pf.ModelProvider):
+            def provider_identifier(self):
+                return "custom"
+
+            def to_options(self):
+                raise AssertionError("Registration must not serialize the provider")
+
+            def model_option_key(self):
+                raise AssertionError("Registration must not inspect model options")
+
+        provider = UnserializedProvider()
+        pf.set_model_provider(provider)
+        self.assertEqual(pf.list_model_providers(), ["custom"])
+        self.assertIs(model_provider._resolve_provider(), provider)
+
+        pf.set_model_provider(provider=pf.OpenAIProvider("https://example.test/embeddings", "key"))
+        with self.assertRaisesRegex(ValueError, "Multiple model providers"):
+            model_provider._resolve_provider()
+
+        pf.set_default_model_provider("custom")
+        pf.set_model_provider(pf.TritonProvider("http://localhost:8000"))
+        self.assertEqual(pf.list_model_providers(), ["custom", "openai", "triton"])
+        self.assertIs(model_provider._resolve_provider(), provider)
+
     def test_invalid_registration_preserves_registered_names(self):
+        class InvalidIdentifierProvider(pf.ModelProvider):
+            def __init__(self, identifier):
+                self.identifier = identifier
+
+            def provider_identifier(self):
+                if isinstance(self.identifier, RuntimeError):
+                    raise self.identifier
+                return self.identifier
+
+            def to_options(self):
+                raise AssertionError("Registration must not serialize the provider")
+
         provider = pf.GenericProvider("custom")
+        other = pf.GenericProvider("other")
         pf.set_model_provider("chat", provider)
-        for name, value, error in [
-            ("chat", pf.GenericProvider("replacement"), ValueError),
-            ("", provider, ValueError),
-            ("  ", provider, ValueError),
-            (1, provider, TypeError),
-            ("embed", None, TypeError),
-            ("embed", "custom", TypeError),
+        pf.set_model_provider("embed", other)
+        pf.set_default_model_provider("chat")
+        invalid_calls = [
+            (("", provider), {}, ValueError),
+            (("  ", provider), {}, ValueError),
+            ((1, provider), {}, TypeError),
+            ((None, provider), {}, TypeError),
+            (("chat", None), {}, TypeError),
+            (("embed", "custom"), {}, TypeError),
+            ((), {}, TypeError),
+            (("chat",), {}, TypeError),
+            ((), {"provider": None}, TypeError),
+            ((), {"name": provider}, TypeError),
+            ((provider, provider), {}, TypeError),
+            ((provider, None), {}, TypeError),
+            (("chat", provider, provider), {}, TypeError),
+            (("chat",), {"name": "embed", "provider": provider}, TypeError),
+            (("chat", provider), {"provider": other}, TypeError),
+            (("chat", provider), {"endpoint": "https://example.test"}, TypeError),
+        ]
+        for identifier, error in [
+            ("", ValueError), ("  ", ValueError), (1, TypeError), (None, TypeError),
+            (RuntimeError("Identifier unavailable"), RuntimeError),
         ]:
-            with self.subTest(name=name, provider=value):
+            invalid_calls.append(((), {"provider": InvalidIdentifierProvider(identifier)}, error))
+        for args, kwargs, error in invalid_calls:
+            with self.subTest(args=args, kwargs=kwargs):
                 with self.assertRaises(error):
-                    pf.set_model_provider(name, value)
-                self.assertEqual(pf.list_model_providers(), ["chat"])
+                    pf.set_model_provider(*args, **kwargs)
+                self.assertEqual(pf.list_model_providers(), ["chat", "embed"])
+                self.assertIs(model_provider._resolve_provider(), provider)
                 self.assertIs(model_provider._resolve_provider("chat"), provider)
+                self.assertIs(model_provider._resolve_provider("embed"), other)
+
+    def test_replacement_preserves_order_and_defaults_bound_to_names(self):
+        original = pf.GenericProvider("custom", token="old")
+        pf.set_model_provider(original)
+        replacement = pf.GenericProvider("custom", token="new")
+        pf.set_model_provider(replacement)
+        self.assertEqual(pf.list_model_providers(), ["custom"])
+        self.assertIs(model_provider._resolve_provider(), replacement)
+
+        pf.set_model_provider("other", pf.GenericProvider("other"))
+        pf.set_default_model_provider("custom")
+        named = pf.GenericProvider("different-factory")
+        pf.set_model_provider(name="custom", provider=named)
+        self.assertEqual(pf.list_model_providers(), ["custom", "other"])
+        self.assertIs(model_provider._resolve_provider(), named)
+
+        pf.set_model_provider(provider=original)
+        other = pf.GenericProvider("another-factory")
+        pf.set_model_provider("other", other)
+        self.assertEqual(pf.list_model_providers(), ["custom", "other"])
+        self.assertIs(model_provider._resolve_provider(), original)
+        self.assertIs(model_provider._resolve_provider("other"), other)
 
     def test_selection_requires_choice_only_with_multiple_providers(self):
         chat = pf.GenericProvider("custom", task="chat")

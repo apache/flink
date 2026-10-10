@@ -25,20 +25,32 @@ Provider configurations expose Flink's Java model provider options through Pytho
 ``TritonProvider`` configures NVIDIA Triton Inference Server. Optional values are
 omitted unless supplied, so the Java providers determine their defaults.
 
-Register configurations under distinct lookup names. These names are independent
-of the Java factory identifier, so several configurations of the same provider
-can coexist:
+Pass a provider alone to register it under its Java factory identifier. The keyword
+form ``set_model_provider(provider=provider)`` is equivalent. Supply an explicit
+lookup name to keep several configurations of the same provider:
 
 .. code-block:: python
 
     import pyflink.dataframe as pf
 
-    pf.set_model_provider("chat", pf.OpenAIProvider(
+    pf.set_model_provider(pf.OpenAIProvider(
         endpoint="https://api.openai.com/v1/chat/completions", api_key="key"))
     pf.set_model_provider("embed", pf.OpenAIProvider(
         endpoint="https://api.openai.com/v1/embeddings", api_key="key"))
-    pf.set_default_model_provider("chat")
-    pf.list_model_providers()  # ["chat", "embed"]
+    pf.set_default_model_provider("openai")
+    pf.list_model_providers()  # ["openai", "embed"]
+
+Setting an existing name replaces its configuration. Both convenience and named
+registration support updates, including repeated execution of a notebook cell.
+The list keeps names in their first-registration order. Defaults are bound to
+lookup names, so replacing the default configuration makes subsequent selection
+use the new provider without changing the default name:
+
+.. code-block:: python
+
+    pf.set_model_provider(name="openai", provider=pf.OpenAIProvider(
+        endpoint="https://api.openai.com/v1/chat/completions", api_key="new-key"))
+    pf.list_model_providers()  # ["openai", "embed"]
 
 OpenAI endpoints must be complete chat-completions or embeddings URLs, rather
 than a base URL ending in ``/v1``. Model names can be included in the provider
@@ -50,10 +62,12 @@ does not remain the default merely because it was registered first. An explicitl
 chosen default survives further registrations.
 
 Registrations are process-global and survive clearing or replacing the
-TableEnvironment. Duplicate lookup names are rejected. Registration does not
-create an environment, access Java, discover factories, or serialize a custom
-provider. These APIs manage configuration; DataFrame prediction is a separate
-feature.
+TableEnvironment. Convenience registration evaluates the provider identifier to
+obtain its lookup name; named registration does not inspect the provider. Names
+must be nonempty, non-whitespace strings. Invalid arguments or identifier errors
+leave the previous registrations and default unchanged. Registration does not
+create an environment, access Java, discover factories, or serialize a provider.
+These APIs manage configuration; DataFrame prediction is a separate feature.
 
 Use ``GenericProvider`` for raw Java option names and string values, or subclass
 ``ModelProvider`` for a reusable typed integration. The Java provider must already

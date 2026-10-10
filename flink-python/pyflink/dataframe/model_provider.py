@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping as MappingABC
 import json
 import math
-from typing import Dict, List, Literal, Mapping, Optional, Tuple, Union
+from typing import Dict, List, Literal, Mapping, Optional, Tuple, Union, overload
 
 from pyflink.util.api_stability_decorators import PublicEvolving
 
@@ -30,11 +30,12 @@ __all__ = [
 ]
 
 
-def _validate_name(name: str, argument: str) -> None:
+def _validate_name(name: object, argument: str) -> str:
     if not isinstance(name, str):
         raise TypeError(f"{argument} must be a string")
     if not name.strip():
         raise ValueError(f"{argument} must not be empty or whitespace")
+    return name
 
 
 def _stringify_options(options: Dict[str, object]) -> Dict[str, str]:
@@ -413,42 +414,84 @@ class GenericProvider(ModelProvider):
 
 _provider_registry: Dict[str, ModelProvider] = {}
 _default_provider: Optional[str] = None
+_UNSET = object()
+
+
+@overload
+def set_model_provider(provider: ModelProvider, /) -> None:
+    ...
+
+
+@overload
+def set_model_provider(*, provider: ModelProvider) -> None:
+    ...
+
+
+@overload
+def set_model_provider(name: str, provider: ModelProvider) -> None:
+    ...
 
 
 @PublicEvolving()
-def set_model_provider(name: str, provider: ModelProvider) -> None:
+def set_model_provider(
+    *args: object, name: object = _UNSET, provider: object = _UNSET,
+) -> None:
     """
-    Register a process-global provider under a lookup name.
+    Set a process-global provider under an explicit or derived lookup name.
 
-    Registration retains the provider without serializing it or accessing Java.
-    Provider registrations survive clearing or replacing the TableEnvironment.
+    Pass only a provider to use its :meth:`ModelProvider.provider_identifier` as
+    the lookup name. A named registration does not inspect the provider. Neither
+    form serializes the provider or accesses Java.
 
-    :param name: Lookup name, independent of the Java factory identifier.
-    :param provider: Provider configuration.
-    :raises TypeError: If the name is not a string or the provider is not a ModelProvider.
-    :raises ValueError: If the name is blank or already registered.
+    Setting an existing name replaces its configuration without changing its list
+    position or the default name. A default bound to that name selects the replacement.
+    Registrations survive clearing or replacing the TableEnvironment.
+
+    :param name: Explicit lookup name, independent of the Java factory identifier.
+                 Omit it when supplying only a provider.
+    :param provider: Provider configuration, passed alone or with a lookup name.
+    :raises TypeError: If the provider is not a ModelProvider or the lookup name
+                       (explicit or derived) is not a string.
+    :raises ValueError: If the lookup name is empty or whitespace.
 
     Example::
 
         >>> import pyflink.dataframe as pf
-        >>> pf.set_model_provider("custom", pf.GenericProvider("my-provider"))
+        >>> provider = pf.GenericProvider("my-provider")
+        >>> pf.set_model_provider(provider)
+        >>> pf.set_model_provider(provider=provider)
+        >>> pf.set_model_provider(name="custom", provider=provider)
 
     .. versionadded:: 2.4.0
     """
-    _validate_name(name, "name")
+    if len(args) > 2:
+        raise TypeError("set_model_provider() takes at most 2 positional arguments")
+    if args:
+        if name is not _UNSET:
+            raise TypeError("set_model_provider() got multiple values for argument 'name'")
+        if len(args) == 2:
+            if provider is not _UNSET:
+                raise TypeError("set_model_provider() got multiple values for argument 'provider'")
+            name, provider = args
+        elif provider is _UNSET:
+            provider = args[0]
+        else:
+            name = args[0]
     if not isinstance(provider, ModelProvider):
         raise TypeError("provider must be a ModelProvider")
-    if name in _provider_registry:
-        raise ValueError(f"Model provider {name!r} is already registered")
+    if name is _UNSET:
+        name = provider.provider_identifier()
+    name = _validate_name(name, "name")
     _provider_registry[name] = provider
 
 
 @PublicEvolving()
 def list_model_providers() -> List[str]:
     """
-    Return registered lookup names in registration order.
+    Return registered lookup names in first-registration order.
 
-    The returned list can be modified without affecting registrations.
+    Replacing a configuration preserves its name's position. The returned list
+    can be modified without affecting registrations.
 
     Example::
 
@@ -469,7 +512,8 @@ def set_default_model_provider(name: str) -> None:
 
     A sole registered provider is selected automatically. With multiple providers,
     explicitly select a default or a provider for each operation. An explicit default
-    remains selected when additional providers are registered.
+    remains selected when additional providers are registered. Replacing the configuration
+    at the default name makes subsequent selection use the replacement provider.
 
     :param name: An already registered provider lookup name.
     :raises ValueError: If the name is not registered.
