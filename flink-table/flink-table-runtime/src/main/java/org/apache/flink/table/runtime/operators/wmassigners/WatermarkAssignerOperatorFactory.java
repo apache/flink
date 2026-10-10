@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeNullHandling;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
@@ -38,13 +39,17 @@ public class WatermarkAssignerOperatorFactory extends AbstractStreamOperatorFact
 
     private final GeneratedWatermarkGenerator generatedWatermarkGenerator;
 
+    private final RowtimeNullHandling rowtimeNullHandling;
+
     public WatermarkAssignerOperatorFactory(
             int rowtimeFieldIndex,
             long idleTimeout,
-            GeneratedWatermarkGenerator generatedWatermarkGenerator) {
+            GeneratedWatermarkGenerator generatedWatermarkGenerator,
+            RowtimeNullHandling rowtimeNullHandling) {
         this.rowtimeFieldIndex = rowtimeFieldIndex;
         this.idleTimeout = idleTimeout;
         this.generatedWatermarkGenerator = generatedWatermarkGenerator;
+        this.rowtimeNullHandling = rowtimeNullHandling;
     }
 
     @SuppressWarnings("unchecked")
@@ -58,7 +63,8 @@ public class WatermarkAssignerOperatorFactory extends AbstractStreamOperatorFact
                 rowtimeFieldIndex,
                 watermarkGenerator,
                 idleTimeout,
-                processingTimeService);
+                processingTimeService,
+                rowtimeNullHandling);
     }
 
     @Override
