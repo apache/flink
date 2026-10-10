@@ -32,16 +32,17 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @Isolated
-public class MdcLogbackCompatibilityTest {
+class MdcUtilsNullContextTest {
 
     private MDCAdapter originalAdapter;
 
     @BeforeEach
     void setUp() throws Exception {
         originalAdapter = getCurrentMDCAdapter();
-        setMDCAdapter(new BasicMDCAdapter());
+        setMDCAdapter(new NullRejectingMDCAdapter());
     }
 
     @AfterEach
@@ -50,14 +51,24 @@ public class MdcLogbackCompatibilityTest {
     }
 
     /**
-     * The {@link MDC#setContextMap(Map)} method in Logback 1.2 does not accept nulls, unlike Log4j
-     * and Logback 1.3.2. BasicMDCAdapter is used to replicate this behavior for testing without
-     * bundling Logback into flink-core. See https://issues.apache.org/jira/browse/FLINK-36227 for
-     * details.
+     * Restoring an absent (null) MDC context must never fail.
+     *
+     * <p>Backends are free to return null from {@link MDC#getCopyOfContextMap()}, and SLF4J API did
+     * not require them to accept that null back in {@link MDC#setContextMap(Map)} until SLF4J
+     * 2.0.0.
+     *
+     * <ul>
+     *   <li>Logback 1.2 (SLF4J 1.7) - can return null, rejects null
+     *   <li>Logback 1.3.0-1.3.1 (SLF4J 2) - can return null, rejects null
+     *   <li>Log4j 2.26.1 (both SLF4J versions) - never returns null, rejects null
+     * </ul>
+     *
+     * <p>See https://issues.apache.org/jira/browse/FLINK-36227 for historical context.
      */
     @Test
     void testContextRestorationWorksWithNullContext() {
         assertThat(MDC.getCopyOfContextMap()).isNull();
+        assertThrows(NullPointerException.class, () -> MDC.setContextMap(null));
 
         MdcUtils.MdcCloseable restoreContext =
                 MdcUtils.withContext(Collections.singletonMap("k", "v"));
@@ -67,14 +78,29 @@ public class MdcLogbackCompatibilityTest {
     }
 
     private MDCAdapter getCurrentMDCAdapter() throws Exception {
-        Field adapterField = MDC.class.getDeclaredField("mdcAdapter");
+        Field adapterField = MDC.class.getDeclaredField("MDC_ADAPTER");
         adapterField.setAccessible(true);
         return (MDCAdapter) adapterField.get(null);
     }
 
     private void setMDCAdapter(MDCAdapter adapter) throws Exception {
-        Field adapterField = MDC.class.getDeclaredField("mdcAdapter");
+        Field adapterField = MDC.class.getDeclaredField("MDC_ADAPTER");
         adapterField.setAccessible(true);
         adapterField.set(null, adapter);
+    }
+
+    private static class NullRejectingMDCAdapter extends BasicMDCAdapter {
+        @Override
+        public Map<String, String> getCopyOfContextMap() {
+            return null;
+        }
+
+        @Override
+        public void setContextMap(Map<String, String> contextMap) {
+            if (contextMap == null) {
+                throw new NullPointerException("contextMap cannot be null");
+            }
+            super.setContextMap(contextMap);
+        }
     }
 }
