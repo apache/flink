@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.FinishedTaskStateProvider.PartialFinishingNotSupportedByStateException;
@@ -253,7 +254,8 @@ public class CheckpointCoordinator {
     @GuardedBy("lock")
     private final Set<OperatorID> backlogOperators = new HashSet<>();
 
-    private boolean baseLocationsForCheckpointInitialized = false;
+    // Written on the IO executor.
+    private volatile boolean baseLocationsForCheckpointInitialized = false;
 
     private boolean forceFullSnapshot;
 
@@ -351,7 +353,12 @@ public class CheckpointCoordinator {
         try {
             this.checkpointStorageView = checkpointStorage.createCheckpointStorage(job);
 
-            if (isPeriodicCheckpointingConfigured()) {
+            if (!chkConfig.isCreateDirectoriesOnJobStart()) {
+                LOG.info(
+                        "Checkpoint directories for job {} will be created when the first checkpoint is triggered ({}=false).",
+                        job,
+                        CheckpointingOptions.CREATE_DIRECTORIES_ON_JOB_START.key());
+            } else if (isPeriodicCheckpointingConfigured()) {
                 checkpointStorageView.initializeBaseLocationsForCheckpoint();
                 baseLocationsForCheckpointInitialized = true;
             }
@@ -637,9 +644,6 @@ public class CheckpointCoordinator {
             CompletableFuture<CheckpointPlan> checkpointPlanFuture =
                     checkpointPlanCalculator.calculateCheckpointPlan();
 
-            boolean initializeBaseLocations = !baseLocationsForCheckpointInitialized;
-            baseLocationsForCheckpointInitialized = true;
-
             CompletableFuture<Void> masterTriggerCompletionPromise = new CompletableFuture<>();
 
             final CompletableFuture<PendingCheckpoint> pendingCheckpointCompletableFuture =
@@ -679,8 +683,7 @@ public class CheckpointCoordinator {
                                                     initializeCheckpointLocation(
                                                             pendingCheckpoint.getCheckpointID(),
                                                             request.props,
-                                                            request.externalSavepointLocation,
-                                                            initializeBaseLocations);
+                                                            request.externalSavepointLocation);
                                             return Tuple2.of(
                                                     pendingCheckpoint, checkpointStorageLocation);
                                         } catch (Throwable e) {
@@ -874,8 +877,7 @@ public class CheckpointCoordinator {
     private CheckpointStorageLocation initializeCheckpointLocation(
             long checkpointID,
             CheckpointProperties props,
-            @Nullable String externalSavepointLocation,
-            boolean initializeBaseLocations)
+            @Nullable String externalSavepointLocation)
             throws Exception {
         final CheckpointStorageLocation checkpointStorageLocation;
         if (props.isSavepoint()) {
@@ -883,8 +885,9 @@ public class CheckpointCoordinator {
                     checkpointStorageView.initializeLocationForSavepoint(
                             checkpointID, externalSavepointLocation);
         } else {
-            if (initializeBaseLocations) {
+            if (!baseLocationsForCheckpointInitialized) {
                 checkpointStorageView.initializeBaseLocationsForCheckpoint();
+                baseLocationsForCheckpointInitialized = true;
             }
             checkpointStorageLocation =
                     checkpointStorageView.initializeLocationForCheckpoint(checkpointID);
