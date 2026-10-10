@@ -195,8 +195,8 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
             SpecificData specificData =
                     AvroFactory.getSpecificDataForClass(
                             (Class<? extends SpecificData>) recordClazz, cl);
-            this.datumReader = new SpecificDatumReader<>(specificData);
             this.reader = AvroFactory.extractAvroSpecificSchema(recordClazz, specificData);
+            this.datumReader = new SpecificDatumReader<>(null, this.reader, specificData);
         } else {
             this.reader = new Schema.Parser().parse(schemaString);
             GenericData genericData = new GenericData(cl);

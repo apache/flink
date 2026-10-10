@@ -158,8 +158,7 @@ public final class AvroFactory<T> {
      * directly, because we want to be API backwards compatible with older Avro versions which did
      * not have this method
      */
-    public static <T extends SpecificData> SpecificData getSpecificDataForClass(
-            Class<T> type, ClassLoader cl) {
+    public static SpecificData getSpecificDataForClass(Class<?> type, ClassLoader cl) {
         try {
             Field specificDataField = type.getDeclaredField("MODEL$");
             specificDataField.setAccessible(true);
