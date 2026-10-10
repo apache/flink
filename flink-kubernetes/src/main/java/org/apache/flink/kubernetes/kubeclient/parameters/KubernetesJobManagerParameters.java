@@ -200,6 +200,10 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
         return flinkConfig.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE);
     }
 
+    public String getRestServicePortName() {
+        return flinkConfig.get(KubernetesConfigOptions.REST_SERVICE_PORT_NAME);
+    }
+
     public boolean isInternalServiceEnabled() {
         return !HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig);
     }
