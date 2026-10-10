@@ -561,7 +561,10 @@ public class Execution
             IntermediateResultPartition partition,
             ShuffleDescriptor shuffleDescriptor) {
         return new ResultPartitionDeploymentDescriptor(
-                partitionDescriptor, shuffleDescriptor, getPartitionMaxParallelism(partition));
+                partitionDescriptor,
+                shuffleDescriptor,
+                getPartitionMaxParallelism(partition),
+                partition.getIntermediateResult().getConsumersParallelism());
     }
 
     /**

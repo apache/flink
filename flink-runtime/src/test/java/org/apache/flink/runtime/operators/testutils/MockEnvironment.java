@@ -332,6 +332,12 @@ public class MockEnvironment implements Environment, AutoCloseable {
         return outputs.get(index);
     }
 
+    /** Outputs are consumed with the same parallelism as this task. */
+    @Override
+    public int getWriterConsumerParallelism(int index) {
+        return taskInfo.getNumberOfParallelSubtasks();
+    }
+
     @Override
     public ResultPartitionWriter[] getAllWriters() {
         return outputs.toArray(new ResultPartitionWriter[outputs.size()]);
