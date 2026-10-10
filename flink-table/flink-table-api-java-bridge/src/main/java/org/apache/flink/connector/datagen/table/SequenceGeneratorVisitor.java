@@ -22,10 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.functions.source.datagen.RandomGenerator;
-import org.apache.flink.streaming.api.functions.source.datagen.SequenceGenerator;
+import org.apache.flink.connector.datagen.table.types.RandomGeneratorFunction;
+import org.apache.flink.connector.datagen.table.types.SequenceGeneratorFunction;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -38,8 +37,6 @@ import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
-
-import org.apache.flink.shaded.guava33.com.google.common.primitives.Longs;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -105,13 +102,14 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
 
     @Override
     public DataGeneratorContainer visit(BooleanType booleanType) {
-        return DataGeneratorContainer.of(RandomGenerator.booleanGenerator());
+        return DataGeneratorContainer.of(RandomGeneratorFunction.booleanGenerator());
     }
 
     @Override
     public DataGeneratorContainer visit(CharType charType) {
         return DataGeneratorContainer.of(
-                getSequenceStringGenerator(config.get(longStart), config.get(longEnd)),
+                SequenceGeneratorFunction.stringDataGenerator(
+                        config.get(longStart), config.get(longEnd)),
                 longStart,
                 longEnd);
     }
@@ -119,7 +117,8 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(VarCharType varCharType) {
         return DataGeneratorContainer.of(
-                getSequenceStringGenerator(config.get(longStart), config.get(longEnd)),
+                SequenceGeneratorFunction.stringDataGenerator(
+                        config.get(longStart), config.get(longEnd)),
                 longStart,
                 longEnd);
     }
@@ -127,7 +126,8 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(BinaryType binaryType) {
         return DataGeneratorContainer.of(
-                getSequenceBytesGenerator(config.get(longStart), config.get(longEnd)),
+                SequenceGeneratorFunction.bytesGenerator(
+                        config.get(longStart), config.get(longEnd)),
                 longStart,
                 longEnd);
     }
@@ -135,7 +135,8 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(VarBinaryType varBinaryType) {
         return DataGeneratorContainer.of(
-                getSequenceBytesGenerator(config.get(longStart), config.get(longEnd)),
+                SequenceGeneratorFunction.bytesGenerator(
+                        config.get(longStart), config.get(longEnd)),
                 longStart,
                 longEnd);
     }
@@ -143,7 +144,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(TinyIntType tinyIntType) {
         return DataGeneratorContainer.of(
-                SequenceGenerator.byteGenerator(
+                SequenceGeneratorFunction.byteGenerator(
                         config.get(intStart).byteValue(), config.get(intEnd).byteValue()),
                 intStart,
                 intEnd);
@@ -152,7 +153,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(SmallIntType smallIntType) {
         return DataGeneratorContainer.of(
-                SequenceGenerator.shortGenerator(
+                SequenceGeneratorFunction.shortGenerator(
                         config.get(intStart).shortValue(), config.get(intEnd).shortValue()),
                 intStart,
                 intEnd);
@@ -161,7 +162,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(IntType integerType) {
         return DataGeneratorContainer.of(
-                SequenceGenerator.intGenerator(config.get(intStart), config.get(intEnd)),
+                SequenceGeneratorFunction.intGenerator(config.get(intStart), config.get(intEnd)),
                 intStart,
                 intEnd);
     }
@@ -169,7 +170,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(BigIntType bigIntType) {
         return DataGeneratorContainer.of(
-                SequenceGenerator.longGenerator(config.get(longStart), config.get(longEnd)),
+                SequenceGeneratorFunction.longGenerator(config.get(longStart), config.get(longEnd)),
                 longStart,
                 longEnd);
     }
@@ -177,7 +178,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(FloatType floatType) {
         return DataGeneratorContainer.of(
-                SequenceGenerator.floatGenerator(
+                SequenceGeneratorFunction.floatGenerator(
                         config.get(intStart).shortValue(), config.get(intEnd).shortValue()),
                 intStart,
                 intEnd);
@@ -186,7 +187,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(DoubleType doubleType) {
         return DataGeneratorContainer.of(
-                SequenceGenerator.doubleGenerator(config.get(intStart), config.get(intEnd)),
+                SequenceGeneratorFunction.doubleGenerator(config.get(intStart), config.get(intEnd)),
                 intStart,
                 intEnd);
     }
@@ -194,35 +195,12 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(DecimalType decimalType) {
         return DataGeneratorContainer.of(
-                SequenceGenerator.bigDecimalGenerator(
+                SequenceGeneratorFunction.bigDecimalGenerator(
                         config.get(intStart),
                         config.get(intEnd),
                         decimalType.getPrecision(),
                         decimalType.getScale()),
                 intStart,
                 intEnd);
-    }
-
-    private static SequenceGenerator<StringData> getSequenceStringGenerator(long start, long end) {
-        return new SequenceGenerator<StringData>(start, end) {
-            @Override
-            public StringData next() {
-                return StringData.fromString(valuesToEmit.poll().toString());
-            }
-        };
-    }
-
-    private static SequenceGenerator<byte[]> getSequenceBytesGenerator(long start, long end) {
-        return new SequenceGenerator<byte[]>(start, end) {
-            @Override
-            public byte[] next() {
-                Long value = valuesToEmit.poll();
-                if (value != null) {
-                    return Longs.toByteArray(value);
-                } else {
-                    return new byte[0];
-                }
-            }
-        };
     }
 }
