@@ -820,6 +820,12 @@ Data type of a timestamp *with* time zone consisting of `year-month-day hour:min
 with up to nanosecond precision and values ranging from `0000-01-01 00:00:00.000000000 +14:59` to
 `9999-12-31 23:59:59.999999999 -14:59`.
 
+{{< hint warning >}}
+`TIMESTAMP WITH TIME ZONE` currently only exists as a logical type and is **not supported** by Flink SQL yet
+(tracked by [FLINK-20869](https://issues.apache.org/jira/browse/FLINK-20869)). If you need to retain time zone
+information, use `TIMESTAMP_LTZ` instead.
+{{< /hint >}}
+
 {{< tabs "timestamps" >}}
 {{< tab "SQL/Java/Scala" >}}
 Compared to the SQL standard, leap seconds (`23:59:60` and `23:59:61`) are not supported as the semantics
