@@ -63,7 +63,7 @@ public class HighAvailabilityServicesUtils {
 
         switch (highAvailabilityMode) {
             case NONE:
-                return new EmbeddedHaServices(executor);
+                return new EmbeddedHaServices(executor, config);
 
             case ZOOKEEPER:
                 return createZooKeeperHaServices(config, executor, fatalErrorHandler);
@@ -128,7 +128,7 @@ public class HighAvailabilityServicesUtils {
                         getWebMonitorAddress(configuration, addressResolution);
 
                 return new StandaloneHaServices(
-                        resourceManagerRpcUrl, dispatcherRpcUrl, webMonitorAddress);
+                        resourceManagerRpcUrl, dispatcherRpcUrl, webMonitorAddress, configuration);
             case ZOOKEEPER:
                 return createZooKeeperHaServices(configuration, executor, fatalErrorHandler);
             case KUBERNETES:
