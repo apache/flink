@@ -41,12 +41,14 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.ALLOW_LIST;
 import static org.apache.flink.metrics.prometheus.PrometheusReporterFactory.ARG_PORT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Basic test for {@link PrometheusReporter}. */
@@ -181,6 +183,64 @@ class PrometheusReporterTest {
         String response = pollMetrics(reporter.getPort()).body();
 
         assertThat(response).contains("some_value").doesNotContain(labelValueThatShouldBeRemoved);
+    }
+
+    /**
+     * Two variables that differ only in characters the filter replaces become one label name,
+     * twice. Prometheus rejects such a body and abandons the whole scrape.
+     */
+    @Test
+    void metricIsNotReportedWhenTwoVariablesSanitiseToTheSameLabelName()
+            throws IOException, InterruptedException {
+        final Map<String, String> colliding = new LinkedHashMap<>();
+        colliding.put("<a.b>", "v1");
+        colliding.put("<a-b>", "v2");
+
+        reporter.notifyOfAddedMetric(
+                new SimpleCounter(),
+                "colliding",
+                TestUtils.createTestMetricGroup(LOGICAL_SCOPE, colliding));
+
+        final String response = pollMetrics(reporter.getPort()).body();
+
+        assertThat(response).doesNotContain("a_b=\"v1\",a_b=\"v2\"");
+        assertThat(response).doesNotContain(SCOPE_PREFIX + "colliding");
+    }
+
+    @Test
+    void removingARefusedMetricDoesNotThrow() {
+        final Map<String, String> colliding = new LinkedHashMap<>();
+        colliding.put("<a.b>", "v1");
+        colliding.put("<a-b>", "v2");
+        final MetricGroup group = TestUtils.createTestMetricGroup(LOGICAL_SCOPE, colliding);
+        final Counter counter = new SimpleCounter();
+
+        reporter.notifyOfAddedMetric(counter, "colliding", group);
+
+        // The registry removes every metric it added, including the ones we refused.
+        assertThatCode(() -> reporter.notifyOfRemovedMetric(counter, "colliding", group))
+                .doesNotThrowAnyException();
+    }
+
+    /** One unreportable metric must not cost the rest of the process its metrics. */
+    @Test
+    void otherMetricsAreStillReportedAlongsideAnUnreportableOne()
+            throws IOException, InterruptedException {
+        final Map<String, String> colliding = new LinkedHashMap<>();
+        colliding.put("<a.b>", "v1");
+        colliding.put("<a-b>", "v2");
+
+        reporter.notifyOfAddedMetric(
+                new SimpleCounter(),
+                "colliding",
+                TestUtils.createTestMetricGroup(LOGICAL_SCOPE, colliding));
+        final Counter healthy = new SimpleCounter();
+        healthy.inc(3);
+        reporter.notifyOfAddedMetric(healthy, "healthy", metricGroup);
+
+        final String response = pollMetrics(reporter.getPort()).body();
+
+        assertThat(response).contains(SCOPE_PREFIX + "healthy");
     }
 
     @Test
