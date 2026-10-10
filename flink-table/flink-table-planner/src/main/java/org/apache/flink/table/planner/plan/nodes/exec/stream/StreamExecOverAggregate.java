@@ -407,6 +407,12 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         new EqualiserCodeGenerator(sortKeyRowType, ctx.classLoader())
                                 .generateRecordEqualiser("FirstMatchingSortKeyEqualiser");
 
+                // RowData#equals throws on a RAW accumulator field and never matches a
+                // BinaryRowData read back from state, so the comparison has to be generated.
+                final GeneratedRecordEqualiser generatedAccEqualiser =
+                        new EqualiserCodeGenerator(RowType.of(flattenAccTypes), ctx.classLoader())
+                                .generateRecordEqualiser("AccumulatorEqualiser");
+
                 // Create SortSpec to match sortKeyRowType
                 SortSpec.SortSpecBuilder builder = SortSpec.builder();
                 IntStream.range(0, orderKeys.length)
@@ -446,6 +452,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             genAggsHandler,
                             generatedRecordEqualiser,
                             generatedSortKeyEqualiser,
+                            generatedAccEqualiser,
                             generatedRecordComparator,
                             flattenAccTypes,
                             fieldTypes,
@@ -458,6 +465,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             genAggsHandler,
                             generatedRecordEqualiser,
                             generatedSortKeyEqualiser,
+                            generatedAccEqualiser,
                             generatedRecordComparator,
                             flattenAccTypes,
                             fieldTypes,

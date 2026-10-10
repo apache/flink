@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
@@ -104,6 +105,7 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
     private final GeneratedAggsHandleFunction generatedAggsHandler;
     private final GeneratedRecordEqualiser generatedRecordEqualiser;
     private final GeneratedRecordEqualiser generatedSortKeyEqualiser;
+    private final GeneratedRecordEqualiser generatedAccEqualiser;
     private final GeneratedRecordComparator generatedSortKeyComparator;
 
     // The util to compare two rows based on the sort attribute.
@@ -113,6 +115,7 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
     // The record equaliser used to equal RowData.
     transient RecordEqualiser valueEqualiser;
     private transient RecordEqualiser sortKeyEqualiser;
+    transient RecordEqualiser accEqualiser;
 
     private final LogicalType[] accTypes;
     private final LogicalType[] inputFieldTypes;
@@ -139,6 +142,9 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
 
     transient AggsHandleFunction aggFuncs;
 
+    // Copies accumulators on the way in and out of accMapState, see getAccFromState.
+    private transient TypeSerializer<RowData> accSerializer;
+
     // Metrics
     private static final String IDS_NOT_FOUND_METRIC_NAME = "numOfIdsNotFound";
     transient Counter numOfIdsNotFound;
@@ -160,6 +166,7 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
             GeneratedAggsHandleFunction genAggsHandler,
             GeneratedRecordEqualiser genRecordEqualiser,
             GeneratedRecordEqualiser genSortKeyEqualiser,
+            GeneratedRecordEqualiser genAccEqualiser,
             GeneratedRecordComparator genSortKeyComparator,
             LogicalType[] accTypes,
             LogicalType[] inputFieldTypes,
@@ -170,6 +177,7 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
         this.generatedAggsHandler = genAggsHandler;
         this.generatedRecordEqualiser = genRecordEqualiser;
         this.generatedSortKeyEqualiser = genSortKeyEqualiser;
+        this.generatedAccEqualiser = genAccEqualiser;
         this.generatedSortKeyComparator = genSortKeyComparator;
         this.accTypes = accTypes;
         this.inputFieldTypes = inputFieldTypes;
@@ -194,6 +202,10 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
         // Initialize sortKey equaliser
         sortKeyEqualiser =
                 generatedSortKeyEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
+
+        // Initialize accumulator equaliser
+        accEqualiser =
+                generatedAccEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
 
         // Initialize sort comparator
         sortKeyComparator =
@@ -230,6 +242,8 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
                         "accMapState", accKeyRowTypeInfo, accTypeInfo);
 
         accMapState = getRuntimeContext().getMapState(accStateDescriptor);
+
+        accSerializer = accTypeInfo.toSerializer();
 
         initCleanupTimeState("NonTimeUnboundedPrecedingOverCleanupTime");
 
@@ -423,6 +437,36 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
     }
 
     /**
+     * Reads the accumulator stored for a sort key, as a copy the caller owns.
+     *
+     * <p>An accumulator can hold mutable content, either a data view or a field such as a bitmap,
+     * an array or a {@code byte[]}. The aggregate functions change that content in place, and the
+     * heap state backend hands back the very object it stores. Without a copy, accumulating into
+     * one sort key's accumulator would also change the one state holds for another.
+     *
+     * @param accKey the sort key to read the accumulator of
+     * @return a private copy of the stored accumulator, or null if there is none
+     */
+    RowData getAccFromState(RowData accKey) throws Exception {
+        final RowData acc = accMapState.get(accKey);
+        return acc == null ? null : accSerializer.copy(acc);
+    }
+
+    /**
+     * Stores the accumulator of a sort key, as a copy state owns.
+     *
+     * <p>The aggregate functions keep changing their accumulator after it has been stored, and the
+     * reset at the end of {@link #processElement} clears its data views. The heap state backend
+     * keeps the object it was given, so the copy is what keeps the stored accumulator intact.
+     *
+     * @param accKey the sort key to store the accumulator of
+     * @param acc the accumulator to store
+     */
+    void putAccInState(RowData accKey, RowData acc) throws Exception {
+        accMapState.put(accKey, accSerializer.copy(acc));
+    }
+
+    /**
      * Helper method to send updates for ids.
      *
      * @param ids
@@ -470,7 +514,7 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
         RowData prevAggValue = setAccumulatorAndGetValue(prevAcc);
         RowData currAggValue = setAccumulatorAndGetValue(currAcc);
 
-        if (prevAcc.equals(currAcc)) {
+        if (accEqualiser.equals(prevAcc, currAcc)) {
             // Only send update for changed row i.e. either INSERT or DELETE
             sendUpdateForChangedRow(out, rowKind, changedRow, prevAggValue, currAggValue);
             // Previous accumulator is the same as the current accumulator
