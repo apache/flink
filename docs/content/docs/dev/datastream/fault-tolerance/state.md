@@ -563,7 +563,7 @@ In a typical stateful Flink Application you don't need operators state. It is
 mostly a special type of state that is used in source/sink implementations and
 scenarios where you don't have a key by which state can be partitioned.
 
-**Notes:** Operator state is still not supported in Python DataStream API.
+**Notes:** Operator state is still not supported in the Python DataStream API.
 
 ## Broadcast State
 
