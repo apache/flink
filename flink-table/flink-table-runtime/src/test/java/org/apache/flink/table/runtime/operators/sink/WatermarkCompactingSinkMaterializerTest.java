@@ -171,6 +171,28 @@ class WatermarkCompactingSinkMaterializerTest {
     }
 
     @TestTemplate
+    void testNumUnmatchedBuildRetractions() throws Exception {
+        try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> harness =
+                createHarness(behavior, stateBackend)) {
+            openHarness(harness);
+            WatermarkCompactingSinkMaterializer operator =
+                    (WatermarkCompactingSinkMaterializer) harness.getOperator();
+
+            // Retracting a row that is neither buffered nor the last emitted value.
+            processElement(harness, deleteRecord(1L, 1, "missing"));
+            harness.processWatermark(100L);
+            assertThat(operator.getNumUnmatchedBuildRetractions().getCount()).isEqualTo(1L);
+
+            // Retracting an already emitted row is matched and is not counted.
+            processElement(harness, insertRecord(2L, 1, "a"));
+            harness.processWatermark(200L);
+            processElement(harness, deleteRecord(2L, 1, "a"));
+            harness.processWatermark(300L);
+            assertThat(operator.getNumUnmatchedBuildRetractions().getCount()).isEqualTo(1L);
+        }
+    }
+
+    @TestTemplate
     void testDoNothingKeepsFirstRecord() throws Exception {
         Assumptions.assumeTrue(behavior == ConflictBehavior.NOTHING);
         try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> harness =
