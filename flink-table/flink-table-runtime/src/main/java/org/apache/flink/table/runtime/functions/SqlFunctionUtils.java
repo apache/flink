@@ -516,6 +516,30 @@ public class SqlFunctionUtils {
     }
 
     /**
+     * Returns a compiled Pattern object for the given regular expression string, using a shared
+     * cache for performance optimization.
+     *
+     * @param regex the regular expression pattern string
+     * @return the compiled Pattern, or null if regex is invalid
+     */
+    public static @Nullable Pattern getRegexpPattern(String regex) {
+        try {
+            return REGEXP_PATTERN_CACHE.get(regex);
+        } catch (PatternSyntaxException e) {
+            return null;
+        }
+    }
+
+    /** Splits the string into Unicode code points, preserving supplementary characters. */
+    public static StringData[] splitByCodePoints(String str) {
+        return str.codePoints()
+                .mapToObj(
+                        codePoint ->
+                                StringData.fromString(new String(Character.toChars(codePoint))))
+                .toArray(StringData[]::new);
+    }
+
+    /**
      * Calculate the hash value of a given string.
      *
      * @param algorithm message digest algorithm.
