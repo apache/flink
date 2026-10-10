@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rpc.pekko;
 
+import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.concurrent.pekko.ScalaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -85,6 +87,21 @@ class TimeoutCallStackTest {
     @Test
     void testTimeoutExceptionWithDuration() throws Exception {
         testTimeoutException(gateway -> gateway.callThatTimesOut(Duration.ofMillis(1)));
+    }
+
+    @Test
+    void testTimeoutMessageContainsCallTimeoutAndTimeoutOptions() throws Exception {
+        final TestingGateway gateway = createTestingGateway();
+
+        final CompletableFuture<Void> future = gateway.callThatTimesOut(Duration.ofMillis(42));
+
+        assertThatThrownBy(future::get)
+                .cause()
+                .isInstanceOf(TimeoutException.class)
+                .hasMessageContaining("timed out after 42 ms")
+                .hasMessageContaining(RpcOptions.ASK_TIMEOUT_DURATION.key())
+                .hasMessageContaining("client.timeout")
+                .hasMessageContaining(WebOptions.TIMEOUT.key());
     }
 
     private void testTimeoutException(
