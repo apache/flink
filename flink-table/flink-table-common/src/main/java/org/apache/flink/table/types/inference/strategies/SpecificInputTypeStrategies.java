@@ -109,6 +109,22 @@ public final class SpecificInputTypeStrategies {
     public static final ArgumentTypeStrategy ARRAY_FULLY_COMPARABLE =
             new ArrayComparableElementArgumentTypeStrategy(StructuredComparison.FULL);
 
+    /** Argument type representing an array whose elements support equality. */
+    public static final ArgumentTypeStrategy ARRAY_EQUALS_COMPARABLE =
+            new EqualsComparableElementArgumentTypeStrategy(LogicalTypeRoot.ARRAY);
+
+    /** Argument type representing a map whose keys support equality. */
+    public static final ArgumentTypeStrategy MAP_KEYS_EQUALS_COMPARABLE =
+            new EqualsComparableElementArgumentTypeStrategy(LogicalTypeRoot.MAP);
+
+    /** Two arguments with a common array type whose elements support equality. */
+    public static final InputTypeStrategy TWO_ARRAYS_EQUALS_COMPARABLE =
+            new CommonArrayInputTypeStrategy(ConstantArgumentCount.of(2), true);
+
+    /** One or more arguments with a common map type whose keys support equality. */
+    public static final InputTypeStrategy MAPS_KEYS_EQUALS_COMPARABLE =
+            new CommonMapInputTypeStrategy(ConstantArgumentCount.from(1), true);
+
     /** See {@link ArrayOfEntriesArgumentTypeStrategy}. */
     public static final ArgumentTypeStrategy ARRAY_OF_ENTRIES_ARG =
             new ArrayOfEntriesArgumentTypeStrategy();

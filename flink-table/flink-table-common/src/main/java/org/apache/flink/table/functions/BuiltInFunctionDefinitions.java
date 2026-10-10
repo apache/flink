@@ -83,8 +83,6 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.NO_ARGS
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.TYPE_LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
-import static org.apache.flink.table.types.inference.InputTypeStrategies.commonArrayType;
-import static org.apache.flink.table.types.inference.InputTypeStrategies.commonMapType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonMultipleArrayType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.comparable;
@@ -106,15 +104,19 @@ import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAl
 import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_ELEMENT_ARG;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_OF_ENTRIES_ARG;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.FROM_CHANGELOG_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.LATERAL_SNAPSHOT_INPUT_TYPE_STRATEGY;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.MAPS_KEYS_EQUALS_COMPARABLE;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.MAP_KEYS_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.MAP_KEY_ARG;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ML_PREDICT_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TO_CHANGELOG_INPUT_TYPE_STRATEGY;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_ARRAYS_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentage;
@@ -193,7 +195,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("MAP_UNION")
                     .kind(SCALAR)
-                    .inputTypeStrategy(commonMapType(1))
+                    .inputTypeStrategy(MAPS_KEYS_EQUALS_COMPARABLE)
                     .outputTypeStrategy(COMMON)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.MapUnionFunction")
@@ -219,7 +221,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(
                             sequence(
                                     List.of("map", "key"),
-                                    List.of(logical(LogicalTypeRoot.MAP), MAP_KEY_ARG)))
+                                    List.of(MAP_KEYS_EQUALS_COMPARABLE, MAP_KEY_ARG)))
                     .outputTypeStrategy(
                             nullableIfArgs(
                                     ConstantArgumentCount.of(0), explicit(DataTypes.BOOLEAN())))
@@ -296,8 +298,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(
                             sequence(
                                     Arrays.asList("haystack", "needle"),
-                                    Arrays.asList(
-                                            logical(LogicalTypeRoot.ARRAY), ARRAY_ELEMENT_ARG)))
+                                    Arrays.asList(ARRAY_EQUALS_COMPARABLE, ARRAY_ELEMENT_ARG)))
                     .outputTypeStrategy(
                             nullableIfArgs(
                                     ConstantArgumentCount.of(0), explicit(DataTypes.BOOLEAN())))
@@ -331,7 +332,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(
                             sequence(
                                     Collections.singletonList("haystack"),
-                                    Collections.singletonList(logical(LogicalTypeRoot.ARRAY))))
+                                    Collections.singletonList(ARRAY_EQUALS_COMPARABLE)))
                     .outputTypeStrategy(nullableIfArgs(argument(0)))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayDistinctFunction")
@@ -344,8 +345,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(
                             sequence(
                                     Arrays.asList("haystack", "needle"),
-                                    Arrays.asList(
-                                            logical(LogicalTypeRoot.ARRAY), ARRAY_ELEMENT_ARG)))
+                                    Arrays.asList(ARRAY_EQUALS_COMPARABLE, ARRAY_ELEMENT_ARG)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayPositionFunction")
@@ -372,8 +372,7 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(
                             sequence(
                                     Arrays.asList("haystack", "needle"),
-                                    Arrays.asList(
-                                            logical(LogicalTypeRoot.ARRAY), ARRAY_ELEMENT_ARG)))
+                                    Arrays.asList(ARRAY_EQUALS_COMPARABLE, ARRAY_ELEMENT_ARG)))
                     .outputTypeStrategy(nullableIfArgs(ConstantArgumentCount.of(0), argument(0)))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayRemoveFunction")
@@ -414,7 +413,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("ARRAY_UNION")
                     .kind(SCALAR)
-                    .inputTypeStrategy(commonArrayType(2))
+                    .inputTypeStrategy(TWO_ARRAYS_EQUALS_COMPARABLE)
                     .outputTypeStrategy(nullableIfArgs(COMMON))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayUnionFunction")
@@ -585,7 +584,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("ARRAY_EXCEPT")
                     .kind(SCALAR)
-                    .inputTypeStrategy(commonArrayType(2))
+                    .inputTypeStrategy(TWO_ARRAYS_EQUALS_COMPARABLE)
                     .outputTypeStrategy(nullableIfArgs(COMMON))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayExceptFunction")
@@ -595,7 +594,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("ARRAY_INTERSECT")
                     .kind(SCALAR)
-                    .inputTypeStrategy(commonArrayType(2))
+                    .inputTypeStrategy(TWO_ARRAYS_EQUALS_COMPARABLE)
                     .outputTypeStrategy(nullableIfArgs(COMMON))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayIntersectFunction")

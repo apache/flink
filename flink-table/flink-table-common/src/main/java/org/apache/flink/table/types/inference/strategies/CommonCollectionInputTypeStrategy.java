@@ -39,7 +39,12 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/** An {@link InputTypeStrategy} that expects that all arguments have a common type. */
+/**
+ * An {@link InputTypeStrategy} that expects that all arguments have a common type.
+ *
+ * <p>Optionally, the elements of a common ARRAY type or the keys of a common MAP type must support
+ * equality, for functions that compare them with each other.
+ */
 @Internal
 public class CommonCollectionInputTypeStrategy implements InputTypeStrategy {
 
@@ -49,12 +54,22 @@ public class CommonCollectionInputTypeStrategy implements InputTypeStrategy {
 
     private final LogicalTypeRoot logicalTypeRoot;
     private final String errorMessage;
+    private final boolean requiresElementEquality;
 
     public CommonCollectionInputTypeStrategy(
             ArgumentCount argumentCount, String errorMessage, LogicalTypeRoot logicalTypeRoot) {
+        this(argumentCount, errorMessage, logicalTypeRoot, false);
+    }
+
+    public CommonCollectionInputTypeStrategy(
+            ArgumentCount argumentCount,
+            String errorMessage,
+            LogicalTypeRoot logicalTypeRoot,
+            boolean requiresElementEquality) {
         this.argumentCount = argumentCount;
         this.errorMessage = errorMessage;
         this.logicalTypeRoot = logicalTypeRoot;
+        this.requiresElementEquality = requiresElementEquality;
     }
 
     @Override
@@ -88,10 +103,13 @@ public class CommonCollectionInputTypeStrategy implements InputTypeStrategy {
                     argumentDataTypes);
         }
 
-        return commonType.map(
-                type ->
-                        Collections.nCopies(
-                                argumentTypes.size(), TypeConversions.fromLogicalToDataType(type)));
+        final DataType commonDataType = TypeConversions.fromLogicalToDataType(commonType.get());
+        if (requiresElementEquality) {
+            return EqualsComparableElementArgumentTypeStrategy.checkElementEquality(
+                            callContext, commonDataType, throwOnFailure)
+                    .map(type -> Collections.nCopies(argumentTypes.size(), type));
+        }
+        return Optional.of(Collections.nCopies(argumentTypes.size(), commonDataType));
     }
 
     @Override

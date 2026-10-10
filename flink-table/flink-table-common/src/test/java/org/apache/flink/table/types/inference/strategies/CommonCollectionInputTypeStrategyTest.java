@@ -24,12 +24,48 @@ import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
 
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.MAPS_KEYS_EQUALS_COMPARABLE;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_ARRAYS_EQUALS_COMPARABLE;
+
 /** Tests for {@link CommonCollectionInputTypeStrategy}. */
 class CommonCollectionInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
     @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
+                TestSpec.forStrategy(
+                                "Common array type with element equality",
+                                TWO_ARRAYS_EQUALS_COMPARABLE)
+                        .expectSignature("f(<COMMON>, <COMMON>)")
+                        .calledWithArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .expectArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.BIGINT()),
+                                DataTypes.ARRAY(DataTypes.BIGINT())),
+                TestSpec.forStrategy(
+                                "Common array type without element equality",
+                                TWO_ARRAYS_EQUALS_COMPARABLE)
+                        .calledWithArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.VARIANT()),
+                                DataTypes.ARRAY(DataTypes.VARIANT()))
+                        .expectErrorMessage(
+                                "Array elements of type VARIANT cannot be compared, because the type has no equality. Cast the elements to a comparable type first."),
+                TestSpec.forStrategy(
+                                "Common map type with key equality", MAPS_KEYS_EQUALS_COMPARABLE)
+                        .calledWithArgumentTypes(
+                                DataTypes.MAP(DataTypes.STRING(), DataTypes.VARIANT()),
+                                DataTypes.MAP(DataTypes.STRING(), DataTypes.VARIANT()))
+                        .expectArgumentTypes(
+                                DataTypes.MAP(DataTypes.STRING(), DataTypes.VARIANT()),
+                                DataTypes.MAP(DataTypes.STRING(), DataTypes.VARIANT())),
+                TestSpec.forStrategy(
+                                "Common map type without key equality", MAPS_KEYS_EQUALS_COMPARABLE)
+                        .calledWithArgumentTypes(
+                                DataTypes.MAP(DataTypes.VARIANT(), DataTypes.INT()),
+                                DataTypes.MAP(DataTypes.VARIANT(), DataTypes.INT()))
+                        .expectErrorMessage(
+                                "Map keys of type VARIANT cannot be compared, because the type has no equality. Cast the keys to a comparable type first."),
                 TestSpec.forStrategy(InputTypeStrategies.commonArrayType(2))
                         .expectSignature("f(<COMMON>, <COMMON>)")
                         .calledWithArgumentTypes(
