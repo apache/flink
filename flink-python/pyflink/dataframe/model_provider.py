@@ -178,13 +178,10 @@ class OpenAIProvider(ModelProvider):
 
         >>> import pyflink.dataframe as pf
         >>> chat = pf.OpenAIProvider(
-        ...     endpoint="https://api.openai.com/v1/chat/completions", api_key="key",
-        ...     model="my-chat-model", system_prompt="Summarize the input in one sentence.",
-        ...     temperature=0.2, max_tokens=100)
+        ...     endpoint="https://api.openai.com/v1/chat/completions", api_key="key")
         >>> pf.set_model_provider("chat", chat)
         >>> embeddings = pf.OpenAIProvider(
-        ...     endpoint="https://api.openai.com/v1/embeddings", api_key="key",
-        ...     model="my-embedding-model")
+        ...     endpoint="https://api.openai.com/v1/embeddings", api_key="key")
         >>> pf.set_model_provider("embed", embeddings)
 
     .. versionadded:: 2.4.0
