@@ -18,26 +18,30 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.test.util.source.FailingCheckpointedSource;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
@@ -75,6 +79,20 @@ class ProcessingTimeWindowCheckpointingITCase {
         return config;
     }
 
+    private static DataStream<Tuple2<Long, IntType>> createFailingSourceStream(
+            StreamExecutionEnvironment env, int numElements) {
+        final FailingCheckpointedSource<Tuple2<Long, IntType>> source =
+                FailingCheckpointedSource.of(
+                                new Generator(),
+                                numElements,
+                                TypeInformation.of(new TypeHint<Tuple2<Long, IntType>>() {}))
+                        // the sink terminates the job once all windows are validated
+                        .withIdleAfterEmission();
+        // like the legacy FailingSource, the source is non-parallel
+        return env.fromSource(source, WatermarkStrategy.noWatermarks(), "Failing Source")
+                .setParallelism(1);
+    }
+
     // ------------------------------------------------------------------------
 
     @Test
@@ -90,7 +108,7 @@ class ProcessingTimeWindowCheckpointingITCase {
         SinkValidatorUpdaterAndChecker updaterAndChecker =
                 new SinkValidatorUpdaterAndChecker(numElements, 1);
 
-        env.addSource(new FailingSource(new Generator(), numElements, true))
+        createFailingSourceStream(env, numElements)
                 .rebalance()
                 .keyBy(x -> x.f0)
                 .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(100)))
@@ -143,7 +161,7 @@ class ProcessingTimeWindowCheckpointingITCase {
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
         SinkValidatorUpdaterAndChecker updaterAndChecker =
                 new SinkValidatorUpdaterAndChecker(numElements, 3);
-        env.addSource(new FailingSource(new Generator(), numElements, true))
+        createFailingSourceStream(env, numElements)
                 .rebalance()
                 .keyBy(x -> x.f0)
                 .window(
@@ -198,7 +216,7 @@ class ProcessingTimeWindowCheckpointingITCase {
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
         SinkValidatorUpdaterAndChecker updaterAndChecker =
                 new SinkValidatorUpdaterAndChecker(numElements, 1);
-        env.addSource(new FailingSource(new Generator(), numElements, true))
+        createFailingSourceStream(env, numElements)
                 .map(
                         new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
                             @Override
@@ -236,7 +254,7 @@ class ProcessingTimeWindowCheckpointingITCase {
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
         SinkValidatorUpdaterAndChecker updaterAndChecker =
                 new SinkValidatorUpdaterAndChecker(numElements, 3);
-        env.addSource(new FailingSource(new Generator(), numElements, true))
+        createFailingSourceStream(env, numElements)
                 .map(
                         new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
                             @Override
@@ -268,12 +286,24 @@ class ProcessingTimeWindowCheckpointingITCase {
     //  Utilities
     // ------------------------------------------------------------------------
 
-    static class Generator implements FailingSource.EventEmittingGenerator {
+    static class Generator
+            implements FailingCheckpointedSource.EventGenerator<Tuple2<Long, IntType>> {
 
         @Override
-        public void emitEvent(
-                SourceFunction.SourceContext<Tuple2<Long, IntType>> ctx, int eventSequenceNo) {
-            ctx.collect(new Tuple2<>((long) eventSequenceNo, new IntType(eventSequenceNo)));
+        public void emit(
+                int subtaskIndex,
+                long sequenceNo,
+                FailingCheckpointedSource.GeneratorOutput<Tuple2<Long, IntType>> output) {
+            output.collect(new Tuple2<>(sequenceNo, new IntType((int) sequenceNo)));
+            // Spread the elements over many processing-time windows, like the legacy
+            // FailingSource did, so that every run restores open window state and rolls back
+            // sink output on recovery. Duplicate detection itself does not depend on this.
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new FlinkRuntimeException(e);
+            }
         }
     }
 
