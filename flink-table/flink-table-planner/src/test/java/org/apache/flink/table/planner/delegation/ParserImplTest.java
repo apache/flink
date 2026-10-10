@@ -73,7 +73,16 @@ class ParserImplTest {
                     forStatement("SET execution.runtime-type=")
                             // TODO: the exception message should be "no value defined"
                             .error(
-                                    "SQL parse failed. Encountered \"execution\" at line 1, column 5"));
+                                    "SQL parse failed. From line 1, column 5 to line 1, column 13:\n"
+                                            + "    SET execution.runtime-type=\n"
+                                            + "        ^^^^^^^^^\n"
+                                            + "Encountered \"execution\" at line 1, column 5"),
+                    forStatement("ELECT 1")
+                            .error(
+                                    "SQL parse failed. From line 1, column 1 to line 1, column 5:\n"
+                                            + "    ELECT 1\n"
+                                            + "    ^^^^^\n"
+                                            + "Non-query expression encountered in illegal context"));
 
     @Test
     void testParseLegalStatements() {
