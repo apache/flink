@@ -19,9 +19,9 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping as MappingABC
 import json
-import math
-from typing import Dict, List, Literal, Mapping, Optional, Tuple, Union, overload
+from typing import Dict, List, Literal, Mapping, Optional, Tuple, overload
 
+from pyflink.dataframe.validation import _require_int, _require_number
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = [
@@ -46,28 +46,8 @@ def _stringify_options(options: Dict[str, object]) -> Dict[str, str]:
 
 
 def _validate_type(name: str, value: object, expected: type) -> None:
-    if value is None:
-        return
-    if expected is float:
-        if not isinstance(value, (int, float)) or isinstance(value, bool):
-            raise TypeError(f"{name} must be a number")
-        if not math.isfinite(value):
-            raise ValueError(f"{name} must be finite")
-    elif not isinstance(value, expected) or (expected is int and isinstance(value, bool)):
+    if value is not None and not isinstance(value, expected):
         raise TypeError(f"{name} must be a {expected.__name__}")
-
-
-def _validate_range(
-    name: str, value: Optional[Union[int, float]], *, minimum: Optional[float] = None,
-    maximum: Optional[float] = None, include_minimum: bool = True,
-) -> None:
-    if value is None:
-        return
-    if minimum is not None and (value < minimum or (not include_minimum and value == minimum)):
-        comparison = ">=" if include_minimum else ">"
-        raise ValueError(f"{name} must be {comparison} {minimum}")
-    if maximum is not None and value > maximum:
-        raise ValueError(f"{name} must be <= {maximum}")
 
 
 def _enum_option(name: str, value: Optional[str], choices: Tuple[str, ...]) -> Optional[str]:
@@ -218,16 +198,19 @@ class OpenAIProvider(ModelProvider):
         }
         for name in ("model", "system-prompt", "stop"):
             _validate_type(name, options[name], str)
-        for name in ("max-tokens", "n", "seed", "dimension", "max-context-size", "retry-num"):
-            _validate_type(name, options[name], int)
-        for name in ("temperature", "top-p", "presence-penalty"):
-            _validate_type(name, options[name], float)
-        for name, value in (("max_tokens", max_tokens), ("n", n), ("dimension", dimension),
-                            ("max_context_size", max_context_size)):
-            _validate_range(name, value, minimum=1)
-        _validate_range("retry_num", retry_num, minimum=0)
-        _validate_range("top_p", top_p, minimum=0, maximum=1)
-        _validate_range("presence_penalty", presence_penalty, minimum=-2, maximum=2)
+        for name, integer, minimum in (
+            ("max_tokens", max_tokens, 1), ("n", n, 1), ("dimension", dimension, 1),
+            ("max_context_size", max_context_size, 1), ("retry_num", retry_num, 0),
+            ("seed", seed, None),
+        ):
+            if integer is not None:
+                _require_int(integer, name, minimum)
+        for name, number, lower_bound, upper_bound in (
+            ("temperature", temperature, None, None), ("top_p", top_p, 0, 1),
+            ("presence_penalty", presence_penalty, -2, 2),
+        ):
+            if number is not None:
+                _require_number(number, name, lower_bound, maximum=upper_bound)
         self._options = _stringify_options(options)
 
     def provider_identifier(self) -> str:
@@ -334,16 +317,15 @@ class TritonProvider(ModelProvider):
         for name in ("flatten-batch-dim", "sequence-start", "sequence-end", "health-check-enabled",
                      "circuit-breaker-enabled"):
             _validate_type(name, options[name], bool)
-        for name in ("priority", "max-retries", "circuit-breaker-half-open-requests"):
-            _validate_type(name, options[name], int)
-        _validate_type("circuit_breaker_failure_threshold",
-                       circuit_breaker_failure_threshold, float)
-        _validate_range("priority", priority, minimum=0, maximum=255)
-        _validate_range("max_retries", max_retries, minimum=0)
-        _validate_range("circuit_breaker_half_open_requests", circuit_breaker_half_open_requests,
-                        minimum=1)
-        _validate_range("circuit_breaker_failure_threshold", circuit_breaker_failure_threshold,
-                        minimum=0, maximum=1, include_minimum=False)
+        for name, integer, minimum, maximum in (
+            ("priority", priority, 0, 255), ("max_retries", max_retries, 0, None),
+            ("circuit_breaker_half_open_requests", circuit_breaker_half_open_requests, 1, None),
+        ):
+            if integer is not None:
+                _require_int(integer, name, minimum, maximum=maximum)
+        if circuit_breaker_failure_threshold is not None:
+            _require_number(circuit_breaker_failure_threshold, "circuit_breaker_failure_threshold",
+                            0, maximum=1, include_minimum=False)
         self._options = _stringify_options(options)
 
     def provider_identifier(self) -> str:

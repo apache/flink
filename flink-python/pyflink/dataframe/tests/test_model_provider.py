@@ -68,6 +68,8 @@ class ModelProviderTests(unittest.TestCase):
             ({"flatten_batch_dim": "false"}, TypeError),
             ({"sequence_start": 1}, TypeError),
             ({"priority": True}, TypeError),
+            ({"priority": 0.5}, TypeError),
+            ({"priority": -1}, ValueError),
             ({"priority": 256}, ValueError),
             ({"max_retries": -1}, ValueError),
             ({"compression": "deflate"}, ValueError),
@@ -78,6 +80,8 @@ class ModelProviderTests(unittest.TestCase):
             ({"health_check_enabled": 1}, TypeError),
             ({"circuit_breaker_enabled": "false"}, TypeError),
             ({"circuit_breaker_failure_threshold": 0.0}, ValueError),
+            ({"circuit_breaker_failure_threshold": 1.1}, ValueError),
+            ({"circuit_breaker_failure_threshold": True}, TypeError),
             ({"circuit_breaker_failure_threshold": float("inf")}, ValueError),
             ({"circuit_breaker_half_open_requests": 0}, ValueError),
             ({"retry_initial_backoff": 100}, TypeError),
@@ -130,8 +134,12 @@ class ModelProviderTests(unittest.TestCase):
             ({"dimension": "3"}, TypeError),
             ({"temperature": True}, TypeError),
             ({"temperature": float("nan")}, ValueError),
+            ({"temperature": float("-inf")}, ValueError),
+            ({"seed": True}, TypeError),
+            ({"top_p": -0.1}, ValueError),
             ({"top_p": 1.1}, ValueError),
             ({"presence_penalty": -3.0}, ValueError),
+            ({"presence_penalty": 3.0}, ValueError),
             ({"retry_num": -1}, ValueError),
             ({"n": 0}, ValueError),
             ({"max_context_size": 0}, ValueError),
@@ -147,6 +155,29 @@ class ModelProviderTests(unittest.TestCase):
                 arguments.update(overrides)
                 with self.assertRaises(error):
                     pf.OpenAIProvider(**arguments)
+
+    def test_numeric_options_accept_boundaries_and_unbounded_values(self):
+        for top_p, presence_penalty in [(0, -2), (1, 2)]:
+            with self.subTest(top_p=top_p, presence_penalty=presence_penalty):
+                provider = pf.OpenAIProvider(
+                    "https://example.test/chat/completions", "key",
+                    temperature=-0.5, seed=-100, top_p=top_p, presence_penalty=presence_penalty,
+                    max_tokens=1, n=1, dimension=1, max_context_size=1, retry_num=0,
+                )
+                self.assertEqual(provider.to_options(), {
+                    "endpoint": "https://example.test/chat/completions", "api-key": "key",
+                    "temperature": "-0.5", "seed": "-100", "top-p": str(top_p),
+                    "presence-penalty": str(presence_penalty), "max-tokens": "1", "n": "1",
+                    "dimension": "1", "max-context-size": "1", "retry-num": "0",
+                })
+        provider = pf.TritonProvider(
+            "http://localhost:8000", priority=255, max_retries=0,
+            circuit_breaker_failure_threshold=1, circuit_breaker_half_open_requests=1,
+        )
+        self.assertEqual(provider.to_options(), {
+            "endpoint": "http://localhost:8000", "priority": "255", "max-retries": "0",
+            "circuit-breaker-failure-threshold": "1", "circuit-breaker-half-open-requests": "1",
+        })
 
     def test_generic_provider_preserves_raw_options(self):
         options = {"endpoint": "HTTPS://example.test/v1", "api-key": "key",
