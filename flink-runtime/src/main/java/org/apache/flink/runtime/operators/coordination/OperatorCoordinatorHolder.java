@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.JobInfoImpl;
+import org.apache.flink.api.common.state.RegionalCheckpointInfo;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -243,6 +244,32 @@ public class OperatorCoordinatorHolder
     }
 
     @Override
+    public boolean supportsRegionCheckpoint() {
+        return coordinator.supportsRegionCheckpoint();
+    }
+
+    @Override
+    public void checkpointCoordinatorForRegionFallback(
+            long checkpointId,
+            long fallbackCheckpointId,
+            Set<Integer> fallbackSubtaskIds,
+            CompletableFuture<byte[]> resultFuture)
+            throws Exception {
+        mainThreadExecutor.execute(
+                () -> {
+                    try {
+                        coordinator.checkpointCoordinatorForRegionFallback(
+                                checkpointId,
+                                fallbackCheckpointId,
+                                fallbackSubtaskIds,
+                                resultFuture);
+                    } catch (Exception e) {
+                        resultFuture.completeExceptionally(e);
+                    }
+                });
+    }
+
+    @Override
     public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
         // unfortunately, this method does not run in the scheduler executor, but in the
         // checkpoint coordinator time thread.
@@ -263,6 +290,36 @@ public class OperatorCoordinatorHolder
                             .values()
                             .forEach(x -> x.openGatewayAndUnmarkCheckpoint(checkpointId));
                     coordinator.notifyCheckpointComplete(checkpointId);
+                });
+    }
+
+    @Override
+    public void notifyRegionalCheckpointComplete(long checkpointId, RegionalCheckpointInfo info) {
+        mainThreadExecutor.execute(
+                () -> {
+                    subtaskGatewayMap
+                            .values()
+                            .forEach(x -> x.openGatewayAndUnmarkCheckpoint(checkpointId));
+                    try {
+                        coordinator.notifyRegionalCheckpointComplete(checkpointId, info);
+                    } catch (Exception e) {
+                        throw new RuntimeException(
+                                "Exception in notifyRegionalCheckpointComplete", e);
+                    }
+                });
+    }
+
+    @Override
+    public void notifyRegionalCheckpointFallback(long checkpointId, long fallbackCheckpointId) {
+        mainThreadExecutor.execute(
+                () -> {
+                    try {
+                        coordinator.notifyRegionalCheckpointFallback(
+                                checkpointId, fallbackCheckpointId);
+                    } catch (Exception e) {
+                        throw new RuntimeException(
+                                "Exception in notifyRegionalCheckpointFallback", e);
+                    }
                 });
     }
 
