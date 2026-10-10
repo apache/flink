@@ -34,14 +34,16 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cn
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
-+- Calc(select=[name, eat, cnt], where=[(w0$o0 <= 3)])
-   +- OverAggregate(partitionBy=[name], orderBy=[cnt DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[name, eat, cnt, w0$o0])
-      +- Exchange(distribution=[forward])
-         +- Sort(orderBy=[name ASC, cnt DESC])
-            +- Exchange(distribution=[hash[name]])
-               +- HashAggregate(isMerge=[true], groupBy=[name, eat], select=[name, eat, Final_SUM(sum$0) AS cnt])
-                  +- Exchange(distribution=[hash[name, eat]])
-                     +- TableSourceScan(table=[[default_catalog, default_database, test_source, aggregates=[grouping=[name,eat], aggFunctions=[LongSumAggFunction(age)]]]], fields=[name, eat, sum$0])
++- Rank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[name], orderBy=[cnt DESC], global=[true], select=[name, eat, cnt])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[name ASC, cnt DESC])
+         +- Exchange(distribution=[hash[name]])
+            +- Rank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[name], orderBy=[cnt DESC], global=[false], select=[name, eat, cnt])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[name ASC, cnt DESC])
+                     +- HashAggregate(isMerge=[true], groupBy=[name, eat], select=[name, eat, Final_SUM(sum$0) AS cnt])
+                        +- Exchange(distribution=[hash[name, eat]])
+                           +- TableSourceScan(table=[[default_catalog, default_database, test_source, aggregates=[grouping=[name,eat], aggFunctions=[LongSumAggFunction(age)]]]], fields=[name, eat, sum$0])
 ]]>
     </Resource>
   </TestCase>
@@ -255,17 +257,22 @@ LogicalProject(rn1=[CAST($3):INTEGER NOT NULL], rn2=[CAST($4):INTEGER NOT NULL])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(rna AS INTEGER) AS rn1, CAST(w0$o0 AS INTEGER) AS rn2], where=[(w0$o0 <= 200)])
-+- OverAggregate(partitionBy=[a], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0_0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o0_0])
+Calc(select=[CAST(w0$o0 AS INTEGER) AS rn1, CAST(w0$o0_0 AS INTEGER) AS rn2])
++- Rank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=200], partitionBy=[a], orderBy=[b DESC], global=[true], select=[a, b, c, w0$o0, w0$o0_0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[a ASC, b DESC])
          +- Exchange(distribution=[hash[a]])
-            +- Calc(select=[a, b, c, w0$o0], where=[(w0$o0 <= 100)])
-               +- OverAggregate(partitionBy=[a, c], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
-                  +- Exchange(distribution=[forward])
-                     +- Sort(orderBy=[a ASC, c ASC, b DESC])
-                        +- Exchange(distribution=[hash[a, c]])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+            +- Rank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=200], partitionBy=[a], orderBy=[b DESC], global=[false], select=[a, b, c, w0$o0])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[a ASC, b DESC])
+                     +- Rank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a, c], orderBy=[b DESC], global=[true], select=[a, b, c, w0$o0])
+                        +- Exchange(distribution=[forward])
+                           +- Sort(orderBy=[a ASC, c ASC, b DESC])
+                              +- Exchange(distribution=[hash[a, c]])
+                                 +- Rank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a, c], orderBy=[b DESC], global=[false], select=[a, b, c])
+                                    +- Exchange(distribution=[forward])
+                                       +- Sort(orderBy=[a ASC, c ASC, b DESC])
+                                          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -345,6 +352,35 @@ Calc(select=[CONCAT('http://txmov2.a.yximgs.com', uri) AS url, reqcount AS downl
                                        +- Exchange(distribution=[forward])
                                           +- Sort(orderBy=[start_time ASC, bucket_id ASC, reqcount DESC])
                                              +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[uri, reqcount, start_time, bucket_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowNumberTopNConvertedToRank">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, b, c FROM (
+ SELECT a, b, c, ROW_NUMBER() OVER (PARTITION BY b ORDER BY c DESC) rn FROM MyTable) t
+WHERE rn = 1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[=($3, 1)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[b], orderBy=[c DESC], global=[true], select=[a, b, c])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[b ASC, c DESC])
+      +- Exchange(distribution=[hash[b]])
+         +- Rank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[b], orderBy=[c DESC], global=[false], select=[a, b, c])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[b ASC, c DESC])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
