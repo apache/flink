@@ -23,6 +23,8 @@ import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.src.enumerate.GlobFileEnumerator;
+import org.apache.flink.connector.file.src.enumerate.NonSplittingRecursiveEnumerator;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.Path;
@@ -45,6 +47,8 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -133,6 +137,26 @@ class FileSourceTextLinesITCase {
             MiniCluster miniCluster,
             boolean batchMode)
             throws Exception {
+        testBoundedTextFileSource(tmpTestDir, failoverType, miniCluster, batchMode, false);
+    }
+
+    @ParameterizedTest
+    @EnumSource(FailoverType.class)
+    void testBoundedGlobFileSource(
+            FailoverType failoverType, @TempDir java.nio.file.Path tmpTestDir) throws Exception {
+        runTestWithNewMiniCluster(
+                miniCluster ->
+                        testBoundedTextFileSource(
+                                tmpTestDir, failoverType, miniCluster, false, true));
+    }
+
+    private void testBoundedTextFileSource(
+            java.nio.file.Path tmpTestDir,
+            FailoverType failoverType,
+            MiniCluster miniCluster,
+            boolean batchMode,
+            boolean glob)
+            throws Exception {
         final File testDir = tmpTestDir.toFile();
 
         // our main test data
@@ -142,10 +166,7 @@ class FileSourceTextLinesITCase {
         // default
         writeHiddenJunkFiles(testDir);
 
-        final FileSource<String> source =
-                FileSource.forRecordStreamFormat(
-                                new TextLineInputFormat(), Path.fromLocalFile(testDir))
-                        .build();
+        final FileSource<String> source = sourceBuilder(testDir, glob).build();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
@@ -221,13 +242,25 @@ class FileSourceTextLinesITCase {
     private void testContinuousTextFileSource(
             java.nio.file.Path tmpTestDir, FailoverType type, MiniCluster miniCluster)
             throws Exception {
+        testContinuousTextFileSource(tmpTestDir, type, miniCluster, false);
+    }
+
+    @ParameterizedTest
+    @EnumSource(FailoverType.class)
+    void testContinuousGlobFileSource(
+            FailoverType failoverType, @TempDir java.nio.file.Path tmpTestDir) throws Exception {
+        runTestWithNewMiniCluster(
+                miniCluster ->
+                        testContinuousTextFileSource(tmpTestDir, failoverType, miniCluster, true));
+    }
+
+    private void testContinuousTextFileSource(
+            java.nio.file.Path tmpTestDir, FailoverType type, MiniCluster miniCluster, boolean glob)
+            throws Exception {
         final File testDir = tmpTestDir.toFile();
 
         final FileSource<String> source =
-                FileSource.forRecordStreamFormat(
-                                new TextLineInputFormat(), Path.fromLocalFile(testDir))
-                        .monitorContinuously(Duration.ofMillis(5))
-                        .build();
+                sourceBuilder(testDir, glob).monitorContinuously(Duration.ofMillis(5)).build();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
@@ -284,6 +317,18 @@ class FileSourceTextLinesITCase {
     // ------------------------------------------------------------------------
     //  test utilities
     // ------------------------------------------------------------------------
+
+    private static FileSource.FileSourceBuilder<String> sourceBuilder(File testDir, boolean glob) {
+        final Path root = Path.fromLocalFile(testDir);
+        final FileSource.FileSourceBuilder<String> builder =
+                FileSource.forRecordStreamFormat(
+                        new TextLineInputFormat(), glob ? new Path(root, "**/text*") : root);
+        if (glob) {
+            builder.setFileEnumerator(
+                    () -> new GlobFileEnumerator(new NonSplittingRecursiveEnumerator()));
+        }
+        return builder;
+    }
 
     private enum FailoverType {
         NONE,
