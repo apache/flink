@@ -65,6 +65,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -241,11 +242,13 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         testHarness.invoke();
         testHarness.waitForTaskCompletion();
 
+        // Source tasks emit FINISHED status before MAX_WATERMARK when completing with drain
         ArrayList<Object> expected = new ArrayList<>();
         Collections.addAll(
                 expected,
                 new StreamRecord<>("Hello"),
                 new StreamRecord<>("[Source0]: End of input"),
+                WatermarkStatus.FINISHED,
                 Watermark.MAX_WATERMARK,
                 new StreamRecord<>("[Source0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
@@ -647,8 +650,12 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
             harness.processAll();
             harness.streamTask.getCompletionFuture().get();
 
+            // Source tasks emit FINISHED status before MAX_WATERMARK when completing with drain
             assertThat(output)
-                    .containsExactly(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
+                    .containsExactly(
+                            WatermarkStatus.FINISHED,
+                            Watermark.MAX_WATERMARK,
+                            new EndOfData(StopMode.DRAIN));
 
             LifeCycleMonitorSource source =
                     (LifeCycleMonitorSource)
