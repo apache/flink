@@ -27,7 +27,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.ThreadSafeSimpleCounter;
+import org.apache.flink.metrics.ThreadSafeSimpleMonotonicCounter;
 import org.apache.flink.state.forst.ForStOptions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
@@ -119,16 +119,19 @@ public final class FileBasedCache extends DoubleListLru<String, FileCacheEntry>
                 Executors.newFixedThreadPool(4, new ExecutorThreadFactory("ForSt-LruLoader"));
         if (metricGroup != null) {
             this.hitCounter =
-                    metricGroup.counter(FORST_CACHE_PREFIX + ".hit", new ThreadSafeSimpleCounter());
+                    metricGroup.counter(
+                            FORST_CACHE_PREFIX + ".hit", new ThreadSafeSimpleMonotonicCounter());
             this.missCounter =
                     metricGroup.counter(
-                            FORST_CACHE_PREFIX + ".miss", new ThreadSafeSimpleCounter());
+                            FORST_CACHE_PREFIX + ".miss", new ThreadSafeSimpleMonotonicCounter());
             this.loadBackCounter =
                     metricGroup.counter(
-                            FORST_CACHE_PREFIX + ".lru.loadback", new ThreadSafeSimpleCounter());
+                            FORST_CACHE_PREFIX + ".lru.loadback",
+                            new ThreadSafeSimpleMonotonicCounter());
             this.evictCounter =
                     metricGroup.counter(
-                            FORST_CACHE_PREFIX + ".lru.evict", new ThreadSafeSimpleCounter());
+                            FORST_CACHE_PREFIX + ".lru.evict",
+                            new ThreadSafeSimpleMonotonicCounter());
             metricGroup.gauge(FORST_CACHE_PREFIX + ".usedBytes", cacheLimitPolicy::usedBytes);
             cacheLimitPolicy.registerCustomizedMetrics(FORST_CACHE_PREFIX, metricGroup);
         }

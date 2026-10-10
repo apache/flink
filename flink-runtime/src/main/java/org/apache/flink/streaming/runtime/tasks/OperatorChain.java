@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.SimpleMonotonicCounter;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -837,7 +837,7 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     private static Counter createNumRecordsOutCounter(StreamTask<?, ?> containingTask) {
         TaskIOMetricGroup taskIOMetricGroup =
                 containingTask.getEnvironment().getMetricGroup().getIOMetricGroup();
-        Counter counter = new SimpleCounter();
+        Counter counter = new SimpleMonotonicCounter();
         taskIOMetricGroup.reuseRecordsOutputCounter(counter);
         return counter;
     }
