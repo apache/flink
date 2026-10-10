@@ -1597,9 +1597,21 @@ class Expression(Generic[T]):
         """
         return _binary_op("repeat")(self, n)
 
-    def over(self, alias) -> 'Expression':
+    def over(
+        self,
+        alias_or_order_by=None,
+        *,
+        order_by=None,
+        partition_by=None,
+        rows=None,
+        range=None,
+    ) -> 'Expression':
         """
         Defines an aggregation to be used for a previously specified over window.
+
+        A DataFrame-style inline window can be created with ``order_by`` and either ``rows`` or
+        ``range``. A single positional argument without frame keywords remains the legacy named
+        Table API window alias.
 
         Example:
         ::
@@ -1611,8 +1623,33 @@ class Expression(Generic[T]):
             >>>         .following(CURRENT_ROW)
             >>>         .alias("w")) \\
             >>>     .select(col('c'), col('a'), col('a').count.over(col('w')))
+
+        >>> col('a').sum.over(order_by='rowtime', rows=10)
         """
-        return _binary_op("over")(self, alias)
+        if (
+            alias_or_order_by is not None
+            and order_by is None
+            and partition_by is None
+            and rows is None
+            and range is None
+        ):
+            return _binary_op("over")(self, alias_or_order_by)
+
+        if alias_or_order_by is not None and order_by is not None:
+            raise TypeError("over() got multiple values for order_by")
+        order_expression = order_by if order_by is not None else alias_or_order_by
+        if order_expression is None:
+            raise TypeError("over() missing required argument: order_by")
+
+        from pyflink.table._over_window import _build_over_expression
+
+        return _build_over_expression(
+            self,
+            order_expression,
+            partition_by=partition_by,
+            rows=rows,
+            range_=range,
+        )
 
     @property
     def reverse(self) -> 'Expression[str]':
