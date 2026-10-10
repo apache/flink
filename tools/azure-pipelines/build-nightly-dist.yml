@@ -51,7 +51,10 @@ jobs:
             export RELEASE_VERSION=$(MVN_RUN_VERBOSE=false run_mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
             echo "Determined RELEASE_VERSION as '$RELEASE_VERSION' "
             cd tools
-            MVN_RUN_VERBOSE=true SKIP_GPG=true ./releasing/create_binary_release.sh
+            if ! MVN_RUN_VERBOSE=true SKIP_GPG=true SKIP_PYTHON_WHEELS=true ./releasing/create_binary_release.sh; then
+              echo "create_binary_release.sh failed" 1>&2
+              exit 1
+            fi
             echo "Created files:"
             find ./releasing/release
             cd ..
