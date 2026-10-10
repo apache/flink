@@ -55,7 +55,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.TriConsumerWithException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -79,18 +79,18 @@ import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.state.SnapshotResult.empty;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.util.concurrent.Executors.directExecutor;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Verifies that any unused state created by {@link ChangelogStateBackend} is discarded. This is
  * achieved by testing integration between {@link ChangelogKeyedStateBackend} and {@link
  * StateChangelogWriter} created by {@link FsStateChangelogStorage}.
  */
-public class ChangelogStateDiscardTest {
+class ChangelogStateDiscardTest {
     private static final Random RANDOM = new Random();
 
     @Test
-    public void testPreEmptiveUploadDiscardedOnMaterialization() throws Exception {
+    void testPreEmptiveUploadDiscardedOnMaterialization() throws Exception {
         singleBackendTest(
                 (backend, writer, uploader) -> {
                     changeAndLogRandomState(backend, uploader.results::size);
@@ -103,7 +103,7 @@ public class ChangelogStateDiscardTest {
     }
 
     @Test
-    public void testPreEmptiveUploadDiscardedOnSubsumption() throws Exception {
+    void testPreEmptiveUploadDiscardedOnSubsumption() throws Exception {
         singleBackendTest(
                 (backend, writer, uploader) -> {
                     changeAndLogRandomState(backend, uploader.results::size);
@@ -116,7 +116,7 @@ public class ChangelogStateDiscardTest {
     }
 
     @Test
-    public void testPreEmptiveUploadNotDiscardedWithoutNotification() throws Exception {
+    void testPreEmptiveUploadNotDiscardedWithoutNotification() throws Exception {
         singleBackendTest(
                 (backend, writer, uploader) -> {
                     changeAndLogRandomState(backend, uploader.results::size);
@@ -127,7 +127,7 @@ public class ChangelogStateDiscardTest {
     }
 
     @Test
-    public void testPreEmptiveUploadDiscardedOnMaterializationIfCompletedLater() throws Exception {
+    void testPreEmptiveUploadDiscardedOnMaterializationIfCompletedLater() throws Exception {
         final TaskChangelogRegistry registry =
                 TaskChangelogRegistry.defaultChangelogRegistry(directExecutor());
         final TestingUploadScheduler scheduler = new TestingUploadScheduler(registry);
@@ -144,13 +144,13 @@ public class ChangelogStateDiscardTest {
 
                     assertDiscarded(
                             results.stream()
-                                    .map(h -> (TestingStreamStateHandle) h.getStreamStateHandle())
+                                     .map(h -> (TestingStreamStateHandle) h.getStreamStateHandle())
                                     .collect(toList()));
                 });
     }
 
     @Test
-    public void testPreEmptiveUploadDiscardedOnClose() throws Exception {
+    void testPreEmptiveUploadDiscardedOnClose() throws Exception {
         final List<TestingStreamStateHandle> afterCheckpoint = new ArrayList<>();
         final List<TestingStreamStateHandle> beforeCheckpoint = new ArrayList<>();
         singleBackendTest(
@@ -180,7 +180,7 @@ public class ChangelogStateDiscardTest {
      * </ol>
      */
     @Test
-    public void testPreEmptiveUploadForMultipleBackends() throws Exception {
+    void testPreEmptiveUploadForMultipleBackends() throws Exception {
         // using the same range (rescaling not involved)
         final KeyGroupRange kgRange = KeyGroupRange.of(0, 10);
         final JobID jobId = new JobID();
@@ -337,15 +337,15 @@ public class ChangelogStateDiscardTest {
     }
 
     private static void assertRetained(List<TestingStreamStateHandle> toRetain) {
-        assertTrue(
-                "Some state handles were discarded: \n" + toRetain,
-                toRetain.stream().noneMatch(TestingStreamStateHandle::isDisposed));
+        assertThat(toRetain.stream().noneMatch(TestingStreamStateHandle::isDisposed))
+                .as("Some state handles were discarded: \n" + toRetain)
+                .isTrue();
     }
 
     private static void assertDiscarded(List<TestingStreamStateHandle> toDiscard) {
-        assertTrue(
-                "Not all state handles were discarded: \n" + toDiscard,
-                toDiscard.stream().allMatch(TestingStreamStateHandle::isDisposed));
+        assertThat(toDiscard.stream().allMatch(TestingStreamStateHandle::isDisposed))
+                .as("Not all state handles were discarded: \n" + toDiscard)
+                .isTrue();
     }
 
     private static void checkpoint(ChangelogKeyedStateBackend<String> backend, long checkpointId)
