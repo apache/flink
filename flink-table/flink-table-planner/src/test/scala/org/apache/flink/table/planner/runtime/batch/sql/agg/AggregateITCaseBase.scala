@@ -125,6 +125,24 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
   }
 
   @Test
+  def testAvgOnIntDoesNotOverflowWhenReducedToSumAndCount(): Unit = {
+    val maxInt = Int.MaxValue
+    registerCollection(
+      "MaxIntTable",
+      Seq(row(maxInt), row(maxInt), row(1)),
+      new RowTypeInfo(Types.INT),
+      "x")
+    registerCollection("TwoRowTable", Seq(row(1), row(2)), new RowTypeInfo(Types.INT), "y")
+
+    // SUM and COUNT of the same column make the planner reduce AVG to SUM / COUNT
+    checkResult(
+      "SELECT AVG(x), SUM(CAST(x AS BIGINT)), COUNT(x) FROM MaxIntTable",
+      Seq(row(1431655765, 4294967295L, 3L)))
+    // AVG pushed below a join is reduced to SUM / COUNT as well
+    checkResult("SELECT AVG(x) FROM MaxIntTable, TwoRowTable", Seq(row(1431655765)))
+  }
+
+  @Test
   def testGroupByOnly(): Unit = {
     checkResult(
       "SELECT h FROM Table5 GROUP BY h",
