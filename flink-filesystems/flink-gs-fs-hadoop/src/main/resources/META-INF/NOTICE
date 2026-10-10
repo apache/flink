@@ -24,10 +24,10 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.google.apis:google-api-services-iamcredentials:v1-rev20211203-2.0.0
 - com.google.apis:google-api-services-storage:v1-rev20260204-2.0.0
 - com.google.auto.value:auto-value-annotations:1.11.0
-- com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.18
-- com.google.cloud.bigdataoss:gcsio:2.2.18
-- com.google.cloud.bigdataoss:util-hadoop:hadoop3-2.2.18
-- com.google.cloud.bigdataoss:util:2.2.18
+- com.google.cloud.bigdataoss:gcs-connector:3.1.18
+- com.google.cloud.bigdataoss:gcsio:3.1.18
+- com.google.cloud.bigdataoss:util-hadoop:3.1.18
+- com.google.cloud.bigdataoss:util:3.1.18
 - com.google.cloud.opentelemetry:detector-resources-support:0.33.0
 - com.google.cloud.opentelemetry:exporter-metrics:0.33.0
 - com.google.cloud.opentelemetry:shared-resourcemapping:0.33.0
