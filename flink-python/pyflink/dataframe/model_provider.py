@@ -74,11 +74,11 @@ def _header_option(headers: Optional[Mapping[str, str]]) -> Optional[str]:
 @PublicEvolving()
 class ModelProvider(ABC):
     """
-    Python configuration for a Flink Java model provider.
+    Base class for model provider configurations.
 
-    Implement :meth:`provider_identifier` and :meth:`to_options` to integrate a
-    provider available in the Java classpath. Configuration does not install a
-    provider or create a model.
+    Subclass this to configure a provider available in your application's classpath.
+    Implement :meth:`provider_identifier` to identify the provider and :meth:`to_options`
+    to supply its options as string keys and values.
 
     Example::
 
@@ -95,22 +95,20 @@ class ModelProvider(ABC):
 
     @abstractmethod
     def provider_identifier(self) -> str:
-        """Return the Java model provider factory identifier.
-
-        This identifier is independent of the lookup name chosen at registration.
+        """Return the provider identifier, such as ``openai`` or ``triton``.
 
         .. versionadded:: 2.4.0
         """
 
     @abstractmethod
     def to_options(self) -> Dict[str, str]:
-        """Return Java model options as string keys and values.
+        """Return provider options as string keys and values.
 
         .. versionadded:: 2.4.0
         """
 
     def model_option_key(self) -> str:
-        """Return the Java option key for a model name, normally ``model``.
+        """Return the option key for a model name, normally ``model``.
 
         Override this for providers whose model option has a different name.
 
@@ -122,35 +120,72 @@ class ModelProvider(ABC):
 @PublicEvolving()
 class OpenAIProvider(ModelProvider):
     """
-    Configure Flink's ``openai`` provider for chat or embeddings.
+    Configure an OpenAI-compatible service for chat completions or embeddings.
 
-    :param endpoint: Complete chat-completions or embeddings URL; forwarded unchanged.
-    :param api_key: API key used to authenticate requests.
-    :param model: Optional model name. It can be supplied when creating a model instead.
-    :param system_prompt: System message. An empty string disables it.
-    :param temperature: Sampling temperature.
-    :param top_p: Probability cutoff for token selection.
-    :param max_tokens: Maximum generated tokens.
-    :param stop: Comma-separated stop sequences.
-    :param presence_penalty: Token presence penalty between -2 and 2.
-    :param n: Number of chat completion choices per input.
-    :param seed: Sampling seed.
-    :param response_format: ``text`` or ``json_object``.
-    :param dimension: Embedding dimension.
-    :param max_context_size: Maximum context tokens.
-    :param context_overflow_action: Action when the context limit is exceeded.
-    :param error_handling_strategy: ``RETRY``, ``FAILOVER``, or ``IGNORE``.
-    :param retry_num: Number of request retries.
-    :param retry_fallback_strategy: ``FAILOVER`` or ``IGNORE`` after retries are exhausted.
+    The full endpoint URL selects the task: use a URL ending in ``/chat/completions``
+    for chat or ``/embeddings`` for embedding vectors. Chat options such as
+    ``system_prompt`` and ``temperature`` apply to chat requests; ``dimension`` applies
+    to embeddings. Supply a model name here or when creating a model.
 
-    Unspecified optional values are omitted so that Java supplies its defaults.
+    All optional parameters default to ``None``. Omitted options use the Flink defaults
+    described below, or the service's defaults where Flink defines none.
+
+    :param endpoint: Required full API URL, for example
+                     ``https://api.openai.com/v1/chat/completions``.
+    :param api_key: Required API key for authenticating requests.
+    :param model: Model name to use. Default: ``None``; if omitted, supply it when
+                  creating a model.
+    :param system_prompt: System message that guides the chat response. If omitted,
+                          Flink uses ``"You are a helpful assistant."``. Set ``""``
+                          for an empty system message.
+    :param temperature: Controls randomness in chat responses; typical values are
+                        between 0.0 and 1.0. Default: ``None`` (service default).
+    :param top_p: Probability cutoff for token selection, between 0 and 1. Usually
+                  set either this or ``temperature``. Default: ``None`` (service default).
+    :param max_tokens: Maximum number of tokens generated in a chat completion.
+                       Default: ``None`` (service default).
+    :param stop: Comma-separated strings that stop generation when encountered.
+                 Default: ``None`` (no stop sequences supplied).
+    :param presence_penalty: Value between -2 and 2. Positive values discourage tokens
+                             already used in the response, encouraging new topics.
+                             Default: ``None`` (service default).
+    :param n: Number of chat completion choices generated per input. Setting this to
+              1 limits token usage. Default: ``None`` (service default).
+    :param seed: Seed for best-effort repeatable sampling. Default: ``None`` (no seed
+                 supplied).
+    :param response_format: Chat response format: ``text`` or ``json_object``.
+                            Default: ``None`` (service default).
+    :param dimension: Number of elements in each embedding vector. Default: ``None``
+                      (the embedding model's default dimension).
+    :param max_context_size: Maximum number of input context tokens before applying
+                             ``context_overflow_action``. Default: ``None`` (no Flink
+                             context limit).
+    :param context_overflow_action: ``truncated-tail`` removes excess tokens from the
+                                   end, ``truncated-head`` removes them from the start,
+                                   and ``skipped`` skips the input. Each has a ``-log``
+                                   variant that logs the action. If omitted, Flink uses
+                                   ``truncated-tail``.
+    :param error_handling_strategy: ``RETRY`` retries failed requests, ``FAILOVER``
+                                   fails the job, and ``IGNORE`` skips the failed input.
+                                   If omitted, Flink uses ``RETRY``.
+    :param retry_num: Number of retries when ``error_handling_strategy`` is ``RETRY``.
+                      If omitted, Flink uses ``100``.
+    :param retry_fallback_strategy: Action after retries are exhausted: ``FAILOVER``
+                                   fails the job and ``IGNORE`` skips the failed input.
+                                   If omitted, Flink uses ``FAILOVER``.
 
     Example::
 
-        >>> provider = OpenAIProvider(
-        ...     endpoint="https://api.openai.com/v1/chat/completions", api_key="key")
-        >>> provider.provider_identifier()
-        'openai'
+        >>> import pyflink.dataframe as pf
+        >>> chat = pf.OpenAIProvider(
+        ...     endpoint="https://api.openai.com/v1/chat/completions", api_key="key",
+        ...     model="my-chat-model", system_prompt="Summarize the input in one sentence.",
+        ...     temperature=0.2, max_tokens=100)
+        >>> pf.set_model_provider("chat", chat)
+        >>> embeddings = pf.OpenAIProvider(
+        ...     endpoint="https://api.openai.com/v1/embeddings", api_key="key",
+        ...     model="my-embedding-model")
+        >>> pf.set_model_provider("embed", embeddings)
 
     .. versionadded:: 2.4.0
     """
@@ -214,14 +249,14 @@ class OpenAIProvider(ModelProvider):
         self._options = _stringify_options(options)
 
     def provider_identifier(self) -> str:
-        """Return ``openai``, the community Java factory identifier.
+        """Return ``openai``.
 
         .. versionadded:: 2.4.0
         """
         return "openai"
 
     def to_options(self) -> Dict[str, str]:
-        """Return a fresh dictionary of Java model options.
+        """Return a fresh dictionary of provider options.
 
         .. versionadded:: 2.4.0
         """
@@ -231,41 +266,72 @@ class OpenAIProvider(ModelProvider):
 @PublicEvolving()
 class TritonProvider(ModelProvider):
     """
-    Configure Flink's ``triton`` provider for NVIDIA Triton Inference Server.
+    Configure inference requests to a model served by NVIDIA Triton Inference Server.
 
-    Unspecified optional values are omitted so that Java supplies its defaults.
-    Durations use Flink strings such as ``30 s`` and are parsed by Java.
+    Supply the server URL and a model name here or when creating a model. For array
+    inputs, use ``flatten_batch_dim`` to match the model's expected shape. Retry and
+    fallback options control how failed requests are handled; health checks and the
+    circuit breaker can reduce requests to an unavailable server.
 
-    :param endpoint: Triton server URL; forwarded unchanged.
-    :param model_name: Optional model name, which can be supplied when creating a model.
-    :param model_version: Model version.
-    :param timeout: HTTP request timeout.
-    :param flatten_batch_dim: Flatten the batch dimension of array inputs.
-    :param priority: Request priority between 0 and 255.
-    :param sequence_id: Triton sequence identifier.
-    :param sequence_start: Mark the start of a sequence.
-    :param sequence_end: Mark the end of a sequence.
-    :param compression: Request compression, currently ``gzip``.
-    :param auth_token: Authentication token.
-    :param custom_headers: Mapping of HTTP header names to string values.
-    :param max_retries: Maximum additional attempts after a failed request.
-    :param retry_initial_backoff: Initial retry delay.
-    :param retry_max_backoff: Maximum retry delay.
-    :param default_value: Raw fallback value, interpreted using the model's output type.
-                          ``null`` means SQL NULL; omit the option to propagate failures.
-    :param health_check_enabled: Enable server health checks.
-    :param health_check_interval: Interval between health checks.
-    :param circuit_breaker_enabled: Enable the circuit breaker.
-    :param circuit_breaker_failure_threshold: Failure rate in (0, 1] that opens the breaker.
-    :param circuit_breaker_timeout: Time to remain in the open state.
-    :param circuit_breaker_half_open_requests: Successful probes needed to close the breaker.
+    All optional parameters default to ``None``. Omitted options use the Flink defaults
+    described below. Specify durations as strings such as ``"30 s"`` or ``"100 ms"``.
+
+    :param endpoint: Required Triton server URL, for example ``http://localhost:8000``.
+    :param model_name: Name of the model to invoke. Default: ``None``; if omitted,
+                       supply it when creating a model.
+    :param model_version: Model version to invoke. If omitted, Flink uses ``"latest"``.
+    :param timeout: HTTP timeout for each request, separate from Flink's asynchronous
+                    prediction timeout. If omitted, Flink uses ``"30 s"``.
+    :param flatten_batch_dim: Convert the array input shape from ``[1, N]`` to ``[N]``
+                              when the model expects a vector without a batch dimension.
+                              If omitted, Flink uses ``False``.
+    :param priority: Request priority between 0 and 255. Default: ``None`` (no priority
+                     supplied).
+    :param sequence_id: Identifier shared by requests in a stateful model sequence.
+                        Default: ``None`` (no sequence identifier supplied).
+    :param sequence_start: Mark requests as starting a stateful sequence. If omitted,
+                           Flink uses ``False``.
+    :param sequence_end: Mark requests as ending a stateful sequence. If omitted,
+                         Flink uses ``False``.
+    :param compression: Compress request bodies using ``gzip``. Default: ``None``
+                        (no compression).
+    :param auth_token: Authentication token sent as a Bearer token. Default: ``None``
+                       (no token supplied).
+    :param custom_headers: Additional HTTP headers as a mapping, for example
+                           ``{"X-Trace-Id": "abc"}``. Default: ``None`` (no extra headers).
+    :param max_retries: Additional attempts for transient failures, such as network
+                        errors and server errors. If omitted, Flink uses ``0`` (no retries).
+    :param retry_initial_backoff: Initial delay between retries; delays increase
+                                  exponentially up to ``retry_max_backoff``. If omitted,
+                                  Flink uses ``"100 ms"``.
+    :param retry_max_backoff: Maximum delay between retries. If omitted, Flink uses
+                              ``"30 s"``.
+    :param default_value: Fallback value when inference fails, expressed as a string
+                          matching the output type: plain text for strings, a numeric
+                          string for numbers, a JSON array for arrays, or ``"null"`` for
+                          SQL NULL. Default: ``None`` (propagate failures).
+    :param health_check_enabled: Enable periodic server health checks. If omitted,
+                                 Flink uses ``False``.
+    :param health_check_interval: Time between health checks when enabled. If omitted,
+                                  Flink uses ``"30 s"``.
+    :param circuit_breaker_enabled: Temporarily stop sending requests when the server
+                                    has a high failure rate. If omitted, Flink uses ``False``.
+    :param circuit_breaker_failure_threshold: Failure rate in ``(0, 1]`` that opens the
+                                              circuit breaker; ``0.5`` means 50% failures.
+                                              If omitted, Flink uses ``0.5``.
+    :param circuit_breaker_timeout: Time to wait before probing recovery after the
+                                    circuit breaker opens. If omitted, Flink uses ``"60 s"``.
+    :param circuit_breaker_half_open_requests: Successful recovery probes needed to
+                                              close the circuit breaker. If omitted,
+                                              Flink uses ``3``.
 
     Example::
 
-        >>> provider = TritonProvider(
-        ...     "http://localhost:8000", model_name="image-model", max_retries=2)
-        >>> provider.model_option_key()
-        'model-name'
+        >>> import pyflink.dataframe as pf
+        >>> provider = pf.TritonProvider(
+        ...     endpoint="http://localhost:8000", model_name="classifier",
+        ...     flatten_batch_dim=True, max_retries=2, default_value="-1")
+        >>> pf.set_model_provider("classifier", provider)
 
     .. versionadded:: 2.4.0
     """
@@ -329,21 +395,21 @@ class TritonProvider(ModelProvider):
         self._options = _stringify_options(options)
 
     def provider_identifier(self) -> str:
-        """Return ``triton``, the community Java factory identifier.
+        """Return ``triton``.
 
         .. versionadded:: 2.4.0
         """
         return "triton"
 
     def model_option_key(self) -> str:
-        """Return ``model-name``, the Triton Java option for a model name.
+        """Return ``model-name``, the option key for a model name.
 
         .. versionadded:: 2.4.0
         """
         return "model-name"
 
     def to_options(self) -> Dict[str, str]:
-        """Return a fresh dictionary of Java model options.
+        """Return a fresh dictionary of provider options.
 
         .. versionadded:: 2.4.0
         """
@@ -353,13 +419,13 @@ class TritonProvider(ModelProvider):
 @PublicEvolving()
 class GenericProvider(ModelProvider):
     """
-    Configure an installed Java provider with raw string options.
+    Configure an installed model provider with its option names and string values.
 
-    Option keys and values are forwarded unchanged. Use a typed provider or a
-    :class:`ModelProvider` subclass for Python-style constructor arguments.
+    Use this for a provider without a dedicated Python configuration class. Option
+    names and values follow that provider's documentation.
 
     :param identifier: Java model provider factory identifier.
-    :param options: Raw Java option names and string values.
+    :param options: Provider option names and string values.
 
     Example::
 
@@ -380,14 +446,14 @@ class GenericProvider(ModelProvider):
         self._options = dict(options)
 
     def provider_identifier(self) -> str:
-        """Return the configured Java factory identifier.
+        """Return the configured provider identifier.
 
         .. versionadded:: 2.4.0
         """
         return self._identifier
 
     def to_options(self) -> Dict[str, str]:
-        """Return a fresh dictionary of the unchanged Java options.
+        """Return a fresh dictionary of provider options.
 
         .. versionadded:: 2.4.0
         """
@@ -419,30 +485,24 @@ def set_model_provider(
     *args: object, name: object = _UNSET, provider: object = _UNSET,
 ) -> None:
     """
-    Set a process-global provider under an explicit or derived lookup name.
+    Register a model provider configuration.
 
-    Pass only a provider to use its :meth:`ModelProvider.provider_identifier` as
-    the lookup name. A named registration does not inspect the provider. Neither
-    form serializes the provider or accesses Java.
+    Pass a provider alone to register it under its identifier, such as ``openai``.
+    Supply a name to keep several configurations of the same provider.
 
-    Setting an existing name replaces its configuration without changing its list
-    position or the default name. A default bound to that name selects the replacement.
-    Registrations survive clearing or replacing the TableEnvironment.
+    Registering an existing name updates its configuration. Registered providers are
+    shared across DataFrame environments in the current Python process.
 
-    :param name: Explicit lookup name, independent of the Java factory identifier.
-                 Omit it when supplying only a provider.
-    :param provider: Provider configuration, passed alone or with a lookup name.
-    :raises TypeError: If the provider is not a ModelProvider or the lookup name
-                       (explicit or derived) is not a string.
-    :raises ValueError: If the lookup name is empty or whitespace.
+    :param name: Name used to look up the provider. Omit it to use the provider identifier.
+    :param provider: Provider configuration to register.
 
     Example::
 
         >>> import pyflink.dataframe as pf
-        >>> provider = pf.GenericProvider("my-provider")
+        >>> provider = pf.OpenAIProvider(
+        ...     "https://api.openai.com/v1/chat/completions", api_key="key")
         >>> pf.set_model_provider(provider)
-        >>> pf.set_model_provider(provider=provider)
-        >>> pf.set_model_provider(name="custom", provider=provider)
+        >>> pf.set_model_provider("chat", provider)
 
     .. versionadded:: 2.4.0
     """
@@ -470,10 +530,7 @@ def set_model_provider(
 @PublicEvolving()
 def list_model_providers() -> List[str]:
     """
-    Return registered lookup names in first-registration order.
-
-    Replacing a configuration preserves its name's position. The returned list
-    can be modified without affecting registrations.
+    Return registered provider names in registration order.
 
     Example::
 
@@ -490,12 +547,10 @@ def list_model_providers() -> List[str]:
 @PublicEvolving()
 def set_default_model_provider(name: str) -> None:
     """
-    Choose a registered provider as the process-global default.
+    Select the registered provider to use by default.
 
-    A sole registered provider is selected automatically. With multiple providers,
-    explicitly select a default or a provider for each operation. An explicit default
-    remains selected when additional providers are registered. Replacing the configuration
-    at the default name makes subsequent selection use the replacement provider.
+    A single registered provider is selected automatically. If you register several
+    providers, select a default or choose a provider for each operation.
 
     :param name: An already registered provider lookup name.
     :raises ValueError: If the name is not registered.
