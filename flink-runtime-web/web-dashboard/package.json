@@ -40,7 +40,7 @@
     "@angular-eslint/schematics": "^21.4.0",
     "@angular-eslint/template-parser": "21.4.0",
     "@angular/build": "^21.2.23",
-    "@angular/cli": "^21.2.23",
+    "@angular/cli": "^21.2.26",
     "@angular/compiler-cli": "^21.2.22",
     "@types/d3": "^7.4.3",
     "@types/node": "^22.16.0",
