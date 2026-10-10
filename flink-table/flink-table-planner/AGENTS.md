@@ -31,7 +31,7 @@ Full table modules rebuild:
 ./mvnw clean install -T1C -DskipTests -Pskip-webui-build -pl flink-table/flink-table-common,flink-table/flink-sql-parser,flink-table/flink-table-planner-loader,flink-table/flink-table-planner,flink-table/flink-table-api-java -am
 ```
 
-After the first full build, drop `-am` for faster rebuilds when you're only changing code within these modules.
+After the first full build, drop `-am` for faster rebuilds when you're only changing code within these modules. Put it back after switching branches or worktrees. Without it, sibling modules come from `~/.m2`, and an unexplained `cannot find symbol` is usually a stale SNAPSHOT jar there.
 
 ## Key Directory Structure
 
@@ -53,6 +53,7 @@ After the first full build, drop `-am` for faster rebuilds when you're only chan
 - **Physical rules**: Extend `RelRule`, use Immutables `@Value.Immutable` for config. Transform logical nodes to physical nodes. Registered in `FlinkStreamRuleSets` and/or `FlinkBatchRuleSets`.
 - **Logical optimization rules**: Also extend `RelRule`, often use `RexShuttle` for expression rewriting. Registered in rule sets.
 - **Specs**: Serializable specifications in `plan/nodes/exec/spec/` (JoinSpec, WindowSpec, etc.) that carry operator configuration.
+- **Node digest**: Calcite equivalence and `SubplanReuser` identify a physical node by its `explainTerms` items at `DIGEST_ATTRIBUTES`. Anything that makes two nodes different operators must be an item, or they get merged. A node that holds a `TableSourceTable` must render `getQualifiedName` (identifier plus every ability spec digest), not the identifier alone.
 
 ## Common Change Patterns
 
@@ -78,7 +79,7 @@ Some existing rules still use Calcite's older `RelOptRule`; prefer `RelRule` for
 
 Then:
 1. Register in `FlinkStreamRuleSets.scala` and/or `FlinkBatchRuleSets.scala`
-2. Plan tests with XML golden files — when the test fails, copy the framework's generated log file over the reference `.xml` (cases are ordered alphabetically by method name)
+2. Plan tests with XML golden files. When a test fails, copy the generated `<Class>_actual.xml` over the reference `.xml` (cases are ordered alphabetically by method name). A case missing from the reference also fails and the current plan is written to that file, or straight into the reference when it is empty. For a bug fix, write the expected case by hand, or the golden records the bug. `explain/**/*.out` files are plain string goldens; `ExplainTest` regenerates its own under `PLAN_TEST_FORCE_OVERWRITE`, the others are edited by hand.
 3. A same-convention rewrite needs no runtime changes. A `ConverterRule` that produces a new physical node also needs the physical node, ExecNode, and runtime operator — see "Adding a new table operator" above.
 
 ### Extending SQL syntax
@@ -127,7 +128,7 @@ The payoff: downstream rules, exec nodes, codegen, and changelog inference all u
 Choose test types based on what you're changing:
 
 - **Semantic tests** (for ExecNode/operator changes): Use `SemanticTestBase` (streaming) or `BatchSemanticTestBase` (batch) in `plan/nodes/exec/testutils/`. Extends `CommonSemanticTestBase` which implements `TableTestProgramRunner`. Prefer these over ITCase for operators and ExecNodes.
-- **Restore tests** (for stateful operators): Use `RestoreTestBase` or `BatchRestoreTestBase` in `plan/nodes/exec/testutils/`. Implements `TableTestProgramRunner`, uses `@ExtendWith(MiniClusterExtension.class)`. Required when your operator uses state. Tests savepoint creation and job restart in two phases: (1) generate compiled plans + savepoints, (2) verify recovery.
+- **Restore tests** (for stateful operators): Use `RestoreTestBase` or `BatchRestoreTestBase` in `plan/nodes/exec/testutils/`. Implements `TableTestProgramRunner`, uses `@ExtendWith(MiniClusterExtension.class)`. Required when your operator uses state. Tests savepoint creation and job restart in two phases: (1) generate compiled plans + savepoints, (2) verify recovery. The compiled plans under `restore-tests/**/plan/*.json` are inputs: the stream generator is `@Disabled` and the batch one skips existing files. A digest change does not fail them, and their `description` strings drift unless regenerated.
 - **Plan tests** (for optimization rules): Verify the generated execution plan using XML golden files. Used for logical and physical optimization rules.
 - **ITCase** (for built-in functions): Function tests typically use ITCase with `TestSetSpec` for end-to-end verification (e.g., `JsonFunctionsITCase`, `TimeFunctionsITCase`).
 - **JSON plan test regeneration:** Set `PLAN_TEST_FORCE_OVERWRITE=true` environment variable (documented in [README.md](README.md)).
