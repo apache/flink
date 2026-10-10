@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -48,6 +49,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -68,9 +71,7 @@ class BinaryExternalSorterTest {
         if (!spillCompress) {
             conf.set(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, false);
         }
-        if (asyncMerge) {
-            conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED, true);
-        }
+        conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED, asyncMerge);
     }
 
     @Parameters(name = "spillCompress-{0} asyncMerge-{1}")
@@ -134,7 +135,7 @@ class BinaryExternalSorterTest {
                         (AbstractRowDataSerializer) serializer,
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
-                        IntRecordComparator.INSTANCE,
+                        () -> IntRecordComparator.INSTANCE,
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
                         (int)
@@ -181,7 +182,7 @@ class BinaryExternalSorterTest {
                         (AbstractRowDataSerializer) serializer,
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
-                        IntRecordComparator.INSTANCE,
+                        () -> IntRecordComparator.INSTANCE,
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
                         (int)
@@ -229,7 +230,7 @@ class BinaryExternalSorterTest {
                                 return false;
                             }
                         },
-                        IntRecordComparator.INSTANCE,
+                        () -> IntRecordComparator.INSTANCE,
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
                         (int)
@@ -278,7 +279,7 @@ class BinaryExternalSorterTest {
                         (AbstractRowDataSerializer) serializer,
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
-                        IntRecordComparator.INSTANCE,
+                        () -> IntRecordComparator.INSTANCE,
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
                         (int)
@@ -328,12 +329,13 @@ class BinaryExternalSorterTest {
                                 return true;
                             }
                         },
-                        new IntRecordComparator() {
-                            @Override
-                            public int compare(RowData o1, RowData o2) {
-                                return -super.compare(o1, o2);
-                            }
-                        },
+                        () ->
+                                new IntRecordComparator() {
+                                    @Override
+                                    public int compare(RowData o1, RowData o2) {
+                                        return -super.compare(o1, o2);
+                                    }
+                                },
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
                         (int)
@@ -376,6 +378,7 @@ class BinaryExternalSorterTest {
         long minMemorySize =
                 memoryManager.computeNumberOfPages(0.01) * MemoryManager.DEFAULT_PAGE_SIZE;
         conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 8);
+        List<Set<String>> comparatorThreads = new ArrayList<>();
 
         BinaryExternalSorter sorter =
                 new BinaryExternalSorter(
@@ -385,8 +388,30 @@ class BinaryExternalSorterTest {
                         this.ioManager,
                         (AbstractRowDataSerializer) serializer,
                         serializer,
-                        IntNormalizedKeyComputer.INSTANCE,
-                        IntRecordComparator.INSTANCE,
+                        new IntNormalizedKeyComputer() {
+                            @Override
+                            public int compareKey(
+                                    MemorySegment segI,
+                                    int offsetI,
+                                    MemorySegment segJ,
+                                    int offsetJ) {
+                                // make the sorting thread call the record comparator
+                                return 0;
+                            }
+
+                            @Override
+                            public boolean isKeyFullyDetermines() {
+                                return false;
+                            }
+                        },
+                        () -> {
+                            Set<String> threads = ConcurrentHashMap.newKeySet();
+                            comparatorThreads.add(threads);
+                            return (o1, o2) -> {
+                                threads.add(Thread.currentThread().getName());
+                                return IntRecordComparator.INSTANCE.compare(o1, o2);
+                            };
+                        },
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
                         (int)
@@ -409,6 +434,15 @@ class BinaryExternalSorterTest {
         }
 
         sorter.close();
+
+        // generated comparators can be stateful, so the two threads must not share one
+        assertThat(comparatorThreads)
+                .anyMatch(threads -> threads.contains("SortMerger sorting thread"))
+                .anyMatch(threads -> threads.contains("SortMerger merging thread"))
+                .noneMatch(
+                        threads ->
+                                threads.contains("SortMerger sorting thread")
+                                        && threads.contains("SortMerger merging thread"));
     }
 
     @TestTemplate
@@ -431,7 +465,7 @@ class BinaryExternalSorterTest {
                         (AbstractRowDataSerializer) serializer,
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
-                        IntRecordComparator.INSTANCE,
+                        () -> IntRecordComparator.INSTANCE,
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
                         conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
                         (int)
