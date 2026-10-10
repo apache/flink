@@ -250,6 +250,9 @@ object ScalarOperatorGens {
                   case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
                     val rightTerm = s"$rr.getMillisecond()"
                     s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($ll, $rightTerm)"
+                  case (TIME_WITHOUT_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
+                    // TIME is millis of day; casts pick the millisecond overload, not epoch-day
+                    s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}((long) $ll, (long) $rr)"
                   case _ =>
                     s"${qualifyMethod(BuiltInMethods.SUBTRACT_MONTHS)}($ll, $rr)"
                 }
@@ -273,6 +276,12 @@ object ScalarOperatorGens {
                     s"($ll * ${MILLIS_PER_DAY}L) $op $rightTerm"
                   case (TIME_WITHOUT_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
                     s"($ll $op $rr)"
+                  case (TIMESTAMP_WITHOUT_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
+                    val leftTerm = s"$ll.getMillisecond()"
+                    s"$leftTerm $op $rr"
+                  case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+                    val rightTerm = s"$rr.getMillisecond()"
+                    s"$ll $op $rightTerm"
                 }
             }
         }
