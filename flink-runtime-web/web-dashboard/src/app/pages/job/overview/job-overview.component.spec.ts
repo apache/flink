@@ -116,7 +116,7 @@ describe('JobOverviewComponent with a resolved plan', () => {
     streamLinks: [{ id: 'link-1', source: 'node-a', target: 'node-b' } as NodesItemLink]
   };
 
-  function createComponent(): {
+  function createComponent(detail: Partial<JobDetailCorrect> = {}): {
     component: JobOverviewComponent;
     fakeDagre: { showPendingOperators: boolean; flush: ReturnType<typeof vi.fn>; updateNode: ReturnType<typeof vi.fn> };
   } {
@@ -134,7 +134,7 @@ describe('JobOverviewComponent with a resolved plan', () => {
         loadWatermarks: vi.fn().mockReturnValue(of({ lowWatermark: NaN }))
       } as unknown as MetricsService,
       {
-        jobDetailChanges: () => of({ jid: 'job-1', plan: mockPlan } as JobDetailCorrect),
+        jobDetailChanges: () => of({ jid: 'job-1', plan: mockPlan, ...detail } as JobDetailCorrect),
         selectedVertexChanges: () => EMPTY
       } as unknown as JobLocalService,
       {} as unknown as JobService,
@@ -176,5 +176,29 @@ describe('JobOverviewComponent with a resolved plan', () => {
       [{ id: 'vertex-a-node-b', source: 'vertex-a', target: 'node-b', pending: true }],
       true
     );
+  });
+
+  it('marks a streaming job on the adaptive scheduler as rescalable', () => {
+    const { component } = createComponent({ schedulerType: 'Adaptive' });
+    component.ngOnInit();
+
+    expect(component.rescaleSupported).toBe(true);
+  });
+
+  it('does not mark a batch job as rescalable', () => {
+    const { component } = createComponent({
+      plan: { ...mockPlan, type: 'BATCH' },
+      schedulerType: 'Adaptive'
+    });
+    component.ngOnInit();
+
+    expect(component.rescaleSupported).toBe(false);
+  });
+
+  it('does not mark a job as rescalable when the scheduler type is unknown', () => {
+    const { component } = createComponent();
+    component.ngOnInit();
+
+    expect(component.rescaleSupported).toBe(false);
   });
 });
