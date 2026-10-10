@@ -107,6 +107,7 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_INVALID_BROADCAST_STATE_WRITE,
                 ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT_WITH_SCALAR_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_STATEFUL_MULTI_INPUT_WITH_TIMEOUT,
+                ProcessTableFunctionTestPrograms.PROCESS_CLEAR_ALL_TIMERS_KEEPS_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_UPDATING_MULTI_INPUT,
                 ProcessTableFunctionTestPrograms.PROCESS_ORDER_BY,
                 ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT_ORDER_BY,

@@ -100,16 +100,6 @@ public class ProcessTableFunctionTestUtils {
             "CREATE VIEW city AS SELECT * FROM "
                     + "(VALUES ('Bob', 'London'), ('Alice', 'Berlin'), ('Charly', 'Paris')) AS T(name, city)";
 
-    public static final SourceTestStep TIMED_CITY_SOURCE =
-            SourceTestStep.newBuilder("city")
-                    .addSchema(
-                            "name STRING",
-                            "city STRING",
-                            "ts TIMESTAMP_LTZ(3)",
-                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
-                    .producedValues(Row.of("Bob", "London", Instant.ofEpochMilli(0)))
-                    .build();
-
     public static final String UPDATING_VALUES =
             "CREATE VIEW t AS SELECT name, COUNT(*) FROM "
                     + "(VALUES ('Bob', 12), ('Alice', 42), ('Bob', 14)) AS T(name, score) "
@@ -1251,6 +1241,27 @@ public class ProcessTableFunctionTestUtils {
         public void onTimer(OnTimerContext ctx, Tuple1<Integer> score, Tuple1<String> city) {
             collect(Row.of("no city found for score " + score.f0));
             score.f0 = null;
+        }
+    }
+
+    /** Testing function. */
+    public static class ClearAllTimersKeepsStateFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint Tuple1<Integer> count,
+                @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row r) {
+            final TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
+            count.f0 = count.f0 == null ? 1 : count.f0 + 1;
+            if (count.f0 == 1) {
+                timeCtx.registerOnTime("timeout", timeCtx.time().plusMillis(1000));
+            } else if (count.f0 == 2) {
+                ctx.clearAllTimers();
+            }
+            collect(Row.of("count " + count.f0));
+        }
+
+        public void onTimer(OnTimerContext ctx, Tuple1<Integer> count) {
+            collect(Row.of("timeout with count " + count.f0));
         }
     }
 
