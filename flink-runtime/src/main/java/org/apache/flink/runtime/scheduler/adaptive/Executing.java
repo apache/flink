@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsListener;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -389,11 +390,33 @@ class Executing extends StateWithExecutionGraph
     }
 
     @Override
-    public void onFailedCheckpoint() {
+    public void onFailedCheckpoint(@Nullable CheckpointFailureReason reason) {
+        if (!isRescaleRelevantFailure(reason)) {
+            return;
+        }
+        // The countdown advances once per counted failure notification; unlike
+        // CheckpointFailureManager it does not dedup by checkpoint id. This is acceptable because
+        // the countdown is reset (to null) on the next completed checkpoint or rescale trigger, so
+        // at most one spurious decrement could ever accumulate within a single countdown window.
         if (this.failedCheckpointCountdown != null
                 && this.failedCheckpointCountdown.decrementAndGet() <= 0) {
             triggerPotentialRescale();
         }
+    }
+
+    /**
+     * Whether a failed checkpoint with the given reason should advance the
+     * rescale-on-failed-checkpoints countdown. Delegates to {@link
+     * CheckpointFailureReason#isCountedAgainstFailureThreshold()} — the single source of truth
+     * shared with {@link
+     * org.apache.flink.runtime.checkpoint.CheckpointFailureManager#checkFailureCounter} — so the
+     * countdown stays consistent with the job-level failure counter. A {@code null} reason carries
+     * no such classification and is ignored; no production notification path yields a countable
+     * {@code null} reason, as a failure with an in-progress checkpoint always originates from a
+     * {@link org.apache.flink.runtime.checkpoint.CheckpointException}.
+     */
+    private static boolean isRescaleRelevantFailure(@Nullable CheckpointFailureReason reason) {
+        return reason != null && reason.isCountedAgainstFailureThreshold();
     }
 
     private void triggerPotentialRescale() {
