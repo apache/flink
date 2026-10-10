@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.BindException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
@@ -41,6 +42,9 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -140,6 +144,65 @@ class ArtifactFetchManagerTest {
     }
 
     @Test
+    void testAPartlyFetchedArtifactIsFetchedAgain() throws Exception {
+        configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
+        final byte[] artifact = RandomUtils.nextBytes(64 * 1024);
+        HttpServer httpServer = null;
+        try {
+            httpServer = startHttpServer();
+            httpServer.createContext(
+                    "/download/test.jar", new TruncatedOnceHttpDownloadHandler(artifact));
+            final String uriStr =
+                    String.format(
+                            "http://127.0.0.1:%d/download/test.jar",
+                            httpServer.getAddress().getPort());
+
+            final ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
+            assertThatThrownBy(() -> fetchMgr.fetchArtifacts(uriStr, null))
+                    .isInstanceOf(IOException.class);
+            try (Stream<Path> files = Files.walk(tempDir)) {
+                assertThat(files.map(Path::getFileName).map(Path::toString))
+                        .doesNotContain("test.jar");
+            }
+
+            final ArtifactFetchManager.Result res = fetchMgr.fetchArtifacts(uriStr, null);
+            assertThat(res.getJobJar()).hasBinaryContent(artifact);
+        } finally {
+            if (httpServer != null) {
+                httpServer.stop(0);
+            }
+        }
+    }
+
+    @Test
+    void testAUriWithoutAFileNameIsWrittenToItsPerUriPath(@TempDir Path pseudoJarDir)
+            throws Exception {
+        configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
+        HttpServer httpServer = null;
+        try {
+            httpServer = startHttpServer();
+            final File sourceFile =
+                    Files.createTempFile(pseudoJarDir, "testNoFinalPathSegment", ".jar").toFile();
+            Files.write(sourceFile.toPath(), RandomUtils.nextBytes(1024));
+            httpServer.createContext("/", new DummyHttpDownloadHandler(sourceFile));
+            final String uriStr =
+                    String.format("http://127.0.0.1:%d/?id=1", httpServer.getAddress().getPort());
+
+            final ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
+            final ArtifactFetchManager.Result res = fetchMgr.fetchArtifacts(uriStr, null);
+
+            assertThat(res.getJobJar()).hasParent(tempDir.toFile());
+            assertThat(res.getJobJar()).hasSameBinaryContentAs(sourceFile);
+            assertThat(fetchMgr.fetchArtifacts(uriStr, null).getJobJar())
+                    .isEqualTo(res.getJobJar());
+        } finally {
+            if (httpServer != null) {
+                httpServer.stop(0);
+            }
+        }
+    }
+
+    @Test
     void testMixedArtifactFetch(@TempDir Path pseudoJarDir) throws Exception {
         File sourceFile = TestingUtils.getClassFile(getClass());
         String uriStr = "file://" + sourceFile.toURI().getPath();
@@ -156,20 +219,110 @@ class ArtifactFetchManagerTest {
     }
 
     @Test
-    void testNoFetchOverride() throws Exception {
-        DummyFetcher dummyFetcher = new DummyFetcher();
-        ArtifactFetchManager fetchMgr =
+    void testTheSameUriIsReused() throws Exception {
+        final CountingFetcher fsFetcher = new CountingFetcher(new FsArtifactFetcher());
+        final ArtifactFetchManager fetchMgr =
                 new ArtifactFetchManager(
-                        dummyFetcher, dummyFetcher, dummyFetcher, configuration, null);
+                        new LocalArtifactFetcher(),
+                        fsFetcher,
+                        new HttpArtifactFetcher(),
+                        configuration,
+                        null);
+        final String uriStr = "file://" + TestingUtils.getClassFile(getClass()).toURI().getPath();
 
-        File sourceFile = TestingUtils.getClassFile(getClass());
-        Path destFile = tempDir.resolve(sourceFile.getName());
-        Files.copy(sourceFile.toPath(), destFile);
+        final File first = fetchMgr.fetchArtifacts(uriStr, null).getJobJar();
+        final File second = fetchMgr.fetchArtifacts(uriStr, null).getJobJar();
 
-        String uriStr = "file://" + sourceFile.toURI().getPath();
-        fetchMgr.fetchArtifacts(uriStr, null);
+        assertThat(second).isEqualTo(first);
+        assertThat(fsFetcher.fetchCount).isOne();
+    }
 
-        assertThat(dummyFetcher.fetchCount).isZero();
+    @Test
+    void testUrisDifferingOnlyInQueryAreFetchedSeparately() throws Exception {
+        configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
+        final byte[] version1 = RandomUtils.nextBytes(1024);
+        final byte[] version2 = RandomUtils.nextBytes(1024);
+        HttpServer httpServer = null;
+        try {
+            httpServer = startHttpServer();
+            httpServer.createContext(
+                    "/download/test.jar",
+                    new ByRequestUriHttpDownloadHandler(
+                            Map.of(
+                                    "/download/test.jar?version=1", version1,
+                                    "/download/test.jar?version=2", version2)));
+            final String uriPrefix =
+                    String.format(
+                            "http://127.0.0.1:%d/download/test.jar?version=",
+                            httpServer.getAddress().getPort());
+
+            final ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
+            final File fetched1 = fetchMgr.fetchArtifacts(uriPrefix + 1, null).getJobJar();
+            final File fetched2 = fetchMgr.fetchArtifacts(uriPrefix + 2, null).getJobJar();
+
+            assertThat(fetched1).hasName("test.jar").hasBinaryContent(version1);
+            assertThat(fetched2).hasName("test.jar").hasBinaryContent(version2);
+        } finally {
+            if (httpServer != null) {
+                httpServer.stop(0);
+            }
+        }
+    }
+
+    @Test
+    void testUrisWithTheSameFileNameAreFetchedSeparately() throws Exception {
+        configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
+        final byte[] version1 = RandomUtils.nextBytes(1024);
+        final byte[] version2 = RandomUtils.nextBytes(1024);
+        HttpServer httpServer = null;
+        try {
+            httpServer = startHttpServer();
+            httpServer.createContext(
+                    "/",
+                    new ByRequestUriHttpDownloadHandler(
+                            Map.of("/v1/test.jar", version1, "/v2/test.jar", version2)));
+            final String uriPrefix =
+                    String.format("http://127.0.0.1:%d/", httpServer.getAddress().getPort());
+
+            final ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
+            final File fetched1 =
+                    fetchMgr.fetchArtifacts(uriPrefix + "v1/test.jar", null).getJobJar();
+            final File fetched2 =
+                    fetchMgr.fetchArtifacts(uriPrefix + "v2/test.jar", null).getJobJar();
+
+            assertThat(fetched1).hasName("test.jar").hasBinaryContent(version1);
+            assertThat(fetched2).hasName("test.jar").hasBinaryContent(version2);
+        } finally {
+            if (httpServer != null) {
+                httpServer.stop(0);
+            }
+        }
+    }
+
+    @Test
+    void testAnArtifactFromBeforeTheUpgradeIsNotReused() throws Exception {
+        final File sourceFile = TestingUtils.getClassFile(getClass());
+        final Path oldLayoutFile = tempDir.resolve(sourceFile.getName());
+        Files.write(oldLayoutFile, new byte[] {1, 2, 3});
+        final String uriStr = "file://" + sourceFile.toURI().getPath();
+
+        final ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
+        final File fetched = fetchMgr.fetchArtifacts(uriStr, null).getJobJar();
+
+        assertThat(fetched).isNotEqualTo(oldLayoutFile.toFile());
+        assertThat(fetched).hasSameBinaryContentAs(sourceFile);
+    }
+
+    @Test
+    void testALocalArtifactIsNotReplacedByAFileInTheBaseDir() throws Exception {
+        final File sourceFile = TestingUtils.getClassFile(getClass());
+        Files.write(tempDir.resolve(sourceFile.getName()), new byte[] {1, 2, 3});
+        final String uriStr = "local://" + sourceFile.toURI().getPath();
+
+        final ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
+        final File fetched = fetchMgr.fetchArtifacts(uriStr, null).getJobJar();
+
+        assertThat(fetched).isEqualTo(sourceFile);
     }
 
     @Test
@@ -251,14 +404,69 @@ class ArtifactFetchManagerTest {
         }
     }
 
-    private static class DummyFetcher extends ArtifactFetcher {
+    /** Sends half the artifact on the first request, and serves in full on subsequent requests. */
+    private static class TruncatedOnceHttpDownloadHandler implements HttpHandler {
 
-        int fetchCount = 0;
+        private final byte[] artifact;
+        private final AtomicBoolean truncated = new AtomicBoolean();
+
+        TruncatedOnceHttpDownloadHandler(byte[] artifact) {
+            this.artifact = artifact;
+        }
 
         @Override
-        File fetch(String uri, Configuration flinkConfiguration, File targetDir) {
+        public void handle(HttpExchange exchange) throws IOException {
+            exchange.getResponseHeaders().add("Content-Type", "application/octet-stream");
+            if (truncated.compareAndSet(false, true)) {
+                exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
+                final OutputStream body = exchange.getResponseBody();
+                body.write(artifact, 0, artifact.length / 2);
+                body.flush();
+                // the server drops the connection without sending the final chunk
+                throw new IOException("connection reset");
+            }
+            exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, artifact.length);
+            exchange.getResponseBody().write(artifact);
+            exchange.close();
+        }
+    }
+
+    /** Serves the content mapped to each request's path and query. */
+    private static class ByRequestUriHttpDownloadHandler implements HttpHandler {
+
+        private final Map<String, byte[]> contentByRequestUri;
+
+        ByRequestUriHttpDownloadHandler(Map<String, byte[]> contentByRequestUri) {
+            this.contentByRequestUri = contentByRequestUri;
+        }
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            final byte[] content = contentByRequestUri.get(exchange.getRequestURI().toString());
+            if (content == null) {
+                exchange.sendResponseHeaders(HttpURLConnection.HTTP_NOT_FOUND, -1);
+            } else {
+                exchange.getResponseHeaders().add("Content-Type", "application/octet-stream");
+                exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, content.length);
+                exchange.getResponseBody().write(content);
+            }
+            exchange.close();
+        }
+    }
+
+    private static class CountingFetcher extends ArtifactFetcher {
+
+        private final ArtifactFetcher delegate;
+        int fetchCount = 0;
+
+        CountingFetcher(ArtifactFetcher delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        File fetch(String uri, Configuration flinkConfiguration, File targetDir) throws Exception {
             ++fetchCount;
-            return null;
+            return delegate.fetch(uri, flinkConfiguration, targetDir);
         }
     }
 }

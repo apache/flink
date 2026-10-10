@@ -22,7 +22,6 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
-import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +42,7 @@ class FsArtifactFetcher extends ArtifactFetcher {
         String fileName = source.getName();
         File targetFile = new File(targetDir, fileName);
         try (FSDataInputStream inputStream = fileSystem.open(source)) {
-            FileUtils.copyToFile(inputStream, targetFile);
+            ArtifactUtils.copyToFileWhenComplete(inputStream, targetFile);
         }
         LOG.debug(
                 "Copied file from {} to {}, cost {} ms",

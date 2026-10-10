@@ -167,7 +167,7 @@ Please be aware that already existing artifacts will not be overwritten during a
 
 {{< hint info >}}
 JAR fetching supports downloading from [filesystems]({{< ref "docs/deployment/filesystems/overview" >}}) or HTTP(S) in Application Mode.  
-The JAR will be downloaded to
+The JAR will be downloaded to a sub-directory in
 [user.artifacts.base-dir]({{< ref "docs/deployment/config" >}}#user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) path in image.
 {{< /hint >}}
 
