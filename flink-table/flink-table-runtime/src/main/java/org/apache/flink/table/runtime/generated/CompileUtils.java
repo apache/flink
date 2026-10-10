@@ -23,6 +23,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava33.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.util.concurrent.UncheckedExecutionException;
 
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.ExpressionEvaluator;
@@ -32,7 +33,9 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -67,10 +70,19 @@ public final class CompileUtils {
                     .softValues()
                     .build();
 
+    /** Bytecode by code, cooked once and shared across classloaders. */
+    static final Cache<String, Map<String, byte[]>> BYTECODE_CACHE =
+            CacheBuilder.newBuilder()
+                    .expireAfterAccess(Duration.ofMinutes(5))
+                    .maximumSize(300)
+                    .softValues()
+                    .build();
+
     /** Triggers internal garbage collection of expired cache entries. */
     public static void cleanUp() {
         COMPILED_CLASS_CACHE.cleanUp();
         COMPILED_EXPRESSION_CACHE.cleanUp();
+        BYTECODE_CACHE.cleanUp();
     }
 
     /**
@@ -95,8 +107,32 @@ public final class CompileUtils {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static <T> Class<T> doCompile(ClassLoader cl, String name, String code) {
         checkNotNull(cl, "Classloader must not be null.");
+        // Generated code only references types that resolve the same way under every classloader,
+        // so the bytecode is cooked once per code and defined into cl.
+        final Map<String, byte[]> byteCodes = sharedByteCode(cl, name, code);
+        try {
+            return (Class<T>) new ByteArrayClassLoader(cl, byteCodes).loadClass(name);
+        } catch (ClassNotFoundException e) {
+            throw new FlinkRuntimeException("Can not load class " + name, e);
+        }
+    }
+
+    private static Map<String, byte[]> sharedByteCode(ClassLoader cl, String name, String code) {
+        try {
+            return BYTECODE_CACHE.get(code, () -> cook(cl, name, code));
+        } catch (ExecutionException | UncheckedExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            throw new FlinkRuntimeException(cause);
+        }
+    }
+
+    private static Map<String, byte[]> cook(ClassLoader cl, String name, String code) {
         CODE_LOG.debug("Compiling: {} \n\n Code:\n{}", name, code);
         SimpleCompiler compiler = new SimpleCompiler();
         compiler.setParentClassLoader(cl);
@@ -107,12 +143,7 @@ public final class CompileUtils {
             throw new InvalidProgramException(
                     "Table program cannot be compiled. This is a bug. Please file an issue.", t);
         }
-        try {
-            //noinspection unchecked
-            return (Class<T>) compiler.getClassLoader().loadClass(name);
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException("Can not load class " + name, e);
-        }
+        return compiler.getBytecodes();
     }
 
     /**
@@ -168,6 +199,25 @@ public final class CompileUtils {
                     });
         } catch (Exception e) {
             throw new FlinkRuntimeException(e.getMessage(), e);
+        }
+    }
+
+    /** Defines classes from cached bytecode, delegating referenced types to the parent. */
+    private static final class ByteArrayClassLoader extends ClassLoader {
+        private final Map<String, byte[]> byteCodes;
+
+        ByteArrayClassLoader(ClassLoader parent, Map<String, byte[]> byteCodes) {
+            super(parent);
+            this.byteCodes = byteCodes;
+        }
+
+        @Override
+        protected Class<?> findClass(String className) throws ClassNotFoundException {
+            final byte[] byteCode = byteCodes.get(className);
+            if (byteCode == null) {
+                throw new ClassNotFoundException(className);
+            }
+            return defineClass(className, byteCode, 0, byteCode.length);
         }
     }
 
