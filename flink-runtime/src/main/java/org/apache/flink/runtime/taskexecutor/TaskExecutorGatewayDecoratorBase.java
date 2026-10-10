@@ -188,6 +188,11 @@ public class TaskExecutorGatewayDecoratorBase implements TaskExecutorGateway {
     }
 
     @Override
+    public void fenceAndStop(Exception cause) {
+        originalGateway.fenceAndStop(cause);
+    }
+
+    @Override
     public CompletableFuture<Acknowledge> freeSlot(
             AllocationID allocationId, Throwable cause, Duration timeout) {
         return originalGateway.freeSlot(allocationId, cause, timeout);
