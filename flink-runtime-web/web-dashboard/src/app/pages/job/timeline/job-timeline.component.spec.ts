@@ -59,16 +59,20 @@ const mockSubTaskTimes = {
   ]
 };
 
+type IntervalMark = JobTimelineComponent['mainInterval'];
+
 // G2 charts draw to a canvas that jsdom cannot render, so the chart setup is
 // replaced with lightweight fakes that record the data/render calls.
-const createFakeChart = (): Chart =>
-  ({ width: 800, changeSize: vi.fn(), data: vi.fn(), scale: vi.fn(), render: vi.fn() }) as unknown as Chart;
+const createFakeChart = (): Chart => ({ changeSize: vi.fn(), render: vi.fn() }) as unknown as Chart;
+const createFakeInterval = (): IntervalMark => ({ data: vi.fn(), scale: vi.fn() }) as unknown as IntervalMark;
 
 describe('JobTimelineComponent', () => {
   let fixture: ComponentFixture<JobTimelineComponent>;
   let component: JobTimelineComponent;
   let fakeMain: Chart;
   let fakeSub: Chart;
+  let fakeMainInterval: IntervalMark;
+  let fakeSubInterval: IntervalMark;
   const loadSubTaskTimes = vi.fn();
 
   beforeEach(async () => {
@@ -86,11 +90,15 @@ describe('JobTimelineComponent', () => {
 
     fakeMain = createFakeChart();
     fakeSub = createFakeChart();
+    fakeMainInterval = createFakeInterval();
+    fakeSubInterval = createFakeInterval();
     vi.spyOn(component, 'setUpMainChart').mockImplementation(() => {
       component.mainChartInstance = fakeMain;
+      component.mainInterval = fakeMainInterval;
     });
     vi.spyOn(component, 'setUpSubTaskChart').mockImplementation(() => {
       component.subTaskChartInstance = fakeSub;
+      component.subTaskInterval = fakeSubInterval;
     });
   });
 
@@ -101,7 +109,7 @@ describe('JobTimelineComponent', () => {
     expect(component.listOfVertex.map(v => v.id)).toEqual(['v1', 'v2']);
     expect(component.listOfVertex[0].range).toEqual([1000, 2000]);
     expect(component.listOfVertex[1].range).toEqual([3000, 3500]);
-    expect(fakeMain.data).toHaveBeenCalledWith(component.listOfVertex);
+    expect(fakeMainInterval.data).toHaveBeenCalledWith(component.listOfVertex);
     expect(fakeMain.render).toHaveBeenCalled();
   });
 
@@ -118,7 +126,7 @@ describe('JobTimelineComponent', () => {
       // The final status runs until the subtask's overall finish (first start + duration).
       { name: '0 - host-a', status: 'FINISHED', range: [1700, 2000] }
     ]);
-    expect(fakeSub.data).toHaveBeenCalledWith(component.listOfSubTaskTimeLine);
+    expect(fakeSubInterval.data).toHaveBeenCalledWith(component.listOfSubTaskTimeLine);
     expect(fakeSub.render).toHaveBeenCalled();
   });
 });

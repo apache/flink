@@ -37,14 +37,17 @@ describe('JobChartComponent', () => {
   });
 
   it('appends the metric value for its own title and forwards data to the chart', () => {
-    const changeData = vi.fn();
-    component.chartInstance = { changeData } as unknown as Chart;
+    const data = vi.fn();
+    const render = vi.fn();
+    component.chartInstance = { render } as unknown as Chart;
+    component.lineMark = { data } as unknown as JobChartComponent['lineMark'];
 
     component.refresh({ timestamp: 1000, values: { cpu: 42, mem: 7 } });
 
     expect(component.latestValue).toBe(42);
     expect(component.data).toEqual([{ time: 1000, value: 42, type: 'cpu' }]);
-    expect(changeData).toHaveBeenCalledWith(component.data);
+    expect(data).toHaveBeenCalledWith(component.data);
+    expect(render).toHaveBeenCalled();
   });
 
   it('keeps only the most recent 20 samples', () => {
