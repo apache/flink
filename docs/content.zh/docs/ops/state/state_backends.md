@@ -485,7 +485,7 @@ env.enable_changelog_statebackend(true)
 - 给定一个没有开启 Changelog 的作业
 - 创建一个 [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 或一个 [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
 - 更改配置（开启 Changelog）
-- 从创建的 snapshot 恢复
+- 使用 [`CLAIM`]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 恢复模式从创建的 snapshot 恢复（参见[限制](#limitations)）
 
 **关闭 Changelog**
 
@@ -493,14 +493,18 @@ env.enable_changelog_statebackend(true)
 - 给定一个开启 Changelog 的作业
 - 创建一个 [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) 或一个 [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
 - 更改配置（关闭 Changelog）
-- 从创建的 snapshot 恢复
+- 使用 [`CLAIM`]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 恢复模式从创建的 snapshot 恢复（参见[限制](#limitations)）
+
+{{< hint warning >}}
+Changelog state backend 不支持 `NO_CLAIM` [恢复模式]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}})，而这是**默认**模式。恢复涉及 Changelog 状态的作业时，必须使用 `CLAIM`（或已废弃的 `LEGACY`）恢复模式。在 `NO_CLAIM` 模式下，作业能够成功恢复，但会在第一次 checkpoint 时失败，抛出 `java.lang.IllegalStateException: Configured state backend (...ChangelogStateBackend...) does not support enforcing a full snapshot`。
+{{< /hint >}}
 
 <a name="limitations"></a>
 
 ### 限制
 - 最多同时创建一个 checkpoint
 - 到 Flink 1.15 为止, 只有 `filesystem` changelog 实现可用
-- 尚不支持 [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 模式
+- 尚不支持 [`NO_CLAIM`]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) 恢复模式；请改用 `CLAIM`（或已废弃的 `LEGACY`）恢复模式（参见上面的说明）
 
 {{< top >}}
 
