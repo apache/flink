@@ -287,6 +287,41 @@ public class CheckpointingOptions {
                                     + "covers keyed state backends (including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend).");
 
     // ------------------------------------------------------------------------
+    //  Options related to regional checkpoint
+    // ------------------------------------------------------------------------
+
+    @Experimental
+    @Documentation.Section(Documentation.Sections.EXPERT_CHECKPOINTING)
+    public static final ConfigOption<Boolean> REGIONAL_CHECKPOINT_ENABLED =
+            ConfigOptions.key("execution.checkpointing.region.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Global switch for Regional Checkpoint. When enabled, partial "
+                                    + "region failures during checkpoint will not abort the entire "
+                                    + "checkpoint. Historical state will be used for failed regions.");
+
+    @Experimental
+    @Documentation.Section(Documentation.Sections.EXPERT_CHECKPOINTING)
+    public static final ConfigOption<Double> REGIONAL_CHECKPOINT_MAX_FAILURE_RATIO =
+            ConfigOptions.key("execution.checkpointing.region.max-failure-ratio")
+                    .doubleType()
+                    .defaultValue(0.3)
+                    .withDescription(
+                            "Maximum ratio of regions that may fail within a single checkpoint "
+                                    + "and still allow commit.");
+
+    @Experimental
+    @Documentation.Section(Documentation.Sections.EXPERT_CHECKPOINTING)
+    public static final ConfigOption<Integer> REGIONAL_CHECKPOINT_MAX_CONSECUTIVE_FAILURES =
+            ConfigOptions.key("execution.checkpointing.region.max-consecutive-failures")
+                    .intType()
+                    .defaultValue(2)
+                    .withDescription(
+                            "Maximum number of consecutive checkpoints that may reference "
+                                    + "historical checkpoint state.");
+
+    // ------------------------------------------------------------------------
     //  Options related to file merging
     // ------------------------------------------------------------------------
 
