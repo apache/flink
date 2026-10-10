@@ -493,7 +493,16 @@ Resuming from both savepoints and checkpoints is supported:
 - given an existing non-changelog job
 - take either a [savepoint]({{< ref "docs/ops/state/savepoints#resuming-from-savepoints" >}}) or a [checkpoint]({{< ref "docs/ops/state/checkpoints#resuming-from-a-retained-checkpoint" >}})
 - alter configuration (enable Changelog)
-- resume from the taken snapshot
+- resume from the taken snapshot in [CLAIM]({{< ref "docs/ops/state/savepoints#claim-mode" >}}) mode
+
+{{< hint warning >}}
+The Changelog state backend does not support the default `NO_CLAIM` mode. A job with Changelog enabled
+that is resumed in `NO_CLAIM` mode restores successfully, but its checkpoints then fail with an
+`IllegalStateException` stating that the state backend does not support enforcing a full snapshot,
+so the job never completes a checkpoint.
+Set [`execution.state-recovery.claim-mode`]({{< ref "docs/deployment/config#execution-state-recovery-claim-mode" >}})
+to `CLAIM` (or pass `-claimMode CLAIM` to `bin/flink run`) whenever you resume a job with Changelog enabled.
+{{< /hint >}}
 
 **Disabling Changelog**
 
@@ -506,7 +515,7 @@ Resuming from both savepoints and checkpoints is supported:
 ### Limitations
  - At most one concurrent checkpoint
  - As of Flink 1.15, only `filesystem` changelog implementation is available
-- [NO_CLAIM]({{< ref "docs/deployment/config#execution-savepoint-restore-mode" >}}) mode not supported
+- [NO_CLAIM]({{< ref "docs/ops/state/savepoints#claim-mode" >}}) mode not supported: jobs with Changelog enabled must be resumed in `CLAIM` mode
 
 ## Migrating from Legacy Backends
 

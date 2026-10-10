@@ -216,6 +216,8 @@ $ bin/flink run -s :savepointPath -claimMode :mode -n [:runArgs]
   {{< img src="/fig/restore-mode-no_claim.svg" alt="NO_CLAIM mode" width="70%" >}}
 </div>
 
+[Changelog state backend]({{< ref "docs/ops/state/state_backends#upgrading-existing-jobs" >}}) 不支持强制创建全量 checkpoint，因此开启 Changelog 的作业必须以 *CLAIM* 模式恢复。
+
 **CLAIM**
 
 另一个可选的模式是 *CLAIM* 模式。该模式下 Flink 将声称拥有快照的所有权，并且本质上将其作为 checkpoint 对待：控制其生命周期并且可能会在其永远不会被用于恢复的时候删除它。因此，手动删除快照和从同一个快照上启动两个作业都是不安全的。Flink 会保持[配置数量]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}/#state-checkpoints-num-retained)的 checkpoint。

@@ -252,6 +252,8 @@ this earlier, because without any completed checkpoints Flink will - upon failur
   {{< img src="/fig/restore-mode-no_claim.svg" alt="NO_CLAIM claim mode" width="70%" >}}
 </div>
 
+The [Changelog state backend]({{< ref "docs/ops/state/state_backends#upgrading-existing-jobs" >}}) cannot take the enforced full checkpoint, so jobs with Changelog enabled must be resumed in *CLAIM* mode.
+
 **CLAIM**
 
 The other available mode is the *CLAIM* mode. In this mode Flink claims ownership of the snapshot
