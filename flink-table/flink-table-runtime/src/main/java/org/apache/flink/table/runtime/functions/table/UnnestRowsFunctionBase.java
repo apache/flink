@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.functions.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -154,6 +155,14 @@ public abstract class UnnestRowsFunctionBase extends BuiltInSpecializedFunction 
         @Override
         public DataType getOutputDataType() {
             return outputDataType;
+        }
+
+        protected static int getRowArity(LogicalType elementType) {
+            return elementType instanceof RowType ? ((RowType) elementType).getFieldCount() : -1;
+        }
+
+        protected static Object normalizeCollectionElement(Object element, int rowArity) {
+            return element == null && rowArity >= 0 ? new GenericRowData(rowArity) : element;
         }
 
         protected void evalArrayData(
