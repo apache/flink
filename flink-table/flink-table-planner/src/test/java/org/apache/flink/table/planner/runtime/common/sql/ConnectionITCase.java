@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.runtime.batch.sql;
+package org.apache.flink.table.planner.runtime.common.sql;
 
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
@@ -25,10 +28,11 @@ import org.apache.flink.table.catalog.CatalogConnection;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.factories.DefaultConnectionFactory;
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.utils.TestingTableEnvironment;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -38,14 +42,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 
-/** IT case for CREATE CONNECTION statement. */
-class CreateConnectionITCase extends BatchTestBase {
+/** IT cases for connection statements. */
+class ConnectionITCase {
+
+    private TableEnvironment tEnv;
+
+    @BeforeEach
+    void setup() {
+        tEnv =
+                TestingTableEnvironment.create(
+                        EnvironmentSettings.inBatchMode(), null, TableConfig.getDefault());
+    }
 
     @Test
     void testCreateTemporaryConnection() {
-        tEnv().executeSql(
-                        "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
-                                + "WITH ('k' = 'v')");
+        tEnv.executeSql(
+                "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' " + "WITH ('k' = 'v')");
 
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn")))
                 .hasValueSatisfying(
@@ -57,16 +69,16 @@ class CreateConnectionITCase extends BatchTestBase {
 
     @Test
     void testCreateTemporaryConnectionRejectsDuplicate() {
-        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v1')");
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v1')");
 
         assertThatThrownBy(
                         () ->
-                                tEnv().executeSql(
-                                                "CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v2')"))
+                                tEnv.executeSql(
+                                        "CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v2')"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Temporary connection");
 
-        tEnv().executeSql("CREATE TEMPORARY CONNECTION IF NOT EXISTS my_conn WITH ('k' = 'v2')");
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION IF NOT EXISTS my_conn WITH ('k' = 'v2')");
 
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn")))
                 .hasValueSatisfying(
@@ -76,9 +88,85 @@ class CreateConnectionITCase extends BatchTestBase {
 
     @Test
     void testCreatePermanentConnectionRejectedWithoutSecretStore() {
-        assertThatThrownBy(() -> tEnv().executeSql("CREATE CONNECTION my_conn WITH ('k' = 'v')"))
+        assertThatThrownBy(() -> tEnv.executeSql("CREATE CONNECTION my_conn WITH ('k' = 'v')"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("WritableSecretStore must be configured");
+    }
+
+    @Test
+    void testDropTemporaryConnection() {
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isPresent();
+
+        tEnv.executeSql("DROP TEMPORARY CONNECTION my_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+    }
+
+    @Test
+    void testDropTemporaryConnectionIfExists() {
+        tEnv.executeSql("DROP TEMPORARY CONNECTION IF EXISTS my_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+    }
+
+    @Test
+    void testDropMissingTemporaryConnectionRejected() {
+        assertThatThrownBy(() -> tEnv.executeSql("DROP TEMPORARY CONNECTION my_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Temporary connection with identifier '%s' does not exist.",
+                        connectionIdentifier("my_conn").asSummaryString());
+    }
+
+    @Test
+    void testDropPermanentConnection() throws Exception {
+        ObjectIdentifier identifier = connectionIdentifier("my_conn");
+        catalogManager()
+                .getCatalog(identifier.getCatalogName())
+                .orElseThrow()
+                .createConnection(
+                        identifier.toObjectPath(),
+                        CatalogConnection.of(Map.of("k", "v"), null),
+                        false);
+        assertThat(catalogManager().getConnection(identifier)).isPresent();
+
+        tEnv.executeSql("DROP CONNECTION my_conn");
+
+        assertThat(catalogManager().getConnection(identifier)).isEmpty();
+    }
+
+    @Test
+    void testDropPermanentConnectionIfExists() {
+        tEnv.executeSql("DROP CONNECTION IF EXISTS my_conn");
+
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isEmpty();
+    }
+
+    @Test
+    void testDropMissing() {
+        assertThatThrownBy(() -> tEnv.executeSql("DROP CONNECTION my_conn"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Connection with identifier '%s' does not exist.",
+                        connectionIdentifier("my_conn").asSummaryString());
+    }
+
+    @Test
+    void testDropTemporarySystemConnectionRejected() {
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
+
+        for (String statement :
+                List.of(
+                        "DROP TEMPORARY SYSTEM CONNECTION my_conn",
+                        "DROP TEMPORARY SYSTEM CONNECTION IF EXISTS my_conn",
+                        "DROP TEMPORARY SYSTEM CONNECTION IF EXISTS missing_conn")) {
+            assertThatThrownBy(() -> tEnv.executeSql(statement))
+                    .isInstanceOf(ValidationException.class)
+                    .hasMessageContaining("DROP TEMPORARY SYSTEM CONNECTION is not supported");
+            assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isPresent();
+        }
     }
 
     @Test
@@ -107,9 +195,9 @@ class CreateConnectionITCase extends BatchTestBase {
 
     @Test
     void testShowCreateTemporaryConnection() {
-        tEnv().executeSql(
-                        "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
-                                + "WITH ('type' = 'default', 'k' = 'v', 'password' = 'super-secret')");
+        tEnv.executeSql(
+                "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
+                        + "WITH ('type' = 'default', 'k' = 'v', 'password' = 'super-secret')");
 
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn")))
                 .hasValueSatisfying(
@@ -138,7 +226,7 @@ class CreateConnectionITCase extends BatchTestBase {
 
     @Test
     void testShowCreateSecretOnlyTemporaryConnection() {
-        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'super-secret')");
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'super-secret')");
 
         List<Row> rows = collectRows("SHOW CREATE CONNECTION my_conn");
 
@@ -152,7 +240,7 @@ class CreateConnectionITCase extends BatchTestBase {
                 .doesNotContain(DefaultConnectionFactory.SECRET_REFERENCE_KEY);
 
         catalogManager().dropTemporaryConnection(connectionIdentifier("my_conn"), false);
-        tEnv().executeSql(showCreate);
+        tEnv.executeSql(showCreate);
 
         assertThat(catalogManager().getConnection(connectionIdentifier("my_conn")))
                 .hasValueSatisfying(
@@ -163,10 +251,10 @@ class CreateConnectionITCase extends BatchTestBase {
 
     @Test
     void testDescribeTemporaryConnection() {
-        tEnv().executeSql(
-                        "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
-                                + "WITH ('type' = 'default', 'k' = 'v', 'comment' = 'option comment', "
-                                + "'password' = 'super-secret')");
+        tEnv.executeSql(
+                "CREATE TEMPORARY CONNECTION my_conn COMMENT 'hi there' "
+                        + "WITH ('type' = 'default', 'k' = 'v', 'comment' = 'option comment', "
+                        + "'password' = 'super-secret')");
 
         List<Row> rows = collectRows("DESCRIBE CONNECTION my_conn");
 
@@ -181,7 +269,7 @@ class CreateConnectionITCase extends BatchTestBase {
 
     @Test
     void testDescribeSecretOnlyConnectionIncludesDefaultType() {
-        tEnv().executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'secret')");
+        tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('password' = 'secret')");
 
         assertThat(collectRows("DESCRIBE CONNECTION my_conn"))
                 .containsExactly(Row.of("type", "default"), Row.of("temporary", "true"));
@@ -207,18 +295,18 @@ class CreateConnectionITCase extends BatchTestBase {
 
     @Test
     void testDescribeMissingConnectionRejected() {
-        assertThatThrownBy(() -> tEnv().executeSql("DESCRIBE CONNECTION missing_conn"))
+        assertThatThrownBy(() -> tEnv.executeSql("DESCRIBE CONNECTION missing_conn"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Connection with identifier");
     }
 
     private List<Row> collectRows(String sql) {
-        TableResult result = tEnv().executeSql(sql);
+        TableResult result = tEnv.executeSql(sql);
         return CollectionUtil.iteratorToList(result.collect());
     }
 
     private CatalogManager catalogManager() {
-        return ((TableEnvironmentInternal) tEnv()).getCatalogManager();
+        return ((TableEnvironmentInternal) tEnv).getCatalogManager();
     }
 
     private ObjectIdentifier connectionIdentifier(String connectionName) {
