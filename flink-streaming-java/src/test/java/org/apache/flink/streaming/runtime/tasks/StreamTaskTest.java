@@ -1871,6 +1871,7 @@ public class StreamTaskTest {
                         }
                     });
             harness.streamMockEnvironment.setOutputs(newOutputs);
+            harness.streamMockEnvironment.setWriterConsumerParallelism(2);
 
             // Re-create outputs
             recordWriterDelegate =

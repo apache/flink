@@ -193,6 +193,7 @@ class ResultPartitionFactoryTest {
                                 .setIsBroadcast(isBroadcast)
                                 .build(),
                         NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
+                        1,
                         1);
 
         // guard our test assumptions
