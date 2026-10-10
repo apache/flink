@@ -4556,6 +4556,89 @@ class CheckpointCoordinatorTest {
         }
     }
 
+    @Test
+    void testStartCheckpointSchedulerWithHugeMinPauseUsesCappedNormalizedDelay() throws Exception {
+        final long maxMinPauseBetweenCheckpoints = TimeUnit.DAYS.toMillis(365);
+        final CheckpointCoordinatorConfiguration chkConfig =
+                CheckpointCoordinatorConfiguration.builder()
+                        .setCheckpointInterval(
+                                CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME)
+                        .setMinPauseBetweenCheckpoints(maxMinPauseBetweenCheckpoints + 1234L)
+                        .build();
+
+        final CheckpointCoordinator coordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(chkConfig)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        try {
+            coordinator.startCheckpointScheduler();
+
+            final Collection<ScheduledFuture<?>> scheduledTasks =
+                    manuallyTriggeredScheduledExecutor.getActiveNonPeriodicScheduledTask();
+            assertThat(scheduledTasks).hasSize(1);
+            assertThat(scheduledTasks.iterator().next().getDelay(TimeUnit.MILLISECONDS))
+                    .isEqualTo(maxMinPauseBetweenCheckpoints);
+
+            coordinator.setIsProcessingBacklog(new OperatorID(), true);
+
+            final Collection<ScheduledFuture<?>> backlogScheduledTasks =
+                    manuallyTriggeredScheduledExecutor.getActiveNonPeriodicScheduledTask();
+            assertThat(backlogScheduledTasks).hasSize(1);
+            assertThat(backlogScheduledTasks.iterator().next().getDelay(TimeUnit.MILLISECONDS))
+                    .isEqualTo(CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME);
+
+            assertThat(coordinator.isPeriodicCheckpointingStarted()).isTrue();
+            assertThat(coordinator.isCurrentPeriodicTriggerAvailable()).isTrue();
+        } finally {
+            coordinator.shutdown();
+        }
+    }
+
+    @Test
+    void testClearingBacklogKeepsEarlierScheduledCheckpoint() throws Exception {
+        final long normalInterval = 1_000L;
+        final long backlogInterval = CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
+        final CheckpointCoordinatorConfiguration chkConfig =
+                CheckpointCoordinatorConfiguration.builder()
+                        .setCheckpointInterval(normalInterval)
+                        .setCheckpointIntervalDuringBacklog(backlogInterval)
+                        .setMinPauseBetweenCheckpoints(normalInterval)
+                        .build();
+
+        final CheckpointCoordinator coordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(chkConfig)
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        try {
+            coordinator.startCheckpointScheduler();
+
+            final OperatorID backlogOperatorId = new OperatorID();
+            coordinator.setIsProcessingBacklog(backlogOperatorId, true);
+
+            final Collection<ScheduledFuture<?>> backlogScheduledTasks =
+                    manuallyTriggeredScheduledExecutor.getActiveNonPeriodicScheduledTask();
+            assertThat(backlogScheduledTasks).hasSize(1);
+            final ScheduledFuture<?> backlogScheduledTask = backlogScheduledTasks.iterator().next();
+            assertThat(backlogScheduledTask.getDelay(TimeUnit.MILLISECONDS))
+                    .isEqualTo(backlogInterval);
+
+            coordinator.setIsProcessingBacklog(backlogOperatorId, false);
+
+            final Collection<ScheduledFuture<?>> scheduledTasksAfterBacklogCleared =
+                    manuallyTriggeredScheduledExecutor.getActiveNonPeriodicScheduledTask();
+            assertThat(scheduledTasksAfterBacklogCleared).hasSize(1);
+            final ScheduledFuture<?> scheduledTaskAfterBacklogCleared =
+                    scheduledTasksAfterBacklogCleared.iterator().next();
+            assertThat((Object) scheduledTaskAfterBacklogCleared).isSameAs(backlogScheduledTask);
+        } finally {
+            coordinator.shutdown();
+        }
+    }
+
     private long startSchedulerAndGetTriggerDelay(CheckpointCoordinator checkpointCoordinator) {
         checkpointCoordinator.startCheckpointScheduler();
         checkState(checkpointCoordinator.getNumberOfPendingCheckpoints() == 0);
