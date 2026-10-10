@@ -54,7 +54,7 @@ use the new provider without changing the default name:
 
 OpenAI endpoints must be complete chat-completions or embeddings URLs, rather
 than a base URL ending in ``/v1``. Model names can be included in the provider
-configuration or supplied when a model is created.
+configuration or supplied when calling an AI function.
 
 A sole registered provider is selected automatically. Registering a second
 provider requires an explicit default or provider selection; the first provider

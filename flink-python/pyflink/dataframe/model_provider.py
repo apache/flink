@@ -125,7 +125,7 @@ class OpenAIProvider(ModelProvider):
     The full endpoint URL selects the task: use a URL ending in ``/chat/completions``
     for chat or ``/embeddings`` for embedding vectors. Chat options such as
     ``system_prompt`` and ``temperature`` apply to chat requests; ``dimension`` applies
-    to embeddings. Supply a model name here or when creating a model.
+    to embeddings. Supply a model name here or when calling an AI function.
 
     All optional parameters default to ``None``. Omitted options use the Flink defaults
     described below, or the service's defaults where Flink defines none.
@@ -134,7 +134,7 @@ class OpenAIProvider(ModelProvider):
                      ``https://api.openai.com/v1/chat/completions``.
     :param api_key: Required API key for authenticating requests.
     :param model: Model name to use. Default: ``None``; if omitted, supply it when
-                  creating a model.
+                  calling an AI function.
     :param system_prompt: System message that guides the chat response. If omitted,
                           Flink uses ``"You are a helpful assistant."``. Set ``""``
                           for an empty system message.
@@ -265,8 +265,8 @@ class TritonProvider(ModelProvider):
     """
     Configure inference requests to a model served by NVIDIA Triton Inference Server.
 
-    Supply the server URL and a model name here or when creating a model. For array
-    inputs, use ``flatten_batch_dim`` to match the model's expected shape. Retry and
+    Supply a model name here or when calling an AI function. For array inputs, use
+    ``flatten_batch_dim`` to match the model's expected shape. Retry and
     fallback options control how failed requests are handled; health checks and the
     circuit breaker can reduce requests to an unavailable server.
 
@@ -275,7 +275,7 @@ class TritonProvider(ModelProvider):
 
     :param endpoint: Required Triton server URL, for example ``http://localhost:8000``.
     :param model_name: Name of the model to invoke. Default: ``None``; if omitted,
-                       supply it when creating a model.
+                       supply it when calling an AI function.
     :param model_version: Model version to invoke. If omitted, Flink uses ``"latest"``.
     :param timeout: HTTP timeout for each request, separate from Flink's asynchronous
                     prediction timeout. If omitted, Flink uses ``"30 s"``.
