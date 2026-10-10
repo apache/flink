@@ -106,6 +106,12 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 "REGEXP_COUNT(f1, f0)",
                                 null,
                                 DataTypes.INT())
+                        // invalid regexp
+                        .testResult(
+                                $("f1").regexpCount("("),
+                                "REGEXP_COUNT(f1, '(')",
+                                null,
+                                DataTypes.INT())
                         // normal cases
                         .testResult(
                                 lit("hello world! Hello everyone!").regexpCount("Hello"),
@@ -157,18 +163,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "REGEXP_COUNT(f0, '1024')",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "REGEXP_COUNT(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)"),
-                TestSetSpec.forFunction(
-                                BuiltInFunctionDefinitions.REGEXP_COUNT,
-                                "Invalid literal regex fails at plan time")
-                        .onFieldsWithData("abcdeabde")
-                        .andDataTypes(DataTypes.STRING())
-                        .testTableApiValidationError(
-                                $("f0").regexpCount("("),
-                                "Invalid regular expression for REGEXP_COUNT:")
-                        .testSqlValidationError(
-                                "REGEXP_COUNT(f0, '(')",
-                                "Invalid regular expression for REGEXP_COUNT:"));
+                                        + "REGEXP_COUNT(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)"));
     }
 
     private Stream<TestSetSpec> regexpExtractTestCases() {
@@ -233,6 +228,12 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").regexpExtractAll($("f1"), null),
                                 "REGEXP_EXTRACT_ALL(f1, f1, NULL)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        // invalid regexp
+                        .testResult(
+                                $("f1").regexpExtractAll("("),
+                                "REGEXP_EXTRACT_ALL(f1, '(')",
                                 null,
                                 DataTypes.ARRAY(DataTypes.STRING()))
                         // invalid extractIndex
@@ -312,18 +313,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 "REGEXP_EXTRACT_ALL(f0, '1024')",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "REGEXP_EXTRACT_ALL(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)\n"
-                                        + "REGEXP_EXTRACT_ALL(str <CHARACTER_STRING>, regex <CHARACTER_STRING>, extractIndex <INTEGER_NUMERIC>)"),
-                TestSetSpec.forFunction(
-                                BuiltInFunctionDefinitions.REGEXP_EXTRACT_ALL,
-                                "Invalid literal regex fails at plan time")
-                        .onFieldsWithData("abcdeabde")
-                        .andDataTypes(DataTypes.STRING())
-                        .testTableApiValidationError(
-                                $("f0").regexpExtractAll("("),
-                                "Invalid regular expression for REGEXP_EXTRACT_ALL:")
-                        .testSqlValidationError(
-                                "REGEXP_EXTRACT_ALL(f0, '(')",
-                                "Invalid regular expression for REGEXP_EXTRACT_ALL:"));
+                                        + "REGEXP_EXTRACT_ALL(str <CHARACTER_STRING>, regex <CHARACTER_STRING>, extractIndex <INTEGER_NUMERIC>)"));
     }
 
     private Stream<TestSetSpec> regexpInstrTestCases() {
@@ -340,6 +330,12 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").regexpInstr($("f0")),
                                 "REGEXP_INSTR(f1, f0)",
+                                null,
+                                DataTypes.INT())
+                        // invalid regexp
+                        .testResult(
+                                $("f1").regexpInstr("("),
+                                "REGEXP_INSTR(f1, '(')",
                                 null,
                                 DataTypes.INT())
                         // not found
@@ -390,18 +386,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "REGEXP_INSTR(f0, '1024')",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "REGEXP_INSTR(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)"),
-                TestSetSpec.forFunction(
-                                BuiltInFunctionDefinitions.REGEXP_INSTR,
-                                "Invalid literal regex fails at plan time")
-                        .onFieldsWithData("abcdeabde")
-                        .andDataTypes(DataTypes.STRING())
-                        .testTableApiValidationError(
-                                $("f0").regexpInstr("("),
-                                "Invalid regular expression for REGEXP_INSTR:")
-                        .testSqlValidationError(
-                                "REGEXP_INSTR(f0, '(')",
-                                "Invalid regular expression for REGEXP_INSTR:"));
+                                        + "REGEXP_INSTR(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)"));
     }
 
     private Stream<TestSetSpec> regexpReplaceTestCases() {
@@ -478,6 +463,12 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 "REGEXP_SUBSTR(f1, f0)",
                                 null,
                                 DataTypes.STRING())
+                        // invalid regexp
+                        .testResult(
+                                $("f1").regexpSubstr("("),
+                                "REGEXP_SUBSTR(f1, '(')",
+                                null,
+                                DataTypes.STRING())
                         // not found
                         .testResult(
                                 $("f2").regexpSubstr("[a-z]"),
@@ -527,18 +518,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "REGEXP_SUBSTR(f0, '1024')",
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "REGEXP_SUBSTR(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)"),
-                TestSetSpec.forFunction(
-                                BuiltInFunctionDefinitions.REGEXP_SUBSTR,
-                                "Invalid literal regex fails at plan time")
-                        .onFieldsWithData("abcdeabde")
-                        .andDataTypes(DataTypes.STRING())
-                        .testTableApiValidationError(
-                                $("f0").regexpSubstr("("),
-                                "Invalid regular expression for REGEXP_SUBSTR:")
-                        .testSqlValidationError(
-                                "REGEXP_SUBSTR(f0, '(')",
-                                "Invalid regular expression for REGEXP_SUBSTR:"));
+                                        + "REGEXP_SUBSTR(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)"));
     }
 
     private Stream<TestSetSpec> regexpSplitTestCases() {
