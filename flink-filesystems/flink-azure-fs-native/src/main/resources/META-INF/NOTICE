@@ -1,0 +1,44 @@
+flink-azure-fs-native
+Copyright 2014-2026 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the MIT License.
+See bundled license files for details.
+
+- com.azure:azure-storage-blob:12.29.1
+- com.azure:azure-storage-file-datalake:12.22.0
+- com.azure:azure-identity:1.14.2
+- com.azure:azure-core:1.55.2
+- com.azure:azure-core-http-okhttp:1.12.5
+- com.azure:azure-storage-common:12.28.1
+- com.azure:azure-storage-internal-avro:12.14.1
+- com.azure:azure-json:1.3.0
+- com.azure:azure-xml:1.2.0
+- com.microsoft.azure:msal4j:1.17.2
+- io.projectreactor:reactor-core:3.5.20
+- org.reactivestreams:reactive-streams:1.0.4
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.fasterxml.jackson.core:jackson-core:2.21.3
+- com.fasterxml.jackson.core:jackson-databind:2.21.3
+- com.fasterxml.jackson.core:jackson-annotations:2.21
+- com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.3
+- com.github.stephenc.jcip:jcip-annotations:1.0-1
+- com.nimbusds:content-type:2.3
+- com.nimbusds:lang-tag:1.7
+- com.nimbusds:nimbus-jose-jwt:9.40
+- com.nimbusds:oauth2-oidc-sdk:11.18
+- com.squareup.okhttp3:okhttp:4.12.0
+- com.squareup.okio:okio:3.9.1
+- com.squareup.okio:okio-jvm:3.9.1
+- net.minidev:accessors-smart:2.5.0
+- net.minidev:json-smart:2.5.0
+- org.jetbrains.kotlin:kotlin-stdlib:1.9.25
+
+This project bundles the following dependencies under the BSD 3-Clause License.
+
+- org.ow2.asm:asm:9.3
+

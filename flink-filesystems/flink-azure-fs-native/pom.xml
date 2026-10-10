@@ -1,0 +1,485 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.apache.flink</groupId>
+        <artifactId>flink-filesystems</artifactId>
+        <version>2.4-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>flink-azure-fs-native</artifactId>
+    <name>Flink : FileSystems : Azure FS Native</name>
+
+    <packaging>jar</packaging>
+
+    <properties>
+        <!-- Prepend JaCoCo agent to surefire argLine -->
+        <flink.surefire.baseArgLine>@{argLine} -XX:+UseG1GC -Xms256m -XX:+IgnoreUnrecognizedVMOptions ${surefire.module.config}</flink.surefire.baseArgLine>
+        <!-- Azure SDK versions -->
+        <azure.sdk.version>12.29.1</azure.sdk.version>
+        <azure.identity.version>1.14.2</azure.identity.version>
+        <msal4j.version>1.17.2</msal4j.version>
+        <azure.core.version>1.55.2</azure.core.version>
+        <azure.storage.common.version>12.28.1</azure.storage.common.version>
+        <azure.datalake.version>12.22.0</azure.datalake.version>
+        <!-- OkHttp versions (overrides root pom's 3.14.9; azure-core-http-okhttp requires 4.x) -->
+        <azure.core.http.okhttp.version>1.12.5</azure.core.http.okhttp.version>
+        <okhttp.version>4.12.0</okhttp.version>
+        <!-- Aligned transitive versions (okhttp and azure-core-http-okhttp pull different versions) -->
+        <okio.version>3.9.1</okio.version>
+        <kotlin.version>1.9.25</kotlin.version>
+        <!-- Reactor version -->
+        <reactor.core.version>3.5.20</reactor.core.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Align Okio versions (okhttp pulls 3.6.0, azure-core-http-okhttp pulls 3.9.1) -->
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio</artifactId>
+                <version>${okio.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio-jvm</artifactId>
+                <version>${okio.version}</version>
+            </dependency>
+            <!-- Align Kotlin stdlib version (okio pulls 1.9.25, okhttp pulls 1.8.21).
+                 Since Kotlin 1.8, jdk7/jdk8 extensions are merged into kotlin-stdlib
+                 and the separate artifacts are empty — only kotlin-stdlib is needed. -->
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib</artifactId>
+                <version>${kotlin.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Flink core -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-core</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-shaded-guava</artifactId>
+        </dependency>
+
+        <!-- Azure Storage Blob SDK v12 -->
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-storage-blob</artifactId>
+            <version>${azure.sdk.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Azure Storage File DataLake SDK for ADLS Gen2 (abfss://) support -->
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-storage-file-datalake</artifactId>
+            <version>${azure.datalake.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Azure Identity for credential management -->
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-identity</artifactId>
+            <version>${azure.identity.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- MSAL4J for Azure authentication (transitive optional from azure-identity, must be explicit) -->
+        <dependency>
+            <groupId>com.microsoft.azure</groupId>
+            <artifactId>msal4j</artifactId>
+            <version>${msal4j.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
+            <version>${reactor.core.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+        </dependency>
+
+        <!-- Azure SDK transitive dependencies - must be explicitly marked optional -->
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core</artifactId>
+            <version>${azure.core.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core-http-okhttp</artifactId>
+            <version>${azure.core.http.okhttp.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jetbrains</groupId>
+                    <artifactId>annotations</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-storage-common</artifactId>
+            <version>${azure.storage.common.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- OkHttp HTTP client (override root pom's managed 3.14.9) -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>${okhttp.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+            <exclusions>
+                <!-- CLASS retention only, not needed at runtime -->
+                <exclusion>
+                    <groupId>org.jetbrains</groupId>
+                    <artifactId>annotations</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Jackson dependencies - must be explicitly marked optional -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <optional>${flink.markBundledAsOptional}</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <optional>${flink.markBundledAsOptional}</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <optional>${flink.markBundledAsOptional}</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <optional>${flink.markBundledAsOptional}</optional>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-core</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-runtime</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-runtime</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-streaming-java</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-streaming-java</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-statebackend-rocksdb</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-clients</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Flink Web UI for debugging integration tests -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-runtime-web</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- CSE abstractions: CseStreamFactory, KeyProvider, EncryptedReadContext, etc. -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-fs-cse-common</artifactId>
+            <version>${project.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+        </dependency>
+
+        <!-- CSE implementation: AesGcmCseStreamFactory -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-fs-cse-aes-gcm</artifactId>
+            <version>${project.version}</version>
+            <optional>${flink.markBundledAsOptional}</optional>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>shade-flink</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <artifactSet>
+                                <includes>
+                                    <include>com.azure:azure-storage-blob</include>
+                                    <include>com.azure:azure-storage-file-datalake</include>
+                                    <include>com.azure:azure-storage-common</include>
+                                    <include>com.azure:azure-identity</include>
+                                    <include>com.azure:azure-core</include>
+                                    <include>com.azure:azure-core-http-okhttp</include>
+                                    <include>com.azure:azure-json</include>
+                                    <include>com.azure:azure-xml</include>
+                                    <include>com.azure:azure-storage-internal-avro</include>
+                                    <include>io.projectreactor:*</include>
+                                    <include>com.fasterxml.jackson.core:*</include>
+                                    <include>com.fasterxml.jackson.datatype:*</include>
+                                    <include>org.reactivestreams:*</include>
+                                    <!-- OkHttp for Azure SDK HTTP client -->
+                                    <include>com.squareup.okhttp3:*</include>
+                                    <include>com.squareup.okio:okio*</include>
+                                    <include>org.jetbrains.kotlin:kotlin-stdlib</include>
+                                    <!-- MSAL4J for Azure authentication -->
+                                    <include>com.microsoft.azure:msal4j</include>
+                                    <include>com.nimbusds:*</include>
+                                    <include>net.minidev:*</include>
+                                    <include>org.ow2.asm:asm</include>
+                                    <include>com.github.stephenc.jcip:jcip-annotations</include>
+                                    <!-- CSE modules shaded into the uber-jar -->
+                                    <include>org.apache.flink:flink-fs-cse-common</include>
+                                    <include>org.apache.flink:flink-fs-cse-aes-gcm</include>
+                                </includes>
+                            </artifactSet>
+                            <relocations>
+                                <relocation>
+                                    <pattern>com.azure</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.com.azure</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>reactor</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.reactor</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.fasterxml.jackson</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.com.fasterxml.jackson</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.reactivestreams</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.org.reactivestreams</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>okhttp3</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.okhttp3</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>okio</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.okio</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>kotlin</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.kotlin</shadedPattern>
+                                </relocation>
+                                <!-- MSAL4J and dependencies -->
+                                <relocation>
+                                    <pattern>com.microsoft.aad.msal4j</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.com.microsoft.aad.msal4j</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.nimbusds</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.com.nimbusds</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>net.minidev</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.net.minidev</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>net.jcip</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.net.jcip</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.objectweb.asm</pattern>
+                                    <shadedPattern>org.apache.flink.fs.azurefs.shaded.org.objectweb.asm</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <transformers combine.children="append">
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.DontIncludeResourceTransformer">
+                                    <resource>publicsuffix/NOTICE</resource>
+                                </transformer>
+                            </transformers>
+                            <filters combine.children="append">
+                                <!-- Module-specific excludes (signatures, maven poms,
+                                     and NOTICE merging handled by parent pom) -->
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/DEPENDENCIES</exclude>
+                                        <exclude>META-INF/proguard/**</exclude>
+                                        <exclude>META-INF/kotlin-project-structure-metadata.json</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
