@@ -25,7 +25,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalL
 import org.apache.flink.table.planner.plan.rules.physical.common.{BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptTable}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexProgram
+
+import java.util
 
 /**
  * Rules that convert [[FlinkLogicalJoin]] on a [[FlinkLogicalSnapshot]] into
@@ -47,13 +50,15 @@ object BatchPhysicalLookupJoinRule {
         join: FlinkLogicalJoin,
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
-        calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
+        calcProgram: Option[RexProgram],
+        hints: util.List[RelHint]): CommonPhysicalLookupJoin = {
       transformToLookupJoin(
         join,
         input,
         temporalTable,
         calcProgram,
-        FlinkConventions.BATCH_PHYSICAL)
+        FlinkConventions.BATCH_PHYSICAL,
+        hints)
     }
   }
 
@@ -64,13 +69,15 @@ object BatchPhysicalLookupJoinRule {
         join: FlinkLogicalJoin,
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
-        calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
+        calcProgram: Option[RexProgram],
+        hints: util.List[RelHint]): CommonPhysicalLookupJoin = {
       transformToLookupJoin(
         join,
         input,
         temporalTable,
         calcProgram,
-        FlinkConventions.BATCH_PHYSICAL)
+        FlinkConventions.BATCH_PHYSICAL,
+        hints)
     }
   }
 }
