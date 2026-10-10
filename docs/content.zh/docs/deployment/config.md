@@ -37,6 +37,8 @@ You can specify a different configuration directory location by defining the `FL
 
 On session clusters, the provided configuration will only be used for configuring [execution](#execution) parameters, e.g. configuration parameters affecting the job, not the underlying cluster.
 
+<a name="flink-configuration-file"></a>
+
 # Flink 配置文件
 
 自 Flink-2.0 版本起，Flink 仅支持使用支持标准 YAML 1.2 语法的配置文件 `config.yaml`，原有的 `flink-conf.yaml` 配置文件将不再支持。与之前版本中仅支持简单键值对的配置方式相比，这一更新为用户提供了更加灵活和强大的配置能力。
