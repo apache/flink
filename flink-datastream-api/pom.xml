@@ -40,5 +40,11 @@ under the License.
 			<artifactId>flink-core-api</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-	</dependencies>
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-core</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
 </project>
