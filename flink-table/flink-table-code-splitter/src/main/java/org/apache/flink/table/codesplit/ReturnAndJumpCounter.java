@@ -23,16 +23,24 @@ import org.apache.flink.table.codesplit.JavaParser.StatementContext;
 public class ReturnAndJumpCounter extends JavaParserBaseVisitor<Void> {
 
     private int counter = 0;
+    private int returnCounter = 0;
 
     @Override
     public Void visitStatement(StatementContext ctx) {
         if (ctx.RETURN() != null || ctx.BREAK() != null || ctx.CONTINUE() != null) {
             counter++;
+            if (ctx.RETURN() != null) {
+                returnCounter++;
+            }
         }
         return visitChildren(ctx);
     }
 
     public int getCounter() {
         return counter;
+    }
+
+    public int getReturnCounter() {
+        return returnCounter;
     }
 }
