@@ -54,7 +54,8 @@ const OVERRIDE_JOB_MODULE_CONFIG_FACTORY = (statusService: StatusService): JobMo
           { title: 'Checkpoints', path: 'checkpoints' },
           { title: 'Job Configuration', path: 'configuration' },
           { title: 'Rescales', path: 'rescales' },
-          { title: 'Cluster Configuration', path: 'cluster_configuration' }
+          { title: 'Cluster Configuration', path: 'cluster_configuration' },
+          { title: 'TopN Metric', path: 'topn-metric' }
         ]
       : JOB_MODULE_DEFAULT_CONFIG.routerTabs
   };
@@ -147,6 +148,16 @@ export const COMPLETED_JOB_ROUES: Routes = [
         canActivate: [ClusterConfigGuard],
         data: {
           path: 'cluster_configuration'
+        }
+      },
+      {
+        path: 'topn-metric',
+        loadComponent: () =>
+          import('@flink-runtime-web/pages/job/topn-metric/job-topn-metric.component').then(
+            m => m.JobTopnMetricComponent
+          ),
+        data: {
+          path: 'topn-metric'
         }
       },
       { path: '**', redirectTo: 'overview', pathMatch: 'full' }

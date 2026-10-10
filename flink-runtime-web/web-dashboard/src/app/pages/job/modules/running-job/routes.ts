@@ -88,6 +88,16 @@ export const RUNNING_JOB_ROUTES: Routes = [
           path: 'rescales'
         }
       },
+      {
+        path: 'topn-metric',
+        loadComponent: () =>
+          import('@flink-runtime-web/pages/job/topn-metric/job-topn-metric.component').then(
+            m => m.JobTopnMetricComponent
+          ),
+        data: {
+          path: 'topn-metric'
+        }
+      },
       { path: '**', redirectTo: 'overview', pathMatch: 'full' }
     ]
   }
