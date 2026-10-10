@@ -19,10 +19,12 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.logical.ArrayType;
 
 import java.util.ArrayList;
@@ -38,11 +40,13 @@ class ListViewStateConverter implements StateConverter {
 
     private final DataStructureConverter<Object, Object> elementConverter;
     private final ArrayData.ElementGetter elementGetter;
+    private final TypeSerializer<Object> elementSerializer;
 
     ListViewStateConverter(
             ArrayType arrayType, DataStructureConverter<Object, Object> elementConverter) {
         this.elementConverter = elementConverter;
         this.elementGetter = ArrayData.createElementGetter(arrayType.getElementType());
+        this.elementSerializer = InternalSerializers.create(arrayType.getElementType());
     }
 
     @Override
@@ -75,5 +79,16 @@ class ListViewStateConverter implements StateConverter {
     @Override
     public Object createNewInternalState() {
         return new GenericArrayData(new Object[0]);
+    }
+
+    @Override
+    public Object copyInternal(Object internal) {
+        final ArrayData arrayData = (ArrayData) internal;
+        final Object[] copy = new Object[arrayData.size()];
+        for (int i = 0; i < copy.length; i++) {
+            final Object element = elementGetter.getElementOrNull(arrayData, i);
+            copy[i] = element == null ? null : elementSerializer.copy(element);
+        }
+        return new GenericArrayData(copy);
     }
 }

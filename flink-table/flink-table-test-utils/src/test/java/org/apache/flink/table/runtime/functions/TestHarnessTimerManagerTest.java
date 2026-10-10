@@ -366,4 +366,115 @@ class TestHarnessTimerManagerTest {
         manager.clearFiredTimers();
         assertThat(manager.getFiredTimers()).isEmpty();
     }
+
+    @Test
+    void testSnapshotRestoresPendingAndFiredTimers() throws Exception {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+
+        manager.register(P1, 1000L, "fired-timer");
+        manager.register(P2, 3000L, "pending-timer");
+        manager.setTableWatermark("table-a", 1000L);
+        manager.updateGlobalWatermarkAndFireTimers(NOOP_FIRER);
+
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        TestHarnessTimerManager restored = new TestHarnessTimerManager();
+        restored.restore(snapshot);
+
+        assertThat(restored.getPendingTimers()).hasSize(1);
+        assertThat(restored.getPendingTimers().get(0).getName()).isEqualTo("pending-timer");
+        assertThat(restored.getFiredTimers()).hasSize(1);
+        assertThat(restored.getFiredTimers().get(0).getName()).isEqualTo("fired-timer");
+        assertThat(restored.getFiredTimers().get(0).hasFired()).isTrue();
+    }
+
+    @Test
+    void testSnapshotDoesNotSeeTimersFiredAfterwards() throws Exception {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+
+        manager.register(P1, 1000L, "timer-a");
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        manager.setTableWatermark("table-a", 1000L);
+        manager.updateGlobalWatermarkAndFireTimers(NOOP_FIRER);
+
+        TestHarnessTimerManager restored = new TestHarnessTimerManager();
+        restored.restore(snapshot);
+
+        assertThat(restored.getPendingTimers()).hasSize(1);
+        assertThat(restored.getPendingTimers().get(0).hasFired()).isFalse();
+        assertThat(restored.getFiredTimers()).isEmpty();
+    }
+
+    @Test
+    void testSnapshotDoesNotSeeTimersRegisteredOrClearedAfterwards() {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+
+        manager.register(P1, 1000L, "timer-a");
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        manager.register(P1, 2000L, "timer-b");
+        manager.clearAll(P1);
+
+        TestHarnessTimerManager restored = new TestHarnessTimerManager();
+        restored.restore(snapshot);
+
+        assertThat(restored.getPendingTimers()).hasSize(1);
+        assertThat(restored.getPendingTimers().get(0).getName()).isEqualTo("timer-a");
+    }
+
+    @Test
+    void testRestoreReplacesLiveTimers() {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+
+        manager.register(P1, 1000L, "timer-a");
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        manager.register(P2, 2000L, "timer-b");
+        manager.restore(snapshot);
+
+        assertThat(manager.getPendingTimers()).hasSize(1);
+        assertThat(manager.getPendingTimers().get(0).getName()).isEqualTo("timer-a");
+    }
+
+    @Test
+    void testSnapshotRestoresWatermarks() throws Exception {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+
+        manager.setTableWatermark("table-a", 1000L);
+        manager.updateGlobalWatermarkAndFireTimers(NOOP_FIRER);
+
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        TestHarnessTimerManager restored = new TestHarnessTimerManager();
+        restored.restore(snapshot);
+
+        assertThat(restored.getWatermarkForTable("table-a")).isEqualTo(1000L);
+        assertThat(restored.getGlobalWatermark()).isEqualTo(1000L);
+
+        // a table seen for the first time after the restore must not pull the global watermark
+        // back behind the restored one
+        restored.setTableWatermark("table-b", 500L);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> restored.updateGlobalWatermarkAndFireTimers(NOOP_FIRER));
+    }
+
+    @Test
+    void testSnapshotCanBeRestoredMoreThanOnce() {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+
+        manager.register(P1, 1000L, "timer-a");
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        TestHarnessTimerManager first = new TestHarnessTimerManager();
+        first.restore(snapshot);
+        first.clearAll(P1);
+
+        TestHarnessTimerManager second = new TestHarnessTimerManager();
+        second.restore(snapshot);
+
+        assertThat(first.getPendingTimers()).isEmpty();
+        assertThat(second.getPendingTimers()).hasSize(1);
+    }
 }
