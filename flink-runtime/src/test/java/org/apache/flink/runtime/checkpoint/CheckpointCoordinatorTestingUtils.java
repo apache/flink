@@ -981,6 +981,7 @@ public class CheckpointCoordinatorTestingUtils {
         private final OperatorID operatorID;
         private final List<Long> completedCheckpoints;
         private final List<Long> abortedCheckpoints;
+        private final List<byte[]> restoredCheckpointData;
 
         private MockOperatorCoordinatorCheckpointContext(
                 BiConsumer<Long, CompletableFuture<byte[]>> onCallingCheckpointCoordinator,
@@ -991,6 +992,7 @@ public class CheckpointCoordinatorTestingUtils {
             this.operatorID = operatorID;
             this.completedCheckpoints = new ArrayList<>();
             this.abortedCheckpoints = new ArrayList<>();
+            this.restoredCheckpointData = new ArrayList<>();
         }
 
         @Override
@@ -1020,7 +1022,9 @@ public class CheckpointCoordinatorTestingUtils {
 
         @Override
         public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData)
-                throws Exception {}
+                throws Exception {
+            restoredCheckpointData.add(checkpointData);
+        }
 
         @Override
         public void subtaskReset(int subtask, long checkpointId) {}
@@ -1046,6 +1050,10 @@ public class CheckpointCoordinatorTestingUtils {
 
         public List<Long> getAbortedCheckpoints() {
             return abortedCheckpoints;
+        }
+
+        public List<byte[]> getRestoredCheckpointData() {
+            return restoredCheckpointData;
         }
     }
 }
