@@ -29,6 +29,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.SourceProvider;
+import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata.MetadataFilterResult;
 import org.apache.flink.table.data.RowData;
@@ -190,6 +191,77 @@ class MetadataFilterResultShapesITCase {
         assertThat(explain).contains("where=[AND(>(m0, 0), >(m1, 0))]");
     }
 
+    /**
+     * A mixed OR predicate like {@code id > 0 OR m0 > 0} references both physical and metadata
+     * columns in a single predicate that AND-decomposition cannot split. Such predicates must NOT
+     * leak into the physical {@code filter=[...]} path because {@code FilterPushDownSpec} stores
+     * RexInputRef indices without a row type — metadata column indices break during compiled-plan
+     * restore when {@code ProjectPushDownSpec} narrows the scan type.
+     *
+     * <p>The mixed predicate must stay as a runtime Calc ({@code where=[...]}).
+     */
+    @Test
+    void testMixedOrPredicateStaysAsRuntimeFilter() throws Exception {
+        Schema schema =
+                Schema.newBuilder()
+                        .column("id", INT())
+                        .columnByMetadata("m0", INT())
+                        .columnByMetadata("m1", INT())
+                        .build();
+
+        MixedFilterTrackingSource source = new MixedFilterTrackingSource();
+        TableDescriptor descriptor =
+                TableFactoryHarness.newBuilder().schema(schema).source(source).build();
+        tableEnv.createTable("T_MIXED_OR", descriptor);
+
+        // id < 3: rows 1,2.  m0 > 0: rows 1,2,5.  Union: rows 1,2,5.
+        String sql = "SELECT id FROM T_MIXED_OR WHERE id < 3 OR m0 > 0 ORDER BY id";
+
+        String explain = tableEnv.explainSql(sql);
+        assertThat(explain)
+                .as("Mixed OR must not leak into physical filter path")
+                .doesNotContain("filter=[OR(");
+        assertThat(explain)
+                .as("Mixed OR must not leak into metadata filter path")
+                .doesNotContain("metadataFilter=[OR(");
+
+        // Row data: (1,5,5), (2,5,-1), (3,-1,5), (4,-1,-1), (5,7,9), (6,0,0)
+        assertThat(collectIds(sql)).containsExactly(1, 2, 5);
+    }
+
+    /**
+     * When AND connects a pure physical predicate and a mixed OR, the physical predicate should be
+     * pushed while the mixed OR stays as a runtime Calc.
+     */
+    @Test
+    void testMixedOrWithSeparatePhysicalPredicate() throws Exception {
+        Schema schema =
+                Schema.newBuilder()
+                        .column("id", INT())
+                        .columnByMetadata("m0", INT())
+                        .columnByMetadata("m1", INT())
+                        .build();
+
+        MixedFilterTrackingSource source = new MixedFilterTrackingSource();
+        TableDescriptor descriptor =
+                TableFactoryHarness.newBuilder().schema(schema).source(source).build();
+        tableEnv.createTable("T_MIXED_OR2", descriptor);
+
+        // id > 2 (physical, pushable) AND (id < 5 OR m0 > 0) (mixed, must stay as runtime)
+        String sql = "SELECT id FROM T_MIXED_OR2 WHERE id > 2 AND (id < 5 OR m0 > 0) ORDER BY id";
+
+        String explain = tableEnv.explainSql(sql);
+        // The mixed OR must NOT appear in filter= or metadataFilter=
+        assertThat(explain)
+                .as("Mixed OR must not leak into physical filter path")
+                .doesNotContain("filter=[OR(");
+
+        // Row data: (1,5,5), (2,5,-1), (3,-1,5), (4,-1,-1), (5,7,9), (6,0,0)
+        // id>2: rows 3,4,5,6.  AND (id<5 OR m0>0): row3(yes,no→yes), row4(yes,no→yes),
+        // row5(no,yes→yes), row6(no,no→no).  Result: 3,4,5
+        assertThat(collectIds(sql)).containsExactly(3, 4, 5);
+    }
+
     // -----------------------------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------------------------
@@ -299,6 +371,64 @@ class MetadataFilterResultShapesITCase {
             DataGeneratorSource<RowData> source =
                     new DataGeneratorSource<>(
                             generator, emittedRows.size(), TypeInformation.of(RowData.class));
+            return SourceProvider.of(source);
+        }
+    }
+
+    /**
+     * Source that supports both physical and metadata filter push-down. Accepts all filters it
+     * receives, emits all rows (runtime Calc is the load-bearing filter for remaining predicates).
+     */
+    static class MixedFilterTrackingSource extends TableFactoryHarness.ScanSourceBase
+            implements SupportsReadingMetadata, SupportsFilterPushDown {
+
+        private DataType producedDataType;
+
+        MixedFilterTrackingSource() {
+            super(true);
+        }
+
+        @Override
+        public Map<String, DataType> listReadableMetadata() {
+            Map<String, DataType> metadata = new LinkedHashMap<>();
+            metadata.put("m0", INT());
+            metadata.put("m1", INT());
+            return metadata;
+        }
+
+        @Override
+        public void applyReadableMetadata(List<String> metadataKeys, DataType producedDataType) {
+            this.producedDataType = producedDataType;
+        }
+
+        @Override
+        public boolean supportsMetadataFilterPushDown() {
+            return true;
+        }
+
+        @Override
+        public MetadataFilterResult applyMetadataFilters(List<ResolvedExpression> metadataFilters) {
+            return MetadataFilterResult.of(metadataFilters, Collections.emptyList());
+        }
+
+        @Override
+        public Result applyFilters(List<ResolvedExpression> filters) {
+            return Result.of(Collections.emptyList(), filters);
+        }
+
+        @Override
+        public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+            DataType emitted =
+                    producedDataType != null
+                            ? producedDataType
+                            : getFactoryContext().getPhysicalRowDataType();
+            DynamicTableSource.DataStructureConverter converter =
+                    runtimeProviderContext.createDataStructureConverter(emitted);
+            GeneratorFunction<Long, RowData> generator =
+                    index -> (RowData) converter.toInternal(ROWS.get(index.intValue()));
+            DataGeneratorSource<RowData> source =
+                    new DataGeneratorSource<>(
+                            generator, ROWS.size(), TypeInformation.of(RowData.class));
             return SourceProvider.of(source);
         }
     }
