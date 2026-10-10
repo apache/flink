@@ -25,6 +25,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 /** Tests for verifying {@link StreamExecOverAggregate}. */
@@ -84,6 +85,33 @@ public class OverWindowRestoreTest extends RestoreTestBase {
                 OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_AVG_APPEND_MODE,
                 OverWindowTestPrograms
                         .OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_MULTIPLE_AGGS_APPEND_MODE,
-                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_NO_PARTITION_BY);
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_NO_PARTITION_BY,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_COLLECT,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_COUNT_DISTINCT);
+    }
+
+    @Override
+    protected Map<Integer, List<TableTestProgram>> programsToIgnore() {
+        return Map.of(
+                // Version 1 keeps the data views of a non-time window in keyed state, where every
+                // sort key shares them, so these two programs return wrong results there
+                1,
+                List.of(
+                        OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_COLLECT,
+                        OverWindowTestPrograms
+                                .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_COUNT_DISTINCT),
+                // These four write to a sink whose primary key differs from the upsert key of the
+                // query, which FLINK-38927 made an error, so no plan can be compiled for them any
+                // more. Their version 1 plans predate that and keep being restored above.
+                2,
+                List.of(
+                        OverWindowTestPrograms
+                                .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SINK_PRIMARY_KEY,
+                        OverWindowTestPrograms
+                                .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK,
+                        OverWindowTestPrograms
+                                .OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_RETRACT_MODE_SINK_PRIMARY_KEY,
+                        OverWindowTestPrograms
+                                .OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK));
     }
 }
