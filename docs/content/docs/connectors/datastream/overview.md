@@ -90,5 +90,8 @@ in order to enrich the primary datastream.
 Flink offers an API for [Asynchronous I/O]({{< ref "docs/dev/datastream/operators/asyncio" >}})
 to make it easier to do this kind of enrichment efficiently and robustly.
 
+### 3rd Party Connnectors
+* [NATS Connector](https://github.com/synadia-io/flink-connector-nats) (Core and JetStream sinks/sources)
+
 {{< top >}}
 
