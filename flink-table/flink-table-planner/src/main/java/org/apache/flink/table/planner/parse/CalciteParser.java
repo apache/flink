@@ -28,18 +28,24 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.SourceStringReader;
 
 import java.io.Reader;
+import java.util.List;
+
+import static org.apache.calcite.util.Static.RESOURCE;
 
 /**
  * Thin wrapper around {@link SqlParser} that does exception conversion and {@link SqlNode} casting.
  */
 public class CalciteParser {
     private final SqlParser.Config config;
+    private final List<String> additionalSensitiveKeys;
 
-    public CalciteParser(SqlParser.Config config) {
+    public CalciteParser(SqlParser.Config config, List<String> additionalSensitiveKeys) {
         this.config = config;
+        this.additionalSensitiveKeys = additionalSensitiveKeys;
     }
 
     /**
@@ -55,10 +61,7 @@ public class CalciteParser {
             SqlParser parser = SqlParser.create(sql, config);
             return parser.parseStmt();
         } catch (SqlParseException e) {
-            if (e.getMessage().contains("Encountered \"<EOF>\"")) {
-                throw new SqlParserEOFException(e.getMessage(), e);
-            }
-            throw new SqlParserException("SQL parse failed. " + e.getMessage(), e);
+            throw toStatementException(sql, e);
         }
     }
 
@@ -75,10 +78,7 @@ public class CalciteParser {
             SqlParser parser = SqlParser.create(sql, config);
             return parser.parseStmtList();
         } catch (SqlParseException e) {
-            if (e.getMessage().contains("Encountered \"<EOF>\"")) {
-                throw new SqlParserEOFException(e.getMessage(), e);
-            }
-            throw new SqlParserException("SQL parse failed. " + e.getMessage(), e);
+            throw toStatementException(sql, e);
         }
     }
 
@@ -94,7 +94,7 @@ public class CalciteParser {
             final SqlParser parser = SqlParser.create(sqlExpression, config);
             return parser.parseExpression();
         } catch (SqlParseException e) {
-            throw new SqlParserException("SQL parse failed. " + e.getMessage(), e);
+            throw toParserException(sqlExpression, e);
         }
     }
 
@@ -118,6 +118,58 @@ public class CalciteParser {
             throw new SqlParserException(
                     String.format("Invalid SQL identifier %s.", identifier), e);
         }
+    }
+
+    /**
+     * Converts a parse error of a statement. An error at the end of the input means the statement
+     * is incomplete, which callers such as the SQL client use to keep reading.
+     */
+    private SqlParserException toStatementException(String sql, SqlParseException e) {
+        final String message = e.getMessage();
+        if (message != null && message.contains("Encountered \"<EOF>\"")) {
+            return new SqlParserEOFException(message, e);
+        }
+        return toParserException(sql, e);
+    }
+
+    private SqlParserException toParserException(String sql, SqlParseException e) {
+        final String message = describe(sql, e);
+        return new SqlParserException(
+                message.isEmpty() ? "SQL parse failed." : "SQL parse failed. " + message, e);
+    }
+
+    /**
+     * Returns the Calcite message, preceded by the position and the line it points at when the
+     * parser recorded one.
+     *
+     * <p>Errors raised through {@code SqlUtil.newContextException} keep their position only in
+     * {@link SqlParseException#getPos()}, and {@link SqlParserException} exposes none, so it goes
+     * into the message in the wording validation errors use. The line goes in front so the message
+     * still ends with Calcite's text: the SQL client's {@code CliStrings#findReason} picks the
+     * exception to print by that suffix. JavaCC and lexer errors get the heading too, although they
+     * name the position themselves, so every positioned error starts the same way.
+     */
+    private String describe(String sql, SqlParseException e) {
+        final String message = e.getMessage() == null ? "" : e.getMessage();
+        final SqlParserPos pos = e.getPos();
+        if (pos == null || pos.getLineNum() <= 0 || message.isEmpty()) {
+            return message;
+        }
+        final boolean point =
+                pos.getLineNum() == pos.getEndLineNum()
+                        && pos.getColumnNum() == pos.getEndColumnNum();
+        final String context =
+                point
+                        ? RESOURCE.validatorContextPoint(pos.getLineNum(), pos.getColumnNum()).str()
+                        : RESOURCE.validatorContext(
+                                        pos.getLineNum(),
+                                        pos.getColumnNum(),
+                                        pos.getEndLineNum(),
+                                        pos.getEndColumnNum())
+                                .str();
+        return ParseErrorSnippet.render(sql, pos, additionalSensitiveKeys)
+                .map(snippet -> context + ":\n" + snippet + "\n" + message)
+                .orElse(context + ": " + message);
     }
 
     /**
