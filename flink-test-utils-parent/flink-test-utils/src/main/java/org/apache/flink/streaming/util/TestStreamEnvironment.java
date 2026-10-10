@@ -220,6 +220,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                 ConfigOptions.key("table.exec.unbounded-over.version").intType().noDefaultValue(),
                 1,
                 2);
+        randomize(conf, ExecutionConfigOptions.TABLE_EXEC_EVENT_TIME_TEMPORAL_JOIN_VERSION, 1, 2);
         randomize(
                 conf,
                 TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY,
