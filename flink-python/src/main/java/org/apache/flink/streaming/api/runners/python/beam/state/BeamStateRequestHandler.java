@@ -37,12 +37,14 @@ import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * The handler for Beam state requests sent from Python side, which does actual operations on Flink
  * state.
  */
-public class BeamStateRequestHandler implements StateRequestHandler {
+public class BeamStateRequestHandler implements StateRequestHandler, AutoCloseable {
 
     private final BeamStateStore keyedStateStore;
 
@@ -53,6 +55,10 @@ public class BeamStateRequestHandler implements StateRequestHandler {
     private final BeamStateHandler<MapState<ByteArrayWrapper, byte[]>> mapStateHandler;
 
     private final BeamFnApi.ProcessBundleRequest.CacheToken cacheToken;
+
+    private final ReentrantReadWriteLock lifecycleLock = new ReentrantReadWriteLock(true);
+
+    private boolean closed;
 
     public BeamStateRequestHandler(
             BeamStateStore keyedStateStore,
@@ -69,23 +75,50 @@ public class BeamStateRequestHandler implements StateRequestHandler {
     @Override
     public CompletionStage<BeamFnApi.StateResponse.Builder> handle(BeamFnApi.StateRequest request)
             throws Exception {
-        BeamFnApi.StateKey.TypeCase typeCase = request.getStateKey().getTypeCase();
-        ListState<byte[]> listState;
-        MapState<ByteArrayWrapper, byte[]> mapState;
+        final Lock readLock = lifecycleLock.readLock();
+        readLock.lock();
+        try {
+            if (closed) {
+                throw new IllegalStateException("Beam state request handler is closed.");
+            }
 
-        switch (typeCase) {
-            case BAG_USER_STATE:
-                listState = keyedStateStore.getListState(request);
-                return CompletableFuture.completedFuture(
-                        bagStateHandler.handle(request, listState));
-            case MULTIMAP_SIDE_INPUT:
-                mapState = keyedStateStore.getMapState(request);
-                return CompletableFuture.completedFuture(mapStateHandler.handle(request, mapState));
-            case MULTIMAP_KEYS_SIDE_INPUT:
-                mapState = operatorStateStore.getMapState(request);
-                return CompletableFuture.completedFuture(mapStateHandler.handle(request, mapState));
-            default:
-                throw new RuntimeException("Unsupported state type: " + typeCase);
+            BeamFnApi.StateKey.TypeCase typeCase = request.getStateKey().getTypeCase();
+            ListState<byte[]> listState;
+            MapState<ByteArrayWrapper, byte[]> mapState;
+
+            switch (typeCase) {
+                case BAG_USER_STATE:
+                    listState = keyedStateStore.getListState(request);
+                    return CompletableFuture.completedFuture(
+                            bagStateHandler.handle(request, listState));
+                case MULTIMAP_SIDE_INPUT:
+                    mapState = keyedStateStore.getMapState(request);
+                    return CompletableFuture.completedFuture(
+                            mapStateHandler.handle(request, mapState));
+                case MULTIMAP_KEYS_SIDE_INPUT:
+                    mapState = operatorStateStore.getMapState(request);
+                    return CompletableFuture.completedFuture(
+                            mapStateHandler.handle(request, mapState));
+                default:
+                    throw new RuntimeException("Unsupported state type: " + typeCase);
+            }
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    /**
+     * Stops accepting state requests and waits for requests that are already accessing Flink state
+     * to complete.
+     */
+    @Override
+    public void close() {
+        final Lock writeLock = lifecycleLock.writeLock();
+        writeLock.lock();
+        try {
+            closed = true;
+        } finally {
+            writeLock.unlock();
         }
     }
 
