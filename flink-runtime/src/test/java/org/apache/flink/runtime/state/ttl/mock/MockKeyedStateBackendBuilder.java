@@ -48,6 +48,8 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 
     private final MockSnapshotSupplier snapshotSupplier;
 
+    private boolean supportsObjectLevelValueMigration = false;
+
     public MockKeyedStateBackendBuilder(
             TaskKvStateRegistry kvStateRegistry,
             TypeSerializer<K> keySerializer,
@@ -78,6 +80,12 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
         this.snapshotSupplier = snapshotSupplier;
     }
 
+    public MockKeyedStateBackendBuilder<K> setSupportsObjectLevelValueMigration(
+            boolean supportsObjectLevelValueMigration) {
+        this.supportsObjectLevelValueMigration = supportsObjectLevelValueMigration;
+        return this;
+    }
+
     @Override
     public MockKeyedStateBackend<K> build() {
         Map<String, Map<K, Map<Object, Object>>> stateValues = new HashMap<>();
@@ -97,6 +105,7 @@ public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                 stateSnapshotFilters,
                 cancelStreamRegistry,
                 new InternalKeyContextImpl<>(keyGroupRange, numberOfKeyGroups),
-                snapshotSupplier);
+                snapshotSupplier,
+                supportsObjectLevelValueMigration);
     }
 }

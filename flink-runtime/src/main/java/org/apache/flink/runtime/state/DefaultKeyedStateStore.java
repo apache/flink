@@ -33,6 +33,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeutils.StateSchemaEvolvingSerializer;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -51,6 +52,12 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 
     @Nullable protected final AsyncKeyedStateBackend<?> asyncKeyedStateBackend;
     protected final SerializerFactory serializerFactory;
+
+    /**
+     * Whether state registered here is armed for schema evolution, which is only the case on a
+     * backend that migrates restored values at the object level.
+     */
+    private final boolean armsStateSchemaEvolution;
 
     protected SupportKeyedStateApiSet supportKeyedStateApiSet;
 
@@ -71,6 +78,8 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
         this.keyedStateBackend = keyedStateBackend;
         this.asyncKeyedStateBackend = asyncKeyedStateBackend;
         this.serializerFactory = Preconditions.checkNotNull(serializerFactory);
+        this.armsStateSchemaEvolution =
+                keyedStateBackend != null && keyedStateBackend.supportsObjectLevelValueMigration();
         if (keyedStateBackend != null) {
             // By default, we support state v1
             this.supportKeyedStateApiSet = SupportKeyedStateApiSet.STATE_V1;
@@ -85,7 +94,8 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(serializerFactory);
+            stateProperties.initializeSerializerUnlessSet(
+                    stateValueSerializerFactory(stateProperties.getType()));
             return getPartitionedState(stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -96,7 +106,8 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(serializerFactory);
+            stateProperties.initializeSerializerUnlessSet(
+                    stateValueSerializerFactory(stateProperties.getType()));
             ListState<T> originalState = getPartitionedState(stateProperties);
             return new UserFacingListState<>(originalState);
         } catch (Exception e) {
@@ -108,7 +119,8 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(serializerFactory);
+            stateProperties.initializeSerializerUnlessSet(
+                    stateValueSerializerFactory(stateProperties.getType()));
             return getPartitionedState(stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -120,7 +132,8 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
             AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(serializerFactory);
+            stateProperties.initializeSerializerUnlessSet(
+                    stateValueSerializerFactory(stateProperties.getType()));
             return getPartitionedState(stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -131,12 +144,24 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(serializerFactory);
+            stateProperties.initializeSerializerUnlessSet(
+                    stateValueSerializerFactory(stateProperties.getType()));
             MapState<UK, UV> originalState = getPartitionedState(stateProperties);
             return new UserFacingMapState<>(originalState);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
         }
+    }
+
+    /**
+     * The factory a v1 state descriptor registered here uses for its serializer. On a backend that
+     * does not migrate restored values at the object level it is {@link #serializerFactory} itself,
+     * so nothing is armed.
+     */
+    private SerializerFactory stateValueSerializerFactory(StateDescriptor.Type stateType) {
+        return armsStateSchemaEvolution
+                ? StateSchemaEvolvingSerializer.arming(serializerFactory, stateType)
+                : serializerFactory;
     }
 
     protected <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor)
