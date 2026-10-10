@@ -113,6 +113,65 @@ check_shaded_artifacts() {
 	return 0
 }
 
+# Check the model uber jars for dependencies that are shipped unrelocated.
+# This is an allowlist rather than a denylist: anything that is not metadata and does not
+# live under the module's own package fails the build, so adding a dependency without
+# extending the relocations cannot go unnoticed.
+check_shaded_artifacts_model() {
+	VARIANT=$1
+
+	# flink-model-openai cannot relocate com.openai or kotlin: openai-java is written in
+	# Kotlin and reflects over its own classes, and both relocations break that at runtime.
+	# See the relocation comment in flink-models/flink-model-openai/pom.xml.
+	if [ "${VARIANT}" = "openai" ]; then
+		ALLOWED='^(com/openai|kotlin)/'
+	else
+		ALLOWED='^$'
+	fi
+
+	# Skip the sources and javadoc jars; they sort before the shaded jar and contain no
+	# classes, so picking one would make this check pass without inspecting anything.
+	MODEL_JAR=`ls flink-models/flink-model-${VARIANT}/target/flink-model-${VARIANT}*.jar 2>/dev/null \
+		| grep -vE -- '-(sources|javadoc|tests)\.jar$' | head -n 1`
+	if [ -z "${MODEL_JAR}" ]; then
+		echo "=============================================================================="
+		echo "${VARIANT}: No shaded jar found, cannot verify relocations"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	jar tf ${MODEL_JAR} > ${jarContents} || return 1
+
+	# Guard against inspecting an empty or wrong artifact: the module's own classes must be there.
+	OWN_CLASSES=`grep -c "^org/apache/flink/model/${VARIANT}/.*\.class$" ${jarContents}`
+	if [ "${OWN_CLASSES}" = "0" ]; then
+		echo "=============================================================================="
+		echo "${VARIANT}: ${MODEL_JAR} contains no ${VARIANT} classes; wrong artifact?"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	UNRELOCATED=`cat ${jarContents} \
+		| grep -v '/$' \
+		| sed -e 's#^META-INF/versions/[0-9][0-9]*/##' \
+		| grep -v '^META-INF/' \
+		| grep -v '^$' \
+		| grep -v "^org/apache/flink/model/${VARIANT}/" \
+		| grep -vE "${ALLOWED}" \
+		| sed -e 's#/.*##' \
+		| sort | uniq -c | sort -rn`
+
+	if [ -n "${UNRELOCATED}" ]; then
+		echo "=============================================================================="
+		echo "${VARIANT}: Detected unrelocated dependencies in the model uber jar:"
+		echo "${UNRELOCATED}"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	return 0
+}
+
 # Check the S3 fs implementations' fat jars for illegal or missing artifacts
 check_shaded_artifacts_s3_fs() {
 	VARIANT=$1
