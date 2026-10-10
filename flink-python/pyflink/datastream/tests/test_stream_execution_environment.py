@@ -27,12 +27,14 @@ import unittest
 
 from pyflink.common import Configuration, ExecutionConfig
 from pyflink.common.typeinfo import Types
+from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
                                 CheckpointingMode, SlotSharingGroup)
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
+from pyflink.datastream.connectors.number_seq import NumberSequenceSource
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.formats.json import JsonRowDeserializationSchema
-from pyflink.datastream.functions import SourceFunction
+from pyflink.datastream.functions import ProcessFunction, SourceFunction
 from pyflink.datastream.slot_sharing_group import MemorySize
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.find_flink_home import _find_flink_source_root
@@ -673,6 +675,36 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         cached_files = self.env._j_stream_execution_environment.getCachedFiles()
         self.assertEqual(cached_files.size(), 1)
         self.assertEqual(cached_files[0].getField(0), 'cache_test')
+
+    def test_from_source_with_timestamp_assigner(self):
+        self.env.set_parallelism(1)
+        self.env.get_config().set_auto_watermark_interval(2000)
+        seq_source = NumberSequenceSource(1, 4)
+
+        class MyTimestampAssigner(TimestampAssigner):
+
+            def extract_timestamp(self, value, record_timestamp) -> int:
+                return value * 1000
+
+        class MyProcessFunction(ProcessFunction):
+
+            def process_element(self, value, ctx):
+                yield "value: {}, timestamp: {}".format(str(value), str(ctx.timestamp()))
+
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(MyTimestampAssigner())
+        ds = self.env.from_source(seq_source, watermark_strategy, "seq_source",
+                                  type_info=Types.LONG())
+        ds.process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
+        self.env.execute('test from source with timestamp assigner')
+        results = self.test_sink.get_results()
+        expected = ["value: 1, timestamp: 1000",
+                    "value: 2, timestamp: 2000",
+                    "value: 3, timestamp: 3000",
+                    "value: 4, timestamp: 4000"]
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
 
     def tearDown(self) -> None:
         self.test_sink.clear()
