@@ -20,6 +20,8 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.util.Preconditions;
@@ -99,6 +101,19 @@ class WaitingForResources extends StateWithoutExecutionGraph
     @Override
     public JobStatus getJobStatus() {
         return JobStatus.CREATED;
+    }
+
+    @Override
+    public ArchivedExecutionGraph getJob() {
+        ArchivedExecutionGraph archivedGraph = super.getJob();
+        if (previousExecutionGraph != null) {
+            CheckpointStatsSnapshot previousSnapshot =
+                    previousExecutionGraph.getCheckpointStatsSnapshot();
+            if (previousSnapshot != null) {
+                return archivedGraph.withCheckpointStatsSnapshot(previousSnapshot);
+            }
+        }
+        return archivedGraph;
     }
 
     @Override
