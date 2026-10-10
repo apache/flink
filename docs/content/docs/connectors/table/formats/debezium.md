@@ -175,6 +175,8 @@ Available Metadata
 
 The following format metadata can be exposed as read-only (`VIRTUAL`) columns in a table definition.
 
+Both `debezium-json` and `debezium-avro-confluent` formats support the same metadata fields.
+
 <span class="label label-danger">Attention</span> Format metadata fields are only available if the
 corresponding connector forwards format metadata. Currently, only the Kafka connector is able to expose
 metadata fields for its value format.
@@ -235,6 +237,7 @@ metadata fields for its value format.
 The following example shows how to access Debezium metadata fields in Kafka:
 
 ```sql
+-- For debezium-json format
 CREATE TABLE KafkaTable (
   origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
   event_time TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
@@ -252,6 +255,27 @@ CREATE TABLE KafkaTable (
   'properties.group.id' = 'testGroup',
   'scan.startup.mode' = 'earliest-offset',
   'value.format' = 'debezium-json'
+);
+
+-- For debezium-avro-confluent format
+CREATE TABLE KafkaTable (
+  origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+  event_time TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
+  origin_database STRING METADATA FROM 'value.source.database' VIRTUAL,
+  origin_schema STRING METADATA FROM 'value.source.schema' VIRTUAL,
+  origin_table STRING METADATA FROM 'value.source.table' VIRTUAL,
+  origin_properties MAP<STRING, STRING> METADATA FROM 'value.source.properties' VIRTUAL,
+  user_id BIGINT,
+  item_id BIGINT,
+  behavior STRING
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'user_behavior',
+  'properties.bootstrap.servers' = 'localhost:9092',
+  'properties.group.id' = 'testGroup',
+  'scan.startup.mode' = 'earliest-offset',
+  'value.format' = 'debezium-avro-confluent',
+  'debezium-avro-confluent.url' = 'http://localhost:8081'
 );
 ```
 
