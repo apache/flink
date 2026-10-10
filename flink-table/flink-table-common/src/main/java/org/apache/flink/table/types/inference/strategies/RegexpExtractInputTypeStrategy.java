@@ -32,7 +32,6 @@ import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,27 +60,16 @@ public class RegexpExtractInputTypeStrategy implements InputTypeStrategy {
     @Override
     public Optional<List<DataType>> inferInputTypes(
             final CallContext callContext, final boolean throwOnFailure) {
-        final Optional<DataType> inferredStrType =
-                STRING_ARG.inferArgumentType(callContext, ARG_STR, throwOnFailure);
-        if (inferredStrType.isEmpty()) {
+        if (STRING_ARG.inferArgumentType(callContext, ARG_STR, throwOnFailure).isEmpty()) {
             return Optional.empty();
         }
-        final Optional<DataType> inferredRegexType =
-                STRING_ARG.inferArgumentType(callContext, ARG_REGEX, throwOnFailure);
-        if (inferredRegexType.isEmpty()) {
+        if (STRING_ARG.inferArgumentType(callContext, ARG_REGEX, throwOnFailure).isEmpty()) {
             return Optional.empty();
         }
-        final List<DataType> inferredDataTypes =
-                new ArrayList<>(callContext.getArgumentDataTypes().size());
-        inferredDataTypes.add(inferredStrType.get());
-        inferredDataTypes.add(inferredRegexType.get());
-        if (callContext.getArgumentDataTypes().size() > ARG_EXTRACT_INDEX) {
-            final Optional<DataType> inferredExtractIndexType =
-                    INT_ARG.inferArgumentType(callContext, ARG_EXTRACT_INDEX, throwOnFailure);
-            if (inferredExtractIndexType.isEmpty()) {
-                return Optional.empty();
-            }
-            inferredDataTypes.add(inferredExtractIndexType.get());
+        if (callContext.getArgumentDataTypes().size() > ARG_EXTRACT_INDEX
+                && INT_ARG.inferArgumentType(callContext, ARG_EXTRACT_INDEX, throwOnFailure)
+                        .isEmpty()) {
+            return Optional.empty();
         }
 
         final Optional<List<DataType>> patternError =
@@ -90,7 +78,7 @@ public class RegexpExtractInputTypeStrategy implements InputTypeStrategy {
             return patternError;
         }
 
-        return Optional.of(inferredDataTypes);
+        return Optional.of(callContext.getArgumentDataTypes());
     }
 
     @Override
