@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,29 +18,28 @@
 
 package org.apache.flink.core.plugin;
 
-import org.apache.commons.collections.IteratorUtils;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.util.Preconditions;
 
-import java.util.Iterator;
-import java.util.Map;
+/**
+ * Context information provided to plugins at initialization time, including the ID of the task
+ * manager that hosts the plugin.
+ */
+@PublicEvolving
+public class PluginContext {
+    private final String taskManagerId;
 
-/** {@link PluginManager} for testing purpose. */
-public class TestingPluginManager implements PluginManager {
-
-    private final Map<Class<?>, Iterator<?>> plugins;
-
-    public TestingPluginManager(Map<Class<?>, Iterator<?>> plugins) {
-        this.plugins = plugins;
+    public PluginContext(String taskManagerId) {
+        this.taskManagerId =
+                Preconditions.checkNotNull(taskManagerId, "taskManagerId must not be null");
     }
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public <P> Iterator<P> load(Class<P> service) {
-        return (Iterator<P>) plugins.getOrDefault(service, IteratorUtils.emptyIterator());
+    public String getTaskManagerId() {
+        return taskManagerId;
     }
 
     @Override
-    public void open(PluginContext context) {}
-
-    @Override
-    public void close() {}
+    public String toString() {
+        return "PluginContext{taskManagerId='" + taskManagerId + "'}";
+    }
 }
