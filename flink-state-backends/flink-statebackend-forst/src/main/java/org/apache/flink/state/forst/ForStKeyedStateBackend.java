@@ -66,6 +66,7 @@ import org.apache.flink.util.StateMigrationException;
 import org.forstdb.ColumnFamilyHandle;
 import org.forstdb.ColumnFamilyOptions;
 import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -290,6 +291,14 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
         Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult =
                 tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
+
+        // The compaction filter factory is attached to the column family when the state is
+        // registered, but the native filter only becomes active once it receives the TTL
+        // configuration. Mirror what the sync backend does after registration.
+        if (ttlCompactFiltersManager != null) {
+            ttlCompactFiltersManager.configCompactFilter(
+                    stateDesc, registerResult.f1.getStateSerializer());
+        }
 
         ColumnFamilyHandle columnFamilyHandle = registerResult.f0;
 
@@ -622,6 +631,13 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     @Override
     public boolean isSafeToReuseKVState() {
         return true;
+    }
+
+    @VisibleForTesting
+    public void compactState(StateDescriptor<?> stateDesc) throws RocksDBException {
+        ForStOperationUtils.ForStKvStateInfo kvStateInfo =
+                kvStateInformation.get(stateDesc.getStateId());
+        db.compactRange(kvStateInfo.columnFamilyHandle);
     }
 
     @VisibleForTesting
