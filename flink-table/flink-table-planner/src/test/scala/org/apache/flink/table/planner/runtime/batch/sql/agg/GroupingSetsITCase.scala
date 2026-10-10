@@ -162,6 +162,18 @@ class GroupingSetsITCase extends BatchTestBase {
   }
 
   @Test
+  def testDistinctOnRollupWithNullGroupKey(): Unit = {
+    // the row of the null group and the grand total row are identical
+    checkResult(
+      "SELECT DISTINCT * FROM (" +
+        " SELECT k, COUNT(x) AS c" +
+        " FROM (VALUES (CAST(NULL AS INT), 1), (CAST(NULL AS INT), 2)) AS v(k, x)" +
+        " GROUP BY ROLLUP(k))",
+      Seq(row(null, 2))
+    )
+  }
+
+  @Test
   def testGroupingSetsOnExpression(): Unit = {
     checkResult(
       "select deptno + 1, count(*) as c from emps group by grouping sets ((), (deptno + 1))",

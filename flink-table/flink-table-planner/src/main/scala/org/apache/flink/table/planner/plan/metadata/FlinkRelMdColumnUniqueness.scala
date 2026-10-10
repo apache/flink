@@ -303,7 +303,12 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
-    areColumnsUniqueOnAggregate(rel.getGroupSet.toArray, mq, columns, ignoreNulls)
+    if (Aggregate.isSimple(rel) || ignoreNulls) {
+      areColumnsUniqueOnAggregate(rel.getGroupSet.toArray, mq, columns, ignoreNulls)
+    } else {
+      // with grouping sets, the group keys of different groups may be all null
+      null
+    }
   }
 
   def areColumnsUnique(
