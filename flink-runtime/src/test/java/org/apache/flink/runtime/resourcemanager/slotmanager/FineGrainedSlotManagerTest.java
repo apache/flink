@@ -1169,4 +1169,31 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                             .isEqualTo(DEFAULT_NUM_SLOTS_PER_WORKER);
                 });
     }
+
+    @Test
+    void testCloseCancelsPendingRequirementCheck() throws Exception {
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        new Context() {
+            {
+                setScheduledExecutor(scheduledExecutor);
+                slotManagerConfigurationBuilder.setRequirementCheckDelay(Duration.ofMillis(50));
+                runTest(
+                        () -> {
+                            runInMainThreadAndWait(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirementsForSingleSlot()));
+                            // a delayed (non-periodic) check is now pending, not yet run
+                            assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask())
+                                    .isNotEmpty();
+                        });
+                // flush the main-thread executor so the enqueued close() has cancelled the
+                // pending check before we assert, instead of racing it
+                runInMainThreadAndWait(() -> {});
+                assertThat(scheduledExecutor.getActiveNonPeriodicScheduledTask()).isEmpty();
+            }
+        };
+    }
 }

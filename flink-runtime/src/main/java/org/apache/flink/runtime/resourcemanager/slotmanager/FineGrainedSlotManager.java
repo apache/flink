@@ -126,6 +126,10 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Nullable private CompletableFuture<Void> declareNeededResourceFuture;
 
+    @Nullable private ScheduledFuture<?> requirementsCheckScheduledFuture;
+
+    @Nullable private ScheduledFuture<?> declareNeededResourceScheduledFuture;
+
     /** Blocked task manager checker. */
     @Nullable private BlockedTaskManagerChecker blockedTaskManagerChecker;
 
@@ -286,6 +290,16 @@ public class FineGrainedSlotManager implements SlotManager {
             metricsUpdateFuture = null;
         }
 
+        // cancel pending delayed checks so they don't run against a shutting-down executor
+        if (requirementsCheckScheduledFuture != null) {
+            requirementsCheckScheduledFuture.cancel(false);
+            requirementsCheckScheduledFuture = null;
+        }
+        if (declareNeededResourceScheduledFuture != null) {
+            declareNeededResourceScheduledFuture.cancel(false);
+            declareNeededResourceScheduledFuture = null;
+        }
+
         slotStatusSyncer.close();
         taskManagerTracker.clear();
         resourceTracker.clear();
@@ -435,16 +449,18 @@ public class FineGrainedSlotManager implements SlotManager {
         } else {
             if (declareNeededResourceFuture == null || declareNeededResourceFuture.isDone()) {
                 declareNeededResourceFuture = new CompletableFuture<>();
-                scheduledExecutor.schedule(
-                        () ->
-                                mainThreadExecutor.execute(
-                                        () -> {
-                                            declareNeededResources();
-                                            Preconditions.checkNotNull(declareNeededResourceFuture)
-                                                    .complete(null);
-                                        }),
-                        declareNeededResourceDelay.toMillis(),
-                        TimeUnit.MILLISECONDS);
+                declareNeededResourceScheduledFuture =
+                        scheduledExecutor.schedule(
+                                () ->
+                                        mainThreadExecutor.execute(
+                                                () -> {
+                                                    declareNeededResources();
+                                                    Preconditions.checkNotNull(
+                                                                    declareNeededResourceFuture)
+                                                            .complete(null);
+                                                }),
+                                declareNeededResourceDelay.toMillis(),
+                                TimeUnit.MILLISECONDS);
             }
         }
     }
@@ -628,16 +644,18 @@ public class FineGrainedSlotManager implements SlotManager {
         } else {
             if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
                 requirementsCheckFuture = new CompletableFuture<>();
-                scheduledExecutor.schedule(
-                        () ->
-                                mainThreadExecutor.execute(
-                                        () -> {
-                                            checkResourceRequirements();
-                                            Preconditions.checkNotNull(requirementsCheckFuture)
-                                                    .complete(null);
-                                        }),
-                        requirementsCheckDelay.toMillis(),
-                        TimeUnit.MILLISECONDS);
+                requirementsCheckScheduledFuture =
+                        scheduledExecutor.schedule(
+                                () ->
+                                        mainThreadExecutor.execute(
+                                                () -> {
+                                                    checkResourceRequirements();
+                                                    Preconditions.checkNotNull(
+                                                                    requirementsCheckFuture)
+                                                            .complete(null);
+                                                }),
+                                requirementsCheckDelay.toMillis(),
+                                TimeUnit.MILLISECONDS);
             }
         }
     }

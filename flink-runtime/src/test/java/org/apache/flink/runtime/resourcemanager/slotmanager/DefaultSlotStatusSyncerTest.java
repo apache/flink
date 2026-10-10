@@ -32,8 +32,10 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.QuadConsumer;
 
@@ -44,12 +46,16 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for the {@link DefaultSlotStatusSyncer}. */
 class DefaultSlotStatusSyncerTest {
@@ -328,5 +334,109 @@ class DefaultSlotStatusSyncerTest {
 
         responseFuture.complete(Acknowledge.get());
         assertThatFuture(allocatedFuture).eventuallySucceeds();
+    }
+
+    /**
+     * Regression test for FLINK-34427: a slot request RPC that responds after the slot manager was
+     * closed and the main thread executor shut down must not kill the JVM. Without the fix the late
+     * response submits its {@code handleAsync} continuation to the dead executor, whose rejection is
+     * escalated by {@link FutureUtils#assertNoException} to a fatal {@code System.exit(239)} ({@code
+     * 256 + FatalExitExceptionHandler.EXIT_CODE(-17)}). That exit cannot be intercepted in-process
+     * (see {@code FlinkSecurityManager#forceProcessExit}), so it runs in a forked JVM whose exit code
+     * is asserted.
+     */
+    @Test
+    void lateRpcNoFatalExit() throws Exception {
+        // relies on POSIX process exit codes
+        assumeThat(OperatingSystem.isWindows()).isFalse();
+
+        final FatalExitProcess process = new FatalExitProcess();
+        try {
+            process.startProcess();
+            assertThat(process.waitFor(2, TimeUnit.MINUTES))
+                    .as("forked JVM should have terminated")
+                    .isTrue();
+            assertThat(process.exitCode())
+                    .as("slot manager must not force-exit the JVM on a late allocation callback")
+                    .isEqualTo(0);
+        } finally {
+            process.destroy();
+        }
+    }
+
+    private static final class FatalExitProcess extends TestJvmProcess {
+
+        private FatalExitProcess() throws Exception {}
+
+        @Override
+        public String getName() {
+            return "LateAllocationCallbackProcess";
+        }
+
+        @Override
+        public String[] getMainMethodArgs() {
+            return new String[0];
+        }
+
+        @Override
+        public String getEntryPointClassName() {
+            return LateAllocationEntryPoint.class.getName();
+        }
+    }
+
+    /** Runs in the forked JVM and deterministically triggers the fatal exit. */
+    public static final class LateAllocationEntryPoint {
+
+        public static void main(String[] args) throws Exception {
+            final FineGrainedTaskManagerTracker taskManagerTracker =
+                    new FineGrainedTaskManagerTracker();
+
+            // The slot request RPC future that we complete manually, after shutdown.
+            final CompletableFuture<Acknowledge> pendingRpc = new CompletableFuture<>();
+            final TestingTaskExecutorGateway gateway =
+                    new TestingTaskExecutorGatewayBuilder()
+                            .setRequestSlotFunction(ignored -> pendingRpc)
+                            .createTestingTaskExecutorGateway();
+            final TaskExecutorConnection connection =
+                    new TaskExecutorConnection(ResourceID.generate(), gateway);
+            taskManagerTracker.addTaskManager(
+                    connection, ResourceProfile.ANY, ResourceProfile.ANY);
+
+            final ResourceTracker resourceTracker = new DefaultResourceTracker();
+            final ExecutorService mainThreadExecutor = Executors.newSingleThreadExecutor();
+
+            final SlotStatusSyncer slotStatusSyncer =
+                    new DefaultSlotStatusSyncer(Duration.ofSeconds(10));
+            slotStatusSyncer.initialize(
+                    taskManagerTracker,
+                    resourceTracker,
+                    ResourceManagerId.generate(),
+                    mainThreadExecutor);
+
+            // allocate and close on the main thread, as the slot manager does in production
+            runOnAndWait(
+                    mainThreadExecutor,
+                    () ->
+                            slotStatusSyncer.allocateSlot(
+                                    connection.getInstanceID(),
+                                    new JobID(),
+                                    new ApplicationID(),
+                                    "address",
+                                    ResourceProfile.ANY));
+            runOnAndWait(mainThreadExecutor, slotStatusSyncer::close);
+
+            mainThreadExecutor.shutdown();
+
+            // RPC responds only after shutdown
+            pendingRpc.complete(Acknowledge.get());
+
+            // not force-exited => bug fixed; exit 0 so the test passes
+            System.exit(0);
+        }
+
+        private static void runOnAndWait(ExecutorService executor, Runnable runnable)
+                throws Exception {
+            CompletableFuture.runAsync(runnable, executor).get();
+        }
     }
 }
