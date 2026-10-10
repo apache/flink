@@ -300,6 +300,7 @@ public class LargeRecordHandler<T> {
         try {
             result = keySorter.getIterator();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new IOException(e);
         }
 

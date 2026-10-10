@@ -98,6 +98,9 @@ public class DiskTierConsumerAgent implements TierConsumerAgent {
             try {
                 subpartitionId = readerFuture.get().peekNextBufferSubpartitionId();
             } catch (InterruptedException | ExecutionException e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 throw new RuntimeException("Failed to peek subpartition Id.", e);
             }
             if (indexSet.contains(subpartitionId)) {
@@ -119,6 +122,9 @@ public class DiskTierConsumerAgent implements TierConsumerAgent {
                     .get()
                     .readBuffer(subpartitionId.getSubpartitionId(), segmentId);
         } catch (InterruptedException | ExecutionException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             throw new RuntimeException("Failed to get next buffer.", e);
         }
     }

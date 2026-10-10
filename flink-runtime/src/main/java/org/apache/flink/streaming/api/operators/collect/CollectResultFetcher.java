@@ -186,6 +186,9 @@ public class CollectResultFetcher<T> {
                             .getJobExecutionResult()
                             .get(resultFetchTimeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             throw new IOException("Failed to fetch job execution result", e);
         }
 
@@ -248,6 +251,7 @@ public class CollectResultFetcher<T> {
             // TODO a more proper retry strategy?
             Thread.sleep(retryMillis);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             LOG.warn("Interrupted when sleeping before a retry", e);
         }
     }

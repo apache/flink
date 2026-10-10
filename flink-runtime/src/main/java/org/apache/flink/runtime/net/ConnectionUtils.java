@@ -151,6 +151,7 @@ public class ConnectionUtils {
                 try {
                     Thread.sleep(toWait);
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     throw new IOException("Connection attempts have been interrupted.");
                 }
             }
@@ -411,6 +412,7 @@ public class ConnectionUtils {
                             try {
                                 retrievalLock.wait(maxTimeout);
                             } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
                                 throw new Exception(
                                         "Finding connecting address was interrupted"
                                                 + "while waiting for the leader retrieval.");
@@ -479,6 +481,7 @@ public class ConnectionUtils {
                             try {
                                 retrievalLock.wait(timeToWait);
                             } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
                                 throw new Exception(
                                         "Finding connecting address was interrupted while pausing.");
                             }
