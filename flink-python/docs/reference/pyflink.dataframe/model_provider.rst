@@ -20,65 +20,29 @@
 Model Providers
 ===============
 
-Provider configurations expose Flink's Java model provider options through Python.
-``OpenAIProvider`` supports OpenAI-compatible chat and embedding endpoints, while
-``TritonProvider`` configures NVIDIA Triton Inference Server. Optional values are
-omitted unless supplied, so the Java providers determine their defaults.
+Model providers configure connections and options for AI functions.
+``OpenAIProvider`` and ``TritonProvider`` provide typed configurations for Flink's
+built-in providers. See their API references below for parameters and defaults.
 
-Pass a provider alone to register it under its Java factory identifier. The keyword
-form ``set_model_provider(provider=provider)`` is equivalent. Supply an explicit
-lookup name to keep several configurations of the same provider:
+Use ``set_model_provider`` to register a configuration. Pass a provider alone to
+use its identifier as the name, or supply a name to distinguish configurations.
+Use ``list_model_providers`` to inspect registered names:
 
 .. code-block:: python
 
     import pyflink.dataframe as pf
 
-    pf.set_model_provider(pf.OpenAIProvider(
-        endpoint="https://api.openai.com/v1/chat/completions", api_key="key"))
-    pf.set_model_provider("embed", pf.OpenAIProvider(
-        endpoint="https://api.openai.com/v1/embeddings", api_key="key"))
-    pf.set_default_model_provider("openai")
-    pf.list_model_providers()  # ["openai", "embed"]
+    provider = pf.TritonProvider(endpoint="http://localhost:8000")
+    pf.set_model_provider("inference", provider)
+    pf.list_model_providers()  # ["inference"]
 
-Setting an existing name replaces its configuration. Both convenience and named
-registration support updates, including repeated execution of a notebook cell.
-The list keeps names in their first-registration order. Defaults are bound to
-lookup names, so replacing the default configuration makes subsequent selection
-use the new provider without changing the default name:
+A single registered provider is selected automatically. When using several
+providers, choose a default with ``set_default_model_provider("inference")``.
+Registrations are shared within the Python process.
 
-.. code-block:: python
-
-    pf.set_model_provider(name="openai", provider=pf.OpenAIProvider(
-        endpoint="https://api.openai.com/v1/chat/completions", api_key="new-key"))
-    pf.list_model_providers()  # ["openai", "embed"]
-
-OpenAI endpoints must be complete chat-completions or embeddings URLs, rather
-than a base URL ending in ``/v1``. Model names can be included in the provider
-configuration or supplied when calling an AI function.
-
-A sole registered provider is selected automatically. Registering a second
-provider requires an explicit default or provider selection; the first provider
-does not remain the default merely because it was registered first. An explicitly
-chosen default survives further registrations.
-
-Registrations are process-global and survive clearing or replacing the
-TableEnvironment. Convenience registration evaluates the provider identifier to
-obtain its lookup name; named registration does not inspect the provider. Names
-must be nonempty, non-whitespace strings. Invalid arguments or identifier errors
-leave the previous registrations and default unchanged. Registration does not
-create an environment, access Java, discover factories, or serialize a provider.
-These APIs manage configuration; DataFrame prediction is a separate feature.
-
-Use ``GenericProvider`` for raw Java option names and string values, or subclass
-``ModelProvider`` for a reusable typed integration. The Java provider must already
-be available in the application's classpath. Typed wrappers reject unknown
-constructor arguments; use the generic form for options without a typed wrapper.
-
-.. code-block:: python
-
-    provider = pf.GenericProvider(
-        "my-provider", **{"endpoint": "https://example.test/inference", "api-key": "key"})
-    pf.set_model_provider("custom", provider)
+For other providers available in the application's classpath, use ``GenericProvider``
+with provider-specific option names and string values, or subclass ``ModelProvider``
+to create a reusable configuration.
 
 .. currentmodule:: pyflink.dataframe
 
