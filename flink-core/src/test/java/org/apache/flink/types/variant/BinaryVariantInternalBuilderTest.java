@@ -310,4 +310,85 @@ class BinaryVariantInternalBuilderTest {
                 // A negative scale is rescaled to 0.
                 Arguments.of(5L, -1, DECIMAL4));
     }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "0",
+                "-0",
+                "127",
+                "128",
+                "-129",
+                "32768",
+                "2147483648",
+                "9223372036854775807",
+                "-9223372036854775808",
+                // Beyond a long: a decimal while it fits 38 digits, then a double.
+                "9223372036854775808",
+                "-9223372036854775809",
+                "123456789012345678901234567890123456789",
+                "3.14",
+                "-1.5",
+                "0.10",
+                "0.000000000000000000000000000000000000001",
+                "1e10",
+                "1E10",
+                "1e+10",
+                "1e-10",
+                "-1.5e3",
+                "1e308",
+                // Whitespace around a value is valid JSON.
+                " 1.5\n"
+            })
+    void testAppendJsonNumberMatchesParseJson(final String literal) throws IOException {
+        final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        builder.appendJsonNumber(literal);
+
+        assertThat(builder.build())
+                .isEqualTo(BinaryVariantInternalBuilder.parseJson(literal, false));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                // Locale-specific separators.
+                "1,5",
+                "1.000,5",
+                "1'000",
+                // Accepted by Java's number parsers, but not by JSON.
+                "+5",
+                "0x1p4",
+                "0x1.8p3",
+                "10d",
+                "1.5f",
+                "1" + (char) 0x06F8,
+                "NaN",
+                "Infinity",
+                "-Infinity",
+                // Incomplete or malformed.
+                "",
+                "-",
+                "01",
+                "-01",
+                "1.",
+                ".5",
+                "1e",
+                "1e+",
+                "1.5.5",
+                "--1",
+                // Another JSON value, or more than one.
+                "\"5\"",
+                "true",
+                "null",
+                "[1]",
+                "5 6",
+                // A JSON number outside the range of a double.
+                "1e400",
+                "-1e400"
+            })
+    void testAppendJsonNumberRejectsInvalidLiterals(final String literal) {
+        final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+
+        assertThatThrownBy(() -> builder.appendJsonNumber(literal)).isInstanceOf(IOException.class);
+    }
 }
