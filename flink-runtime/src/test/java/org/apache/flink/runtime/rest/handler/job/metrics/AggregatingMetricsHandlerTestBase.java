@@ -385,6 +385,9 @@ abstract class AggregatingMetricsHandlerTestBase<
         assertThat(aggregatedMetric.getAvg()).isCloseTo(2.0, within(0.1));
         assertThat(aggregatedMetric.getSum()).isCloseTo(4.0, within(0.1));
         assertThat(aggregatedMetric.getSkew()).isCloseTo(50.0, within(0.1));
+        assertThat(aggregatedMetric.getP50()).isNull();
+        assertThat(aggregatedMetric.getP90()).isNull();
+        assertThat(aggregatedMetric.getP99()).isNull();
     }
 
     @Test
@@ -418,5 +421,43 @@ abstract class AggregatingMetricsHandlerTestBase<
         assertThat(aggregatedMetric.getAvg()).isNull();
         assertThat(aggregatedMetric.getMax()).isNull();
         assertThat(aggregatedMetric.getSum()).isNull();
+    }
+
+    @Test
+    void testPercentileAggregation() throws Exception {
+        Map<String, List<String>> queryParams = new HashMap<>(4);
+        queryParams.put("get", Collections.singletonList("abc.metric1"));
+        queryParams.put("agg", Arrays.asList("p50", "p90", "p99"));
+
+        HandlerRequest<EmptyRequestBody> request =
+                HandlerRequest.resolveParametersAndCreate(
+                        EmptyRequestBody.getInstance(),
+                        handler.getMessageHeaders().getUnresolvedMessageParameters(),
+                        pathParameters,
+                        queryParams,
+                        Collections.emptyList());
+
+        AggregatedMetricsResponseBody response =
+                handler.handleRequest(request, MOCK_DISPATCHER_GATEWAY).get();
+
+        Collection<AggregatedMetric> aggregatedMetrics = response.getMetrics();
+
+        assertThat(aggregatedMetrics).hasSize(1);
+        AggregatedMetric aggregatedMetric = aggregatedMetrics.iterator().next();
+
+        assertThat(aggregatedMetric.getId()).isEqualTo("abc.metric1");
+        // abc.metric1 has the data points [1, 3]; commons-math3 LEGACY percentile
+        // (pos = percentile * (N + 1) / 100, N = 2):
+        //   p50 -> pos = 1.5 -> 1 + 0.5 * (3 - 1) = 2
+        //   p90 -> pos = 2.7 -> pos >= N, clamped to max = 3
+        //   p99 -> pos = 2.97 -> pos >= N, clamped to max = 3
+        assertThat(aggregatedMetric.getP50()).isCloseTo(2.0, within(0.1));
+        assertThat(aggregatedMetric.getP90()).isCloseTo(3.0, within(0.1));
+        assertThat(aggregatedMetric.getP99()).isCloseTo(3.0, within(0.1));
+        assertThat(aggregatedMetric.getMin()).isNull();
+        assertThat(aggregatedMetric.getMax()).isNull();
+        assertThat(aggregatedMetric.getAvg()).isNull();
+        assertThat(aggregatedMetric.getSum()).isNull();
+        assertThat(aggregatedMetric.getSkew()).isNull();
     }
 }
