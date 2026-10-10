@@ -629,6 +629,89 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         assertOutput(actualOutput, Arrays.asList(5, 6));
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testMultiSplitWithBusySubtask(boolean simulateBusySubtask) throws Exception {
+        long idleTimeout = 100;
+        MockSourceReader sourceReader =
+                new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
+        TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+        SourceOperator<Integer, MockSourceSplit> operator =
+                createAndOpenSourceOperatorWithIdleness(
+                        sourceReader, processingTimeService, idleTimeout);
+
+        MockSourceSplit split0 = new MockSourceSplit(0, 0, 10);
+        MockSourceSplit split1 = new MockSourceSplit(1, 10, 20);
+        split0.addRecord(5);
+        split1.addRecord(2);
+
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Arrays.asList(split0, split1), new MockSourceSplitSerializer()));
+        CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
+
+        // Set watermark alignment event to be below that for idle timeout to rule out late records
+        // from large watermark gap across splits.
+        operator.handleOperatorEvent(new WatermarkAlignmentEvent(10));
+
+        // Emit first record (5)
+        operator.emitNext(dataOutput);
+        assertThat(sourceReader.getPausedSplits()).isEmpty();
+
+        if (simulateBusySubtask) {
+            // Simulate a slow synchronous chained operator monopolizing the subtask thread
+            for (int i = 0; i < 10; i++) {
+                processingTimeService.advance(idleTimeout);
+            }
+        }
+
+        assertThat(sourceReader.getPausedSplits()).isEmpty();
+
+        // split1 has a genuinely pending, never-yet-requested record - it should NOT be marked
+        // idle merely because nothing has asked for it yet.
+        assertThat(operator.getSplitMetricGroup(split1.splitId()).isIdle()).isFalse();
+
+        // Once the "busy" operator finally frees up and split1's pending record is requested,
+        // its genuinely on-time timestamp (2) should not arrive behind a watermark that has
+        // already advanced past it (5, driven by split0 alone while split1 was wrongly
+        // excluded as idle).
+
+        // Emit first record (2)
+        operator.emitNext(dataOutput);
+
+        List<Object> events = dataOutput.getEvents();
+        int watermarkIndex = indexOfWatermarkAtLeast(events, 5);
+        int recordIndex = indexOfRecordWithValue(events, 2);
+        assertThat(recordIndex)
+                .as(
+                        "record with timestamp 2 should not arrive behind an already-emitted "
+                                + "watermark of 5")
+                .isLessThan(watermarkIndex == -1 ? Integer.MAX_VALUE : watermarkIndex);
+    }
+
+    private static int indexOfWatermarkAtLeast(List<Object> events, long minTimestamp) {
+        for (int i = 0; i < events.size(); i++) {
+            Object event = events.get(i);
+            if (event instanceof org.apache.flink.streaming.api.watermark.Watermark
+                    && ((org.apache.flink.streaming.api.watermark.Watermark) event).getTimestamp()
+                            >= minTimestamp) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static int indexOfRecordWithValue(List<Object> events, int value) {
+        for (int i = 0; i < events.size(); i++) {
+            Object event = events.get(i);
+            if (event instanceof StreamRecord
+                    && ((StreamRecord<?>) event).getValue().equals(value)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     private void sampleAllWatermarks(TestProcessingTimeService timeService) throws Exception {
         sampleWatermarks(timeService, WATERMARK_ALIGNMENT_BUFFER_SIZE.defaultValue());
     }
