@@ -34,4 +34,4 @@ This page gives an overview of all public PyFlink DataFrame APIs.
     datatype
     environment
     config
-    model_provider
+    llm

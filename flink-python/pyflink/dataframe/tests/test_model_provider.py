@@ -21,7 +21,7 @@ import unittest
 from typing import get_type_hints
 
 import pyflink.dataframe as pf
-from pyflink.dataframe import model_provider
+from pyflink.dataframe import llm
 from pyflink.table import TableEnvironment
 
 
@@ -215,13 +215,13 @@ class ModelProviderTests(unittest.TestCase):
 
 class ModelProviderRegistryTests(unittest.TestCase):
     def setUp(self):
-        previous = dict(model_provider._provider_registry)
-        self.addCleanup(model_provider._provider_registry.update, previous)
-        self.addCleanup(model_provider._provider_registry.clear)
-        model_provider._provider_registry.clear()
-        previous_default = model_provider._default_provider
-        self.addCleanup(setattr, model_provider, "_default_provider", previous_default)
-        model_provider._default_provider = None
+        previous = dict(llm._provider_registry)
+        self.addCleanup(llm._provider_registry.update, previous)
+        self.addCleanup(llm._provider_registry.clear)
+        llm._provider_registry.clear()
+        previous_default = llm._default_provider
+        self.addCleanup(setattr, llm, "_default_provider", previous_default)
+        llm._default_provider = None
 
     def test_registration_is_lazy_and_names_are_ordered(self):
         class UnserializedProvider(pf.ModelProvider):
@@ -253,16 +253,16 @@ class ModelProviderRegistryTests(unittest.TestCase):
         provider = UnserializedProvider()
         pf.set_model_provider(provider)
         self.assertEqual(pf.list_model_providers(), ["custom"])
-        self.assertIs(model_provider._resolve_provider(), provider)
+        self.assertIs(llm._resolve_provider(), provider)
 
         pf.set_model_provider(provider=pf.OpenAIProvider("https://example.test/embeddings", "key"))
         with self.assertRaisesRegex(ValueError, "Multiple model providers"):
-            model_provider._resolve_provider()
+            llm._resolve_provider()
 
         pf.set_default_model_provider("custom")
         pf.set_model_provider(pf.TritonProvider("http://localhost:8000"))
         self.assertEqual(pf.list_model_providers(), ["custom", "openai", "triton"])
-        self.assertIs(model_provider._resolve_provider(), provider)
+        self.assertIs(llm._resolve_provider(), provider)
 
     def test_invalid_registration_preserves_registered_names(self):
         class InvalidIdentifierProvider(pf.ModelProvider):
@@ -310,9 +310,9 @@ class ModelProviderRegistryTests(unittest.TestCase):
                 with self.assertRaises(error):
                     pf.set_model_provider(*args, **kwargs)
                 self.assertEqual(pf.list_model_providers(), ["chat", "embed"])
-                self.assertIs(model_provider._resolve_provider(), provider)
-                self.assertIs(model_provider._resolve_provider("chat"), provider)
-                self.assertIs(model_provider._resolve_provider("embed"), other)
+                self.assertIs(llm._resolve_provider(), provider)
+                self.assertIs(llm._resolve_provider("chat"), provider)
+                self.assertIs(llm._resolve_provider("embed"), other)
 
     def test_replacement_preserves_order_and_defaults_bound_to_names(self):
         original = pf.GenericProvider("custom", token="old")
@@ -320,38 +320,38 @@ class ModelProviderRegistryTests(unittest.TestCase):
         replacement = pf.GenericProvider("custom", token="new")
         pf.set_model_provider(replacement)
         self.assertEqual(pf.list_model_providers(), ["custom"])
-        self.assertIs(model_provider._resolve_provider(), replacement)
+        self.assertIs(llm._resolve_provider(), replacement)
 
         pf.set_model_provider("other", pf.GenericProvider("other"))
         pf.set_default_model_provider("custom")
         named = pf.GenericProvider("different-factory")
         pf.set_model_provider(name="custom", provider=named)
         self.assertEqual(pf.list_model_providers(), ["custom", "other"])
-        self.assertIs(model_provider._resolve_provider(), named)
+        self.assertIs(llm._resolve_provider(), named)
 
         pf.set_model_provider(provider=original)
         other = pf.GenericProvider("another-factory")
         pf.set_model_provider("other", other)
         self.assertEqual(pf.list_model_providers(), ["custom", "other"])
-        self.assertIs(model_provider._resolve_provider(), original)
-        self.assertIs(model_provider._resolve_provider("other"), other)
+        self.assertIs(llm._resolve_provider(), original)
+        self.assertIs(llm._resolve_provider("other"), other)
 
     def test_selection_requires_choice_only_with_multiple_providers(self):
         chat = pf.GenericProvider("custom", task="chat")
         embed = pf.GenericProvider("custom", task="embed")
         with self.assertRaisesRegex(ValueError, "No model provider"):
-            model_provider._resolve_provider()
+            llm._resolve_provider()
 
         pf.set_model_provider("chat", chat)
-        self.assertIs(model_provider._resolve_provider(), chat)
+        self.assertIs(llm._resolve_provider(), chat)
         pf.set_model_provider("embed", embed)
         with self.assertRaisesRegex(ValueError, "Multiple model providers"):
-            model_provider._resolve_provider()
+            llm._resolve_provider()
 
         pf.set_default_model_provider("chat")
         pf.set_model_provider("other", pf.GenericProvider("other"))
-        self.assertIs(model_provider._resolve_provider(), chat)
-        self.assertIs(model_provider._resolve_provider("embed"), embed)
+        self.assertIs(llm._resolve_provider(), chat)
+        self.assertIs(llm._resolve_provider("embed"), embed)
 
     def test_invalid_selection_preserves_default(self):
         provider = pf.GenericProvider("custom")
@@ -362,10 +362,10 @@ class ModelProviderRegistryTests(unittest.TestCase):
             with self.subTest(name=name):
                 with self.assertRaises(error):
                     pf.set_default_model_provider(name)
-                self.assertIs(model_provider._resolve_provider(), provider)
+                self.assertIs(llm._resolve_provider(), provider)
                 if name is not None:
                     with self.assertRaises(error):
-                        model_provider._resolve_provider(name)
+                        llm._resolve_provider(name)
 
     def test_registry_and_default_survive_environment_replacement(self):
         previous_environment = pf.get_table_environment()
@@ -383,7 +383,7 @@ class ModelProviderRegistryTests(unittest.TestCase):
                             object.__new__(TableEnvironment)):
             pf.set_table_environment(environment)
             self.assertEqual(pf.list_model_providers(), ["chat", "embed"])
-            self.assertIs(model_provider._resolve_provider(), provider)
+            self.assertIs(llm._resolve_provider(), provider)
 
 
 if __name__ == '__main__':

@@ -67,7 +67,7 @@ from pyflink.dataframe.dataframe_config import config
 from pyflink.dataframe.datatype import DataType
 from pyflink.dataframe.io import read_catalog_table, read_generic, read_json, read_parquet
 from pyflink.dataframe.iteration import CloseableIterator
-from pyflink.dataframe.model_provider import (
+from pyflink.dataframe.llm import (
     GenericProvider,
     ModelProvider,
     OpenAIProvider,

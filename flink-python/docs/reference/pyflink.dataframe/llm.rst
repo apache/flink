@@ -16,9 +16,12 @@
     limitations under the License.
    ################################################################################
 
-===============
+========
+AI / LLM
+========
+
 Model Providers
-===============
+---------------
 
 Model providers configure connections and options for AI functions.
 ``OpenAIProvider`` and ``TritonProvider`` provide typed configurations for Flink's
