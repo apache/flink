@@ -286,7 +286,7 @@ Table result = cdcStream
 
 ## TO_CHANGELOG
 
-The `TO_CHANGELOG` PTF converts a dynamic table (i.e. an updating table) into an append-only table with an explicit operation code column. Each input row - regardless of its original change operation (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE) - is emitted as an INSERT-only row with a string column indicating the original operation.
+The `TO_CHANGELOG` PTF converts a dynamic table (i.e. an updating table) into an append-only table. By default, each input row - regardless of its original change operation (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE) - is emitted as an INSERT-only row with a string column indicating the original operation. Set `include_op_column` to `false` to omit that column.
 
 This is useful when you need to materialize changelog events into a downstream system that only supports appends (e.g., a message queue, log store, or append-only file sink). It is also useful to filter out certain types of updates, for example DELETEs.
 
@@ -297,7 +297,8 @@ SELECT * FROM TO_CHANGELOG(
   input => TABLE source_table [PARTITION BY key_col],
   [op => DESCRIPTOR(op_column_name),]
   [op_mapping => MAP['INSERT', 'I', 'DELETE', 'D', ...],]
-  [produces_full_deletes => BOOLEAN]
+  [produces_full_deletes => BOOLEAN,]
+  [include_op_column => BOOLEAN]
 )
 ```
 
@@ -309,6 +310,7 @@ SELECT * FROM TO_CHANGELOG(
 | `op`                    | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`.                                                                                                                                                                                                                                                                |
 | `op_mapping`            | No       | A `MAP<STRING, STRING>` mapping change operation names to custom output codes. Keys can contain comma-separated names to map multiple operations to the same code (e.g., `'INSERT, UPDATE_AFTER'`). When provided, only mapped operations are forwarded - unmapped events are dropped. Each change operation may appear at most once across all entries. |
 | `produces_full_deletes` | No       | A `BOOLEAN` literal that controls how DELETE rows are emitted. When `true` (default), DELETE rows carry all columns, the full image. When `false`, only the identifying key columns are preserved and the rest are nulled. See [Full vs partial deletes](#full-vs-partial-deletes) for more details.                                                     |
+| `include_op_column`     | No       | A `BOOLEAN` literal that controls whether the operation code column is included in the output. When `true` (default), the operation code column is prepended to the output. When `false`, the output schema contains only the input columns.                                                                                                             |
 
 #### Default op_mapping
 
@@ -323,11 +325,13 @@ When `op_mapping` is omitted, all four change operations are mapped to their sta
 
 ### Output Schema
 
-The output schema is:
+By default, the output schema is:
 
 ```
 [op_column, all_input_columns]
 ```
+
+With `include_op_column => false`, the output schema contains only the input columns.
 
 All output rows have `INSERT` - the table is always append-only.
 
