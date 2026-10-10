@@ -174,8 +174,10 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                                     "probe.pk = s.bk AND probe.pv = s.bv"))
                     .build();
 
-    public static final TableTestProgram NON_EQUI =
-            TableTestProgram.of("lateral-snapshot-non-equi", "join with a non-equi condition")
+    public static final TableTestProgram COMPLEX_PRED =
+            TableTestProgram.of(
+                            "lateral-snapshot-complex-pred",
+                            "join on an equi-key with an additional non-equi predicate")
                     .setupTableSource(
                             probe(
                                     Arrays.asList(
@@ -198,6 +200,82 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                                     "probe.pk, probe.pv, s.bv",
                                     MID_FLIP,
                                     "probe.pk = s.bk AND probe.pv > s.bv"))
+                    .build();
+
+    public static final TableTestProgram NON_EQUI =
+            TableTestProgram.of(
+                            "lateral-snapshot-non-equi",
+                            "join with only a non-equi condition (no equi-key) runs single-threaded")
+                    .setupTableSource(
+                            probe(
+                                    Arrays.asList(
+                                            Row.of("a", 5, ts("00:01:00")),
+                                            Row.of("a", 15, ts("00:01:01")))))
+                    .setupTableSource(
+                            appendBuild(
+                                    withFlipTrigger(
+                                            Arrays.asList(
+                                                    Row.of("a", 10, ts("00:00:01")),
+                                                    Row.of("a", 20, ts("00:00:02"))))))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("pv INT", "bv INT")
+                                    .testMaterializedData()
+                                    .consumedValues("+I[5, 10]", "+I[5, 20]", "+I[15, 20]")
+                                    .build())
+                    // probe.pv < s.bv keeps the bv=0 flip-trigger row from matching any probe.
+                    .runSql(innerJoin("probe.pv, s.bv", MID_FLIP, "probe.pv < s.bv"))
+                    .build();
+
+    public static final TableTestProgram NON_EQUI_LEFT =
+            TableTestProgram.of(
+                            "lateral-snapshot-non-equi-left",
+                            "left join with only a non-equi condition null-pads unmatched probe rows")
+                    .setupTableSource(
+                            probe(
+                                    Arrays.asList(
+                                            Row.of("a", 5, ts("00:01:00")),
+                                            Row.of("a", 100, ts("00:01:01")))))
+                    .setupTableSource(
+                            appendBuild(
+                                    withFlipTrigger(
+                                            Arrays.asList(
+                                                    Row.of("a", 10, ts("00:00:01")),
+                                                    Row.of("a", 20, ts("00:00:02"))))))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("pv INT", "bv INT")
+                                    .testMaterializedData()
+                                    .consumedValues("+I[5, 10]", "+I[5, 20]", "+I[100, null]")
+                                    .build())
+                    // probe.pv < s.bv keeps the bv=0 flip-trigger row from matching any probe.
+                    .runSql(leftJoin("probe.pv, s.bv", MID_FLIP, "probe.pv < s.bv"))
+                    .build();
+
+    public static final TableTestProgram CROSS_JOIN =
+            TableTestProgram.of(
+                            "lateral-snapshot-cross-join",
+                            "inner join with a TRUE condition produces the probe-build cross product")
+                    .setupTableSource(
+                            probe(
+                                    Arrays.asList(
+                                            Row.of("a", 5, ts("00:01:00")),
+                                            Row.of("a", 15, ts("00:01:01")))))
+                    // No flip-trigger row: with a TRUE condition it would match every probe. The
+                    // far-future flip condition flips the operator only at end-of-input.
+                    .setupTableSource(
+                            appendBuild(
+                                    Arrays.asList(
+                                            Row.of("a", 10, ts("00:00:01")),
+                                            Row.of("a", 20, ts("00:00:02")))))
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("pv INT", "bv INT")
+                                    .testMaterializedData()
+                                    .consumedValues(
+                                            "+I[5, 10]", "+I[5, 20]", "+I[15, 10]", "+I[15, 20]")
+                                    .build())
+                    .runSql(innerJoin("probe.pv, s.bv", END_FLIP, "TRUE"))
                     .build();
 
     public static final TableTestProgram EMPTY_BUILD_INNER =
