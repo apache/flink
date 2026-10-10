@@ -432,9 +432,7 @@ class ScalarFunctionSplitter(
     callFinder: RemoteCallFinder)
   extends RexDefaultVisitor[RexNode] {
 
-  private var fieldsRexCall: Map[Int, Int] = Map[Int, Int]()
-
-  private val extractedRexNodeRefs: mutable.HashSet[RexNode] = mutable.HashSet[RexNode]()
+  private val extractedRexNodeToIndex = mutable.HashMap.empty[RexNode, Int]
 
   override def visitCall(call: RexCall): RexNode = {
     if (needConvert(call)) {
@@ -474,29 +472,32 @@ class ScalarFunctionSplitter(
 
   private def convertInputRefToLocalRefIfNecessary(node: RexNode): RexNode = {
     node match {
-      case inputRef: RexInputRef if extractedRexNodeRefs.contains(node) =>
+      case inputRef: RexInputRef if inputRef.getIndex >= extractedFunctionOffset =>
         new RexLocalRef(inputRef.getIndex, node.getType)
       case _ => node
     }
   }
 
   private def getExtractedRexNode(node: RexNode): RexNode = {
-    val newNode = new RexInputRef(extractedFunctionOffset + extractedRexNodes.length, node.getType)
-    extractedRexNodes.append(node)
-    extractedRexNodeRefs.add(newNode)
-    newNode
+    new RexInputRef(extractedFunctionOffset + getExtractedRexNodeIndex(node), node.getType)
   }
 
   private def getExtractedRexFieldAccess(node: RexFieldAccess, rexCallIndex: Int): RexNode = {
     val remoteCall: RexCall =
       program.expandLocalRef(node.getReferenceExpr.asInstanceOf[RexLocalRef]).asInstanceOf[RexCall]
-    if (!fieldsRexCall.contains(rexCallIndex)) {
-      extractedRexNodes.append(remoteCall)
-      fieldsRexCall += rexCallIndex -> (extractedFunctionOffset + extractedRexNodes.length - 1)
-    }
     rexBuilder.makeFieldAccess(
-      new RexInputRef(fieldsRexCall(rexCallIndex), remoteCall.getType),
+      new RexInputRef(
+        extractedFunctionOffset + getExtractedRexNodeIndex(remoteCall),
+        remoteCall.getType),
       node.getField.getIndex)
+  }
+
+  private def getExtractedRexNodeIndex(node: RexNode): Int = {
+    extractedRexNodeToIndex.getOrElseUpdate(
+      node, {
+        extractedRexNodes.append(node)
+        extractedRexNodes.length - 1
+      })
   }
 
   override def visitNodeAndFieldIndex(nodeAndFieldIndex: RexNodeAndFieldIndex): RexNode = {
