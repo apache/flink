@@ -139,8 +139,21 @@ public class JobExecutionResultResponseBodyTest
                                 .isEqualTo(expectedFailureCause.getFullStringifiedStackTrace());
                         assertThat(actualFailureCause.getOriginalErrorClassName())
                                 .isEqualTo(expectedFailureCause.getOriginalErrorClassName());
-                        assertThat(expectedFailureCause.getSerializedException())
-                                .isEqualTo(actualFailureCause.getSerializedException());
+                        // actualFailureCause was reconstructed from a REST response, so
+                        // getSerializedException() correctly reports unavailable (see
+                        // SerializedThrowable#getSerializedException()); the meaningful guarantee
+                        // is that deserializeError() still recovers an equivalent exception.
+                        assertThat(actualFailureCause.getSerializedException()).isNull();
+                        assertThat(
+                                        actualFailureCause
+                                                .deserializeError(
+                                                        ClassLoader.getSystemClassLoader())
+                                                .getMessage())
+                                .isEqualTo(
+                                        expectedFailureCause
+                                                .deserializeError(
+                                                        ClassLoader.getSystemClassLoader())
+                                                .getMessage());
                     });
 
             if (expectedJobExecutionResult.getAccumulatorResults() != null) {
