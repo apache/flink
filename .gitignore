@@ -21,6 +21,7 @@ scalastyle-output.xml
 filter.properties
 .mvn/wrapper/*.jar
 .mvn/maven.config
+.mvn/.develocity/
 target
 tmp
 *.class

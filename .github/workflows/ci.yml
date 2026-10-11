@@ -43,6 +43,8 @@ jobs:
   pre-compile-checks:
     name: "Pre-compile Checks"
     uses: ./.github/workflows/template.pre-compile-checks.yml
+    secrets:
+      develocity_access_key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   ci:
     name: "Default (Java 17)"
     uses: ./.github/workflows/template.flink-ci.yml
@@ -53,3 +55,4 @@ jobs:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
       s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
+      develocity_access_key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
