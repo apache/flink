@@ -758,7 +758,7 @@ class DataFrame:
     @PublicEvolving()
     def explode(
         self,
-        column: Union[str, Expression],
+        column: Union[str, Expression, List[Union[str, Expression]]],
         *,
         output_column: Optional[Union[str, List[str]]] = None,
         ignore_empty_and_null: bool = False,
@@ -773,15 +773,24 @@ class DataFrame:
         fields. Empty and null collections produce a row with null output fields unless
         ``ignore_empty_and_null`` is true.
 
-        .. warning::
-            Due to FLINK-40658, actual null ROW elements in an ARRAY are not handled correctly
-            and may be silently dropped or cause execution to fail. This limitation is independent
-            of ``ignore_empty_and_null``. A non-null ROW whose fields are all null is not affected.
+        A list of multiple columns or expressions expands ARRAYs together by position. Their lengths
+        must match in each input row, treating empty and null arrays as length zero; otherwise
+        execution fails. Null elements count toward the length. When all arrays are empty or
+        null, ``ignore_empty_and_null`` controls whether to drop the row or retain one row with
+        null expanded fields. Each array produces one output column, including ARRAYs of ROWs.
+        A one-element list follows the single-input behavior.
 
-        :param column: Collection column name or row-wise expression to expand.
+        .. warning::
+            Single-input expansion of an ARRAY containing null ROW elements may drop those
+            elements or fail during execution, regardless of ``ignore_empty_and_null``.
+            A non-null ROW whose fields are all null is not affected.
+
+        :param column: Collection column name or row-wise expression to expand, or a non-empty
+            list of ARRAY column names or row-wise expressions to expand together.
         :param output_column: Output name or list of names. Required for multiple fields;
             a single field defaults to the selected column name. Names must be unique and must
-            not conflict with retained input columns.
+            not conflict with retained input columns. For multiple ARRAYs, names default to
+            the resolved input names and each ARRAY requires one output name.
         :param ignore_empty_and_null: Whether to drop rows with empty or null collections.
         :return: A new DataFrame with the expanded rows.
         :raises TypeError: If an argument has an unsupported type or the input is not a collection.
@@ -811,14 +820,28 @@ class DataFrame:
             >>> flattened.columns
             ['id', 'items$name', 'items$quantity']
 
+        Expand multiple ARRAYs together, matching their elements by position::
+
+            >>> df = pf.from_dict({"items": [["apple", "pear"]], "counts": [[2, 3]]})
+            >>> result = df.explode(["items", "counts"])
+
         .. versionadded:: 2.4.0
         """
-        if not isinstance(column, (str, Expression)):
-            raise TypeError("column must be a column name or expression")
+        if isinstance(column, list):
+            if not column:
+                raise ValueError("column must not be empty")
+            if not all(isinstance(value, (str, Expression)) for value in column):
+                raise TypeError("column must contain only column names or expressions")
+            if len(column) == 1:
+                column = column[0]
+        elif not isinstance(column, (str, Expression)):
+            raise TypeError("column must be a column name, expression, or list of these")
         if not isinstance(ignore_empty_and_null, bool):
             raise TypeError("ignore_empty_and_null must be a boolean")
         if output_column is not None and not isinstance(output_column, (str, list)):
             raise TypeError("output_column must be a string or list of strings")
+        if isinstance(column, list):
+            return self._explode_columns(column, output_column, ignore_empty_and_null)
 
         expression = table_col(column) if isinstance(column, str) else column
         selected = self._table.select(expression)
@@ -928,6 +951,107 @@ class DataFrame:
             "" if ignore_empty_and_null else " ON TRUE",
         )
         return DataFrame(table._t_env.sql_query(query))
+
+    def _explode_columns(
+        self,
+        columns: List[Union[str, Expression]],
+        output_column: Optional[Union[str, List[str]]],
+        ignore_empty_and_null: bool,
+    ) -> "DataFrame":
+        table = self._table
+        input_names = table.get_resolved_schema().get_column_names()
+        expressions: List[Expression] = []
+        for value in columns:
+            if isinstance(value, str):
+                expressions.append(table_col(value))
+            else:
+                expressions.append(value)
+        resolved_names = []
+        input_indexes = []
+        for expression in expressions:
+            selected = table.select(expression)
+            schema = selected.get_resolved_schema()
+            if len(schema.get_column_names()) != 1:
+                raise ValueError("each column must select a single column")
+            projection = selected._j_table.getQueryOperation()
+            if not projection.getChildren().get(0).equals(table._j_table.getQueryOperation()):
+                raise ValueError("column must be a row-wise expression, not an aggregation")
+            if not isinstance(schema.get_column_data_types()[0], ArrayType):
+                raise TypeError("multiple columns must all have an ARRAY type")
+            resolved_names.append(schema.get_column_names()[0])
+            resolved = projection.getProjectList().get(0)
+            index: Optional[int] = None
+            if resolved.getClass().getSimpleName() == "FieldReferenceExpression":
+                index = resolved.getFieldIndex()
+            if index is not None and index in input_indexes:
+                raise ValueError("column must not contain duplicate input columns")
+            input_indexes.append(index)
+
+        if output_column is None:
+            output_names = resolved_names
+        elif isinstance(output_column, str):
+            output_names = [output_column]
+        else:
+            output_names = output_column
+        if not all(isinstance(name, str) for name in output_names):
+            raise TypeError("output_column must contain only strings")
+        if len(output_names) != len(columns):
+            raise ValueError("output_column must contain %d name(s)" % len(columns))
+        if any(not name for name in output_names) or len(set(output_names)) != len(columns):
+            raise ValueError("output_column names must be non-empty and unique")
+        retained = []
+        for index, name in enumerate(input_names):
+            if index not in input_indexes:
+                retained.append(name)
+        if set(output_names).intersection(retained):
+            raise ValueError("output_column names conflict with retained input columns")
+
+        taken = set(input_names) | set(output_names)
+        array_names = []
+        computed = []
+        for expression, index in zip(expressions, input_indexes):
+            if index is None:
+                name = _unique_name("__pf_explode", taken)
+                taken.add(name)
+                computed.append(expression.alias(name))
+            else:
+                name = input_names[index]
+            array_names.append(name)
+        if computed:
+            table = table.add_columns(*computed)
+        ordinal_name = _unique_name("__pf_explode_ordinality", taken)
+        gateway = get_gateway()
+        # Validate before producing ordinals, including when the first array is empty.
+        function = gateway.jvm.org.apache.flink.table.utils.python.ExplodeOrdinalityFunction()
+        lengths = to_jarray(
+            gateway.jvm.Object,
+            [_get_java_expression(table_col(name).cardinality) for name in array_names],
+        )
+        ordinals: Expression = Expression(
+            gateway.jvm.Expressions.call(function, lengths)
+        ).alias(ordinal_name)
+        if ignore_empty_and_null:
+            table = table.join_lateral(ordinals)
+        else:
+            table = table.left_outer_join_lateral(ordinals)
+        expanded = [
+            table_col(name).at(table_col(ordinal_name)).alias(output)
+            for name, output in zip(array_names, output_names)
+        ]
+        replacements = {}
+        for index, value in zip(input_indexes, expanded):
+            if index is not None:
+                replacements[index] = value
+        projections: List[Expression] = []
+        for index, name in enumerate(input_names):
+            if index in replacements:
+                projections.append(replacements[index])
+            else:
+                projections.append(table_col(name))
+        for index, value in zip(input_indexes, expanded):
+            if index is None:
+                projections.append(value)
+        return DataFrame(table.select(*projections))
 
     # ======================== Joins ========================
 
