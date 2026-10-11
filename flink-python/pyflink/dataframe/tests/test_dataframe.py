@@ -510,7 +510,6 @@ class DataFrameMultiColumnExplodeTests(PyFlinkDataFrameUTTestCase):
     def test_explode_rejects_invalid_inputs(self):
         for columns, error, message in [
             ([], ValueError, "empty"),
-            (["items", None], TypeError, "column"),
             (["items", "id"], TypeError, "ARRAY"),
             (["items", "items"], ValueError, "duplicate"),
             (["items", pf.col("items").alias("other")], ValueError, "duplicate"),

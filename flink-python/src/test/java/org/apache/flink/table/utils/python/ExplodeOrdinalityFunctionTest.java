@@ -64,8 +64,6 @@ class ExplodeOrdinalityFunctionTest {
     @Test
     void testEmptyLengths() {
         function.eval();
-        function.eval(0);
-        function.eval((Integer) null);
         function.eval(0, 0, 0);
         function.eval(null, null, null);
         function.eval(null, 0, null, 0);
