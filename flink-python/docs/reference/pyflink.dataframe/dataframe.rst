@@ -39,6 +39,14 @@ Example::
     ...            .filter(pf.col("id") > 0)
     >>> names = df.select(df.name)
 
+Pass a list to :meth:`DataFrame.explode` to expand multiple ARRAY columns together by position.
+The arrays must have equal lengths in each row; empty and null arrays count as length zero.
+Unequal lengths fail during execution. If all arrays are empty or null, the default retains
+one row with null expanded values; ``ignore_empty_and_null=True`` drops that row::
+
+    >>> df = pf.from_dict({"items": [["apple", "pear"]], "counts": [[2, 3]]})
+    >>> result = df.explode(["items", "counts"])
+
 DataFrame
 ---------
 
