@@ -194,8 +194,6 @@ class OpenAIProvider(ModelProvider):
                                    fails the job and ``IGNORE`` skips the failed input.
                                    If omitted, Flink uses ``FAILOVER``.
     :param options: Additional Java provider options as string keys and values.
-                    Default: ``None``. Conflicting values between this mapping and
-                    explicit parameters raise ``ValueError``.
 
     Example::
 
@@ -346,8 +344,6 @@ class TritonProvider(ModelProvider):
                                               close the circuit breaker. If omitted,
                                               Flink uses ``3``.
     :param options: Additional Java provider options as string keys and values.
-                    Default: ``None``. Conflicting values between this mapping and
-                    explicit parameters raise ``ValueError``.
 
     Example::
 
@@ -458,8 +454,8 @@ class GenericProvider(ModelProvider):
     Example::
 
         >>> provider = GenericProvider(
-        ...     "my-provider", {"endpoint": "https://example.test/inference"},
-        ...     **{"api-key": "key"})
+        ...     "my-provider",
+        ...     {"endpoint": "https://example.test/inference", "api-key": "key"})
         >>> provider.to_options()
         {'endpoint': 'https://example.test/inference', 'api-key': 'key'}
 
