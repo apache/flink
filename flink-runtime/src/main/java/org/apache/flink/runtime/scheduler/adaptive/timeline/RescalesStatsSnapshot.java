@@ -25,11 +25,10 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class RescalesStatsSnapshot implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -44,13 +43,15 @@ public class RescalesStatsSnapshot implements Serializable {
             Map<TerminalState, Rescale> latestRescales,
             RescalesSummarySnapshot rescalesSummarySnapshot) {
         this.rescaleHistory = List.copyOf(rescaleHistory);
-        this.idToRescaleMap =
-                rescaleHistory.stream()
-                        .collect(
-                                Collectors.toMap(
-                                        r -> r.getRescaleIdInfo().getRescaleUuid(),
-                                        Function.identity()));
         this.latestRescales = Map.copyOf(latestRescales);
+        final Map<AbstractID, Rescale> rescalesById = new HashMap<>();
+        for (Rescale rescale : rescaleHistory) {
+            rescalesById.put(rescale.getRescaleIdInfo().getRescaleUuid(), rescale);
+        }
+        for (Rescale rescale : latestRescales.values()) {
+            rescalesById.putIfAbsent(rescale.getRescaleIdInfo().getRescaleUuid(), rescale);
+        }
+        this.idToRescaleMap = Map.copyOf(rescalesById);
         this.rescalesSummarySnapshot = rescalesSummarySnapshot;
     }
 
@@ -60,6 +61,10 @@ public class RescalesStatsSnapshot implements Serializable {
 
     public @Nullable Rescale getRescale(AbstractID rescaleId) {
         return idToRescaleMap.get(rescaleId);
+    }
+
+    public Collection<Rescale> getRescales() {
+        return idToRescaleMap.values();
     }
 
     @Nullable
