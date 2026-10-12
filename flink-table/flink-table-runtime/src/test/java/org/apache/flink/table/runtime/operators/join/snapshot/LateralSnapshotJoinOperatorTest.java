@@ -618,6 +618,42 @@ class LateralSnapshotJoinOperatorTest {
     }
 
     @Test
+    void emptyKeyModeLeftOuterReflectsBuildInsertAndDelete() throws Exception {
+        // LEFT OUTER with an empty keyset: a matching build row is added and later removed, so the
+        // same probe sees null (no match), then non-null (match), then null (match removed).
+        LateralSnapshotJoinOperator op =
+                newOperator(true, newProbeIdLtBuildRtCondition(), new boolean[0], 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newEmptyKeyHarness(op)) {
+            h.open();
+            addBuildWm(h, 100L); // flip to JOIN with an empty build table
+            assertPhase(op, Phase.JOIN);
+
+            // (1) No matching build row yet -> null-padded.
+            addProbeRecord(h, 5L, "p", "p1");
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(h, row(5L, "p", "p1", null, null, null));
+
+            // Add a matching build row (probe id 5 < build rt 110) and drain it.
+            addBuildChange(h, insertRecord("k1", "v1", 110L));
+            addBuildWm(h, 111L);
+            // (2) Probe now matches -> non-null.
+            addProbeRecord(h, 5L, "p", "p2");
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(h, row(5L, "p", "p2", "k1", "v1", 110L));
+
+            // Remove the build row again (retraction matches the inserted row, incl. row-time) and
+            // drain it.
+            addBuildChange(h, deleteRecord("k1", "v1", 110L));
+            addBuildWm(h, 121L);
+            // (3) Probe matches nothing again -> null-padded.
+            addProbeRecord(h, 5L, "p", "p3");
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(h, row(5L, "p", "p3", null, null, null));
+        }
+    }
+
+    @Test
     void joinPhaseProbeIsBufferedWhileKeyStillDraining() throws Exception {
         // Flip without a probe watermark leaves the LOAD-buffered probe in place. A new JOIN-phase
         // probe for the same key must be appended behind it (not joined inline, not blocking), and
@@ -1520,6 +1556,39 @@ class LateralSnapshotJoinOperatorTest {
             h.setProcessingTime(160);
             assertThat(op.getNumStateTtlEvictions().getCount()).isEqualTo(1L);
             assertThat(buildTableForKey(h, op, "k1")).isEmpty();
+        }
+    }
+
+    @Test
+    void emptyKeyModeStateTtlEvictsEntireBuildTable() throws Exception {
+        // With no equi-key all build rows share one (empty) key, so a single state_ttl timer covers
+        // the whole build side. After an idle period longer than the TTL, the entire build table is
+        // evicted at once; a later probe then matches nothing (here: LEFT -> null-padded).
+        LateralSnapshotJoinOperator op =
+                newOperator(true, newProbeIdLtBuildRtCondition(), new boolean[0], 100L, null, 100L);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newEmptyKeyHarness(op)) {
+            h.setProcessingTime(0);
+            h.open();
+            addBuildChange(h, insertRecord("k1", "v1", 10L));
+            addBuildChange(h, insertRecord("k2", "v2", 20L));
+            addBuildWm(h, 100L); // flip to JOIN
+            assertPhase(op, Phase.JOIN);
+
+            // Probe id=5 matches both build rows (5 < 10, 5 < 20).
+            addProbeRecord(h, 5L, "p", "p1");
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(
+                    h, row(5L, "p", "p1", "k1", "v1", 10L), row(5L, "p", "p1", "k2", "v2", 20L));
+
+            // Idle well past the TTL: the single empty-key timer evicts the whole build table.
+            h.setProcessingTime(1000);
+
+            // The same probe now matches nothing -> null-padded, confirming the whole table was
+            // evicted together.
+            addProbeRecord(h, 5L, "p", "p2");
+            stripWatermarksAndStatusesFromOutput(h);
+            JOINED_ASSERTOR.shouldEmitAll(h, row(5L, "p", "p2", null, null, null));
         }
     }
 
