@@ -534,7 +534,7 @@ message CoderInfoDescriptor {
       ARROW = 1;
     }
     BatchFormat batch_format = 2;
-    // The sole output field is a result ROW containing physical table columns in pandas mode.
+    // The sole output field is a result ROW containing physical table columns.
     bool returns_table_row = 3;
   }
 

@@ -119,8 +119,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
                 FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE,
                 false,
                 batchFormat,
-                batchFormat == FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat.PANDAS
-                        && returnsTableRow());
+                returnsTableRow());
     }
 
     @Override
