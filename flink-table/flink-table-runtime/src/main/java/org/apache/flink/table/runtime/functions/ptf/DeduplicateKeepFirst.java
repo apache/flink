@@ -39,23 +39,21 @@ import org.apache.flink.types.RowKind;
 
 import javax.annotation.Nullable;
 
-import java.util.stream.IntStream;
-
 /** Implementation of the {@code DEDUPLICATE_KEEP_FIRST} process table function. */
 @Internal
 public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
 
     private static final long serialVersionUID = 1L;
 
-    private final int[] outputIndices;
+    private static final int CANDIDATE_PAYLOAD = 0;
 
-    private final int eventTimeIndex;
+    private static final int CANDIDATE_EVENT_TIME = 1;
+
+    private final int[] outputIndices;
 
     private final RowType inputRowType;
 
     private transient ProjectedRowData projectedOutput;
-
-    private transient ProjectedRowData emitProjection;
 
     private transient RowData.FieldGetter[] payloadGetters;
 
@@ -69,7 +67,6 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
                         .getTableSemantics(DeduplicateKeepFirstTypeStrategy.ARG_INPUT)
                         .orElseThrow(() -> new IllegalStateException("Table argument expected."));
         this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
-        this.eventTimeIndex = outputIndices.length;
         this.inputRowType = (RowType) tableSemantics.dataType().getLogicalType();
     }
 
@@ -77,20 +74,14 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
     public void open(final FunctionContext context) throws Exception {
         super.open(context);
         projectedOutput = ProjectedRowData.from(outputIndices);
-        emitProjection = ProjectedRowData.from(IntStream.range(0, eventTimeIndex).toArray());
         payloadGetters = new RowData.FieldGetter[outputIndices.length];
+        final LogicalType[] payloadTypes = new LogicalType[outputIndices.length];
         for (int i = 0; i < outputIndices.length; i++) {
-            payloadGetters[i] =
-                    RowData.createFieldGetter(
-                            inputRowType.getTypeAt(outputIndices[i]), outputIndices[i]);
+            payloadTypes[i] = inputRowType.getTypeAt(outputIndices[i]);
+            payloadGetters[i] = RowData.createFieldGetter(payloadTypes[i], outputIndices[i]);
         }
-
-        final LogicalType[] candidateTypes = new LogicalType[eventTimeIndex + 1];
-        for (int i = 0; i < eventTimeIndex; i++) {
-            candidateTypes[i] = inputRowType.getTypeAt(outputIndices[i]);
-        }
-        candidateTypes[eventTimeIndex] = new BigIntType();
-        candidateSerializer = InternalSerializers.create(RowType.of(candidateTypes));
+        candidateSerializer =
+                InternalSerializers.create(RowType.of(RowType.of(payloadTypes), new BigIntType()));
     }
 
     public void eval(
@@ -120,7 +111,7 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
             if (seen.getValue() == null) { // not yet emitted → buffer the earliest candidate
                 final RowData currLowest = candidate.getValue();
                 final Long currentLowestEventTime =
-                        currLowest == null ? null : currLowest.getLong(eventTimeIndex);
+                        currLowest == null ? null : currLowest.getLong(CANDIDATE_EVENT_TIME);
                 if (currentLowestEventTime == null || rowtime < currentLowestEventTime) {
                     if (currentLowestEventTime != null) {
                         context.clearTimer(currentLowestEventTime);
@@ -159,18 +150,16 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
         if (currLowest == null) {
             return;
         }
-        emitProjection.replaceRow(currLowest);
-        collect(emitProjection);
+        collect(currLowest.getRow(CANDIDATE_PAYLOAD, outputIndices.length));
         candidate.clear();
         seen.setValue(true);
     }
 
     private GenericRowData materializeCandidate(final RowData input, final long rowtime) {
-        final GenericRowData row = new GenericRowData(eventTimeIndex + 1);
-        for (int i = 0; i < eventTimeIndex; i++) {
-            row.setField(i, payloadGetters[i].getFieldOrNull(input));
+        final GenericRowData payload = new GenericRowData(outputIndices.length);
+        for (int i = 0; i < outputIndices.length; i++) {
+            payload.setField(i, payloadGetters[i].getFieldOrNull(input));
         }
-        row.setField(eventTimeIndex, rowtime);
-        return row;
+        return GenericRowData.of(payload, rowtime);
     }
 }
