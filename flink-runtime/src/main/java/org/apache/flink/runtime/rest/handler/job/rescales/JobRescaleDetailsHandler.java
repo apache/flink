@@ -101,20 +101,20 @@ public class JobRescaleDetailsHandler
     @Override
     public Collection<ArchivedJson> archiveJsonWithPath(ExecutionGraphInfo executionGraphInfo)
             throws IOException {
-        if (executionGraphInfo.getRescalesStatsSnapshot() == null
-                || executionGraphInfo.getRescalesStatsSnapshot().getRescaleHistory() == null) {
+        final RescalesStatsSnapshot rescalesStatsSnapshot =
+                executionGraphInfo.getRescalesStatsSnapshot();
+        if (rescalesStatsSnapshot == null) {
             return List.of();
         }
 
         List<ArchivedJson> archives = new ArrayList<>();
-        List<Rescale> rescales = executionGraphInfo.getRescalesStatsSnapshot().getRescaleHistory();
         final String commonPathPrefix =
                 JobRescaleDetailsHeaders.getInstance()
                         .getTargetRestEndpointURL()
                         .replace(
                                 ':' + JobIDPathParameter.KEY,
                                 executionGraphInfo.getJobId().toString());
-        for (Rescale rescale : rescales) {
+        for (Rescale rescale : rescalesStatsSnapshot.getRescales()) {
             archives.add(
                     new ArchivedJson(
                             commonPathPrefix.replace(
