@@ -170,16 +170,16 @@ OVER windows
 
 An aggregate expression can define an inline OVER window. The ordering column may be a column
 name or expression. Use the keyword ``order_by=`` to define an inline window; a single positional
-argument such as ``over(col("w"))`` keeps its existing meaning as a Table API named-window alias.
+argument such as ``over(col("w"))`` or ``over(alias=col("w"))`` refers to a Table API named window.
 If neither ``rows`` nor ``range`` is provided, the default frame is unbounded RANGE through the
 current range. A scalar ``rows`` bound includes that many preceding rows and the current row, so
 ``rows=10`` covers up to 11 rows. RANGE frames include all peers with the same ordering value.
 
 ``rows`` uses integer row offsets. ``range`` accepts ``datetime.timedelta`` or a Flink duration
 string such as ``"1 hour"`` or ``"1 h"``; this is not SQL ``INTERVAL '1' HOUR`` syntax. Duration
-values are converted to milliseconds, truncating sub-millisecond precision. Use the DataFrame
-sentinel ``pf.CURRENT_ROW`` for current-row bounds. It is distinct from
-``pyflink.table.expressions.CURRENT_ROW``; do not mix the Table API and DataFrame frame constants.
+values are converted to milliseconds, truncating sub-millisecond precision. Use Table API frame
+constants from ``pyflink.table.expressions`` when matched to the frame type: ``*_ROW`` with
+``rows`` and ``*_RANGE`` with ``range``.
 
 The current expression layer requires a single time attribute in ``order_by``. Streaming OVER
 windows additionally require ascending order, and all OVER aggregates in the same projection must
@@ -202,14 +202,10 @@ different OVER frames in the same projection.
         rows=(pf.preceding(2), pf.following(1)),
     )
 
-The public frame descriptors are:
+The public frame-bound helpers are:
 
 .. autosummary::
     :toctree: api/
 
-    UNBOUNDED
-    UNBOUNDED_PRECEDING
-    UNBOUNDED_FOLLOWING
-    CURRENT_ROW
     preceding
     following

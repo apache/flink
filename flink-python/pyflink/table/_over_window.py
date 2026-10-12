@@ -16,12 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-"""Helpers for constructing expression-level OVER windows.
-
-The public descriptors in this module are deliberately independent of a table
-environment.  They are converted to Flink expressions only when an OVER call
-is built, which keeps the DataFrame API on top of the Table expression layer.
-"""
+"""Helpers for constructing expression-level OVER windows."""
 
 import datetime
 from dataclasses import dataclass
@@ -32,14 +27,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression
 from pyflink.util.api_stability_decorators import PublicEvolving
 
-__all__ = [
-    "UNBOUNDED",
-    "UNBOUNDED_PRECEDING",
-    "UNBOUNDED_FOLLOWING",
-    "CURRENT_ROW",
-    "preceding",
-    "following",
-]
+__all__ = ["preceding", "following"]
 
 
 class _BoundaryDirection(Enum):
@@ -53,27 +41,7 @@ class _FrameBoundary:
     value: Any
 
     def __repr__(self) -> str:
-        if self.value is UNBOUNDED:
-            return "UNBOUNDED_%s" % self.direction.name
-        if self.value is CURRENT_ROW:
-            return "CURRENT_ROW"
         return "%s(%r)" % (self.direction.value, self.value)
-
-
-class _Unbounded:
-    def __repr__(self) -> str:
-        return "UNBOUNDED"
-
-
-class _CurrentRow:
-    def __repr__(self) -> str:
-        return "CURRENT_ROW"
-
-
-UNBOUNDED = _Unbounded()
-UNBOUNDED_PRECEDING = _FrameBoundary(_BoundaryDirection.PRECEDING, UNBOUNDED)
-UNBOUNDED_FOLLOWING = _FrameBoundary(_BoundaryDirection.FOLLOWING, UNBOUNDED)
-CURRENT_ROW = _CurrentRow()
 
 
 @PublicEvolving()
@@ -169,10 +137,6 @@ def _value_expression(value: Any, kind: str) -> Expression:
 
 
 def _normalize_bound(bound: Any, kind: str, position: str) -> Expression:
-    if bound is UNBOUNDED:
-        return _unbounded_expression(kind)
-    if bound is CURRENT_ROW:
-        return _current_expression(kind)
     from pyflink.table.expressions import (
         CURRENT_RANGE,
         CURRENT_ROW as TABLE_CURRENT_ROW,
@@ -181,20 +145,19 @@ def _normalize_bound(bound: Any, kind: str, position: str) -> Expression:
     )
 
     table_bound_names = (
-        (TABLE_CURRENT_ROW, "CURRENT_ROW"),
-        (CURRENT_RANGE, "CURRENT_RANGE"),
-        (UNBOUNDED_ROW, "UNBOUNDED_ROW"),
-        (UNBOUNDED_RANGE, "UNBOUNDED_RANGE"),
+        (TABLE_CURRENT_ROW, "CURRENT_ROW", "rows"),
+        (CURRENT_RANGE, "CURRENT_RANGE", "range"),
+        (UNBOUNDED_ROW, "UNBOUNDED_ROW", "rows"),
+        (UNBOUNDED_RANGE, "UNBOUNDED_RANGE", "range"),
     )
-    for table_bound, table_name in table_bound_names:
+    for table_bound, table_name, table_kind in table_bound_names:
         if bound is table_bound:
-            raise TypeError(
-                "Use pyflink.dataframe.%s for DataFrame OVER frame bounds, not "
-                "pyflink.table.expressions.%s" % (table_name, table_name)
-            )
+            if kind != table_kind:
+                raise TypeError("%s cannot be used with %s frames" % (table_name, kind))
+            return table_bound
     if not isinstance(bound, _FrameBoundary):
         raise TypeError(
-            "%s bound must be preceding(), following(), CURRENT_ROW, or UNBOUNDED"
+            "%s bound must be preceding(), following(), or a matching Table API frame constant"
             % position
         )
 
@@ -205,10 +168,6 @@ def _normalize_bound(bound: Any, kind: str, position: str) -> Expression:
     )
     if bound.direction is not expected_direction:
         raise ValueError("invalid %s bound direction" % position)
-    if bound.value is UNBOUNDED:
-        return _unbounded_expression(kind)
-    if bound.value is CURRENT_ROW:
-        return _current_expression(kind)
     return _value_expression(bound.value, kind)
 
 
@@ -217,8 +176,6 @@ def _validate_explicit_bound_kinds(bounds: Tuple[Any, Any], kind: str) -> None:
         if not isinstance(bound, _FrameBoundary):
             continue
         value = bound.value
-        if value is UNBOUNDED or value is CURRENT_ROW:
-            continue
         if kind == "rows" and (
             isinstance(value, bool)
             or not isinstance(value, int)
@@ -229,11 +186,8 @@ def _validate_explicit_bound_kinds(bounds: Tuple[Any, Any], kind: str) -> None:
 
 
 def _normalize_scalar_frame(value: Any, kind: str) -> Tuple[Expression, Expression]:
-    if value is UNBOUNDED:
-        return (
-            _unbounded_expression(kind),
-            _current_expression(kind),
-        )
+    if isinstance(value, Expression):
+        return _normalize_bound(value, kind, "lower"), _current_expression(kind)
     return _value_expression(value, kind), _current_expression(kind)
 
 

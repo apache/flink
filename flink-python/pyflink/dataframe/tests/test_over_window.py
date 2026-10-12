@@ -24,6 +24,7 @@ from pyflink.common import Row
 from pyflink.datastream import RuntimeExecutionMode, StreamExecutionEnvironment
 from pyflink.java_gateway import get_gateway
 from pyflink.table import StreamTableEnvironment
+from pyflink.table import expressions as table_expressions
 from pyflink.table.expressions import lit, row
 from pyflink.table.table import Table
 from pyflink.table.utils import to_expression_jarray
@@ -51,8 +52,23 @@ def _register_rowtime_events(table_environment, input_path, rows):
 
 class OverWindowTests(PyFlinkTestCase):
 
+    def test_dataframe_does_not_export_table_frame_constants(self):
+        for name in (
+            "CURRENT_ROW",
+            "UNBOUNDED",
+            "UNBOUNDED_PRECEDING",
+            "UNBOUNDED_FOLLOWING",
+        ):
+            self.assertFalse(hasattr(pf, name))
+        self.assertTrue(callable(pf.preceding))
+        self.assertTrue(callable(pf.following))
+
     def test_legacy_over_call_is_preserved(self):
         self.assertEqual("over(sum(amount), w)", str(pf.col("amount").sum.over(pf.col("w"))))
+        self.assertEqual(
+            "over(sum(amount), w)",
+            str(pf.col("amount").sum.over(alias=pf.col("w"))),
+        )
 
     def test_dataframe_over_supports_scalar_and_explicit_frames(self):
         scalar = pf.col("amount").sum.over(order_by="rowtime", rows=2)
@@ -72,8 +88,12 @@ class OverWindowTests(PyFlinkTestCase):
         self.assertIn("as(plus(over(sum(amount)", str(expression))
 
     def test_over_rejects_invalid_dispatch(self):
-        with self.assertRaisesRegex(TypeError, "multiple values"):
+        with self.assertRaisesRegex(
+            TypeError, "cannot specify both alias and order_by"
+        ):
             pf.col("amount").sum.over(pf.col("rowtime"), order_by=pf.col("other"))
+        with self.assertRaisesRegex(TypeError, "cannot combine alias"):
+            pf.col("amount").sum.over(pf.col("rowtime"), rows=2)
         with self.assertRaisesRegex(TypeError, "unexpected keyword"):
             pf.col("amount").sum.over(order_by="rowtime", unknown=True)
 
@@ -86,7 +106,8 @@ class OverWindowTests(PyFlinkTestCase):
             pf.col("amount").sum.over(order_by="rowtime", rows=(pf.preceding(1),))
         with self.assertRaisesRegex(ValueError, "lower bound"):
             pf.col("amount").sum.over(
-                order_by="rowtime", rows=(pf.following(1), pf.CURRENT_ROW)
+                order_by="rowtime",
+                rows=(pf.following(1), table_expressions.CURRENT_ROW),
             )
         with self.assertRaisesRegex(TypeError, "bool"):
             pf.col("amount").sum.over(order_by="rowtime", rows=True)
@@ -127,7 +148,7 @@ class OverWindowTests(PyFlinkTestCase):
     def test_default_and_unbounded_rows_frames_are_constructed(self):
         default_frame = pf.col("amount").sum.over(order_by="rowtime")
         unbounded_rows = pf.col("amount").sum.over(
-            order_by="rowtime", rows=pf.UNBOUNDED
+            order_by="rowtime", rows=table_expressions.UNBOUNDED_ROW
         )
 
         self.assertIn("UNBOUNDED_RANGE", str(default_frame))
@@ -135,15 +156,39 @@ class OverWindowTests(PyFlinkTestCase):
         self.assertIn("UNBOUNDED_ROW", str(unbounded_rows))
         self.assertIn("CURRENT_ROW", str(unbounded_rows))
 
-    def test_table_current_row_constant_is_rejected_with_dataframe_guidance(self):
-        from pyflink.table.expressions import CURRENT_ROW as table_current_row
+    def test_matching_table_frame_constants_are_accepted(self):
+        cases = (
+            (
+                "rows",
+                (table_expressions.UNBOUNDED_ROW, table_expressions.CURRENT_ROW),
+                "UNBOUNDED_ROW, CURRENT_ROW",
+            ),
+            (
+                "range",
+                (table_expressions.UNBOUNDED_RANGE, table_expressions.CURRENT_RANGE),
+                "UNBOUNDED_RANGE, CURRENT_RANGE",
+            ),
+            ("rows", table_expressions.CURRENT_ROW, "CURRENT_ROW, CURRENT_ROW"),
+            ("range", table_expressions.CURRENT_RANGE, "CURRENT_RANGE, CURRENT_RANGE"),
+        )
+        for kind, frame, expected in cases:
+            with self.subTest(kind=kind, frame=frame):
+                expression = pf.col("amount").sum.over(
+                    order_by="rowtime", **{kind: frame}
+                )
+                self.assertIn("rowtime, " + expected, str(expression))
 
-        with self.assertRaisesRegex(
-            TypeError, "Use pyflink.dataframe.CURRENT_ROW"
-        ):
-            pf.col("amount").sum.over(
-                order_by="rowtime", rows=(pf.preceding(1), table_current_row)
-            )
+    def test_mismatched_table_frame_constants_are_rejected(self):
+        cases = (
+            ("rows", table_expressions.CURRENT_RANGE, "CURRENT_RANGE"),
+            ("range", table_expressions.CURRENT_ROW, "CURRENT_ROW"),
+            ("rows", table_expressions.UNBOUNDED_RANGE, "UNBOUNDED_RANGE"),
+            ("range", table_expressions.UNBOUNDED_ROW, "UNBOUNDED_ROW"),
+        )
+        for kind, frame, constant in cases:
+            with self.subTest(kind=kind, constant=constant):
+                with self.assertRaisesRegex(TypeError, "%s.*%s" % (constant, kind)):
+                    pf.col("amount").sum.over(order_by="rowtime", **{kind: frame})
 
     def test_over_window_module_introspection_does_not_access_gateway(self):
         import unittest
@@ -222,7 +267,7 @@ class OverWindowBatchITTests(PyFlinkTestCase):
                 order_by="event_time", rows=2
             ),
             global_total=pf.col("amount").sum.over(
-                order_by="event_time", rows=pf.UNBOUNDED
+                order_by="event_time", rows=table_expressions.UNBOUNDED_ROW
             ),
         )
 
@@ -248,11 +293,14 @@ class OverWindowBatchITTests(PyFlinkTestCase):
             "amount",
             rows_sum=pf.col("amount").sum.over(
                 order_by="event_time",
-                rows=(pf.CURRENT_ROW, pf.CURRENT_ROW),
+                rows=(table_expressions.CURRENT_ROW, table_expressions.CURRENT_ROW),
             ),
             range_sum=pf.col("amount").sum.over(
                 order_by="event_time",
-                range=(pf.CURRENT_ROW, pf.CURRENT_ROW),
+                range=(
+                    table_expressions.CURRENT_RANGE,
+                    table_expressions.CURRENT_RANGE,
+                ),
             ),
         )
 
@@ -307,7 +355,7 @@ class OverWindowStreamITTests(PyFlinkTestCase):
         result = self._rowtime_source().select(
             "amount",
             running_total=pf.col("amount").sum.over(
-                order_by="event_time", rows=pf.UNBOUNDED
+                order_by="event_time", rows=table_expressions.UNBOUNDED_ROW
             ),
         )
 
@@ -343,7 +391,7 @@ class OverWindowStreamITTests(PyFlinkTestCase):
     def test_unpartitioned_over_plan_uses_singleton_distribution(self):
         dataframe = self._rowtime_source().select(
             total=pf.col("amount").sum.over(
-                order_by="event_time", rows=pf.UNBOUNDED
+                order_by="event_time", rows=table_expressions.UNBOUNDED_ROW
             )
         )
 
