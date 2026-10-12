@@ -33,6 +33,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.parquet.Strings;
+import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.sql.Timestamp;
@@ -60,11 +61,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test int64 timestamp. */
 @ExtendWith(ParameterizedTestExtension.class)
 public class ParquetTimestampITCase extends FsStreamingSinkITCaseBase {
-    @Parameter public static boolean useInt64;
+    @Parameter public boolean useInt64;
 
-    @Parameter public static String timeunit;
+    @Parameter(1)
+    public String timeunit;
 
-    @Parameter public static boolean timezone;
+    @Parameter(2)
+    public boolean timezone;
 
     @Parameters(name = "useInt64 = {0}, timeunit = {1}, timezone = {2}")
     public static Object[] parameters() {
@@ -77,6 +80,30 @@ public class ParquetTimestampITCase extends FsStreamingSinkITCaseBase {
             new Object[] {true, "micros", true},
             new Object[] {true, "nanos", true}
         };
+    }
+
+    @Override
+    @TestTemplate
+    public void testNonPart() {
+        super.testNonPart();
+    }
+
+    @Override
+    @TestTemplate
+    public void testPart() {
+        super.testPart();
+    }
+
+    @Override
+    @TestTemplate
+    public void testMetastorePolicy() {
+        super.testMetastorePolicy();
+    }
+
+    @Override
+    @TestTemplate
+    public void testPartitionWithBasicDate() {
+        super.testPartitionWithBasicDate();
     }
 
     @Override
