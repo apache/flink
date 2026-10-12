@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.runtime.functions.SqlXmlUtils;
 import org.apache.flink.types.Row;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -50,6 +51,11 @@ class XmlReadReuseTest {
             Pattern.compile(Pattern.quote(SqlXmlUtils.class.getCanonicalName() + ".parseXml("));
 
     private StreamTableEnvironment tEnv;
+
+    @AfterEach
+    void clearData() {
+        TestValuesTableFactory.clearAllData();
+    }
 
     @BeforeEach
     void setUp() {
@@ -89,6 +95,15 @@ class XmlReadReuseTest {
                                 "Emma",
                                 "{\"book\":{\"title\":[\"Emma\"]}}",
                                 "{\"book\":{\"title\":[\"Emma\"]}}"));
+        assertThat(countReads(sql)).isOne();
+    }
+
+    @Test
+    void testFilterAndProjectionReadOnce() {
+        final String sql =
+                "SELECT CAST(PARSE_XML(xml)['book']['title'] AS STRING) FROM xml_src "
+                        + "WHERE CAST(PARSE_XML(xml, TRUE)['book']['title'][1] AS STRING) <> 'Emma'";
+        assertThat(collect(sql)).containsExactly(Row.of("Dune"));
         assertThat(countReads(sql)).isOne();
     }
 

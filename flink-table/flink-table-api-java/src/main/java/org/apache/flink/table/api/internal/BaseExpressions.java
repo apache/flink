@@ -1439,7 +1439,7 @@ public abstract class BaseExpressions<InType, OutType> {
      * invalid, an error is thrown. To return {@code NULL} instead of an error, use {@link
      * #tryParseXml()}.
      *
-     * <p>This is a shortcut for {@code parseXml(false)}. See {@link #parseXml(boolean)}.
+     * <p>This is a shortcut for {@code parseXml(false)}.
      */
     public OutType parseXml() {
         return toApiSpecificExpression(unresolvedCall(PARSE_XML, objectToExpression(toExpr())));
@@ -1447,22 +1447,23 @@ public abstract class BaseExpressions<InType, OutType> {
 
     /**
      * Parses an XML string into a value of type {@link DataTypes#VARIANT()}. If the XML string is
-     * invalid, an error is thrown. To return {@code NULL} instead of an error, use {@link
-     * #tryParseXml(boolean)}.
+     * invalid, an error is thrown. To return {@code NULL} instead of an error, use {@code
+     * tryParseXml(forceArray)}.
      *
-     * <p>If {@code forceArray} is {@code true}, every child element is stored as an array, even if
-     * it occurs only once.
+     * <p>If {@code forceArray} is {@code true}, every child element, text, and position in a {@code
+     * #} field is stored as an array, even if it occurs only once. {@code forceArray} can be a
+     * boolean or a boolean expression, and a {@code NULL} value is treated as {@code false}.
      */
-    public OutType parseXml(boolean forceArray) {
+    public OutType parseXml(InType forceArray) {
         return toApiSpecificExpression(
-                unresolvedCall(PARSE_XML, toExpr(), valueLiteral(forceArray)));
+                unresolvedCall(PARSE_XML, toExpr(), objectToExpression(forceArray)));
     }
 
     /**
      * Parses an XML string into a value of type {@link DataTypes#VARIANT()}. If the XML string is
      * invalid, {@code NULL} is returned. To throw an error instead, use {@link #parseXml()}.
      *
-     * <p>This is a shortcut for {@code tryParseXml(false)}. See {@link #tryParseXml(boolean)}.
+     * <p>This is a shortcut for {@code tryParseXml(false)}.
      */
     public OutType tryParseXml() {
         return toApiSpecificExpression(unresolvedCall(TRY_PARSE_XML, objectToExpression(toExpr())));
@@ -1470,13 +1471,14 @@ public abstract class BaseExpressions<InType, OutType> {
 
     /**
      * Parses an XML string into a value of type {@link DataTypes#VARIANT()}. If the XML string is
-     * invalid, {@code NULL} is returned. To throw an error instead, use {@link #parseXml(boolean)}.
+     * invalid, {@code NULL} is returned. To throw an error instead, use {@code
+     * parseXml(forceArray)}.
      *
-     * <p>See {@link #parseXml(boolean)} for the meaning of {@code forceArray}.
+     * <p>See {@code parseXml(forceArray)} for the meaning of {@code forceArray}.
      */
-    public OutType tryParseXml(boolean forceArray) {
+    public OutType tryParseXml(InType forceArray) {
         return toApiSpecificExpression(
-                unresolvedCall(TRY_PARSE_XML, toExpr(), valueLiteral(forceArray)));
+                unresolvedCall(TRY_PARSE_XML, toExpr(), objectToExpression(forceArray)));
     }
 
     /** Returns the base string decoded with base64. */

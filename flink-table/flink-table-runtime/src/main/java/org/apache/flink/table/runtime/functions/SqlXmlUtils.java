@@ -38,7 +38,7 @@ import javax.annotation.Nullable;
 @Internal
 public final class SqlXmlUtils {
 
-    // A document can be large and contain personal data, so error messages only show its start.
+    // A document can be large, so error messages only show its start.
     private static final int MAX_INPUT_LENGTH_IN_ERROR = 100;
 
     private SqlXmlUtils() {}

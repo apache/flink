@@ -252,6 +252,10 @@ class XmlToVariantParserTest {
                             new BigDecimal("123456789012345678901234567890")),
                     arguments("decimal", "12.50", Variant.Type.DECIMAL, new BigDecimal("12.50")),
                     arguments("decimal", ".5", Variant.Type.DECIMAL, new BigDecimal("0.5")),
+                    // A sign is allowed, also for zero.
+                    arguments("decimal", "-0.0", Variant.Type.DECIMAL, new BigDecimal("0.0")),
+                    arguments("float", "+0.0", Variant.Type.FLOAT, 0.0f),
+                    arguments("double", "-0.0", Variant.Type.DOUBLE, -0.0d),
                     arguments("float", "1.5", Variant.Type.FLOAT, 1.5f),
                     arguments("double", "1.5E3", Variant.Type.DOUBLE, 1500.0),
                     arguments("double", "-.5e+2", Variant.Type.DOUBLE, -50.0),
@@ -267,6 +271,16 @@ class XmlToVariantParserTest {
                             "12:30:45.123456789",
                             Variant.Type.TIME,
                             LocalTime.of(12, 30, 45, 123_456_000)),
+                    arguments(
+                            "time",
+                            "12:30:45.1234567890123",
+                            Variant.Type.TIME,
+                            LocalTime.of(12, 30, 45, 123_456_000)),
+                    arguments(
+                            "dateTime",
+                            "2026-09-23T12:30:00.1234567890123456789",
+                            Variant.Type.TIMESTAMP_NS,
+                            LocalDateTime.of(2026, 9, 23, 12, 30, 0, 123_456_789)),
                     arguments(
                             "dateTime",
                             "2300-01-01T00:00:00.000000001",
@@ -303,14 +317,15 @@ class XmlToVariantParserTest {
         }
 
         @ParameterizedTest(name = "{0}: {1}")
-        @MethodSource({"untypedValues", "invalidLexicalForms"})
+        @MethodSource({"valuesThatStayStrings", "invalidLexicalForms"})
         void testXsiTypeThatDoesNotApply(String xsiType, String text) {
             final Variant value = parseTyped(xsiType, text);
             assertThat(value.getField("$").getString()).isEqualTo(text);
             assertThat(value.getField("@xsi:type").getString()).isEqualTo(xsiType);
         }
 
-        Stream<Arguments> untypedValues() {
+        /** Values with a type that doesn't apply, so that they stay strings with @xsi:type. */
+        Stream<Arguments> valuesThatStayStrings() {
             return Stream.of(
                     arguments("boolean", "yes"),
                     arguments("boolean", "TRUE"),
@@ -445,25 +460,41 @@ class XmlToVariantParserTest {
     @TestInstance(TestInstance.Lifecycle.PER_CLASS)
     class InvalidAndUnsafeInput {
 
-        @ParameterizedTest
-        @ValueSource(
-                strings = {
-                    "",
-                    "   ",
-                    "text",
-                    "<a>",
-                    "<a></b>",
-                    "<a/>trailing",
-                    "<a/><b/>",
-                    "<a b=\"1\" b=\"2\"/>",
-                    "<a>&undefined;</a>",
-                    // XML 1.0 doesn't allow control characters, not even as a reference.
-                    "<a>&#1;</a>",
-                    "{\"a\": 1}"
-                })
-        void testInvalidXml(String xml) {
+        // The messages are localized. They are checked in English, the locale of the test JVM.
+        @ParameterizedTest(name = "[{index}] {0}")
+        @MethodSource("invalidDocuments")
+        void testInvalidXml(String xml, String expectedMessage) {
             assertThatThrownBy(() -> parser.parse(xml, false))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining(expectedMessage);
+        }
+
+        Stream<Arguments> invalidDocuments() {
+            return Stream.of(
+                    arguments("", "Premature end of file."),
+                    arguments("   ", "Premature end of file."),
+                    arguments("text", "Content is not allowed in prolog."),
+                    arguments(
+                            "<a>",
+                            "XML document structures must start and end within the same entity."),
+                    arguments(
+                            "<a></b>",
+                            "The element type \"a\" must be terminated by the matching end-tag \"</a>\"."),
+                    arguments("<a/>trailing", "Content is not allowed in trailing section."),
+                    arguments(
+                            "<a/><b/>",
+                            "The markup in the document following the root element must be well-formed."),
+                    arguments(
+                            "<a b=\"1\" b=\"2\"/>",
+                            "Attribute \"b\" was already specified for element \"a\"."),
+                    arguments(
+                            "<a>&undefined;</a>",
+                            "The entity \"undefined\" was referenced, but not declared."),
+                    // XML 1.0 doesn't allow control characters, not even as a reference.
+                    arguments(
+                            "<a>&#1;</a>",
+                            "Character reference \"&#1\" is an invalid XML character."),
+                    arguments("{\"a\": 1}", "Content is not allowed in prolog."));
         }
 
         @Test

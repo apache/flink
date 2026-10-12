@@ -29,7 +29,6 @@ import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.jsonString;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.nullOf;
@@ -58,6 +57,9 @@ class XmlFunctionsITCase extends BuiltInFunctionTestBase {
 
     private static final String INVALID = "<book>";
 
+    // Error messages only show the start of a long document.
+    private static final String LONG_INVALID = "<book>" + "x".repeat(200);
+
     private static final String EXTERNAL_ENTITY =
             "<!DOCTYPE a [<!ENTITY e SYSTEM \"file:///etc/hosts\">]><a>&e;</a>";
 
@@ -68,13 +70,14 @@ class XmlFunctionsITCase extends BuiltInFunctionTestBase {
 
     private static TestSetSpec parseXmlSpec() {
         return TestSetSpec.forFunction(BuiltInFunctionDefinitions.PARSE_XML)
-                .onFieldsWithData(BOOK, INVALID, EXTERNAL_ENTITY, true, null)
+                .onFieldsWithData(BOOK, INVALID, EXTERNAL_ENTITY, true, null, LONG_INVALID)
                 .andDataTypes(
                         STRING().notNull(),
                         STRING().notNull(),
                         STRING().notNull(),
                         BOOLEAN().notNull(),
-                        BOOLEAN())
+                        BOOLEAN(),
+                        STRING().notNull())
                 .testResult(
                         jsonString($("f0").parseXml()),
                         "JSON_STRING(PARSE_XML(f0))",
@@ -91,13 +94,13 @@ class XmlFunctionsITCase extends BuiltInFunctionTestBase {
                         BOOK_FORCE_ARRAY_JSON,
                         STRING().notNull())
                 .testResult(
-                        jsonString(call("PARSE_XML", $("f0"), $("f3"))),
+                        jsonString($("f0").parseXml($("f3"))),
                         "JSON_STRING(PARSE_XML(f0, f3))",
                         BOOK_FORCE_ARRAY_JSON,
                         STRING().notNull())
                 // A NULL force_array is treated as false.
                 .testResult(
-                        jsonString(call("PARSE_XML", $("f0"), $("f4"))),
+                        jsonString($("f0").parseXml($("f4"))),
                         "JSON_STRING(PARSE_XML(f0, f4))",
                         BOOK_JSON,
                         STRING().notNull())
@@ -134,6 +137,10 @@ class XmlFunctionsITCase extends BuiltInFunctionTestBase {
                         TableRuntimeException.class,
                         "Failed to parse XML string")
                 .testSqlRuntimeError(
+                        "PARSE_XML(f5)",
+                        TableRuntimeException.class,
+                        "Failed to parse XML string: " + LONG_INVALID.substring(0, 97) + "...")
+                .testSqlRuntimeError(
                         "PARSE_XML(f2)", TableRuntimeException.class, "Failed to parse XML string")
                 .testTableApiRuntimeError(
                         $("f2").parseXml(true),
@@ -166,7 +173,7 @@ class XmlFunctionsITCase extends BuiltInFunctionTestBase {
                         BOOK_FORCE_ARRAY_JSON,
                         STRING())
                 .testResult(
-                        jsonString(call("TRY_PARSE_XML", $("f0"), $("f3"))),
+                        jsonString($("f0").tryParseXml($("f3"))),
                         "JSON_STRING(TRY_PARSE_XML(f0, f3))",
                         BOOK_FORCE_ARRAY_JSON,
                         STRING())

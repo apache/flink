@@ -1426,7 +1426,7 @@ variant:
       PARSE_XML('<book><title>Dune</title></book>', TRUE)
       ```
 
-      See the `VARIANT` data type documentation for how XML is mapped to a Variant.
+      See XML to VARIANT below the function table for how XML is mapped to a Variant.
   - sql: TRY_PARSE_XML(xml_string[, force_array])
     table: STRING.tryParseXml([forceArray])
     description: |

@@ -96,7 +96,9 @@ public final class XmlToVariantParser {
         try {
             return readDocument(xml);
         } catch (XMLStreamException e) {
-            // Only the message is kept, since the location of the exception is not serializable.
+            // Only the message is kept, since the location in the exception isn't serializable.
+            // With it as the cause, a failed job would report a SerializedThrowable instead of the
+            // TableRuntimeException.
             throw new IllegalArgumentException(e.getMessage());
         }
     }
@@ -272,6 +274,8 @@ public final class XmlToVariantParser {
                                 "dateTime",
                                 Pattern.compile(DATE_FORM + "T" + TIME_FORM + TIMEZONE_FORM)));
 
+        private static final Pattern BEYOND_NANOSECONDS = Pattern.compile("(\\.[0-9]{9})[0-9]+");
+
         private XmlSchemaTypes() {}
 
         /**
@@ -346,11 +350,13 @@ public final class XmlToVariantParser {
                         {
                             // A variant time has microsecond precision, so nanoseconds are dropped
                             // like in a cast.
-                            final long micros = LocalTime.parse(text).toNanoOfDay() / 1_000;
+                            final long micros =
+                                    LocalTime.parse(truncateFraction(text)).toNanoOfDay() / 1_000;
                             return builder -> builder.appendTime(micros);
                         }
                     case "dateTime":
-                        return dateTime(DateTimeFormatter.ISO_DATE_TIME.parse(text));
+                        return dateTime(
+                                DateTimeFormatter.ISO_DATE_TIME.parse(truncateFraction(text)));
                     default:
                         return null;
                 }
@@ -364,6 +370,11 @@ public final class XmlToVariantParser {
 
         private static String localPart(String type) {
             return type.substring(type.lastIndexOf(':') + 1);
+        }
+
+        /** Drops fractional digits beyond nanoseconds, which Java doesn't parse. */
+        private static String truncateFraction(String text) {
+            return BEYOND_NANOSECONDS.matcher(text).replaceFirst("$1");
         }
 
         private static boolean hasLexicalForm(String type, String text) {
@@ -565,7 +576,7 @@ public final class XmlToVariantParser {
         Variant encodeDocument(XmlElement root) {
             final int start = builder.getWritePos();
             final ArrayList<FieldEntry> fields = new ArrayList<>(1);
-            addField(fields, start, root.name);
+            builder.addField(fields, start, root.name);
             encodeElement(root);
             builder.finishWritingObject(start, fields);
             return builder.build();
@@ -586,22 +597,22 @@ public final class XmlToVariantParser {
             final int start = builder.getWritePos();
             final ArrayList<FieldEntry> fields = new ArrayList<>();
             for (Map.Entry<String, String> attribute : element.attributes.entrySet()) {
-                addField(fields, start, ATTRIBUTE_PREFIX + attribute.getKey());
+                builder.addField(fields, start, ATTRIBUTE_PREFIX + attribute.getKey());
                 builder.appendString(attribute.getValue());
             }
             for (Map.Entry<String, List<XmlElement>> children : element.children.entrySet()) {
-                addField(fields, start, children.getKey());
+                builder.addField(fields, start, children.getKey());
                 encodeItems(children.getValue(), this::encodeElement);
             }
             if (!element.textRuns.isEmpty()) {
-                addField(fields, start, TEXT_KEY);
+                builder.addField(fields, start, TEXT_KEY);
                 encodeItems(element.textRuns, textRun -> encodeText(element, textRun.text));
             }
             // The # field records the order of the content across keys. Within a key, it is the
             // order of the array, so with a single key, there is nothing to record.
             final int contentKeys = element.children.size() + (element.textRuns.isEmpty() ? 0 : 1);
             if (contentKeys > 1) {
-                addField(fields, start, ORDER_KEY);
+                builder.addField(fields, start, ORDER_KEY);
                 encodeOrder(element);
             }
             builder.finishWritingObject(start, fields);
@@ -611,11 +622,11 @@ public final class XmlToVariantParser {
             final int start = builder.getWritePos();
             final ArrayList<FieldEntry> fields = new ArrayList<>();
             for (Map.Entry<String, List<XmlElement>> children : element.children.entrySet()) {
-                addField(fields, start, children.getKey());
+                builder.addField(fields, start, children.getKey());
                 encodeItems(children.getValue(), child -> builder.appendNumeric(child.position));
             }
             if (!element.textRuns.isEmpty()) {
-                addField(fields, start, TEXT_KEY);
+                builder.addField(fields, start, TEXT_KEY);
                 encodeItems(element.textRuns, textRun -> builder.appendNumeric(textRun.position));
             }
             builder.finishWritingObject(start, fields);
@@ -637,10 +648,6 @@ public final class XmlToVariantParser {
                 encodeItem.accept(item);
             }
             builder.finishWritingArray(start, offsets);
-        }
-
-        private void addField(ArrayList<FieldEntry> fields, int start, String key) {
-            fields.add(new FieldEntry(key, builder.addKey(key), builder.getWritePos() - start));
         }
 
         // Only an element without child elements has typed text. It has at most one text run, which

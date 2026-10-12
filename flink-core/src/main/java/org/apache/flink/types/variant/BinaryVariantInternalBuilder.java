@@ -488,6 +488,12 @@ public class BinaryVariantInternalBuilder {
         return writePos;
     }
 
+    // Add a field to the object that starts at `start`. Call it right before writing the value,
+    // since the field records the current write position as its offset.
+    public void addField(ArrayList<FieldEntry> fields, int start, String key) {
+        fields.add(new FieldEntry(key, addKey(key), writePos - start));
+    }
+
     // Finish writing a variant object after all of its fields have already been written. The
     // process
     // is as follows:

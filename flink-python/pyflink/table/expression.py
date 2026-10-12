@@ -2355,8 +2355,9 @@ class Expression(Generic[T]):
         an error is thrown. To return None instead of an error, use
         :func:`~Expression.try_parse_xml`.
 
-        If force_array is True, every child element is stored as an array, even if it occurs
-        only once. The default value of force_array is False.
+        If force_array is True, every child element, text, and position in a # field is stored
+        as an array, even if it occurs only once. force_array can be a bool or a boolean
+        expression, and its default value is False. A NULL value is treated as False.
         """
         if force_array is None:
             return _unary_op("parseXml")(self)
