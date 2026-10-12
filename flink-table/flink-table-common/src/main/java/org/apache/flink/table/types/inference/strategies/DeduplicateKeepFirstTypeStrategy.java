@@ -31,12 +31,10 @@ import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.TypeStrategy;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Type strategies for the {@code DEDUPLICATE_KEEP_FIRST} process table function. */
@@ -115,26 +113,24 @@ public final class DeduplicateKeepFirstTypeStrategy {
                                             () ->
                                                     new ValidationException(
                                                             "First argument must be a table for DEDUPLICATE_KEEP_FIRST."));
+                    // Only event-time mode buffers a candidate. Without on_time a fixed type keeps
+                    // the unused state independent of the input schema across query evolution.
+                    if (tableSemantics.timeColumn() == -1) {
+                        return Optional.of(ValueView.newValueViewDataType(DataTypes.BOOLEAN()));
+                    }
                     final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
-                    final List<Field> candidateFields =
+                    final List<Field> payloadFields =
                             Arrays.stream(
                                             ChangelogTypeStrategyUtils.computeOutputIndices(
                                                     tableSemantics))
                                     .mapToObj(inputFields::get)
-                                    .collect(Collectors.toCollection(ArrayList::new));
-                    // The trailing timestamp field is read positionally at runtime, so its name
-                    // only needs to avoid clashing with a payload column of the same name.
-                    final Set<String> takenNames =
-                            candidateFields.stream()
-                                    .map(Field::getName)
-                                    .collect(Collectors.toSet());
-                    String timestampField = "event_time";
-                    for (int i = 0; takenNames.contains(timestampField); i++) {
-                        timestampField = "event_time_" + i;
-                    }
-                    candidateFields.add(DataTypes.FIELD(timestampField, DataTypes.BIGINT()));
+                                    .collect(Collectors.toList());
                     return Optional.of(
-                            ValueView.newValueViewDataType(DataTypes.ROW(candidateFields)));
+                            ValueView.newValueViewDataType(
+                                    DataTypes.ROW(
+                                            DataTypes.FIELD(
+                                                    "payload", DataTypes.ROW(payloadFields)),
+                                            DataTypes.FIELD("event_time", DataTypes.BIGINT()))));
                 }
 
                 @Override
@@ -168,7 +164,9 @@ public final class DeduplicateKeepFirstTypeStrategy {
             return callContext.fail(
                     throwOnFailure,
                     "The 'state_ttl' argument must not be negative, but was '%s'. "
-                            + "Use INTERVAL '0' to disable state retention.",
+                            + "Use a positive INTERVAL to bound state retention, INTERVAL '0' to "
+                            + "retain state indefinitely without a TTL, or omit the argument to "
+                            + "fall back to 'table.exec.state.ttl'.",
                     stateTtl.get());
         }
         return Optional.empty();

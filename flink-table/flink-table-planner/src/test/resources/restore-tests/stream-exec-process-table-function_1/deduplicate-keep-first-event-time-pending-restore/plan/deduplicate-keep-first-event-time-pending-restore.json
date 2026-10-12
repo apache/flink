@@ -309,7 +309,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "upsertMaterializeStrategy" : "MAP",
+    "upsertMaterializeStrategy" : "ADAPTIVE",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
