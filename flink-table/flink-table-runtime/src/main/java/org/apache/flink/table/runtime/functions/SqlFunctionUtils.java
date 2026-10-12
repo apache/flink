@@ -87,9 +87,6 @@ public class SqlFunctionUtils {
                 }
             };
 
-    private static final ThreadLocalCache<String, Pattern> QUERY_PARAM_PATTERN_CACHE =
-            ThreadLocalCache.of(k -> Pattern.compile("(&|^)" + Pattern.quote(k) + "=([^&]*)"));
-
     private static final Map<String, String> EMPTY_MAP = new HashMap<>(0);
 
     public static double exp(DecimalData d) {
@@ -627,7 +624,8 @@ public class SqlFunctionUtils {
             return null;
         }
 
-        Matcher m = QUERY_PARAM_PATTERN_CACHE.get(key).matcher(query);
+        final String s = "(&|^)" + Pattern.quote(key) + "=([^&]*)";
+        Matcher m = REGEXP_PATTERN_CACHE.get(s).matcher(query);
         if (m.find()) {
             return m.group(2);
         }
