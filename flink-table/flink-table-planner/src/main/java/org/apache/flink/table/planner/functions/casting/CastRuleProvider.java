@@ -193,6 +193,11 @@ public class CastRuleProvider {
             LogicalType inputLogicalType,
             LogicalType targetLogicalType,
             Object value) {
+        if (resolve(inputLogicalType, targetLogicalType) == IdentityCastRule.INSTANCE) {
+            // identity cast: value is unchanged, no need to compile a CastExecutor
+            return value;
+        }
+
         CastExecutor<Object, Object> castExecutor =
                 (CastExecutor<Object, Object>)
                         CastRuleProvider.create(context, inputLogicalType, targetLogicalType);
