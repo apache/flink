@@ -76,29 +76,9 @@ def normalize_pandas_result(it):
     return arrays
 
 
-def _is_pandas_column_list(value):
-    import pandas as pd
-
-    return isinstance(value, list) and bool(value) \
-        and all(isinstance(column, (pd.Series, pd.DataFrame)) for column in value)
-
-
 def wrap_input_series_as_dataframe(*args):
     import pandas as pd
-
-    if len(args) == 1 and _is_pandas_column_list(args[0]):
-        args = args[0]
     return pd.concat(args, axis=1)
-
-
-def _invoke_pandas_row_udf(func, *args):
-    inputs = []
-    for arg in args:
-        if _is_pandas_column_list(arg):
-            # Fusion bypasses the coder: restore the existing whole-row pandas input.
-            arg = wrap_input_series_as_dataframe(arg)
-        inputs.append(arg)
-    return func(*inputs)
 
 
 def check_pandas_udf_result(f, *input_args):
@@ -211,9 +191,6 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
         variable_dict[func_name] = user_defined_func.eval
     if user_defined_function_proto.is_arrow_udf:
         variable_dict[func_name] = partial(check_arrow_udf_result, variable_dict[func_name])
-    if user_defined_function_proto.takes_row_as_input \
-            and user_defined_function_proto.is_pandas_udf and not pandas_udaf:
-        variable_dict[func_name] = partial(_invoke_pandas_row_udf, variable_dict[func_name])
     user_defined_funcs.append(user_defined_func)
 
     func_args, input_variable_dict, input_funcs = _extract_input(user_defined_function_proto.inputs)

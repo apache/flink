@@ -1362,12 +1362,12 @@ def _wrap_map_pandas(func, input_type: RowType, output_type: RowType):
                 column = pd.DataFrame(column, copy=False)
             if convert is not None:
                 column = convert(column)
+            if isinstance(column, pd.Series) and column.name != output_field.name:
+                column = column.copy(deep=False)
+                column.name = output_field.name
             output.append(column)
-        index = output[0].index
-        if any(not column.index.equals(index) for column in output[1:]):
-            # Let pandas align the indexes without concatenating the output data.
-            index = pd.concat([pd.DataFrame(index=column.index) for column in output],
-                              axis=1, copy=False).index
+        output = pd.concat(output, axis=1, copy=False)
+        index = output.index
         if index.equals(input_index):
             index = input_index
         elif len(index) == len(input_index):
@@ -1377,21 +1377,12 @@ def _wrap_map_pandas(func, input_type: RowType, output_type: RowType):
         assert len(index) == len(input_index), (
             f"The result length '{len(index)}' of Pandas UDF '{wrapper.__name__}' "
             f"is not equal to the input length '{len(input_index)}'")
-        aligned = []
-        for output_field, column in zip(output_type, output):
-            original = column
-            if not column.index.identical(index):
-                if column.index.equals(index):
-                    column = column.copy(deep=False)
-                    column.index = index
-                else:
-                    column = column.reindex(index)
-            if isinstance(column, pd.Series) and column.name != output_field.name:
-                if column is original:
-                    column = column.copy(deep=False)
-                column.name = output_field.name
-            aligned.append(column)
-        return aligned
+        if not output.index.identical(index):
+            if output.index.equals(index):
+                output.index = index
+            else:
+                output = output.reindex(index)
+        return output
 
     return wrapper
 

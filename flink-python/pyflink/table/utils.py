@@ -175,11 +175,25 @@ def create_pandas_table_row_schema(row_type):
 
 
 @Internal()
-def pandas_table_row_to_arrow(schema, timezone, row_type, columns):
+def pandas_table_row_to_arrow(schema, timezone, row_type, dataframe):
     import pyarrow as pa
 
+    field_types = row_type.field_types()
+    widths = [len(field_type) if isinstance(field_type, RowType) else 1
+              for field_type in field_types]
+    field_count = sum(widths)
+    if dataframe.shape[1] != field_count:
+        raise ValueError(f"Pandas table-row result has {dataframe.shape[1]} columns, "
+                         f"expected {field_count}.")
+    columns = []
+    offset = 0
+    for field_type, width in zip(field_types, widths):
+        # Schema positions retain ROW boundaries even when flattened names are duplicated.
+        columns.append(dataframe.iloc[:, offset:offset + width]
+                       if isinstance(field_type, RowType) else dataframe.iloc[:, offset])
+        offset += width
     batch = pandas_to_arrow(
-        pa.schema(list(schema[0].type)), timezone, row_type.field_types(), columns)
+        pa.schema(list(schema[0].type)), timezone, field_types, columns)
     array = pa.StructArray.from_arrays(batch.columns, fields=list(schema[0].type))
     return pa.RecordBatch.from_arrays([array], schema=schema)
 

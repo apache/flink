@@ -285,20 +285,25 @@ class ArrowCodersTests(unittest.TestCase):
 
         result_type = DataTypes.ROW([
             DataTypes.FIELD("ts", DataTypes.TIMESTAMP_LTZ(3)),
-            DataTypes.FIELD("payload", DataTypes.ROW([DataTypes.FIELD("v", DataTypes.BIGINT())])),
+            DataTypes.FIELD("payload", DataTypes.ROW([
+                DataTypes.FIELD("v", DataTypes.BIGINT()),
+                DataTypes.FIELD("other", DataTypes.BIGINT())])),
             DataTypes.FIELD("other", DataTypes.ROW([DataTypes.FIELD("v", DataTypes.STRING())])),
         ])
         timezone = pytz.timezone("Asia/Shanghai")
         columns = [
             pd.Series(pd.to_datetime(["2020-01-01T00:00:00Z", None]).tz_convert(timezone)),
-            pd.DataFrame({"v": pd.Series([9007199254740993, None], dtype=object)}),
+            pd.DataFrame({"v": pd.Series([9007199254740993, None], dtype=object),
+                          "other": pd.Series([7, None], dtype=object)}),
             pd.DataFrame({"v": ["other", None]}),
         ]
         cases = [
             (columns, [
                 {"result": {"ts": datetime.datetime(2020, 1, 1, 8),
-                            "payload": {"v": 9007199254740993}, "other": {"v": "other"}}},
-                {"result": {"ts": None, "payload": {"v": None}, "other": {"v": None}}},
+                            "payload": {"v": 9007199254740993, "other": 7},
+                            "other": {"v": "other"}}},
+                {"result": {"ts": None, "payload": {"v": None, "other": None},
+                            "other": {"v": None}}},
             ]),
             ([column.head(0) for column in columns], []),
         ]
@@ -310,7 +315,7 @@ class ArrowCodersTests(unittest.TestCase):
                 coder = self.implementation.ArrowCoderImpl(
                     schema, row_type, timezone, "PANDAS", True)
                 restored = self.arrow_coder(schema, row_type).decode(
-                    coder.encode([result])).to_pylist()
+                    coder.encode([pd.concat(result, axis=1)])).to_pylist()
                 self.assertEqual(restored, expected)
 
     def test_pandas_row_collections_round_trip(self):

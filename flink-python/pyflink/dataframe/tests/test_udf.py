@@ -1331,6 +1331,48 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
         return pandas_table_row_to_arrow(
             schema, pytz.UTC, row_type, adapter.eval(*inputs)).column(0).to_pylist()
 
+    def test_pandas_map_batches_returns_flattened_dataframe(self):
+        from pyflink.dataframe.udf import _resolve_map_udf
+
+        dtype = pf.DataType.struct({
+            "v": pf.DataType.int64(),
+            "payload": pf.DataType.struct({"v": pf.DataType.int64(),
+                                           "tail": pf.DataType.int64()}),
+            "other": pf.DataType.struct({"v": pf.DataType.string()}),
+            "tail": pf.DataType.int64(),
+        })
+        input_type = TableDataTypes.ROW([TableDataTypes.FIELD("id", TableDataTypes.BIGINT())])
+
+        def transform(batch):
+            return {"tail": batch["id"] + 10,
+                    "other": pd.DataFrame({"v": ["a", None]}, index=batch["id"].index),
+                    "payload": pd.DataFrame({
+                        "v": pd.Series([9007199254740993, None],
+                                       index=batch["id"].index, dtype=object),
+                        "tail": batch["id"] + 20}),
+                    "v": batch["id"].sort_index(ascending=False)}
+
+        adapter = _resolve_map_udf(transform, dtype, "pandas", input_type)._func
+        adapter.open(object())
+        try:
+            result = adapter.eval(pd.Series([1, 2]))
+            self.assertIsInstance(result, pd.DataFrame)
+            pd.testing.assert_frame_equal(result, pd.concat([
+                pd.Series([1, 2], name="v"),
+                pd.Series([9007199254740993, None], name="v", dtype=object),
+                pd.Series([21, 22], name="tail"),
+                pd.Series(["a", None], name="v"),
+                pd.Series([11, 12], name="tail"),
+            ], axis=1))
+            self.assertEqual(self.pandas_map_output(adapter, dtype, pd.Series([1, 2])), [
+                {"v": 1, "payload": {"v": 9007199254740993, "tail": 21},
+                 "other": {"v": "a"}, "tail": 11},
+                {"v": 2, "payload": {"v": None, "tail": 22},
+                 "other": {"v": None}, "tail": 12},
+            ])
+        finally:
+            adapter.close()
+
     def test_map_bindings_leave_other_uses_of_a_declaration_unchanged(self):
         from pyflink.dataframe.udf import _resolve_map_udf
 
