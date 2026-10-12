@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DistinctType;
@@ -27,6 +28,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.jupiter.api.Test;
+
+import java.time.ZoneId;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -86,6 +89,40 @@ class CastRuleProviderTest {
         assertThat(CastRuleProvider.resolve(INT, INT)).isSameAs(IdentityCastRule.INSTANCE);
         assertThat(CastRuleProvider.resolve(ROW, ROW)).isSameAs(IdentityCastRule.INSTANCE);
         assertThat(CastRuleProvider.resolve(ROW, STRUCTURED)).isSameAs(IdentityCastRule.INSTANCE);
+    }
+
+    @Test
+    void testValuePreservingCastDoesNotCompile() {
+        // refusing classloader: compilation fails, so a value-preserving cast passes only if it
+        // skips compilation
+        final ClassLoader failing =
+                new ClassLoader(Thread.currentThread().getContextClassLoader()) {
+                    @Override
+                    protected Class<?> loadClass(String name, boolean resolve)
+                            throws ClassNotFoundException {
+                        throw new ClassNotFoundException("value-preserving cast must not compile");
+                    }
+                };
+
+        final CastRule.Context context =
+                CastRule.Context.create(false, false, ZoneId.of("UTC"), failing, null);
+
+        final BinaryStringData value = BinaryStringData.fromString("35709");
+        final BinaryStringData castedValue =
+                (BinaryStringData)
+                        CastRuleProvider.cast(
+                                context, CHAR(5).getLogicalType(), STRING_TYPE, value);
+        assertThat(castedValue).isSameAs(value);
+        assertThat(CastRuleProvider.cast(context, INT, INT, 42)).isEqualTo(42);
+
+        // IdentityCastRule treats these as identity too, unlike supportsAvoidingCast
+        final LogicalType yearMonth = INTERVAL(MONTH()).getLogicalType();
+        assertThat(CastRuleProvider.cast(context, yearMonth, INT, 12)).isEqualTo(12);
+        assertThat(CastRuleProvider.cast(context, INT, yearMonth, 12)).isEqualTo(12);
+        final LogicalType dayTime = INTERVAL(DataTypes.SECOND()).getLogicalType();
+        final LogicalType bigint = BIGINT().getLogicalType();
+        assertThat(CastRuleProvider.cast(context, dayTime, bigint, 1_000L)).isEqualTo(1_000L);
+        assertThat(CastRuleProvider.cast(context, bigint, dayTime, 1_000L)).isEqualTo(1_000L);
     }
 
     @Test
