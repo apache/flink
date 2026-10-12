@@ -18,6 +18,7 @@
 
 import json
 import unittest
+from types import MappingProxyType
 from typing import get_type_hints
 
 import pyflink.dataframe as pf
@@ -180,16 +181,56 @@ class ModelProviderTests(unittest.TestCase):
         })
 
     def test_generic_provider_preserves_raw_options(self):
-        options = {"endpoint": "HTTPS://example.test/v1", "api-key": "key",
-                   "custom_option": "", "enabled": "false", "identifier": "raw", "self": "raw"}
-        provider = pf.GenericProvider("custom", **options)
+        expected = {"endpoint": "HTTPS://example.test/v1", "api-key": "key",
+                    "custom_option": "", "enabled": "false", "identifier": "raw",
+                    "self": "raw", "options": "raw"}
+        for form in ("keywords", "mapping", "mixed", "none"):
+            with self.subTest(form=form):
+                options = dict(expected)
+                if form == "keywords":
+                    provider = pf.GenericProvider("custom", **options)
+                elif form == "mapping":
+                    provider = pf.GenericProvider("custom", MappingProxyType(options))
+                elif form == "mixed":
+                    provider = pf.GenericProvider(
+                        "custom", {"endpoint": options.pop("endpoint")}, **options)
+                else:
+                    provider = pf.GenericProvider("custom", None, **options)
+                options.clear()
+                self.assertIsInstance(provider, pf.ModelProvider)
+                self.assertEqual(provider.provider_identifier(), "custom")
+                self.assertEqual(provider.model_option_key(), "model")
+                self.assertEqual(provider.to_options(), expected)
+                provider.to_options().clear()
+                self.assertEqual(provider.to_options(), expected)
 
-        self.assertIsInstance(provider, pf.ModelProvider)
-        self.assertEqual(provider.provider_identifier(), "custom")
-        self.assertEqual(provider.model_option_key(), "model")
-        self.assertEqual(provider.to_options(), options)
-        provider.to_options().clear()
-        self.assertEqual(provider.to_options(), options)
+    def test_typed_providers_accept_raw_options(self):
+        for provider_type, connection, raw, typed, expected in [
+            (pf.OpenAIProvider,
+             {"endpoint": "https://example.test/chat/completions", "api_key": "key"},
+             {"model": "chat-model", "max-tokens": "100", "temperature": "0.0",
+              "system-prompt": "", "future-option": "Mixed CASE"},
+             {"max_tokens": 100, "temperature": 0.0, "system_prompt": ""},
+             {"endpoint": "https://example.test/chat/completions", "api-key": "key",
+              "model": "chat-model", "max-tokens": "100", "temperature": "0.0",
+              "system-prompt": "", "future-option": "Mixed CASE"}),
+            (pf.TritonProvider,
+             {"endpoint": "http://localhost:8000"},
+             {"model-name": "classifier", "max-retries": "0", "flatten-batch-dim": "false",
+              "future_option": ""},
+             {"max_retries": 0, "flatten_batch_dim": False},
+             {"endpoint": "http://localhost:8000", "model-name": "classifier",
+              "max-retries": "0", "flatten-batch-dim": "false", "future_option": ""}),
+        ]:
+            for parameters in ({}, typed):
+                with self.subTest(provider=provider_type.__name__, parameters=parameters):
+                    options = dict(raw)
+                    provider = provider_type(
+                        **connection, **parameters, options=MappingProxyType(options))
+                    options.clear()
+                    self.assertEqual(provider.to_options(), expected)
+                    provider.to_options().clear()
+                    self.assertEqual(provider.to_options(), expected)
 
     def test_public_contracts_have_resolvable_type_hints(self):
         for api in (pf.set_model_provider, pf.set_default_model_provider, pf.list_model_providers,
@@ -198,6 +239,34 @@ class ModelProviderTests(unittest.TestCase):
                     pf.TritonProvider.__init__, pf.GenericProvider.__init__):
             with self.subTest(api=api.__qualname__):
                 self.assertTrue(get_type_hints(api))
+
+    def test_providers_reject_conflicting_options(self):
+        for construct, key, value in [
+            (lambda options: pf.OpenAIProvider(
+                "https://example.test/chat/completions", "key", max_tokens=10, options=options),
+             "max-tokens", "10"),
+            (lambda options: pf.OpenAIProvider(
+                "https://example.test/chat/completions", "key", options=options),
+             "api-key", "key"),
+            (lambda options: pf.OpenAIProvider(
+                "https://example.test/chat/completions", "key", system_prompt="", options=options),
+             "system-prompt", ""),
+            (lambda options: pf.TritonProvider(
+                "http://localhost:8000", flatten_batch_dim=False, options=options),
+             "flatten-batch-dim", "false"),
+            (lambda options: pf.TritonProvider(
+                "http://localhost:8000", max_retries=0, options=options),
+             "max-retries", "0"),
+            (lambda options: pf.GenericProvider("custom", options, timeout="10 s"),
+             "timeout", "10 s"),
+        ]:
+            with self.subTest(key=key):
+                options = {key: value}
+                self.assertEqual(construct(options).to_options()[key], value)
+                options[key] = "different"
+                with self.assertRaisesRegex(ValueError, "conflicting values for option"):
+                    construct(options)
+                self.assertEqual(options, {key: "different"})
 
     def test_generic_provider_rejects_invalid_configuration(self):
         for identifier, options, error in [
@@ -211,6 +280,28 @@ class ModelProviderTests(unittest.TestCase):
             with self.subTest(identifier=identifier, options=options):
                 with self.assertRaises(error):
                     pf.GenericProvider(identifier, **options)
+
+    def test_providers_reject_invalid_raw_options(self):
+        for name, construct, expected in (
+            ("openai", lambda options: pf.OpenAIProvider(
+                "https://example.test/chat/completions", "key", options=options),
+             {"endpoint": "https://example.test/chat/completions", "api-key": "key"}),
+            ("triton", lambda options: pf.TritonProvider("http://localhost:8000", options=options),
+             {"endpoint": "http://localhost:8000"}),
+            ("generic", lambda options: pf.GenericProvider("custom", options), {}),
+        ):
+            for options in ([], "options", False, {1: "value"}, {"option": None},
+                            {"option": False}, {"option": 1}):
+                with self.subTest(provider=name, options=options):
+                    with self.assertRaises(TypeError):
+                        construct(options)
+            self.assertEqual(construct({}).to_options(), expected)
+
+        with self.assertRaises(TypeError):
+            pf.OpenAIProvider("https://example.test/chat/completions", "key",
+                              max_tokens=True, options={"max-tokens": "1"})
+        with self.assertRaises(ValueError):
+            pf.TritonProvider("http://localhost:8000", priority=256, options={"priority": "1"})
 
 
 class ModelProviderRegistryTests(unittest.TestCase):

@@ -45,6 +45,26 @@ def _stringify_options(options: Dict[str, object]) -> Dict[str, str]:
     }
 
 
+def _merge_options(
+    options: Optional[Mapping[str, str]], parameters: Mapping[str, str],
+) -> Dict[str, str]:
+    if options is not None and not isinstance(options, MappingABC):
+        raise TypeError("options must be a mapping of strings to strings")
+    merged: Dict[str, str] = {}
+    for source in (options, parameters):
+        if source is None:
+            continue
+        for key, value in source.items():
+            if not isinstance(key, str):
+                raise TypeError("Option keys must be strings")
+            if not isinstance(value, str):
+                raise TypeError(f"Option {key!r} must have a string value")
+            if key in merged and merged[key] != value:
+                raise ValueError(f"conflicting values for option {key!r}")
+            merged[key] = value
+    return merged
+
+
 def _validate_type(name: str, value: object, expected: type) -> None:
     if value is not None and not isinstance(value, expected):
         raise TypeError(f"{name} must be a {expected.__name__}")
@@ -173,6 +193,9 @@ class OpenAIProvider(ModelProvider):
     :param retry_fallback_strategy: Action after retries are exhausted: ``FAILOVER``
                                    fails the job and ``IGNORE`` skips the failed input.
                                    If omitted, Flink uses ``FAILOVER``.
+    :param options: Additional Java provider options as string keys and values.
+                    Default: ``None``. Conflicting values between this mapping and
+                    explicit parameters raise ``ValueError``.
 
     Example::
 
@@ -207,10 +230,11 @@ class OpenAIProvider(ModelProvider):
         error_handling_strategy: Optional[Literal["RETRY", "FAILOVER", "IGNORE"]] = None,
         retry_num: Optional[int] = None,
         retry_fallback_strategy: Optional[Literal["FAILOVER", "IGNORE"]] = None,
+        options: Optional[Mapping[str, str]] = None,
     ):
         _validate_name(endpoint, "endpoint")
         _validate_name(api_key, "api_key")
-        options: Dict[str, object] = {
+        typed_options: Dict[str, object] = {
             "endpoint": endpoint, "api-key": api_key, "model": model,
             "system-prompt": system_prompt, "temperature": temperature, "top-p": top_p,
             "max-tokens": max_tokens, "stop": stop, "presence-penalty": presence_penalty,
@@ -229,7 +253,7 @@ class OpenAIProvider(ModelProvider):
                 "retry_fallback_strategy", retry_fallback_strategy, ("FAILOVER", "IGNORE")),
         }
         for name in ("model", "system-prompt", "stop"):
-            _validate_type(name, options[name], str)
+            _validate_type(name, typed_options[name], str)
         for name, integer, minimum in (
             ("max_tokens", max_tokens, 1), ("n", n, 1), ("dimension", dimension, 1),
             ("max_context_size", max_context_size, 1), ("retry_num", retry_num, 0),
@@ -243,7 +267,7 @@ class OpenAIProvider(ModelProvider):
         ):
             if number is not None:
                 _require_number(number, name, lower_bound, maximum=upper_bound)
-        self._options = _stringify_options(options)
+        self._options = _merge_options(options, _stringify_options(typed_options))
 
     def provider_identifier(self) -> str:
         """Return ``openai``.
@@ -321,6 +345,9 @@ class TritonProvider(ModelProvider):
     :param circuit_breaker_half_open_requests: Successful recovery probes needed to
                                               close the circuit breaker. If omitted,
                                               Flink uses ``3``.
+    :param options: Additional Java provider options as string keys and values.
+                    Default: ``None``. Conflicting values between this mapping and
+                    explicit parameters raise ``ValueError``.
 
     Example::
 
@@ -355,9 +382,10 @@ class TritonProvider(ModelProvider):
         circuit_breaker_failure_threshold: Optional[float] = None,
         circuit_breaker_timeout: Optional[str] = None,
         circuit_breaker_half_open_requests: Optional[int] = None,
+        options: Optional[Mapping[str, str]] = None,
     ):
         _validate_name(endpoint, "endpoint")
-        options: Dict[str, object] = {
+        typed_options: Dict[str, object] = {
             "endpoint": endpoint, "model-name": model_name, "model-version": model_version,
             "timeout": timeout, "flatten-batch-dim": flatten_batch_dim, "priority": priority,
             "sequence-id": sequence_id, "sequence-start": sequence_start,
@@ -376,10 +404,10 @@ class TritonProvider(ModelProvider):
         for name in ("model-name", "model-version", "timeout", "sequence-id", "auth-token",
                      "retry-initial-backoff", "retry-max-backoff", "default-value",
                      "health-check-interval", "circuit-breaker-timeout"):
-            _validate_type(name, options[name], str)
+            _validate_type(name, typed_options[name], str)
         for name in ("flatten-batch-dim", "sequence-start", "sequence-end", "health-check-enabled",
                      "circuit-breaker-enabled"):
-            _validate_type(name, options[name], bool)
+            _validate_type(name, typed_options[name], bool)
         for name, integer, minimum, maximum in (
             ("priority", priority, 0, 255), ("max_retries", max_retries, 0, None),
             ("circuit_breaker_half_open_requests", circuit_breaker_half_open_requests, 1, None),
@@ -389,7 +417,7 @@ class TritonProvider(ModelProvider):
         if circuit_breaker_failure_threshold is not None:
             _require_number(circuit_breaker_failure_threshold, "circuit_breaker_failure_threshold",
                             0, maximum=1, include_minimum=False)
-        self._options = _stringify_options(options)
+        self._options = _merge_options(options, _stringify_options(typed_options))
 
     def provider_identifier(self) -> str:
         """Return ``triton``.
@@ -419,28 +447,31 @@ class GenericProvider(ModelProvider):
     Configure an installed model provider with its option names and string values.
 
     Use this for a provider without a dedicated Python configuration class. Option
-    names and values follow that provider's documentation.
+    names and values follow that provider's documentation. Supply options as a
+    mapping, keyword arguments, or both. Conflicting values raise ``ValueError``.
 
     :param identifier: Java model provider factory identifier.
-    :param options: Provider option names and string values.
+    :param options: Provider option names and string values, supplied as the second
+                    positional argument. Default: ``None``.
+    :param kwargs: Provider options supplied as keyword arguments.
 
     Example::
 
         >>> provider = GenericProvider(
-        ...     "my-provider", **{"endpoint": "https://example.test/inference"})
+        ...     "my-provider", {"endpoint": "https://example.test/inference"},
+        ...     **{"api-key": "key"})
         >>> provider.to_options()
-        {'endpoint': 'https://example.test/inference'}
+        {'endpoint': 'https://example.test/inference', 'api-key': 'key'}
 
     .. versionadded:: 2.4.0
     """
 
-    def __init__(self, identifier: str, /, **options: str):
+    def __init__(
+        self, identifier: str, options: Optional[Mapping[str, str]] = None, /, **kwargs: str,
+    ):
         _validate_name(identifier, "identifier")
-        for key, value in options.items():
-            if not isinstance(value, str):
-                raise TypeError(f"Option {key!r} must have a string value")
         self._identifier = identifier
-        self._options = dict(options)
+        self._options = _merge_options(options, kwargs)
 
     def provider_identifier(self) -> str:
         """Return the configured provider identifier.

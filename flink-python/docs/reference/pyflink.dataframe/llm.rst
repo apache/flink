@@ -26,6 +26,7 @@ Model Providers
 Model providers configure connections and options for AI functions.
 ``OpenAIProvider`` and ``TritonProvider`` provide typed configurations for Flink's
 built-in providers. See their API references below for parameters and defaults.
+Use ``options`` to supply Java provider option names and string values directly.
 
 Use ``set_model_provider`` to register a configuration. Pass a provider alone to
 use its identifier as the name, or supply a name to distinguish configurations.
