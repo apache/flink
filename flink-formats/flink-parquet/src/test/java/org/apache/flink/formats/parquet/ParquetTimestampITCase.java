@@ -55,7 +55,7 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.S
 import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.TIMESTAMP_TIME_UNIT;
 import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.UTC_TIMEZONE;
 import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.WRITE_INT64_TIMESTAMP;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test int64 timestamp. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -257,11 +257,12 @@ public class ParquetTimestampITCase extends FsStreamingSinkITCaseBase {
     public void check(String sqlQuery, Seq<Row> expectedResult) {
         List<Row> result =
                 CollectionUtil.iteratorToList(tEnv().sqlQuery(sqlQuery).execute().collect());
-        assertEquals(
+        List<String> expected =
                 JavaScalaConversionUtil.toJava(expectedResult).stream()
                         .map(row -> TestSinkUtil.rowToString(row, TimeZone.getTimeZone("UTC")))
                         .sorted()
-                        .collect(Collectors.toList()),
+                        .collect(Collectors.toList());
+        List<String> actual =
                 result.stream()
                         .map(
                                 row -> {
@@ -271,6 +272,7 @@ public class ParquetTimestampITCase extends FsStreamingSinkITCaseBase {
                                             row, TimeZone.getTimeZone("UTC"));
                                 })
                         .sorted()
-                        .collect(Collectors.toList()));
+                        .collect(Collectors.toList());
+        assertThat(actual).isEqualTo(expected);
     }
 }
