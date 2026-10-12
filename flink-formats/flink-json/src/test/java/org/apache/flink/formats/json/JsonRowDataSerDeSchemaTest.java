@@ -348,7 +348,7 @@ public class JsonRowDataSerDeSchemaTest {
                 .hasRootCauseMessage("Non-finite value 'NaN' cannot be serialized to JSON.");
     }
 
-    @Test
+    @TestTemplate
     public void testEmptyJsonArrayDeserialization() throws Exception {
         DataType dataType = ROW(FIELD("f1", INT()), FIELD("f2", BOOLEAN()), FIELD("f3", STRING()));
         RowType rowType = (RowType) dataType.getLogicalType();
@@ -368,7 +368,7 @@ public class JsonRowDataSerDeSchemaTest {
         assertThat(result).isEmpty();
     }
 
-    @Test
+    @TestTemplate
     public void testJsonArrayToMultiRecords() throws Exception {
         DataType dataType = ROW(FIELD("f1", INT()), FIELD("f2", BOOLEAN()), FIELD("f3", STRING()));
         RowType rowType = (RowType) dataType.getLogicalType();
