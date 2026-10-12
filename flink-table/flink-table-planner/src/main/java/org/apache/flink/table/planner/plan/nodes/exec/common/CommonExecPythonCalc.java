@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
@@ -29,6 +30,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.InputRef;
+import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInput;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
@@ -159,6 +161,14 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                 extractPythonScalarFunctionInfos(cseResult, classLoader);
         int[] pythonUdfInputOffsets = extractResult.f0;
         PythonFunctionInfo[] pythonFunctionInfos = extractResult.f1;
+        final PythonFunction function = pythonFunctionInfos[0].getPythonFunction();
+        if (function.getBatchSize() != null) {
+            pythonConfig.set(
+                    ConfigOptions.key("python.fn-execution.arrow.batch.size")
+                            .intType()
+                            .noDefaultValue(),
+                    function.getBatchSize());
+        }
         boolean[] hasColumn = new boolean[pythonFunctionInfos.length];
         for (int i = 0; i < pythonFunctionInfos.length; i++) {
             hasColumn[i] = validateArrowInputs(pythonFunctionInfos[i], hasColumn);
@@ -207,8 +217,10 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                 createTransformationMeta(PYTHON_CALC_TRANSFORMATION, config),
                 pythonOperator,
                 pythonOperatorResultTyeInfo,
-                inputTransform.getParallelism(),
-                false);
+                function.getConcurrency() == null
+                        ? inputTransform.getParallelism()
+                        : function.getConcurrency(),
+                function.getConcurrency() != null);
     }
 
     private static boolean validateArrowInputs(

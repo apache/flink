@@ -33,6 +33,31 @@ DataFrame scalar UDFs support general synchronous and asynchronous callables,
 and synchronous pandas or Arrow vectorized callables. See :func:`pyflink.dataframe.udf`
 for declaration forms, type inference, execution modes, and examples.
 
+Per-UDF Execution Settings
+--------------------------
+
+``concurrency`` overrides the parallelism of the Python stage for a scalar UDF,
+including synchronous, asynchronous, pandas, and Arrow UDFs. Python UDFs with
+different execution settings run in separate operators. It does not change the
+job-wide configuration.
+
+For pandas and Arrow UDFs, ``batch_size`` overrides the maximum number of rows
+per batch. The configured bundle size remains an upper bound. General scalar
+UDFs reject ``batch_size``. Both options must be positive integers; omitting them
+preserves the existing execution settings.
+
+.. code-block:: python
+
+    import pyflink.dataframe as pf
+    import pyarrow as pa
+    import pyarrow.compute as pc
+
+    @pf.udf(return_dtype=int, concurrency=4, batch_size=256)
+    def add_one(values: pa.Array) -> pa.Array:
+        return pc.add(values, 1)
+
+    result = df.with_columns(next_value=add_one(pf.col("value")))
+
 Table Functions
 ===============
 

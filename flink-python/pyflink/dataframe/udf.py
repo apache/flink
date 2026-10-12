@@ -200,6 +200,8 @@ class _DataFrameUDFWrapper:
     _return_dtype: DataType
     _deterministic: bool
     _func_type: str
+    _concurrency: Optional[int]
+    _batch_size: Optional[int]
     _cached_table_udf_wrapper: Optional[UserDefinedFunctionWrapper]
     _frozen: bool
     __name__: str
@@ -211,7 +213,11 @@ class _DataFrameUDFWrapper:
         deterministic: bool,
         name: str,
         func_type: str,
+        concurrency: Optional[int],
+        batch_size: Optional[int],
     ) -> None:
+        object.__setattr__(self, "_concurrency", concurrency)
+        object.__setattr__(self, "_batch_size", batch_size)
         object.__setattr__(self, "_runtime_source", runtime_source)
         object.__setattr__(self, "_return_dtype", return_dtype)
         object.__setattr__(self, "_deterministic", deterministic)
@@ -276,7 +282,7 @@ class _DataFrameUDFWrapper:
             ),
         )
         wrapper._returns_table_row = usage in (_UDFUsage.MAP, _UDFUsage.MAP_BATCHES)
-        return wrapper
+        return wrapper._set_execution_options(self._concurrency, self._batch_size)
 
     @property
     def return_dtype(self) -> DataType:
@@ -337,6 +343,8 @@ def udf(
     deterministic: bool = ...,
     name: Optional[str] = ...,
     func_type: Optional[str] = ...,
+    concurrency: Optional[int] = ...,
+    batch_size: Optional[int] = ...,
 ) -> Callable[..., Expression]:
     ...
 
@@ -349,6 +357,8 @@ def udf(
     deterministic: bool = ...,
     name: Optional[str] = ...,
     func_type: Optional[str] = ...,
+    concurrency: Optional[int] = ...,
+    batch_size: Optional[int] = ...,
 ) -> Callable[[_UDFInput], Callable[..., Expression]]:
     ...
 
@@ -361,6 +371,8 @@ def udf(
     deterministic: bool = True,
     name: Optional[str] = None,
     func_type: Optional[str] = None,
+    concurrency: Optional[int] = None,
+    batch_size: Optional[int] = None,
 ) -> Union[
     Callable[..., Expression],
     Callable[[_UDFInput], Callable[..., Expression]],
@@ -506,6 +518,11 @@ def udf(
     :param func_type: ``"general"``, ``"pandas"``, or ``"arrow"``. If omitted,
                       unbound container annotations select pandas or Arrow mode;
                       otherwise general mode is used.
+    :param concurrency: Positive parallelism of this Python stage. If omitted, the stage
+                        follows the surrounding execution settings.
+    :param batch_size: Positive maximum rows per pandas or Arrow batch. If omitted,
+                       the configured Arrow batch size is used. The bundle size still
+                       limits the effective batch size. Not supported for general UDFs.
     :return: A callable that accepts DataFrame expressions or Python literals and
              returns an :class:`~pyflink.table.expression.Expression`, or a decorator
              producing such a callable when ``func`` is omitted.
@@ -525,6 +542,14 @@ def udf(
         _validate_scalar_udf_options(
             actual_func_type, return_dtype, runtime_source.is_async
         )
+        for option, value in (("concurrency", concurrency), ("batch_size", batch_size)):
+            if value is not None:
+                if isinstance(value, bool) or not isinstance(value, int):
+                    raise TypeError(f"{option} must be an int or None.")
+                if not 0 < value <= 2 ** 31 - 1:
+                    raise ValueError(f"{option} must be between 1 and 2147483647.")
+        if batch_size is not None and actual_func_type == "general":
+            raise ValueError("batch_size is supported only for pandas and arrow UDFs.")
         actual_return_dtype = _infer_return_dtype(
             declaration_context, return_dtype, runtime_source.default_name
         )
@@ -543,6 +568,8 @@ def udf(
             deterministic,
             actual_name,
             actual_func_type,
+            concurrency,
+            batch_size,
         )
 
     return decorator if func is None else decorator(func)

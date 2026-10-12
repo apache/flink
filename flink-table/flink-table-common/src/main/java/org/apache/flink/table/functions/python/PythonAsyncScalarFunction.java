@@ -31,6 +31,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /** The wrapper of user defined python async scalar function. */
 @Internal
 public class PythonAsyncScalarFunction extends AsyncScalarFunction implements PythonFunction {
@@ -44,6 +46,8 @@ public class PythonAsyncScalarFunction extends AsyncScalarFunction implements Py
     private final PythonEnv pythonEnv;
     private final boolean takesRowAsInput;
     private final boolean returnsTableRow;
+
+    private Integer concurrency;
 
     private DataType[] inputTypes;
     private String[] inputTypesString;
@@ -173,6 +177,16 @@ public class PythonAsyncScalarFunction extends AsyncScalarFunction implements Py
     public void eval(CompletableFuture<Object> future, Object... args) {
         throw new UnsupportedOperationException(
                 "This method is a placeholder and should not be called.");
+    }
+
+    @Override
+    public Integer getConcurrency() {
+        return concurrency;
+    }
+
+    public void setConcurrency(int concurrency) {
+        checkArgument(concurrency > 0);
+        this.concurrency = concurrency;
     }
 
     @Override

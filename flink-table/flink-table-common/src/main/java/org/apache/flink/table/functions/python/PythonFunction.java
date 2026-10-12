@@ -40,6 +40,18 @@ public interface PythonFunction extends Serializable {
         return PythonFunctionKind.GENERAL;
     }
 
+    /** Returns the per-function parallelism override, or null to use the execution settings. */
+    default Integer getConcurrency() {
+        return null;
+    }
+
+    /**
+     * Returns the per-function Arrow batch size override, or null to use the execution settings.
+     */
+    default Integer getBatchSize() {
+        return null;
+    }
+
     /** Returns Whether the Python function takes row as input instead of each columns of a row. */
     default boolean takesRowAsInput() {
         return false;

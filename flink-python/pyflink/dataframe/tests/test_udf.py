@@ -20,6 +20,7 @@ import asyncio
 import functools
 import importlib
 import inspect
+import json
 import operator
 import types
 import unittest
@@ -61,6 +62,42 @@ def _call_module_alias_function(value):
 
 
 class DataFrameUDFDeclarationTests(unittest.TestCase):
+    def test_execution_options_validation(self):
+        for option in ("concurrency", "batch_size"):
+            for value in (True, False, 1.5, "2"):
+                with self.subTest(option=option, value=value):
+                    with self.assertRaisesRegex(TypeError, option):
+                        pf.udf(lambda x: x, return_dtype=int, func_type="pandas",
+                               **{option: value})
+            for value in (0, -1, 2 ** 31):
+                with self.subTest(option=option, value=value):
+                    with self.assertRaisesRegex(ValueError, option):
+                        pf.udf(lambda x: x, return_dtype=int, func_type="pandas",
+                               **{option: value})
+        with self.assertRaisesRegex(ValueError, "batch_size.*pandas.*arrow"):
+            pf.udf(lambda x: x, return_dtype=int, batch_size=8)
+
+    def test_execution_options_are_per_declaration(self):
+        for mode in ("general", "pandas", "arrow"):
+            with self.subTest(mode=mode):
+                options = {} if mode == "general" else {"batch_size": 8}
+                configured = pf.udf(lambda x: x, return_dtype=int, func_type=mode,
+                                    concurrency=2, **options)
+                default = pf.udf(lambda x: x, return_dtype=int, func_type=mode)
+                self.assertEqual(configured._concurrency, 2)
+                self.assertEqual(configured._batch_size, options.get("batch_size"))
+                self.assertIsNone(default._concurrency)
+                self.assertIsNone(default._batch_size)
+                wrapped = configured._table_udf_wrapper
+                self.assertEqual(wrapped._concurrency, 2)
+                self.assertEqual(wrapped._batch_size, options.get("batch_size"))
+
+        @pf.udf(concurrency=3)
+        async def lookup(value: int) -> int:
+            return value
+
+        self.assertEqual(lookup._table_udf_wrapper._concurrency, 3)
+
     def test_arrow_annotation_inference_and_overrides(self):
         def arrow_identity(values: pa.Array) -> pa.ChunkedArray:
             return pa.chunked_array([values])
@@ -2343,6 +2380,51 @@ class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
         with self.assertRaisesRegex(ValueError, "mode"):
             dataframe.map(pf.udf(transform, return_dtype=Output, func_type="pandas"))
 
+    def test_per_udf_concurrency_reaches_separate_operators(self):
+        from pyflink.datastream import RuntimeExecutionMode
+        from pyflink.table import EnvironmentSettings, ExplainDetail, StreamTableEnvironment
+
+        def identity(value):
+            return value
+
+        async def async_identity(value):
+            return value
+
+        for runtime_mode in (RuntimeExecutionMode.STREAMING, RuntimeExecutionMode.BATCH):
+            self.env.set_runtime_mode(runtime_mode)
+            settings = (EnvironmentSettings.in_batch_mode()
+                        if runtime_mode == RuntimeExecutionMode.BATCH
+                        else EnvironmentSettings.in_streaming_mode())
+            pf.set_table_environment(StreamTableEnvironment.create(
+                self.env, environment_settings=settings))
+            for mode in ("general", "pandas", "arrow", "async"):
+                for usage in ("separate", "nested", "map"):
+                    with self.subTest(runtime_mode=runtime_mode, mode=mode, usage=usage):
+                        function = async_identity if mode == "async" else identity
+                        dtype = (pf.DataType.struct({"id": pf.DataType.int64()})
+                                 if usage == "map" else int)
+                        first = pf.udf(function, return_dtype=dtype, name="first", concurrency=2,
+                                       func_type="general" if mode == "async" else mode)
+                        second = pf.udf(function, return_dtype=dtype, name="second", concurrency=3,
+                                        func_type="general" if mode == "async" else mode)
+                        dataframe = pf.from_records([(1,)], schema=["id"])
+                        if usage == "map":
+                            if mode in ("general", "async"):
+                                result = dataframe.map(first).map(second)
+                            else:
+                                result = dataframe.map_batches(first, batch_format=mode) \
+                                    .map_batches(second, batch_format=mode)
+                        elif usage == "nested":
+                            result = dataframe.select(first(second(pf.col("id"))))
+                        else:
+                            result = dataframe.with_columns(
+                                first=first(pf.col("id")), second=second(pf.col("id")))
+                        explanation = result.to_table().explain(ExplainDetail.JSON_EXECUTION_PLAN)
+                        plan = json.loads(explanation.split("== Physical Execution Plan ==")[1])
+                        stages = [node for node in plan["nodes"] if "Python" in node["type"]]
+                        self.assertEqual(sorted(node["parallelism"] for node in stages), [2, 3])
+                        self.assertEqual(self.env.get_parallelism(), 2)
+
     def test_arrow_calls_require_a_column_argument(self):
         from pyflink.table import ExplainDetail
 
@@ -2618,6 +2700,53 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
                   .map_batches(arrow_unnest, return_dtype=dtype, batch_format="arrow"))
         self.assertEqual(sorted(result.collect(), key=lambda row: row[0]),
                          [Row(1, 29), Row(2, 33), Row(3, -3), Row(4, -2), Row(5, -1)])
+
+    def test_per_udf_batch_sizes_reach_execution(self):
+        self.env.set_parallelism(1)
+        self.t_env.get_config().set("python.fn-execution.bundle.size", "10")
+        self.t_env.get_config().set("python.fn-execution.arrow.batch.size", "10")
+        for mode in ("pandas", "arrow"):
+            with self.subTest(mode=mode):
+                def batch_length(values):
+                    lengths = [len(values)] * len(values)
+                    return pd.Series(lengths) if mode == "pandas" else pa.array(lengths)
+
+                first = pf.udf(batch_length, return_dtype=int, func_type=mode,
+                               name="batch_one", batch_size=1)
+                second = pf.udf(batch_length, return_dtype=int, func_type=mode,
+                                name="batch_two", batch_size=2)
+                result = pf.from_records([(1,), (2,), (3,), (4,)], schema=["id"]).select(
+                    first(pf.col("id")).alias("one"), second(pf.col("id")).alias("two"))
+                with result.to_table().execute().collect() as rows:
+                    self.assertEqual(sorted(tuple(row) for row in rows), [(1, 2)] * 4)
+                self.assertEqual(self.t_env.get_config().get(
+                    "python.fn-execution.arrow.batch.size", ""), "10")
+
+    def test_map_batches_execution_options(self):
+        self.env.set_parallelism(1)
+        self.t_env.get_config().set("python.fn-execution.bundle.size", "10")
+        self.t_env.get_config().set("python.fn-execution.arrow.batch.size", "10")
+        for mode in ("pandas", "arrow"):
+            with self.subTest(mode=mode):
+                def first_batch(batch):
+                    lengths = [len(batch["id"])] * len(batch["id"])
+                    return {"one": pd.Series(lengths) if mode == "pandas" else pa.array(lengths)}
+
+                def second_batch(batch):
+                    lengths = [len(batch["one"])] * len(batch["one"])
+                    return {"one": batch["one"],
+                            "two": pd.Series(lengths) if mode == "pandas" else pa.array(lengths)}
+
+                first = pf.udf(first_batch, func_type=mode, batch_size=1,
+                               return_dtype=pf.DataType.struct({"one": pf.DataType.int64()}))
+                second = pf.udf(second_batch, func_type=mode, batch_size=2,
+                                return_dtype=pf.DataType.struct({
+                                    "one": pf.DataType.int64(), "two": pf.DataType.int64()}))
+                result = pf.from_records([(1,), (2,), (3,), (4,)], schema=["id"]) \
+                    .map_batches(first, batch_format=mode).map_batches(second, batch_format=mode)
+                self.assertEqual([tuple(row) for row in result.collect()], [(1, 2)] * 4)
+                self.assertEqual(self.t_env.get_config().get(
+                    "python.fn-execution.arrow.batch.size", ""), "10")
 
     def test_supported_scalar_udfs_in_one_job(self):
         import pyarrow.compute as pc

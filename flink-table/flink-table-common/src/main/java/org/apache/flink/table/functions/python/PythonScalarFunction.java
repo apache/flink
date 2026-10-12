@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /** The wrapper of user defined python scalar function. */
 @Internal
 public class PythonScalarFunction extends ScalarFunction implements PythonFunction {
@@ -45,6 +47,9 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
     private final PythonEnv pythonEnv;
     private final boolean takesRowAsInput;
     private final boolean returnsTableRow;
+
+    private Integer concurrency;
+    private Integer batchSize;
 
     private DataType[] inputTypes;
     private String[] inputTypesString;
@@ -174,6 +179,30 @@ public class PythonScalarFunction extends ScalarFunction implements PythonFuncti
     public Object eval(Object... args) {
         throw new UnsupportedOperationException(
                 "This method is a placeholder and should not be called.");
+    }
+
+    @Override
+    public Integer getConcurrency() {
+        return concurrency;
+    }
+
+    public void setConcurrency(int concurrency) {
+        checkArgument(concurrency > 0);
+        this.concurrency = concurrency;
+    }
+
+    @Override
+    public Integer getBatchSize() {
+        return batchSize;
+    }
+
+    public void setBatchSize(int batchSize) {
+        checkArgument(batchSize > 0);
+        checkArgument(
+                pythonFunctionKind == PythonFunctionKind.PANDAS
+                        || pythonFunctionKind == PythonFunctionKind.ARROW,
+                "Batch size is supported only for pandas and Arrow UDFs.");
+        this.batchSize = batchSize;
     }
 
     @Override

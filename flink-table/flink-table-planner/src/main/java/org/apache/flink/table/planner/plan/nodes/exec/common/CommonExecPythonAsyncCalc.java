@@ -46,6 +46,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AsyncScalarUtil;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
+import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -61,6 +62,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -129,13 +131,23 @@ public abstract class CommonExecPythonAsyncCalc extends ExecNodeBase<RowData>
                 getPythonAsyncOperator(
                         config, classLoader, pythonConfig, inputTypeInfo, outputTypeInfo);
 
+        final Integer concurrency =
+                projection.stream()
+                        .filter(
+                                node ->
+                                        node instanceof RexCall
+                                                && isPythonAsyncCall((RexCall) node))
+                        .map(node -> PythonUtil.getPythonFunction(node).getConcurrency())
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse(null);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 createTransformationMeta(PYTHON_ASYNC_CALC_TRANSFORMATION, config),
                 pythonAsyncOperator,
                 outputTypeInfo,
-                inputTransform.getParallelism(),
-                false);
+                concurrency == null ? inputTransform.getParallelism() : concurrency,
+                concurrency != null);
     }
 
     /** Gets the async operator for executing Python async scalar functions. */

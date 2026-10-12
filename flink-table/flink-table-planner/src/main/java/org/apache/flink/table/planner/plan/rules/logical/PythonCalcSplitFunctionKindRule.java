@@ -18,19 +18,25 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
+import org.apache.calcite.rex.RexVisitorImpl;
 
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import scala.Option;
 
-/** Separates scalar Python functions whose user-facing batch representations differ. */
+/** Separates Python functions with different batch representations or execution settings. */
 public class PythonCalcSplitFunctionKindRule extends RemoteCalcSplitProjectionRuleBase<Void> {
 
     public PythonCalcSplitFunctionKindRule(RemoteCallFinder callFinder) {
@@ -41,35 +47,47 @@ public class PythonCalcSplitFunctionKindRule extends RemoteCalcSplitProjectionRu
     public boolean matches(RelOptRuleCall call) {
         final FlinkLogicalCalc calc = call.rel(0);
         final RexProgram program = calc.getProgram();
-        return Arrays.stream(PythonFunctionKind.values())
-                        .filter(
-                                kind ->
-                                        program.getProjectList().stream()
-                                                .map(program::expandLocalRef)
-                                                .anyMatch(
-                                                        node ->
-                                                                PythonUtil.containsPythonCall(
-                                                                        node, kind)))
-                        .count()
-                > 1;
+        final Set<List<Object>> settings = new HashSet<>();
+        final RexVisitorImpl<Void> visitor =
+                new RexVisitorImpl<Void>(true) {
+                    @Override
+                    public Void visitCall(RexCall node) {
+                        if (PythonUtil.isPythonCall(node)) {
+                            settings.add(executionSettings(node));
+                        }
+                        return super.visitCall(node);
+                    }
+                };
+        program.getProjectList().stream()
+                .map(program::expandLocalRef)
+                .forEach(node -> node.accept(visitor));
+        return settings.size() > 1;
     }
 
     @Override
     public boolean needConvert(RexProgram program, RexNode node, Option<Void> matchState) {
-        // Keep one top-level kind above the split and extract calls of every other kind.
-        final PythonFunctionKind topLevelKind =
-                Arrays.stream(PythonFunctionKind.values())
-                        .filter(
-                                kind ->
-                                        program.getProjectList().stream()
-                                                .map(program::expandLocalRef)
-                                                .anyMatch(
-                                                        project ->
-                                                                PythonUtil.isPythonCall(
-                                                                        project, kind)))
+        final List<Object> topLevelSettings =
+                program.getProjectList().stream()
+                        .map(program::expandLocalRef)
+                        .filter(PythonUtil::isPythonCall)
+                        .sorted(
+                                Comparator.comparingInt(
+                                        project ->
+                                                PythonUtil.getPythonFunction(project)
+                                                        .getPythonFunctionKind()
+                                                        .ordinal()))
+                        .map(PythonCalcSplitFunctionKindRule::executionSettings)
                         .findFirst()
                         .orElseThrow(
                                 () -> new IllegalStateException("Missing top-level Python call."));
-        return PythonUtil.isPythonCall(node) && !PythonUtil.isPythonCall(node, topLevelKind);
+        return PythonUtil.isPythonCall(node) && !executionSettings(node).equals(topLevelSettings);
+    }
+
+    private static List<Object> executionSettings(RexNode node) {
+        final PythonFunction function = PythonUtil.getPythonFunction(node);
+        return Arrays.asList(
+                function.getPythonFunctionKind(),
+                function.getConcurrency(),
+                function.getBatchSize());
     }
 }

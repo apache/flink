@@ -484,6 +484,8 @@ class UserDefinedFunctionWrapper(object):
         self._judf_placeholder = None
         self._takes_row_as_input = False
         self._returns_table_row = False
+        self._concurrency = None
+        self._batch_size = None
 
     def __call__(self, *args) -> Expression:
         from pyflink.table import expressions as expr
@@ -491,6 +493,11 @@ class UserDefinedFunctionWrapper(object):
 
     def alias(self, *alias_names: str):
         self._alias_names = alias_names
+        return self
+
+    def _set_execution_options(self, concurrency, batch_size):
+        self._concurrency = concurrency
+        self._batch_size = batch_size
         return self
 
     def _set_takes_row_as_input(self):
@@ -530,6 +537,10 @@ class UserDefinedFunctionWrapper(object):
             serialized_func = cloudpickle.dumps(func)
             self._judf_placeholder = \
                 self._create_judf(serialized_func, j_input_types, j_function_kind)
+            if self._concurrency is not None:
+                self._judf_placeholder.setConcurrency(self._concurrency)
+            if self._batch_size is not None:
+                self._judf_placeholder.setBatchSize(self._batch_size)
         return self._judf_placeholder
 
     def _create_delegate_function(self) -> UserDefinedFunction:

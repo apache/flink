@@ -151,6 +151,16 @@ public class PythonUtil {
         }
     }
 
+    public static PythonFunction getPythonFunction(RexNode node) {
+        final RexCall call = (RexCall) node;
+        if (call.getOperator() instanceof ScalarSqlFunction) {
+            return (PythonFunction) ((ScalarSqlFunction) call.getOperator()).scalarFunction();
+        } else if (call.getOperator() instanceof TableSqlFunction) {
+            return (PythonFunction) ((TableSqlFunction) call.getOperator()).udtf();
+        }
+        return (PythonFunction) ((BridgingSqlFunction) call.getOperator()).getDefinition();
+    }
+
     public static boolean takesRowAsInput(RexCall call) {
         if (call.getOperator() instanceof ScalarSqlFunction) {
             ScalarSqlFunction sfc = (ScalarSqlFunction) call.getOperator();
