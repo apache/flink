@@ -125,6 +125,11 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                     TestStreamEnvironment env =
                             new TestStreamEnvironment(
                                     miniCluster, conf, parallelism, jarFiles, classPaths);
+                    // The test bases toggle object reuse on this instance. An explicit value in
+                    // conf still takes precedence in configure().
+                    if (getConfig().isObjectReuseEnabled()) {
+                        env.getConfig().enableObjectReuse();
+                    }
 
                     randomizeConfiguration(miniCluster, conf);
 
