@@ -20,7 +20,7 @@
 
 import functools
 import inspect
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
@@ -44,12 +44,16 @@ from pyflink.dataframe.datatype import DataType
 from pyflink.table.expression import Expression
 from pyflink.table.expressions import call as table_call
 from pyflink.table.typehints import _is_typed_dict
-from pyflink.table.types import ArrayType, MapType, RowType
+from pyflink.table.types import (
+    ArrayType, DateType, LocalZonedTimestampType, MapType, RowType, TimestampType,
+)
 from pyflink.table.udf import (
     AsyncScalarFunction,
     ScalarFunction,
     UserDefinedFunction,
     UserDefinedFunctionWrapper,
+    UserDefinedAsyncScalarFunctionWrapper,
+    UserDefinedScalarFunctionWrapper,
     udf as table_udf,
 )
 from pyflink.util.api_stability_decorators import PublicEvolving
@@ -245,7 +249,7 @@ class _DataFrameUDFWrapper:
         return cast(UserDefinedFunctionWrapper, self._cached_table_udf_wrapper)
 
     def _create_table_udf_wrapper(
-        self, usage: _UDFUsage
+        self, usage: _UDFUsage, input_type: Optional[RowType] = None
     ) -> UserDefinedFunctionWrapper:
         adapter_type = (
             _DataFrameAsyncScalarFunctionAdapter
@@ -260,9 +264,10 @@ class _DataFrameUDFWrapper:
                 self._deterministic,
                 usage,
                 self._func_type,
+                input_type,
             ),
         )
-        return cast(
+        wrapper = cast(
             UserDefinedFunctionWrapper,
             table_udf(
                 actual_func,
@@ -272,10 +277,58 @@ class _DataFrameUDFWrapper:
                 func_type=self._func_type,
             ),
         )
+        wrapper._returns_table_row = usage in (_UDFUsage.MAP, _UDFUsage.MAP_BATCHES)
+        return wrapper
 
     @property
     def return_dtype(self) -> DataType:
         return self._return_dtype
+
+
+def _resolve_map_udf(
+    func: Union[_UDFInput, _DataFrameUDFWrapper],
+    return_dtype: Optional[_DataTypeLike],
+    func_type: str,
+    input_type: RowType,
+) -> Union[UserDefinedScalarFunctionWrapper, UserDefinedAsyncScalarFunctionWrapper]:
+    if isinstance(func, _DataFrameUDFWrapper):
+        if return_dtype is not None:
+            raise ValueError("return_dtype must not be specified for an existing DataFrame UDF.")
+        declaration = func
+    else:
+        if (inspect.isclass(func) and issubclass(func, (ScalarFunction, AsyncScalarFunction))
+                and inspect.getattr_static(func, "is_deterministic")
+                is not inspect.getattr_static(UserDefinedFunction, "is_deterministic")):
+            raise TypeError(
+                f"Cannot infer determinism from class {func.__name__!r}. "
+                "Declare it with pf.udf(..., deterministic=...), or pass an instance."
+            )
+        deterministic = (
+            func.is_deterministic()
+            if isinstance(func, (ScalarFunction, AsyncScalarFunction))
+            else True
+        )
+        declaration = cast(_DataFrameUDFWrapper, udf(
+            func, return_dtype=return_dtype, func_type=func_type, deterministic=deterministic
+        ))
+    if declaration._func_type != func_type:
+        raise ValueError(
+            f"The declared UDF mode {declaration._func_type!r} does not match "
+            f"the required mode {func_type!r}."
+        )
+    output_type = declaration.return_dtype._to_table_data_type()
+    if not isinstance(output_type, RowType):
+        raise TypeError("return_dtype for map and map_batches must be a struct type.")
+    usage = _UDFUsage.MAP if func_type == "general" else _UDFUsage.MAP_BATCHES
+    if usage is _UDFUsage.MAP_BATCHES:
+        if not input_type.fields:
+            raise ValueError("map_batches requires at least one input column.")
+        if func_type == "pandas":
+            _validate_pandas_map_schema(input_type, output_type)
+    return cast(
+        Union[UserDefinedScalarFunctionWrapper, UserDefinedAsyncScalarFunctionWrapper],
+        declaration._create_table_udf_wrapper(usage, input_type),
+    )
 
 
 @overload
@@ -526,6 +579,16 @@ def _validate_scalar_udf_options(
             f"Async scalar functions do not support {func_type} func_type. "
             "Use func_type='general'."
         )
+
+
+def _validate_pandas_map_schema(input_type: RowType, output_type: RowType) -> None:
+    from pyflink.table.types import create_arrow_schema
+
+    if not output_type.fields:
+        raise ValueError("Pandas map_batches requires at least one output column.")
+    # Validate physical columns even when fusion bypasses Arrow transport.
+    for row_type in (input_type, output_type):
+        create_arrow_schema(row_type.field_names(), row_type.field_types())
 
 
 # ======================== Callable Inspection and Resolution ========================
@@ -1080,10 +1143,13 @@ class _DataFrameUDFAdapterBase:
         deterministic: bool,
         usage: _UDFUsage,
         func_type: str,
+        input_type: Optional[RowType] = None,
     ) -> None:
         self._runtime_source = runtime_source
         self._worker_udf: Optional[_WorkerUDF] = None
-        self._return_dtype = return_dtype if func_type == "general" else None
+        self._return_dtype = return_dtype
+        # MAP and MAP_BATCHES need the input DataFrame schema to build their input dictionaries.
+        self._input_type = input_type
         self._deterministic = deterministic
         self._usage = usage
         self._func_type = func_type
@@ -1108,13 +1174,34 @@ class _DataFrameUDFAdapterBase:
             raise
 
     def _bind_func(self, invoke_func: Callable[..., Any]) -> Callable[..., Any]:
-        if self._usage is not _UDFUsage.EXPRESSION:
-            raise NotImplementedError(
-                f"DataFrame UDF usage {self._usage.value!r} is not supported yet."
-            )
+        if self._usage in (_UDFUsage.MAP, _UDFUsage.MAP_BATCHES):
+            if self._input_type is None:
+                raise ValueError("A map binding requires an input schema.")
+            output_type = cast(RowType, self._return_dtype._to_table_data_type())
+            if self._usage is _UDFUsage.MAP:
+                input_names = self._input_type.field_names()
+                normalize_result = cast(Callable[[Any], Any], _create_result_normalizer(
+                    output_type, require_row_fields=True))
+
+                def normalize_map_result(value):
+                    if not isinstance(value, Mapping):
+                        raise TypeError("A map function must return a dictionary.")
+                    return normalize_result(value)
+
+                normalized_func = _wrap_scalar_general_result(
+                    invoke_func, normalize_map_result, self._runtime_source.is_async,
+                )
+
+                @functools.wraps(invoke_func)
+                def map_row(row):
+                    return normalized_func(dict(zip(input_names, row)))
+
+                return map_row
+            wrap = _wrap_map_pandas if self._func_type == "pandas" else _wrap_map_arrow
+            return wrap(invoke_func, self._input_type, output_type)
         if self._func_type == "general":
             result_normalizer = _create_result_normalizer(
-                cast(DataType, self._return_dtype)._to_table_data_type()
+                self._return_dtype._to_table_data_type()
             )
             if result_normalizer is None:
                 return invoke_func
@@ -1148,7 +1235,7 @@ class _DataFrameScalarFunctionAdapter(_DataFrameUDFAdapterBase, ScalarFunction):
 
     def eval(self, *args: Any) -> Any:
         invoke_func = self._invocation()
-        if self._func_type == "pandas":
+        if self._func_type == "pandas" and self._usage is not _UDFUsage.MAP_BATCHES:
             from pyflink.fn_execution.utils.operation_utils import (
                 check_pandas_udf_result,
             )
@@ -1169,8 +1256,12 @@ class _DataFrameAsyncScalarFunctionAdapter(
 # ======================== Result Normalization ========================
 
 
-def _row_field_values(value: Any, field_names: List[str]) -> List[Any]:
+def _row_field_values(
+    value: Any, field_names: List[str], *, require_row_fields: bool = False,
+) -> List[Any]:
     if isinstance(value, Mapping):
+        if require_row_fields:
+            return [value[field_name] for field_name in field_names]
         return [value.get(field_name) for field_name in field_names]
     if isinstance(value, Row) and hasattr(value, "_fields"):
         field_indices: Dict[str, int] = {}
@@ -1200,13 +1291,13 @@ def _row_field_values(value: Any, field_names: List[str]) -> List[Any]:
             )
         return list(value)
     return [
-        _object_row_field_value(value, field_name, field_names)
+        _object_row_field_value(value, field_name, field_names, require_row_fields)
         for field_name in field_names
     ]
 
 
 def _object_row_field_value(
-    value: Any, field_name: str, field_names: List[str]
+    value: Any, field_name: str, field_names: List[str], require_row_fields: bool
 ) -> Any:
     try:
         return getattr(value, field_name)
@@ -1217,6 +1308,11 @@ def _object_row_field_value(
             attributes = getattr(value, "__dict__", None)
             has_slots = any("__slots__" in cls.__dict__ for cls in type(value).__mro__)
             if isinstance(attributes, Mapping) or has_slots:
+                if require_row_fields:
+                    raise AttributeError(
+                        f"Field name {field_name!r} does not exist in "
+                        f"{type(value).__name__}."
+                    ) from None
                 return None
         else:
             raise
@@ -1226,19 +1322,311 @@ def _object_row_field_value(
         ) from None
 
 
+def _is_pandas_null(value):
+    import pandas as pd
+
+    return bool(pd.isna(value)) if pd.api.types.is_scalar(value) else False
+
+
+def _wrap_map_pandas(func, input_type: RowType, output_type: RowType):
+    import pandas as pd
+
+    input_converters = [_create_pandas_input_column_converter(field.data_type)
+                        for field in input_type]
+    output_converters = [_create_pandas_output_column_converter(field.data_type)
+                         for field in output_type]
+
+    @functools.wraps(func)
+    def wrapper(*input_columns):
+        input_index = pd.RangeIndex(len(input_columns[0]))
+        columns = {}
+        for input_field, column, convert in zip(input_type, input_columns, input_converters):
+            if convert is not None:
+                column = convert(column)
+            index = pd.RangeIndex(len(column))
+            if not column.index.identical(index):
+                # Arrow transports values positionally and discards upstream pandas indexes.
+                column = column.copy(deep=False)
+                column.index = index
+            columns[input_field.name] = column
+        result = func(columns)
+        output = []
+        for output_field, convert in zip(output_type, output_converters):
+            column = result[output_field.name]
+            container = pd.DataFrame if isinstance(output_field.data_type, RowType) else pd.Series
+            if not isinstance(column, container):
+                raise TypeError(f"Pandas map_batches output column {output_field.name!r} "
+                                f"must be a pandas.{container.__name__}.")
+            if container is pd.DataFrame and type(column) is not pd.DataFrame:
+                # The shared Arrow converter expects the base DataFrame produced by concat.
+                column = pd.DataFrame(column, copy=False)
+            if convert is not None:
+                column = convert(column)
+            output.append(column)
+        index = output[0].index
+        if any(not column.index.equals(index) for column in output[1:]):
+            # Let pandas align the indexes without concatenating the output data.
+            index = pd.concat([pd.DataFrame(index=column.index) for column in output],
+                              axis=1, copy=False).index
+        if index.equals(input_index):
+            index = input_index
+        elif len(index) == len(input_index):
+            # Restore input order without discarding extra labels or padding short batches.
+            extra_labels = index[~index.isin(input_index)]
+            index = input_index if extra_labels.empty else input_index.append(extra_labels)
+        assert len(index) == len(input_index), (
+            f"The result length '{len(index)}' of Pandas UDF '{wrapper.__name__}' "
+            f"is not equal to the input length '{len(input_index)}'")
+        aligned = []
+        for output_field, column in zip(output_type, output):
+            original = column
+            if not column.index.identical(index):
+                if column.index.equals(index):
+                    column = column.copy(deep=False)
+                    column.index = index
+                else:
+                    column = column.reindex(index)
+            if isinstance(column, pd.Series) and column.name != output_field.name:
+                if column is original:
+                    column = column.copy(deep=False)
+                column.name = output_field.name
+            aligned.append(column)
+        return aligned
+
+    return wrapper
+
+
+def _normalize_pandas_series(column, normalize):
+    import pandas as pd
+
+    converted = None
+    for index, value in enumerate(column):
+        normalized = normalize(value)
+        if normalized is not value:
+            if converted is None:
+                converted = list(column)
+            converted[index] = normalized
+    return (column if converted is None
+            else pd.Series(converted, name=column.name, index=column.index, dtype=object))
+
+
+def _create_pandas_row_column_converter(data_type, converters):
+    import pandas as pd
+
+    names = data_type.field_names()
+
+    def convert_row(column):
+        if not isinstance(column, pd.DataFrame):
+            raise TypeError("Pandas ROW columns must be pandas.DataFrame. "
+                            "Return a pandas.DataFrame from the upstream pandas UDF.")
+        if list(column.columns) != names:
+            # ROW fields are positional in Arrow transport, regardless of producer labels.
+            column = column.copy(deep=False)
+            column.columns = names
+        converted_columns = None
+        for index, convert in enumerate(converters):
+            if convert is not None:
+                original = column.iloc[:, index]
+                normalized = convert(original)
+                if normalized is not original:
+                    if converted_columns is None:
+                        converted_columns = [column.iloc[:, i] for i in range(len(converters))]
+                    converted_columns[index] = normalized
+        return (column if converted_columns is None
+                else pd.concat(converted_columns, axis=1, copy=False))
+
+    return convert_row
+
+
+def _create_pandas_output_column_converter(data_type):
+    if isinstance(data_type, RowType):
+        return _create_pandas_row_column_converter(
+            data_type, [_create_pandas_output_column_converter(field.data_type)
+                        for field in data_type])
+    normalize = _create_pandas_result_normalizer(data_type)
+    return (None if normalize is None
+            else lambda column: _normalize_pandas_series(column, normalize))
+
+
+def _create_pandas_input_column_converter(data_type):
+    import pandas as pd
+
+    if isinstance(data_type, RowType):
+        return _create_pandas_row_column_converter(
+            data_type, [_create_pandas_input_column_converter(field.data_type)
+                        for field in data_type])
+    if isinstance(data_type, (DateType, TimestampType, LocalZonedTimestampType)):
+        import datetime
+        import os
+        import pytz
+        from pandas.api.types import is_datetime64_dtype
+        from pyflink.table.types import create_arrow_schema
+        from pyflink.table.utils import arrow_to_pandas, pandas_to_arrow, tz_convert_from_internal
+
+        timezone = (pytz.timezone(os.environ["TABLE_LOCAL_TIME_ZONE"])
+                    if isinstance(data_type, LocalZonedTimestampType) else pytz.UTC)
+        schema = create_arrow_schema(["value"], [data_type])
+
+        def convert_temporal(column):
+            if isinstance(data_type, DateType):
+                if column.dtype == object and all(
+                        type(value) is datetime.date or value is None for value in column):
+                    return column
+            elif isinstance(data_type, LocalZonedTimestampType) \
+                    and isinstance(column.dtype, pd.DatetimeTZDtype):
+                return (column if str(column.dt.tz) == str(timezone)
+                        else column.dt.tz_convert(timezone))
+            elif is_datetime64_dtype(column.dtype):
+                return tz_convert_from_internal(column, data_type, timezone)
+            # Dates and object-backed timestamps need the same conversion as Arrow transport.
+            batch = pandas_to_arrow(schema, timezone, [data_type], [column])
+            converted = arrow_to_pandas(timezone, [data_type], [batch])[0]
+            converted.index = column.index
+            converted.name = column.name
+            return converted
+
+        return convert_temporal
+    normalize = _create_pandas_input_normalizer(data_type)
+    if normalize is not None:
+        return lambda column: _normalize_pandas_series(column, normalize)
+    return None
+
+
+def _create_pandas_input_normalizer(data_type):
+    """Match transported ROW and MAP representations for fused pandas inputs."""
+
+    if isinstance(data_type, RowType):
+        field_names = data_type.field_names()
+        normalizers = [_create_pandas_input_normalizer(field.data_type) for field in data_type]
+
+        def normalize_row(value):
+            if _is_pandas_null(value):
+                return None
+            values = _row_field_values(value, field_names)
+            row = Row(*(item if normalize is None else normalize(item)
+                        for item, normalize in zip(values, normalizers)))
+            row.set_field_names(field_names)
+            return row
+
+        return normalize_row
+    if isinstance(data_type, ArrayType):
+        normalize_element = _create_pandas_input_normalizer(data_type.element_type)
+        if normalize_element is not None:
+            def normalize_array(value):
+                if _is_pandas_null(value):
+                    return None
+                return [normalize_element(item) for item in value]
+
+            return normalize_array
+    if isinstance(data_type, MapType):
+        normalize_key = _create_pandas_input_normalizer(data_type.key_type)
+        normalize_value = _create_pandas_input_normalizer(data_type.value_type)
+
+        def normalize_map(value):
+            if _is_pandas_null(value):
+                return None
+            if not isinstance(value, Mapping) and normalize_key is None and normalize_value is None:
+                return value
+            items = value.items() if isinstance(value, Mapping) else value
+            return [(key if normalize_key is None else normalize_key(key),
+                     item if normalize_value is None else normalize_value(item))
+                    for key, item in items]
+
+        return normalize_map
+    return None
+
+
+def _create_pandas_result_normalizer(data_type):
+    """Validate map ROW fields and adapt only values that Arrow cannot consume directly."""
+    if isinstance(data_type, RowType):
+        names = data_type.field_names()
+        normalizers = [_create_pandas_result_normalizer(field.data_type) for field in data_type]
+
+        def normalize_row(value):
+            if _is_pandas_null(value):
+                return None
+            values = _row_field_values(value, names, require_row_fields=True)
+            normalized = [item if normalize is None else normalize(item)
+                          for item, normalize in zip(values, normalizers)]
+            if isinstance(value, dict) and all(item is original
+                                               for item, original in zip(normalized, values)):
+                return value
+            return dict(zip(names, normalized))
+
+        return normalize_row
+    if isinstance(data_type, ArrayType):
+        normalize_element = _create_pandas_result_normalizer(data_type.element_type)
+        if normalize_element is not None:
+            def normalize_array(value):
+                if isinstance(value, Iterator):
+                    raise TypeError("Pandas ARRAY values containing ROW must not be an iterator; "
+                                    "return a list instead.")
+                if _is_pandas_null(value):
+                    return None
+                normalized = [normalize_element(item) for item in value]
+                return (value if all(item is original for item, original in zip(normalized, value))
+                        else normalized)
+
+            return normalize_array
+    if isinstance(data_type, MapType):
+        normalize_key = _create_pandas_result_normalizer(data_type.key_type)
+        normalize_value = _create_pandas_result_normalizer(data_type.value_type)
+        if normalize_key is not None or normalize_value is not None:
+            def normalize_map(value):
+                if isinstance(value, Iterator):
+                    raise TypeError("Pandas MAP values containing ROW must not be an iterator; "
+                                    "return a dictionary or list of pairs instead.")
+                if _is_pandas_null(value):
+                    return None
+                items = value.items() if isinstance(value, Mapping) else value
+                normalized = []
+                changed = False
+                for key, item in items:
+                    normalized_key = key if normalize_key is None else normalize_key(key)
+                    normalized_item = item if normalize_value is None else normalize_value(item)
+                    normalized.append((normalized_key, normalized_item))
+                    changed |= normalized_key is not key or normalized_item is not item
+                return normalized if changed else value
+
+            return normalize_map
+    return None
+
+
+def _wrap_map_arrow(func, input_type: RowType, output_type: RowType):
+    import pyarrow as pa
+
+    input_names = input_type.field_names()
+    output_names = output_type.field_names()
+
+    @functools.wraps(func)
+    def wrapper(*input_columns):
+        result = func(dict(zip(input_names, input_columns)))
+        columns = []
+        for name in output_names:
+            column = result[name]
+            if isinstance(column, pa.ChunkedArray):
+                column = column.chunk(0) if column.num_chunks == 1 else column.combine_chunks()
+            columns.append(column)
+        return pa.StructArray.from_arrays(columns, names=output_names)
+
+    return wrapper
+
+
 def _create_result_normalizer(
-    data_type: Any,
+    data_type: Any, *, require_row_fields: bool = False,
 ) -> Optional[Callable[[Any], Any]]:
     if isinstance(data_type, RowType):
         field_names = data_type.field_names()
         field_normalizers = tuple(
-            _create_result_normalizer(field.data_type) for field in data_type
+            _create_result_normalizer(field.data_type, require_row_fields=require_row_fields)
+            for field in data_type
         )
 
         def normalize_row(value: Any) -> Any:
             if value is None:
                 return None
-            field_values = _row_field_values(value, field_names)
+            field_values = _row_field_values(
+                value, field_names, require_row_fields=require_row_fields)
             normalized_fields = [
                 field_value
                 if field_normalizer is None
@@ -1255,7 +1643,8 @@ def _create_result_normalizer(
 
         return normalize_row
     if isinstance(data_type, ArrayType):
-        element_normalizer = _create_result_normalizer(data_type.element_type)
+        element_normalizer = _create_result_normalizer(
+            data_type.element_type, require_row_fields=require_row_fields)
         if element_normalizer is None:
 
             def normalize_leaf_array(value: Any) -> Any:
@@ -1270,8 +1659,10 @@ def _create_result_normalizer(
 
         return normalize_array
     if isinstance(data_type, MapType):
-        key_normalizer = _create_result_normalizer(data_type.key_type)
-        value_normalizer = _create_result_normalizer(data_type.value_type)
+        key_normalizer = _create_result_normalizer(
+            data_type.key_type, require_row_fields=require_row_fields)
+        value_normalizer = _create_result_normalizer(
+            data_type.value_type, require_row_fields=require_row_fields)
 
         def normalize_map(value: Any) -> Any:
             if value is None:

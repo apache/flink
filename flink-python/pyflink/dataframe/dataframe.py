@@ -185,6 +185,154 @@ class DataFrame:
     # ======================== Core Operations ========================
 
     @PublicEvolving()
+    def map(self, func, *, return_dtype=None) -> "DataFrame":
+        """
+        Apply a function to each row, producing a new DataFrame.
+
+        Pass a Python function, a callable class or instance, a ``ScalarFunction`` or
+        ``AsyncScalarFunction`` class or instance, or a UDF created with
+        :func:`pyflink.dataframe.udf`. The function (or its ``__call__`` or ``eval`` method)
+        receives a dictionary whose keys are input column names and whose values are the
+        values in that row. It must return one dictionary whose keys name the output columns
+        and whose values form the output row. The output replaces the input columns.
+
+        Specify the output schema with ``return_dtype``, or omit it when the callable has a
+        ``TypedDict`` return annotation. For an already declared UDF, its schema is reused
+        and ``return_dtype`` must be omitted. Output columns follow the schema's order;
+        extra dictionary keys are ignored, and missing output fields raise an error.
+
+        :param func: A callable or a DataFrame UDF declared with ``func_type="general"``.
+                     See :func:`pyflink.dataframe.udf` for callable lifecycle behavior.
+        :param return_dtype: Output schema as a struct DataType, TypedDict type, or SQL ROW
+                             type string. May be inferred from a callable's return annotation.
+        :return: A new DataFrame with one output row per input row.
+
+        Examples:
+
+        A Python function with an explicit output schema::
+
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([(1, "alice")], schema=["id", "name"])
+            >>> output_type = pf.DataType.struct({"label": pf.DataType.string()})
+            >>> result = df.map(
+            ...     lambda row: {"label": row["name"].upper()},
+            ...     return_dtype=output_type,
+            ... )
+
+        Infer the output schema from a TypedDict return annotation::
+
+            >>> from typing import TypedDict
+            >>> class Output(TypedDict):
+            ...     label: str
+            >>> def uppercase(row) -> Output:
+            ...     return {"label": row["name"].upper()}
+            >>> result = df.map(uppercase)
+
+        Pass a callable class, or configure an instance before passing it::
+
+            >>> class PrefixName:
+            ...     def __init__(self, prefix="user_"):
+            ...         self.prefix = prefix
+            ...     def __call__(self, row) -> Output:
+            ...         return {"label": self.prefix + row["name"]}
+            >>> result = df.map(PrefixName)
+            >>> result = df.map(PrefixName("member_"))
+
+        Use a ScalarFunction's eval method::
+
+            >>> from pyflink.table.udf import ScalarFunction
+            >>> class UppercaseName(ScalarFunction):
+            ...     def eval(self, row) -> Output:
+            ...         return {"label": row["name"].upper()}
+            >>> result = df.map(UppercaseName())
+
+        Reuse a declared DataFrame UDF without repeating its output schema::
+
+            >>> declared_uppercase = pf.udf(uppercase)
+            >>> result = df.map(declared_uppercase)
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.udf import _resolve_map_udf
+
+        function = _resolve_map_udf(func, return_dtype, "general", self.schema.to_row_data_type())
+        return DataFrame(self._table.map(function))
+
+    @PublicEvolving()
+    def map_batches(self, func, *, return_dtype=None, batch_format: str) -> "DataFrame":
+        """
+        Apply a function to batches of rows, producing a new DataFrame.
+
+        Flink automatically groups input rows into batches and calls ``func`` once per batch.
+        Pass a Python function, a callable class or instance, a ``ScalarFunction`` class or
+        instance, or a UDF created with :func:`pyflink.dataframe.udf`. The callable receives
+        and returns a dictionary keyed by column name: each non-ROW value is a ``pandas.Series``
+        when ``batch_format="pandas"``, or a ``pyarrow.Array`` when ``batch_format="arrow"``.
+        Input values contain the batched column values; returned values form the output
+        columns, replacing the input columns.
+
+        Each output row must correspond to the input row at the same position, preserving
+        the number and order of rows. Specify
+        the output struct schema with ``return_dtype``; for a declared UDF, omit it to reuse
+        that UDF's schema. Output columns follow the schema's order; extra dictionary keys
+        are ignored, and missing output fields raise an error. Pandas output columns align
+        by index.
+
+        .. note::
+
+            For ROW input and output columns, use ``pandas.DataFrame`` in pandas mode
+            and ``pyarrow.StructArray`` in Arrow mode.
+
+        :param func: A callable or a DataFrame UDF declared for the selected batch format.
+        :param return_dtype: Output struct schema. Required for raw callables in both formats;
+                             must be omitted for an already declared UDF.
+        :param batch_format: ``"pandas"`` or ``"arrow"``. Required even for declared UDFs.
+        :return: A new DataFrame with the same number of rows as the input.
+
+        Examples:
+
+        Transform pandas batches with a Python function::
+
+            >>> import pandas as pd
+            >>> import pyflink.dataframe as pf
+            >>> df = pf.from_records([(1,), (2,), (3,)], schema=["value"])
+            >>> output_type = pf.DataType.struct({"doubled": pf.DataType.int64()})
+            >>> def double_pandas(batch: dict[str, pd.Series]) -> dict[str, pd.Series]:
+            ...     return {"doubled": batch["value"] * 2}
+            >>> result = df.map_batches(
+            ...     double_pandas, batch_format="pandas", return_dtype=output_type,
+            ... )
+
+        Use a callable class to transform Arrow batches::
+
+            >>> import pyarrow as pa
+            >>> import pyarrow.compute as pc
+            >>> class DoubleArrow:
+            ...     def __call__(self, batch: dict[str, pa.Array]) -> dict[str, pa.Array]:
+            ...         return {"doubled": pc.multiply(batch["value"], 2)}
+            >>> result = df.map_batches(
+            ...     DoubleArrow, batch_format="arrow", return_dtype=output_type,
+            ... )
+
+        Reuse a declared UDF, specifying its batch format at the call site::
+
+            >>> declared_double = pf.udf(
+            ...     double_pandas, return_dtype=output_type, func_type="pandas",
+            ... )
+            >>> result = df.map_batches(declared_double, batch_format="pandas")
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.udf import _resolve_map_udf
+
+        if batch_format not in ("pandas", "arrow"):
+            raise ValueError("batch_format must be 'pandas' or 'arrow'.")
+        function = _resolve_map_udf(
+            func, return_dtype, batch_format, self.schema.to_row_data_type()
+        )
+        return DataFrame(self._table.map(function(*[table_col(name) for name in self.columns])))
+
+    @PublicEvolving()
     def filter(
         self,
         *predicates: Union[

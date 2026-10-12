@@ -44,4 +44,9 @@ public interface PythonFunction extends Serializable {
     default boolean takesRowAsInput() {
         return false;
     }
+
+    /** Whether the result ROW contains the physical columns of an output table. */
+    default boolean returnsTableRow() {
+        return false;
+    }
 }

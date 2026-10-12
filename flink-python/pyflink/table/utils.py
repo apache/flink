@@ -22,7 +22,7 @@ from pyflink.common.types import RowKind
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, LocalZonedTimestampType, Row, RowType, \
-    TimeType, DateType, ArrayType, MapType, TimestampType, FloatType, RawType
+    TimeType, DateType, ArrayType, MapType, TimestampType, FloatType, RawType, create_arrow_schema
 from pyflink.util.api_stability_decorators import Internal
 from pyflink.util.java_utils import to_jarray
 import datetime
@@ -158,6 +158,30 @@ def _get_offsets(column):
     # PyArrow 5 does not expose MapArray.offsets, but uses the same int32 offsets as lists.
     return pa.Array.from_buffers(pa.int32(), len(column) + 1,
                                  [None, column.buffers()[1]], offset=column.offset)
+
+
+@Internal()
+def create_pandas_table_row_schema(row_type):
+    import pyarrow as pa
+
+    if len(row_type) != 1 or not isinstance(row_type[0].data_type, RowType):
+        raise TypeError("A table-row result must have exactly one ROW field.")
+    field = row_type[0]
+    # Validate its children as physical columns, not as fields of a user ROW column.
+    child_schema = create_arrow_schema(
+        field.data_type.field_names(), field.data_type.field_types())
+    return pa.schema([pa.field(field.name, pa.struct(list(child_schema)),
+                               nullable=field.data_type._nullable)])
+
+
+@Internal()
+def pandas_table_row_to_arrow(schema, timezone, row_type, columns):
+    import pyarrow as pa
+
+    batch = pandas_to_arrow(
+        pa.schema(list(schema[0].type)), timezone, row_type.field_types(), columns)
+    array = pa.StructArray.from_arrays(batch.columns, fields=list(schema[0].type))
+    return pa.RecordBatch.from_arrays([array], schema=schema)
 
 
 @Internal()

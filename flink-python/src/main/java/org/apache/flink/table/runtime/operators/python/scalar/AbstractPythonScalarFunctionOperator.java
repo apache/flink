@@ -159,6 +159,20 @@ public abstract class AbstractPythonScalarFunctionOperator
                 config.get(PYTHON_PROFILE_ENABLED));
     }
 
+    protected boolean returnsTableRow() {
+        final int outputCount =
+                udfOutputIndices == null ? scalarFunctions.length : udfOutputIndices.length;
+        for (int i = 0; i < outputCount; i++) {
+            final int functionIndex = udfOutputIndices == null ? i : udfOutputIndices[i];
+            if (scalarFunctions[functionIndex].getPythonFunction().returnsTableRow()) {
+                Preconditions.checkArgument(
+                        outputCount == 1, "A table-row result must be the sole UDF output.");
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public String getFunctionUrn() {
         return SCALAR_FUNCTION_URN;

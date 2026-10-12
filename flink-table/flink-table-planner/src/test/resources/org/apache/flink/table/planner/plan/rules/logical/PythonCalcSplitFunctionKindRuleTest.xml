@@ -16,6 +16,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testBatchAsyncMapComposition">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[AS(general_udf(AS(async_udf(AS(async_udf(AS(general_udf($0).a, _UTF-16LE'a')).a, _UTF-16LE'a')).a, _UTF-16LE'a')).a, _UTF-16LE'a')])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f0.a AS a])
++- PythonCalc(select=[general_udf(a) AS f0])
+   +- Calc(select=[f0.a AS a])
+      +- PythonAsyncCalc(select=[async_udf(a) AS f0])
+         +- Calc(select=[f0.a AS a])
+            +- PythonAsyncCalc(select=[async_udf(a) AS f0])
+               +- Calc(select=[f0.a AS a])
+                  +- PythonCalc(select=[general_udf(a) AS f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testBatchComposition">
     <Resource name="sql">
       <![CDATA[SELECT arrow_udf(a), pandas_udf(a), general_udf(a), arrow_udf(arrow_udf(a)), arrow_udf(pandas_udf(a)), pandas_udf(arrow_udf(a)), arrow_udf(general_udf(a)), general_udf(arrow_udf(a)) FROM T]]>
@@ -36,6 +57,27 @@ Calc(select=[f0 AS EXPR$0, f1 AS EXPR$1, f00 AS EXPR$2, f2 AS EXPR$3, f3 AS EXPR
             +- PythonCalc(select=[a AS f0, arrow_udf(a) AS f1, arrow_udf(arrow_udf(a)) AS f2, arrow_udf(f0) AS f3, arrow_udf(f1) AS f4])
                +- PythonCalc(select=[a, f0, general_udf(a) AS f1])
                   +- PythonCalc(select=[a, pandas_udf(a) AS f0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStreamingAsyncMapComposition">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[AS(general_udf(AS(async_udf(AS(async_udf(AS(general_udf($0).a, _UTF-16LE'a')).a, _UTF-16LE'a')).a, _UTF-16LE'a')).a, _UTF-16LE'a')])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f0.a AS a])
++- PythonCalc(select=[general_udf(a) AS f0])
+   +- Calc(select=[f0.a AS a])
+      +- PythonAsyncCalc(select=[async_udf(a) AS f0])
+         +- Calc(select=[f0.a AS a])
+            +- PythonAsyncCalc(select=[async_udf(a) AS f0])
+               +- Calc(select=[f0.a AS a])
+                  +- PythonCalc(select=[general_udf(a) AS f0])
                      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a])
 ]]>
     </Resource>

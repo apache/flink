@@ -115,7 +115,12 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
     public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
             RowType runnerOutputType) {
         return createArrowTypeCoderInfoDescriptorProto(
-                runnerOutputType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false, batchFormat);
+                runnerOutputType,
+                FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE,
+                false,
+                batchFormat,
+                batchFormat == FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat.PANDAS
+                        && returnsTableRow());
     }
 
     @Override

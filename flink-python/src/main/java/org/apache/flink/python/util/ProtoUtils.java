@@ -121,12 +121,23 @@ public enum ProtoUtils {
             FlinkFnApi.CoderInfoDescriptor.Mode mode,
             boolean separatedWithEndMessage,
             FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat batchFormat) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                rowType, mode, separatedWithEndMessage, batchFormat, false);
+    }
+
+    public static FlinkFnApi.CoderInfoDescriptor createArrowTypeCoderInfoDescriptorProto(
+            RowType rowType,
+            FlinkFnApi.CoderInfoDescriptor.Mode mode,
+            boolean separatedWithEndMessage,
+            FlinkFnApi.CoderInfoDescriptor.ArrowType.BatchFormat batchFormat,
+            boolean returnsTableRow) {
         return createCoderInfoDescriptorProto(
                 null,
                 null,
                 FlinkFnApi.CoderInfoDescriptor.ArrowType.newBuilder()
                         .setSchema(toProtoType(rowType).getRowSchema())
                         .setBatchFormat(batchFormat)
+                        .setReturnsTableRow(returnsTableRow)
                         .build(),
                 null,
                 null,

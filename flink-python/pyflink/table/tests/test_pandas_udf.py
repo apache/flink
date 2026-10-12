@@ -22,7 +22,7 @@ import pytz
 from pyflink.common import Row
 from pyflink.table import DataTypes
 from pyflink.table.tests.test_udf import SubtractOne
-from pyflink.table.udf import udf
+from pyflink.table.udf import ScalarFunction, udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
     PyFlinkStreamTableTestCase, PyFlinkTestCase
@@ -398,6 +398,42 @@ class PandasUDFITTests(object):
             actual = sorted(
                 [list(r) for r in self.t_env.sql_query(sql).execute().collect()])
             self.assertEqual(actual, expected, sql)
+
+        import pandas as pd
+
+        class Seven(ScalarFunction):
+            def eval(self):
+                return pd.Series([7])
+
+        zero_argument = udf(Seven(), result_type=DataTypes.BIGINT(),
+                            func_type="pandas")
+        batch_size = self.t_env.get_config().get("python.fn-execution.arrow.batch.size", "1000")
+        try:
+            self.t_env.get_config().set("python.fn-execution.arrow.batch.size", "1")
+            result = t.select(plus_one(t.a), zero_argument()).execute().collect()
+            self.assertEqual(sorted(result, key=lambda row: row[0]),
+                             [Row(2, 7), Row(3, 7), Row(4, 7)])
+        finally:
+            self.t_env.get_config().set("python.fn-execution.arrow.batch.size", batch_size)
+
+        import numpy as np
+
+        square_root = udf(np.sqrt, result_type=DataTypes.DOUBLE(), func_type="pandas")
+        nullable = self.t_env.from_elements(
+            [(1,), (None,), (4,)], DataTypes.ROW([DataTypes.FIELD("v", DataTypes.BIGINT())]))
+        self.assertEqual(list(nullable.select(square_root(nullable.v)).execute().collect()),
+                         [Row(1.0), Row(None), Row(2.0)])
+
+        result_type = DataTypes.MAP(DataTypes.STRING().not_null(), DataTypes.ROW([
+            DataTypes.FIELD("v", DataTypes.BIGINT())]))
+        for as_pairs in (False, True):
+            def produce_rows(values):
+                return pd.Series([{"key": [("v", int(value))] if as_pairs
+                                   else {"v": int(value)}} for value in values])
+
+            rows = udf(produce_rows, result_type=result_type, func_type="pandas")
+            self.assertEqual(list(t.select(rows(t.a)).execute().collect()),
+                             [Row({"key": Row(1)}), Row({"key": Row(2)}), Row({"key": Row(3)})])
 
     def test_data_types(self):
         import pandas as pd
