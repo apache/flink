@@ -22,20 +22,18 @@ import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfi
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullablesOfData1, type1}
-import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 
-import org.junit.jupiter.api.TestTemplate
-import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
 
 import scala.collection.JavaConverters._
 
 /** AggregateITCase using HashAgg Operator. */
-@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
 
-  @Parameter var adaptiveLocalHashAggEnable: Boolean = _
+  // AdaptiveLocalHashAggITCase overrides this to also run the inherited tests with it enabled
+  def adaptiveLocalHashAggEnable: Boolean = false
 
   override def prepareAggOp(): Unit = {
     registerCollection(
@@ -61,7 +59,7 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
     }
   }
 
-  @TestTemplate
+  @Test
   def testAdaptiveLocalHashAggWithHighAggregationDegree(): Unit = {
     checkQuery(
       Seq(
@@ -93,7 +91,7 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
     )
   }
 
-  @TestTemplate
+  @Test
   def testAdaptiveLocalHashAggWithLowAggregationDegree(): Unit = {
     checkQuery(
       Seq(
@@ -128,7 +126,7 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
     )
   }
 
-  @TestTemplate
+  @Test
   def testAdaptiveLocalHashAggWithRowLessThanSamplingThreshold(): Unit = {
     checkQuery(
       Seq((1, 1, 1, 1, 1L, 1.1d), (1, 1, 1, 2, 1L, 1.2d), (1, 2, 2, 3, 2L, 2.2d)),
@@ -140,7 +138,7 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
     )
   }
 
-  @TestTemplate
+  @Test
   def testAdaptiveLocalHashAggWithNullValue(): Unit = {
     val testDataWithNullValue = tEnv.fromValues(
       DataTypes.ROW(
@@ -182,7 +180,7 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
 
   }
 
-  @TestTemplate
+  @Test
   def testAdaptiveHashAggWithSumAndAvgFunctionForNumericalType(): Unit = {
     val testDataWithAllTypes = tEnv.fromValues(
       DataTypes.ROW(
@@ -344,7 +342,7 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
     )
   }
 
-  @TestTemplate
+  @Test
   def testAdaptiveHashAggWithAuxGrouping(): Unit = {
     checkResult(
       "SELECT a, b, COUNT(c) FROM AuxGroupingTable GROUP BY a, b",
@@ -357,12 +355,5 @@ class HashAggITCase extends AggregateITCaseBase("HashAggregate") {
         row(6, "c", 1)
       )
     )
-  }
-}
-
-object HashAggITCase {
-  @Parameters(name = "adaptiveLocalHashAggEnable={0}")
-  def parameters(): java.util.Collection[Boolean] = {
-    java.util.Arrays.asList(true, false)
   }
 }
