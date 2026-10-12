@@ -107,6 +107,26 @@ class WatermarksWithIdlenessTest {
         assertThat(timer.checkIfIdle()).isTrue();
     }
 
+    @Test
+    void testMarksActiveOnFirstEventAfterIdleness() {
+        final Duration idleTimeout = Duration.ofMillis(10);
+        final ManualClock clock = new ManualClock(System.nanoTime());
+        final WatermarksWithIdleness<Long> watermarks =
+                new WatermarksWithIdleness<>(new NoWatermarksGenerator<>(), idleTimeout, clock);
+        final TestingWatermarkOutput output = new TestingWatermarkOutput();
+
+        watermarks.onPeriodicEmit(output); // start the idleness timer
+        clock.advanceTime(idleTimeout.plusMillis(1));
+        watermarks.onPeriodicEmit(output);
+        assertThat(output.isIdle()).isTrue();
+
+        watermarks.onEvent(1L, 1L, output);
+
+        assertThat(output.isIdle())
+                .as("a record is activity in its own right, no watermark has to advance")
+                .isFalse();
+    }
+
     private static IdlenessTimer createTimerAndMakeIdle(ManualClock clock, Duration idleTimeout) {
         final IdlenessTimer timer = new IdlenessTimer(clock, idleTimeout);
 

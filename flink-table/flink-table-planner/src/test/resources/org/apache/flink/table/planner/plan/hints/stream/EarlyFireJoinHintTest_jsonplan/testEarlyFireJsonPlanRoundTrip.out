@@ -63,14 +63,10 @@
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 3 ] ],
         "producedType" : "ROW<`a` INT, `rowtime` TIMESTAMP(3)> NOT NULL"
-      }, {
-        "type" : "ReadingMetadata",
-        "metadataKeys" : [ ],
-        "producedType" : "ROW<`a` INT, `rowtime` TIMESTAMP(3)> NOT NULL"
       } ]
     },
     "outputType" : "ROW<`a` INT, `rowtime` TIMESTAMP(3)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])"
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime]]], fields=[a, rowtime])"
   }, {
     "id" : 2,
     "type" : "stream-exec-watermark-assigner_1",
@@ -191,14 +187,10 @@
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ], [ 3 ] ],
         "producedType" : "ROW<`a` INT, `b` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)> NOT NULL"
-      }, {
-        "type" : "ReadingMetadata",
-        "metadataKeys" : [ ],
-        "producedType" : "ROW<`a` INT, `b` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)> NOT NULL"
       } ]
     },
     "outputType" : "ROW<`a` INT, `b` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])"
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, b, rowtime]]], fields=[a, b, rowtime])"
   }, {
     "id" : 5,
     "type" : "stream-exec-watermark-assigner_1",

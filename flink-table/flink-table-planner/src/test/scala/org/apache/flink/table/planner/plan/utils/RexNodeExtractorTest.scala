@@ -31,6 +31,8 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction}
 import org.apache.flink.table.resource.ResourceManager
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.types.logical.IntType
 import org.apache.flink.table.utils.CatalogManagerMocks
 
 import org.apache.calcite.avatica.util.ByteString
@@ -38,7 +40,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.SqlPostfixOperator
-import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
+import org.apache.calcite.sql.fun.{SqlLibraryOperators, SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.util.{DateString, TimestampString, TimeString}
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -496,6 +498,70 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     assertThat(unconvertedRexNodes).isEmpty()
 
     assertExpressionArrayEquals(Array($"amount" <= $"id"), Array(convertedExpressions(1)))
+  }
+
+  @Test
+  def testExtractItem(): Unit = {
+    val fieldNames = List("arr", "map", "variant", "row").asJava
+    val fieldTypes = List(
+      DataTypes.ARRAY(DataTypes.INT()),
+      DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()),
+      DataTypes.VARIANT(),
+      DataTypes.ROW(DataTypes.FIELD("f", DataTypes.INT()))
+    )
+      .map(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType)
+      .map(typeFactory.createFieldTypeFromLogicalType)
+    val Seq(arr, map, variant, row) =
+      fieldTypes.zipWithIndex.map { case (t, i) => rexBuilder.makeInputRef(t, i) }
+    val three = rexBuilder.makeExactLiteral(BigDecimal.valueOf(3))
+    val intType = typeFactory.createFieldTypeFromLogicalType(new IntType())
+
+    // arr[1] = 3
+    val onArray = rexBuilder.makeCall(
+      SqlStdOperatorTable.EQUALS,
+      rexBuilder.makeCall(
+        SqlStdOperatorTable.ITEM,
+        arr,
+        rexBuilder.makeExactLiteral(BigDecimal.ONE)),
+      three)
+    // map['k'] = 3
+    val onMap = rexBuilder.makeCall(
+      SqlStdOperatorTable.EQUALS,
+      rexBuilder.makeCall(SqlStdOperatorTable.ITEM, map, rexBuilder.makeLiteral("k")),
+      three)
+    // CAST(variant['k'] AS INT) = 3
+    val onVariant = rexBuilder.makeCall(
+      SqlStdOperatorTable.EQUALS,
+      rexBuilder.makeCast(
+        intType,
+        rexBuilder.makeCall(SqlStdOperatorTable.ITEM, variant, rexBuilder.makeLiteral("k"))),
+      three)
+    // arr[OFFSET(0)] = 3, a 0-based variant of ITEM that AT does not cover
+    val onOffset = rexBuilder.makeCall(
+      SqlStdOperatorTable.EQUALS,
+      rexBuilder.makeCall(
+        SqlLibraryOperators.OFFSET,
+        arr,
+        rexBuilder.makeExactLiteral(BigDecimal.ZERO)),
+      three)
+    // row['f'] = 3, which AT does not support
+    val onRow = rexBuilder.makeCall(
+      SqlStdOperatorTable.EQUALS,
+      rexBuilder.makeCall(SqlStdOperatorTable.ITEM, row, rexBuilder.makeLiteral("f")),
+      three)
+
+    val (convertedExpressions, unconvertedRexNodes) = extractConjunctiveConditions(
+      rexBuilder.makeCall(SqlStdOperatorTable.AND, onArray, onMap, onVariant, onOffset, onRow),
+      fieldNames,
+      rexBuilder,
+      functionCatalog)
+
+    assertThat(convertedExpressions.map(_.toString))
+      .containsExactly(
+        "equals(at(arr, 1), 3)",
+        "equals(at(map, 'k'), 3)",
+        "equals(cast(at(variant, 'k'), INT), 3)")
+    assertThat(unconvertedRexNodes).containsExactly(onOffset, onRow)
   }
 
   @Test

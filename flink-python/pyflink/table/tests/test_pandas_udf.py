@@ -32,7 +32,7 @@ class PandasUDFTests(PyFlinkTestCase):
 
     def test_non_exist_func_type(self):
         with self.assertRaisesRegex(ValueError,
-                                    'The func_type must be one of \'general, pandas\''):
+                                    "The func_type must be one of 'general, pandas, arrow'"):
             udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), func_type="non-exist")
 
 

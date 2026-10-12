@@ -166,14 +166,14 @@ LogicalSink(table=[default_catalog.default_database.sink1], targetColumns=[[0]],
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, source1, project=[x, y], metadata=[]]], fields=[x, y])(reuse_id=[1])
+TableSourceScan(table=[[default_catalog, default_database, source1, project=[x, y]]], fields=[x, y])(reuse_id=[1])
 
 Sink(table=[default_catalog.default_database.sink1], targetColumns=[[0]], fields=[x, EXPR$1])
 +- Union(all=[true], union=[x, EXPR$1])
    :- Calc(select=[x, null:BIGINT AS EXPR$1])
    :  +- Reused(reference_id=[1])
    +- Calc(select=[x, null:BIGINT AS EXPR$1])
-      +- TableSourceScan(table=[[default_catalog, default_database, source3, project=[x], metadata=[]]], fields=[x])
+      +- TableSourceScan(table=[[default_catalog, default_database, source3, project=[x]]], fields=[x])
 
 Sink(table=[default_catalog.default_database.sink1], targetColumns=[[1]], fields=[EXPR$0, y])
 +- Calc(select=[null:BIGINT AS EXPR$0, y])
@@ -206,13 +206,13 @@ LogicalSink(table=[default_catalog.default_database.partitionedSink], fields=[x,
 Sink(table=[default_catalog.default_database.partitionedSink], fields=[EXPR$0, y])
 +- Union(all=[true], union=[EXPR$0, y])
    :- Calc(select=[1 AS EXPR$0, y])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, source1, project=[y], metadata=[]]], fields=[y])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, source1, project=[y]]], fields=[y])
    +- Calc(select=[1 AS EXPR$0, y])
-      +- TableSourceScan(table=[[default_catalog, default_database, source2, project=[y], metadata=[]]], fields=[y])
+      +- TableSourceScan(table=[[default_catalog, default_database, source2, project=[y]]], fields=[y])
 
 Sink(table=[default_catalog.default_database.partitionedSink], fields=[EXPR$0, y])
 +- Calc(select=[2 AS EXPR$0, y])
-   +- TableSourceScan(table=[[default_catalog, default_database, source3, project=[y], metadata=[]]], fields=[y])
+   +- TableSourceScan(table=[[default_catalog, default_database, source3, project=[y]]], fields=[y])
 
 Sink(table=[default_catalog.default_database.partitionedSink], fields=[x, y])
 +- Sort(orderBy=[x ASC])

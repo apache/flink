@@ -1595,15 +1595,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         resourceManagerGateway ->
                                 resourceManagerGateway.requestResourceOverview(timeout));
 
-        final List<CompletableFuture<Optional<JobStatus>>> optionalJobInformation =
-                queryJobMastersForInformation(
-                        jobManagerRunner -> jobManagerRunner.requestJobStatus(timeout));
-
-        CompletableFuture<Collection<Optional<JobStatus>>> allOptionalJobsFuture =
-                FutureUtils.combineAll(optionalJobInformation);
-
         CompletableFuture<Collection<JobStatus>> allJobsFuture =
-                allOptionalJobsFuture.thenApply(this::flattenOptionalCollection);
+                FutureUtils.combineAll(
+                        queryJobMastersForInformation(
+                                jobManagerRunner -> jobManagerRunner.requestJobStatus(timeout)));
 
         final JobsOverview completedJobsOverview = getCompletedJobsOverview();
 
@@ -1628,15 +1623,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     @Override
     public CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(Duration timeout) {
-        List<CompletableFuture<Optional<JobDetails>>> individualOptionalJobDetails =
-                queryJobMastersForInformation(
-                        jobManagerRunner -> jobManagerRunner.requestJobDetails(timeout));
-
-        CompletableFuture<Collection<Optional<JobDetails>>> optionalCombinedJobDetails =
-                FutureUtils.combineAll(individualOptionalJobDetails);
-
         CompletableFuture<Collection<JobDetails>> combinedJobDetails =
-                optionalCombinedJobDetails.thenApply(this::flattenOptionalCollection);
+                FutureUtils.combineAll(
+                        queryJobMastersForInformation(
+                                jobManagerRunner -> jobManagerRunner.requestJobDetails(timeout)));
 
         final Collection<JobDetails> completedJobDetails = getCompletedJobDetails();
 
@@ -2491,28 +2481,30 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 .thenCompose(Function.identity());
     }
 
-    private <T> List<T> flattenOptionalCollection(Collection<Optional<T>> optionalCollection) {
-        return optionalCollection.stream()
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toList());
-    }
-
     @Nonnull
-    private <T> List<CompletableFuture<Optional<T>>> queryJobMastersForInformation(
+    private <T> List<CompletableFuture<T>> queryJobMastersForInformation(
             Function<JobManagerRunner, CompletableFuture<T>> queryFunction) {
 
-        List<CompletableFuture<Optional<T>>> optionalJobInformation =
+        List<CompletableFuture<T>> jobInformation =
                 new ArrayList<>(jobManagerRunnerRegistry.size());
 
         for (JobManagerRunner job : jobManagerRunnerRegistry.getJobManagerRunners()) {
-            final CompletableFuture<Optional<T>> queryResult =
+            final CompletableFuture<T> queryResult =
                     queryFunction
                             .apply(job)
-                            .handle((T value, Throwable t) -> Optional.ofNullable(value));
-            optionalJobInformation.add(queryResult);
+                            .exceptionally(
+                                    throwable -> {
+                                        throw new CompletionException(
+                                                new FlinkException(
+                                                        String.format(
+                                                                "Could not retrieve information about job %s from its JobMaster.",
+                                                                job.getJobID()),
+                                                        ExceptionUtils.stripCompletionException(
+                                                                throwable)));
+                                    });
+            jobInformation.add(queryResult);
         }
-        return optionalJobInformation;
+        return jobInformation;
     }
 
     private CompletableFuture<Void> waitForTerminatingJob(

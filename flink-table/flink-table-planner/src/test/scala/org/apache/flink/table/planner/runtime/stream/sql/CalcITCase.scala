@@ -39,7 +39,7 @@ import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
-import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.assertj.core.api.Assertions.{assertThat, assertThatList, assertThatThrownBy}
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 
@@ -346,6 +346,65 @@ class CalcITCase extends StreamingTestBase {
 
     val expected = List("2,2,Hello", "3,2,Hello world")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
+  def testFloatingPointInWithSignedZero(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(
+      Seq(
+        row(1, -0.0f, -0.0d),
+        row(1, -0.0f, -0.0d),
+        row(2, 0.0f, 0.0d),
+        row(3, 1.0f, 1.0d),
+        row(4, null, null),
+        row(5, 2.0f, 2.0d),
+        row(6, Float.NaN, Double.NaN),
+        row(7, Float.PositiveInfinity, Double.PositiveInfinity),
+        row(8, Float.NegativeInfinity, Double.NegativeInfinity)
+      ))
+    tEnv.executeSql(s"""
+                       |CREATE TABLE SignedZeros (id INT, f FLOAT, d DOUBLE) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    val filtered = tEnv
+      .executeSql("SELECT id FROM SignedZeros WHERE f IN (0, 2) AND d IN (0, 2)")
+      .collect()
+    try {
+      assertThatList(CollectionUtil.iteratorToList(filtered))
+        .containsExactlyInAnyOrder(row(1), row(1), row(2), row(5))
+    } finally {
+      filtered.close()
+    }
+
+    for (field <- Seq("f", "d")) {
+      val projected = tEnv
+        .executeSql(s"""
+                       |SELECT id, $field = 0,
+                       |  $field IN (0, 2), $field NOT IN (0, 2),
+                       |  $field IN (0, 2, NULL), $field NOT IN (0, 2, NULL)
+                       |FROM SignedZeros
+                       |""".stripMargin)
+        .collect()
+      try {
+        assertThatList(CollectionUtil.iteratorToList(projected)).containsExactlyInAnyOrder(
+          row(1, true, true, false, true, false),
+          row(1, true, true, false, true, false),
+          row(2, true, true, false, true, false),
+          row(3, false, false, true, null, null),
+          row(4, null, null, null, null, null),
+          row(5, false, true, false, true, false),
+          row(6, false, false, true, null, null),
+          row(7, false, false, true, null, null),
+          row(8, false, false, true, null, null)
+        )
+      } finally {
+        projected.close()
+      }
+    }
   }
 
   @Test

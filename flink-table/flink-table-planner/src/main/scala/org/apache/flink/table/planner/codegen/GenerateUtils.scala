@@ -638,6 +638,7 @@ object GenerateUtils {
     case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DATE | TIME_WITHOUT_TIME_ZONE |
         INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
+    // keep in sync with BatchPhysicalJoinRuleBase#hasOrderableJoinKeys
     case TIMESTAMP_WITH_TIME_ZONE | MULTISET | MAP | VARIANT | BITMAP =>
       throw new ValidationException(
         s"Type '$t' cannot be ordered, so it cannot be used as a key for sorting, grouping, " +

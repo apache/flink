@@ -192,6 +192,8 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                         metrics.getNumBytesInRemoteCounter(),
                         metrics.getNumBuffersInRemoteCounter(),
                         channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter,
+                        // Unknown channels exist only in BATCH jobs, which have no channel
+                        // state, so this channel is never in recovery.
                         false);
         return channel;
     }
@@ -210,6 +212,8 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 metrics.getNumBuffersInLocalCounter(),
                 channelStateWriter == null ? ChannelStateWriter.NO_OP : channelStateWriter,
                 networkBuffersPerChannel,
+                // Unknown channels exist only in BATCH jobs, which have no channel
+                // state, so this channel is never in recovery.
                 false);
     }
 

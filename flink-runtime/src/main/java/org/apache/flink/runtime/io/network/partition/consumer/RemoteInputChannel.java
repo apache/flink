@@ -784,8 +784,10 @@ public class RemoteInputChannel extends InputChannel implements RecoverableInput
         boolean recycleBuffer = true;
 
         // The first buffer from the producer proves the upstream reader is registered and the
-        // connection is live; release any recovery-side awaiter. On later buffers this is a cheap
-        // idempotent no-op (the latch count is already zero).
+        // connection is live; release any recovery-side awaiter
+        // (see requestRecoveryBufferBlocking). During recovery this first arrival is typically the
+        // upstream's EndOfOutputChannelStateEvent, which is guaranteed and passes the zero-credit
+        // gate. On later buffers this is a cheap idempotent no-op (the latch is already at zero).
         upstreamReady.countDown();
 
         try {

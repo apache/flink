@@ -26,8 +26,12 @@ import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.annotation.ProcedureHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.annotation.StateKind;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AsyncScalarFunction;
@@ -444,6 +448,10 @@ class TypeInferenceExtractorTest {
                         .expectState("myAcc", TypeStrategies.explicit(MyState.TYPE))
                         .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
                 // ---
+                TestSpec.forAggregateFunction(BroadcastStateHintAggregateFunction.class)
+                        .expectErrorMessage(
+                                "Broadcast state is only supported for process table functions."),
+                // ---
                 // accumulator with state hint in function hint
                 TestSpec.forAggregateFunction(StateHintInFunctionHintAggregateFunction.class)
                         .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
@@ -855,6 +863,48 @@ class TypeInferenceExtractorTest {
                 TestSpec.forProcessTableFunction(MultiEvalProcessTableFunction.class)
                         .expectErrorMessage(
                                 "Process table functions require a non-overloaded, non-vararg, and static signature."),
+                // ---
+                TestSpec.forProcessTableFunction(BroadcastStateProcessTableFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.table(
+                                        "data",
+                                        Row.class,
+                                        false,
+                                        EnumSet.of(StaticArgumentTrait.SET_SEMANTIC_TABLE)))
+                        .expectStaticArgument(
+                                StaticArgument.table(
+                                        "rules",
+                                        Row.class,
+                                        false,
+                                        EnumSet.of(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE)))
+                        .expectState("count", TypeStrategies.explicit(MyFirstState.TYPE))
+                        .expectBroadcastState(
+                                "mapRules",
+                                TypeStrategies.explicit(
+                                        MapView.newMapViewDataType(
+                                                DataTypes.STRING(), DataTypes.INT())))
+                        .expectBroadcastState(
+                                "valueRule",
+                                TypeStrategies.explicit(
+                                        ValueView.newValueViewDataType(DataTypes.STRING())))
+                        .expectBroadcastState(
+                                "eagerRule", TypeStrategies.explicit(MySecondState.TYPE))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forProcessTableFunction(ListViewBroadcastStateProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Broadcast state entries must not be a ListView. "
+                                        + "Use a MapView, ValueView, or an eager value state instead."),
+                // ---
+                TestSpec.forProcessTableFunction(TtlBroadcastStateProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Broadcast state entries must not declare a time-to-live (TTL)."),
+                // ---
+                TestSpec.forProcessTableFunction(
+                                PassThroughBroadcastTableProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Invalid argument traits for argument 'rules'. "
+                                        + "Trait BROADCAST_SEMANTIC_TABLE is incompatible with PASS_COLUMNS_THROUGH."),
                 TestSpec.forScalarFunction("Bitmap in scalar function", BitmapTypeFunction.class)
                         .expectStaticArgument(
                                 StaticArgument.scalar("bm", DataTypes.BITMAP(), false))
@@ -1457,6 +1507,11 @@ class TypeInferenceExtractorTest {
             return this;
         }
 
+        TestSpec expectBroadcastState(String name, TypeStrategy typeStrategy) {
+            this.expectedStateStrategies.put(name, StateTypeStrategy.of(typeStrategy, null, true));
+            return this;
+        }
+
         TestSpec expectOutputMapping(InputTypeStrategy validator, TypeStrategy outputStrategy) {
             this.expectedOutputStrategies.put(validator, outputStrategy);
             return this;
@@ -1682,6 +1737,21 @@ class TypeInferenceExtractorTest {
         @Override
         public Row createAccumulator() {
             return null;
+        }
+    }
+
+    private static class BroadcastStateHintAggregateFunction
+            extends AggregateFunction<Integer, MyState> {
+        public void accumulate(@StateHint(StateKind.BROADCAST) MyState acc, Integer i) {}
+
+        @Override
+        public Integer getValue(MyState accumulator) {
+            return null;
+        }
+
+        @Override
+        public MyState createAccumulator() {
+            return new MyState();
         }
     }
 
@@ -2665,6 +2735,41 @@ class TypeInferenceExtractorTest {
         public void eval(int i) {}
 
         public void eval(String i) {}
+    }
+
+    private static class BroadcastStateProcessTableFunction extends ProcessTableFunction<Integer> {
+        public void eval(
+                @StateHint MyFirstState count,
+                @StateHint(StateKind.BROADCAST) MapView<String, Integer> mapRules,
+                @StateHint(StateKind.BROADCAST) ValueView<String> valueRule,
+                @StateHint(StateKind.BROADCAST) MySecondState eagerRule,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row data,
+                @ArgumentHint(ArgumentTrait.BROADCAST_SEMANTIC_TABLE) Row rules) {}
+    }
+
+    private static class ListViewBroadcastStateProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @StateHint(StateKind.BROADCAST) ListView<String> rules,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row data) {}
+    }
+
+    private static class TtlBroadcastStateProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @StateHint(value = StateKind.BROADCAST, ttl = "1 day") MyFirstState rule,
+                @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row data) {}
+    }
+
+    private static class PassThroughBroadcastTableProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row data,
+                @ArgumentHint({
+                            ArgumentTrait.BROADCAST_SEMANTIC_TABLE,
+                            ArgumentTrait.PASS_COLUMNS_THROUGH
+                        })
+                        Row rules) {}
     }
 
     private static class MissingDefaultConstructorStateProcessTableFunction

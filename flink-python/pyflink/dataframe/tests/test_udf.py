@@ -24,7 +24,7 @@ import operator
 import types
 import unittest
 from dataclasses import dataclass
-from typing import Any, Callable, TypedDict, cast
+from typing import Any, Callable, Optional, TypedDict, cast
 from unittest import mock
 
 import pandas as pd
@@ -61,6 +61,86 @@ def _call_module_alias_function(value):
 
 
 class DataFrameUDFDeclarationTests(unittest.TestCase):
+    def test_arrow_annotation_inference_and_overrides(self):
+        def arrow_identity(values: pa.Array) -> pa.ChunkedArray:
+            return pa.chunked_array([values])
+
+        def integer_array(values: pa.Int64Array) -> pa.Int64Array:
+            return values
+
+        def list_array(values: pa.ListArray):
+            return values.flatten()
+
+        def struct_array(values: "pa.StructArray"):
+            return values.field("value")
+
+        def concrete_return(values) -> pa.Int64Array:
+            return values
+
+        def mixed(values: pd.Series) -> pa.Int64Array:
+            return pa.array(values)
+
+        def captured(context: pd.Series, values: pa.Array) -> pa.Array:
+            return values
+
+        class ArrowCallable:
+            def __call__(self, values: "pa.Array") -> "pa.Array":
+                return values
+
+        class ArrowScalar(ScalarFunction):
+            def eval(self, values: pa.Array) -> pa.Array:
+                return values
+
+        for func in (arrow_identity, integer_array, list_array, struct_array, concrete_return,
+                     ArrowCallable, ArrowCallable(), ArrowScalar, ArrowScalar(),
+                     functools.partial(captured, pd.Series([1]))):
+            with self.subTest(func=func):
+                declaration = pf.udf(func, return_dtype=pf.DataType.int64())
+                self.assertEqual(cast(Any, declaration)._func_type, "arrow")
+
+        for mode in ("general", "pandas", "arrow"):
+            with self.subTest(mode=mode):
+                declaration = pf.udf(mixed, return_dtype=pf.DataType.int64(), func_type=mode)
+                self.assertEqual(cast(Any, declaration)._func_type, mode)
+
+        with self.assertRaisesRegex(ValueError, "pandas.*Arrow.*func_type"):
+            pf.udf(mixed, return_dtype=pf.DataType.int64())
+        with self.assertRaisesRegex(TypeError, "return_dtype is required for arrow"):
+            pf.udf(arrow_identity)
+
+    def test_explicit_arrow_declarations(self):
+        from pyflink.table.udf import udf as table_udf
+
+        def identity(values):
+            return values
+
+        declaration = pf.udf(identity, return_dtype=pf.DataType.string(), func_type="arrow")
+        self.assertEqual(_return_dtype(declaration), pf.DataType.string())
+        table_udf(identity, result_type=TableDataTypes.STRING(), func_type="arrow")
+
+        with self.assertRaisesRegex(TypeError, "return_dtype is required for arrow"):
+            pf.udf(identity, func_type="arrow")
+
+        async def async_identity(values):
+            return values
+
+        class AsyncCallable:
+            async def __call__(self, values):
+                return values
+
+        for declare in (
+            lambda: pf.udf(async_identity, return_dtype=pf.DataType.string(), func_type="arrow"),
+            lambda: table_udf(async_identity, result_type=TableDataTypes.STRING(),
+                              func_type="arrow"),
+            lambda: table_udf(AsyncCallable(), result_type=TableDataTypes.STRING(),
+                              func_type="arrow"),
+            lambda: table_udf(functools.partial(AsyncCallable()),
+                              result_type=TableDataTypes.STRING(), func_type="arrow"),
+        ):
+            with self.subTest(declare=declare):
+                with self.assertRaisesRegex(ValueError, "Async.*arrow"):
+                    declare()
+
     def test_function_declarations_return_types_and_metadata(self):
         class Details(TypedDict):
             label: str
@@ -73,6 +153,9 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         def add_one(value: int) -> int:
             """Add one to a value."""
             return value + 1
+
+        def optional_return(value: int) -> Optional[int]:
+            return value if value % 2 == 0 else None
 
         def identity(value):
             return value
@@ -104,7 +187,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         self.assertFalse(hasattr(pf, "DataFrameUDFWrapper"))
         udf_module = importlib.import_module("pyflink.dataframe.udf")
         self.assertFalse(hasattr(udf_module, "DataFrameUDFWrapper"))
-        self.assertEqual(_return_dtype(decorated), pf.DataType.int64())
+        self.assertEqual(_return_dtype(decorated), pf.DataType.int64().not_null())
         self.assertEqual(decorated.__name__, "add_one")
         self.assertEqual(decorated.__qualname__, add_one.__qualname__)
         self.assertEqual(decorated.__module__, add_one.__module__)
@@ -128,7 +211,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         direct = pf.udf(functools.partial(add_one), name="partial_add_one")
 
         self.assertEqual(_return_dtype(configured), pf.DataType.string())
-        self.assertEqual(_return_dtype(direct), pf.DataType.int64())
+        self.assertEqual(_return_dtype(direct), pf.DataType.int64().not_null())
         self.assertEqual(direct.__name__, "partial_add_one")
         with mock.patch.object(
             pf.DataType,
@@ -141,19 +224,26 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
 
         expected_result_dtype = pf.DataType.struct(
             {
-                "id": pf.DataType.int64(),
+                "id": pf.DataType.int64().not_null(),
                 "details": pf.DataType.struct(
                     {
-                        "label": pf.DataType.string(),
-                        "scores": pf.DataType.list(pf.DataType.int64()),
+                        "label": pf.DataType.string().not_null(),
+                        "scores": pf.DataType.list(
+                            pf.DataType.int64().not_null()
+                        ).not_null(),
                     }
-                ),
+                ).not_null(),
             }
-        )
+        ).not_null()
         declarations = [
             (
                 "Python type",
                 lambda: pf.udf(identity, return_dtype=int),
+                pf.DataType.int64().not_null(),
+            ),
+            (
+                "Optional return annotation widens to nullable",
+                lambda: pf.udf(optional_return),
                 pf.DataType.int64(),
             ),
             (
@@ -169,12 +259,12 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             (
                 "concrete return with unresolved input",
                 lambda: pf.udf(concrete_return_with_unresolved_input),
-                pf.DataType.int64(),
+                pf.DataType.int64().not_null(),
             ),
             (
                 "postponed return with unresolved input",
                 lambda: pf.udf(postponed_return_with_unresolved_input),
-                pf.DataType.int64(),
+                pf.DataType.int64().not_null(),
             ),
         ]
         for case_name, declare, expected in declarations:
@@ -246,7 +336,9 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         for source in callables:
             with self.subTest(source=source):
                 decorated = pf.udf(source)
-                self.assertEqual(_return_dtype(decorated), pf.DataType.int64())
+                self.assertEqual(
+                    _return_dtype(decorated), pf.DataType.int64().not_null()
+                )
 
         self.assertEqual(plain_constructor_calls, [])
         self.assertEqual(scalar_constructor_calls, [])
@@ -263,7 +355,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             def __call__(self, value: int) -> "Output":
                 return {"value": value}
 
-        expected = pf.DataType.struct({"value": pf.DataType.int64()})
+        expected = pf.DataType.struct({"value": pf.DataType.int64().not_null()}).not_null()
         for source in (Describe, Describe()):
             with self.subTest(source=source):
                 self.assertEqual(_return_dtype(pf.udf(source)), expected)
@@ -293,7 +385,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             def __call__(self, value: int) -> "SelfQualified.Output":
                 return {"value": value}
 
-        expected = pf.DataType.struct({"value": pf.DataType.int64()})
+        expected = pf.DataType.struct({"value": pf.DataType.int64().not_null()}).not_null()
         bound_method = BoundMethodOwner().describe
         for source in (
             bound_method,
@@ -318,7 +410,8 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             __call__ = _module_alias_method
 
         self.assertEqual(
-            _return_dtype(pf.udf(ReceivingCallable)), pf.DataType.int64()
+            _return_dtype(pf.udf(ReceivingCallable)),
+            pf.DataType.int64().not_null(),
         )
 
         class OverriddenScalarFunction(ScalarFunction):
@@ -331,7 +424,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         overridden = OverriddenScalarFunction()
         overridden.eval = types.MethodType(_module_alias_method, overridden)
         self.assertEqual(
-            _return_dtype(pf.udf(overridden)), pf.DataType.int64()
+            _return_dtype(pf.udf(overridden)), pf.DataType.int64().not_null()
         )
 
     def test_wrapped_callable_annotations_and_partial_validation(self):
@@ -363,7 +456,9 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
             pf.udf(functools.partial(add, missing=1))
 
         uninspectable = pf.udf(operator.itemgetter(0), return_dtype=int)
-        self.assertEqual(_return_dtype(uninspectable), pf.DataType.int64())
+        self.assertEqual(
+            _return_dtype(uninspectable), pf.DataType.int64().not_null()
+        )
 
         wrapped_callable_instance = WrappedCallableClass()
         for source in (
@@ -391,7 +486,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         functools.update_wrapper(cross_namespace_wrapper, _module_alias_function)
         self.assertEqual(
             _return_dtype(pf.udf(cross_namespace_wrapper)),
-            pf.DataType.int64(),
+            pf.DataType.int64().not_null(),
         )
 
     def test_func_type_resolution_and_async_detection(self):
@@ -547,9 +642,9 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 False,
             ),
             (
-                "pyarrow annotations remain general",
+                "inferred arrow",
                 lambda: pf.udf(arrow_add_one, return_dtype=pf.DataType.int64()),
-                "general",
+                "arrow",
                 False,
             ),
             (
@@ -737,7 +832,7 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                     source(), return_dtype=int, func_type="general"
                 )
                 self.assertEqual(
-                    _return_dtype(declaration), pf.DataType.int64()
+                    _return_dtype(declaration), pf.DataType.int64().not_null()
                 )
 
     def test_unresolved_typed_dict_fields_have_actionable_errors(self):
@@ -1178,11 +1273,11 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
                 "name must not be empty",
             ),
             (
-                "arrow func type",
+                "unsupported func type",
                 lambda: pf.udf(
                     missing_return,
                     return_dtype=pf.DataType.int64(),
-                    func_type="arrow",
+                    func_type="unsupported",
                 ),
                 ValueError,
                 "func_type must be one of",
@@ -1480,6 +1575,21 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
 
 
 class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
+    def test_arrow_calls_require_a_column_argument(self):
+        from pyflink.table import ExplainDetail
+
+        @pf.udf(return_dtype=pf.DataType.int64(), func_type="arrow")
+        def identity(*values):
+            return values[0]
+
+        dataframe = pf.from_records([(1,)], schema=["id"])
+        for args in ((), (1,), (pf.lit(1),), (identity(),)):
+            with self.subTest(args=args):
+                with self.assertRaisesRegex(Exception, "at least one column-valued argument"):
+                    result = dataframe.with_columns(
+                        valid=identity(pf.col("id")), invalid=identity(*args))
+                    result.to_table().explain(ExplainDetail.JSON_EXECUTION_PLAN)
+
     def test_with_columns_binds_expressions_and_resolves_output_schema(self):
         @pf.udf(name="render_value")
         def render(value: int, suffix: str) -> str:
@@ -1506,7 +1616,7 @@ class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
             ["id", "rendered", "description"],
             [
                 TableDataTypes.BIGINT(),
-                TableDataTypes.STRING(),
+                TableDataTypes.STRING().not_null(),
                 TableDataTypes.ROW(
                     [
                         TableDataTypes.FIELD("value", TableDataTypes.BIGINT()),
@@ -1521,6 +1631,25 @@ class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
 
 class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
     def test_supported_scalar_udfs_in_one_job(self):
+        import pyarrow.compute as pc
+
+        self.env.set_parallelism(1)
+        self.t_env.get_config().set("python.fn-execution.bundle.size", "3")
+        self.t_env.get_config().set("python.fn-execution.arrow.batch.size", "2")
+
+        @pf.udf(return_dtype=pf.DataType.string())
+        def normalize_name(names: pa.Array) -> pa.Array:
+            return pc.utf8_upper(names)
+
+        @pf.udf(return_dtype=pf.DataType.struct({"value": pf.DataType.int64().not_null()}))
+        def describe(values: pa.Array) -> pa.ChunkedArray:
+            result = pa.StructArray.from_arrays([pc.multiply(values, 2)], names=["value"])
+            return pa.chunked_array([result.slice(0, 1), result.slice(1)])
+
+        @pf.udf(return_dtype=pf.DataType.int64())
+        def struct_value(values: pa.Array) -> pa.Array:
+            return pc.struct_field(values, "value")
+
         @dataclass
         class Details:
             doubled: int
@@ -1561,19 +1690,27 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
         opened_scalar_class = pf.udf(OpenedScalarFunction)
 
         result = (
-            pf.from_records([(1,)], schema=["id"])
+            pf.from_records([(1, "alice"), (2, None), (3, "Bob")], schema=["id", "name"])
             .with_columns(async_value=add_two(pf.col("id")))
             .with_columns(
                 pandas_value=add_three(pf.col("id")),
                 details=details(pf.col("id")),
                 deferred_value=deferred(pf.col("id")),
                 scalar_value=opened_scalar_class(pf.col("id")),
+                normalized_name=normalize_name(pf.col("name")),
+                arrow_details=describe(pf.col("id")),
+                arrow_after_pandas=struct_value(describe(add_three(pf.col("id")))),
+                pandas_after_arrow=add_three(struct_value(describe(pf.col("id")))),
             )
         )
 
         self.assertEqual(
-            result.collect(),
-            [Row(1, 3, 4, Row(2, ["1"]), 5, 6)],
+            sorted(result.collect(), key=lambda row: row[0]),
+            [
+                Row(1, "alice", 3, 4, Row(2, ["1"]), 5, 6, "ALICE", Row(2), 8, 5),
+                Row(2, None, 4, 5, Row(4, ["2"]), 6, 7, None, Row(4), 10, 7),
+                Row(3, "Bob", 5, 6, Row(6, ["3"]), 7, 8, "BOB", Row(6), 12, 9),
+            ],
         )
 
 

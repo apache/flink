@@ -307,4 +307,37 @@ class DeduplicateTest extends TableTestBase {
     util.verifyExplain(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
+  @Test
+  def testFirstRowOnNonTimeAttribute(): Unit = {
+    val sql =
+      """
+        |SELECT sum(a), b, sum(c) FROM (
+        |  SELECT a, b, c
+        |  FROM (
+        |    SELECT *,
+        |        ROW_NUMBER() OVER (PARTITION BY a ORDER BY c ASC) as rank_num
+        |    FROM MyTable)
+        |  WHERE rank_num = 1)
+        |GROUP BY b
+      """.stripMargin
+
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testFirstRowOnTimeAndNonTimeAttribute(): Unit = {
+    val sql =
+      """
+        |SELECT sum(a), b, sum(c) FROM (
+        |  SELECT a, b, c
+        |  FROM (
+        |    SELECT *,
+        |        ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime ASC, c ASC) as rank_num
+        |    FROM MyTable)
+        |  WHERE rank_num = 1)
+        |GROUP BY b
+      """.stripMargin
+
+    util.verifyExplain(sql, ExplainDetail.CHANGELOG_MODE)
+  }
 }

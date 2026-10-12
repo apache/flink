@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
@@ -36,6 +37,8 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for bootstrap transformations. */
 class StateBootstrapTransformationTest extends AbstractTestBase {
@@ -164,6 +167,48 @@ class StateBootstrapTransformationTest extends AbstractTestBase {
                 .isEqualTo(CustomKeySelector.class);
     }
 
+    @Test
+    void testUnhashableKeyTypeIsRejected() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStream<byte[]> input = env.fromData(new byte[] {1});
+
+        StateBootstrapTransformation<byte[]> transformation =
+                OperatorTransformation.bootstrapWith(input)
+                        .keyBy(new ArrayKeySelector())
+                        .transform(new ExampleArrayKeyedStateBootstrapFunction());
+
+        assertThatThrownBy(
+                        () ->
+                                transformation.writeOperatorSubtaskStates(
+                                        OperatorIdentifier.forUid("uid"),
+                                        new HashMapStateBackend(),
+                                        new Path(),
+                                        transformation.getMaxParallelism(4)))
+                .as("An array key cannot be hashed reliably and must be rejected")
+                .isInstanceOf(InvalidProgramException.class)
+                .hasMessageContaining("cannot be used as key");
+    }
+
+    @Test
+    void testHashableKeyTypeIsAccepted() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStream<String> input = env.fromData("");
+
+        StateBootstrapTransformation<String> transformation =
+                OperatorTransformation.bootstrapWith(input)
+                        .keyBy(new CustomKeySelector())
+                        .transform(new ExampleKeyedStateBootstrapFunction());
+
+        assertThatNoException()
+                .isThrownBy(
+                        () ->
+                                transformation.writeOperatorSubtaskStates(
+                                        OperatorIdentifier.forUid("uid"),
+                                        new HashMapStateBackend(),
+                                        new Path(),
+                                        transformation.getMaxParallelism(4)));
+    }
+
     private static class CustomKeySelector implements KeySelector<String, String> {
 
         @Override
@@ -196,5 +241,20 @@ class StateBootstrapTransformationTest extends AbstractTestBase {
 
         @Override
         public void processElement(String value, Context ctx) throws Exception {}
+    }
+
+    private static class ArrayKeySelector implements KeySelector<byte[], byte[]> {
+
+        @Override
+        public byte[] getKey(byte[] value) throws Exception {
+            return value;
+        }
+    }
+
+    private static class ExampleArrayKeyedStateBootstrapFunction
+            extends KeyedStateBootstrapFunction<byte[], byte[]> {
+
+        @Override
+        public void processElement(byte[] value, Context ctx) throws Exception {}
     }
 }

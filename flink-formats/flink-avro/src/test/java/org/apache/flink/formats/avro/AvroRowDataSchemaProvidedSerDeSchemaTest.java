@@ -172,7 +172,50 @@ class AvroRowDataSchemaProvidedSerDeSchemaTest {
 
         assertThatThrownBy(() -> serializationSchema.serialize(rowData))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to serialize row.");
+                .hasMessageContaining("Failed to serialize row.")
+                .hasStackTraceContaining("Fail to serialize at field: type_enum")
+                .hasStackTraceContaining(
+                        "Cannot serialize 'YELLOW' as Avro enum "
+                                + "'org.apache.flink.formats.avro.generated.Colors'")
+                .hasStackTraceContaining("Allowed symbols are [RED, GREEN, BLUE]");
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSerializeUnknownEnumSymbolFallsBackToEnumDefault(AvroEncoding encoding)
+            throws Exception {
+        // An enum that declares a default is asking for unknown symbols to be mapped onto it,
+        // which is what Avro's own schema resolution does when reading.
+        final Schema statusSchema =
+                new Schema.Parser()
+                        .parse(
+                                "{\"type\":\"enum\",\"name\":\"Status\","
+                                        + "\"namespace\":\"org.apache.flink.formats.avro.generated\","
+                                        + "\"symbols\":[\"ACTIVE\",\"INACTIVE\"],"
+                                        + "\"default\":\"INACTIVE\"}");
+        final Schema avroSchema =
+                SchemaBuilder.record("TestEnumDefault")
+                        .namespace("org.apache.flink.formats.avro.generated")
+                        .fields()
+                        .name("status")
+                        .type(statusSchema)
+                        .noDefault()
+                        .endRecord();
+
+        final RowType rowType = (RowType) ROW(FIELD("status", STRING())).notNull().getLogicalType();
+
+        AvroRowDataSerializationSchema serializationSchema =
+                createSerializationSchema(rowType, avroSchema, encoding);
+        AvroRowDataDeserializationSchema deserializationSchema =
+                createDeserializationSchema(rowType, avroSchema, encoding);
+
+        GenericRowData rowData = new GenericRowData(1);
+        rowData.setField(0, StringData.fromString("ARCHIVED"));
+
+        RowData deserialized =
+                deserializationSchema.deserialize(serializationSchema.serialize(rowData));
+
+        assertThat(deserialized.getString(0).toString()).isEqualTo("INACTIVE");
     }
 
     @ParameterizedTest

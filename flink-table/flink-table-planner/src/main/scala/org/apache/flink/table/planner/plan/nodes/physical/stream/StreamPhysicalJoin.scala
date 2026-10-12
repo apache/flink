@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.hint.StateTtlHint
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
-import org.apache.flink.table.planner.plan.utils.{JoinUtil, MinibatchUtil}
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, JoinUtil, MinibatchUtil}
 import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
@@ -126,6 +126,8 @@ class StreamPhysicalJoin(
       joinSpec,
       getUpsertKeys(left, joinSpec.getLeftKeys),
       getUpsertKeys(right, joinSpec.getRightKeys),
+      ChangelogPlanUtils.getChangelogMode(left.asInstanceOf[StreamPhysicalRel]).get,
+      ChangelogPlanUtils.getChangelogMode(right.asInstanceOf[StreamPhysicalRel]).get,
       InputProperty.DEFAULT,
       InputProperty.DEFAULT,
       StateTtlHint.getStateTtlFromHintOnBiRel(getHints),

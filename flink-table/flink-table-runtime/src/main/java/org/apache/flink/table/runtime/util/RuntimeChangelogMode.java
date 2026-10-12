@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.process;
+package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.ChangelogMode;

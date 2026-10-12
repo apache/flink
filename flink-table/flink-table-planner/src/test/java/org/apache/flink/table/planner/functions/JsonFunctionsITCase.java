@@ -1036,8 +1036,13 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         // The bulk of parsing behavior is covered by BinaryVariantInternalBuilderTest.
         return List.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.PARSE_JSON)
-                        .onFieldsWithData("{\"a\":1,\"b\":[2,3]}", "1e400", "{\"a\":1,\"a\":2}")
-                        .andDataTypes(STRING().notNull(), STRING().notNull(), STRING().notNull())
+                        .onFieldsWithData(
+                                "{\"a\":1,\"b\":[2,3]}", "1e400", "{\"a\":1,\"a\":2}", null)
+                        .andDataTypes(
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                BOOLEAN())
                         .testResult(
                                 jsonString($("f0").parseJson()),
                                 "JSON_STRING(PARSE_JSON(f0))",
@@ -1051,29 +1056,47 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f1)",
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         .testTableApiRuntimeError(
                                 $("f1").parseJson(),
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         // allowDuplicateKeys: false (the default) rejects duplicate keys
                         .testSqlRuntimeError(
                                 "PARSE_JSON(f2, false)",
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         .testTableApiRuntimeError(
                                 $("f2").parseJson(false),
                                 TableRuntimeException.class,
-                                "Failed to parse json string")
+                                "Failed to parse JSON string")
                         // allowDuplicateKeys: true keeps the last occurrence of the duplicated key
                         .testResult(
                                 jsonString($("f2").parseJson(true)),
                                 "JSON_STRING(PARSE_JSON(f2, true))",
                                 "{\"a\":2}",
-                                STRING().notNull()),
+                                STRING().notNull())
+                        // a NULL allowDuplicateKeys is treated as false
+                        .testResult(
+                                jsonString(call("PARSE_JSON", $("f0"), $("f3"))),
+                                "JSON_STRING(PARSE_JSON(f0, f3))",
+                                "{\"a\":1,\"b\":[2,3]}",
+                                STRING().notNull())
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f2, f3)",
+                                TableRuntimeException.class,
+                                "Failed to parse JSON string")
+                        .testTableApiRuntimeError(
+                                call("PARSE_JSON", $("f2"), $("f3")),
+                                TableRuntimeException.class,
+                                "Failed to parse JSON string"),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.TRY_PARSE_JSON)
-                        .onFieldsWithData("{\"a\":1}", "1e400", "{\"a\":1,\"a\":2}")
-                        .andDataTypes(STRING().notNull(), STRING().notNull(), STRING().notNull())
+                        .onFieldsWithData("{\"a\":1}", "1e400", "{\"a\":1,\"a\":2}", null)
+                        .andDataTypes(
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                BOOLEAN())
                         .testResult(
                                 jsonString($("f0").tryParseJson()),
                                 "JSON_STRING(TRY_PARSE_JSON(f0))",
@@ -1095,7 +1118,65 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString($("f2").tryParseJson(true)),
                                 "JSON_STRING(TRY_PARSE_JSON(f2, true))",
                                 "{\"a\":2}",
+                                STRING())
+                        // a NULL allowDuplicateKeys is treated as false
+                        .testResult(
+                                jsonString(call("TRY_PARSE_JSON", $("f0"), $("f3"))),
+                                "JSON_STRING(TRY_PARSE_JSON(f0, f3))",
+                                "{\"a\":1}",
+                                STRING())
+                        .testResult(
+                                jsonString(call("TRY_PARSE_JSON", $("f2"), $("f3"))),
+                                "JSON_STRING(TRY_PARSE_JSON(f2, f3))",
+                                null,
                                 STRING()),
+                // Input is parsed from its UTF-8 bytes. A NUL or a BOM must not be read as a
+                // UTF-16 or UTF-32 hint that turns invalid JSON into a value. Only input that is
+                // not valid UTF-8 reports the index of the invalid byte.
+                // FROM_BASE64 wraps the decoded bytes without validating them, so 'Iv8i' yields
+                // the invalid UTF-8 bytes 22 FF 22.
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.PARSE_JSON,
+                                "input bytes are always read as UTF-8")
+                        .onFieldsWithData("1\u0000", "\u00001", "\uFEFF1", "[\u65E5]", "Iv8i")
+                        .andDataTypes(
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull())
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f0)",
+                                "Unexpected character ((CTRL-CHAR, code 0)): Expected space separating root-level values")
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f1)",
+                                "Illegal character ((CTRL-CHAR, code 0)): only regular white space")
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f2)",
+                                TableRuntimeException.class,
+                                "Failed to parse JSON string: \uFEFF1")
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(f3)",
+                                TableRuntimeException.class,
+                                "Failed to parse JSON string: [\u65E5]")
+                        .testSqlRuntimeError(
+                                "PARSE_JSON(FROM_BASE64(f4))",
+                                TableRuntimeException.class,
+                                "Failed to parse JSON string: Invalid UTF-8 byte at index 1 of 3."),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.TRY_PARSE_JSON,
+                                "input bytes are always read as UTF-8")
+                        .onFieldsWithData("1\u0000", "\u00001", "\uFEFF1", "Iv8i")
+                        .andDataTypes(
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull())
+                        .testSqlResult("JSON_STRING(TRY_PARSE_JSON(f0))", null, STRING())
+                        .testSqlResult("JSON_STRING(TRY_PARSE_JSON(f1))", null, STRING())
+                        .testSqlResult("JSON_STRING(TRY_PARSE_JSON(f2))", null, STRING())
+                        .testSqlResult(
+                                "JSON_STRING(TRY_PARSE_JSON(FROM_BASE64(f3)))", null, STRING()),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.PARSE_JSON,
                                 "VARIANT expression preceding another expression in a"

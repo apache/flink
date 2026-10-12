@@ -40,6 +40,12 @@ comparison:
   - sql: value IS NOT NULL
     table: value.isNotNull
     description: 如果值不为 `NULL` 返回 `TRUE`。
+  - sql: IS_NAN(value)
+    table: value.isNan
+    description: 如果值为 `NaN` 返回 `TRUE`；如果值是非 `NaN` 的数值返回 `FALSE`；如果值为 `NULL` 返回 `NULL`。
+  - sql: IS_NOT_NAN(value)
+    table: value.isNotNan
+    description: 如果值是非 `NaN` 的数值返回 `TRUE`；如果值为 `NaN` 返回 `FALSE`；如果值为 `NULL` 返回 `NULL`。
   - sql: value1 IS DISTINCT FROM value2
     description: |
       A 和 B 的数据类型和值不完全相同返回 `TRUE`。A 和 B 的数据类型和值都相同返回 `FALSE`。`NULL` 视为与任何其他值相同。
@@ -965,6 +971,8 @@ conversion:
 
       例如, CAST('42' AS INT) 返回 42; CAST(NULL AS STRING) 返回字符串类型的 `NULL`; CAST('non-number' AS INT) 抛出异常且作业失败。
 
+      The result is nullable if the input may be null. In the Table API, the top-level nullability of TYPE is ignored, while the nullability of nested types, such as the element type of an array, is taken from TYPE.
+
       Casting BINARY/VARBINARY/BYTES to a CHAR/VARCHAR/STRING type validates that the input is well-formed UTF-8 and throws on invalid sequences. Use MAKE_VALID_UTF8 to substitute the Unicode replacement character U+FFFD for invalid bytes, TRY_CAST to return NULL, or set "table.exec.legacy-bytes-to-string-cast" to "true" to restore the prior silent-substitution behavior.
   - sql: TRY_CAST(value AS type)
     table: ANY.tryCast(TYPE)
@@ -1459,9 +1467,10 @@ variant:
       将 JSON 字符串解析为 Variant。如果 JSON 字符串无效，将抛出错误。如果希望返回 NULL 而不是抛出错误，
       请使用 `TRY_PARSE_JSON` 函数。  
       
-      如果输入的 JSON 字符串中存在重复的键，当 allowDuplicateKeys 为 true 时，解析器会保留最后一个出现的具有相
-      同键的字段，否则当 allowDuplicateKeys 为 false 时，它会抛出一个错误。默认情况下，
-      allowDuplicateKeys 的值为 false。
+      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
+      parser will keep the last occurrence of all fields with the same key, otherwise when
+      `allowDuplicateKeys` is false it will throw an error. The default value of
+      `allowDuplicateKeys` is false. A NULL `allowDuplicateKeys` is treated as false.
 
       See the `VARIANT` data type documentation for how JSON values are mapped to variant kinds.
 
@@ -1471,9 +1480,10 @@ variant:
       尽可能将 JSON 字符串解析为 Variant。如果 JSON 字符串无效，则返回 NULL。如果希望抛出错误而不是返回 NULL，
       请使用 `PARSE_JSON` 函数。  
       
-      如果输入的 JSON 字符串中存在重复的键，当 allowDuplicateKeys 为 true 时，解析器会保留最后一个出现的具有相
-      同键的字段，否则当 allowDuplicateKeys 为 false 时，它会抛出一个错误。默认情况下，
-      allowDuplicateKeys 的值为 false。
+      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
+      parser will keep the last occurrence of all fields with the same key, otherwise when
+      `allowDuplicateKeys` is false it will return NULL. The default value of
+      `allowDuplicateKeys` is false. A NULL `allowDuplicateKeys` is treated as false.
 
       See the `VARIANT` data type documentation for how JSON values are mapped to variant kinds.
 

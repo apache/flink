@@ -32,14 +32,10 @@
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 1 ], [ 0 ], [ 2 ] ],
         "producedType" : "ROW<`b` INT NOT NULL, `a` INT NOT NULL, `c` INT NOT NULL> NOT NULL"
-      }, {
-        "type" : "ReadingMetadata",
-        "metadataKeys" : [ ],
-        "producedType" : "ROW<`b` INT NOT NULL, `a` INT NOT NULL, `c` INT NOT NULL> NOT NULL"
       } ]
     },
     "outputType" : "ROW<`b` INT NOT NULL, `a` INT NOT NULL, `c` INT NOT NULL>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, a, c], metadata=[]]], fields=[b, a, c])"
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, a, c]]], fields=[b, a, c])"
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",

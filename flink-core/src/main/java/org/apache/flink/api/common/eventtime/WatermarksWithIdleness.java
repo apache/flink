@@ -32,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A WatermarkGenerator that adds idleness detection to another WatermarkGenerator. If no events
  * come within a certain time (timeout duration) then this generator marks the stream as idle, until
- * the next watermark is generated.
+ * an event arrives or the wrapped generator emits a watermark.
  */
 @Public
 public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
@@ -42,6 +42,13 @@ public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
     private final IdlenessTimer idlenessTimer;
 
     private boolean isIdleNow = false;
+
+    /**
+     * Whether the wrapped generator has ever seen an event. The first event has to report activity
+     * even though nothing was marked idle before, otherwise an output whose generator never emits a
+     * watermark would never be known to be active.
+     */
+    private boolean isActivityReported = false;
 
     /**
      * Creates a new WatermarksWithIdleness generator to the given generator idleness detection with
@@ -67,7 +74,16 @@ public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
     public void onEvent(T event, long eventTimestamp, WatermarkOutput output) {
         watermarks.onEvent(event, eventTimestamp, output);
         idlenessTimer.activity();
-        isIdleNow = false;
+
+        if (isIdleNow || !isActivityReported) {
+            // A record is evidence of activity in its own right. Waiting for the wrapped generator
+            // to produce an advancing watermark instead would leave the output announced as idle
+            // for as long as the resumed input stays behind the watermark it reached before, and an
+            // output whose generator never emits a watermark would never be known to be active.
+            output.markActive();
+            isIdleNow = false;
+            isActivityReported = true;
+        }
     }
 
     @Override

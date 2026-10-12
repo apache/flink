@@ -120,6 +120,20 @@ class PushFilterIntoTableSourceScanRuleTest extends PushFilterIntoTableSourceSca
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl4);
+
+        String ddl5 =
+                "CREATE TABLE ItemTable (\n"
+                        + "  id INT,\n"
+                        + "  arr ARRAY<INT>,\n"
+                        + "  m MAP<STRING, INT>,\n"
+                        + "  v VARIANT,\n"
+                        + "  nested ROW<arr ARRAY<INT>>\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'filterable-fields' = 'arr;m;v;`nested.arr`',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl5);
     }
 
     @Test
@@ -203,5 +217,25 @@ class PushFilterIntoTableSourceScanRuleTest extends PushFilterIntoTableSourceSca
     void testNestedFilterOnArrayField() {
         util.verifyRelPlan(
                 "SELECT * FROM NestedItemTable WHERE `Result`.`Mid`.data_arr[2].`value` = 3");
+    }
+
+    @Test
+    void testFilterOnArrayElement() {
+        util.verifyRelPlan("SELECT * FROM ItemTable WHERE arr[1] = 3");
+    }
+
+    @Test
+    void testFilterOnMapValue() {
+        util.verifyRelPlan("SELECT * FROM ItemTable WHERE m['k'] > 2 AND id > 1");
+    }
+
+    @Test
+    void testFilterOnVariantField() {
+        util.verifyRelPlan("SELECT * FROM ItemTable WHERE CAST(v['k'] AS INT) > 2");
+    }
+
+    @Test
+    void testFilterOnNestedArrayElement() {
+        util.verifyRelPlan("SELECT * FROM ItemTable WHERE nested.arr[1] = 3");
     }
 }

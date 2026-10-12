@@ -21,6 +21,8 @@ import org.apache.flink.table.api.{DataTypes, LiteralStringExpression, Unresolve
 import org.apache.flink.table.planner.expressions.utils.ScalarOperatorsTestBase
 
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
@@ -60,6 +62,39 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
       "f7 IN (f16, f17)",
       "TRUE"
     )
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = Array("FLOAT", "DOUBLE"))
+  def testInWithSignedZero(numericType: String): Unit = {
+    // Negate the runtime zero so constant folding cannot erase its sign.
+    val zero = s"CAST(f7 AS $numericType)"
+    val negativeZero = s"CAST(-f7 AS $numericType)"
+    val pair = s"CAST(0 AS $numericType), CAST(2 AS $numericType)"
+    val negativePair = s"CAST('-0.0' AS $numericType), CAST(2 AS $numericType)"
+    val longList = (Seq(0) ++ (2 to 21)).mkString(", ")
+
+    testSqlApi(s"$negativeZero = $zero", "TRUE")
+    testSqlApi(s"$negativeZero IN (0)", "TRUE")
+    testSqlApi(s"$negativeZero IN ($pair)", "TRUE")
+    testSqlApi(s"$negativeZero NOT IN ($pair)", "FALSE")
+    testSqlApi(s"$zero IN ($negativePair)", "TRUE")
+    testSqlApi(s"$zero NOT IN ($negativePair)", "FALSE")
+    testSqlApi(s"$negativeZero IN (CAST(0 AS $numericType), $negativePair)", "TRUE")
+    testSqlApi(s"$negativeZero IN ($longList)", "TRUE")
+    testSqlApi(s"$negativeZero NOT IN ($longList)", "FALSE")
+    testSqlApi(s"$negativeZero IN ($pair, NULL)", "TRUE")
+    testSqlApi(s"$negativeZero NOT IN ($pair, NULL)", "FALSE")
+    testSqlApi(s"$negativeZero IN (1, 2)", "FALSE")
+    testSqlApi(s"$negativeZero NOT IN (1, 2)", "TRUE")
+    testSqlApi(s"$negativeZero IN (1, 2, NULL)", "NULL")
+    testSqlApi(s"$negativeZero NOT IN (1, 2, NULL)", "NULL")
+    testSqlApi(s"CAST(f4 AS $numericType) IN ($pair)", "FALSE")
+    testSqlApi(s"CAST(f4 AS $numericType) NOT IN ($pair)", "TRUE")
+    testSqlApi(s"CAST(f14 AS $numericType) IN ($pair)", "NULL")
+    testSqlApi(s"CAST(f14 AS $numericType) NOT IN ($pair)", "NULL")
+    testSqlApi(s"(CAST(f14 AS $numericType) IN ($pair)) IS TRUE", "FALSE")
+    testSqlApi(s"(CAST(f14 AS $numericType) IN ($pair)) IS NOT FALSE", "TRUE")
   }
 
   @Test

@@ -19,9 +19,13 @@
 package org.apache.flink.table.planner.expressions.converter;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TimePointUnit;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.utils.PlannerMocks;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rex.RexLiteral;
@@ -40,8 +44,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Period;
+import java.util.List;
 import java.util.UUID;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -219,5 +225,32 @@ class ExpressionConverterTest {
                                 uuidBytes, DataTypes.UUID().notNull().bridgedTo(byte[].class)));
         assertThat(((RexLiteral) rex).getValueAs(UUID.class)).isEqualTo(uuid);
         assertThat(rex.getType().getSqlTypeName()).isEqualTo(SqlTypeName.UUID);
+    }
+
+    @Test
+    void testCastToNotNullTypeFromNullableInput() {
+        final RexNode rex =
+                convertCast(
+                        valueLiteral(null, DataTypes.INT()),
+                        DataTypes.BIGINT().notNull(),
+                        DataTypes.BIGINT());
+        assertThat(rex.getType().isNullable()).isTrue();
+    }
+
+    @Test
+    void testCastToNullableTypeFromNotNullInput() {
+        final RexNode rex =
+                convertCast(valueLiteral(1), DataTypes.BIGINT(), DataTypes.BIGINT().notNull());
+        assertThat(rex.getType().isNullable()).isFalse();
+    }
+
+    /** The output type is the one the CAST type strategy derives; the RexNode must follow it. */
+    private RexNode convertCast(
+            ResolvedExpression input, DataType targetType, DataType outputType) {
+        return converter.visit(
+                CallExpression.permanent(
+                        BuiltInFunctionDefinitions.CAST,
+                        List.of(input, typeLiteral(targetType)),
+                        outputType));
     }
 }

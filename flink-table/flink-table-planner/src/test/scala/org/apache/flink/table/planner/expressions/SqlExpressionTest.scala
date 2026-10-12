@@ -157,6 +157,11 @@ class SqlExpressionTest extends ExpressionTestBase {
     // Decimal(2,1) / SmallInt => Decimal(8,7)
     testSqlApi("1.0/cast(10000 as SMALLINT)", "0.0001000")
 
+    // divisor is a constant expression rather than a literal
+    testSqlApi("1 / (2 + 3)", "0")
+    testSqlApi("6 / (2 * 3)", "1")
+    testSqlApi("1.0 / (2 * 3)", "0.166666666667")
+
     // invalid division
     val divisorZeroException = "Division by zero"
     testExpectedSqlException(

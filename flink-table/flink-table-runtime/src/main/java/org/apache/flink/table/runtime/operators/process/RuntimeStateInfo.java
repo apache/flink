@@ -34,11 +34,14 @@ public class RuntimeStateInfo implements Serializable {
     private final String stateName;
     private final DataType dataType;
     private final long timeToLive;
+    private final boolean broadcast;
 
-    public RuntimeStateInfo(String stateName, DataType dataType, long timeToLive) {
+    public RuntimeStateInfo(
+            String stateName, DataType dataType, long timeToLive, boolean broadcast) {
         this.stateName = stateName;
         this.dataType = dataType;
         this.timeToLive = timeToLive;
+        this.broadcast = broadcast;
     }
 
     public String getStateName() {
@@ -51,5 +54,9 @@ public class RuntimeStateInfo implements Serializable {
 
     public long getTimeToLive() {
         return timeToLive;
+    }
+
+    public boolean isBroadcast() {
+        return broadcast;
     }
 }

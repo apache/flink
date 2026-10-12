@@ -302,14 +302,6 @@ under the License.
 	</dependencyManagement>
 
 	<build>
-		<extensions>
-			<extension>
-				<groupId>kr.motd.maven</groupId>
-				<artifactId>os-maven-plugin</artifactId>
-				<version>1.7.1</version>
-			</extension>
-		</extensions>
-
 		<plugins>
 			<!-- Generate Test class from avro schema -->
 			<plugin>
@@ -330,50 +322,20 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- Geneate Test class from protobuf schema -->
 			<plugin>
-				<groupId>org.xolstice.maven.plugins</groupId>
+				<groupId>io.github.ascopes</groupId>
 				<artifactId>protobuf-maven-plugin</artifactId>
-				<version>0.5.1</version>
-				<extensions>true</extensions>
-				<configuration>
-					<!-- Currently Flink azure test pipeline would first pre-compile and then upload the compiled
-					 directory, then it download the directory and run the corresponding tests. However, the protoc
-					 executable under the target directory would lost the execution permission bit after downloading.
-					 To solve this issue we would skip generating the target files if they already exist after
-					 downloading. Meanwhile, since the time might be not consistent between the pre-compile and
-					 the actual execution, we need to adjust the timestamp manually, see unpack_build_artifact.sh-->
-					<checkStaleness>true</checkStaleness>
-					<protoTestSourceRoot>${project.basedir}/src/test/resources/protobuf</protoTestSourceRoot>
-					<!-- Generates classes into a separate directory since the generator always removes existing files. -->
-					<outputDirectory>${project.build.directory}/generated-test-sources/protobuf/java</outputDirectory>
-					<protocArtifact>com.google.protobuf:protoc:${protoc.version}:exe:${os.detected.classifier}</protocArtifact>
-				</configuration>
 				<executions>
 					<execution>
-						<phase>generate-sources</phase>
 						<goals>
-							<goal>test-compile</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
-			<!-- Adding protobuf generated classes to test build path -->
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>add-test-source</id>
-						<phase>generate-sources</phase>
-						<goals>
-							<goal>add-test-source</goal>
+							<goal>generate-test</goal>
 						</goals>
 						<configuration>
-							<sources>
-								<source>${project.build.directory}/generated-test-sources/protobuf/java</source>
-							</sources>
+							<sourceDirectories>
+								<sourceDirectory>${project.basedir}/src/test/proto</sourceDirectory>
+							</sourceDirectories>
+							<!-- Same path as before, so stale xolstice output under avro's test root cannot compile twice. -->
+							<outputDirectory>${project.build.directory}/generated-test-sources/protobuf/java</outputDirectory>
 						</configuration>
 					</execution>
 				</executions>

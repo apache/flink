@@ -378,7 +378,7 @@ class PekkoUtils {
                 .add("          trust-store = \"" + sslTrustStore + "\"")
                 .add("          trust-store-password = \"" + sslTrustStorePassword + "\"")
                 .add("          trust-store-type = \"" + sslTrustStoreType + "\"")
-                .add("          protocol = " + sslProtocol + "")
+                .add("          protocol = \"" + sslProtocol + "\"")
                 .add("          enabled-algorithms = " + sslAlgorithms + "")
                 .add("          random-number-generator = \"\"")
                 .add("          require-mutual-authentication = on")

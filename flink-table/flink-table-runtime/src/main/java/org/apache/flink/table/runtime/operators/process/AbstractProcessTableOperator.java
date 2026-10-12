@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -43,6 +44,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -52,13 +54,17 @@ import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.dataview.DataViewUtils;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.ProcessTableRunner;
+import org.apache.flink.table.runtime.generated.ProcessTableRunner.StateHandle;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
+import org.apache.flink.table.runtime.operators.process.BroadcastStateAdapters.BroadcastMapState;
+import org.apache.flink.table.runtime.operators.process.BroadcastStateAdapters.BroadcastValueState;
 import org.apache.flink.table.runtime.operators.process.TimeConverter.InstantTimeConverter;
 import org.apache.flink.table.runtime.operators.process.TimeConverter.LocalDateTimeConverter;
 import org.apache.flink.table.runtime.operators.process.TimeConverter.LongTimeConverter;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -89,10 +95,11 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
 
     private transient ChangelogMode changelogMode;
     private transient ReadableInternalTimeContext internalTimeContext;
+    private transient ReadableInternalTimeContext broadcastTimeContext;
     private transient PassThroughCollectorBase evalCollector;
     private transient PassAllCollector onTimerCollector;
     private transient StateDescriptor<?, ?>[] stateDescriptors;
-    private transient State[] stateHandles;
+    private transient StateHandle[] stateHandles;
 
     private transient @Nullable MapState<StringData, Long> namedTimersMapState;
     private transient @Nullable InternalTimerService<StringData> namedTimerService;
@@ -133,8 +140,6 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
 
         processTableRunner.initialize(
                 stateHandles,
-                stateHashCode,
-                stateEquals,
                 shouldEmitRowtime(),
                 runnerContext,
                 runnerOnTimerContext,
@@ -222,13 +227,13 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
                                 + conversionClass.getName());
             }
 
-            internalTimeContext.setTime(
+            final ReadableInternalTimeContext timeContext = currentTimeContext();
+            timeContext.setTime(
                     processTableRunner.getTableWatermark(),
                     combinedWatermark.getCombinedWatermark(),
                     processTableRunner.getTime());
 
-            return (TimeContext<TimeType>)
-                    new ExternalTimeContext<>(internalTimeContext, timeConverter);
+            return (TimeContext<TimeType>) new ExternalTimeContext<>(timeContext, timeConverter);
         }
 
         @Override
@@ -256,7 +261,7 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
 
         @Override
         public void clearAllTimers() {
-            internalTimeContext.clearAllTimers();
+            currentTimeContext().clearAllTimers();
         }
 
         @Override
@@ -278,6 +283,12 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
             }
             return stateDescriptors[statePos];
         }
+    }
+
+    private ReadableInternalTimeContext currentTimeContext() {
+        return processTableRunner.isProcessingBroadcast()
+                ? broadcastTimeContext
+                : internalTimeContext;
     }
 
     /** Implementation of {@link ProcessTableFunction.OnTimerContext}. */
@@ -330,6 +341,7 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
         } else {
             internalTimeContext = new ReadableInternalTimeContext();
         }
+        broadcastTimeContext = new BroadcastInternalTimeContext();
     }
 
     private void setCollectors() {
@@ -344,9 +356,20 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
             evalCollector = new PassPartitionKeysCollector(output, changelogMode, tableSemantics);
         }
 
+        if (hasBroadcastTables()) {
+            evalCollector =
+                    new BroadcastEvalCollector(
+                            output,
+                            changelogMode,
+                            evalCollector,
+                            processTableRunner::isProcessingBroadcast);
+        }
+
         // Collect with partition keys for each table but from timer events which only contains the
-        // key, so passing all columns is the right strategy
-        onTimerCollector = new PassAllCollector(output, changelogMode, tableCount);
+        // key, so passing all columns is the right strategy. Broadcast tables have no partition
+        // keys.
+        onTimerCollector =
+                new PassAllCollector(output, changelogMode, getMainTableSemantics().size());
     }
 
     private void setStateDescriptors() {
@@ -356,6 +379,11 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
             final DataType dataType = stateInfo.getDataType();
             final LogicalType type = dataType.getLogicalType();
             final String stateName = stateInfo.getStateName();
+
+            if (stateInfo.isBroadcast()) {
+                stateDescriptors[i] = createBroadcastStateDescriptor(stateName, dataType);
+                continue;
+            }
 
             final StateDescriptor<?, ?> stateDescriptor;
             if (DataViewUtils.isDataView(type, ListView.class)) {
@@ -375,6 +403,10 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
                                 stateName,
                                 ExternalSerializer.of(keyDataType),
                                 ExternalSerializer.of(valueDataType));
+            } else if (DataViewUtils.isDataView(type, ValueView.class)) {
+                final DataType valueDataType = dataType.getChildren().get(0);
+                stateDescriptor =
+                        new ValueStateDescriptor<>(stateName, ExternalSerializer.of(valueDataType));
             } else {
                 stateDescriptor =
                         new ValueStateDescriptor<>(stateName, InternalSerializers.create(type));
@@ -390,27 +422,111 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
         this.stateDescriptors = stateDescriptors;
     }
 
-    private void setStateHandles() {
-        final State[] stateHandles = new State[stateDescriptors.length];
+    private static MapStateDescriptor<?, ?> createBroadcastStateDescriptor(
+            String stateName, DataType dataType) {
+        final LogicalType type = dataType.getLogicalType();
+        if (DataViewUtils.isDataView(type, MapView.class)) {
+            final KeyValueDataType mapDataType = (KeyValueDataType) dataType.getChildren().get(0);
+            return new MapStateDescriptor<>(
+                    stateName,
+                    ExternalSerializer.of(mapDataType.getKeyDataType()),
+                    ExternalSerializer.of(mapDataType.getValueDataType()));
+        } else if (DataViewUtils.isDataView(type, ValueView.class)) {
+            // A single value is stored as the only entry of the broadcast state
+            return new MapStateDescriptor<>(
+                    stateName,
+                    VoidNamespaceSerializer.INSTANCE,
+                    ExternalSerializer.of(dataType.getChildren().get(0)));
+        } else if (DataViewUtils.isDataView(type, ListView.class)) {
+            throw new IllegalStateException("List views are not supported for broadcast state.");
+        } else {
+            return new MapStateDescriptor<>(
+                    stateName, VoidNamespaceSerializer.INSTANCE, InternalSerializers.create(type));
+        }
+    }
+
+    private void setStateHandles() throws Exception {
+        final StateHandle[] stateHandles = new StateHandle[stateDescriptors.length];
         for (int i = 0; i < stateDescriptors.length; i++) {
-            final KeyedStateStore keyedStateStore =
-                    getKeyedStateStore().orElseThrow(IllegalStateException::new);
-            final StateDescriptor<?, ?> stateDescriptor = stateDescriptors[i];
+            final RuntimeStateInfo stateInfo = stateInfos.get(i);
+            // The kind must be derived from the declared type, not the descriptor, because both
+            // eager value state and value views use a ValueStateDescriptor.
+            final LogicalType type = stateInfo.getDataType().getLogicalType();
+            final StateHandle.Kind kind = deriveStateKind(type);
             final State stateHandle;
-            if (stateDescriptor instanceof ValueStateDescriptor) {
-                stateHandle = keyedStateStore.getState((ValueStateDescriptor<?>) stateDescriptor);
-            } else if (stateDescriptor instanceof ListStateDescriptor) {
-                stateHandle =
-                        keyedStateStore.getListState((ListStateDescriptor<?>) stateDescriptor);
-            } else if (stateDescriptor instanceof MapStateDescriptor) {
-                stateHandle =
-                        keyedStateStore.getMapState((MapStateDescriptor<?, ?>) stateDescriptor);
+            if (stateInfo.isBroadcast()) {
+                stateHandle = createBroadcastStateHandle(stateInfo.getStateName(), kind, i);
             } else {
-                throw new IllegalStateException("Unknown state descriptor:" + stateDescriptor);
+                stateHandle = createKeyedStateHandle(i);
             }
-            stateHandles[i] = stateHandle;
+            // Hash function and equaliser are only used by eager value state to reduce state
+            // updates; views access state lazily and don't need them.
+            final boolean isEagerValue = kind == StateHandle.Kind.EAGER_VALUE;
+            final HashFunction hashFunction = isEagerValue ? stateHashCode[i] : null;
+            final RecordEqualiser equaliser = isEagerValue ? stateEquals[i] : null;
+            stateHandles[i] =
+                    new StateHandle(
+                            kind, stateInfo.isBroadcast(), stateHandle, hashFunction, equaliser);
         }
         this.stateHandles = stateHandles;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private State createBroadcastStateHandle(String stateName, StateHandle.Kind kind, int pos)
+            throws Exception {
+        final BroadcastState broadcastState =
+                getOperatorStateBackend()
+                        .getBroadcastState((MapStateDescriptor<?, ?>) stateDescriptors[pos]);
+        switch (kind) {
+            case MAP_VIEW:
+                return new BroadcastMapState<>(
+                        stateName, broadcastState, processTableRunner::isProcessingBroadcast);
+            case VALUE_VIEW:
+            case EAGER_VALUE:
+                return new BroadcastValueState<>(
+                        stateName, broadcastState, processTableRunner::isProcessingBroadcast);
+            default:
+                throw new IllegalStateException("Unsupported kind for broadcast state: " + kind);
+        }
+    }
+
+    private State createKeyedStateHandle(int pos) {
+        final KeyedStateStore keyedStateStore =
+                getKeyedStateStore().orElseThrow(IllegalStateException::new);
+        final StateDescriptor<?, ?> stateDescriptor = stateDescriptors[pos];
+        final State stateHandle;
+        if (stateDescriptor instanceof ValueStateDescriptor) {
+            stateHandle = keyedStateStore.getState((ValueStateDescriptor<?>) stateDescriptor);
+        } else if (stateDescriptor instanceof ListStateDescriptor) {
+            stateHandle = keyedStateStore.getListState((ListStateDescriptor<?>) stateDescriptor);
+        } else if (stateDescriptor instanceof MapStateDescriptor) {
+            stateHandle = keyedStateStore.getMapState((MapStateDescriptor<?, ?>) stateDescriptor);
+        } else {
+            throw new IllegalStateException("Unknown state descriptor:" + stateDescriptor);
+        }
+        return stateHandle;
+    }
+
+    private static StateHandle.Kind deriveStateKind(LogicalType type) {
+        if (DataViewUtils.isDataView(type, ListView.class)) {
+            return StateHandle.Kind.LIST_VIEW;
+        } else if (DataViewUtils.isDataView(type, MapView.class)) {
+            return StateHandle.Kind.MAP_VIEW;
+        } else if (DataViewUtils.isDataView(type, ValueView.class)) {
+            return StateHandle.Kind.VALUE_VIEW;
+        }
+        return StateHandle.Kind.EAGER_VALUE;
+    }
+
+    private boolean hasBroadcastTables() {
+        return tableSemantics.stream().anyMatch(RuntimeTableSemantics::hasBroadcastSemantics);
+    }
+
+    /** Returns tables with row or set semantics, i.e. all tables except broadcast tables. */
+    private List<RuntimeTableSemantics> getMainTableSemantics() {
+        return tableSemantics.stream()
+                .filter(t -> !t.hasBroadcastSemantics())
+                .collect(Collectors.toList());
     }
 
     private boolean shouldEmitRowtime() {
@@ -419,8 +535,9 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
     }
 
     private boolean shouldEnableTimers() {
-        return !tableSemantics.isEmpty()
-                && tableSemantics.stream()
-                        .allMatch(input -> input.hasSetSemantics() && !input.passColumnsThrough());
+        final List<RuntimeTableSemantics> mainTableSemantics = getMainTableSemantics();
+        return !mainTableSemantics.isEmpty()
+                && mainTableSemantics.stream()
+                        .allMatch(t -> t.hasSetSemantics() && !t.passColumnsThrough());
     }
 }

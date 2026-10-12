@@ -30,14 +30,21 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LogicalTypeChecks}. */
@@ -132,5 +139,31 @@ class LogicalTypeChecksTest {
     void testFieldCountExtraction() {
         DataType dataType = ROW(FIELD("f0", INT()), FIELD("f1", STRING()));
         assertThat(LogicalTypeChecks.getFieldCount(dataType.getLogicalType())).isEqualTo(2);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("comparableKeyTypes")
+    void testIsComparableKeyType(DataType dataType, boolean expected) {
+        assertThat(LogicalTypeChecks.isComparableKeyType(dataType.getLogicalType()))
+                .isEqualTo(expected);
+    }
+
+    private static Stream<Arguments> comparableKeyTypes() {
+        return Stream.of(
+                Arguments.of(INT(), true),
+                Arguments.of(ROW(FIELD("f0", INT())), true),
+                Arguments.of(VARIANT(), false),
+                Arguments.of(ROW(FIELD("f0", VARIANT())), false),
+                Arguments.of(ARRAY(VARIANT()), false),
+                Arguments.of(MAP(STRING(), VARIANT()), false),
+                Arguments.of(
+                        TypeConversions.fromLogicalToDataType(
+                                StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "type"))
+                                        .attributes(
+                                                List.of(
+                                                        new StructuredType.StructuredAttribute(
+                                                                "v", VARIANT().getLogicalType())))
+                                        .build()),
+                        false));
     }
 }

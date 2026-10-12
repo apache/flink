@@ -30,3 +30,4 @@ Functions for setting, inspecting, and creating the environment used by DataFram
     set_table_environment
     get_table_environment
     get_or_create_table_environment
+    create_statement_set

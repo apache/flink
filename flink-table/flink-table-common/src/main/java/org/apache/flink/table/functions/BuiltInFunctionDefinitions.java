@@ -2426,6 +2426,28 @@ public final class BuiltInFunctionDefinitions {
                     .build();
 
     // --------------------------------------------------------------------------------------------
+
+    public static final BuiltInFunctionDefinition IS_NAN =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("isNan")
+                    .sqlName("IS_NAN")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.IsNanFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition IS_NOT_NAN =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("isNotNan")
+                    .sqlName("IS_NOT_NAN")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.IsNotNanFunction")
+                    .build();
+
     // Catalog functions
     // --------------------------------------------------------------------------------------------
 
@@ -3190,7 +3212,9 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeRoot.BOOLEAN))))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.VARIANT())))
+                    .outputTypeStrategy(
+                            nullableIfArgs(
+                                    ConstantArgumentCount.of(0), explicit(DataTypes.VARIANT())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ParseJsonFunction")
                     .build();
@@ -3477,8 +3501,7 @@ public final class BuiltInFunctionDefinitions {
                     .callSyntax("CAST", SqlCallSyntax.CAST)
                     .kind(SCALAR)
                     .inputTypeStrategy(SpecificInputTypeStrategies.CAST)
-                    .outputTypeStrategy(
-                            nullableIfArgs(ConstantArgumentCount.to(0), TypeStrategies.argument(1)))
+                    .outputTypeStrategy(SpecificTypeStrategies.CAST)
                     .build();
 
     public static final BuiltInFunctionDefinition TRY_CAST =

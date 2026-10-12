@@ -18,11 +18,14 @@
 
 package org.apache.flink.state.rocksdb;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -69,6 +72,9 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         implements InternalMapState<K, N, UK, UV> {
 
     private static final Logger LOG = LoggerFactory.getLogger(RocksDBMapState.class);
+
+    /** Maximum number of entries cached by a map state iterator. */
+    @VisibleForTesting static final int ITERATOR_CACHE_SIZE = 128;
 
     /** Serializer for the keys and values. */
     private TypeSerializer<UK> userKeySerializer;
@@ -227,6 +233,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
             DataInputDeserializer serializedOldValueInput,
             DataOutputSerializer serializedMigratedValueOutput,
             TypeSerializer<Map<UK, UV>> priorSerializer,
+            @Nullable TypeSerializerSnapshot<Map<UK, UV>> priorSerializerSnapshot,
             TypeSerializer<Map<UK, UV>> newSerializer,
             TtlTimeProvider ttlTimeProvider)
             throws StateMigrationException {
@@ -240,6 +247,23 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         TtlAwareSerializer<UV, ?> newTtlAwareMapValueSerializer =
                 ((TtlAwareSerializer.TtlAwareMapSerializer<UK, UV>) newSerializer)
                         .getValueSerializer();
+        // Descend the persisted snapshot the same way as the serializer, so value migration sees
+        // the schema the map values were written with. A state that carries no persisted
+        // snapshot leaves this null, and the value migration re-derives one instead.
+        TypeSerializerSnapshot<UV> priorMapValueSerializerSnapshot = null;
+        if (priorSerializerSnapshot != null) {
+            // Thrown rather than checked through Preconditions: this method runs once per state
+            // entry, so the message must not be built while the check is passing.
+            if (!(priorSerializerSnapshot instanceof MapSerializerSnapshot)) {
+                throw new IllegalArgumentException(
+                        "The previous serializer snapshot of a map state should be a MapSerializerSnapshot, but was "
+                                + priorSerializerSnapshot.getClass().getName()
+                                + ".");
+            }
+            priorMapValueSerializerSnapshot =
+                    ((MapSerializerSnapshot<UK, UV>) priorSerializerSnapshot)
+                            .getValueSerializerSnapshot();
+        }
 
         try {
             boolean isNull = serializedOldValueInput.readBoolean();
@@ -250,6 +274,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
             } else {
                 newTtlAwareMapValueSerializer.migrateValueFromPriorSerializer(
                         priorTtlAwareMapValueSerializer,
+                        priorMapValueSerializerSnapshot,
                         () -> priorTtlAwareMapValueSerializer.deserialize(serializedOldValueInput),
                         serializedMigratedValueOutput,
                         ttlTimeProvider);
@@ -278,8 +303,8 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
         final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
 
         try (RocksIteratorWrapper iterator =
-                RocksDBOperationUtils.getRocksIterator(
-                        backend.db, columnFamily, backend.getReadOptions())) {
+                RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
+                        backend.db, columnFamily, backend.getReadOptions(), prefixBytes)) {
 
             iterator.seek(prefixBytes);
 
@@ -289,16 +314,19 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
 
     @Override
     public void clear() {
+        final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
         try (RocksIteratorWrapper iterator =
-                        RocksDBOperationUtils.getRocksIterator(
-                                backend.db, columnFamily, backend.getReadOptions());
+                        RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
+                                backend.db,
+                                columnFamily,
+                                backend.getReadOptions(),
+                                keyPrefixBytes);
                 RocksDBWriteBatchWrapper rocksDBWriteBatchWrapper =
                         new RocksDBWriteBatchWrapper(
                                 backend.db,
                                 backend.getWriteOptions(),
                                 backend.getWriteBatchSize())) {
 
-            final byte[] keyPrefixBytes = serializeCurrentKeyWithGroupAndNamespace();
             iterator.seek(keyPrefixBytes);
 
             while (iterator.isValid()) {
@@ -562,8 +590,6 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
     /** An auxiliary utility to scan all entries under the given key. */
     private abstract class RocksDBMapIterator<T> implements Iterator<T> {
 
-        private static final int CACHE_SIZE_LIMIT = 128;
-
         /** The db where data resides. */
         private final RocksDB db;
 
@@ -656,8 +682,8 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
             // exception
             // occurred in the below code block.
             try (RocksIteratorWrapper iterator =
-                    RocksDBOperationUtils.getRocksIterator(
-                            db, columnFamily, backend.getReadOptions())) {
+                    RocksDBOperationUtils.getRocksIteratorBoundedByPrefix(
+                            db, columnFamily, backend.getReadOptions(), keyPrefixBytes)) {
 
                 /*
                  * The iteration starts from the prefix bytes at the first loading. After #nextEntry() is called,
@@ -675,8 +701,12 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
                 /*
                  * If the entry pointing to the current position is not removed, it will be the first entry in the
                  * new iterating. Skip it to avoid redundant access in such cases.
+                 *
+                 * Removing the current entry through MapState does not update its cached 'deleted' flag.
+                 * A resumed seek can therefore return an invalid iterator even if 'deleted' is false.
+                 * RocksDB requires a valid iterator before calling next().
                  */
-                if (currentEntry != null && !currentEntry.deleted) {
+                if (currentEntry != null && !currentEntry.deleted && iterator.isValid()) {
                     iterator.next();
                 }
 
@@ -687,7 +717,7 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
                         break;
                     }
 
-                    if (cacheEntries.size() >= CACHE_SIZE_LIMIT) {
+                    if (cacheEntries.size() >= ITERATOR_CACHE_SIZE) {
                         break;
                     }
 

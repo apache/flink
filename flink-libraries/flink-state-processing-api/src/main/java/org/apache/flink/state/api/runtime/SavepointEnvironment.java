@@ -26,7 +26,6 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -42,7 +41,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
@@ -65,11 +63,11 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.UserCodeClassLoader;
-import org.apache.flink.util.concurrent.Executors;
 
 import javax.annotation.Nullable;
 
@@ -77,8 +75,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-
-import static org.apache.flink.runtime.memory.MemoryManager.DEFAULT_PAGE_SIZE;
 
 /**
  * A minimally implemented {@link Environment} that provides the functionality required to run the
@@ -116,6 +112,8 @@ public class SavepointEnvironment implements Environment {
 
     private final SharedResources sharedResources;
 
+    private final TaskManagerRuntimeInfo taskManagerRuntimeInfo;
+
     private final AccumulatorRegistry accumulatorRegistry;
 
     private final UserCodeClassLoader userCodeClassLoader;
@@ -147,12 +145,20 @@ public class SavepointEnvironment implements Environment {
 
         this.registry = new KvStateRegistry().createTaskRegistry(jobID, vertexID);
         this.taskStateManager = new SavepointTaskStateManager(prioritizedOperatorSubtaskState);
-        this.ioManager =
-                new IOManagerAsync(
-                        ConfigurationUtils.parseTempDirectories(configuration),
-                        Executors.newDirectExecutorService());
-        this.memoryManager = MemoryManager.create(64 * 1024 * 1024, DEFAULT_PAGE_SIZE);
-        this.sharedResources = new SharedResources();
+
+        // Reuse the enclosing task's real MemoryManager/IOManager/SharedResources instead of
+        // fabricating our own, so they are correctly sized/shared for this slot.
+        Preconditions.checkArgument(
+                ctx instanceof StreamingRuntimeContext,
+                "SavepointEnvironment requires a real StreamingRuntimeContext, but got %s. "
+                        + "This should never happen during normal execution.",
+                ctx.getClass());
+        StreamingRuntimeContext streamingRuntimeContext = (StreamingRuntimeContext) ctx;
+        this.ioManager = streamingRuntimeContext.getIOManager();
+        this.memoryManager = streamingRuntimeContext.getMemoryManager();
+        this.sharedResources = streamingRuntimeContext.getSharedResources();
+        this.taskManagerRuntimeInfo = streamingRuntimeContext.getTaskManagerRuntimeInfo();
+
         this.accumulatorRegistry = new AccumulatorRegistry(jobID, attemptID);
 
         this.userCodeClassLoader = UserCodeClassLoaderRuntimeContextAdapter.from(ctx);
@@ -191,7 +197,7 @@ public class SavepointEnvironment implements Environment {
 
     @Override
     public TaskManagerRuntimeInfo getTaskManagerInfo() {
-        return new SavepointTaskManagerRuntimeInfo(getIOManager().getSpillingDirectories()[0]);
+        return taskManagerRuntimeInfo;
     }
 
     @Override

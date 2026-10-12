@@ -36,8 +36,6 @@ public class ClientOptions {
             ConfigOptions.key("client.timeout")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(60))
-                    .withDeprecatedKeys(
-                            "akka.client.timeout") // the deprecated AkkaOptions.CLIENT_TIMEOUT
                     .withDescription("Timeout on the client side.");
 
     public static final ConfigOption<Duration> CLIENT_RETRY_PERIOD =

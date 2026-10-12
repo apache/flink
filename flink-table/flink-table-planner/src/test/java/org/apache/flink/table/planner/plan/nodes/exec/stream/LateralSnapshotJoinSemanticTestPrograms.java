@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.ApiExpression;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -32,6 +34,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.descriptor;
+import static org.apache.flink.table.api.Expressions.lit;
 
 /**
  * Deterministic result {@link TableTestProgram} definitions for the {@code LATERAL SNAPSHOT}
@@ -337,6 +344,42 @@ public class LateralSnapshotJoinSemanticTestPrograms {
                     .build();
 
     // ------------------------------------------------------------------------------------------
+    // Table API
+    //
+    // The Table API is a thin wrapper that converges on the same plan/operator as SQL (asserted by
+    // LateralSnapshotJoinTableApiTest), so a single execution smoke is enough here.
+    // ------------------------------------------------------------------------------------------
+
+    public static final TableTestProgram INNER_JOIN_TABLE_API =
+            TableTestProgram.of(
+                            "lateral-snapshot-inner-join-table-api",
+                            "LATERAL SNAPSHOT inner join expressed through the Table API")
+                    .setupTableSource(throttledProbe(defaultProbe(), 40L))
+                    .setupTableSource(appendBuild(withFlipTrigger(defaultBuild())))
+                    .setupTableSink(
+                            keyValueSink()
+                                    .consumedValues(
+                                            "+I[a, 100, a, 10]",
+                                            "+I[a, 100, a, 11]",
+                                            "+I[b, 200, b, 20]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("probe")
+                                            .joinLateral(
+                                                    call(
+                                                            "SNAPSHOT",
+                                                            env.from("b").asArgument("input"),
+                                                            descriptor("bts").asArgument("on_time"),
+                                                            loadCompletedTime(FLIP_TRIGGER_TS)
+                                                                    .asArgument(
+                                                                            "load_completed_time")),
+                                                    $("pk").isEqual($("bk")))
+                                            .select($("pk"), $("pv"), $("bk"), $("bv")),
+                            "sink")
+                    .build();
+
+    // ------------------------------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------------------------------
 
@@ -441,5 +484,14 @@ public class LateralSnapshotJoinSemanticTestPrograms {
 
     private static LocalDateTime ts(String time) {
         return LocalDateTime.parse("2020-01-01T" + time);
+    }
+
+    /**
+     * Builds the {@code load_completed_time} argument as a Table API expression equivalent to the
+     * SQL {@code CAST(TIMESTAMP '2020-01-01 <time>' AS TIMESTAMP_LTZ(3))} used by the SQL programs
+     * for the same flip timestamp.
+     */
+    private static ApiExpression loadCompletedTime(String time) {
+        return lit(ts(time)).cast(DataTypes.TIMESTAMP_LTZ(3));
     }
 }

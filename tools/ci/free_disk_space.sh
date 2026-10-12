@@ -38,14 +38,19 @@ echo "Listing 100 largest packages"
 dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n | tail -n 100
 df -h
 echo "Removing large packages"
-sudo apt-get remove -y '^dotnet-.*'
-sudo apt-get remove -y '^llvm-.*'
-sudo apt-get remove -y 'php.*'
-sudo apt-get remove -y '^mongodb-.*'
-sudo apt-get remove -y '^mysql-.*'
-sudo apt-get remove -y azure-cli google-cloud-sdk hhvm google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri
-sudo apt-get autoremove -y
-sudo apt-get clean
+sudo apt-get remove -y '^dotnet-.*' || true
+sudo apt-get remove -y '^llvm-.*' || true
+sudo apt-get remove -y 'php.*' || true
+sudo apt-get remove -y '^mongodb-.*' || true
+sudo apt-get remove -y '^mysql-.*' || true
+sudo apt-get remove -y '^postgresql-.*' || true
+sudo apt-get remove -y '^g\+\+-.*' '^clang-.*' '^libclang-.*' || true
+sudo apt-get remove -y '^gfortran-.*' '^libruby.*' || true
+sudo apt-get remove -y temurin-8-jdk || true
+sudo apt-get remove -y '^libllvm.*' '^libclang1.*' snapd python3-botocore podman buildah skopeo mecab-ipadic gh git-lfs || true
+sudo apt-get remove -y azure-cli google-cloud-sdk google-chrome-stable google-cloud-cli firefox microsoft-edge-stable powershell mono-devel libgl1-mesa-dri || true
+sudo apt-get autoremove -y || true
+sudo apt-get clean || true
 df -h
 echo "Removing large directories"
 
@@ -77,6 +82,6 @@ echo "Pruning preloaded Docker images"
 # Flink restores its cached testcontainers images later in the pipeline, so the
 # preloaded base images shipped with the runner image can be removed here.
 if command -v docker >/dev/null 2>&1; then
-  sudo docker image prune --all --force || true
+  sudo docker system prune --all --force || true
 fi
 df -h

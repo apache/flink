@@ -80,8 +80,7 @@ public class ForStGeneralMultiGetOperation implements ForStDBOperation {
         for (List<ForStDBGetRequest<?, ?, ?, ?>> getRequests : splitRequests) {
             executor.execute(
                     () -> {
-                        try {
-                            ReadOptions readOptions = new ReadOptions();
+                        try (ReadOptions readOptions = new ReadOptions()) {
                             readOptions.setReadaheadSize(0);
                             List<byte[]> keys = new ArrayList<>(getRequests.size());
                             List<ColumnFamilyHandle> columnFamilyHandles =

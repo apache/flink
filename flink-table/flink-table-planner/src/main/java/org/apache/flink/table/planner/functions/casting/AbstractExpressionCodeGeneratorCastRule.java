@@ -132,6 +132,12 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
             }
 
             @Override
+            public String declareReusableObject(Object object, String fieldPrefix) {
+                throw new UnsupportedOperationException(
+                        "No reusable object can be declared when using AbstractExpressionCodeGeneratorCastRule. You should use AbstractCodeGeneratorCastRule instead.");
+            }
+
+            @Override
             public String declareClassField(String type, String field, String initialization) {
                 throw new UnsupportedOperationException(
                         "No class field can be declared when using AbstractExpressionCodeGeneratorCastRule. You should use AbstractCodeGeneratorCastRule instead.");

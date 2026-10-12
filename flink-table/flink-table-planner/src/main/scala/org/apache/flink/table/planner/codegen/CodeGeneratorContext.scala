@@ -161,6 +161,11 @@ class CodeGeneratorContext(
   // set of function instance term that will be added only once
   private val reusableFunctionTerms: mutable.HashSet[String] = mutable.HashSet[String]()
 
+  // UDF-metrics handle field terms keyed on UDF name. All call sites of the same function in one
+  // operator share a single UdfMetrics registration (one histogram + one counter), because
+  // registering the same metric name twice on a group is silently dropped.
+  private val reusableUdfMetricsTerms: mutable.Map[String, String] = mutable.Map[String, String]()
+
   // map of type serializer that will be added only once
   // LogicalType -> reused_term
   private val reusableTypeSerializers: mutable.Map[LogicalType, String] =
@@ -897,6 +902,33 @@ class CodeGeneratorContext(
     reusableCloseStatements.add(closeFunction)
 
     fieldTerm
+  }
+
+  /**
+   * Returns the member field term of the [[UdfMetrics]] handle for the given UDF name, registering
+   * it in the generated `open()` on first use. Subsequent calls for the same name return the cached
+   * term, so every call site of one function in an operator feeds a single histogram and counter.
+   *
+   * @param udfName
+   *   registered UDF identifier, used as the metric-group name under `<operator>.udf.<udfName>`
+   * @param sampleInterval
+   *   measure one invocation out of every `sampleInterval`
+   */
+  def addReusableUdfMetrics(udfName: String, sampleInterval: Int): String = {
+    reusableUdfMetricsTerms.getOrElseUpdate(
+      udfName, {
+        val fieldTerm = newName(this, "udfMetrics")
+        addReusableMember(
+          s"private transient org.apache.flink.table.runtime.operators.metrics.UdfMetrics $fieldTerm;")
+        val escapedName = EncodingUtils.escapeJava(udfName)
+        addReusableOpenStatement(
+          s"""
+             |$fieldTerm = org.apache.flink.table.runtime.operators.metrics.UdfMetrics.register(
+             |    getRuntimeContext().getMetricGroup(), "$escapedName", $sampleInterval);
+             |""".stripMargin)
+        fieldTerm
+      }
+    )
   }
 
   /**

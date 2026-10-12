@@ -200,25 +200,25 @@ import static org.apache.calcite.util.Util.first;
  *
  * <p>Lines 2729 ~ 2747, set the correct scope for VECTOR_SEARCH.
  *
- * <p>Lines 4320 ~ 4324, 7175 ~ 7181 Flink improves Optimize the retrieval of sub-operands in
+ * <p>Lines 4320 ~ 4324, 7183 ~ 7189 Flink improves Optimize the retrieval of sub-operands in
  * SqlCall when using NamedParameters at {@link SqlValidatorImpl#checkRollUp}.
  *
- * <p>Lines 5905 ~ 5911, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
+ * <p>Lines 5913 ~ 5919, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
  *
- * <p>Lines 6322-6337, CALCITE-7538 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 6330-6345, CALCITE-7538 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 6347-6349, CALCITE-7466 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 6355-6357, CALCITE-7466 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 6403-6405, CALCITE-7470 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 6411-6413, CALCITE-7470 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 7266-7274, Added in FLINK-39695 (backport of CALCITE-6764): propagate parent record
+ * <p>Lines 7274-7282, Added in FLINK-39695 (backport of CALCITE-6764): propagate parent record
  * nullability to nested fields.
  *
- * <p>Lines 8142-8165, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 8150-8173, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 8212-8229, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 8220-8237, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  *
- * <p>Lines 8274-8282, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
+ * <p>Lines 8282-8290, CALCITE-7486 should be removed after upgrading Calcite to 1.42.0.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
     // ~ Static fields/initializers ---------------------------------------------
@@ -5730,8 +5730,16 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             }
         } else if (query instanceof SqlUpdate) {
             SqlUpdate update = (SqlUpdate) query;
-            if (update.getSourceExpressionList() != null) {
-                return update.getSourceExpressionList().get(ordinal);
+            // FLINK MODIFICATION BEGIN
+            final SqlNodeList sourceExpressionList = update.getSourceExpressionList();
+            if (sourceExpressionList != null) {
+                // SET expressions occupy the last positions of the row type.
+                final int exprOrdinal = ordinal - (sourceCount - sourceExpressionList.size());
+                if (exprOrdinal < 0 || exprOrdinal >= sourceExpressionList.size()) {
+                    return query; // give up
+                }
+                return sourceExpressionList.get(exprOrdinal);
+                // FLINK MODIFICATION END
             } else {
                 return getNthExpr(
                         SqlNonNullableAccessors.getSourceSelect(update), ordinal, sourceCount);

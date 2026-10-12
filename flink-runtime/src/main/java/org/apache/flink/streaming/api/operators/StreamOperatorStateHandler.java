@@ -154,15 +154,8 @@ public class StreamOperatorStateHandler {
 
     public void dispose() throws Exception {
         try (Closer closer = Closer.create()) {
-            if (closeableRegistry.unregisterCloseable(operatorStateBackend)) {
-                closer.register(operatorStateBackend);
-            }
-            if (closeableRegistry.unregisterCloseable(keyedStateBackend)) {
-                closer.register(keyedStateBackend);
-            }
-            if (closeableRegistry.unregisterCloseable(asyncKeyedStateBackend)) {
-                closer.register(asyncKeyedStateBackend);
-            }
+            // The guava's closer will invoke these registered methods in reverse order of
+            // registration, so we register dispose before close here.
             if (operatorStateBackend != null) {
                 closer.register(operatorStateBackend::dispose);
             }
@@ -171,6 +164,15 @@ public class StreamOperatorStateHandler {
             }
             if (asyncKeyedStateBackend != null) {
                 closer.register(asyncKeyedStateBackend::dispose);
+            }
+            if (closeableRegistry.unregisterCloseable(operatorStateBackend)) {
+                closer.register(operatorStateBackend);
+            }
+            if (closeableRegistry.unregisterCloseable(keyedStateBackend)) {
+                closer.register(keyedStateBackend);
+            }
+            if (closeableRegistry.unregisterCloseable(asyncKeyedStateBackend)) {
+                closer.register(asyncKeyedStateBackend);
             }
         }
     }

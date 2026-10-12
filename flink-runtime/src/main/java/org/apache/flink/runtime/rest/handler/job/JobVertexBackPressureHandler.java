@@ -44,6 +44,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -114,8 +115,10 @@ public class JobVertexBackPressureHandler
         for (Map.Entry<Integer, SubtaskMetricStore> entry : subtaskMetricStores.entrySet()) {
             int subtaskIndex = entry.getKey();
             SubtaskMetricStore subtaskMetricStore = entry.getValue();
+            // Snapshot the live view over the concurrent attempts map so the size()/containsKey()/
+            // iterator()/get() calls below stay consistent if another thread mutates it.
             Map<Integer, ComponentMetricStore> allAttemptsMetricStores =
-                    subtaskMetricStore.getAllAttemptsMetricStores();
+                    new HashMap<>(subtaskMetricStore.getAllAttemptsMetricStores());
             if (allAttemptsMetricStores.isEmpty() || allAttemptsMetricStores.size() == 1) {
                 result.add(
                         createSubtaskAttemptBackpressureInfo(
@@ -126,7 +129,6 @@ public class JobVertexBackPressureHandler
                                 ? -1
                                 : representativeAttempts.getOrDefault(subtaskIndex, -1);
                 if (!allAttemptsMetricStores.containsKey(representativeAttempt)) {
-                    // allAttemptsMetricStores is not empty here
                     representativeAttempt = allAttemptsMetricStores.keySet().iterator().next();
                 }
                 List<SubtaskBackPressureInfo> otherConcurrentAttempts =

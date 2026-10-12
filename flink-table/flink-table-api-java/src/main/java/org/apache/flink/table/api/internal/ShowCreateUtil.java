@@ -436,7 +436,7 @@ public class ShowCreateUtil {
         return StringUtils.isEmpty(comment) ? Optional.empty() : Optional.of(comment);
     }
 
-    private static Map<String, String> withoutConnectionInternalOptions(
+    public static Map<String, String> withoutConnectionInternalOptions(
             Map<String, String> options) {
         return options.entrySet().stream()
                 .filter(

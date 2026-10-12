@@ -204,22 +204,22 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
 +- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])
    +- Exchange(distribution=[hash[b]])
       +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
 +- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])
    +- Exchange(distribution=[hash[b]])
       +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -272,14 +272,14 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
 +- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])
    +- Exchange(distribution=[hash[b]])
       +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
 +- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])
    +- Exchange(distribution=[hash[b]])
       +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -287,7 +287,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime]]], fields=[b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -340,7 +340,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
       +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
          +- Exchange(distribution=[hash[a, b]])
             +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Optimized Execution Plan ==
 HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
@@ -349,15 +349,15 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
       +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
          +- Exchange(distribution=[hash[a, b]])
             +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -421,7 +421,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
       +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
          +- Exchange(distribution=[hash[a, b]])
             +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Optimized Execution Plan ==
 HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
@@ -430,7 +430,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
       +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
          +- Exchange(distribution=[hash[a, b]])
             +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -438,7 +438,7 @@ HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1216,7 +1216,7 @@ Calc(select=[b, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
    +- Sort(orderBy=[b ASC, rowtime ASC])
       +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w0$o0 AS $1])
@@ -1224,15 +1224,15 @@ Calc(select=[b, w0$o0 AS $1])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, rowtime ASC])
          +- Exchange(distribution=[hash[b]])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1283,7 +1283,7 @@ Calc(select=[b, w0$o0 AS $1])
 +- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
    +- Sort(orderBy=[b ASC, rowtime ASC])
       +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w0$o0 AS $1])
@@ -1291,7 +1291,7 @@ Calc(select=[b, w0$o0 AS $1])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, rowtime ASC])
          +- Exchange(distribution=[hash[b]])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])
 
 == Physical Execution Plan ==
 {
@@ -1299,7 +1299,7 @@ Calc(select=[b, w0$o0 AS $1])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime]]], fields=[a, b, rowtime])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1351,7 +1351,7 @@ Calc(select=[a, w0$o0], where=[<=(w0$o0, a)])
 +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
    +- Sort(orderBy=[b ASC, a ASC])
       +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Optimized Execution Plan ==
 Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
@@ -1359,15 +1359,15 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a ASC])
          +- Exchange(distribution=[hash[b]])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1419,7 +1419,7 @@ Calc(select=[a, w0$o0], where=[<=(w0$o0, a)])
 +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
    +- Sort(orderBy=[b ASC, a ASC])
       +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Optimized Execution Plan ==
 Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
@@ -1427,7 +1427,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a ASC])
          +- Exchange(distribution=[hash[b]])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -1435,7 +1435,7 @@ Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1492,7 +1492,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
                   +- Exchange(distribution=[hash[a, b]])
                      +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
                         +- Sort(orderBy=[a ASC, b ASC])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Optimized Execution Plan ==
 SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
@@ -1509,15 +1509,15 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
                               +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
                                  +- Exchange(distribution=[forward])
                                     +- Sort(orderBy=[a ASC, b ASC])
-                                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+                                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1629,7 +1629,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
                   +- Exchange(distribution=[hash[a, b]])
                      +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
                         +- Sort(orderBy=[a ASC, b ASC])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Optimized Execution Plan ==
 SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
@@ -1646,7 +1646,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
                               +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
                                  +- Exchange(distribution=[forward])
                                     +- Sort(orderBy=[a ASC, b ASC])
-                                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+                                       +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -1654,7 +1654,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b]
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -1980,7 +1980,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
 +- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
    +- Sort(orderBy=[b ASC, rowtime ASC])
       +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a]]], fields=[b, rowtime, a])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
@@ -1988,15 +1988,15 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, rowtime ASC])
          +- Exchange(distribution=[hash[b]])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a]]], fields=[b, rowtime, a])
 
 == Physical Execution Plan ==
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])",
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a]]], fields=[b, rowtime, a])",
     "pact" : "Data Source",
-    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a]]], fields=[b, rowtime, a])",
     "parallelism" : 1
   }, {
     "id" : ,
@@ -2049,7 +2049,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
 +- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
    +- Sort(orderBy=[b ASC, rowtime ASC])
       +- Exchange(distribution=[hash[b]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a]]], fields=[b, rowtime, a])
 
 == Optimized Execution Plan ==
 Calc(select=[b, w$end AS window_end, EXPR$2])
@@ -2057,7 +2057,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, rowtime ASC])
          +- Exchange(distribution=[hash[b]])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a]]], fields=[b, rowtime, a])
 
 == Physical Execution Plan ==
 {
@@ -2065,7 +2065,7 @@ Calc(select=[b, w$end AS window_end, EXPR$2])
     "id" : ,
     "type" : "Source: MyTable[]",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a]]], fields=[b, rowtime, a])",
     "parallelism" : 1
   }, {
     "id" : ,

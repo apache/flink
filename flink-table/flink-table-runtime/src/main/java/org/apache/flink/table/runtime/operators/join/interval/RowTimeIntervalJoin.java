@@ -41,7 +41,8 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
             IntervalJoinFunction joinFunc,
             int leftTimeIdx,
             int rightTimeIdx,
-            long earlyFireDelay) {
+            long earlyFireDelay,
+            boolean earlyFireCrossDomain) {
         super(
                 joinType,
                 leftLowerBound,
@@ -51,7 +52,8 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
                 leftType,
                 rightType,
                 joinFunc,
-                earlyFireDelay);
+                earlyFireDelay,
+                earlyFireCrossDomain);
         this.leftTimeIdx = leftTimeIdx;
         this.rightTimeIdx = rightTimeIdx;
     }

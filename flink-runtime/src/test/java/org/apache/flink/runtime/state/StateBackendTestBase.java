@@ -1058,6 +1058,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             // ========== restore snapshot - should use default serializer (ONLY SERIALIZATION)
@@ -1093,6 +1094,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
             snapshot.discardState();
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             // ========= restore snapshot - should use default serializer (FAIL ON DESERIALIZATION)
@@ -1165,6 +1167,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             // ========== restore snapshot - should use specific serializer (ONLY SERIALIZATION)
@@ -1198,6 +1201,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
             snapshot.discardState();
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             // ========= restore snapshot - should use specific serializer (FAIL ON DESERIALIZATION)
@@ -1287,6 +1291,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             // ========== restore snapshot, with a different registration order in the configuration
@@ -1402,6 +1407,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             // ========== restore snapshot, with a different registration order in the configuration
@@ -1574,6 +1580,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     valueSerializer))
                     .isEqualTo("u3");
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
 
@@ -1609,6 +1616,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     valueSerializer))
                     .isEqualTo("2");
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
 
@@ -1863,6 +1871,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             backend =
                     restoreKeyedBackend(
@@ -1955,6 +1964,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
 
@@ -2104,6 +2114,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                             valueSerializer)))
                     .isEqualTo("u3");
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             // restore the first snapshot and validate it
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
@@ -2142,6 +2153,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                             valueSerializer)))
                     .isEqualTo("2");
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             // restore the second snapshot and validate it
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
@@ -2654,6 +2666,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     valueSerializer))
                     .isEqualTo("u3");
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             // restore the first snapshot and validate it
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
@@ -2689,6 +2702,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     valueSerializer))
                     .isEqualTo("2");
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             // restore the second snapshot and validate it
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2);
@@ -3512,6 +3526,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                 assertThat(entry.getValue().endsWith(updateSuffix)).isTrue();
             }
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             // restore the first snapshot and validate it
             backend = restoreKeyedBackend(StringSerializer.INSTANCE, snapshot1);
@@ -3560,6 +3575,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                 }
                             });
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             // restore the second snapshot and validate it
             backend = restoreKeyedBackend(StringSerializer.INSTANCE, snapshot2);
@@ -3946,6 +3962,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     streamFactory,
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             backend = restoreKeyedBackend(StringSerializer.INSTANCE, snapshot);
@@ -3959,6 +3976,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     streamFactory,
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             // we restore again and try to access previous state
@@ -4233,6 +4251,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             // restore the first snapshot and validate it
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
@@ -4291,6 +4310,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             // restore the first snapshot and validate it
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
@@ -4351,6 +4371,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             // restore the first snapshot and validate it
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
@@ -4413,6 +4434,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
             // restore the first snapshot and validate it
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot1);
@@ -4663,6 +4685,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
 
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             assertThat(
@@ -4716,6 +4739,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                     CheckpointOptions.forCheckpointWithDefaultLocation()),
                             sharedStateRegistry);
             assertThat(snapshot).isNull();
+            IOUtils.closeQuietly(backend);
             backend.dispose();
 
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot);
@@ -5337,7 +5361,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                                 // will fail here
                                 restoreState.value();
 
-                                restoreBackend.dispose();
                             } finally {
                                 if (restoreBackend != null) {
                                     IOUtils.closeQuietly(restoreBackend);

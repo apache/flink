@@ -19,6 +19,7 @@
 package org.apache.flink.fs.s3.common.token;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.security.token.DelegationTokenProvider;
@@ -87,22 +88,36 @@ public abstract class AbstractS3DelegationTokenProvider implements DelegationTok
     public ObtainedDelegationTokens obtainDelegationTokens() throws Exception {
         LOG.info("Obtaining session credentials token with access key: {}", accessKey);
 
-        AWSSecurityTokenService stsClient =
-                AWSSecurityTokenServiceClientBuilder.standard()
-                        .withRegion(region)
-                        .withCredentials(
-                                new AWSStaticCredentialsProvider(
-                                        new BasicAWSCredentials(accessKey, secretKey)))
-                        .build();
-        GetSessionTokenResult sessionTokenResult = stsClient.getSessionToken();
-        Credentials credentials = sessionTokenResult.getCredentials();
-        LOG.info(
-                "Session credentials obtained successfully with access key: {} expiration: {}",
-                credentials.getAccessKeyId(),
-                credentials.getExpiration());
+        final AWSSecurityTokenService stsClient = createStsClient();
+        try {
+            final GetSessionTokenResult sessionTokenResult = stsClient.getSessionToken();
+            final Credentials credentials = sessionTokenResult.getCredentials();
+            LOG.info(
+                    "Session credentials obtained successfully with access key: {} expiration: {}",
+                    credentials.getAccessKeyId(),
+                    credentials.getExpiration());
 
-        return new ObtainedDelegationTokens(
-                InstantiationUtil.serializeObject(credentials),
-                Optional.of(credentials.getExpiration().getTime()));
+            return new ObtainedDelegationTokens(
+                    InstantiationUtil.serializeObject(credentials),
+                    Optional.of(credentials.getExpiration().getTime()));
+        } finally {
+            // Shutdown is best effort, so a failure must not discard the obtained tokens or
+            // mask an acquisition failure.
+            try {
+                stsClient.shutdown();
+            } catch (RuntimeException e) {
+                LOG.warn("Failed to shut down STS client for {}", serviceName(), e);
+            }
+        }
+    }
+
+    @VisibleForTesting
+    AWSSecurityTokenService createStsClient() {
+        return AWSSecurityTokenServiceClientBuilder.standard()
+                .withRegion(region)
+                .withCredentials(
+                        new AWSStaticCredentialsProvider(
+                                new BasicAWSCredentials(accessKey, secretKey)))
+                .build();
     }
 }

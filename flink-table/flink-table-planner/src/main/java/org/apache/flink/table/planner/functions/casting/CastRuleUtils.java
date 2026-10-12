@@ -158,7 +158,7 @@ final class CastRuleUtils {
             case DOUBLE:
                 return staticCall(Double.class, "valueOf", term);
             case DISTINCT_TYPE:
-                box(term, ((DistinctType) type).getSourceType());
+                return box(term, ((DistinctType) type).getSourceType());
         }
         return term;
     }

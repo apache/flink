@@ -507,6 +507,8 @@ class UserDefinedFunctionWrapper(object):
                     return JPythonFunctionKind.GENERAL
                 elif self._func_type == "pandas":
                     return JPythonFunctionKind.PANDAS
+                elif self._func_type == "arrow":
+                    return JPythonFunctionKind.ARROW
                 else:
                     raise TypeError("Unsupported func_type: %s." % self._func_type)
 
@@ -760,10 +762,19 @@ def _get_python_env():
 
 
 def _create_udf(f, input_types, result_type, func_type, deterministic, name):
+    if func_type in ('pandas', 'arrow'):
+        target = f
+        while isinstance(target, functools.partial):
+            target = target.func
+        if isinstance(target, ScalarFunction):
+            target = target.eval
+        if inspect.iscoroutinefunction(target) or inspect.iscoroutinefunction(
+                getattr(target, '__call__', None)):
+            raise ValueError(f"Async scalar functions do not support {func_type} func_type.")
     if isinstance(f, AsyncScalarFunction) or inspect.iscoroutinefunction(f):
-        if func_type == 'pandas':
+        if func_type in ('pandas', 'arrow'):
             raise ValueError(
-                "Async scalar functions do not support pandas func_type. "
+                f"Async scalar functions do not support {func_type} func_type. "
                 "Please use func_type='general' (default) for async functions.")
         return UserDefinedAsyncScalarFunctionWrapper(
             f, input_types, result_type, func_type, deterministic, name)
@@ -838,16 +849,15 @@ def udf(f: Union[Callable, ScalarFunction, AsyncScalarFunction, Type] = None,
                           this function is guaranteed to always return the same result given the
                           same parameters. (default True)
     :param name: the function name.
-    :param func_type: the type of the python function, available value: general, pandas,
+    :param func_type: the type of the python function, available value: general, pandas, arrow,
                      (default: general)
     :return: UserDefinedScalarFunctionWrapper, UserDefinedAsyncScalarFunctionWrapper, or function.
 
     .. versionadded:: 1.10.0
     """
 
-    if func_type not in ('general', 'pandas'):
-        raise ValueError("The func_type must be one of 'general, pandas', got %s."
-                         % func_type)
+    if func_type not in ('general', 'pandas', 'arrow'):
+        raise ValueError(f"The func_type must be one of 'general, pandas, arrow', got {func_type}.")
 
     # decorator
     if f is None:

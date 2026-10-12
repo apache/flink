@@ -147,7 +147,6 @@ public class KubernetesConfigOptions {
             key("kubernetes.jobmanager.cpu.amount")
                     .doubleType()
                     .defaultValue(1.0)
-                    .withDeprecatedKeys("kubernetes.jobmanager.cpu")
                     .withDescription("The number of cpu used by job manager");
 
     public static final ConfigOption<Double> JOB_MANAGER_CPU_LIMIT_FACTOR =
@@ -170,7 +169,6 @@ public class KubernetesConfigOptions {
             key("kubernetes.taskmanager.cpu.amount")
                     .doubleType()
                     .defaultValue(-1.0)
-                    .withDeprecatedKeys("kubernetes.taskmanager.cpu")
                     .withDescription(
                             "The number of cpu used by task manager. By default, the cpu is set "
                                     + "to the number of slots per TaskManager");
@@ -275,7 +273,6 @@ public class KubernetesConfigOptions {
             key("kubernetes.container.image.ref")
                     .stringType()
                     .defaultValue(getDefaultFlinkImage())
-                    .withDeprecatedKeys("kubernetes.container.image")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -725,10 +722,7 @@ public class KubernetesConfigOptions {
 
     static {
         final ConfigOption<String> defaultPodTemplate =
-                key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".default")
-                        .stringType()
-                        .noDefaultValue()
-                        .withDeprecatedKeys(KUBERNETES_POD_TEMPLATE_FILE_KEY);
+                key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".default").stringType().noDefaultValue();
 
         JOB_MANAGER_POD_TEMPLATE =
                 key(KUBERNETES_POD_TEMPLATE_FILE_KEY + ".jobmanager")

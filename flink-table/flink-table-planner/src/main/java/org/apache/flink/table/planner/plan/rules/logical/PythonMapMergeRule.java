@@ -32,6 +32,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -87,8 +88,11 @@ public class PythonMapMergeRule extends RelOptRule {
         }
 
         // only Python functions with same Python function kind can be merged together.
-        if (PythonUtil.isPythonCall(topProjects.get(0), PythonFunctionKind.GENERAL)
-                ^ PythonUtil.isPythonCall(bottomProjects.get(0), PythonFunctionKind.GENERAL)) {
+        if (Arrays.stream(PythonFunctionKind.values())
+                .noneMatch(
+                        kind ->
+                                PythonUtil.isPythonCall(topProjects.get(0), kind)
+                                        && PythonUtil.isPythonCall(bottomProjects.get(0), kind))) {
             return false;
         }
 

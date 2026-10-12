@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
@@ -27,14 +25,6 @@ import java.util.List;
 
 /** Semantic tests for the built-in FROM_CHANGELOG process table function. */
 public class FromChangelogSemanticTests extends SemanticTestBase {
-
-    @Override
-    protected void applyDefaultEnvironmentOptions(TableConfig config) {
-        super.applyDefaultEnvironmentOptions(config);
-        config.set(
-                OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
-                OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE);
-    }
 
     @Override
     public List<TableTestProgram> programs() {

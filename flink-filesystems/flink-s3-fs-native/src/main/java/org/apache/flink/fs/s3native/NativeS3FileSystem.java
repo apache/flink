@@ -205,7 +205,7 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public FileStatus getFileStatus(Path path) throws IOException {
         checkNotClosed();
-        final String key = NativeS3ObjectOperations.extractKey(path);
+        final String key = S3UriUtils.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
 
         LOG.debug("Getting file status for s3://{}/{}", bucketName, key);
@@ -304,7 +304,7 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public FSDataInputStream open(Path path, int bufferSize) throws IOException {
         checkNotClosed();
-        final String key = NativeS3ObjectOperations.extractKey(path);
+        final String key = S3UriUtils.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
         final long fileSize = getFileStatus(path).getLen();
         return new NativeS3InputStream(s3Client, bucketName, key, fileSize, bufferSize);
@@ -313,7 +313,7 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public FSDataInputStream open(Path path) throws IOException {
         checkNotClosed();
-        final String key = NativeS3ObjectOperations.extractKey(path);
+        final String key = S3UriUtils.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
         final long fileSize = getFileStatus(path).getLen();
         return new NativeS3InputStream(s3Client, bucketName, key, fileSize, readBufferSize);
@@ -337,7 +337,7 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public FileStatus[] listStatus(Path path) throws IOException {
         checkNotClosed();
-        String key = NativeS3ObjectOperations.extractKey(path);
+        String key = S3UriUtils.extractKey(path);
         if (!key.isEmpty() && !key.endsWith("/")) {
             key = key + "/";
         }
@@ -384,7 +384,7 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public boolean delete(Path path, boolean recursive) throws IOException {
         checkNotClosed();
-        final String key = NativeS3ObjectOperations.extractKey(path);
+        final String key = S3UriUtils.extractKey(path);
         final S3Client s3Client = clientProvider.getS3Client();
 
         try {
@@ -452,7 +452,7 @@ class NativeS3FileSystem extends FileSystem
             }
         }
 
-        final String key = NativeS3ObjectOperations.extractKey(path);
+        final String key = S3UriUtils.extractKey(path);
         return new NativeS3OutputStream(
                 clientProvider.getS3Client(),
                 bucketName,
@@ -471,8 +471,8 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public boolean rename(Path src, Path dst) throws IOException {
         checkNotClosed();
-        final String srcKey = NativeS3ObjectOperations.extractKey(src);
-        final String dstKey = NativeS3ObjectOperations.extractKey(dst);
+        final String srcKey = S3UriUtils.extractKey(src);
+        final String dstKey = S3UriUtils.extractKey(dst);
         final S3Client s3Client = clientProvider.getS3Client();
 
         final FileStatus srcStatus = getFileStatus(src);
@@ -519,8 +519,8 @@ class NativeS3FileSystem extends FileSystem
     @Override
     public boolean canCopyPaths(Path source, Path destination) {
         return bulkCopyHelper != null
-                && NativeS3BulkCopyHelper.isSupportedS3Scheme(source)
-                && NativeS3BulkCopyHelper.isSupportedLocalScheme(destination);
+                && S3UriUtils.isSupportedS3Scheme(source)
+                && S3UriUtils.isSupportedLocalScheme(destination);
     }
 
     @Override

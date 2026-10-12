@@ -131,6 +131,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         final SocketAddress remoteAddr = ctx.channel().remoteAddress();
+        final SocketAddress localAddr = ctx.channel().localAddress();
 
         notifyAllChannelsOfErrorAndClose(
                 new RemoteTransportException(
@@ -139,7 +140,9 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                                 + " [ "
                                 + connectionID.getResourceID().getStringWithMetadata()
                                 + " ] "
-                                + "'. "
+                                + "' (local address: '"
+                                + localAddr
+                                + "'). "
                                 + "This might indicate that the remote task manager was lost.",
                         remoteAddr));
 
@@ -157,6 +160,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             notifyAllChannelsOfErrorAndClose(cause);
         } else {
             final SocketAddress remoteAddr = ctx.channel().remoteAddress();
+            final SocketAddress localAddr = ctx.channel().localAddress();
 
             final TransportException tex;
 
@@ -170,12 +174,13 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                                         + " [ "
                                         + connectionID.getResourceID().getStringWithMetadata()
                                         + " ] "
-                                        + "'. "
+                                        + "' (local address: '"
+                                        + localAddr
+                                        + "'). "
                                         + "This indicates that the remote task manager was lost.",
                                 remoteAddr,
                                 cause);
             } else {
-                final SocketAddress localAddr = ctx.channel().localAddress();
                 tex =
                         new LocalTransportException(
                                 String.format(

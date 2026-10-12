@@ -565,11 +565,23 @@ class ExprCodeGenerator(
    *   - `CASE(when_1, then_1, when_2, then_2, ..., else)`: only `when_1` is unconditional.
    *   - `AND(a_0, a_1, ..., a_n)` / `OR(...)`: only `a_0` is unconditional; subsequent operands are
    *     short-circuited by the operator semantics and the codegen.
+   *   - `IF(cond, then, else)`: only `cond` is unconditional; `IfCallGen` guards `then`/`else`.
+   *   - `COALESCE(v_0, ..., v_n)` / `IFNULL(input, null_replacement)`: only `v_0` / `input` is
+   *     unconditional; `generateCoalesce` guards the rest.
    */
   private def conditionalOperandIndices(call: RexCall): Set[Int] = call.getKind match {
     case SqlKind.CASE | SqlKind.AND | SqlKind.OR | SqlKind.COALESCE =>
       (1 until call.getOperands.size).toSet
+    case SqlKind.OTHER_FUNCTION if call.getOperator == IF || isCoalesceLike(call.getOperator) =>
+      (1 until call.getOperands.size).toSet
     case _ => Set.empty
+  }
+
+  private def isCoalesceLike(operator: SqlOperator): Boolean = operator match {
+    case bsf: BridgingSqlFunction =>
+      bsf.getDefinition == BuiltInFunctionDefinitions.COALESCE ||
+      bsf.getDefinition == BuiltInFunctionDefinitions.IF_NULL
+    case _ => false
   }
 
   private def visitOperandInScopedCache(operand: RexNode): GeneratedExpression = {
@@ -968,7 +980,7 @@ class ExprCodeGenerator(
           case BuiltInFunctionDefinitions.REGEXP_REPLACE =>
             StringCallGen.generateRegexpReplace(ctx, operands, resultType)
 
-          case BuiltInFunctionDefinitions.COALESCE =>
+          case BuiltInFunctionDefinitions.COALESCE | BuiltInFunctionDefinitions.IF_NULL =>
             generateCoalesce(ctx, operands, resultType)
 
           case _ =>

@@ -36,6 +36,7 @@ jobs:
     # See also https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace
 
   steps:
+  - template: checkout-single-branch.yml
   # if on Azure, free up disk space
   - script: ./tools/ci/free_disk_space.sh
     target: host
@@ -90,6 +91,7 @@ jobs:
   workspace:
     clean: all
   steps:
+  - template: checkout-single-branch.yml
   # if on Azure, free up disk space
   - script: ./tools/ci/free_disk_space.sh
     target: host
@@ -135,6 +137,7 @@ jobs:
       misc:
         module: misc
   steps:
+  - template: checkout-single-branch.yml
   # if on Azure, free up disk space
   - script: ./tools/ci/free_disk_space.sh
     target: host

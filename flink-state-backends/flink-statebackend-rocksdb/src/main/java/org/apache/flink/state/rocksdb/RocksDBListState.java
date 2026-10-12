@@ -22,7 +22,9 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -200,6 +202,7 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
             DataInputDeserializer serializedOldValueInput,
             DataOutputSerializer serializedMigratedValueOutput,
             TypeSerializer<List<V>> priorSerializer,
+            @Nullable TypeSerializerSnapshot<List<V>> priorSerializerSnapshot,
             TypeSerializer<List<V>> newSerializer,
             TtlTimeProvider ttlTimeProvider)
             throws StateMigrationException {
@@ -214,11 +217,29 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
         TtlAwareSerializer<V, ?> newTtlAwareElementSerializer =
                 ((TtlAwareSerializer.TtlAwareListSerializer<V>) newSerializer)
                         .getElementSerializer();
+        // Descend the persisted snapshot the same way as the serializer, so element migration
+        // sees the schema the elements were written with. A state that carries no persisted
+        // snapshot leaves this null, and the element migration re-derives one instead.
+        TypeSerializerSnapshot<V> priorElementSerializerSnapshot = null;
+        if (priorSerializerSnapshot != null) {
+            // Thrown rather than checked through Preconditions: this method runs once per state
+            // entry, so the message must not be built while the check is passing.
+            if (!(priorSerializerSnapshot instanceof ListSerializerSnapshot)) {
+                throw new IllegalArgumentException(
+                        "The previous serializer snapshot of a list state should be a ListSerializerSnapshot, but was "
+                                + priorSerializerSnapshot.getClass().getName()
+                                + ".");
+            }
+            priorElementSerializerSnapshot =
+                    ((ListSerializerSnapshot<V>) priorSerializerSnapshot)
+                            .getElementSerializerSnapshot();
+        }
 
         try {
             while (serializedOldValueInput.available() > 0) {
                 newTtlAwareElementSerializer.migrateValueFromPriorSerializer(
                         priorTtlAwareElementSerializer,
+                        priorElementSerializerSnapshot,
                         () ->
                                 ListDelimitedSerializer.deserializeNextElement(
                                         serializedOldValueInput, priorTtlAwareElementSerializer),

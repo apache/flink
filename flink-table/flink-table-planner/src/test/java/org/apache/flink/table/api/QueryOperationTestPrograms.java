@@ -40,6 +40,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -1877,5 +1878,89 @@ public class QueryOperationTestPrograms {
                                                     .asArgument("r"),
                                             lit(1).asArgument("i")),
                             "sink")
+                    .build();
+
+    private static final String SNAPSHOT_PROBE_DDL =
+            "CREATE TABLE probe (pk STRING, pv INT, pts TIMESTAMP(3), WATERMARK FOR pts AS pts)"
+                    + " WITH ('connector' = 'values', 'bounded' = 'false')";
+
+    private static final String SNAPSHOT_BUILD_DDL =
+            "CREATE TABLE b (bk STRING, bv INT, bts TIMESTAMP(3), WATERMARK FOR bts AS bts)"
+                    + " WITH ('connector' = 'values', 'bounded' = 'false',"
+                    + " 'changelog-mode' = 'I,UB,UA,D')";
+
+    private static ApiExpression snapshotLoadCompletedTime() {
+        return lit(LocalDateTime.parse("2026-07-01T00:00:00")).cast(DataTypes.TIMESTAMP_LTZ(3));
+    }
+
+    static final TableTestProgram SNAPSHOT_INNER_JOIN =
+            TableTestProgram.of(
+                            "lateral-snapshot-inner-join-serialization",
+                            "verifies SQL serialization of a LATERAL SNAPSHOT inner join")
+                    .setupSql(SNAPSHOT_PROBE_DDL)
+                    .setupSql(SNAPSHOT_BUILD_DDL)
+                    .runTableApi(
+                            env ->
+                                    env.from("probe")
+                                            .joinLateral(
+                                                    call(
+                                                            "SNAPSHOT",
+                                                            env.from("b").asArgument("input"),
+                                                            descriptor("bts")
+                                                                    .asArgument("on_time")),
+                                                    $("pk").isEqual($("bk")))
+                                            .select($("pk"), $("pv"), $("bk"), $("bv")),
+                            "sink")
+                    .runSql(
+                            "SELECT `$$T_PROJECT`.`pk`, `$$T_PROJECT`.`pv`, `$$T_PROJECT`.`bk`, `$$T_PROJECT`.`bv` FROM (\n"
+                                    + "    SELECT `$$T1_JOIN`.`pk`, `$$T1_JOIN`.`pv`, `$$T1_JOIN`.`pts`, `$$T_LAT`.`bk`, `$$T_LAT`.`bv`, `$$T_LAT`.`bts` FROM (\n"
+                                    + "        SELECT `$$T_SOURCE`.`pk`, `$$T_SOURCE`.`pv`, `$$T_SOURCE`.`pts` FROM `default_catalog`.`default_database`.`probe` $$T_SOURCE\n"
+                                    + "    ) $$T1_JOIN INNER JOIN \n"
+                                    + "        LATERAL TABLE(SNAPSHOT((\n"
+                                    + "            SELECT `$$T_SOURCE`.`bk`, `$$T_SOURCE`.`bv`, `$$T_SOURCE`.`bts` FROM `default_catalog`.`default_database`.`b` $$T_SOURCE\n"
+                                    + "        ), DESCRIPTOR(`bts`), DEFAULT, DEFAULT, DEFAULT)) $$T_LAT(`bk`, `bv`, `bts`) ON `$$T1_JOIN`.`pk` = `$$T_LAT`.`bk`\n"
+                                    + ") $$T_PROJECT")
+                    .build();
+
+    static final TableTestProgram SNAPSHOT_LEFT_JOIN =
+            TableTestProgram.of(
+                            "lateral-snapshot-left-join-serialization",
+                            "verifies SQL serialization of a LATERAL SNAPSHOT left outer join with a "
+                                    + "filtered build side and all optional arguments passed as "
+                                    + "scrambled named arguments")
+                    .setupSql(SNAPSHOT_PROBE_DDL)
+                    .setupSql(SNAPSHOT_BUILD_DDL)
+                    .runTableApi(
+                            env ->
+                                    env.from("probe")
+                                            .leftOuterJoinLateral(
+                                                    call(
+                                                            "SNAPSHOT",
+                                                            snapshotLoadCompletedTime()
+                                                                    .asArgument(
+                                                                            "load_completed_time"),
+                                                            lit(Duration.ofDays(1))
+                                                                    .asArgument("state_ttl"),
+                                                            descriptor("bts").asArgument("on_time"),
+                                                            lit(Duration.ofSeconds(10))
+                                                                    .asArgument(
+                                                                            "load_completed_idle_timeout"),
+                                                            env.from("b")
+                                                                    .filter($("bv").isGreater(10))
+                                                                    .asArgument("input")),
+                                                    $("pk").isEqual($("bk")))
+                                            .select($("pk"), $("pv"), $("bk"), $("bv")),
+                            "sink")
+                    .runSql(
+                            "SELECT `$$T_PROJECT`.`pk`, `$$T_PROJECT`.`pv`, `$$T_PROJECT`.`bk`, `$$T_PROJECT`.`bv` FROM (\n"
+                                    + "    SELECT `$$T1_JOIN`.`pk`, `$$T1_JOIN`.`pv`, `$$T1_JOIN`.`pts`, `$$T_LAT`.`bk`, `$$T_LAT`.`bv`, `$$T_LAT`.`bts` FROM (\n"
+                                    + "        SELECT `$$T_SOURCE`.`pk`, `$$T_SOURCE`.`pv`, `$$T_SOURCE`.`pts` FROM `default_catalog`.`default_database`.`probe` $$T_SOURCE\n"
+                                    + "    ) $$T1_JOIN LEFT OUTER JOIN \n"
+                                    + "        LATERAL TABLE(SNAPSHOT((\n"
+                                    + "            SELECT `$$T_FILTER`.`bk`, `$$T_FILTER`.`bv`, `$$T_FILTER`.`bts` FROM (\n"
+                                    + "                SELECT `$$T_SOURCE`.`bk`, `$$T_SOURCE`.`bv`, `$$T_SOURCE`.`bts` FROM `default_catalog`.`default_database`.`b` $$T_SOURCE\n"
+                                    + "            ) $$T_FILTER WHERE `$$T_FILTER`.`bv` > 10\n"
+                                    + "        ), DESCRIPTOR(`bts`), CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP(3) WITH LOCAL TIME ZONE), INTERVAL '0 00:00:10' DAY(1) TO SECOND(0), INTERVAL '1 00:00:00' DAY(1) TO SECOND(0))) $$T_LAT(`bk`, `bv`, `bts`) ON `$$T1_JOIN`.`pk` = `$$T_LAT`.`bk`\n"
+                                    + ") $$T_PROJECT")
                     .build();
 }

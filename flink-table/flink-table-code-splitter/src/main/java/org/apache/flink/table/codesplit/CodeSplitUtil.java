@@ -29,14 +29,20 @@ import java.util.concurrent.atomic.AtomicLong;
 @Internal
 public class CodeSplitUtil {
 
-    private static final AtomicLong COUNTER = new AtomicLong(0L);
+    // Per-thread, reset per split() run, so identical input yields identical names.
+    private static final ThreadLocal<AtomicLong> COUNTER =
+            ThreadLocal.withInitial(() -> new AtomicLong(0L));
 
     public static AtomicLong getCounter() {
-        return COUNTER;
+        return COUNTER.get();
     }
 
     public static String newName(String name) {
-        return name + "$" + COUNTER.getAndIncrement();
+        return name + "$" + COUNTER.get().getAndIncrement();
+    }
+
+    public static void reset() {
+        COUNTER.get().set(0L);
     }
 
     public static String getContextString(ParserRuleContext ctx) {

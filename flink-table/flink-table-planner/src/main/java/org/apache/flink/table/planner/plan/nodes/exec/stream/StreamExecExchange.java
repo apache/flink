@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -116,6 +117,11 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
                 partitioner =
                         new KeyGroupStreamPartitioner<>(
                                 keySelector, DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
+                parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+                break;
+            case BROADCAST:
+                // Used for broadcast side inputs of process table functions.
+                partitioner = new BroadcastPartitioner<>();
                 parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
                 break;
             default:

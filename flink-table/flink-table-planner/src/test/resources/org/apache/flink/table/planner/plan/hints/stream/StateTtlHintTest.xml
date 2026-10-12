@@ -112,7 +112,7 @@ Calc(select=[EXPR$0])
             :- Exchange(distribution=[hash[a1]])
             :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
             +- Exchange(distribution=[hash[a2]])
-               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2]]], fields=[a2])
 ]]>
     </Resource>
   </TestCase>
@@ -140,7 +140,7 @@ Calc(select=[EXPR$0])
             :- Exchange(distribution=[hash[a1]])
             :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
             +- Exchange(distribution=[hash[a2]])
-               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2]]], fields=[a2])
 ]]>
     </Resource>
   </TestCase>
@@ -217,15 +217,15 @@ LogicalProject(a1=[$0], b1=[$1])
 Calc(select=[a1, b1])
 +- Join(joinType=[InnerJoin], where=[=(a1, a10)], select=[a1, b1, a10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=1d}]]])
    :- Exchange(distribution=[hash[a1]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1]]], fields=[a1, b1])
    +- Exchange(distribution=[hash[a1]])
       +- Calc(select=[a1])
          +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
             :- Exchange(distribution=[hash[a1]])
             :  +- Calc(select=[a1])
-            :     +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1]]], fields=[a1, b1])
             +- Exchange(distribution=[hash[a2]])
-               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2]]], fields=[a2])
 ]]>
     </Resource>
   </TestCase>
@@ -249,15 +249,15 @@ LogicalProject(a1=[$0], b1=[$1])
 Calc(select=[a1, b1])
 +- Join(joinType=[InnerJoin], where=[=(a1, a10)], select=[a1, b1, a10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1]]], fields=[a1, b1])
    +- Exchange(distribution=[hash[a1]])
       +- Calc(select=[a1])
          +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=2d}]]])
             :- Exchange(distribution=[hash[a1]])
             :  +- Calc(select=[a1])
-            :     +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1], metadata=[]]], fields=[a1, b1])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1, b1]]], fields=[a1, b1])
             +- Exchange(distribution=[hash[a2]])
-               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
+               +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2]]], fields=[a2])
 ]]>
     </Resource>
   </TestCase>
@@ -305,7 +305,7 @@ GroupAggregate(groupBy=[b1], select=[b1, SUM(a1) AS EXPR$1])
          :- Exchange(distribution=[hash[b1]])
          :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
          +- Exchange(distribution=[hash[b2]])
-            +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[b2], metadata=[]]], fields=[b2])
+            +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[b2]]], fields=[b2])
 ]]>
     </Resource>
   </TestCase>
@@ -400,7 +400,7 @@ LogicalProject(EXPR$0=[$1])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[a1], select=[a1, COUNT(*) AS EXPR$0], stateTtlHints=[[[STATE_TTL options:[2d]]]])
    +- Exchange(distribution=[hash[a1]])
-      +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1]]], fields=[a1])
 ]]>
     </Resource>
   </TestCase>
@@ -421,7 +421,7 @@ LogicalProject(EXPR$0=[$1])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[a1], select=[a1, COUNT(*) AS EXPR$0], stateTtlHints=[[[STATE_TTL options:[2d]]]])
    +- Exchange(distribution=[hash[a1]])
-      +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1]]], fields=[a1])
 ]]>
     </Resource>
   </TestCase>
@@ -464,7 +464,7 @@ LogicalProject(EXPR$0=[$1])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[a1], select=[a1, COUNT(*) AS EXPR$0], stateTtlHints=[[[STATE_TTL options:[8d]]]])
    +- Exchange(distribution=[hash[a1]])
-      +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1], metadata=[]]], fields=[a1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1, project=[a1]]], fields=[a1])
 ]]>
     </Resource>
   </TestCase>
@@ -490,7 +490,7 @@ GroupAggregate(groupBy=[b1], select=[b1, SUM(a1) AS EXPR$1])
          :- Exchange(distribution=[hash[b1]])
          :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
          +- Exchange(distribution=[hash[b2]])
-            +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[b2], metadata=[]]], fields=[b2])
+            +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[b2]]], fields=[b2])
 ]]>
     </Resource>
   </TestCase>
@@ -529,7 +529,7 @@ Calc(select=[a, b, c])
             +- Calc(select=[b], where=[IS NOT NULL(b)])
                +- WatermarkAssigner(rowtime=[d], watermark=[-(d, 5000:INTERVAL SECOND)])
                   +- Calc(select=[b, +(c.c1, 5000:INTERVAL SECOND) AS d])
-                     +- TableSourceScan(table=[[default_catalog, default_database, tableWithWatermark2, project=[b, c], metadata=[]]], fields=[b, c])
+                     +- TableSourceScan(table=[[default_catalog, default_database, tableWithWatermark2, project=[b, c]]], fields=[b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -568,7 +568,7 @@ Calc(select=[a, b, c])
             +- Calc(select=[b], where=[IS NOT NULL(b)])
                +- WatermarkAssigner(rowtime=[d], watermark=[-(d, 5000:INTERVAL SECOND)])
                   +- Calc(select=[b, +(c.c1, 5000:INTERVAL SECOND) AS d])
-                     +- TableSourceScan(table=[[default_catalog, default_database, tableWithWatermark2, project=[b, c], metadata=[]]], fields=[b, c])
+                     +- TableSourceScan(table=[[default_catalog, default_database, tableWithWatermark2, project=[b, c]]], fields=[b, c])
 ]]>
     </Resource>
   </TestCase>

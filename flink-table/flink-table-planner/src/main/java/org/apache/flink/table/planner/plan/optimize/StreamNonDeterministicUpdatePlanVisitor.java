@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalD
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExpand;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalGroupAggregateBase;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLateralSnapshotJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLegacySink;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLegacyTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLimit;
@@ -630,6 +631,10 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             throwNonDeterministicConditionError(
                     ndCall.get(), join.getCondition(), (StreamPhysicalRel) join);
         }
+        // The LATERAL SNAPSHOT join keys its build (right) state by the complete build row, so
+        // build retractions are matched by exact row equality. A unique key offers no protection
+        // here: every build column must be deterministic whenever the build side can update.
+        boolean forceRightWholeRowDeterminism = join instanceof StreamPhysicalLateralSnapshotJoin;
         int leftFieldCnt = leftRel.getRowType().getFieldCount();
         StreamPhysicalRel newLeft =
                 visitJoinChild(
@@ -641,7 +646,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                         join.joinSpec().getLeftKeys(),
                         // TODO remove this conversion when scala-free was total done.
                         scala.collection.JavaConverters.seqAsJavaList(
-                                join.getUpsertKeys(leftRel, join.joinSpec().getLeftKeys())));
+                                join.getUpsertKeys(leftRel, join.joinSpec().getLeftKeys())),
+                        false);
         StreamPhysicalRel newRight =
                 visitJoinChild(
                         requireDeterminism,
@@ -652,7 +658,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                         join.joinSpec().getRightKeys(),
                         // TODO remove this conversion when scala-free was total done.
                         scala.collection.JavaConverters.seqAsJavaList(
-                                join.getUpsertKeys(rightRel, join.joinSpec().getRightKeys())));
+                                join.getUpsertKeys(rightRel, join.joinSpec().getRightKeys())),
+                        forceRightWholeRowDeterminism);
 
         return (StreamPhysicalRel)
                 join.copy(
@@ -930,7 +937,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             final int leftFieldCnt,
             final boolean isLeft,
             final int[] joinKeys,
-            final List<int[]> inputUniqueKeys) {
+            final List<int[]> inputUniqueKeys,
+            final boolean forceWholeRowDeterminism) {
         JoinInputSideSpec joinInputSideSpec =
                 JoinUtil.analyzeJoinInput(
                         ShortcutUtils.unwrapClassLoader(rel),
@@ -939,7 +947,11 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                         inputUniqueKeys);
         ImmutableBitSet inputRequireDeterminism;
         if (inputHasUpdate) {
-            if (joinInputSideSpec.hasUniqueKey() || joinInputSideSpec.joinKeyContainsUniqueKey()) {
+            if (forceWholeRowDeterminism) {
+                // the operator retracts by the whole input row regardless of any unique key
+                inputRequireDeterminism = ImmutableBitSet.range(rel.getRowType().getFieldCount());
+            } else if (joinInputSideSpec.hasUniqueKey()
+                    || joinInputSideSpec.joinKeyContainsUniqueKey()) {
                 // join hasUniqueKey or joinKeyContainsUniqueKey, then transmit corresponding
                 // requirement to input
                 if (isLeft) {
