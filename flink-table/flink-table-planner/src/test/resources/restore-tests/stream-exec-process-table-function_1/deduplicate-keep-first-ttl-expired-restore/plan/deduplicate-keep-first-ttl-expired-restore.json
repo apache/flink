@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.4",
   "nodes" : [ {
-    "id" : 1,
+    "id" : 10,
     "type" : "stream-exec-table-source-scan_2",
     "scanTableSource" : {
       "table" : {
@@ -22,7 +22,7 @@
     "outputType" : "ROW<`user_name` VARCHAR(2147483647), `action` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, user_events]], fields=[user_name, action])"
   }, {
-    "id" : 2,
+    "id" : 11,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -35,7 +35,7 @@
     "outputType" : "ROW<`user_name` VARCHAR(2147483647), `action` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_name]])"
   }, {
-    "id" : 3,
+    "id" : 12,
     "type" : "stream-exec-process-table-function_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -81,7 +81,7 @@
     "outputChangelogMode" : [ "INSERT" ],
     "inputUpsertKeys" : [ [ ] ]
   }, {
-    "id" : 4,
+    "id" : 13,
     "type" : "stream-exec-sink_2",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -107,6 +107,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
+    "upsertMaterializeStrategy" : "ADAPTIVE",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -118,22 +119,22 @@
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_name, action])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 10,
+    "target" : 11,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 3,
+    "source" : 11,
+    "target" : 12,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 4,
+    "source" : 12,
+    "target" : 13,
     "shuffle" : {
       "type" : "FORWARD"
     },

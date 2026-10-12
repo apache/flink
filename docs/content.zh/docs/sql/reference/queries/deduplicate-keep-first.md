@@ -26,11 +26,11 @@ under the License.
 
 {{< label Streaming >}}
 
-Flink SQL provides the `DEDUPLICATE_KEEP_FIRST` process table function (PTF) for removing duplicate rows while keeping only the **first** record per key. Its output is always **insert-only**, which makes it a concise, append-in / append-out alternative to the `ROW_NUMBER()` [deduplication]({{< ref "docs/sql/reference/queries/deduplication" >}}) pattern.
+Flink SQL provides the `DEDUPLICATE_KEEP_FIRST` process table function (PTF) for removing duplicate rows while keeping only the **first** record per key. Its output is always **insert-only**, which makes it a concise alternative to the `ROW_NUMBER()` [deduplication]({{< ref "docs/sql/reference/queries/deduplication" >}}) pattern with more configuration options.
 
 | Function | Description |
 |:---------|:------------|
-| [DEDUPLICATE_KEEP_FIRST](#deduplicate_keep_first) | Keeps the first record per key as an insert-only stream (first arrival, or earliest event time with `on_time`) |
+| [DEDUPLICATE_KEEP_FIRST](#deduplicate_keep_first) | Keeps the first record per key as an append-only table (first arrival, or earliest event time with `on_time`) |
 
 ## DEDUPLICATE_KEEP_FIRST
 
@@ -39,31 +39,35 @@ The `DEDUPLICATE_KEEP_FIRST` PTF keeps the first record per key and drops every 
 * **Processing time (default):** without `on_time`, the first record *observed* for a key is emitted; later records for that key are dropped while its state exists. This requires no watermark or event-time attribute.
 * **Event time:** with `on_time`, the record with the *smallest event time* per key is kept and emitted once the watermark makes the choice final. A record arriving later but carrying an earlier event time replaces the candidate before finalization; records that can no longer become the earliest are dropped as late.
 
-The input may be insert-only or updating; the output is insert-only in every case.
+The input may be an append-only or updating table; the output is append-only in every case.
 
 ### Syntax
 
 ```sql
 SELECT * FROM DEDUPLICATE_KEEP_FIRST(
-  input => TABLE source_table [PARTITION BY key_col [, key_col2 ...]],
-  [on_time => DESCRIPTOR(rowtime_column),]
+  input => TABLE source_table [PARTITION BY (key_col [, key_col2 ...])],
   [state_ttl => <interval>,]
-  [reset_ttl_on_duplicate => <boolean>]
+  [reset_ttl_on_duplicate => <boolean>,]
+  [on_time => DESCRIPTOR(rowtime_column),]
+  [uid => <string>]
 )
 ```
+
+`on_time` and `uid` are system arguments and always come last in the signature, which matters when arguments are passed by position.
 
 ### Parameters
 
 | Parameter | Required | Description |
 |:----------|:---------|:------------|
-| `input` | Yes | The input table (insert-only or updating). Use `PARTITION BY` to deduplicate per key; all rows for a key are routed to the same parallel instance. Without `PARTITION BY`, the whole input is a single group processed at parallelism 1, so only the first row of the entire stream is emitted and every later row is dropped regardless of its content. |
-| `on_time` | No | A `DESCRIPTOR` naming a single rowtime attribute. When provided, the row with the smallest event time per key is kept and emitted once the watermark passes that timestamp (late rows are dropped). When omitted, the function keeps the first row observed for a key (arrival order). Requires insert-only input; combining `on_time` with an updating input is rejected at planning time. |
-| `state_ttl` | No | An `INTERVAL` giving the processing-time retention for the per-key deduplication state. If omitted, falls back to `table.exec.state.ttl`, which retains state indefinitely at its default of 0. After a key's state expires, a later record for that key starts a new deduplication period and may be emitted again. `INTERVAL '0'` disables retention. |
+| `input` | Yes | The input table (append-only or updating). Use `PARTITION BY` to deduplicate per key; all rows for a key are routed to the same parallel instance. Without `PARTITION BY`, the whole input is a single group processed at parallelism 1, so only the first row of the entire stream is emitted and every later row is dropped regardless of its content. |
+| `state_ttl` | No | An `INTERVAL` giving the processing-time retention for the per-key deduplication state. After a key's state expires, a later record for that key starts a new deduplication period and may be emitted again. If omitted, falls back to `table.exec.state.ttl`; at its default of 0, state is retained indefinitely, but a retention can still be introduced later. `INTERVAL '0'` also retains state indefinitely, but excludes the TTL from the state layout, so a retention cannot be introduced later without losing the state. See [State TTL]({{< ref "docs/dev/table/functions/ptfs" >}}#state-ttl). |
 | `reset_ttl_on_duplicate` | No | Whether a later duplicate refreshes the key's `state_ttl`. Defaults to `TRUE`, so retention tracks the most recent occurrence of a key. Only meaningful when a TTL applies, whether set through `state_ttl` or inherited from `table.exec.state.ttl`. |
+| `on_time` | No | A `DESCRIPTOR` naming a single watermarked column. When provided, the row with the smallest event time per key is kept and emitted once the watermark passes that timestamp (late rows are dropped). When omitted, the function keeps the first row observed for a key (arrival order). Requires append-only input; combining `on_time` with an updating input is rejected at planning time. |
+| `uid` | No | A unique identifier for the function's state in checkpoints and savepoints. Defaults to the function name, so it is required when `DEDUPLICATE_KEEP_FIRST` is called more than once in the same job. See [Query Evolution with UIDs]({{< ref "docs/dev/table/functions/ptfs" >}}#query-evolution-with-uids). |
 
 ### Output Schema
 
-When `PARTITION BY` is used, the partition key columns are prepended to the output, followed by the remaining (non-key) input columns. In event-time mode a rowtime column is appended.
+When `PARTITION BY` is used, the partition key columns are prepended to the output, followed by the remaining (non-key) input columns. In event-time mode a rowtime column is appended for (potentially following) time-based operations.
 
 ```
 [partition_key_columns] + [remaining_input_columns]
@@ -88,23 +92,24 @@ SELECT * FROM DEDUPLICATE_KEEP_FIRST(
 
 The first row for `Vas` is emitted; the later `click` on the same key is dropped.
 
-#### Whole input, no PARTITION BY
+#### Exact duplicates (all columns as key)
 
 ```sql
 -- Input (append-only):
--- +I[user_name:'Vas',   action:'login']
--- +I[user_name:'Alice', action:'click']
--- +I[user_name:'Bob',   action:'view']
+-- +I[user_name:'Vas', action:'login']
+-- +I[user_name:'Vas', action:'login']
+-- +I[user_name:'Vas', action:'click']
 
 SELECT * FROM DEDUPLICATE_KEEP_FIRST(
-  input => TABLE user_events
+  input => TABLE user_events PARTITION BY (user_name, action)
 )
 
 -- Output (insert-only):
 -- +I[user_name:'Vas', action:'login']
+-- +I[user_name:'Vas', action:'click']
 ```
 
-Without `PARTITION BY` the whole input is a single group at parallelism 1, so only the first row of the entire stream is emitted; every later row is dropped regardless of its content.
+Partitioning by every column drops only exact duplicate rows while still distributing the work across parallel instances.
 
 #### Bounded state with state_ttl
 
@@ -165,7 +170,7 @@ SELECT * FROM DEDUPLICATE_KEEP_FIRST(
 -- +I[user_name:'Vas', action:'login']
 ```
 
-The input may be an updating changelog. `DEDUPLICATE_KEEP_FIRST` keeps the first `+I` or `+U` observed per key and swallows every later change to that key (duplicate, `-U`, `+U`, `-D`), so the output stays insert-only. A `-U` or `-D` for a key that has not been seen yet is ignored and does not mark the key as seen, so the next `+I` or `+U` for that key is still emitted. Event-time mode (`on_time`) is not supported with updating input.
+The input may be an [updating changelog]({{< ref "docs/dev/table/functions/ptfs" >}}#change-data-capture-basics) containing inserts (`+I`), update-befores (`-U`), update-afters (`+U`), and deletes (`-D`). `DEDUPLICATE_KEEP_FIRST` keeps the first `+I` or `+U` observed per key and swallows every later change to that key (duplicate, `-U`, `+U`, `-D`), so the output stays insert-only. A `-U` or `-D` for a key that has not been seen yet is ignored and does not mark the key as seen, so the next `+I` or `+U` for that key is still emitted. Event-time mode (`on_time`) is not supported with updating input.
 
 #### Table API
 
