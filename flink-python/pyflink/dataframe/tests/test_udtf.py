@@ -58,6 +58,18 @@ def _eval_udtf(declaration, *args):
 
 
 class DataFrameUDTFDeclarationTests(unittest.TestCase):
+    def test_missing_row_fields_remain_nullable_in_expression_results(self):
+        details = pf.DataType.struct({"label": pf.DataType.string()})
+        dtype = pf.DataType.struct({
+            "missing": pf.DataType.string(),
+            "details": details,
+            "items": pf.DataType.list(details),
+        })
+        declaration = pf.udtf(lambda value: [{"details": {}, "items": [{}]}],
+                              return_dtype=dtype)
+        self.assertEqual(_eval_udtf(declaration, 1), [
+            Row(missing=None, details=Row(label=None), items=[Row(label=None)])])
+
     def test_decorator_forms_and_type_inference(self):
         def emit(value) -> Iterator[_Output]:
             yield {"value": value, "label": "ok"}

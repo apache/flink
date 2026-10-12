@@ -73,6 +73,8 @@ Transformations
     DataFrame.rename_columns
     DataFrame.rename
     DataFrame.filter
+    DataFrame.map
+    DataFrame.map_batches
     DataFrame.where
     DataFrame.explode
     DataFrame.drop_duplicates

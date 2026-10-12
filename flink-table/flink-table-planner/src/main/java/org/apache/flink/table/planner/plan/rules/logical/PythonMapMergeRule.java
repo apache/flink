@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
+import org.apache.flink.table.planner.plan.utils.AsyncUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -84,6 +85,13 @@ public class PythonMapMergeRule extends RelOptRule {
 
         // top project is a map function which takes row as input
         if (!PythonUtil.takesRowAsInput((RexCall) topProjects.get(0))) {
+            return false;
+        }
+
+        // Async calls are split into separate operators. Removing the flatten calc would
+        // make a subsequent row-input function receive the enclosing row instead of its fields.
+        if (AsyncUtil.containsAsyncCall(topProjects.get(0))
+                || AsyncUtil.containsAsyncCall(bottomProjects.get(0))) {
             return false;
         }
 

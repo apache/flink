@@ -483,6 +483,7 @@ class UserDefinedFunctionWrapper(object):
         self._func_type = func_type
         self._judf_placeholder = None
         self._takes_row_as_input = False
+        self._returns_table_row = False
 
     def __call__(self, *args) -> Expression:
         from pyflink.table import expressions as expr
@@ -570,6 +571,7 @@ class UserDefinedScalarFunctionWrapper(UserDefinedFunctionWrapper):
             j_function_kind,
             self._deterministic,
             self._takes_row_as_input,
+            self._returns_table_row,
             _get_python_env())
         return j_scalar_function
 
@@ -609,6 +611,7 @@ class UserDefinedAsyncScalarFunctionWrapper(UserDefinedFunctionWrapper):
             j_function_kind,
             self._deterministic,
             self._takes_row_as_input,
+            self._returns_table_row,
             _get_python_env())
         return j_async_scalar_function
 

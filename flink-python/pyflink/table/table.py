@@ -34,7 +34,8 @@ from pyflink.table.table_schema import TableSchema
 from pyflink.table.catalog import ResolvedSchema
 from pyflink.table.types import create_arrow_schema
 from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
-    UserDefinedAggregateFunctionWrapper, UserDefinedTableFunctionWrapper
+    UserDefinedAggregateFunctionWrapper, UserDefinedTableFunctionWrapper, \
+    UserDefinedAsyncScalarFunctionWrapper
 from pyflink.table.utils import tz_convert_from_internal, to_expression_jarray
 from pyflink.table.window import OverWindow, GroupWindow
 
@@ -770,7 +771,11 @@ class Table(object):
         return Table(self._j_table.dropColumns(to_expression_jarray(fields)),
                      self._t_env)
 
-    def map(self, func: Union[Expression, UserDefinedScalarFunctionWrapper]) -> 'Table':
+    def map(
+        self,
+        func: Union[Expression, UserDefinedScalarFunctionWrapper,
+                    UserDefinedAsyncScalarFunctionWrapper],
+    ) -> 'Table':
         """
         Performs a map operation with a user-defined scalar function.
 

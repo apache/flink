@@ -534,6 +534,8 @@ message CoderInfoDescriptor {
       ARROW = 1;
     }
     BatchFormat batch_format = 2;
+    // The sole output field is a result ROW containing physical table columns.
+    bool returns_table_row = 3;
   }
 
   // only used in batch over window
