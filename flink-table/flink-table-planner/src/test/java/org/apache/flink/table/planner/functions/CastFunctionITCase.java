@@ -518,6 +518,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(CAST(f5 AS VARIANT) AS TIMESTAMP_LTZ(3))",
                                 instant,
                                 TIMESTAMP_LTZ(3))
+                        // a TIMESTAMP_LTZ renders as a string in the session time zone
+                        .testResult(
+                                $("f5").cast(VARIANT()).cast(STRING()),
+                                "CAST(CAST(f5 AS VARIANT) AS STRING)",
+                                "2026-09-25 18:15:30.123000",
+                                STRING())
                         .testResult(
                                 $("f6").cast(VARIANT()).cast(UUID()),
                                 "CAST(CAST(f6 AS VARIANT) AS UUID)",

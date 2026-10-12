@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.utils.FromVariantConverter;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -27,26 +29,22 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.runtime.functions.VariantCastUtils;
-import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
-import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Array;
-import java.util.EnumMap;
+import java.time.ZoneOffset;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TimeZone;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
@@ -58,57 +56,18 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 /** Utils for catalog and source to filter partition or row. */
 public class FilterUtils {
 
-    private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
-
-    /**
-     * Casts of a VARIANT element that can be evaluated, by target type, using the same {@link
-     * VariantCastUtils} helpers as the generated code of {@code VariantToPrimitiveCastRule}.
-     */
-    private static final Map<LogicalTypeRoot, BiFunction<Variant, LogicalType, Object>>
-            VARIANT_CASTS = new EnumMap<>(LogicalTypeRoot.class);
-
-    static {
-        VARIANT_CASTS.put(LogicalTypeRoot.BOOLEAN, (variant, type) -> variant.getBoolean());
-        VARIANT_CASTS.put(
-                LogicalTypeRoot.TINYINT,
-                (variant, type) ->
-                        (byte)
-                                VariantCastUtils.toIntegral(
-                                        variant, Byte.MIN_VALUE, Byte.MAX_VALUE, "TINYINT"));
-        VARIANT_CASTS.put(
-                LogicalTypeRoot.SMALLINT,
-                (variant, type) ->
-                        (short)
-                                VariantCastUtils.toIntegral(
-                                        variant, Short.MIN_VALUE, Short.MAX_VALUE, "SMALLINT"));
-        VARIANT_CASTS.put(
-                LogicalTypeRoot.INTEGER,
-                (variant, type) ->
-                        (int)
-                                VariantCastUtils.toIntegral(
-                                        variant, Integer.MIN_VALUE, Integer.MAX_VALUE, "INT"));
-        VARIANT_CASTS.put(
-                LogicalTypeRoot.BIGINT,
-                (variant, type) ->
-                        VariantCastUtils.toIntegral(
-                                variant, Long.MIN_VALUE, Long.MAX_VALUE, "BIGINT"));
-        VARIANT_CASTS.put(
-                LogicalTypeRoot.FLOAT, (variant, type) -> VariantCastUtils.toFloat(variant));
-        VARIANT_CASTS.put(
-                LogicalTypeRoot.DOUBLE, (variant, type) -> VariantCastUtils.toDouble(variant));
-        VARIANT_CASTS.put(
-                LogicalTypeRoot.CHAR,
-                (variant, type) ->
-                        VariantCastUtils.toStringValue(
-                                        variant, UTC, ((CharType) type).getLength(), true)
-                                .toString());
-        VARIANT_CASTS.put(
-                LogicalTypeRoot.VARCHAR,
-                (variant, type) ->
-                        VariantCastUtils.toStringValue(
-                                        variant, UTC, ((VarCharType) type).getLength(), false)
-                                .toString());
-    }
+    /** Cast targets of a VARIANT element whose values compare with a filter literal. */
+    private static final Set<LogicalTypeRoot> VARIANT_CAST_TARGETS =
+            EnumSet.of(
+                    LogicalTypeRoot.BOOLEAN,
+                    LogicalTypeRoot.TINYINT,
+                    LogicalTypeRoot.SMALLINT,
+                    LogicalTypeRoot.INTEGER,
+                    LogicalTypeRoot.BIGINT,
+                    LogicalTypeRoot.FLOAT,
+                    LogicalTypeRoot.DOUBLE,
+                    LogicalTypeRoot.CHAR,
+                    LogicalTypeRoot.VARCHAR);
 
     public static boolean shouldPushDown(ResolvedExpression expr, Set<String> filterableFields) {
         if (expr instanceof CallExpression && expr.getChildren().size() == 2) {
@@ -190,7 +149,7 @@ public class FilterUtils {
         // A cast makes an element of a VARIANT comparable, e.g. CAST(v['k'] AS INT).
         if (isCall(expr, CAST) || isCall(expr, TRY_CAST)) {
             final ResolvedExpression element = expr.getResolvedChildren().get(0);
-            return VARIANT_CASTS.containsKey(
+            return VARIANT_CAST_TARGETS.contains(
                             expr.getOutputDataType().getLogicalType().getTypeRoot())
                     && element.getOutputDataType().getLogicalType().is(LogicalTypeRoot.VARIANT)
                     && isElementAccess(element, filterableFields);
@@ -297,7 +256,10 @@ public class FilterUtils {
             return null;
         }
         try {
-            return VARIANT_CASTS.get(targetType.getTypeRoot()).apply(variant, targetType);
+            final Object value =
+                    FromVariantConverter.create(targetType, ZoneOffset.UTC).convert(variant);
+            // A string filter literal is a String.
+            return value instanceof StringData ? value.toString() : value;
         } catch (RuntimeException e) {
             if (tryCast) {
                 return null;

@@ -27,6 +27,7 @@ import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -206,6 +207,11 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
             return "java.util.TimeZone.getTimeZone(\""
                     + castRuleCtx.getSessionZoneId().getId()
                     + "\")";
+        }
+
+        @Override
+        public ZoneId getSessionZoneId() {
+            return castRuleCtx.getSessionZoneId();
         }
 
         @Override

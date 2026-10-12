@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import java.time.ZoneId;
+
 /**
  * Cast rule that has code generation capabilities.
  *
@@ -61,6 +63,11 @@ public interface CodeGeneratorCastRule<IN, OUT> extends CastRule<IN, OUT> {
          * @return the session time zone term.
          */
         String getSessionTimeZoneTerm();
+
+        /**
+         * @return the session time zone.
+         */
+        ZoneId getSessionZoneId();
 
         /**
          * Declare a new variable accessible within the scope of the caller of {@link
