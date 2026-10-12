@@ -358,8 +358,7 @@ public final class ToVariantConverter implements Serializable {
                                     mapType));
                 }
                 final String name = key.toString();
-                fields.add(
-                        new FieldEntry(name, builder.addKey(name), builder.getWritePos() - start));
+                builder.addField(fields, start, name);
                 valueWriter.write(builder, valueGetter.getElementOrNull(values, i));
             }
             builder.finishWritingObject(start, fields);
@@ -382,8 +381,7 @@ public final class ToVariantConverter implements Serializable {
             final ArrayList<FieldEntry> fields = new ArrayList<>(fieldCount);
             for (int i = 0; i < fieldCount; i++) {
                 final String name = fieldNames[i];
-                fields.add(
-                        new FieldEntry(name, builder.addKey(name), builder.getWritePos() - start));
+                builder.addField(fields, start, name);
                 fieldWriters[i].write(builder, fieldGetters[i].getFieldOrNull(row));
             }
             builder.finishWritingObject(start, fields);

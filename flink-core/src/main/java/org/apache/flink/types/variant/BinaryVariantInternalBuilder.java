@@ -639,8 +639,7 @@ public class BinaryVariantInternalBuilder {
                                                 value, offsetStart + offsetSize * i, offsetSize);
                                 int elementPos = dataStart + offset;
                                 String key = getMetadataKey(metadata, id);
-                                int newId = addKey(key);
-                                fields.add(new FieldEntry(key, newId, writePos - start));
+                                addField(fields, start, key);
                                 appendVariantImpl(value, metadata, elementPos);
                             }
                             finishWritingObject(start, fields);
@@ -732,8 +731,7 @@ public class BinaryVariantInternalBuilder {
                     while (parser.nextToken() != JsonToken.END_OBJECT) {
                         String key = parser.currentName();
                         parser.nextToken();
-                        int id = addKey(key);
-                        fields.add(new FieldEntry(key, id, writePos - start));
+                        addField(fields, start, key);
                         buildJson(parser);
                     }
                     finishWritingObject(start, fields);
