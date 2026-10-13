@@ -1753,6 +1753,38 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
         |group by window_start, window_end, c, window_time
         |""".stripMargin)
   }
+
+  @TestTemplate
+  def testOnPreservedSideOfOuterWindowJoin(): Unit = {
+    assumeThat(isTwoPhase).isTrue
+    val sql =
+      """
+        |SELECT preserved_side.window_start, preserved_side.window_end, COUNT(*) AS cnt
+        |FROM TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) preserved_side
+        |LEFT JOIN TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) null_side
+        |ON preserved_side.window_start = null_side.window_start
+        |  AND preserved_side.window_end = null_side.window_end
+        |  AND preserved_side.a = null_side.a
+        |GROUP BY preserved_side.window_start, preserved_side.window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testOnNullSideOfOuterWindowJoin(): Unit = {
+    assumeThat(isTwoPhase).isTrue
+    val sql =
+      """
+        |SELECT null_side.window_start, null_side.window_end, COUNT(*) AS cnt
+        |FROM TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) preserved_side
+        |LEFT JOIN TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) null_side
+        |ON preserved_side.window_start = null_side.window_start
+        |  AND preserved_side.window_end = null_side.window_end
+        |  AND preserved_side.a = null_side.a
+        |GROUP BY null_side.window_start, null_side.window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
 }
 
 object WindowAggregateTest {

@@ -557,4 +557,30 @@ class WindowRankTest extends TableTestBase {
         "Rank strategy rankEnd=max_b is not supported on window rank currently.")
       .isInstanceOf[TableException]
   }
+
+  @Test
+  def testWindowTopNOnNullSideFallsBackToRegularRank(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *,
+        |     ROW_NUMBER() OVER (
+        |       PARTITION BY null_window_start, null_window_end ORDER BY a DESC) AS rownum
+        |  FROM (
+        |    SELECT
+        |      null_side.window_start AS null_window_start,
+        |      null_side.window_end AS null_window_end,
+        |      preserved_side.a AS a
+        |    FROM TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) preserved_side
+        |    LEFT JOIN TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) null_side
+        |    ON preserved_side.window_start = null_side.window_start
+        |      AND preserved_side.window_end = null_side.window_end
+        |      AND preserved_side.a = null_side.a
+        |  )
+        |)
+        |WHERE rownum <= 3
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
 }

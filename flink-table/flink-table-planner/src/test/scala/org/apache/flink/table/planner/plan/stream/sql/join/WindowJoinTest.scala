@@ -1348,4 +1348,27 @@ class WindowJoinTest extends TableTestBase {
     statementSet.addInsertSql("INSERT INTO sink2 SELECT * FROM food_view")
     util.verifyRelPlan(statementSet)
   }
+
+  @Test
+  def testWindowJoinOnNullSideFallsBackToRegularJoin(): Unit = {
+    val sql =
+      """
+        |SELECT outer_join.null_window_start, outer_join.null_window_end, probe_side.a
+        |FROM (
+        |  SELECT
+        |    null_side.window_start AS null_window_start,
+        |    null_side.window_end AS null_window_end,
+        |    preserved_side.a AS a
+        |  FROM TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) preserved_side
+        |  LEFT JOIN TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) null_side
+        |  ON preserved_side.window_start = null_side.window_start
+        |    AND preserved_side.window_end = null_side.window_end
+        |    AND preserved_side.a = null_side.a
+        |) outer_join
+        |JOIN TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE) probe_side
+        |ON outer_join.null_window_start = probe_side.window_start
+        |  AND outer_join.null_window_end = probe_side.window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
 }
