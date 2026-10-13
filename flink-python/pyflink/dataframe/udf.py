@@ -44,9 +44,7 @@ from pyflink.dataframe.datatype import DataType
 from pyflink.table.expression import Expression
 from pyflink.table.expressions import call as table_call
 from pyflink.table.typehints import _is_typed_dict
-from pyflink.table.types import (
-    ArrayType, DateType, LocalZonedTimestampType, MapType, RowType, TimestampType,
-)
+from pyflink.table.types import ArrayType, MapType, RowType
 from pyflink.table.udf import (
     AsyncScalarFunction,
     ScalarFunction,
@@ -1331,8 +1329,9 @@ def _is_pandas_null(value):
 def _wrap_map_pandas(func, input_type: RowType, output_type: RowType):
     import pandas as pd
 
-    input_converters = [_create_pandas_input_column_converter(field.data_type)
-                        for field in input_type]
+    input_converters = [
+        _create_pandas_row_column_converter(field.data_type, [None] * len(field.data_type))
+        if isinstance(field.data_type, RowType) else None for field in input_type]
     output_converters = [_create_pandas_output_column_converter(field.data_type)
                          for field in output_type]
 
@@ -1443,94 +1442,6 @@ def _create_pandas_output_column_converter(data_type):
     normalize = _create_pandas_result_normalizer(data_type)
     return (None if normalize is None
             else lambda column: _normalize_pandas_series(column, normalize))
-
-
-def _create_pandas_input_column_converter(data_type):
-    import pandas as pd
-
-    if isinstance(data_type, RowType):
-        return _create_pandas_row_column_converter(
-            data_type, [_create_pandas_input_column_converter(field.data_type)
-                        for field in data_type])
-    if isinstance(data_type, (DateType, TimestampType, LocalZonedTimestampType)):
-        import datetime
-        import os
-        import pytz
-        from pandas.api.types import is_datetime64_dtype
-        from pyflink.table.types import create_arrow_schema
-        from pyflink.table.utils import arrow_to_pandas, pandas_to_arrow, tz_convert_from_internal
-
-        timezone = (pytz.timezone(os.environ["TABLE_LOCAL_TIME_ZONE"])
-                    if isinstance(data_type, LocalZonedTimestampType) else pytz.UTC)
-        schema = create_arrow_schema(["value"], [data_type])
-
-        def convert_temporal(column):
-            if isinstance(data_type, DateType):
-                if column.dtype == object and all(
-                        type(value) is datetime.date or value is None for value in column):
-                    return column
-            elif isinstance(data_type, LocalZonedTimestampType) \
-                    and isinstance(column.dtype, pd.DatetimeTZDtype):
-                return (column if str(column.dt.tz) == str(timezone)
-                        else column.dt.tz_convert(timezone))
-            elif is_datetime64_dtype(column.dtype):
-                return tz_convert_from_internal(column, data_type, timezone)
-            # Dates and object-backed timestamps need the same conversion as Arrow transport.
-            batch = pandas_to_arrow(schema, timezone, [data_type], [column])
-            converted = arrow_to_pandas(timezone, [data_type], [batch])[0]
-            converted.index = column.index
-            converted.name = column.name
-            return converted
-
-        return convert_temporal
-    normalize = _create_pandas_input_normalizer(data_type)
-    if normalize is not None:
-        return lambda column: _normalize_pandas_series(column, normalize)
-    return None
-
-
-def _create_pandas_input_normalizer(data_type):
-    """Match transported ROW and MAP representations for fused pandas inputs."""
-
-    if isinstance(data_type, RowType):
-        field_names = data_type.field_names()
-        normalizers = [_create_pandas_input_normalizer(field.data_type) for field in data_type]
-
-        def normalize_row(value):
-            if _is_pandas_null(value):
-                return None
-            values = _row_field_values(value, field_names)
-            row = Row(*(item if normalize is None else normalize(item)
-                        for item, normalize in zip(values, normalizers)))
-            row.set_field_names(field_names)
-            return row
-
-        return normalize_row
-    if isinstance(data_type, ArrayType):
-        normalize_element = _create_pandas_input_normalizer(data_type.element_type)
-        if normalize_element is not None:
-            def normalize_array(value):
-                if _is_pandas_null(value):
-                    return None
-                return [normalize_element(item) for item in value]
-
-            return normalize_array
-    if isinstance(data_type, MapType):
-        normalize_key = _create_pandas_input_normalizer(data_type.key_type)
-        normalize_value = _create_pandas_input_normalizer(data_type.value_type)
-
-        def normalize_map(value):
-            if _is_pandas_null(value):
-                return None
-            if not isinstance(value, Mapping) and normalize_key is None and normalize_value is None:
-                return value
-            items = value.items() if isinstance(value, Mapping) else value
-            return [(key if normalize_key is None else normalize_key(key),
-                     item if normalize_value is None else normalize_value(item))
-                    for key, item in items]
-
-        return normalize_map
-    return None
 
 
 def _create_pandas_result_normalizer(data_type):

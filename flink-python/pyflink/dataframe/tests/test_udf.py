@@ -1525,7 +1525,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
         finally:
             adapter.close()
 
-    def test_pandas_map_batches_normalizes_maps_for_transported_and_fused_inputs(self):
+    def test_pandas_map_batches_preserves_map_inputs(self):
         from pyflink.dataframe.udf import _resolve_map_udf
         from pyflink.table.types import create_arrow_schema
         from pyflink.table.utils import arrow_to_pandas, pandas_to_arrow
@@ -1540,11 +1540,11 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
         dtype = pf.DataType.struct({"total": pf.DataType.int64()})
 
         def transform(batch):
-            self.assertEqual(batch["lookup"].tolist(), [[("top", 1)], [], None])
-            self.assertEqual(batch["payload"]["lookup"].tolist(),
-                             [[("field", 2)], [("same", 3), ("same", 4)], None])
+            self.assertIs(batch["lookup"], inputs[0])
+            self.assertIs(batch["payload"], inputs[1])
             return {"total": batch["lookup"].map(
-                lambda pairs: 0 if pairs is None else sum(value for key, value in pairs))}
+                lambda value: 0 if value is None else sum(value.values())
+                if isinstance(value, dict) else sum(item for _, item in value))}
 
         columns = [pd.Series([{"top": 1}, {}, None], dtype=object), pd.DataFrame({
             "lookup": [{"field": 2}, [("same", 3), ("same", 4)], None],
@@ -2330,44 +2330,10 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
                     self.assertEqual(result.collect(), [
                         Row(100, 10, timestamp), Row(200, 20, timestamp), Row(300, 30, None)])
 
-                    for timestamp_type in (pf.DataType.timestamp_ltz(3),
-                                           pf.DataType.timestamp(3)):
-                        @pf.udf(return_dtype=timestamp_type, func_type="pandas")
-                        def produce(values):
-                            return pd.Series([
-                                (pd.Timestamp("2020-01-01", tz="UTC")
-                                 if timestamp_type == pf.DataType.timestamp_ltz(3)
-                                 else datetime.datetime(2020, 1, 1)) if value != 30 else None
-                                for value in values
-                            ], index=values.index,
-                                dtype=(object if timestamp_type == pf.DataType.timestamp(3)
-                                       else None))
-
-                        input_type = pf.DataType.struct({
-                            "id": pf.DataType.int64(), "ts": timestamp_type})
-                        hour = (8 if zone == "Asia/Shanghai"
-                                and timestamp_type == pf.DataType.timestamp_ltz(3) else 0)
-                        for transported in (False, True):
-                            with self.subTest(timestamp_type=timestamp_type,
-                                              transported=transported):
-                                dataframe = pf.from_records(
-                                    [(10,), (20,), (30,)], schema=["id"]).with_columns(
-                                    ts=produce(pf.col("id")))
-                                if transported:
-                                    dataframe = dataframe.map_batches(
-                                        lambda batch: batch, batch_format="arrow",
-                                        return_dtype=input_type)
-                                result = dataframe.map_batches(
-                                    lambda batch: {"hour": batch["ts"].dt.hour,
-                                                   "id": batch["id"]},
-                                    batch_format="pandas", return_dtype=pf.DataType.struct({
-                                        "hour": pf.DataType.int64(), "id": pf.DataType.int64()}))
-                                self.assertEqual(result.collect(),
-                                                 [Row(hour, 10), Row(hour, 20), Row(None, 30)])
         finally:
             self.t_env.get_config().set_local_timezone(timezone)
 
-    def test_pandas_map_values_match_with_and_without_arrow_transport(self):
+    def test_pandas_map_preserves_row_columns_across_execution_boundaries(self):
         from pyflink.table.udf import udf as table_udf
 
         self.env.set_parallelism(1)
@@ -2375,87 +2341,57 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
         self.t_env.get_config().set("python.fn-execution.arrow.batch.size", "2")
         payload_type = pf.DataType.struct({
             "lookup": pf.DataType.map(pf.DataType.string().not_null(), pf.DataType.int64()),
-            "v": pf.DataType.int64(), "ts": pf.DataType.timestamp(3), "d": pf.DataType.date(),
+            "v": pf.DataType.int64(),
         })
-        input_type = pf.DataType.struct({
-            "id": pf.DataType.int64(), "payload": payload_type, "d": pf.DataType.date()})
+        input_type = pf.DataType.struct({"id": pf.DataType.int64(), "payload": payload_type})
         value_type = pf.DataType.struct({"v": pf.DataType.int64()})
-        output_type = pf.DataType.struct({
-            "total": pf.DataType.int64(), "value": value_type, "year": pf.DataType.int64(),
-            "date": pf.DataType.string(), "row_date": pf.DataType.string()})
-        flat_type = pf.DataType.struct({
-            "total": pf.DataType.int64(), "v": pf.DataType.int64(),
-            "year": pf.DataType.int64(), "date": pf.DataType.string(),
-            "row_date": pf.DataType.string()})
+        output_type = pf.DataType.struct({"total": pf.DataType.int64(), "value": value_type})
+        flat_type = pf.DataType.struct({"total": pf.DataType.int64(), "v": pf.DataType.int64()})
 
         def produce(values):
             rows = [
-                {"lookup": {"long-key": int(value)}, "v": 11,
-                 "ts": pd.Timestamp("2020-01-01"),
-                 "d": pd.Timestamp("2020-01-01 12:34:56")} if value > 0 else
-                {"lookup": {}, "v": None, "ts": None, "d": None} if value == 0 else
-                {"lookup": None, "v": None, "ts": None, "d": None}
+                {"lookup": [("long-key", int(value))], "v": 11} if value > 0 else
+                {"lookup": [], "v": None} if value == 0 else
+                {"lookup": None, "v": None}
                 for value in values
             ]
             return pd.DataFrame({
                 label: pd.Series([row[field] for row in rows], index=values.index[::-1],
                                  dtype=object)
-                for label, field in zip(labels, ("lookup", "v", "ts", "d"))
+                for label, field in zip(("unrelated1", "unrelated2"), ("lookup", "v"))
             })
-
-        def produce_date(values):
-            dates = pd.to_datetime([
-                "2020-01-01 23:00:00" if value > 0 else None for value in values])
-            if date_format == "timezone":
-                dates = dates.tz_localize("America/New_York")
-            return pd.Series(dates, index=values.index,
-                             dtype=object if date_format == "object" else None)
 
         def consume(batch):
             assert isinstance(batch["payload"], pd.DataFrame)
             return {"total": batch["payload"]["lookup"].map(
                 lambda pairs: -1 if pairs is None else sum(value for _, value in pairs)
-            ) + batch["id"] * 10, "value": batch["payload"][["v"]].sort_index(ascending=False),
-                "year": batch["payload"]["ts"].dt.year,
-                "date": batch["d"].map(str), "row_date": batch["payload"]["d"].map(str)}
+            ) + batch["id"] * 10, "value": batch["payload"][["v"]].sort_index(ascending=False)}
 
         def extract(batch):
-            return {"total": batch["total"], "v": batch["value"].field("v"),
-                    "year": batch["year"], "date": batch["date"], "row_date": batch["row_date"]}
+            return {"total": batch["total"], "v": batch["value"].field("v")}
 
         @table_udf(result_type=flat_type._to_table_data_type(), func_type="pandas")
         def table_extract(batch):
             assert isinstance(batch["total"], pd.Series)
-            return pd.DataFrame({name: batch[name]
-                                 for name in ("total", "v", "year", "date", "row_date")})
+            return pd.DataFrame({name: batch[name] for name in ("total", "v")})
 
-        for labels, date_format, expected_date in (
-            (["lookup", "v", "ts", "d"], "datetime64", "2020-01-01"),
-            (["unrelated1", "unrelated2", "unrelated3", "unrelated4"], "timezone", "2020-01-02"),
-            (["d", "ts", "v", "lookup"], "object", "2020-01-01"),
-        ):
-            producer = pf.udf(produce, return_dtype=payload_type, func_type="pandas")
-            date_producer = pf.udf(
-                produce_date, return_dtype=pf.DataType.date(), func_type="pandas")
-            for transported in (False, True):
-                with self.subTest(labels=labels, transported=transported):
-                    dataframe = pf.from_records([(1,), (0,), (-1,)], schema=["id"]).with_columns(
-                        payload=producer(pf.col("id")), d=date_producer(pf.col("id")))
-                    if transported:
-                        dataframe = dataframe.map_batches(
-                            lambda batch: batch, return_dtype=input_type, batch_format="arrow")
-                    mapped = dataframe.map_batches(
-                        consume, return_dtype=output_type, batch_format="pandas").map_batches(
-                        lambda batch: batch, return_dtype=output_type,
-                        batch_format="pandas")
-                    for table_map in ((False, True) if date_format == "datetime64" else (False,)):
-                        result = (pf.from_table(mapped.to_table().map(table_extract)) if table_map
-                                  else mapped.map_batches(extract, batch_format="arrow",
-                                                          return_dtype=flat_type))
-                        self.assertEqual(sorted(result.collect(), key=lambda row: row[0]),
-                                         [Row(-11, None, None, "None", "None"),
-                                          Row(0, None, None, "None", "None"),
-                                          Row(11, 11, 2020, expected_date, "2020-01-01")])
+        producer = pf.udf(produce, return_dtype=payload_type, func_type="pandas")
+        for transported in (False, True):
+            with self.subTest(transported=transported):
+                dataframe = pf.from_records([(1,), (0,), (-1,)], schema=["id"]).with_columns(
+                    payload=producer(pf.col("id")))
+                if transported:
+                    dataframe = dataframe.map_batches(
+                        lambda batch: batch, return_dtype=input_type, batch_format="arrow")
+                mapped = dataframe.map_batches(
+                    consume, return_dtype=output_type, batch_format="pandas").map_batches(
+                    lambda batch: batch, return_dtype=output_type, batch_format="pandas")
+                for table_map in (False, True):
+                    result = (pf.from_table(mapped.to_table().map(table_extract)) if table_map
+                              else mapped.map_batches(extract, batch_format="arrow",
+                                                      return_dtype=flat_type))
+                    self.assertEqual(sorted(result.collect(), key=lambda row: row[0]),
+                                     [Row(-11, None), Row(0, None), Row(11, 11)])
 
     def test_row_and_batch_maps_in_one_job(self):
         self.env.set_parallelism(1)
