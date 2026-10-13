@@ -21,8 +21,10 @@ package org.apache.flink.container.entrypoint;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JMXServerOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
@@ -179,8 +181,19 @@ public final class MiniClusterJobEntryPoint {
 
     private static MiniClusterConfiguration buildMiniClusterConfiguration(
             final Configuration configuration, final PluginManager pluginManager) {
+        final Configuration clusterConfiguration = new Configuration(configuration);
+        if (!clusterConfiguration.contains(RpcOptions.ASK_TIMEOUT_DURATION)) {
+            clusterConfiguration.set(
+                    RpcOptions.ASK_TIMEOUT_DURATION,
+                    RpcOptions.ASK_TIMEOUT_DURATION.defaultValue());
+        }
+        if (!clusterConfiguration.contains(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE)) {
+            clusterConfiguration.set(
+                    ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE,
+                    ClusterEntrypointUtils.getPoolSize(clusterConfiguration));
+        }
         return new MiniClusterConfiguration.Builder()
-                .setConfiguration(configuration)
+                .setConfiguration(clusterConfiguration)
                 .setNumSlotsPerTaskManager(configuration.get(TaskManagerOptions.NUM_TASK_SLOTS))
                 .setPluginManager(pluginManager)
                 .build();

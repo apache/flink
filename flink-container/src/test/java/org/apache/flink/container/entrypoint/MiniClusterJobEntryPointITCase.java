@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -43,6 +44,7 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.highavailability.ApplicationResultStoreOptions;
 import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
+import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -78,7 +80,9 @@ import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -738,6 +742,59 @@ class MiniClusterJobEntryPointITCase {
             }
         }
         return count;
+    }
+
+    @Test
+    void usesDistributedDefaultsInsteadOfMiniClusterTestDefaults() throws Exception {
+        final Process process = startMiniClusterProcess("process");
+        try {
+            final Map<String, String> configuration = clusterConfiguration(process, "process");
+            assertThat(configuration)
+                    .containsEntry(RpcOptions.ASK_TIMEOUT_DURATION.key(), "10 s")
+                    .containsEntry(
+                            ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE.key(),
+                            String.valueOf(4 * Hardware.getNumberCPUCores()));
+        } finally {
+            stop(process);
+        }
+    }
+
+    @Test
+    void keepsConfiguredAskTimeoutAndIoPoolSize() throws Exception {
+        final Process process =
+                startProcess(
+                        "process",
+                        MiniClusterJobEntryPoint.class,
+                        applicationArguments(
+                                RecordingJob.class,
+                                List.of(
+                                        "-Dakka.ask.timeout=42 s",
+                                        dynamicProperty(
+                                                ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE, 7))));
+        try {
+            final Map<String, String> configuration = clusterConfiguration(process, "process");
+            assertThat(configuration)
+                    .containsEntry("akka.ask.timeout", "42 s")
+                    .doesNotContainKey(RpcOptions.ASK_TIMEOUT_DURATION.key())
+                    .containsEntry(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE.key(), "7");
+        } finally {
+            stop(process);
+        }
+    }
+
+    private Map<String, String> clusterConfiguration(Process process, String name)
+            throws Exception {
+        final Map<String, String> configuration = new HashMap<>();
+        for (JsonNode entry :
+                awaitRest(
+                        process,
+                        name,
+                        "/jobmanager/config",
+                        "the cluster configuration",
+                        json -> true)) {
+            configuration.put(entry.get("key").asText(), entry.get("value").asText());
+        }
+        return configuration;
     }
 
     private Process startMiniClusterProcess(String name) throws IOException {
