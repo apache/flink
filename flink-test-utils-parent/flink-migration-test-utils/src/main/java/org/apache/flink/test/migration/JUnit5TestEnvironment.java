@@ -20,6 +20,7 @@ package org.apache.flink.test.migration;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MediaType;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.extension.TestInstances;
+import org.junit.jupiter.api.function.ThrowingConsumer;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
@@ -51,11 +53,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -151,7 +153,7 @@ class JUnit5TestEnvironment {
 
     /**
      * Runs the {@code afterAll} callbacks of statically registered extensions, closes the stored
-     * {@link ExtensionContext.Store.CloseableResource}s and removes the temporary directories.
+     * values and removes the temporary directories.
      */
     void afterAll() throws Exception {
         for (Object extension : reversed(staticExtensions)) {
@@ -324,7 +326,13 @@ class JUnit5TestEnvironment {
     private static final class GeneratorExtensionContext implements ExtensionContext {
 
         private final Class<?> testClass;
-        private final Map<Namespace, GeneratorStore> stores = new ConcurrentHashMap<>();
+
+        /**
+         * The values of all namespaces in one map, so that they close in reverse insertion order
+         * across namespaces, as in JUnit's store.
+         */
+        private final Map<List<Object>, Object> storedValues = new LinkedHashMap<>();
+
         private Object testInstance;
 
         private GeneratorExtensionContext(Class<?> testClass) {
@@ -336,8 +344,29 @@ class JUnit5TestEnvironment {
         }
 
         private void close() throws Exception {
-            for (GeneratorStore store : stores.values()) {
-                store.close();
+            List<Object> values = new ArrayList<>(storedValues.values());
+            Collections.reverse(values);
+            Throwable firstError = null;
+            for (Object value : values) {
+                if (value instanceof AutoCloseable
+                        || value instanceof ExtensionContext.Store.CloseableResource) {
+                    try {
+                        if (value instanceof AutoCloseable) {
+                            ((AutoCloseable) value).close();
+                        } else {
+                            ((ExtensionContext.Store.CloseableResource) value).close();
+                        }
+                    } catch (Throwable t) {
+                        if (firstError == null) {
+                            firstError = t;
+                        } else {
+                            firstError.addSuppressed(t);
+                        }
+                    }
+                }
+            }
+            if (firstError != null) {
+                throw new Exception("Failed to close stored resources.", firstError);
             }
         }
 
@@ -374,6 +403,11 @@ class JUnit5TestEnvironment {
         @Override
         public Optional<Class<?>> getTestClass() {
             return Optional.of(testClass);
+        }
+
+        @Override
+        public List<Class<?>> getEnclosingTestClasses() {
+            return Collections.emptyList();
         }
 
         @Override
@@ -418,8 +452,24 @@ class JUnit5TestEnvironment {
         }
 
         @Override
+        public void publishFile(String name, MediaType mediaType, ThrowingConsumer<Path> action) {
+            // Files are not collected during snapshot generation.
+        }
+
+        @Override
+        public void publishDirectory(String name, ThrowingConsumer<Path> action) {
+            // Directories are not collected during snapshot generation.
+        }
+
+        @Override
         public Store getStore(Namespace namespace) {
-            return stores.computeIfAbsent(namespace, ignored -> new GeneratorStore());
+            return new GeneratorStore(namespace, storedValues);
+        }
+
+        @Override
+        public Store getStore(StoreScope scope, Namespace namespace) {
+            // Snapshot generation has a single context, so every scope shares the same stores.
+            return getStore(namespace);
         }
 
         @Override
@@ -434,25 +484,36 @@ class JUnit5TestEnvironment {
         }
     }
 
-    /** A minimal {@link ExtensionContext.Store} backed by a map. */
+    /** A minimal {@link ExtensionContext.Store} for one namespace of the context's values. */
     private static final class GeneratorStore implements ExtensionContext.Store {
 
-        private final Map<Object, Object> values = new ConcurrentHashMap<>();
+        private final ExtensionContext.Namespace namespace;
+        private final Map<List<Object>, Object> storedValues;
+
+        private GeneratorStore(
+                ExtensionContext.Namespace namespace, Map<List<Object>, Object> storedValues) {
+            this.namespace = namespace;
+            this.storedValues = storedValues;
+        }
+
+        private List<Object> storeKey(Object key) {
+            return Arrays.asList(namespace, key);
+        }
 
         @Override
         public Object get(Object key) {
-            return values.get(key);
+            return storedValues.get(storeKey(key));
         }
 
         @Override
         public <V> V get(Object key, Class<V> requiredType) {
-            return requiredType.cast(values.get(key));
+            return requiredType.cast(get(key));
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public <K, V> Object getOrComputeIfAbsent(K key, Function<K, V> defaultCreator) {
-            return values.computeIfAbsent(key, mapKey -> defaultCreator.apply((K) mapKey));
+            return storedValues.computeIfAbsent(
+                    storeKey(key), ignored -> defaultCreator.apply(key));
         }
 
         @Override
@@ -463,37 +524,20 @@ class JUnit5TestEnvironment {
 
         @Override
         public void put(Object key, Object value) {
-            values.put(key, value);
+            // Remove first, so that a replaced value moves to the end of the close order.
+            List<Object> storeKey = storeKey(key);
+            storedValues.remove(storeKey);
+            storedValues.put(storeKey, value);
         }
 
         @Override
         public Object remove(Object key) {
-            return values.remove(key);
+            return storedValues.remove(storeKey(key));
         }
 
         @Override
         public <V> V remove(Object key, Class<V> requiredType) {
-            return requiredType.cast(values.remove(key));
-        }
-
-        private void close() throws Exception {
-            Throwable firstError = null;
-            for (Object value : values.values()) {
-                if (value instanceof CloseableResource) {
-                    try {
-                        ((CloseableResource) value).close();
-                    } catch (Throwable t) {
-                        if (firstError == null) {
-                            firstError = t;
-                        } else {
-                            firstError.addSuppressed(t);
-                        }
-                    }
-                }
-            }
-            if (firstError != null) {
-                throw new Exception("Failed to close stored resources.", firstError);
-            }
+            return requiredType.cast(remove(key));
         }
     }
 
