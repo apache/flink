@@ -1357,6 +1357,11 @@ def _wrap_map_pandas(func, input_type: RowType, output_type: RowType):
             if not isinstance(column, container):
                 raise TypeError(f"Pandas map_batches output column {output_field.name!r} "
                                 f"must be a pandas.{container.__name__}.")
+            if len(column) != len(input_index):
+                raise ValueError(
+                    f"The result length '{len(column)}' of Pandas UDF '{wrapper.__name__}' "
+                    f"column {output_field.name!r} is not equal to the input length "
+                    f"'{len(input_index)}'")
             if container is pd.DataFrame and type(column) is not pd.DataFrame:
                 # The shared Arrow converter expects the base DataFrame produced by concat.
                 column = pd.DataFrame(column, copy=False)
@@ -1374,9 +1379,10 @@ def _wrap_map_pandas(func, input_type: RowType, output_type: RowType):
             # Restore input order without discarding extra labels or padding short batches.
             extra_labels = index[~index.isin(input_index)]
             index = input_index if extra_labels.empty else input_index.append(extra_labels)
-        assert len(index) == len(input_index), (
-            f"The result length '{len(index)}' of Pandas UDF '{wrapper.__name__}' "
-            f"is not equal to the input length '{len(input_index)}'")
+        if len(index) != len(input_index):
+            raise ValueError(
+                f"The result length '{len(index)}' of Pandas UDF '{wrapper.__name__}' "
+                f"is not equal to the input length '{len(input_index)}'")
         if not output.index.identical(index):
             if output.index.equals(index):
                 output.index = index

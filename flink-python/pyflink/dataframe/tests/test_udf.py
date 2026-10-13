@@ -1611,7 +1611,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
                     "id": batch["id"]}
 
         def partial(batch):
-            return {"score": pd.Series([200], index=[0]), "id": batch["id"]}
+            return {"score": pd.Series([9007199254740993], index=[0]), "id": batch["id"]}
 
         input_type = TableDataTypes.ROW([TableDataTypes.FIELD("id", TableDataTypes.BIGINT())])
         for source, index in ((align, pd.RangeIndex(2)), (align, pd.Index([2, 0], name="rows")),
@@ -1624,13 +1624,13 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
             adapter.open(object())
             try:
                 batch = pd.DataFrame({"id": [10, 20]}, index=index)
-                if source in (wrong_length, too_short) or isinstance(source, functools.partial):
-                    with self.assertRaisesRegex(AssertionError, "length"):
+                if source in (wrong_length, too_short, partial) \
+                        or isinstance(source, functools.partial):
+                    with self.assertRaisesRegex(ValueError, "length"):
                         adapter.eval(batch["id"])
                 else:
                     self.assertEqual(self.pandas_map_output(adapter, dtype, batch["id"]),
-                                     [{"score": 200, "id": 10},
-                                      {"score": None if source is partial else 100, "id": 20}])
+                                     [{"score": 200, "id": 10}, {"score": 100, "id": 20}])
             finally:
                 adapter.close()
 
