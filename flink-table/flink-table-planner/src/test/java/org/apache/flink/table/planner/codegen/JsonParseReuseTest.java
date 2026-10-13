@@ -210,12 +210,14 @@ class JsonParseReuseTest {
         // calls on the same computed input (TRIM) must still share a parse
         final String sql =
                 "SELECT JSON_VALUE(TRIM(json_data), '$.type'), "
-                        + "JSON_QUERY(TRIM(json_data), '$.address') FROM json_src";
+                        + "JSON_QUERY(TRIM(json_data), '$.address'), "
+                        + "JSON_TYPE(TRIM(json_data)), "
+                        + "JSON_LENGTH(TRIM(json_data)) FROM json_src";
         final List<Row> rows = collect(sql);
         assertThat(rows)
                 .containsExactlyInAnyOrder(
-                        Row.of("account", "{\"city\":\"Munich\"}"),
-                        Row.of("admin", "{\"city\":\"Berlin\"}"));
+                        Row.of("account", "{\"city\":\"Munich\"}", "object", 4),
+                        Row.of("admin", "{\"city\":\"Berlin\"}", "object", 4));
         final String code = extractGeneratedCode(sql);
         assertThat(countJsonParse(code))
                 .as("Calls on the same computed input should parse once")
@@ -464,6 +466,47 @@ class JsonParseReuseTest {
         assertThat(rows).containsExactlyInAnyOrder(Row.of(2, "number"), Row.of(1, "number"));
         assertThat(countJsonParse(extractGeneratedCode(sql)))
                 .as("JSON_LENGTH + JSON_TYPE on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testJsonLengthAfterSkippedJsonTypeIsResetPerRow() {
+        final String sql =
+                "SELECT id, CASE WHEN id > 1 THEN JSON_TYPE(j) END, JSON_LENGTH(j) "
+                        + "FROM (VALUES (2, '[1,2,3]'), (1, '[1]')) AS t(id, j)";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2, "array", 3), Row.of(1, null, 1));
+    }
+
+    @Test
+    void testJsonTypeAfterSkippedJsonLengthIsResetPerRow() {
+        final String sql =
+                "SELECT id, CASE WHEN id > 1 THEN JSON_LENGTH(j) END, JSON_TYPE(j) "
+                        + "FROM (VALUES (2, '[1,2,3]'), (1, '{\"a\":1}')) AS t(id, j)";
+        final List<Row> rows = collect(sql);
+        assertThat(rows)
+                .containsExactlyInAnyOrder(Row.of(2, 3, "array"), Row.of(1, null, "object"));
+    }
+
+    @Test
+    void testJsonLengthAfterShortCircuitedJsonTypeInFilterIsResetPerRow() {
+        final String sql =
+                "SELECT id, JSON_LENGTH(j) "
+                        + "FROM (VALUES (2, '[1,2,3]'), (1, '[1]')) AS t(id, j) "
+                        + "WHERE id > 1 OR JSON_TYPE(j) = 'array'";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2, 3), Row.of(1, 1));
+    }
+
+    @Test
+    void testJsonValueAfterSkippedJsonTypeIsResetPerRow() {
+        final String sql =
+                "SELECT id, CASE WHEN id > 1 THEN JSON_TYPE(j) END, JSON_VALUE(j, '$.a') "
+                        + "FROM (VALUES (2, '{\"a\":\"x\"}'), (1, '{\"a\":\"y\"}')) AS t(id, j)";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).containsExactlyInAnyOrder(Row.of(2, "object", "x"), Row.of(1, null, "y"));
+        assertThat(countJsonParse(extractGeneratedCode(sql)))
+                .as("JSON_TYPE + JSON_VALUE on the same input should parse once")
                 .isOne();
     }
 }

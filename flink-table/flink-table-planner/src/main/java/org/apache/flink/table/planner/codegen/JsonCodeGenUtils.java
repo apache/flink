@@ -19,13 +19,12 @@
 package org.apache.flink.table.planner.codegen;
 
 import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
+import org.apache.flink.table.planner.codegen.calls.JsonParseReuse;
 import org.apache.flink.table.runtime.functions.SqlJsonUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.lang.reflect.Method;
 
-import scala.Option;
-import scala.Tuple2;
 import scala.collection.Seq;
 
 /** Utilities for the code generation of JSON functions. */
@@ -41,23 +40,21 @@ public final class JsonCodeGenUtils {
      */
     public static GeneratedExpression generateJsonType(
             CodeGeneratorContext ctx, LogicalType returnType, Seq<GeneratedExpression> operands) {
-        return GenerateUtils.generateCallWithStmtIfArgsNotNull(
+        return GenerateUtils.generateCallIfArgsNotNull(
                 ctx,
                 returnType,
                 operands,
                 true,
                 false,
                 argTerms -> {
-                    Tuple2<String, String> parsedCall =
+                    final String call =
                             generateCallOnParsedInput(
                                     ctx,
                                     operands,
                                     argTerms,
                                     BuiltInMethods.JSON_TYPE(),
                                     BuiltInMethods.JSON_TYPE_PATH());
-                    String resultExpr =
-                            CodeGenUtils.BINARY_STRING() + ".fromString(" + parsedCall._2() + ")";
-                    return new Tuple2<>(parsedCall._1(), resultExpr);
+                    return CodeGenUtils.BINARY_STRING() + ".fromString(" + call + ")";
                 });
     }
 
@@ -69,7 +66,7 @@ public final class JsonCodeGenUtils {
      */
     public static GeneratedExpression generateJsonLength(
             CodeGeneratorContext ctx, LogicalType returnType, Seq<GeneratedExpression> operands) {
-        return GenerateUtils.generateCallWithStmtIfArgsNotNull(
+        return GenerateUtils.generateCallIfArgsNotNull(
                 ctx,
                 returnType,
                 operands,
@@ -88,77 +85,27 @@ public final class JsonCodeGenUtils {
      * Builds the call against the shared parsed input: the whole-document overload, or the path
      * overload with the {@code isPathDefinite} flag resolved from the path literal at plan time via
      * {@link SqlJsonUtils#isPathDefinite(String)}.
-     *
-     * @return the parse statement and the call expression
      */
-    private static Tuple2<String, String> generateCallOnParsedInput(
+    private static String generateCallOnParsedInput(
             CodeGeneratorContext ctx,
             Seq<GeneratedExpression> operands,
             Seq<String> argTerms,
             Method wholeDocument,
             Method withPath) {
-        final ParsedJson parsed = getOrCreateParsedJson(ctx, argTerms.head() + ".toString()");
+        final String parsed = JsonParseReuse.parseSharedInput(ctx, operands).resultTerm();
         if (argTerms.length() == 1) {
-            return new Tuple2<>(
-                    parsed.parseCode,
-                    CodeGenUtils.qualifyMethod(wholeDocument) + "(" + parsed.varName + ")");
+            return CodeGenUtils.qualifyMethod(wholeDocument) + "(" + parsed + ")";
         }
 
         final String pathSpec = operands.apply(1).literalValue().get().toString();
         final boolean isPathDefinite = SqlJsonUtils.isPathDefinite(pathSpec);
-        return new Tuple2<>(
-                parsed.parseCode,
-                CodeGenUtils.qualifyMethod(withPath)
-                        + "("
-                        + parsed.varName
-                        + ", "
-                        + argTerms.apply(1)
-                        + ".toString(), "
-                        + isPathDefinite
-                        + ")");
-    }
-
-    /**
-     * Emits code that parses the given JSON {@code inputTerm} into a reusable {@link
-     * SqlJsonUtils.JsonValueContext} member variable.
-     *
-     * @return the parsed-context variable name and the parse statement, empty if the same input was
-     *     already parsed
-     */
-    private static ParsedJson getOrCreateParsedJson(CodeGeneratorContext ctx, String inputTerm) {
-        Option<GeneratedExpression> existing =
-                ctx.getReusableInputUnboxingExprs(inputTerm, Integer.MIN_VALUE);
-        if (existing.isDefined()) {
-            return new ParsedJson(existing.get().resultTerm(), "");
-        }
-
-        String varName = CodeGenUtils.newName(ctx, "jsonParsed");
-        String typeName = SqlJsonUtils.JsonValueContext.class.getName();
-        ctx.addReusableMember(typeName + " " + varName + ";");
-
-        ctx.addReusableInputUnboxingExprs(
-                inputTerm,
-                Integer.MIN_VALUE,
-                new GeneratedExpression(varName, "false", "", null, Option.empty()));
-
-        String parseCode =
-                varName
-                        + " = "
-                        + CodeGenUtils.qualifyMethod(BuiltInMethods.JSON_PARSE())
-                        + "("
-                        + inputTerm
-                        + ");";
-        return new ParsedJson(varName, parseCode);
-    }
-
-    /** Holds the outcome of {@link #getOrCreateParsedJson}. */
-    private static final class ParsedJson {
-        private final String varName;
-        private final String parseCode;
-
-        ParsedJson(String varName, String parseCode) {
-            this.varName = varName;
-            this.parseCode = parseCode;
-        }
+        return CodeGenUtils.qualifyMethod(withPath)
+                + "("
+                + parsed
+                + ", "
+                + argTerms.apply(1)
+                + ".toString(), "
+                + isPathDefinite
+                + ")";
     }
 }
