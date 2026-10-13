@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.application.ApplicationDispatcherLeaderProcessFactoryFactory;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -153,6 +155,11 @@ final class ApplicationModeMiniCluster extends MiniCluster {
                 closeAsync();
             }
         };
+    }
+
+    @Override
+    protected Collection<FailureEnricher> createFailureEnrichers(Configuration configuration) {
+        return FailureEnricherUtils.getFailureEnrichers(configuration);
     }
 
     /** Sizes the RPC thread pool from the {@code pekko.fork-join-executor} options. */

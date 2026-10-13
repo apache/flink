@@ -37,6 +37,7 @@ import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.application.SingleJobApplication;
@@ -567,7 +568,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         metricRegistry,
                         new MemoryArchivedApplicationStore(),
                         metricQueryServiceRetriever,
-                        Collections.emptySet(),
+                        createFailureEnrichers(configuration),
                         fatalErrorHandler);
         FutureUtils.assertNoException(
                 dispatcherResourceManagerComponent
@@ -785,6 +786,11 @@ public class MiniCluster implements AutoCloseableAsync {
             taskExecutor.start();
             taskManagers.add(taskExecutor);
         }
+    }
+
+    /** Creates {@link FailureEnricher}s for the dispatcher's jobs. By default, none are created. */
+    protected Collection<FailureEnricher> createFailureEnrichers(Configuration configuration) {
+        return Collections.emptySet();
     }
 
     /**

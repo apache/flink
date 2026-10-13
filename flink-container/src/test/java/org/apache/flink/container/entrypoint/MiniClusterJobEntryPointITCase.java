@@ -40,6 +40,8 @@ import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.core.failure.FailureEnricher;
+import org.apache.flink.core.failure.FailureEnricherFactory;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
@@ -94,6 +96,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.jar.Attributes;
@@ -843,6 +846,47 @@ class MiniClusterJobEntryPointITCase {
         }
     }
 
+    @Test
+    void labelsFailuresWithConfiguredFailureEnrichers() throws Exception {
+        final Path pluginsDir = tempDir.resolve("plugins");
+        writePluginJar(
+                Files.createDirectories(pluginsDir.resolve("failure-enricher"))
+                        .resolve("failure-enricher.jar"),
+                FailureEnricherFactory.class,
+                TestFailureEnricherFactory.class,
+                TestFailureEnricher.class);
+
+        final Process process =
+                startProcess(
+                        "process",
+                        MiniClusterJobEntryPoint.class,
+                        applicationArguments(
+                                FailingTaskJob.class,
+                                List.of(
+                                        dynamicProperty(
+                                                RestartStrategyOptions.RESTART_STRATEGY, "none"),
+                                        dynamicProperty(
+                                                JobManagerOptions.FAILURE_ENRICHERS_LIST,
+                                                TestFailureEnricher.class.getName()))),
+                        Map.of(ConfigConstants.ENV_FLINK_PLUGINS_DIR, pluginsDir.toString()));
+        try {
+            awaitJobState(process, "process", "FAILED");
+            final JsonNode failure =
+                    awaitRest(
+                                    process,
+                                    "process",
+                                    "/jobs/" + jobId + "/exceptions",
+                                    "the job's failure",
+                                    json -> !json.at("/exceptionHistory/entries").isEmpty())
+                            .at("/exceptionHistory/entries/0");
+            assertThat(failure.at("/failureLabels/" + TestFailureEnricher.KEY).asText())
+                    .as("the failure is labelled by the configured enricher")
+                    .isEqualTo(TestFailureEnricher.VALUE);
+        } finally {
+            stop(process);
+        }
+    }
+
     private Process startMiniClusterProcess(String name) throws IOException {
         return startProcess(name, MiniClusterJobEntryPoint.class, applicationArguments());
     }
@@ -1072,15 +1116,21 @@ class MiniClusterJobEntryPointITCase {
         }
     }
 
-    private static void writePluginJar(Path jar, Class<?> service, Class<?> implementation)
+    private static void writePluginJar(
+            Path jar, Class<?> service, Class<?> implementation, Class<?>... otherClasses)
             throws IOException {
-        final String entry = implementation.getName().replace('.', '/') + ".class";
-        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar));
-                InputStream classBytes =
-                        implementation.getClassLoader().getResourceAsStream(entry)) {
-            out.putNextEntry(new JarEntry(entry));
-            classBytes.transferTo(out);
-            out.closeEntry();
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar))) {
+            for (Class<?> pluginClass :
+                    Stream.concat(Stream.of(implementation), Stream.of(otherClasses))
+                            .toArray(Class<?>[]::new)) {
+                final String entry = pluginClass.getName().replace('.', '/') + ".class";
+                try (InputStream classBytes =
+                        pluginClass.getClassLoader().getResourceAsStream(entry)) {
+                    out.putNextEntry(new JarEntry(entry));
+                    classBytes.transferTo(out);
+                    out.closeEntry();
+                }
+            }
             out.putNextEntry(new JarEntry("META-INF/services/" + service.getName()));
             out.write(implementation.getName().getBytes(StandardCharsets.UTF_8));
             out.closeEntry();
@@ -1122,6 +1172,20 @@ class MiniClusterJobEntryPointITCase {
                     StreamExecutionEnvironment.getExecutionEnvironment();
             env.fromSequence(1, 10).sinkTo(new DiscardingSink<>());
             env.execute();
+        }
+    }
+
+    public static final class FailingTaskJob {
+
+        public static void main(String[] args) throws Exception {
+            final StreamExecutionEnvironment env =
+                    StreamExecutionEnvironment.getExecutionEnvironment();
+            env.fromSequence(1, 1).map(FailingTaskJob::fail).sinkTo(new DiscardingSink<>());
+            env.execute();
+        }
+
+        private static long fail(long value) {
+            throw new IllegalStateException("The task fails.");
         }
     }
 
@@ -1229,6 +1293,33 @@ class MiniClusterJobEntryPointITCase {
                 throw new UncheckedIOException(e);
             }
             return super.createStorage(jobID, configuration, metricGroup, localRecoveryConfig);
+        }
+    }
+
+    /** Creates {@link TestFailureEnricher}. It's only registered in a plugin jar. */
+    public static final class TestFailureEnricherFactory implements FailureEnricherFactory {
+
+        @Override
+        public FailureEnricher createFailureEnricher(Configuration conf) {
+            return new TestFailureEnricher();
+        }
+    }
+
+    /** Labels every failure with the same label. */
+    public static final class TestFailureEnricher implements FailureEnricher {
+
+        static final String KEY = "test-label";
+        static final String VALUE = "labelled";
+
+        @Override
+        public Set<String> getOutputKeys() {
+            return Set.of(KEY);
+        }
+
+        @Override
+        public CompletableFuture<Map<String, String>> processFailure(
+                Throwable cause, Context context) {
+            return CompletableFuture.completedFuture(Map.of(KEY, VALUE));
         }
     }
 }
