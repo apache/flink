@@ -52,6 +52,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -135,13 +137,6 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
     protected final ArchiveStorage<Entry> archiveStorage;
 
-    /**
-     * Whether archives beyond {@link HistoryServerOptions#HISTORY_SERVER_RETAINED_JOBS} should be
-     * retained in the remote archive directory instead of being deleted. When {@code true}, such
-     * archives are only skipped for local processing, not deleted remotely.
-     */
-    private final boolean retainRemoteBeyondLocalLimit;
-
     /** Executor for loading archives. */
     private final ExecutorService commonFetchExecutor;
 
@@ -149,6 +144,15 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
     private final Map<String, Future<?>> commonFetchTasks;
     private final Map<String, Future<?>> individualFetchTasks;
     private final ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache;
+
+    /** Max number of latest archives cached locally, or -1 if all retained ones are cached. */
+    private final int cachedRetainedJobs;
+
+    private final int numCachedMostRecentlyViewedJobs;
+
+    /** Access ordered, the eldest entry is the least recently viewed job. */
+    private final Map<String, Boolean> mostRecentlyViewedJobs =
+            new LinkedHashMap<>(16, 0.75f, true);
 
     HistoryServerArchiveFetcher(
             List<HistoryServer.RefreshLocation> refreshDirs,
@@ -171,7 +175,8 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                 archiveMetaInfoCache,
                 lazyFetchExecutorCommonPoolSize,
                 lazyFetchExecutorIndividualPoolSize,
-                false);
+                -1,
+                1);
     }
 
     HistoryServerArchiveFetcher(
@@ -184,16 +189,19 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache,
             int lazyFetchExecutorCommonPoolSize,
             int lazyFetchExecutorIndividualPoolSize,
-            boolean retainRemoteBeyondLocalLimit)
+            int cachedRetainedJobs,
+            int numCachedMostRecentlyViewedJobs)
             throws IOException {
+        this.cachedRetainedJobs = cachedRetainedJobs;
+        this.numCachedMostRecentlyViewedJobs = numCachedMostRecentlyViewedJobs;
         this.refreshDirs = checkNotNull(refreshDirs);
         this.archiveEventListener = archiveEventListener;
         this.processExpiredArchiveDeletion = cleanupExpiredArchives;
         this.retainedStrategy = checkNotNull(retainedStrategy);
-        this.retainRemoteBeyondLocalLimit = retainRemoteBeyondLocalLimit;
         this.cachedArchivesPerRefreshDirectory = new HashMap<>();
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
-            cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
+            cachedArchivesPerRefreshDirectory.put(
+                    refreshDir.getPath(), ConcurrentHashMap.newKeySet());
         }
         checkNotNull(webDir);
         this.archiveStorage = archiveStorage;
@@ -231,7 +239,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             cachedArchivesPerRefreshDirectory.forEach(
                     (path, archives) -> archivesToRemove.put(path, new HashSet<>(archives)));
             Map<Path, Set<Path>> archivesBeyondRetainedLimit = new HashMap<>();
-            Map<Path, Set<Path>> archivesExpiredByTtl = new HashMap<>();
+            Map<Path, Set<String>> archivesToEvictLocally = new HashMap<>();
             for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
                 Path refreshDir = refreshLocation.getPath();
                 LOG.debug("Checking archive directory {}.", refreshDir);
@@ -257,16 +265,19 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
                     fileOrderedIndexOnModifiedTime++;
                     if (!retainedStrategy.shouldRetain(archive, fileOrderedIndexOnModifiedTime)) {
-                        if (retainedStrategy.isExpiredByTtl(archive)) {
-                            // TTL expiry always applies remote deletion, regardless of
-                            // retainRemoteBeyondLocalLimit, which only concerns the count limit.
-                            archivesExpiredByTtl
+                        archivesBeyondRetainedLimit
+                                .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
+                                .add(archivePath);
+                        continue;
+                    }
+
+                    if (cachedRetainedJobs > 0
+                            && fileOrderedIndexOnModifiedTime > cachedRetainedJobs) {
+                        // the remote archive stays, only evict what an earlier scan cached
+                        if (cachedArchivesPerRefreshDirectory.get(refreshDir).contains(archiveId)) {
+                            archivesToEvictLocally
                                     .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
-                                    .add(archivePath);
-                        } else {
-                            archivesBeyondRetainedLimit
-                                    .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
-                                    .add(archivePath);
+                                    .add(archiveId);
                         }
                         continue;
                     }
@@ -282,19 +293,17 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                     && processExpiredArchiveDeletion) {
                 events.addAll(cleanupExpiredArchives(archivesToRemove));
             }
-            if (!archivesExpiredByTtl.isEmpty()) {
-                // clean remote and local; TTL expiry is unaffected by retainRemoteBeyondLocalLimit
-                events.addAll(cleanupArchivesBeyondRetainedLimit(archivesExpiredByTtl));
-            }
+            // clean remote and local
             if (!archivesBeyondRetainedLimit.isEmpty()) {
-                if (retainRemoteBeyondLocalLimit) {
-                    // clean local only; the remote archive is left in place and remains
-                    // fetchable on demand (e.g. via LAZY archive load mode).
-                    events.addAll(
-                            cleanupLocalArchivesBeyondRetainedLimit(archivesBeyondRetainedLimit));
-                } else {
-                    // clean remote and local
-                    events.addAll(cleanupArchivesBeyondRetainedLimit(archivesBeyondRetainedLimit));
+                events.addAll(cleanupArchivesBeyondRetainedLimit(archivesBeyondRetainedLimit));
+            }
+            // clean local only
+            if (!archivesToEvictLocally.isEmpty()) {
+                synchronized (mostRecentlyViewedJobs) {
+                    archivesToEvictLocally
+                            .values()
+                            .forEach(ids -> ids.removeAll(mostRecentlyViewedJobs.keySet()));
+                    events.addAll(cleanupExpiredArchives(archivesToEvictLocally));
                 }
             }
             if (!events.isEmpty()) {
@@ -414,27 +423,6 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                 } catch (IOException ioe) {
                     LOG.warn("Could not delete old archive {}", archive, ioe);
                 }
-            }
-            allArchiveIdsToRemove.put(pathSetEntry.getKey(), archiveIdsToRemove);
-        }
-
-        return cleanupExpiredArchives(allArchiveIdsToRemove);
-    }
-
-    /**
-     * Cleans up archives beyond {@link HistoryServerOptions#HISTORY_SERVER_RETAINED_JOBS} from the
-     * local cache only. Unlike {@link #cleanupArchivesBeyondRetainedLimit}, the remote archive is
-     * left untouched so that it remains fetchable on demand, e.g. via {@link
-     * HistoryServerOptions.HistoryServerArchiveLoadMode#LAZY} mode.
-     */
-    List<ArchiveEvent> cleanupLocalArchivesBeyondRetainedLimit(
-            Map<Path, Set<Path>> archivesToRemove) {
-        Map<Path, Set<String>> allArchiveIdsToRemove = new HashMap<>();
-
-        for (Map.Entry<Path, Set<Path>> pathSetEntry : archivesToRemove.entrySet()) {
-            HashSet<String> archiveIdsToRemove = new HashSet<>();
-            for (Path archive : pathSetEntry.getValue()) {
-                archiveIdsToRemove.add(archive.getName());
             }
             allArchiveIdsToRemove.put(pathSetEntry.getKey(), archiveIdsToRemove);
         }
@@ -740,6 +728,29 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             if (refreshDir.getFs().exists(archivePath)) {
                 lazyProcessJobArchive(jobId, archivePath, true);
             }
+        }
+    }
+
+    /** Marks the job as recently viewed and evicts the least recently viewed ones locally. */
+    void markRecentlyViewed(String jobId) {
+        List<ArchiveEvent> events = new ArrayList<>();
+        synchronized (mostRecentlyViewedJobs) {
+            mostRecentlyViewedJobs.put(jobId, Boolean.TRUE);
+            Iterator<String> eldest = mostRecentlyViewedJobs.keySet().iterator();
+            while (mostRecentlyViewedJobs.size() > numCachedMostRecentlyViewedJobs) {
+                String evictedId = eldest.next();
+                eldest.remove();
+                // archives still inside the cached window are managed by the scan
+                if (cachedArchivesPerRefreshDirectory.values().stream()
+                        .noneMatch(ids -> ids.contains(evictedId))) {
+                    cleanUpLazyFetchTask(evictedId);
+                    events.add(deleteJobFiles(evictedId));
+                }
+            }
+        }
+        if (!events.isEmpty()) {
+            updateOverview();
+            events.forEach(archiveEventListener);
         }
     }
 

@@ -110,6 +110,18 @@ In `LAZY` mode, on-demand fetches use two thread pools:
 * `historyserver.lazy.fetch.executor.common.pool-size` — The size of the shared thread pool used for routine, background archive fetching.
 * `historyserver.lazy.fetch.executor.individual.pool-size` — The size of the high-priority thread pool dedicated to fetching individual archives on demand (e.g., when a user accesses them).
 
+**Local Cache and Remote Retention**
+
+By default, every archive kept by `historyserver.archive.retained-jobs` is also cached locally. To keep a large remote history while caching only recent jobs locally, set `historyserver.archive.cached-retained-jobs`. Older archives are then evicted from the local cache only and are fetched on demand when `historyserver.archive.load.mode` is `LAZY`. The last `historyserver.archive.num-cached-most-recently-viewed-jobs` jobs viewed this way (default 1) stay cached locally.
+
+```yaml
+historyserver.archive.load.mode: LAZY
+historyserver.archive.cached-retained-jobs: 100
+historyserver.archive.retained-ttl: 30 d
+```
+
+The remote directory is only bounded by `historyserver.archive.retained-jobs` and `historyserver.archive.retained-ttl` and is listed on every refresh, so set `historyserver.archive.retained-ttl` to keep it from growing without limit. These options apply to job archives only.
+
 ## Log Integration
 
 Flink does not provide built-in methods for archiving logs of completed jobs.

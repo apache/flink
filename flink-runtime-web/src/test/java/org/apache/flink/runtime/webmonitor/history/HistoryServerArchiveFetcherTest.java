@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.history.FsJsonArchivist;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -136,32 +137,38 @@ class HistoryServerArchiveFetcherTest {
                 4);
     }
 
-    /**
-     * Create {@link HistoryServerArchiveFetcher} instance with a custom retention strategy and the
-     * {@code retainRemoteBeyondLocalLimit} flag, used to test the decoupling of local processing
-     * from remote archive retention.
-     */
     private HistoryServerArchiveFetcher<?> createArchiveFetcher(
-            File refreshDir,
-            boolean cleanupExpiredJobs,
-            ArchiveStorage<?> storage,
-            org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy
-                    retainedStrategy,
-            boolean retainRemoteBeyondLocalLimit)
+            ArchiveRetainedStrategy retainedStrategy, int cachedRetainedJobs, int numViewedJobs)
             throws Exception {
-        List<HistoryServer.RefreshLocation> refreshDirs =
-                Collections.singletonList(createRefreshLocation(refreshDir));
         return new HistoryServerArchiveFetcher<>(
-                refreshDirs,
+                Collections.singletonList(createRefreshLocation(remoteArchiveRootPath)),
                 localArchiveRootPath,
                 event -> archiveEvents.add(event),
-                cleanupExpiredJobs,
+                true,
                 retainedStrategy,
-                storage,
+                archiveStorage,
                 archiveMetaInfoCache,
                 4,
                 4,
-                retainRemoteBeyondLocalLimit);
+                cachedRetainedJobs,
+                numViewedJobs);
+    }
+
+    private Path createArchive(JobID jobId, long modificationTime) throws Exception {
+        Path archive = createJobArchive(remoteArchiveRootPath, jobId, true);
+        assertThat(new File(archive.toUri()).setLastModified(modificationTime)).isTrue();
+        return archive;
+    }
+
+    private boolean isCachedLocally(JobID jobId) throws Exception {
+        return archiveStorage.exists("overviews/" + jobId + ".json");
+    }
+
+    private void view(HistoryServerArchiveFetcher<?> fetcher, JobID jobId, Path archive)
+            throws Exception {
+        fetcher.lazyFetchArchiveProactively(jobId.toString(), archive);
+        fetcher.markRecentlyViewed(jobId.toString());
+        waitForArchiveLoaded(archiveMetaInfoCache, jobId.toString());
     }
 
     // =========================================================================
@@ -449,101 +456,99 @@ class HistoryServerArchiveFetcherTest {
     }
 
     @TestTemplate
-    void testArchivesBeyondRetainedLimitAreDeletedFromRemoteByDefault() throws Exception {
-        JobID retainedJobId = JobID.generate();
-        JobID beyondLimitJobId = JobID.generate();
-        Path beyondLimitArchivePath =
-                createJobArchive(remoteArchiveRootPath, beyondLimitJobId, true);
-        createJobArchive(remoteArchiveRootPath, retainedJobId, true);
+    void testArchivesBeyondCachedLimitAreOnlyCachedLocallyWithinLimit() throws Exception {
+        JobID newest = JobID.generate();
+        JobID older = JobID.generate();
+        Path olderArchive = createArchive(older, 1000);
+        createArchive(newest, 2000);
 
-        // retain only the archive belonging to retainedJobId, regardless of file ordering
-        org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy
-                retainOnlyRetainedJob =
-                        (file, index) -> file.getPath().getName().equals(retainedJobId.toString());
-
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(
-                        remoteArchiveRootPath, true, archiveStorage, retainOnlyRetainedJob, false);
-
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
         fetcher.fetchArchives(EAGER);
 
-        assertThat(beyondLimitArchivePath.getFileSystem().exists(beyondLimitArchivePath))
-                .as("archive beyond the retained limit should be deleted from remote by default")
-                .isFalse();
+        assertThat(isCachedLocally(newest)).isTrue();
+        assertThat(isCachedLocally(older)).isFalse();
+        assertThat(olderArchive.getFileSystem().exists(olderArchive)).isTrue();
     }
 
     @TestTemplate
-    void testArchivesBeyondRetainedLimitAreKeptRemotelyWhenConfigured() throws Exception {
-        JobID retainedJobId = JobID.generate();
-        JobID beyondLimitJobId = JobID.generate();
-        Path beyondLimitArchivePath =
-                createJobArchive(remoteArchiveRootPath, beyondLimitJobId, true);
-        createJobArchive(remoteArchiveRootPath, retainedJobId, true);
+    void testCachedArchivePushedOutOfLimitIsEvictedLocallyOnly() throws Exception {
+        JobID first = JobID.generate();
+        JobID second = JobID.generate();
+        Path firstArchive = createArchive(first, 1000);
 
-        // retain only the archive belonging to retainedJobId, regardless of file ordering
-        org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy
-                retainOnlyRetainedJob =
-                        (file, index) -> file.getPath().getName().equals(retainedJobId.toString());
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        assertThat(isCachedLocally(first)).isTrue();
 
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(
-                        remoteArchiveRootPath, true, archiveStorage, retainOnlyRetainedJob, true);
-
+        createArchive(second, 2000);
+        archiveEvents.clear();
         fetcher.fetchArchives(EAGER);
 
-        // remote archive beyond the limit must still exist ...
-        assertThat(beyondLimitArchivePath.getFileSystem().exists(beyondLimitArchivePath))
-                .as(
-                        "archive beyond the retained limit must not be deleted from remote when "
-                                + "retainRemoteBeyondLocalLimit is enabled")
-                .isTrue();
-        // ... but must not have been processed/cached locally
-        assertThat(archiveStorage.exists("overviews/" + beyondLimitJobId + ".json")).isFalse();
-
-        // and it must still be fetchable on demand
-        fetcher.lazyFetchArchiveProactively(beyondLimitJobId.toString(), beyondLimitArchivePath);
-        waitForArchiveLoaded(archiveMetaInfoCache, beyondLimitJobId.toString());
-        assertThat(archiveStorage.exists("overviews/" + beyondLimitJobId + ".json")).isTrue();
+        assertThat(isCachedLocally(first)).isFalse();
+        assertThat(isCachedLocally(second)).isTrue();
+        assertThat(firstArchive.getFileSystem().exists(firstArchive)).isTrue();
+        assertThat(archiveEvents)
+                .anyMatch(
+                        e ->
+                                e.getId().equals(first.toString())
+                                        && e.getType()
+                                                == HistoryServerArchiveFetcher.ArchiveEventType
+                                                        .DELETED);
     }
 
     @TestTemplate
-    void testTtlExpiredArchivesAreDeletedFromRemoteEvenWhenBeyondLimitIsKept() throws Exception {
-        JobID retainedJobId = JobID.generate();
-        JobID ttlExpiredJobId = JobID.generate();
-        Path ttlExpiredArchivePath = createJobArchive(remoteArchiveRootPath, ttlExpiredJobId, true);
-        createJobArchive(remoteArchiveRootPath, retainedJobId, true);
+    void testViewedArchiveBeyondLimitSurvivesNextScan() throws Exception {
+        JobID newest = JobID.generate();
+        JobID older = JobID.generate();
+        Path olderArchive = createArchive(older, 1000);
+        createArchive(newest, 2000);
 
-        // reject the ttlExpiredJobId archive, but mark it as TTL-expired rather than beyond
-        // the count limit
-        org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy
-                ttlExpiringStrategy =
-                        new org.apache.flink.runtime.webmonitor.history.retaining
-                                .ArchiveRetainedStrategy() {
-                            @Override
-                            public boolean shouldRetain(
-                                    org.apache.flink.core.fs.FileStatus file, int index) {
-                                return file.getPath().getName().equals(retainedJobId.toString());
-                            }
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, older, olderArchive);
+        assertThat(isCachedLocally(older)).isTrue();
 
-                            @Override
-                            public boolean isExpiredByTtl(
-                                    org.apache.flink.core.fs.FileStatus file) {
-                                return file.getPath().getName().equals(ttlExpiredJobId.toString());
-                            }
-                        };
-
-        HistoryServerArchiveFetcher<?> fetcher =
-                createArchiveFetcher(
-                        remoteArchiveRootPath, true, archiveStorage, ttlExpiringStrategy, true);
-
+        archiveEvents.clear();
         fetcher.fetchArchives(EAGER);
 
-        // TTL-expired archives must be deleted remotely regardless of retainRemoteBeyondLocalLimit
-        assertThat(ttlExpiredArchivePath.getFileSystem().exists(ttlExpiredArchivePath))
-                .as(
-                        "TTL-expired archive must be deleted from remote even when "
-                                + "retainRemoteBeyondLocalLimit is enabled")
-                .isFalse();
+        assertThat(archiveEvents).isEmpty();
+        assertThat(isCachedLocally(older)).isTrue();
+    }
+
+    @TestTemplate
+    void testLeastRecentlyViewedArchiveIsEvictedLocally() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old1 = JobID.generate();
+        JobID old2 = JobID.generate();
+        Path old1Archive = createArchive(old1, 1000);
+        Path old2Archive = createArchive(old2, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, old1, old1Archive);
+        view(fetcher, old2, old2Archive);
+
+        assertThat(isCachedLocally(old1)).isFalse();
+        assertThat(isCachedLocally(old2)).isTrue();
+        assertThat(old1Archive.getFileSystem().exists(old1Archive)).isTrue();
+    }
+
+    @TestTemplate
+    void testRetainedLimitStillDeletesRemoteWhenCachedLimitIsSet() throws Exception {
+        JobID newest = JobID.generate();
+        JobID middle = JobID.generate();
+        JobID oldest = JobID.generate();
+        Path oldestArchive = createArchive(oldest, 1000);
+        Path middleArchive = createArchive(middle, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher((file, index) -> index <= 2, 1, 1);
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(oldestArchive.getFileSystem().exists(oldestArchive)).isFalse();
+        assertThat(middleArchive.getFileSystem().exists(middleArchive)).isTrue();
+        assertThat(isCachedLocally(middle)).isFalse();
     }
 
     @TestTemplate
