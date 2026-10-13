@@ -21,10 +21,17 @@ package org.apache.flink.table.types.inference.strategies;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
+import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.TableSemanticsMock;
+import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.ColumnList;
 
+import org.junit.jupiter.api.Test;
+
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TO_CHANGELOG_INPUT_TYPE_STRATEGY;
@@ -32,6 +39,7 @@ import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeS
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_OP_MAPPING;
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_PRODUCES_FULL_DELETES;
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_TABLE;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ToChangelogTypeStrategy#INPUT_TYPE_STRATEGY}. */
 class ToChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
@@ -129,5 +137,20 @@ class ToChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(
                                 ARG_OP_MAPPING, Map.of("INSERT, DELETE", "A", "DELETE", "B"))
                         .expectErrorMessage("Duplicate change operation: 'DELETE'"));
+    }
+
+    @Test
+    void testReportsFailureWithoutThrowingWhenTableArgumentIsMissing() {
+        final CallContextMock callContext = new CallContextMock();
+        callContext.typeFactory = new DataTypeFactoryMock();
+        callContext.name = "TO_CHANGELOG";
+        callContext.argumentDataTypes =
+                List.of(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE);
+        callContext.argumentLiterals = Collections.nCopies(4, false);
+        callContext.argumentNulls = Collections.nCopies(4, false);
+        callContext.argumentValues = Collections.nCopies(4, Optional.empty());
+        callContext.tableSemantics = Collections.emptyMap();
+
+        assertThat(TO_CHANGELOG_INPUT_TYPE_STRATEGY.inferInputTypes(callContext, false)).isEmpty();
     }
 }

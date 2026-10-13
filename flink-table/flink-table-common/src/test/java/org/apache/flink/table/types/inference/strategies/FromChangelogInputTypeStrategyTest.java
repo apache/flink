@@ -20,14 +20,23 @@ package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
+import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.TableSemanticsMock;
+import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.ColumnList;
 
+import org.junit.jupiter.api.Test;
+
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.FROM_CHANGELOG_INPUT_TYPE_STRATEGY;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FromChangelogTypeStrategy#INPUT_TYPE_STRATEGY}. */
 class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
@@ -233,6 +242,27 @@ class FromChangelogInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         "d", "DELETE"))
                         .calledWithLiteralAt(3, "Fail")
                         .expectErrorMessage(
-                                "Invalid value for argument 'error_handling': 'Fail'. Valid values are: FAIL, SKIP."));
+                                "Invalid value for argument 'error_handling': 'Fail'. Valid values are: FAIL, SKIP."),
+                TestSpec.forStrategy(
+                                "Nested call is typed without the table argument",
+                                InputTypeStrategies.WILDCARD)
+                        .surroundingStrategy(FROM_CHANGELOG_INPUT_TYPE_STRATEGY)
+                        .calledWithArgumentTypes(STRING_TYPE)
+                        .expectArgumentTypes(STRING_TYPE));
+    }
+
+    @Test
+    void testReportsFailureWithoutThrowingWhenTableArgumentIsMissing() {
+        final CallContextMock callContext = new CallContextMock();
+        callContext.typeFactory = new DataTypeFactoryMock();
+        callContext.name = "FROM_CHANGELOG";
+        callContext.argumentDataTypes = List.of(TABLE_TYPE, DESCRIPTOR_TYPE, MAP_TYPE, STRING_TYPE);
+        callContext.argumentLiterals = Collections.nCopies(4, false);
+        callContext.argumentNulls = Collections.nCopies(4, false);
+        callContext.argumentValues = Collections.nCopies(4, Optional.empty());
+        callContext.tableSemantics = Collections.emptyMap();
+
+        assertThat(FROM_CHANGELOG_INPUT_TYPE_STRATEGY.inferInputTypes(callContext, false))
+                .isEmpty();
     }
 }

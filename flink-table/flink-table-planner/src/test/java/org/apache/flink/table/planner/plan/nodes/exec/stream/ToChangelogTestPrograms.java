@@ -29,6 +29,9 @@ import org.apache.flink.types.RowKind;
 import java.time.Instant;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.descriptor;
+import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.map;
 
 /** {@link TableTestProgram} definitions for testing the built-in TO_CHANGELOG PTF. */
 public class ToChangelogTestPrograms {
@@ -479,6 +482,107 @@ public class ToChangelogTestPrograms {
                                             "+I[EU, UPDATE_AFTER, Alice, 30]")
                                     .build())
                     .runTableApi(env -> env.from("t").partitionBy($("id")).toChangelog(), "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_CUSTOM_OP_MAPPING =
+            TableTestProgram.of(
+                            "to-changelog-table-api-custom-op-mapping",
+                            "Table.toChangelog() with a map() op_mapping maps change operations to user-defined codes")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.all())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "Alice", 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("op_code STRING", "name STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[I, Alice, 10]",
+                                            "+I[I, Bob, 20]",
+                                            "+I[U, Alice, 30]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    descriptor("op_code").asArgument("op"),
+                                                    map("INSERT", "I", "UPDATE_AFTER", "U")
+                                                            .asArgument("op_mapping")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_DELETION_FLAG =
+            TableTestProgram.of(
+                            "to-changelog-table-api-deletion-flag",
+                            "Table.toChangelog() with a map() op_mapping produces deletion flag output")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.all())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "Alice", 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("deleted STRING", "name STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[false, Alice, 10]",
+                                            "+I[false, Bob, 20]",
+                                            "+I[false, Alice, 30]",
+                                            "+I[true, Bob, 20]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    descriptor("deleted").asArgument("op"),
+                                                    map(
+                                                                    "INSERT, UPDATE_AFTER",
+                                                                    "false",
+                                                                    "DELETE",
+                                                                    "true")
+                                                            .asArgument("op_mapping")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_PRODUCES_PARTIAL_DELETES =
+            TableTestProgram.of(
+                            "to-changelog-table-api-produces-partial-deletes",
+                            "Table.toChangelog() with produces_full_deletes=false keeps only the "
+                                    + "upsert key on DELETE")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.DELETE, "Alice", 10L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("op STRING", "name STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[INSERT, Alice, 10]", "+I[DELETE, Alice, null]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    lit(false).asArgument("produces_full_deletes")),
+                            "sink")
                     .build();
 
     // --------------------------------------------------------------------------------------------
