@@ -34,6 +34,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
@@ -688,6 +689,55 @@ class MiniClusterJobEntryPointITCase {
         } finally {
             stop(process);
         }
+    }
+
+    @Test
+    void rpcServiceUsesConfiguredThreadPool() throws Exception {
+        final Process process =
+                startProcess(
+                        "process",
+                        MiniClusterJobEntryPoint.class,
+                        applicationArguments(
+                                RecordingJob.class,
+                                List.of(
+                                        dynamicProperty(
+                                                RpcOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN, 16),
+                                        dynamicProperty(
+                                                RpcOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX,
+                                                16))));
+        try {
+            // threads are only started on demand, so this waits for the cluster to need more than
+            // the at most 4 threads of the MiniCluster's default pool
+            final long deadline = System.nanoTime() + TIMEOUT.toNanos();
+            long rpcThreads = 0;
+            while (rpcThreads <= 4) {
+                if (!process.isAlive() || System.nanoTime() > deadline) {
+                    printLog("process");
+                    fail(
+                            "Expected more than 4 RPC threads within %s (last seen: %d).",
+                            TIMEOUT, rpcThreads);
+                }
+                Thread.sleep(POLL_INTERVAL.toMillis());
+                rpcThreads =
+                        queryRest("/jobmanager/thread-dump")
+                                .map(MiniClusterJobEntryPointITCase::rpcThreads)
+                                .orElse(0L);
+            }
+        } finally {
+            stop(process);
+        }
+    }
+
+    private static long rpcThreads(JsonNode threadDump) {
+        long count = 0;
+        for (JsonNode thread : threadDump.get("threadInfos")) {
+            if (thread.get("threadName")
+                    .asText()
+                    .startsWith("flink-pekko.actor.default-dispatcher-")) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private Process startMiniClusterProcess(String name) throws IOException {

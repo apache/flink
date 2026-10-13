@@ -38,6 +38,8 @@ import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rest.ApplicationRestEndpointFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.ExceptionUtils;
@@ -151,6 +153,13 @@ final class ApplicationModeMiniCluster extends MiniCluster {
                 closeAsync();
             }
         };
+    }
+
+    /** Sizes the RPC thread pool from the {@code pekko.fork-join-executor} options. */
+    @Override
+    protected RpcService createLocalRpcService(Configuration configuration, RpcSystem rpcSystem)
+            throws Exception {
+        return rpcSystem.localServiceBuilder(configuration).createAndStart();
     }
 
     @Override
