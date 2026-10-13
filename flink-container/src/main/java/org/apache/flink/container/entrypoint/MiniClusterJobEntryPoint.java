@@ -36,6 +36,7 @@ import org.apache.flink.runtime.security.contexts.SecurityContext;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,15 +115,18 @@ public final class MiniClusterJobEntryPoint {
         final ApplicationModeMiniCluster miniCluster =
                 new ApplicationModeMiniCluster(
                         buildMiniClusterConfiguration(configuration, pluginManager), program);
+        final String serviceName = MiniClusterJobEntryPoint.class.getSimpleName();
+        ShutdownHookUtil.addShutdownHookThread(
+                new Thread(
+                        () -> {
+                            if (STOPPING.compareAndSet(false, true)) {
+                                closeQuietly(miniCluster, SHUTDOWN_HOOK_TIMEOUT);
+                            }
+                        },
+                        serviceName + " shutdown hook"),
+                serviceName,
+                LOG);
         miniCluster.start();
-        Runtime.getRuntime()
-                .addShutdownHook(
-                        new Thread(
-                                () -> {
-                                    if (STOPPING.compareAndSet(false, true)) {
-                                        closeQuietly(miniCluster, SHUTDOWN_HOOK_TIMEOUT);
-                                    }
-                                }));
 
         CompletableFuture.anyOf(
                         miniCluster.getApplicationShutDownFuture(),
