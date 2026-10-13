@@ -66,6 +66,9 @@ public final class MiniClusterJobEntryPoint {
 
     private static final AtomicBoolean STOPPING = new AtomicBoolean();
 
+    /** Whether the JVM is exiting for another reason, which decides its exit code. */
+    private static volatile boolean closedByShutdownHook;
+
     public static void main(String[] args) {
         EnvironmentInformation.logEnvironmentInfo(
                 LOG, MiniClusterJobEntryPoint.class.getSimpleName(), args);
@@ -97,8 +100,15 @@ public final class MiniClusterJobEntryPoint {
                                             clusterConfiguration, configuration, pluginManager));
         } catch (Throwable t) {
             LOG.error("Could not run the application on a MiniCluster.", t);
-            exitCode = 1;
+            exitCode = ClusterEntrypoint.STARTUP_FAILURE_RETURN_CODE;
         }
+        if (closedByShutdownHook) {
+            return;
+        }
+        LOG.info(
+                "Terminating {} with exit code {}.",
+                MiniClusterJobEntryPoint.class.getSimpleName(),
+                exitCode);
         System.exit(exitCode);
     }
 
@@ -110,23 +120,33 @@ public final class MiniClusterJobEntryPoint {
         final PackagedProgram program =
                 ApplicationClusterEntryPointUtils.getPackagedProgram(
                         clusterConfiguration, configuration);
-        ApplicationClusterEntryPoint.configureExecution(configuration, program);
+        final ApplicationModeMiniCluster miniCluster;
+        try {
+            ApplicationClusterEntryPoint.configureExecution(configuration, program);
 
-        final ApplicationModeMiniCluster miniCluster =
-                new ApplicationModeMiniCluster(
-                        buildMiniClusterConfiguration(configuration, pluginManager), program);
-        final String serviceName = MiniClusterJobEntryPoint.class.getSimpleName();
-        ShutdownHookUtil.addShutdownHookThread(
-                new Thread(
-                        () -> {
-                            if (STOPPING.compareAndSet(false, true)) {
-                                closeQuietly(miniCluster, SHUTDOWN_HOOK_TIMEOUT);
-                            }
-                        },
-                        serviceName + " shutdown hook"),
-                serviceName,
-                LOG);
-        miniCluster.start();
+            miniCluster =
+                    new ApplicationModeMiniCluster(
+                            buildMiniClusterConfiguration(configuration, pluginManager), program);
+            final String serviceName = MiniClusterJobEntryPoint.class.getSimpleName();
+            ShutdownHookUtil.addShutdownHookThread(
+                    new Thread(
+                            () -> {
+                                if (STOPPING.compareAndSet(false, true)) {
+                                    closedByShutdownHook = true;
+                                    closeQuietly(miniCluster, SHUTDOWN_HOOK_TIMEOUT);
+                                    program.close();
+                                }
+                            },
+                            serviceName + " shutdown hook"),
+                    serviceName,
+                    LOG);
+            miniCluster.start();
+        } catch (Throwable t) {
+            if (STOPPING.compareAndSet(false, true)) {
+                program.close();
+            }
+            throw t;
+        }
 
         CompletableFuture.anyOf(
                         miniCluster.getApplicationShutDownFuture(),
@@ -147,7 +167,7 @@ public final class MiniClusterJobEntryPoint {
                 miniCluster.getApplicationShutDownFuture();
         if (!applicationShutDown.isDone() || applicationShutDown.isCompletedExceptionally()) {
             LOG.error("MiniCluster shut down before the application finished.");
-            return 1;
+            return ClusterEntrypoint.RUNTIME_FAILURE_RETURN_CODE;
         }
         final ApplicationStatus applicationStatus = applicationShutDown.join();
         LOG.info("Application finished with status {}.", applicationStatus);

@@ -119,8 +119,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
     protected static final Logger LOG = LoggerFactory.getLogger(ClusterEntrypoint.class);
 
-    protected static final int STARTUP_FAILURE_RETURN_CODE = 1;
-    protected static final int RUNTIME_FAILURE_RETURN_CODE = 2;
+    public static final int STARTUP_FAILURE_RETURN_CODE = 1;
+    public static final int RUNTIME_FAILURE_RETURN_CODE = 2;
 
     private static final Duration INITIALIZATION_SHUTDOWN_TIMEOUT = Duration.ofSeconds(30L);
 

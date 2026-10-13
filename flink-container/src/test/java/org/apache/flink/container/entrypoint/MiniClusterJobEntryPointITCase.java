@@ -535,7 +535,7 @@ class MiniClusterJobEntryPointITCase {
         try {
             assertThat(awaitExit(second, "second"))
                     .as("the process exits so supervisor can restart")
-                    .isEqualTo(1);
+                    .isEqualTo(2);
             assertThat(zooKeeperNodeExists(executionPlanZooKeeperPath()))
                     .as("the job's HA metadata survives the error")
                     .isTrue();
@@ -561,7 +561,7 @@ class MiniClusterJobEntryPointITCase {
         try {
             assertThat(awaitExit(process, "process"))
                     .as("the process exits so supervisor can restart")
-                    .isEqualTo(1);
+                    .isEqualTo(2);
             assertThat(zooKeeperNodeExists(executionPlanZooKeeperPath()))
                     .as("the job's HA metadata survives the error")
                     .isTrue();

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
+import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
@@ -141,7 +142,11 @@ final class ApplicationModeMiniCluster extends MiniCluster {
             }
             LOG.error("TaskManager #{} failed. Shutting the MiniCluster down.", index, exception);
             if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception)) {
-                FlinkSecurityManager.forceProcessExit(1);
+                LOG.error(
+                        "Terminating the process with exit code {}.",
+                        ClusterEntrypoint.RUNTIME_FAILURE_RETURN_CODE);
+                FlinkSecurityManager.forceProcessExit(
+                        ClusterEntrypoint.RUNTIME_FAILURE_RETURN_CODE);
             } else {
                 closeAsync();
             }
