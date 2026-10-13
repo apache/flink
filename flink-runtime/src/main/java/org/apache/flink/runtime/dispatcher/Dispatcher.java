@@ -979,6 +979,15 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
                             return internalSubmitApplication(application);
                         },
+                        getMainThreadExecutor())
+                .whenCompleteAsync(
+                        (ack, throwable) -> {
+                            // a rejected application is never executed, so release its resources
+                            if (throwable != null
+                                    && applications.get(applicationId) != application) {
+                                application.dispose();
+                            }
+                        },
                         getMainThreadExecutor());
     }
 

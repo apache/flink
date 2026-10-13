@@ -41,7 +41,6 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.utils.JarHandlerUtils.JarHandlerContext;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -55,7 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
@@ -139,6 +138,9 @@ public class JarRunApplicationHandler
             jarUploadFuture = CompletableFuture.completedFuture(null);
         }
 
+        // Once the application is created it owns the program and the dispatcher disposes it if
+        // the submission is rejected, so the handler only closes the program before that point.
+        final AtomicBoolean applicationCreated = new AtomicBoolean(false);
         return jarUploadFuture
                 .thenCompose(
                         jarInfo -> {
@@ -153,15 +155,13 @@ public class JarRunApplicationHandler
                                             false,
                                             false,
                                             jarInfo);
+                            applicationCreated.set(true);
                             return gateway.submitApplication(application, timeout);
                         })
                 .handle(
                         (acknowledge, throwable) -> {
                             if (throwable != null) {
-                                // After an RPC timeout the dispatcher may still have accepted the
-                                // application and now owns the program.
-                                if (!ExceptionUtils.findThrowable(throwable, TimeoutException.class)
-                                        .isPresent()) {
+                                if (!applicationCreated.get()) {
                                     program.close();
                                 }
                                 throw new CompletionException(

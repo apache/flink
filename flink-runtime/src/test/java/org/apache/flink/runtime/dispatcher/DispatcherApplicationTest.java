@@ -307,6 +307,31 @@ public class DispatcherApplicationTest {
     }
 
     @Test
+    public void testRejectedDuplicateApplicationIsDisposed() throws Exception {
+        dispatcher = createTestingDispatcherBuilder().build(rpcService);
+        dispatcher.start();
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        dispatcherGateway
+                .submitApplication(
+                        TestingApplication.builder().setApplicationId(applicationId).build(),
+                        TIMEOUT)
+                .get();
+
+        final CompletableFuture<Void> disposed = new CompletableFuture<>();
+        final AbstractApplication duplicate =
+                TestingApplication.builder()
+                        .setApplicationId(applicationId)
+                        .setDisposeRunnable(() -> disposed.complete(null))
+                        .build();
+
+        assertThatThrownBy(() -> dispatcherGateway.submitApplication(duplicate, TIMEOUT).get())
+                .hasCauseInstanceOf(DuplicateApplicationSubmissionException.class);
+        disposed.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    @Test
     public void testDuplicateApplicationSubmissionIsDetectedOnSimultaneousSubmission()
             throws Exception {
         dispatcher = createTestingDispatcherBuilder().build(rpcService);

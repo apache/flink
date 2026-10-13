@@ -46,6 +46,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -58,6 +59,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -127,49 +129,78 @@ public class PackagedProgramApplicationTest {
     @Test
     void testProgramIsClosedWhenApplicationFinishes(@TempDir Path tempDir) throws Throwable {
         final PackagedProgram program = getProgramWithNestedLibrary(tempDir);
-        final int dependenciesWithLibrary = program.getJobJarAndDependencies().size();
-        final PackagedProgramApplication application =
-                new PackagedProgramApplication(
-                        new ApplicationID(),
-                        program,
-                        getConfiguration(),
-                        Integer.MAX_VALUE,
-                        1,
-                        true,
-                        false,
-                        true);
+        final Path extractedLibrary = getExtractedLibrary(program);
+        assertThat(extractedLibrary).exists();
+        final PackagedProgramApplication application = createApplication(program);
+        final CompletableFuture<Throwable> fatalError = new CompletableFuture<>();
 
         executeApplication(
                 application,
                 finishedJobGatewayBuilder().build(),
                 scheduledExecutor,
-                exception -> {});
+                fatalError::complete);
         application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         assertApplicationFinished(application);
-        // closing the program deletes the extracted nested libraries
-        assertThat(program.getJobJarAndDependencies()).hasSize(dependenciesWithLibrary - 1);
+        assertThat(fatalError).isNotDone();
+        assertThat(extractedLibrary).doesNotExist();
     }
 
     @Test
     void testProgramIsClosedWhenApplicationIsDisposed(@TempDir Path tempDir) throws Throwable {
         final PackagedProgram program = getProgramWithNestedLibrary(tempDir);
-        final int dependenciesWithLibrary = program.getJobJarAndDependencies().size();
-        final PackagedProgramApplication application =
-                new PackagedProgramApplication(
-                        new ApplicationID(),
-                        program,
-                        getConfiguration(),
-                        Integer.MAX_VALUE,
-                        1,
-                        true,
-                        false,
-                        true);
+        final Path extractedLibrary = getExtractedLibrary(program);
+        final PackagedProgramApplication application = createApplication(program);
 
         application.dispose();
         application.dispose();
 
-        assertThat(program.getJobJarAndDependencies()).hasSize(dependenciesWithLibrary - 1);
+        assertThat(extractedLibrary).doesNotExist();
+    }
+
+    @Test
+    void testReconstructedProgramIsClosedWhenRecoveredApplicationFinishes(@TempDir Path tempDir)
+            throws Throwable {
+        final PackagedProgram program = getProgramWithNestedLibrary(tempDir);
+        final PackagedProgramApplication original = createApplication(program);
+        // the program is transient, so a recovered application has to rebuild it
+        final PackagedProgramApplication recovered =
+                InstantiationUtil.deserializeObject(
+                        InstantiationUtil.serializeObject(original), getClass().getClassLoader());
+        assertThat(recovered.getPackagedProgram()).isNull();
+        recovered.dispose();
+
+        final CompletableFuture<Throwable> fatalError = new CompletableFuture<>();
+        executeApplication(
+                recovered,
+                finishedJobGatewayBuilder().build(),
+                scheduledExecutor,
+                fatalError::complete);
+        recovered.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+        assertThat(fatalError).isNotDone();
+        final PackagedProgram reconstructed = recovered.getPackagedProgram();
+        assertThat(reconstructed).isNotNull();
+        // only the job jar remains once the extracted nested libraries are deleted
+        assertThat(reconstructed.getJobJarAndDependencies()).hasSize(1);
+        program.close();
+    }
+
+    private PackagedProgramApplication createApplication(PackagedProgram program) {
+        return new PackagedProgramApplication(
+                new ApplicationID(),
+                program,
+                getConfiguration(),
+                Integer.MAX_VALUE,
+                1,
+                true,
+                false,
+                true);
+    }
+
+    private static Path getExtractedLibrary(PackagedProgram program) throws Exception {
+        final List<URL> dependencies = program.getJobJarAndDependencies();
+        return Path.of(dependencies.get(dependencies.size() - 1).toURI());
     }
 
     private static PackagedProgram getProgramWithNestedLibrary(Path tempDir) throws Exception {
