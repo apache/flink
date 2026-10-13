@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptionsInternal;
@@ -58,6 +59,10 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import javax.management.remote.JMXConnector;
+import javax.management.remote.JMXConnectorFactory;
+import javax.management.remote.JMXServiceURL;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -653,6 +658,38 @@ class MiniClusterJobEntryPointITCase {
         }
     }
 
+    @Test
+    void startsJmxServerOnConfiguredPort() throws Exception {
+        final int jmxPort;
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            jmxPort = port.getPort();
+        }
+        final Process process =
+                startProcess(
+                        "process",
+                        MiniClusterJobEntryPoint.class,
+                        applicationArguments(
+                                RecordingJob.class,
+                                List.of(
+                                        dynamicProperty(
+                                                JMXServerOptions.JMX_SERVER_PORT, jmxPort))));
+        try {
+            awaitClusterServing(process, "process");
+            final JMXServiceURL url =
+                    new JMXServiceURL(
+                            "service:jmx:rmi://localhost:"
+                                    + jmxPort
+                                    + "/jndi/rmi://localhost:"
+                                    + jmxPort
+                                    + "/jmxrmi");
+            try (JMXConnector connector = JMXConnectorFactory.connect(url)) {
+                assertThat(connector.getMBeanServerConnection().getMBeanCount()).isPositive();
+            }
+        } finally {
+            stop(process);
+        }
+    }
+
     private Process startMiniClusterProcess(String name) throws IOException {
         return startProcess(name, MiniClusterJobEntryPoint.class, applicationArguments());
     }
@@ -679,6 +716,8 @@ class MiniClusterJobEntryPointITCase {
         command.add(System.getProperty("java.class.path"));
         // registering the DataStream transformation translators reflects into a final map
         command.add("--add-opens=java.base/java.util=ALL-UNNAMED");
+        // the JMX server's registry (as in the distribution's default env.java.opts.all)
+        command.add("--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED");
         command.add(mainClass.getName());
         command.addAll(arguments);
 
