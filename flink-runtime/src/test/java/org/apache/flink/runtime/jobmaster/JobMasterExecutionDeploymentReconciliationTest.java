@@ -87,7 +87,7 @@ class JobMasterExecutionDeploymentReconciliationTest {
             new TestingFatalErrorHandlerExtension();
 
     @BeforeEach
-    private void setup() {
+    void setup() {
         haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
         haServices.setResourceManagerLeaderElection(new TestingLeaderElection());
         haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());

@@ -90,17 +90,17 @@ class JobMasterQueryableStateTest {
     }
 
     @BeforeAll
-    private static void setupClass() {
+    static void setupClass() {
         rpcService = new TestingRpcService();
     }
 
     @AfterEach
-    private void teardown() throws Exception {
+    void teardown() throws Exception {
         rpcService.clearGateways();
     }
 
     @AfterAll
-    private static void teardownClass() {
+    static void teardownClass() {
         if (rpcService != null) {
             rpcService.closeAsync();
             rpcService = null;
