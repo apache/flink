@@ -1426,14 +1426,14 @@ variant:
       PARSE_XML('<book><title>Dune</title></book>', TRUE)
       ```
 
-      See XML to VARIANT below the function table for how XML is mapped to a Variant.
+      See the "XML to VARIANT" section below the function table for how XML is mapped to a Variant.
   - sql: TRY_PARSE_XML(xml_string[, force_array])
     table: STRING.tryParseXml([forceArray])
     description: |
       Parses an XML string into a Variant. If the XML string is invalid, returns NULL. To throw an
       error instead of returning NULL, use the `PARSE_XML` function.
 
-      See `PARSE_XML` for the meaning of `force_array`.
+      See `PARSE_XML` for the full documentation.
   - sql: variant '[' INT ']'
     table: VARIANT.at(INT)
     description: |

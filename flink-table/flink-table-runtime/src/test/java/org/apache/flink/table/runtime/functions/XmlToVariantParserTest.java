@@ -311,6 +311,27 @@ class XmlToVariantParserTest {
                             "2026-09-23T12:30:45.123456789Z",
                             Variant.Type.TIMESTAMP_LTZ_NS,
                             Instant.parse("2026-09-23T12:30:45.123456789Z")),
+                    arguments("date", "9999-12-31", Variant.Type.DATE, LocalDate.of(9999, 12, 31)),
+                    arguments(
+                            "dateTime",
+                            "9999-12-31T23:59:59.999999",
+                            Variant.Type.TIMESTAMP,
+                            LocalDateTime.of(9999, 12, 31, 23, 59, 59, 999_999_000)),
+                    arguments(
+                            "dateTime",
+                            "9999-12-31T23:59:59.999999Z",
+                            Variant.Type.TIMESTAMP_LTZ,
+                            Instant.parse("9999-12-31T23:59:59.999999Z")),
+                    arguments(
+                            "dateTime",
+                            "2262-04-11T23:47:16.854775807",
+                            Variant.Type.TIMESTAMP_NS,
+                            LocalDateTime.of(2262, 4, 11, 23, 47, 16, 854_775_807)),
+                    arguments(
+                            "dateTime",
+                            "2262-04-11T23:47:16.854775807Z",
+                            Variant.Type.TIMESTAMP_LTZ_NS,
+                            Instant.parse("2262-04-11T23:47:16.854775807Z")),
                     // Types are matched by their local part.
                     arguments("xs:int", "5", Variant.Type.INT, 5),
                     arguments("xsd:int", "5", Variant.Type.INT, 5));

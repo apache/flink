@@ -96,8 +96,8 @@ Known Limitations:
 
 #### XML to VARIANT
 
-The `PARSE_XML` function maps an XML document to an object with a single field named after the root
-element. For example:
+The `PARSE_XML` function maps the root element of an XML document to a `VARIANT` object. For
+example:
 
 ```sql
 -- {"book":{"#":{"price":[1,2],"title":0},"@pages":"320","price":["12.50","13.50"],"title":"Dune"}}
@@ -156,16 +156,16 @@ object, while the first one is a string. An element whose content has only one k
 since the order of an array is the document order.
 
 Whether a child element is stored as a single value or as an array depends on how often it occurs,
-so two documents that follow the same schema can map to different shapes. With
-`PARSE_XML(xml, TRUE)`, every child element, text, and position in a `#` field is stored as an array,
-even if it occurs only once. The root element is never wrapped, since a document has exactly one.
+so two documents that follow the same schema can map to different shapes. The default behavior
+ensures a space-efficient representation. With `PARSE_XML(xml, TRUE)`, every child element, text,
+and position in a `#` field is stored as an array, even if it occurs only once. The root element is never wrapped, since a document has exactly one.
 
 ```sql
 -- {"book":{"title":["Dune"]}}
 PARSE_XML('<book><title>Dune</title></book>', TRUE)
 ```
 
-An `xsi:type` attribute stores the text of an element as the matching kind, which replaces the text,
+An `xsi:type` attribute parses the text of an element as the matching kind, which replaces the text,
 or the `$` field if the element has other attributes. The prefix of the type is ignored, so `xs:int`,
 `xsd:int`, and `int` are the same type. If the element has child elements or no text, the type isn't
 listed below, or the text isn't a valid value of the type, the text stays a `STRING` and `xsi:type`
@@ -190,8 +190,15 @@ the lexical form that XML Schema defines for the type, so `1e5` isn't a `decimal
 | `dateTime` with an offset    | `TIMESTAMP_LTZ`                              |
 | `dateTime` without an offset | `TIMESTAMP`                                  |
 
-Fractional seconds beyond the precision of the kind are truncated, like in a cast, instead of
-keeping the text as a `STRING`.
+The offset of a `dateTime` is `Z` or a signed `hh:mm` of at most 14 hours. It is used to compute the
+instant and isn't stored, since a `TIMESTAMP_LTZ` has no offset. For example,
+`2026-09-30T12:30:00+02:00`, `2026-09-30T10:30:00Z`, and `2026-09-30T06:00:00-04:30` map to the same
+`TIMESTAMP_LTZ`. A `date` or `time` with an offset stays a `STRING`, since it can't be converted to an
+instant without a date or a time.
+
+`TIME` keeps microseconds, so `12:30:45.1234567` is stored as `12:30:45.123456`. `TIMESTAMP` and
+`TIMESTAMP_LTZ` keep nanoseconds, or microseconds outside the nanosecond range from 1677 to 2262.
+Further digits are truncated, like in a cast, instead of keeping the text as a `STRING`.
 
 A typed value casts directly to its type, without the cast to `STRING`:
 
