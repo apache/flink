@@ -33,7 +33,7 @@ import pyflink.dataframe as pf
 from pyflink.common import Row, RowKind
 from pyflink.table import DataTypes as TableDataTypes
 from pyflink.table.expression import Expression
-from pyflink.table.types import RowType
+from pyflink.table.types import MapType, RowType
 from pyflink.table.udf import AsyncScalarFunction, ScalarFunction, TableFunction
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
@@ -1665,11 +1665,14 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
             "details": details,
             "items": pf.DataType.list(
                 pf.DataType.map(pf.DataType.string(), details)),
+            "plain_items": pf.DataType.list(
+                pf.DataType.map(pf.DataType.string(), pf.DataType.int64())),
             "lookup": pf.DataType.map(pf.DataType.string(), details),
         })
         input_type = TableDataTypes.ROW([TableDataTypes.FIELD("id", TableDataTypes.BIGINT())])
         valid = {"details": pd.DataFrame({"name": [None]}),
                  "items": [None, {"item key": {"name": "a"}}],
+                 "plain_items": [None, {"plain key": 1}, {}],
                  "lookup": {"any key": {"name": None}}, "extra": 2}
         cases = [(valid, None), ({"items": [], "lookup": {}}, KeyError),
                  (dict(valid, details=pd.DataFrame(index=[0])), ValueError),
@@ -1689,6 +1692,12 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
                 try:
                     if result is valid:
                         output = adapter.eval(pd.Series([1]))
+                        self.assertEqual(output["items"].iloc[0],
+                                         [None, [("item key", {"name": "a"})]])
+                        self.assertEqual(output["plain_items"].iloc[0],
+                                         [None, [("plain key", 1)], []])
+                        self.assertEqual(valid["items"], [None, {"item key": {"name": "a"}}])
+                        self.assertEqual(valid["plain_items"], [None, {"plain key": 1}, {}])
                         row_type = dtype._to_table_data_type()
                         schema = create_pandas_table_row_schema(TableDataTypes.ROW([
                             TableDataTypes.FIELD("result", row_type)]))
@@ -1696,6 +1705,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
                         self.assertEqual(batch.to_pylist(), [{"result": {
                             "details": {"name": None},
                             "items": [None, [("item key", {"name": "a"})]],
+                            "plain_items": [None, [("plain key", 1)], []],
                             "lookup": [("any key", {"name": None})]}}])
                     else:
                         with self.assertRaises(error):
@@ -1711,7 +1721,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
         for data_type, payload in (
             (TableDataTypes.ARRAY(row_type), [{"v": i} for i in range(10000)]),
             (TableDataTypes.MAP(TableDataTypes.STRING(), row_type),
-             {str(i): {"v": i} for i in range(10000)}),
+             [(str(i), {"v": i}) for i in range(10000)]),
         ):
             normalize = _create_pandas_result_normalizer(data_type)
             normalize(payload)
@@ -1724,12 +1734,12 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
             self.assertIs(normalized, payload)
             self.assertLess(peak, 16384)
             original = Row(v=1)
-            if isinstance(payload, dict):
-                source = {"same": payload["0"], "changed": original}
+            if isinstance(data_type, MapType):
+                source = [("same", payload[0][1]), ("changed", original)]
                 converted = normalize(source)
-                self.assertIs(converted[0][1], source["same"])
+                self.assertIs(converted[0][1], source[0][1])
                 self.assertEqual(converted[1], ("changed", {"v": 1}))
-                self.assertIs(source["changed"], original)
+                self.assertIs(source[1][1], original)
             else:
                 source = [payload[0], original]
                 converted = normalize(source)

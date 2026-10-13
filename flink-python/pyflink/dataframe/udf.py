@@ -1498,25 +1498,28 @@ def _create_pandas_result_normalizer(data_type):
     if isinstance(data_type, MapType):
         normalize_key = _create_pandas_result_normalizer(data_type.key_type)
         normalize_value = _create_pandas_result_normalizer(data_type.value_type)
-        if normalize_key is not None or normalize_value is not None:
-            def normalize_map(value):
-                if isinstance(value, Iterator):
-                    raise TypeError("Pandas MAP values containing ROW must not be an iterator; "
-                                    "return a dictionary or list of pairs instead.")
-                if _is_pandas_null(value):
-                    return None
-                items = value.items() if isinstance(value, Mapping) else value
-                converted = None
-                for index, (key, item) in enumerate(items):
-                    normalized_key = key if normalize_key is None else normalize_key(key)
-                    normalized_item = item if normalize_value is None else normalize_value(item)
-                    if normalized_key is not key or normalized_item is not item:
-                        if converted is None:
-                            converted = list(value.items() if isinstance(value, Mapping) else value)
-                        converted[index] = (normalized_key, normalized_item)
-                return value if converted is None else converted
 
-            return normalize_map
+        def normalize_map(value):
+            if isinstance(value, Iterator):
+                raise TypeError("Pandas MAP values must not be an iterator; "
+                                "return a dictionary or list of pairs instead.")
+            if _is_pandas_null(value):
+                return None
+            # Older Arrow versions require pair sequences for MAPs nested in collections.
+            converted = list(value.items()) if isinstance(value, Mapping) else None
+            if normalize_key is None and normalize_value is None:
+                return value if converted is None else converted
+            items = value if converted is None else converted
+            for index, (key, item) in enumerate(items):
+                normalized_key = key if normalize_key is None else normalize_key(key)
+                normalized_item = item if normalize_value is None else normalize_value(item)
+                if normalized_key is not key or normalized_item is not item:
+                    if converted is None:
+                        converted = list(value)
+                    converted[index] = (normalized_key, normalized_item)
+            return value if converted is None else converted
+
+        return normalize_map
     return None
 
 
