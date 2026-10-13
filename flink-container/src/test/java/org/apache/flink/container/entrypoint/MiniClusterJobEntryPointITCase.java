@@ -32,6 +32,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
@@ -73,6 +74,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -315,6 +317,47 @@ class MiniClusterJobEntryPointITCase {
             assertThat(mainInvocations())
                     .as("main() runs again when the restarted process recovers the job")
                     .isEqualTo(2);
+        } finally {
+            stop(second);
+        }
+    }
+
+    @Test
+    void restartAfterSigtermRecoversJobWithoutRestartStrategy() throws Exception {
+        // A job failed over by its TaskManager stopping would fail globally without restarts,
+        // which discards its high availability data. Only deployed tasks can be failed over, so
+        // the test waits for them to run.
+        final List<String> arguments =
+                applicationArguments(
+                        UnboundedJob.class,
+                        List.of(dynamicProperty(RestartStrategyOptions.RESTART_STRATEGY, "none")));
+
+        final Process first = startProcess("first", MiniClusterJobEntryPoint.class, arguments);
+        try {
+            awaitRest(
+                    first,
+                    "first",
+                    "/jobs/" + jobId,
+                    "the job's tasks to be running",
+                    MiniClusterJobEntryPointITCase::allTasksRunning);
+        } finally {
+            stop(first);
+        }
+
+        final Process second = startProcess("second", MiniClusterJobEntryPoint.class, arguments);
+        try {
+            final Set<String> runningOrTerminal =
+                    Set.of("RUNNING", "FAILED", "CANCELED", "FINISHED", "SUSPENDED");
+            final String state =
+                    awaitRest(
+                                    second,
+                                    "second",
+                                    "/jobs/" + jobId,
+                                    "the job to be running or terminal",
+                                    json -> runningOrTerminal.contains(json.get("state").asText()))
+                            .get("state")
+                            .asText();
+            assertThat(state).as("the restarted process recovers the job").isEqualTo("RUNNING");
         } finally {
             stop(second);
         }
@@ -768,6 +811,19 @@ class MiniClusterJobEntryPointITCase {
 
     private String checkpointsPath() {
         return "/jobs/" + jobId + "/checkpoints";
+    }
+
+    private static boolean allTasksRunning(JsonNode job) {
+        final JsonNode vertices = job.get("vertices");
+        if (vertices == null || vertices.isEmpty()) {
+            return false;
+        }
+        for (JsonNode vertex : vertices) {
+            if (!"RUNNING".equals(vertex.get("status").asText())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static void stop(Process process) throws InterruptedException {

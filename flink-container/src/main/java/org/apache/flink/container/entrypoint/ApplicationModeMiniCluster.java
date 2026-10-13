@@ -47,6 +47,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -66,6 +68,8 @@ final class ApplicationModeMiniCluster extends MiniCluster {
     private final CompletableFuture<ApplicationStatus> applicationShutDownFuture =
             new CompletableFuture<>();
     private final CompletableFuture<Void> closeRequestedFuture = new CompletableFuture<>();
+    private final Collection<DispatcherResourceManagerComponent>
+            dispatcherResourceManagerComponents = new CopyOnWriteArrayList<>();
 
     ApplicationModeMiniCluster(
             final MiniClusterConfiguration miniClusterConfiguration,
@@ -119,6 +123,7 @@ final class ApplicationModeMiniCluster extends MiniCluster {
         for (DispatcherResourceManagerComponent component : components) {
             FutureUtils.forward(component.getShutDownFuture(), applicationShutDownFuture);
         }
+        dispatcherResourceManagerComponents.addAll(components);
         return components;
     }
 
@@ -146,6 +151,13 @@ final class ApplicationModeMiniCluster extends MiniCluster {
     @Override
     public CompletableFuture<Void> closeAsync() {
         closeRequestedFuture.complete(null);
-        return super.closeAsyncWithoutCleaningHighAvailabilityData();
+        return FutureUtils.composeAfterwards(
+                FutureUtils.completeAll(
+                        // stop the dispatcher before the MiniCluster stops TaskManagers so it
+                        // suspends jobs first
+                        dispatcherResourceManagerComponents.stream()
+                                .map(DispatcherResourceManagerComponent::stopProcess)
+                                .collect(Collectors.toList())),
+                super::closeAsyncWithoutCleaningHighAvailabilityData);
     }
 }
