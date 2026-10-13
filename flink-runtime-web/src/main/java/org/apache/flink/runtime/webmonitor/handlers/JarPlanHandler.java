@@ -105,6 +105,8 @@ public class JarPlanHandler
                 () -> {
                     try (PackagedProgram packagedProgram =
                             context.toPackagedProgram(effectiveConfiguration)) {
+                        context.applyProgramToConfiguration(
+                                effectiveConfiguration, packagedProgram);
                         final JobGraph jobGraph =
                                 context.toJobGraph(packagedProgram, effectiveConfiguration, true);
                         return planGenerator.apply(jobGraph);

@@ -162,8 +162,10 @@ public class JarHandlerUtils {
                         PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, jobId.toHexString());
             }
             configuration.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
+        }
 
-            final PackagedProgram program = toPackagedProgram(configuration);
+        public void applyProgramToConfiguration(
+                final Configuration configuration, final PackagedProgram program) {
             ConfigUtils.encodeCollectionToConfig(
                     configuration,
                     PipelineOptions.JARS,

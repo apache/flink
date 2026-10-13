@@ -103,6 +103,12 @@ public class JarRunHandler
                 effectiveConfiguration);
 
         final PackagedProgram program = context.toPackagedProgram(effectiveConfiguration);
+        try {
+            context.applyProgramToConfiguration(effectiveConfiguration, program);
+        } catch (RuntimeException e) {
+            program.close();
+            throw e;
+        }
 
         return CompletableFuture.supplyAsync(
                         () -> applicationRunner.run(gateway, program, effectiveConfiguration),

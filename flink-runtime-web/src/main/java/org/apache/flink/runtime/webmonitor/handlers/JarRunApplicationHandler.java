@@ -106,6 +106,12 @@ public class JarRunApplicationHandler
                 effectiveConfiguration);
 
         final PackagedProgram program = context.toPackagedProgram(effectiveConfiguration);
+        try {
+            context.applyProgramToConfiguration(effectiveConfiguration, program);
+        } catch (RuntimeException e) {
+            program.close();
+            throw e;
+        }
 
         ApplicationID applicationId = context.getApplicationId().orElse(ApplicationID.generate());
 
