@@ -117,15 +117,16 @@ CAST(CAST(v['book']['@pages'] AS STRING) AS INT)  -- 320
 
 Each element is mapped by the following rules:
 
-| XML input                                                           | Stored `VARIANT` value                       |
-|---------------------------------------------------------------------|----------------------------------------------|
-| Element without attributes and child elements                       | its text as `STRING`, or `""` if it is empty |
-| Any other element                                                   | object                                       |
-| Attribute `name`                                                    | field `@name`, a `STRING`                    |
-| Child element `name`                                                | field `name`                                 |
-| Text of an element with attributes or child elements                | field `$`                                    |
-| Child element or text that occurs more than once                    | array, in document order                     |
-| Element with differently named children, or with children and text  | field `#` with the order of its content      |
+| XML input                                                          | Stored `VARIANT` value                                      |
+|--------------------------------------------------------------------|-------------------------------------------------------------|
+| Element with `xsi:nil="true"`                                      | `null`, or field `$` with `null` if it has other attributes |
+| Element without attributes and child elements                      | its text, or `""` if it is empty                            |
+| Any other element                                                  | object                                                      |
+| Attribute `name`                                                   | field `@name`, a `STRING`                                   |
+| Child element `name`                                               | field `name`                                                |
+| Text of an element with attributes or child elements               | field `$`                                                   |
+| Child element or text that occurs more than once                   | array, in document order                                    |
+| Element with differently named children, or with children and text | field `#` with the order of its content                     |
 
 A `VARIANT` object doesn't keep the order of its fields, so the `#` field records it. It maps each
 key to the position of its item, or to an array of positions if the key occurs more than once.
@@ -206,8 +207,9 @@ CAST(PARSE_XML('<a xsi:type="dateTime">2026-09-30T12:30:00</a>')['a'] AS TIMESTA
 
 An `xsi:nil="true"` attribute takes precedence over the content of an element, so
 `<price xsi:nil="true">12.50</price>` maps to `{"price":null}`. If the element has other attributes,
-only its content is dropped, and it keeps `@xsi:nil` and `@xsi:type` next to the other attributes.
-`xsi:nil="false"` is dropped. Like in XML Schema, `xsi:nil` accepts `true`, `false`, `1`, and `0`,
+its content is replaced with a `null` text, so `<price xsi:nil="true" currency="EUR">12.50</price>`
+maps to `{"price":{"$":null,"@currency":"EUR"}}`. In both cases, `xsi:nil` and `xsi:type` are dropped,
+and so is `xsi:nil="false"`. Like in XML Schema, `xsi:nil` accepts `true`, `false`, `1`, and `0`,
 and any other value is kept as a regular attribute.
 
 `xsi:type` and `xsi:nil` are recognized by their literal `xsi:` prefix, even if the document doesn't

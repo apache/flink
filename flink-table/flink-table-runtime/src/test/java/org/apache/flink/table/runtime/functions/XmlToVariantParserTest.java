@@ -165,19 +165,21 @@ class XmlToVariantParserTest {
                             "<root xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">"
                                     + "<a xsi:nil=\"true\"/></root>",
                             "{\"root\":{\"a\":null}}"),
-                    // xsi:nil that doesn't make the element null is kept, unless it is false.
+                    // With other attributes, the text of a nil element is null.
                     arguments(
-                            "<a xsi:nil=\"true\" id=\"1\"/>",
-                            "{\"a\":{\"@id\":\"1\",\"@xsi:nil\":\"true\"}}"),
+                            "<a xsi:nil=\"true\" id=\"1\"/>", "{\"a\":{\"$\":null,\"@id\":\"1\"}}"),
                     arguments(
                             "<a xsi:nil=\"true\" id=\"1\">x</a>",
-                            "{\"a\":{\"@id\":\"1\",\"@xsi:nil\":\"true\"}}"),
+                            "{\"a\":{\"$\":null,\"@id\":\"1\"}}"),
                     arguments(
-                            "<a xsi:nil=\" 1 \" id=\"1\"/>",
-                            "{\"a\":{\"@id\":\"1\",\"@xsi:nil\":\"true\"}}"),
+                            "<a xsi:nil=\"true\" id=\"1\"><b>x</b></a>",
+                            "{\"a\":{\"$\":null,\"@id\":\"1\"}}"),
+                    arguments(
+                            "<a xsi:nil=\" 1 \" id=\"1\"/>", "{\"a\":{\"$\":null,\"@id\":\"1\"}}"),
                     arguments(
                             "<a xsi:nil=\"true\" xsi:type=\"string\" id=\"1\"/>",
-                            "{\"a\":{\"@id\":\"1\",\"@xsi:nil\":\"true\",\"@xsi:type\":\"string\"}}"),
+                            "{\"a\":{\"$\":null,\"@id\":\"1\"}}"),
+                    // xsi:nil that isn't a boolean is a regular attribute, and false is dropped.
                     arguments("<a xsi:nil=\"yes\"/>", "{\"a\":{\"@xsi:nil\":\"yes\"}}"),
                     arguments("<a xsi:nil=\"TRUE\"/>", "{\"a\":{\"@xsi:nil\":\"TRUE\"}}"),
                     arguments("<a xsi:nil=\"false\">x</a>", "{\"a\":\"x\"}"),
@@ -472,7 +474,10 @@ class XmlToVariantParserTest {
                     arguments(
                             "<book><price xsi:type=\"int\">5</price></book>",
                             "{\"book\":{\"price\":[5]}}"),
-                    arguments("<book><a xsi:nil=\"true\"/></book>", "{\"book\":{\"a\":[null]}}"));
+                    arguments("<book><a xsi:nil=\"true\"/></book>", "{\"book\":{\"a\":[null]}}"),
+                    arguments(
+                            "<book><a xsi:nil=\"true\" id=\"1\"/></book>",
+                            "{\"book\":{\"a\":[{\"$\":[null],\"@id\":\"1\"}]}}"));
         }
     }
 

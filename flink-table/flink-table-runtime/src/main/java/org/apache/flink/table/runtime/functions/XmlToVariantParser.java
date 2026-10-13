@@ -438,8 +438,7 @@ public final class XmlToVariantParser {
         // The position among the content of the parent element.
         int position;
 
-        // Set by end() from xsi:nil and xsi:type.
-        boolean isNull;
+        // Set by end() from xsi:type.
         @Nullable Consumer<BinaryVariantInternalBuilder> typedText;
 
         private boolean xsiNil;
@@ -504,20 +503,14 @@ public final class XmlToVariantParser {
         }
 
         /**
-         * xsi:nil="true" drops the content. The element is null, unless it has other attributes.
-         * Then it keeps xsi:nil and xsi:type as attributes.
+         * xsi:nil="true" replaces the content with a null text, so the element is null, or its text
+         * if it has other attributes. xsi:type is dropped, since null has no type.
          */
         private void applyXsiNil() {
             children.clear();
             textRuns.clear();
-            if (attributes.isEmpty()) {
-                isNull = true;
-            } else {
-                attributes.put(XSI_NIL, "true");
-                if (xsiType != null) {
-                    attributes.put(XSI_TYPE, xsiType);
-                }
-            }
+            contentCount = 0;
+            textRuns.add(new TextRun(null, contentCount++));
         }
 
         /**
@@ -533,7 +526,8 @@ public final class XmlToVariantParser {
             }
         }
 
-        /** Returns the text of an element without child elements. */
+        /** Returns the text of an element without child elements, which is null if it is nil. */
+        @Nullable
         String text() {
             return textRuns.isEmpty() ? "" : textRuns.get(0).text;
         }
@@ -542,12 +536,13 @@ public final class XmlToVariantParser {
     /** A text run of an element, which child elements separate from the next one. */
     private static final class TextRun {
 
-        final String text;
+        // Null for a nil element.
+        final @Nullable String text;
 
         // The position among the content of the element.
         final int position;
 
-        TextRun(String text, int position) {
+        TextRun(@Nullable String text, int position) {
             this.text = text;
             this.position = position;
         }
@@ -584,9 +579,7 @@ public final class XmlToVariantParser {
 
         /** An element without attributes and child elements is its text, any other an object. */
         private void encodeElement(XmlElement element) {
-            if (element.isNull) {
-                builder.appendNull();
-            } else if (element.attributes.isEmpty() && element.children.isEmpty()) {
+            if (element.attributes.isEmpty() && element.children.isEmpty()) {
                 encodeText(element, element.text());
             } else {
                 encodeObject(element);
@@ -652,9 +645,11 @@ public final class XmlToVariantParser {
 
         // Only an element without child elements has typed text. It has at most one text run, which
         // the typed value replaces.
-        private void encodeText(XmlElement element, String text) {
+        private void encodeText(XmlElement element, @Nullable String text) {
             if (element.typedText != null) {
                 element.typedText.accept(builder);
+            } else if (text == null) {
+                builder.appendNull();
             } else {
                 builder.appendString(text);
             }
