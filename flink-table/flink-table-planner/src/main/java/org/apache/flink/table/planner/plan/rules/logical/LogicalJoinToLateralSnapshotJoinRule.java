@@ -35,7 +35,6 @@ import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -105,13 +104,6 @@ public class LogicalJoinToLateralSnapshotJoinRule
                     String.format(
                             "LATERAL SNAPSHOT join only supports INNER JOIN and LEFT OUTER JOIN, but was %s JOIN.",
                             joinType));
-        }
-
-        // Require at least one equality predicate so the operator can hash-partition both inputs.
-        final JoinInfo joinInfo = join.analyzeCondition();
-        if (joinInfo.leftKeys.isEmpty()) {
-            throw new ValidationException(
-                    "LATERAL SNAPSHOT join requires at least one equality predicate.");
         }
 
         final RexCall snapshotCall = (RexCall) scan.getCall();

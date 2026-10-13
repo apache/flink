@@ -512,6 +512,15 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
                 minStateTtlMs,
                 maxStateTtlMs,
                 buildRowtimeIndex);
+
+        if (filterNullKeys.length == 0 && minStateTtlMs > 0) {
+            // No equi-key: all build-side rows share a single (empty) key, so state_ttl can only
+            // evict the whole build side at once after it has been idle longer than the TTL.
+            LOG.warn(
+                    "LATERAL SNAPSHOT join has no equi-key; state_ttl evicts the entire build side "
+                            + "at once after it has been idle for longer than the TTL, not per join "
+                            + "key.");
+        }
     }
 
     @Override

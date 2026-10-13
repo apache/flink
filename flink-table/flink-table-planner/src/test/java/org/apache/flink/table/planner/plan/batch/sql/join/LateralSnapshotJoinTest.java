@@ -152,22 +152,34 @@ public class LateralSnapshotJoinTest extends TableTestBase {
     }
 
     // ------------------------------------------------------------------------------------------
-    // Validation: rejection paths
+    // Joins without an equi-key (degrade to a nested-loop join)
     // ------------------------------------------------------------------------------------------
 
     @Test
-    void testRejectMissingEqualityPredicate() {
-        final String sql =
+    void testNonEquiJoinUsesNestedLoopJoin() {
+        // Keyless inner join: execute as broadcast NL join.
+        util.verifyRelPlan(
                 "SELECT * FROM probe JOIN LATERAL SNAPSHOT("
                         + "input => TABLE b, "
                         + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
                         + ") AS s "
-                        + "ON probe.pv > s.bv";
-        assertThatThrownBy(() -> util.verifyExecPlan(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "LATERAL SNAPSHOT join requires at least one equality predicate.");
+                        + "ON probe.pv > s.bv");
     }
+
+    @Test
+    void testLeftJoinWithoutEquiKeyUsesNestedLoopJoin() {
+        // Keyless left outer join: execute as broadcast NL join.
+        util.verifyRelPlan(
+                "SELECT * FROM probe LEFT JOIN LATERAL SNAPSHOT("
+                        + "input => TABLE b, "
+                        + "load_completed_time => CAST(TIMESTAMP '2026-07-01 00:00:00' AS TIMESTAMP_LTZ(3))"
+                        + ") AS s "
+                        + "ON probe.pv > s.bv");
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Validation: rejection paths
+    // ------------------------------------------------------------------------------------------
 
     @Test
     void testRejectSnapshotOutsideLateral() {

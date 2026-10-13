@@ -380,7 +380,7 @@ If a `LATERAL SNAPSHOT` join produces no output, first check whether it is stuck
 **Syntax**
 
 The build side is wrapped in the `SNAPSHOT` table function, which is called with `LATERAL`. The outer (probe-side) table must be an append-only table. 
-Both `INNER JOIN` and `LEFT [OUTER] JOIN` are supported. The join requires at least one conjunctive equality predicate; additional non-equi predicates are allowed in the `ON` clause.
+Both `INNER JOIN` and `LEFT [OUTER] JOIN` are supported. An equality predicate is recommended but not required: the `ON` clause may contain equality and non-equi predicates in any combination. In streaming mode, a join with at least one equality predicate is partitioned on the join key and runs in parallel, whereas a join without one runs single-threaded; prefer an equality predicate for better performance. In batch mode, a join without an equality predicate uses a broadcast nested-loop join that keeps the probe side parallel.
 
 ```sql
 SELECT [column_list]
@@ -412,7 +412,7 @@ The result is append-only and preserves the probe-side time attributes. A build-
 
 Because rows are joined against the build-side state that is current at processing time, the result is **not deterministic**. A given probe-side row may be joined with different build-side versions across different runs, depending on the relative timing of the two inputs. Probe and build-side inputs can be configured with watermark alignment to keep the two inputs roughly aligned on event time, so that a probe-side row tends to be joined with build-side changes of a similar event time. This is a best-effort alignment and does not make the result deterministic.
 
-The build-side state grows with the number of distinct build-side keys, and during the load phase the buffered probe-side rows add to the state footprint until the operator transitions to the join phase. Use `state_ttl` to bound the build-side state for keys that are no longer updated or joined. You can reduce the amount of data that is buffered and processed during the load phase by configuring scan start offsets on the build and probe-side inputs, for example with a `scan.startup.*` [dynamic table option hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options).
+The build-side state grows with the number of distinct build-side keys, and during the load phase the buffered probe-side rows add to the state footprint until the operator transitions to the join phase. Use `state_ttl` to bound the build-side state for keys that are no longer updated or joined. Without an equality predicate the join has no join key, so all build-side rows share a single state entry; `state_ttl` can then only evict the whole build side at once, once it has been idle (no probe- or build-side activity) for longer than the TTL, rather than per key. You can reduce the amount of data that is buffered and processed during the load phase by configuring scan start offsets on the build and probe-side inputs, for example with a `scan.startup.*` [dynamic table option hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options).
 
 **Monitoring**
 
