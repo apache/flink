@@ -1341,9 +1341,12 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
             "other": pf.DataType.struct({"v": pf.DataType.string()}),
             "tail": pf.DataType.int64(),
         })
-        input_type = TableDataTypes.ROW([TableDataTypes.FIELD("id", TableDataTypes.BIGINT())])
+        input_type = TableDataTypes.ROW([
+            TableDataTypes.FIELD("tag", TableDataTypes.STRING()),
+            TableDataTypes.FIELD("id", TableDataTypes.BIGINT())])
 
         def transform(batch):
+            self.assertEqual(batch["tag"].tolist(), ["x"] * len(batch["id"]))
             return {"tail": batch["id"] + 10,
                     "other": pd.DataFrame({"v": ["a", None]}, index=batch["id"].index),
                     "payload": pd.DataFrame({
@@ -1355,7 +1358,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
         adapter = _resolve_map_udf(transform, dtype, "pandas", input_type)._func
         adapter.open(object())
         try:
-            result = adapter.eval(pd.Series([1, 2]))
+            result = adapter.eval("x", pd.Series([1, 2]))
             self.assertIsInstance(result, pd.DataFrame)
             pd.testing.assert_frame_equal(result, pd.concat([
                 pd.Series([1, 2], name="v"),
@@ -1364,7 +1367,7 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
                 pd.Series(["a", None], name="v"),
                 pd.Series([11, 12], name="tail"),
             ], axis=1))
-            self.assertEqual(self.pandas_map_output(adapter, dtype, pd.Series([1, 2])), [
+            self.assertEqual(self.pandas_map_output(adapter, dtype, "x", pd.Series([1, 2])), [
                 {"v": 1, "payload": {"v": 9007199254740993, "tail": 21},
                  "other": {"v": "a"}, "tail": 11},
                 {"v": 2, "payload": {"v": None, "tail": 22},
@@ -1574,17 +1577,22 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
         ], names=["id", "payload"])
 
         def transform(columns):
+            self.assertEqual(columns["tag"].to_pylist(), ["x"] * len(columns["id"]))
             self.assertIsInstance(columns["payload"], pa.StructArray)
             return {"payload": columns["payload"], "ignored": pa.array([0, 0]),
                     "id": pa.chunked_array([columns["id"].slice(0, 1),
                                             columns["id"].slice(1)])}
 
-        adapter = _resolve_map_udf(transform, dtype, "arrow", dtype._to_table_data_type())._func
+        input_type = TableDataTypes.ROW([
+            TableDataTypes.FIELD("tag", TableDataTypes.STRING())
+        ] + dtype._to_table_data_type().fields)
+        adapter = _resolve_map_udf(transform, dtype, "arrow", input_type)._func
         adapter.open(object())
         try:
-            result = check_arrow_udf_result(adapter.eval, *batch.flatten())
+            result = check_arrow_udf_result(adapter.eval, "x", *batch.flatten())
             self.assertEqual(result.to_pylist(),
                              [{"id": 1, "payload": {"x": None}}, {"id": 2, "payload": None}])
+            self.assertEqual(adapter.eval("x", *batch.slice(0, 0).flatten()).to_pylist(), [])
         finally:
             adapter.close()
 
@@ -1683,7 +1691,38 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
                     adapter.close()
 
     def test_pandas_map_batches_preserves_nullable_structured_columns(self):
-        from pyflink.dataframe.udf import _resolve_map_udf
+        import tracemalloc
+        from pyflink.dataframe.udf import _create_pandas_result_normalizer, _resolve_map_udf
+
+        row_type = TableDataTypes.ROW([TableDataTypes.FIELD("v", TableDataTypes.BIGINT())])
+        for data_type, payload in (
+            (TableDataTypes.ARRAY(row_type), [{"v": i} for i in range(10000)]),
+            (TableDataTypes.MAP(TableDataTypes.STRING(), row_type),
+             {str(i): {"v": i} for i in range(10000)}),
+        ):
+            normalize = _create_pandas_result_normalizer(data_type)
+            normalize(payload)
+            tracemalloc.start()
+            try:
+                normalized = normalize(payload)
+                peak = tracemalloc.get_traced_memory()[1]
+            finally:
+                tracemalloc.stop()
+            self.assertIs(normalized, payload)
+            self.assertLess(peak, 16384)
+            original = Row(v=1)
+            if isinstance(payload, dict):
+                source = {"same": payload["0"], "changed": original}
+                converted = normalize(source)
+                self.assertIs(converted[0][1], source["same"])
+                self.assertEqual(converted[1], ("changed", {"v": 1}))
+                self.assertIs(source["changed"], original)
+            else:
+                source = [payload[0], original]
+                converted = normalize(source)
+                self.assertIs(converted[0], source[0])
+                self.assertEqual(converted[1], {"v": 1})
+                self.assertIs(source[1], original)
 
         dtype = pf.DataType.struct({
             "details": pf.DataType.struct({"name": pf.DataType.string()}),
@@ -2298,6 +2337,23 @@ class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
 
 
 class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
+    def test_batch_maps_broadcast_literal_columns(self):
+        self.env.set_parallelism(1)
+        self.t_env.get_config().set("python.fn-execution.bundle.size", "3")
+        self.t_env.get_config().set("python.fn-execution.arrow.batch.size", "2")
+        dtype = pf.DataType.struct({
+            "tag": pf.DataType.string(), "empty": pf.DataType.int64(),
+            "enabled": pf.DataType.bool(), "id": pf.DataType.int64()})
+        dataframe = pf.from_records([(1,), (2,), (3,)], schema=["id"]).with_columns(
+            tag=pf.lit("x"), empty=pf.lit(None, pf.DataType.int64()),
+            enabled=pf.lit(True)).select("tag", "empty", "enabled", "id")
+        for batch_format in ("pandas", "arrow"):
+            with self.subTest(batch_format=batch_format):
+                result = dataframe.map_batches(
+                    lambda batch: batch, batch_format=batch_format, return_dtype=dtype)
+                self.assertEqual(result.collect(),
+                                 [Row("x", None, True, value) for value in (1, 2, 3)])
+
     def test_pandas_output_alignment_preserves_input_order_and_ltz(self):
         import datetime
 

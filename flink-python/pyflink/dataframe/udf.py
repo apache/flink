@@ -1337,9 +1337,23 @@ def _wrap_map_pandas(func, input_type: RowType, output_type: RowType):
 
     @functools.wraps(func)
     def wrapper(*input_columns):
-        input_index = pd.RangeIndex(len(input_columns[0]))
+        batch_size = next((len(column) for column in input_columns
+                           if isinstance(column, (pd.Series, pd.DataFrame))), None)
+        if batch_size is None:
+            raise ValueError("Pandas map_batches requires a column-valued input.")
+        input_index = pd.RangeIndex(batch_size)
         columns = {}
         for input_field, column, convert in zip(input_type, input_columns, input_converters):
+            # The planner can fold an input column into a scalar literal argument.
+            if not isinstance(column, (pd.Series, pd.DataFrame)):
+                if isinstance(input_field.data_type, RowType):
+                    names = input_field.data_type.field_names()
+                    values = ([None] * len(names) if column is None
+                              else _row_field_values(column, names))
+                    column = pd.DataFrame([values] * batch_size, columns=names)
+                else:
+                    column = pd.Series([column] * batch_size, index=input_index,
+                                       name=input_field.name)
             if convert is not None:
                 column = convert(column)
             index = pd.RangeIndex(len(column))
@@ -1471,9 +1485,14 @@ def _create_pandas_result_normalizer(data_type):
                                     "return a list instead.")
                 if _is_pandas_null(value):
                     return None
-                normalized = [normalize_element(item) for item in value]
-                return (value if all(item is original for item, original in zip(normalized, value))
-                        else normalized)
+                converted = None
+                for index, item in enumerate(value):
+                    normalized = normalize_element(item)
+                    if normalized is not item:
+                        if converted is None:
+                            converted = list(value)
+                        converted[index] = normalized
+                return value if converted is None else converted
 
             return normalize_array
     if isinstance(data_type, MapType):
@@ -1487,14 +1506,15 @@ def _create_pandas_result_normalizer(data_type):
                 if _is_pandas_null(value):
                     return None
                 items = value.items() if isinstance(value, Mapping) else value
-                normalized = []
-                changed = False
-                for key, item in items:
+                converted = None
+                for index, (key, item) in enumerate(items):
                     normalized_key = key if normalize_key is None else normalize_key(key)
                     normalized_item = item if normalize_value is None else normalize_value(item)
-                    normalized.append((normalized_key, normalized_item))
-                    changed |= normalized_key is not key or normalized_item is not item
-                return normalized if changed else value
+                    if normalized_key is not key or normalized_item is not item:
+                        if converted is None:
+                            converted = list(value.items() if isinstance(value, Mapping) else value)
+                        converted[index] = (normalized_key, normalized_item)
+                return value if converted is None else converted
 
             return normalize_map
     return None
@@ -1502,13 +1522,24 @@ def _create_pandas_result_normalizer(data_type):
 
 def _wrap_map_arrow(func, input_type: RowType, output_type: RowType):
     import pyarrow as pa
+    from pyflink.table.types import to_arrow_type
 
     input_names = input_type.field_names()
+    input_types = [to_arrow_type(field.data_type) for field in input_type]
     output_names = output_type.field_names()
 
     @functools.wraps(func)
     def wrapper(*input_columns):
-        result = func(dict(zip(input_names, input_columns)))
+        batch_size = next((len(column) for column in input_columns
+                           if isinstance(column, (pa.Array, pa.ChunkedArray))), None)
+        if batch_size is None:
+            raise ValueError("Arrow map_batches requires a column-valued input.")
+        inputs = {
+            name: column if isinstance(column, (pa.Array, pa.ChunkedArray))
+            else pa.array([column] * batch_size, type=data_type)
+            for name, data_type, column in zip(input_names, input_types, input_columns)
+        }
+        result = func(inputs)
         columns = []
         for name in output_names:
             column = result[name]
