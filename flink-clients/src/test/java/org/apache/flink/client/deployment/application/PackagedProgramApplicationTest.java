@@ -54,9 +54,12 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -72,6 +75,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import static org.apache.flink.streaming.api.graph.StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,6 +122,68 @@ public class PackagedProgramApplicationTest {
         assertException(application.getApplicationCompletionFuture(), FlinkRuntimeException.class);
         application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertApplicationFailed(application);
+    }
+
+    @Test
+    void testProgramIsClosedWhenApplicationFinishes(@TempDir Path tempDir) throws Throwable {
+        final PackagedProgram program = getProgramWithNestedLibrary(tempDir);
+        final int dependenciesWithLibrary = program.getJobJarAndDependencies().size();
+        final PackagedProgramApplication application =
+                new PackagedProgramApplication(
+                        new ApplicationID(),
+                        program,
+                        getConfiguration(),
+                        Integer.MAX_VALUE,
+                        1,
+                        true,
+                        false,
+                        true);
+
+        executeApplication(
+                application,
+                finishedJobGatewayBuilder().build(),
+                scheduledExecutor,
+                exception -> {});
+        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+        assertApplicationFinished(application);
+        // closing the program deletes the extracted nested libraries
+        assertThat(program.getJobJarAndDependencies()).hasSize(dependenciesWithLibrary - 1);
+    }
+
+    @Test
+    void testProgramIsClosedWhenApplicationIsDisposed(@TempDir Path tempDir) throws Throwable {
+        final PackagedProgram program = getProgramWithNestedLibrary(tempDir);
+        final int dependenciesWithLibrary = program.getJobJarAndDependencies().size();
+        final PackagedProgramApplication application =
+                new PackagedProgramApplication(
+                        new ApplicationID(),
+                        program,
+                        getConfiguration(),
+                        Integer.MAX_VALUE,
+                        1,
+                        true,
+                        false,
+                        true);
+
+        application.dispose();
+        application.dispose();
+
+        assertThat(program.getJobJarAndDependencies()).hasSize(dependenciesWithLibrary - 1);
+    }
+
+    private static PackagedProgram getProgramWithNestedLibrary(Path tempDir) throws Exception {
+        final Path jar = tempDir.resolve("job.jar");
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar))) {
+            out.putNextEntry(new JarEntry("lib/nested.jar"));
+            out.write(new byte[] {1, 2, 3});
+            out.closeEntry();
+        }
+        return PackagedProgram.newBuilder()
+                .setJarFile(jar.toFile())
+                .setEntryPointClassName(MultiExecuteJob.class.getName())
+                .setArguments("1", Boolean.toString(true), Boolean.toString(false))
+                .build();
     }
 
     @Test
