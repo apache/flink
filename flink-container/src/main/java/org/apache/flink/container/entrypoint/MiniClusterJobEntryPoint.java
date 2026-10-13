@@ -37,6 +37,7 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.security.contexts.SecurityContext;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -93,6 +94,7 @@ public final class MiniClusterJobEntryPoint {
             final PluginManager pluginManager =
                     PluginUtils.createPluginManagerFromRootFolder(configuration);
             FileSystem.initialize(configuration, pluginManager);
+            StateChangelogStorageLoader.initialize(pluginManager);
 
             final SecurityContext securityContext =
                     ClusterEntrypoint.installSecurityContext(configuration);

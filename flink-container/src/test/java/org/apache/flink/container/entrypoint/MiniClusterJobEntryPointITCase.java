@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -36,6 +37,7 @@ import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
@@ -43,6 +45,11 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.highavailability.ApplicationResultStoreOptions;
 import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
+import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorageFactory;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -69,6 +76,7 @@ import javax.management.remote.JMXServiceURL;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -797,6 +805,44 @@ class MiniClusterJobEntryPointITCase {
         return configuration;
     }
 
+    @Test
+    void loadsChangelogStorageFromPlugins() throws Exception {
+        final Path pluginsDir = tempDir.resolve("plugins");
+        writePluginJar(
+                Files.createDirectories(pluginsDir.resolve("changelog-storage"))
+                        .resolve("changelog-storage.jar"),
+                StateChangelogStorageFactory.class,
+                PluginChangelogStorageFactory.class);
+        final Path storageCreated = tempDir.resolve("plugin-changelog-storage-created");
+
+        final Process process =
+                startProcess(
+                        "process",
+                        MiniClusterJobEntryPoint.class,
+                        applicationArguments(
+                                UnboundedJob.class,
+                                List.of(
+                                        dynamicProperty(
+                                                StateChangelogOptions.STATE_CHANGE_LOG_STORAGE,
+                                                PluginChangelogStorageFactory.IDENTIFIER),
+                                        "-D"
+                                                + PluginChangelogStorageFactory.MARKER_FILE_KEY
+                                                + "="
+                                                + storageCreated)),
+                        Map.of(ConfigConstants.ENV_FLINK_PLUGINS_DIR, pluginsDir.toString()));
+        try {
+            awaitRest(
+                    process,
+                    "process",
+                    "/jobs/" + jobId,
+                    "the job's tasks to be running",
+                    MiniClusterJobEntryPointITCase::allTasksRunning);
+            assertThat(storageCreated).as("the changelog storage from the plugin is used").exists();
+        } finally {
+            stop(process);
+        }
+    }
+
     private Process startMiniClusterProcess(String name) throws IOException {
         return startProcess(name, MiniClusterJobEntryPoint.class, applicationArguments());
     }
@@ -815,6 +861,15 @@ class MiniClusterJobEntryPointITCase {
 
     private Process startProcess(String name, Class<?> mainClass, List<String> arguments)
             throws IOException {
+        return startProcess(name, mainClass, arguments, Map.of());
+    }
+
+    private Process startProcess(
+            String name,
+            Class<?> mainClass,
+            List<String> arguments,
+            Map<String, String> environment)
+            throws IOException {
         final List<String> command = new ArrayList<>();
         command.add(Path.of(System.getProperty("java.home"), "bin", "java").toString());
         command.add("-Xmx512m");
@@ -828,10 +883,12 @@ class MiniClusterJobEntryPointITCase {
         command.add(mainClass.getName());
         command.addAll(arguments);
 
-        return new ProcessBuilder(command)
-                .redirectErrorStream(true)
-                .redirectOutput(logFile(name).toFile())
-                .start();
+        final ProcessBuilder processBuilder =
+                new ProcessBuilder(command)
+                        .redirectErrorStream(true)
+                        .redirectOutput(logFile(name).toFile());
+        processBuilder.environment().putAll(environment);
+        return processBuilder.start();
     }
 
     private void awaitJobState(Process process, String name, String expectedState)
@@ -1015,6 +1072,21 @@ class MiniClusterJobEntryPointITCase {
         }
     }
 
+    private static void writePluginJar(Path jar, Class<?> service, Class<?> implementation)
+            throws IOException {
+        final String entry = implementation.getName().replace('.', '/') + ".class";
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar));
+                InputStream classBytes =
+                        implementation.getClassLoader().getResourceAsStream(entry)) {
+            out.putNextEntry(new JarEntry(entry));
+            classBytes.transferTo(out);
+            out.closeEntry();
+            out.putNextEntry(new JarEntry("META-INF/services/" + service.getName()));
+            out.write(implementation.getName().getBytes(StandardCharsets.UTF_8));
+            out.closeEntry();
+        }
+    }
+
     private long mainInvocations() throws IOException {
         return Files.exists(markerFile) ? Files.readAllLines(markerFile).size() : 0;
     }
@@ -1127,6 +1199,36 @@ class MiniClusterJobEntryPointITCase {
                             "generator")
                     .sinkTo(new DiscardingSink<>());
             env.execute();
+        }
+    }
+
+    /**
+     * An in-memory changelog storage under another name, which records that it was created. It's
+     * only registered in a plugin jar, not on the classpath.
+     */
+    public static final class PluginChangelogStorageFactory
+            extends InMemoryStateChangelogStorageFactory {
+
+        static final String IDENTIFIER = "plugin";
+        static final String MARKER_FILE_KEY = "test.plugin-changelog-storage.marker-file";
+
+        @Override
+        public String getIdentifier() {
+            return IDENTIFIER;
+        }
+
+        @Override
+        public StateChangelogStorage<?> createStorage(
+                JobID jobID,
+                Configuration configuration,
+                TaskManagerJobMetricGroup metricGroup,
+                LocalRecoveryConfig localRecoveryConfig) {
+            try {
+                Files.writeString(Path.of(configuration.toMap().get(MARKER_FILE_KEY)), "");
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            return super.createStorage(jobID, configuration, metricGroup, localRecoveryConfig);
         }
     }
 }
