@@ -1573,19 +1573,32 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
             "payload": pf.DataType.struct({"x": pf.DataType.int64()}),
         })
         batch = pa.StructArray.from_arrays([
-            pa.array([1, 2]), pa.array([{"x": None}, None], type=pa.struct([("x", pa.int64())]))
-        ], names=["id", "payload"])
+            pa.array([1, 2]), pa.array([{"x": None}, None], type=pa.struct([("x", pa.int64())])),
+            pa.array([{"inner": {"v": 1}}, {"inner": {"v": 2}}],
+                     type=pa.struct([("inner", pa.struct([("v", pa.int64())]))])),
+            pa.array([[{"v": 1}], []], type=pa.list_(pa.struct([("v", pa.int64())])))
+        ], names=["id", "payload", "deep", "items"])
 
         def transform(columns):
             self.assertEqual(columns["tag"].to_pylist(), ["x"] * len(columns["id"]))
             self.assertIsInstance(columns["payload"], pa.StructArray)
+            self.assertEqual(columns["deep"].field("inner").field("v").to_pylist(),
+                             [1, 2][:len(columns["id"])])
+            self.assertEqual(columns["items"].to_pylist(),
+                             [[{"v": 1}], []][:len(columns["id"])])
             return {"payload": columns["payload"], "ignored": pa.array([0, 0]),
                     "id": pa.chunked_array([columns["id"].slice(0, 1),
                                             columns["id"].slice(1)])}
 
         input_type = TableDataTypes.ROW([
             TableDataTypes.FIELD("tag", TableDataTypes.STRING())
-        ] + dtype._to_table_data_type().fields)
+        ] + dtype._to_table_data_type().fields + [
+            TableDataTypes.FIELD("deep", TableDataTypes.ROW([
+                TableDataTypes.FIELD("inner", TableDataTypes.ROW([
+                    TableDataTypes.FIELD("v", TableDataTypes.BIGINT())]))])),
+            TableDataTypes.FIELD("items", TableDataTypes.ARRAY(TableDataTypes.ROW([
+                TableDataTypes.FIELD("v", TableDataTypes.BIGINT())]))),
+        ])
         adapter = _resolve_map_udf(transform, dtype, "arrow", input_type)._func
         adapter.open(object())
         try:

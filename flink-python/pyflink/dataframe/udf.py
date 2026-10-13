@@ -1525,7 +1525,7 @@ def _wrap_map_arrow(func, input_type: RowType, output_type: RowType):
     from pyflink.table.types import to_arrow_type
 
     input_names = input_type.field_names()
-    input_types = [to_arrow_type(field.data_type) for field in input_type]
+    input_types = [to_arrow_type(field.data_type, allow_nested=True) for field in input_type]
     output_names = output_type.field_names()
 
     @functools.wraps(func)
