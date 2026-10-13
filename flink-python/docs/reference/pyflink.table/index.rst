@@ -32,6 +32,7 @@ This page gives an overview of all public PyFlink Table API.
     expressions
     udf
     descriptors
+    model
     statement_set
     catalog
     compiled_plans
