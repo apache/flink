@@ -148,6 +148,10 @@ public class JarHandlerUtils {
                     jarFile, entryClass, programArgs, parallelism, jobId, applicationId);
         }
 
+        /**
+         * Applies the request options to the configuration without opening the JAR. Callers must
+         * additionally call {@link #applyProgramToConfiguration} with the program they own.
+         */
         public void applyToConfiguration(
                 final Configuration configuration,
                 final HandlerRequest<? extends JarRequestBody> request) {
@@ -164,6 +168,10 @@ public class JarHandlerUtils {
             configuration.set(CoreOptions.DEFAULT_PARALLELISM, parallelism);
         }
 
+        /**
+         * Applies the JARs and classpaths of the given program. The program owns the extracted
+         * nested libraries referenced here, so they are only valid until it is closed.
+         */
         public void applyProgramToConfiguration(
                 final Configuration configuration, final PackagedProgram program) {
             ConfigUtils.encodeCollectionToConfig(

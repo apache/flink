@@ -104,7 +104,7 @@ public class PackagedProgramApplication extends AbstractApplication {
 
     @Nullable private final JarInfo userJarInfo;
 
-    private transient PackagedProgram program;
+    private transient volatile PackagedProgram program;
 
     private transient CompletableFuture<Void> applicationCompletionFuture;
 
@@ -340,6 +340,12 @@ public class PackagedProgramApplication extends AbstractApplication {
         // are handled by the errorHandler to trigger failover.
         // In Session Mode, the handleFatalError flag may be set to false, leaving exceptions
         // unhandled. This behavior may change in the future.
+        finishApplicationFuture.handle(
+                (ignored, t) -> {
+                    closeProgram();
+                    return null;
+                });
+
         FutureUtils.handleUncaughtException(
                 finishApplicationFuture,
                 (t, e) -> {
@@ -368,6 +374,14 @@ public class PackagedProgramApplication extends AbstractApplication {
     public void dispose() {
         isDisposing = true;
         cancelFutures();
+        closeProgram();
+    }
+
+    private void closeProgram() {
+        final PackagedProgram currentProgram = program;
+        if (currentProgram != null) {
+            currentProgram.close();
+        }
     }
 
     private void cancelFutures() {

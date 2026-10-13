@@ -108,10 +108,18 @@ public class JarRunApplicationHandler
         final PackagedProgram program = context.toPackagedProgram(effectiveConfiguration);
         try {
             context.applyProgramToConfiguration(effectiveConfiguration, program);
-        } catch (RuntimeException e) {
+            return submitApplication(gateway, context, effectiveConfiguration, program);
+        } catch (Throwable t) {
             program.close();
-            throw e;
+            throw t;
         }
+    }
+
+    private CompletableFuture<JarRunApplicationResponseBody> submitApplication(
+            final DispatcherGateway gateway,
+            final JarHandlerContext context,
+            final Configuration effectiveConfiguration,
+            final PackagedProgram program) {
 
         ApplicationID applicationId = context.getApplicationId().orElse(ApplicationID.generate());
 
@@ -148,6 +156,7 @@ public class JarRunApplicationHandler
                 .handle(
                         (acknowledge, throwable) -> {
                             if (throwable != null) {
+                                program.close();
                                 throw new CompletionException(
                                         new RestHandlerException(
                                                 "Could not submit application.",
