@@ -1156,7 +1156,7 @@ val result = orders
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Enriches an append-only table with the current state of an updating table by calling the built-in `SNAPSHOT` [process table function]({{< ref "docs/sql/functions/built-in-functions" >}}) as the build (right) side of a `LATERAL` join. Each probe-side row is joined with the build-side state that is current when the row is processed. Both inner and left outer joins are supported, and the predicate must contain at least one equality condition.
+Enriches an append-only table with the current state of an updating table by calling the built-in `SNAPSHOT` [process table function]({{< ref "docs/sql/functions/built-in-functions" >}}) as the build (right) side of a `LATERAL` join. Each probe-side row is joined with the build-side state that is current when the row is processed. Both inner and left outer joins are supported. An equality predicate is recommended but not required.
 
 See [LATERAL SNAPSHOT join]({{< ref "docs/sql/reference/queries/joins" >}}#lateral-snapshot-join) for the full list of `SNAPSHOT` arguments and the join semantics.
 
