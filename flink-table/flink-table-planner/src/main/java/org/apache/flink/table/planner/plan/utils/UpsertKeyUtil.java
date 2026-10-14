@@ -25,6 +25,7 @@ import org.apache.calcite.util.ImmutableBitSet;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -62,5 +63,20 @@ public class UpsertKeyUtil {
         final List<int[]> asArrays =
                 upsertKeys.stream().map(ImmutableBitSet::toArray).collect(Collectors.toList());
         return Optional.of(UpsertKeyUtils.smallestKey(asArrays));
+    }
+
+    /**
+     * Returns the given upsert keys as arrays ordered by {@link UpsertKeyUtils#SMALLEST_FIRST}, or
+     * an empty list if the input set is null. The order only depends on the key columns, so callers
+     * that pick a key by its position get the same key on every compilation.
+     */
+    public static List<int[]> sortedKeys(@Nullable Set<ImmutableBitSet> upsertKeys) {
+        if (upsertKeys == null) {
+            return Collections.emptyList();
+        }
+        return upsertKeys.stream()
+                .map(ImmutableBitSet::toArray)
+                .sorted(UpsertKeyUtils.SMALLEST_FIRST)
+                .collect(Collectors.toList());
     }
 }
