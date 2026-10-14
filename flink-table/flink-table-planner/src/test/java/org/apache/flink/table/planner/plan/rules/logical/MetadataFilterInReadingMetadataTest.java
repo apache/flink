@@ -129,9 +129,10 @@ class MetadataFilterInReadingMetadataTest extends TableTestBase {
                         .build();
         util.tableEnv().createTable("T4", descriptor);
 
-        // id > 10 → physical path, event_time > ... → metadata path.
+        // id > 10 -> physical path, event_time > ... -> metadata path, mixed stays above.
         util.verifyRelPlan(
-                "SELECT id FROM T4 WHERE id > 10 AND event_time > TIMESTAMP '2024-01-01 00:00:00'");
+                "SELECT id FROM T4 WHERE id > 10 AND event_time > TIMESTAMP '2024-01-01 00:00:00'"
+                        + " AND EXTRACT(HOUR FROM event_time) > id");
     }
 
     @Test
