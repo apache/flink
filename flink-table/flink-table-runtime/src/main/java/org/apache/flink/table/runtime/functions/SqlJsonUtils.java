@@ -26,6 +26,9 @@ import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.StringUtf8Utils;
+import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
+import org.apache.flink.types.variant.Variant;
 
 import org.apache.flink.shaded.com.jayway.jsonpath.Configuration;
 import org.apache.flink.shaded.com.jayway.jsonpath.DocumentContext;
@@ -609,6 +612,26 @@ public class SqlJsonUtils {
      */
     public static JsonValueContext jsonParse(String input) {
         return jsonValueExpression(input);
+    }
+
+    /** Parses a JSON string into a {@link Variant}, throwing on malformed input. */
+    public static Variant parseJsonToVariant(StringData jsonStr, boolean allowDuplicateKeys) {
+        final byte[] bytes = jsonStr.toBytes();
+        try {
+            return BinaryVariantInternalBuilder.parseJson(bytes, allowDuplicateKeys);
+        } catch (Exception e) {
+            final int invalidIndex =
+                    StringUtf8Utils.firstInvalidUtf8ByteIndex(bytes, 0, bytes.length);
+            if (invalidIndex >= 0) {
+                throw new TableRuntimeException(
+                        String.format(
+                                "Failed to parse JSON string: Invalid UTF-8 byte at index %d of %d.",
+                                invalidIndex, bytes.length),
+                        e);
+            }
+            throw new TableRuntimeException(
+                    String.format("Failed to parse JSON string: %s", jsonStr), e);
+        }
     }
 
     private static JsonValueContext jsonValueExpression(String input) {

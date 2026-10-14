@@ -3215,8 +3215,7 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(
                             nullableIfArgs(
                                     ConstantArgumentCount.of(0), explicit(DataTypes.VARIANT())))
-                    .runtimeClass(
-                            "org.apache.flink.table.runtime.functions.scalar.ParseJsonFunction")
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition TRY_PARSE_JSON =
@@ -3230,8 +3229,7 @@ public final class BuiltInFunctionDefinitions {
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeRoot.BOOLEAN))))
                     .outputTypeStrategy(forceNullable(explicit(DataTypes.VARIANT())))
-                    .runtimeClass(
-                            "org.apache.flink.table.runtime.functions.scalar.TryParseJsonFunction")
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition PARSE_XML =

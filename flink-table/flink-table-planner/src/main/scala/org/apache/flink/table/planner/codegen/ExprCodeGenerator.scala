@@ -948,6 +948,12 @@ class ExprCodeGenerator(
           case BuiltInFunctionDefinitions.JSON_STRING =>
             new JsonStringCallGen(call, rexProgram).generate(ctx, operands, resultType)
 
+          case BuiltInFunctionDefinitions.PARSE_JSON =>
+            JsonCodeGenUtils.generateParseJson(ctx, resultType, operands, false)
+
+          case BuiltInFunctionDefinitions.TRY_PARSE_JSON =>
+            JsonCodeGenUtils.generateParseJson(ctx, resultType, operands, true)
+
           case BuiltInFunctionDefinitions.JSON_LENGTH =>
             JsonCodeGenUtils.generateJsonLength(ctx, resultType, operands)
 
