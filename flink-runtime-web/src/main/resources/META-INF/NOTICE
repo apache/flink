@@ -86,14 +86,14 @@ The Apache Software Foundation (http://www.apache.org/).
 | date-fns | 2.30.0 | MIT |
 | delaunator | 5.1.0 | ISC |
 | detect-browser | 5.3.0 | MIT |
-| dompurify | 3.4.8 | Apache-2.0 |
+| dompurify | 3.4.15 | Apache-2.0 |
 | entities | 8.0.0 | BSD-2-Clause |
 | fecha | 4.2.3 | MIT |
 | gl-matrix | 3.4.4 | MIT |
 | iconv-lite | 0.6.3 | MIT |
 | internmap | 2.0.3 | ISC |
 | marked | 14.0.0 | MIT |
-| monaco-editor | 0.56.0 | MIT |
+| monaco-editor | 0.57.0 | MIT |
 | ng-zorro-antd | 21.3.2 | MIT |
 | parse5 | 8.0.1 | MIT |
 | robust-predicates | 3.0.3 | Unlicense |
@@ -1702,7 +1702,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ---
-dompurify@3.4.8
+dompurify@3.4.15
 ---
 DOMPurify
 Copyright 2025 Dr.-Ing. Mario Heiderich, Cure53
@@ -2069,7 +2069,7 @@ Redistribution and use in source and binary forms, with or without modification,
 This software is provided by the copyright holders and contributors “as is” and any express or implied warranties, including, but not limited to, the implied warranties of merchantability and fitness for a particular purpose are disclaimed. In no event shall the copyright owner or contributors be liable for any direct, indirect, incidental, special, exemplary, or consequential damages (including, but not limited to, procurement of substitute goods or services; loss of use, data, or profits; or business interruption) however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence or otherwise) arising in any way out of the use of this software, even if advised of the possibility of such damage.
 
 ---
-monaco-editor@0.56.0
+monaco-editor@0.57.0
 ---
 The MIT License (MIT)
 
