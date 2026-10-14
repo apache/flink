@@ -172,9 +172,6 @@ Without High Availability, a restarted process starts the application again from
 By default, the process exits once the application reaches a terminal state, with an exit code of `0` if the application finished or was cancelled, and a non-zero exit code if it failed.
 If [`execution.shutdown-on-application-finish`]({{< ref "docs/deployment/config" >}}#execution-shutdown-on-application-finish) is set to `false`, the process keeps running after the application finishes, so that its final status can still be retrieved from the web interface and REST API.
 
-Unlike a distributed Application Mode cluster, the process never removes the cluster's high availability metadata, including when the application finishes.
-Whatever manages the deployment is responsible for removing it once it is no longer needed, such as leader election ConfigMaps or ZooKeeper nodes, and the cluster's directory under `high-availability.storageDir`.
-
 ### Session Mode
 
 {{< hint info >}}

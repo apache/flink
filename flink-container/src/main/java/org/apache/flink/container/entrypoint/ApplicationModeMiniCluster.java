@@ -19,6 +19,7 @@
 package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.deployment.application.ApplicationDispatcherLeaderProcessFactoryFactory;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
@@ -195,6 +196,7 @@ final class ApplicationModeMiniCluster extends MiniCluster {
     @Override
     public CompletableFuture<Void> closeAsync() {
         closeRequestedFuture.complete(null);
+        final boolean cleanupHighAvailabilityData = isDispatcherShutDown();
         return FutureUtils.composeAfterwards(
                 FutureUtils.completeAll(
                         // stop the dispatcher before the MiniCluster stops TaskManagers so it
@@ -202,6 +204,23 @@ final class ApplicationModeMiniCluster extends MiniCluster {
                         dispatcherResourceManagerComponents.stream()
                                 .map(DispatcherResourceManagerComponent::stopProcess)
                                 .collect(Collectors.toList())),
-                super::closeAsyncWithoutCleaningHighAvailabilityData);
+                // the cluster's high availability data is only removed if the dispatcher has shut
+                // down, which it does when the application finishes if
+                // execution.shutdown-on-application-finish is set. Otherwise, the data is kept so
+                // that a restarted process can recover.
+                cleanupHighAvailabilityData
+                        ? super::closeAsync
+                        : super::closeAsyncWithoutCleaningHighAvailabilityData);
+    }
+
+    @VisibleForTesting
+    boolean isDispatcherShutDown() {
+        return !dispatcherResourceManagerComponents.isEmpty()
+                && dispatcherResourceManagerComponents.stream()
+                        .map(DispatcherResourceManagerComponent::getShutDownFuture)
+                        .allMatch(
+                                shutDownFuture ->
+                                        shutDownFuture.isDone()
+                                                && !shutDownFuture.isCompletedExceptionally());
     }
 }

@@ -82,6 +82,16 @@ class ApplicationModeMiniClusterTest {
     }
 
     @Test
+    void dispatcherNotShutDownBeforeStart() {
+        final ApplicationModeMiniCluster miniCluster =
+                new ApplicationModeMiniCluster(miniClusterConfiguration, program);
+
+        assertThat(miniCluster.isDispatcherShutDown())
+                .as("closing during startup must not clean up the HA data")
+                .isFalse();
+    }
+
+    @Test
     void closeIsIdempotent() {
         final ApplicationModeMiniCluster miniCluster =
                 new ApplicationModeMiniCluster(miniClusterConfiguration, program);

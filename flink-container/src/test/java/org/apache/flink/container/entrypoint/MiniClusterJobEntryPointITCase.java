@@ -201,6 +201,9 @@ class MiniClusterJobEntryPointITCase {
             stop(first);
         }
         assertThat(mainInvocations()).isEqualTo(1);
+        assertThat(zooKeeperNodeExists("/flink/" + haClusterId))
+                .as("stopping the process keeps the HA metadata, although the application finished")
+                .isTrue();
 
         final Process second = startMiniClusterProcess("second");
         try {
@@ -634,8 +637,8 @@ class MiniClusterJobEntryPointITCase {
                     // as the operating system reports it: only the low eight bits survive
                     .isEqualTo(expected.processExitCode() & 0xFF);
             assertThat(zooKeeperNodeExists("/flink/" + haClusterId))
-                    .as("closing the MiniCluster doesn't discard HA metadata")
-                    .isTrue();
+                    .as("the HA metadata is removed, as by a standalone application cluster")
+                    .isFalse();
         } finally {
             stop(process);
         }
