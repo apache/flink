@@ -113,7 +113,7 @@ main() {
 
     printf "Filtering %4s received pull requests... "  "$(JSONArrayLength "$receivedPullRequests")"
     
-    receivedPullRequests=$(jq '[.[] | select((.node.isDraft = false))]' <<< "$receivedPullRequests")
+    receivedPullRequests=$(jq '[.[] | select((.node.isDraft == false))]' <<< "$receivedPullRequests")
     printf " %2s PR retained" "$(JSONArrayLength "$receivedPullRequests")"
 
     # the below line is coded so as to avoid command-line argument limits.
