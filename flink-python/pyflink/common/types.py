@@ -278,6 +278,8 @@ class Row(object):
                     self._values == other._values)
 
     def __hash__(self):
+        if hasattr(self, "_fields"):
+            return hash(frozenset(zip(self._fields, self._values)))
         return tuple(self).__hash__()
 
     def __iter__(self):
