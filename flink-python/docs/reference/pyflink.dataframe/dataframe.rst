@@ -161,6 +161,7 @@ Properties
 
     DataFrame.schema
     DataFrame.columns
+    DataFrame.llm
 
 Results
 -------

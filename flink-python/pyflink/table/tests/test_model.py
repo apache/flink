@@ -18,7 +18,35 @@
 from pyflink.common import Row
 from pyflink.table import ModelDescriptor, Schema, DataTypes
 from pyflink.table.catalog import ResolvedSchema
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkUTTestCase
+
+
+class AnonymousModelTests(PyFlinkUTTestCase):
+
+    def test_anonymous_model_descriptor(self):
+        descriptor = ModelDescriptor.for_provider("python-values") \
+            .input_schema(Schema.new_builder()
+                          .column("id", DataTypes.BIGINT())
+                          .build()) \
+            .output_schema(Schema.new_builder()
+                           .column("x", DataTypes.STRING())
+                           .column("y", DataTypes.INT())
+                           .column("z", DataTypes.STRING())
+                           .build()) \
+            .build()
+        registered_models = self.t_env.list_models()
+
+        model = self.t_env.from_model(descriptor)
+
+        self.assertEqual(list(model.get_resolved_input_schema().get_column_names()), ["id"])
+        self.assertEqual(model.get_resolved_input_schema().get_column_data_types(),
+                         [DataTypes.BIGINT()])
+        self.assertEqual(list(model.get_resolved_output_schema().get_column_names()),
+                         ["x", "y", "z"])
+        self.assertEqual(model.get_resolved_output_schema().get_column_data_types(),
+                         [DataTypes.STRING(), DataTypes.INT(), DataTypes.STRING()])
+
+        self.assertEqual(self.t_env.list_models(), registered_models)
 
 
 class ModelTest(PyFlinkStreamTableTestCase):
@@ -125,7 +153,7 @@ class ModelTest(PyFlinkStreamTableTestCase):
             .build()
 
         self.t_env.create_temporary_model("opt_model", model_descriptor, True)
-        model = self.t_env.from_model("opt_model")
+        model = self.t_env.from_model(model_path="opt_model")
 
         data = [
             (1, 12, "Julian"),
