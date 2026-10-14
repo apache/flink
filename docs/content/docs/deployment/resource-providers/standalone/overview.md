@@ -151,7 +151,7 @@ $ ./bin/minicluster.sh \
 
 As with `standalone-job.sh`, if `--jars` is not given, the application is loaded from the `usrlib` folder or the classpath.
 
-The MiniCluster has one TaskManager with `taskmanager.numberOfTaskSlots` slots, so the parallelism of the application cannot be greater than this.
+The MiniCluster has one TaskManager instance within the JVM with `taskmanager.numberOfTaskSlots` slots, so the parallelism of the application cannot be greater than this.
 JobManager and TaskManager process memory options (such as `jobmanager.memory.process.size` and `taskmanager.memory.process.size`) do not apply, and the JVM heap size is set by the JVM defaults unless set using `env.java.opts.jobmanager` or `env.java.opts.all`.
 
 #### Restarting the process
@@ -162,7 +162,7 @@ Stopping the process with `SIGTERM` keeps the high availability metadata, so tha
 
 Task failures are handled by the application's restart strategy within the process, in the same way as in a distributed cluster.
 A fatal error in the JobManager or the TaskManager cannot be recovered within the process, because there is no other process to take over.
-Examples are an `OutOfMemoryError`, or a task that does not stop within [`task.cancellation.timeout`]({{< ref "docs/deployment/config" >}}#task-cancellation-timeout).
+Examples are an `OutOfMemoryError`, or a task that does not stop within [`task.cancellation.timeout`]({{< ref "docs/deployment/config" >}}#task-cancellation-timeout) after it is cancelled (unless that is set to `0`, which disables this check).
 In these cases the process exits with a non-zero exit code, keeping the high availability metadata, so it should be run under a supervisor that restarts it, such as Kubernetes or systemd.
 
 Without High Availability, a restarted process starts the application again from the beginning (or from `--fromSavepoint`, if given).
