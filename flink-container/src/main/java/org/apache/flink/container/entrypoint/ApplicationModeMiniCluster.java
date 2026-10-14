@@ -132,19 +132,28 @@ final class ApplicationModeMiniCluster extends MiniCluster {
         return components;
     }
 
-    /**
-     * Nothing replaces a TaskManager that fails, so the whole process has to fail instead, like a
-     * TaskManager process does in a distributed cluster. That leaves the restart to the process
-     * supervisor, with high availability recovering the job.
-     */
+    @Override
+    protected FatalErrorHandler createJobManagerFatalErrorHandler() {
+        return createProcessFatalErrorHandler("JobManager");
+    }
+
     @Override
     protected FatalErrorHandler createTaskManagerFatalErrorHandler(int index) {
+        return createProcessFatalErrorHandler("TaskManager #" + index);
+    }
+
+    /**
+     * Nothing replaces a JobManager or TaskManager that fails, so the whole process has to fail
+     * instead, like their processes do in a distributed cluster. That leaves the restart to the
+     * process supervisor, with high availability recovering the job.
+     */
+    private FatalErrorHandler createProcessFatalErrorHandler(String component) {
         return exception -> {
             if (closeRequestedFuture.isDone()) {
-                LOG.debug("Ignoring TaskManager #{} error during shutdown.", index, exception);
+                LOG.debug("Ignoring {} error during shutdown.", component, exception);
                 return;
             }
-            LOG.error("TaskManager #{} failed. Shutting the MiniCluster down.", index, exception);
+            LOG.error("{} failed. Shutting the MiniCluster down.", component, exception);
             if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception)) {
                 LOG.error(
                         "Terminating the process with exit code {}.",

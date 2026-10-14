@@ -531,7 +531,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         delegationTokenManager,
                         metricRegistry,
                         metricQueryServiceRetriever,
-                        new ShutDownFatalErrorHandler()));
+                        createJobManagerFatalErrorHandler()));
 
         FutureUtils.completeAll(
                         dispatcherResourceManagerComponents.stream()
@@ -791,6 +791,14 @@ public class MiniCluster implements AutoCloseableAsync {
     /** Creates {@link FailureEnricher}s for the dispatcher's jobs. By default, none are created. */
     protected Collection<FailureEnricher> createFailureEnrichers(Configuration configuration) {
         return Collections.emptySet();
+    }
+
+    /**
+     * Creates the {@link FatalErrorHandler} for the JobManager components and the high availability
+     * services. By default, a fatal error closes the MiniCluster.
+     */
+    protected FatalErrorHandler createJobManagerFatalErrorHandler() {
+        return new ShutDownFatalErrorHandler();
     }
 
     /**
@@ -1644,7 +1652,7 @@ public class MiniCluster implements AutoCloseableAsync {
         public HighAvailabilityServices createHAServices(
                 Configuration configuration, Executor executor) throws Exception {
             return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-                    configuration, executor, new ShutDownFatalErrorHandler());
+                    configuration, executor, createJobManagerFatalErrorHandler());
         }
     }
 }

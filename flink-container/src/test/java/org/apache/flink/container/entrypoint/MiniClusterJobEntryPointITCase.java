@@ -557,6 +557,11 @@ class MiniClusterJobEntryPointITCase {
             assertThat(awaitExit(second, "second"))
                     .as("the process exits so supervisor can restart")
                     .isEqualTo(2);
+            assertThat(logFile("second"))
+                    .content()
+                    .contains(
+                            "ERROR ApplicationModeMiniCluster - JobManager failed. Shutting the"
+                                    + " MiniCluster down.");
             assertThat(zooKeeperNodeExists(executionPlanZooKeeperPath()))
                     .as("the job's HA metadata survives the error")
                     .isTrue();
@@ -583,6 +588,11 @@ class MiniClusterJobEntryPointITCase {
             assertThat(awaitExit(process, "process"))
                     .as("the process exits so supervisor can restart")
                     .isEqualTo(2);
+            assertThat(logFile("process"))
+                    .content()
+                    .contains(
+                            "ERROR ApplicationModeMiniCluster - TaskManager #0 failed. Shutting the"
+                                    + " MiniCluster down.");
             assertThat(zooKeeperNodeExists(executionPlanZooKeeperPath()))
                     .as("the job's HA metadata survives the error")
                     .isTrue();
