@@ -778,7 +778,7 @@ public class MiniCluster implements AutoCloseableAsync {
                             metricRegistry,
                             blobCacheService,
                             useLocalCommunication(),
-                            ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                            createExternalResourceInfoProvider(configuration),
                             workingDirectory.createSubWorkingDirectory("tm_" + taskManagers.size()),
                             createTaskManagerFatalErrorHandler(taskManagers.size()),
                             delegationTokenReceiverRepository);
@@ -791,6 +791,15 @@ public class MiniCluster implements AutoCloseableAsync {
     /** Creates {@link FailureEnricher}s for the dispatcher's jobs. By default, none are created. */
     protected Collection<FailureEnricher> createFailureEnrichers(Configuration configuration) {
         return Collections.emptySet();
+    }
+
+    /**
+     * Creates {@link ExternalResourceInfoProvider} for the TaskManagers. By default, there are no
+     * external resources.
+     */
+    protected ExternalResourceInfoProvider createExternalResourceInfoProvider(
+            Configuration configuration) {
+        return ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
     }
 
     /**

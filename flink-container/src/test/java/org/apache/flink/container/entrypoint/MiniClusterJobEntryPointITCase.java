@@ -20,6 +20,11 @@ package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.externalresource.ExternalResourceDriver;
+import org.apache.flink.api.common.externalresource.ExternalResourceDriverFactory;
+import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -28,6 +33,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JMXServerOptions;
@@ -89,6 +95,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -103,6 +110,8 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -897,6 +906,52 @@ class MiniClusterJobEntryPointITCase {
         }
     }
 
+    @Test
+    void providesConfiguredExternalResourcesToTasks() throws Exception {
+        final Path pluginsDir = tempDir.resolve("plugins");
+        writePluginJar(
+                Files.createDirectories(pluginsDir.resolve("external-resource"))
+                        .resolve("external-resource.jar"),
+                ExternalResourceDriverFactory.class,
+                TestExternalResourceDriverFactory.class,
+                TestExternalResourceInfo.class);
+        final String resource = TestExternalResourceDriverFactory.RESOURCE_NAME;
+        final Path resourcesSeenByTask = tempDir.resolve("external-resources-seen-by-task");
+
+        final Process process =
+                startProcess(
+                        "process",
+                        MiniClusterJobEntryPoint.class,
+                        List.of(
+                                "--configDir",
+                                confDir.toString(),
+                                dynamicProperty(
+                                        ExternalResourceOptions.EXTERNAL_RESOURCE_LIST, resource),
+                                "-D"
+                                        + ExternalResourceOptions.getAmountConfigOptionForResource(
+                                                resource)
+                                        + "=2",
+                                "-D"
+                                        + ExternalResourceOptions
+                                                .getExternalResourceDriverFactoryConfigOptionForResource(
+                                                        resource)
+                                        + "="
+                                        + TestExternalResourceDriverFactory.class.getName(),
+                                "--job-classname",
+                                ExternalResourceJob.class.getName(),
+                                "--",
+                                resourcesSeenByTask.toString()),
+                        Map.of(ConfigConstants.ENV_FLINK_PLUGINS_DIR, pluginsDir.toString()));
+        try {
+            awaitJobState(process, "process", "FINISHED");
+            assertThat(Files.readAllLines(resourcesSeenByTask))
+                    .as("the task gets the configured external resources")
+                    .containsExactly("device-0", "device-1");
+        } finally {
+            stop(process);
+        }
+    }
+
     private Process startMiniClusterProcess(String name) throws IOException {
         return startProcess(name, MiniClusterJobEntryPoint.class, applicationArguments());
     }
@@ -1185,6 +1240,46 @@ class MiniClusterJobEntryPointITCase {
         }
     }
 
+    /** Writes the ids of the external resources its task gets to the file given as argument. */
+    public static final class ExternalResourceJob {
+
+        public static void main(String[] args) throws Exception {
+            final StreamExecutionEnvironment env =
+                    StreamExecutionEnvironment.getExecutionEnvironment();
+            env.fromSequence(1, 1)
+                    .map(new RecordExternalResources(args[0]))
+                    .sinkTo(new DiscardingSink<>());
+            env.execute();
+        }
+    }
+
+    private static final class RecordExternalResources extends RichMapFunction<Long, Long> {
+
+        private final String outputFile;
+
+        RecordExternalResources(String outputFile) {
+            this.outputFile = outputFile;
+        }
+
+        @Override
+        public void open(OpenContext openContext) throws IOException {
+            final List<String> ids =
+                    getRuntimeContext()
+                            .getExternalResourceInfos(
+                                    TestExternalResourceDriverFactory.RESOURCE_NAME)
+                            .stream()
+                            .map(info -> info.getProperty("id").orElseThrow())
+                            .sorted()
+                            .collect(Collectors.toList());
+            Files.write(Path.of(outputFile), ids);
+        }
+
+        @Override
+        public Long map(Long value) {
+            return value;
+        }
+    }
+
     public static final class FailingTaskJob {
 
         public static void main(String[] args) throws Exception {
@@ -1330,6 +1425,40 @@ class MiniClusterJobEntryPointITCase {
         public CompletableFuture<Map<String, String>> processFailure(
                 Throwable cause, Context context) {
             return CompletableFuture.completedFuture(Map.of(KEY, VALUE));
+        }
+    }
+
+    /** Provides as many devices as requested. It's only registered in a plugin jar. */
+    public static final class TestExternalResourceDriverFactory
+            implements ExternalResourceDriverFactory {
+
+        static final String RESOURCE_NAME = "test-device";
+
+        @Override
+        public ExternalResourceDriver createExternalResourceDriver(Configuration config) {
+            return amount ->
+                    LongStream.range(0, amount)
+                            .mapToObj(index -> new TestExternalResourceInfo("device-" + index))
+                            .collect(Collectors.toSet());
+        }
+    }
+
+    private static final class TestExternalResourceInfo implements ExternalResourceInfo {
+
+        private final String id;
+
+        TestExternalResourceInfo(String id) {
+            this.id = id;
+        }
+
+        @Override
+        public Optional<String> getProperty(String key) {
+            return "id".equals(key) ? Optional.of(id) : Optional.empty();
+        }
+
+        @Override
+        public Collection<String> getKeys() {
+            return List.of("id");
         }
     }
 }

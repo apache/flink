@@ -23,6 +23,7 @@ import org.apache.flink.client.deployment.application.ApplicationDispatcherLeade
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failure.FailureEnricher;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -32,6 +33,8 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
+import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -49,6 +52,8 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -69,6 +74,7 @@ final class ApplicationModeMiniCluster extends MiniCluster {
 
     private final Configuration configuration;
     private final PackagedProgram program;
+    @Nullable private final PluginManager pluginManager;
 
     private final CompletableFuture<ApplicationStatus> applicationShutDownFuture =
             new CompletableFuture<>();
@@ -82,6 +88,7 @@ final class ApplicationModeMiniCluster extends MiniCluster {
         super(miniClusterConfiguration);
         this.configuration = new Configuration(miniClusterConfiguration.getConfiguration());
         this.program = checkNotNull(program);
+        this.pluginManager = miniClusterConfiguration.getPluginManager();
     }
 
     CompletableFuture<ApplicationStatus> getApplicationShutDownFuture() {
@@ -169,6 +176,13 @@ final class ApplicationModeMiniCluster extends MiniCluster {
     @Override
     protected Collection<FailureEnricher> createFailureEnrichers(Configuration configuration) {
         return FailureEnricherUtils.getFailureEnrichers(configuration);
+    }
+
+    @Override
+    protected ExternalResourceInfoProvider createExternalResourceInfoProvider(
+            Configuration configuration) {
+        return ExternalResourceUtils.createStaticExternalResourceInfoProviderFromConfig(
+                configuration, pluginManager);
     }
 
     /** Sizes the RPC thread pool from the {@code pekko.fork-join-executor} options. */
