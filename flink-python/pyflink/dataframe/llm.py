@@ -27,7 +27,7 @@ from pyflink.dataframe.validation import _require_int, _require_number
 from pyflink.table.model_descriptor import ModelDescriptor
 from pyflink.table.schema import Schema
 from pyflink.table.types import (
-    DataType as TableDataType, DataTypes, RowType,
+    DataType as TableDataType, DataTypes, RowType, _from_java_data_type,
 )
 from pyflink.util.api_stability_decorators import PublicEvolving
 
@@ -836,9 +836,11 @@ class LLMAccessor:
                 f"Prediction output columns conflict with existing columns: {collisions}")
 
         input_schema = Schema.new_builder()
-        column_types = dict(zip(names, resolved.get_column_data_types()))
+        column_indexes = {name: index for index, name in enumerate(names)}
+        j_column_types = resolved._j_resolved_schema.getColumnDataTypes()
         for name in input_cols:
-            input_schema.column(name, column_types[name])
+            input_schema.column(
+                name, _from_java_data_type(j_column_types.get(column_indexes[name])))
         output_schema = Schema.new_builder()
         for name, dtype in output_columns:
             output_schema.column(name, dtype)

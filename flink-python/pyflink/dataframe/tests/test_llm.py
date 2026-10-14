@@ -143,6 +143,12 @@ class DataFramePredictTests(unittest.TestCase):
         resolved = self.table.get_resolved_schema.return_value
         resolved.get_column_names.return_value = ["id", "prompt"]
         resolved.get_column_data_types.return_value = [DataTypes.BIGINT(), DataTypes.STRING()]
+        j_column_types = resolved._j_resolved_schema.getColumnDataTypes.return_value
+        j_column_types.get.side_effect = resolved.get_column_data_types.return_value.__getitem__
+        conversion_patch = patch.object(
+            llm, "_from_java_data_type", side_effect=lambda data_type: data_type)
+        self.addCleanup(conversion_patch.stop)
+        conversion_patch.start()
         self.dataframe = pf.DataFrame(self.table)
         self.model = self.table._t_env.from_model.return_value
         self.model.predict.return_value = sentinel.prediction
@@ -166,6 +172,9 @@ class DataFramePredictTests(unittest.TestCase):
 
     def test_predict_forwards_input_order_runtime_config_and_model_precedence(self):
         self.assertIsInstance(self.dataframe.llm, llm.LLMAccessor)
+        resolved = self.table.get_resolved_schema.return_value
+        resolved.get_column_names.return_value += [f"metadata_{i}" for i in range(1000)]
+        resolved.get_column_data_types.return_value += [DataTypes.STRING()] * 1000
         provider = pf.TritonProvider(
             "http://localhost:8000", model_name="configured", options={"provider": "other"})
         pf.set_model_provider("triton", provider)
