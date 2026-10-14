@@ -58,7 +58,7 @@ input types and number of columns it supports.
 .. code-block:: python
 
     pf.set_model_provider("chat", pf.OpenAIProvider(
-        endpoint="https://api.openai.com/v1/chat/completions", api_key="key"))
+        endpoint="https://api.openai.com/v1/chat/completions", api_key="key", retry_num=3))
     questions = pf.from_records([{"question": "What is Apache Flink?"}])
     answers = questions.llm.predict(
         "question", provider="chat", model="gpt-6-luna")
@@ -70,13 +70,20 @@ A ``DataType.struct(...)`` expands its top-level fields into named output column
 Output field names must be unique and must not already occur in the input DataFrame.
 The provider validates the output schema it supports.
 
+.. code-block:: python
+
+    # Name the prediction column "answer" instead of the default "output".
+    answers = questions.llm.predict(
+        "question", provider="chat", model="gpt-6-luna",
+        output_type=pf.DataType.struct({"answer": pf.DataType.string()}))
+
 You can pass in extra arguments to override the selected provider's constructor settings:
 
 .. code-block:: python
 
+    # Override the provider's retry_num parameter for this call.
     answers = questions.llm.predict(
-        "question", provider="chat", model="gpt-6-luna",
-        system_prompt="Answer in one sentence.")
+        "question", provider="chat", model="gpt-6-luna", retry_num=0)
 
 .. currentmodule:: pyflink.dataframe
 

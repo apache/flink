@@ -782,13 +782,22 @@ class LLMAccessor:
                        inherited raw options. The registered provider stays unchanged.
         :return: A new DataFrame containing the input and prediction columns.
 
-        Example::
+        Examples::
 
             >>> import pyflink.dataframe as pf
             >>> pf.set_model_provider(pf.OpenAIProvider(
-            ...     "https://api.openai.com/v1/chat/completions", api_key="key"))
+            ...     "https://api.openai.com/v1/chat/completions", api_key="key", retry_num=3))
             >>> df = pf.from_records([{"question": "What is Apache Flink?"}])
             >>> answer = df.llm.predict("question", model="gpt-6-luna")
+
+            >>> # Override the provider's retry_num parameter for this call.
+            >>> answer = df.llm.predict(
+            ...     "question", model="gpt-6-luna", retry_num=0)
+
+            >>> # Name the prediction column "answer" instead of the default "output".
+            >>> answer = df.llm.predict(
+            ...     "question", model="gpt-6-luna",
+            ...     output_type=pf.DataType.struct({"answer": pf.DataType.string()}))
 
         .. versionadded:: 2.4.0
         """
