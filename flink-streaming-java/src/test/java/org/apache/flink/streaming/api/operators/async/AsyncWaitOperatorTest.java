@@ -56,6 +56,7 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
+import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -66,6 +67,7 @@ import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
@@ -2226,6 +2228,330 @@ public class AsyncWaitOperatorTest {
                     .hasValue(
                             completion == AttemptCompletion.SUPPLIER_RESULT
                                             || completion == AttemptCompletion.SUPPLIER_ERROR
+                                    ? 1
+                                    : 0);
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(AttemptCompletion.class)
+    void testEndInputFinalAttemptCannotCompleteDeferredTimeout(AttemptCompletion completion)
+            throws Exception {
+        testEndInputFinalAttemptCompletion(completion, FinalAttemptTiming.AFTER_TIMEOUT);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AttemptCompletion.class)
+    void testEndInputFinalAttemptCannotCompleteSynchronousTimeout(AttemptCompletion completion)
+            throws Exception {
+        testEndInputFinalAttemptCompletion(completion, FinalAttemptTiming.DURING_TIMEOUT);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AttemptCompletion.class)
+    void testEndInputFinalAttemptQueuedBeforeTimeoutIsIgnored(AttemptCompletion completion)
+            throws Exception {
+        testEndInputFinalAttemptCompletion(completion, FinalAttemptTiming.QUEUED_BEFORE_TIMEOUT);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AttemptCompletion.class)
+    void testEndInputFinalAttemptRetainsCompletionAuthority(AttemptCompletion completion)
+            throws Exception {
+        testEndInputFinalAttemptCompletion(completion, FinalAttemptTiming.BEFORE_TIMEOUT);
+    }
+
+    private enum FinalAttemptTiming {
+        BEFORE_TIMEOUT,
+        QUEUED_BEFORE_TIMEOUT,
+        DURING_TIMEOUT,
+        AFTER_TIMEOUT
+    }
+
+    private void testEndInputFinalAttemptCompletion(
+            AttemptCompletion completion, FinalAttemptTiming timing) throws Exception {
+        SharedReference<AtomicInteger> invokeCalls = sharedObjects.add(new AtomicInteger());
+        SharedReference<AtomicInteger> timeoutCalls = sharedObjects.add(new AtomicInteger());
+        SharedReference<AtomicInteger> supplierCalls = sharedObjects.add(new AtomicInteger());
+        SharedReference<AtomicReference<ResultFuture<Integer>>> finalAttempt =
+                sharedObjects.add(new AtomicReference<>());
+        SharedReference<AtomicReference<ResultFuture<Integer>>> timeoutResult =
+                sharedObjects.add(new AtomicReference<>());
+        SharedReference<AtomicReference<OneInputStreamOperatorTestHarness<Integer, Integer>>>
+                harnessReference = sharedObjects.add(new AtomicReference<>());
+        SharedReference<ThrowingRunnable<Exception>> completeFinalAttempt =
+                sharedObjects.add(
+                        () -> {
+                            OneInputStreamOperatorTestHarness<Integer, Integer> harness =
+                                    harnessReference.get().get();
+                            ResultFuture<Integer> resultFuture = finalAttempt.get().get();
+                            if (timing == FinalAttemptTiming.BEFORE_TIMEOUT
+                                    || timing == FinalAttemptTiming.QUEUED_BEFORE_TIMEOUT) {
+                                completeAttempt(resultFuture, completion, supplierCalls.get());
+                            }
+                            if (timing == FinalAttemptTiming.BEFORE_TIMEOUT) {
+                                return;
+                            }
+                            harness.setProcessingTime(TIMEOUT);
+                            assertThat(timeoutCalls.get()).hasValue(1);
+                            if (timing == FinalAttemptTiming.DURING_TIMEOUT) {
+                                return;
+                            }
+                            if (timing == FinalAttemptTiming.AFTER_TIMEOUT) {
+                                CompletableFuture.runAsync(
+                                                () ->
+                                                        completeAttempt(
+                                                                resultFuture,
+                                                                completion,
+                                                                supplierCalls.get()))
+                                        .get(10, TimeUnit.SECONDS);
+                            }
+                            // Process stale callbacks while timeout completion is still pending.
+                            drainMailboxCompletely(harness);
+                            assertThat(supplierCalls.get()).hasValue(0);
+                            assertThat(harness.getOutput()).isEmpty();
+                            assertThat(harness.getEnvironment().getActualExternalFailureCause())
+                                    .isEmpty();
+                            timeoutResult.get().get().complete(Collections.singletonList(-1));
+                        });
+        AsyncFunction<Integer, Integer> asyncFunction =
+                new AsyncFunction<Integer, Integer>() {
+                    @Override
+                    public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture)
+                            throws Exception {
+                        if (invokeCalls.get().incrementAndGet() == 1) {
+                            resultFuture.completeExceptionally(new ExpectedTestException());
+                            return;
+                        }
+                        finalAttempt.get().set(resultFuture);
+                        OneInputStreamOperatorTestHarness<Integer, Integer> harness =
+                                harnessReference.get().get();
+                        harness.getTaskMailbox()
+                                .put(
+                                        new Mail(
+                                                completeFinalAttempt.get(),
+                                                harness.getStreamConfig().getChainIndex(),
+                                                "complete final attempt around timeout"));
+                    }
+
+                    @Override
+                    public void timeout(Integer input, ResultFuture<Integer> resultFuture)
+                            throws Exception {
+                        timeoutCalls.get().incrementAndGet();
+                        timeoutResult.get().set(resultFuture);
+                        if (timing == FinalAttemptTiming.DURING_TIMEOUT) {
+                            CompletableFuture.runAsync(
+                                            () ->
+                                                    completeAttempt(
+                                                            finalAttempt.get().get(),
+                                                            completion,
+                                                            supplierCalls.get()))
+                                    .get(10, TimeUnit.SECONDS);
+                            resultFuture.complete(Collections.singletonList(-1));
+                        }
+                    }
+                };
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithRetry(
+                        asyncFunction,
+                        TIMEOUT,
+                        1,
+                        AsyncDataStream.OutputMode.UNORDERED,
+                        exceptionRetryStrategy)) {
+            harnessReference.get().set(testHarness);
+            testHarness.getEnvironment().setExpectedExternalFailureCause(Exception.class);
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            drainMailboxCompletely(testHarness);
+
+            boolean beforeTimeout = timing == FinalAttemptTiming.BEFORE_TIMEOUT;
+            if (beforeTimeout && completion == AttemptCompletion.SUPPLIER_ERROR) {
+                assertThatThrownBy(testHarness::endInput).isInstanceOf(ExpectedTestException.class);
+            } else {
+                testHarness.endInput();
+                drainMailboxCompletely(testHarness);
+                assertThat(testHarness.getEnvironment().getActualExternalFailureCause().isPresent())
+                        .isEqualTo(beforeTimeout && completion == AttemptCompletion.ERROR);
+                if (beforeTimeout && completion == AttemptCompletion.ERROR) {
+                    assertThat(testHarness.getOutput()).isEmpty();
+                } else {
+                    assertThat(testHarness.getOutput())
+                            .containsExactly(new StreamRecord<>(beforeTimeout ? 1 : -1, 1L));
+                }
+            }
+            assertThat(invokeCalls.get()).hasValue(2);
+            assertThat(timeoutCalls.get()).hasValue(beforeTimeout ? 0 : 1);
+            assertThat(supplierCalls.get())
+                    .hasValue(
+                            beforeTimeout
+                                            && (completion == AttemptCompletion.SUPPLIER_RESULT
+                                                    || completion
+                                                            == AttemptCompletion.SUPPLIER_ERROR)
+                                    ? 1
+                                    : 0);
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(AttemptCompletion.class)
+    void testFinalDrainAttemptProcessedAfterDeadline(AttemptCompletion completion)
+            throws Exception {
+        testDrainCompletionAtTime(sharedObjects, completion, false, TIMEOUT + 1L);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AttemptCompletion.class)
+    void testActiveAttemptProcessedAfterDeadlineDuringDrain(AttemptCompletion completion)
+            throws Exception {
+        testDrainCompletionAtTime(sharedObjects, completion, true, TIMEOUT + 1L);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AttemptCompletion.class)
+    void testFinalDrainAttemptProcessedAtDeadline(AttemptCompletion completion) throws Exception {
+        testDrainCompletionAtTime(sharedObjects, completion, false, TIMEOUT);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AttemptCompletion.class)
+    void testActiveAttemptProcessedAtDeadlineDuringDrain(AttemptCompletion completion)
+            throws Exception {
+        testDrainCompletionAtTime(sharedObjects, completion, true, TIMEOUT);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AttemptCompletion.class)
+    void testFinalDrainAttemptProcessedBeforeDeadline(AttemptCompletion completion)
+            throws Exception {
+        testDrainCompletionAtTime(sharedObjects, completion, false, TIMEOUT - 1L);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AttemptCompletion.class)
+    void testActiveAttemptProcessedBeforeDeadlineDuringDrain(AttemptCompletion completion)
+            throws Exception {
+        testDrainCompletionAtTime(sharedObjects, completion, true, TIMEOUT - 1L);
+    }
+
+    private static void testDrainCompletionAtTime(
+            SharedObjectsExtension sharedObjects,
+            AttemptCompletion completion,
+            boolean activeAttempt,
+            long completionTime)
+            throws Exception {
+        SharedReference<TestProcessingTimeService> timeService =
+                sharedObjects.add(new TestProcessingTimeService());
+        timeService.get().setCurrentTime(0L);
+        SharedReference<AtomicInteger> invokeCalls = sharedObjects.add(new AtomicInteger());
+        SharedReference<AtomicInteger> timeoutCalls = sharedObjects.add(new AtomicInteger());
+        SharedReference<AtomicInteger> supplierCalls = sharedObjects.add(new AtomicInteger());
+        SharedReference<AtomicReference<ResultFuture<Integer>>> activeResult =
+                sharedObjects.add(new AtomicReference<>());
+        AsyncFunction<Integer, Integer> asyncFunction =
+                new AsyncFunction<Integer, Integer>() {
+                    @Override
+                    public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture)
+                            throws Exception {
+                        if (activeAttempt && input == 1) {
+                            activeResult.get().set(resultFuture);
+                            return;
+                        }
+                        if (invokeCalls.get().incrementAndGet() == 1) {
+                            resultFuture.completeExceptionally(new ExpectedTestException());
+                            return;
+                        }
+                        if (activeAttempt) {
+                            completeAttempt(
+                                    activeResult.get().get(), completion, supplierCalls.get());
+                            resultFuture.complete(Collections.singletonList(input));
+                        } else {
+                            completeAttempt(resultFuture, completion, supplierCalls.get());
+                        }
+                        // StreamTask defers these timer callbacks behind the queued completions.
+                        timeService.get().setCurrentTime(completionTime);
+                        assertThat(timeoutCalls.get()).hasValue(0);
+                    }
+
+                    @Override
+                    public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
+                        timeoutCalls.get().incrementAndGet();
+                        resultFuture.complete(Collections.singletonList(-input));
+                    }
+                };
+        AsyncRetryStrategy<Integer> retryStrategy =
+                new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder<Integer>(2, 2 * TIMEOUT)
+                        .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
+                        .build();
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<Integer>(
+                                env -> new OneInputStreamTask<>(env, timeService.get()),
+                                BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<>(
+                                        asyncFunction,
+                                        TIMEOUT,
+                                        // Leave room for the task to read end-of-input.
+                                        3,
+                                        AsyncDataStream.OutputMode.UNORDERED,
+                                        retryStrategy))
+                        .build()) {
+            AtomicReference<Throwable> error = new AtomicReference<>();
+            testHarness.getStreamMockEnvironment().setExternalExceptionHandler(error::set);
+            if (activeAttempt) {
+                testHarness.processElement(new StreamRecord<>(1, 1L));
+            }
+            testHarness.processElement(new StreamRecord<>(2, 2L));
+            testHarness.setAutoProcess(false);
+            testHarness.endInput();
+
+            boolean expired = completionTime > TIMEOUT;
+            if (!expired && completion == AttemptCompletion.SUPPLIER_ERROR) {
+                assertThatThrownBy(testHarness::processAll)
+                        .satisfies(
+                                thrown ->
+                                        assertThat(
+                                                        ExceptionUtils.findThrowable(
+                                                                thrown,
+                                                                ExpectedTestException.class))
+                                                .isPresent());
+            } else {
+                testHarness.processAll();
+                if (!expired && completion == AttemptCompletion.ERROR) {
+                    assertThat(error.get()).hasCauseInstanceOf(ExpectedTestException.class);
+                } else {
+                    assertThat(error.get()).isNull();
+                }
+                List<StreamRecord<Integer>> expected = new ArrayList<>();
+                if (expired) {
+                    if (activeAttempt) {
+                        expected.add(new StreamRecord<>(-1, 1L));
+                    }
+                    expected.add(new StreamRecord<>(-2, 2L));
+                } else {
+                    if (completion != AttemptCompletion.ERROR) {
+                        expected.add(new StreamRecord<>(1, activeAttempt ? 1L : 2L));
+                    }
+                    if (activeAttempt) {
+                        expected.add(new StreamRecord<>(2, 2L));
+                    }
+                }
+                assertThat(
+                                testHarness.getOutput().stream()
+                                        .filter(StreamRecord.class::isInstance)
+                                        .collect(Collectors.toList()))
+                        .containsExactlyInAnyOrderElementsOf(expected);
+            }
+            assertThat(invokeCalls.get()).hasValue(2);
+            assertThat(timeoutCalls.get()).hasValue(expired ? (activeAttempt ? 2 : 1) : 0);
+            assertThat(supplierCalls.get())
+                    .hasValue(
+                            !expired
+                                            && (completion == AttemptCompletion.SUPPLIER_RESULT
+                                                    || completion
+                                                            == AttemptCompletion.SUPPLIER_ERROR)
                                     ? 1
                                     : 0);
         }

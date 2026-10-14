@@ -552,7 +552,7 @@ public class AsyncWaitOperator<IN, OUT>
                         }
                         if (finishWithoutRetry) {
                             cancelRetryTimer();
-                            resultHandler.complete(supplier);
+                            completeOrTimeout(() -> resultHandler.complete(supplier));
                             return;
                         }
                         Collection<OUT> results;
@@ -574,7 +574,39 @@ public class AsyncWaitOperator<IN, OUT>
         private void finish() throws Exception {
             if (retryAwaiting.get() && finishing.compareAndSet(false, true)) {
                 currentAttempts++;
-                userFunction.asyncInvoke(resultHandler.inputRecord.getValue(), resultHandler);
+                userFunction.asyncInvoke(
+                        resultHandler.inputRecord.getValue(), new FinalAttemptResultHandler());
+            }
+        }
+
+        /** The final attempt supersedes prior retries, but must still yield to timeout handling. */
+        private class FinalAttemptResultHandler implements ResultFuture<OUT> {
+            @Override
+            public void complete(Collection<OUT> results) {
+                Preconditions.checkNotNull(
+                        results, "Results must not be null, use empty collection to emit nothing");
+                completeInMailbox(() -> resultHandler.complete(results));
+            }
+
+            @Override
+            public void completeExceptionally(Throwable error) {
+                completeInMailbox(() -> resultHandler.completeExceptionally(error));
+            }
+
+            @Override
+            public void complete(CollectionSupplier<OUT> supplier) {
+                Preconditions.checkNotNull(
+                        supplier,
+                        "Runnable must not be null, return empty collection to emit nothing");
+                completeInMailbox(() -> resultHandler.complete(supplier));
+            }
+
+            private void completeInMailbox(Runnable completion) {
+                if (timedOut.get() || resultHandler.completed.get()) {
+                    return;
+                }
+                mailboxExecutor.execute(
+                        () -> completeOrTimeout(completion), "complete final async attempt");
             }
         }
 
@@ -590,12 +622,23 @@ public class AsyncWaitOperator<IN, OUT>
                         }
                         if (finishWithoutRetry) {
                             cancelRetryTimer();
-                            completeWithoutRetry(results, error);
+                            completeOrTimeout(() -> completeWithoutRetry(results, error));
                         } else {
                             processRetry(results, error);
                         }
                     },
                     "delayed retry or complete");
+        }
+
+        private void completeOrTimeout(Runnable completion) throws Exception {
+            if (timedOut.get() || resultHandler.completed.get()) {
+                return;
+            }
+            if (isTimeout()) {
+                timerTriggered();
+                return;
+            }
+            completion.run();
         }
 
         private boolean isTimeout() {
