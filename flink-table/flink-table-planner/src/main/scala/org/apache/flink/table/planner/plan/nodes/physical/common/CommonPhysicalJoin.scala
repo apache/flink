@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.planner.plan.utils.JoinUtil
+import org.apache.flink.table.planner.plan.utils.{JoinUtil, UpsertKeyUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.{preferExpressionDetail, preferExpressionFormat}
 
@@ -88,10 +88,6 @@ abstract class CommonPhysicalJoin(
     val upsertKeys = FlinkRelMetadataQuery
       .reuseOrCreate(cluster.getMetadataQuery)
       .getUpsertKeysInKeyGroupRange(input, keys)
-    if (upsertKeys == null || upsertKeys.isEmpty) {
-      List.empty
-    } else {
-      upsertKeys.map(_.asList.map(_.intValue).toArray).toList
-    }
+    UpsertKeyUtil.sortedKeys(upsertKeys).toList
   }
 }
