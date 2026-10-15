@@ -36,6 +36,7 @@ import org.apache.flink.table.functions.AsyncPredictFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -56,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -95,7 +97,8 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
         validateSingleColumnSchema(
                 factoryContext.getCatalogModel().getResolvedInputSchema(),
                 new VarCharType(VarCharType.MAX_LENGTH),
-                "input");
+                "input",
+                type -> type.is(LogicalTypeFamily.CHARACTER_STRING));
 
         this.outputColumnNames =
                 factoryContext.getCatalogModel().getResolvedOutputSchema().getColumnNames();
@@ -142,6 +145,14 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
 
     protected void validateSingleColumnSchema(
             ResolvedSchema schema, LogicalType expectedType, String inputOrOutput) {
+        validateSingleColumnSchema(schema, expectedType, inputOrOutput, expectedType::equals);
+    }
+
+    private void validateSingleColumnSchema(
+            ResolvedSchema schema,
+            LogicalType expectedType,
+            String inputOrOutput,
+            Predicate<LogicalType> supportedType) {
         List<Column> columns = schema.getColumns();
         List<String> physicalColumnNames =
                 columns.stream()
@@ -156,7 +167,7 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
         }
 
         Column column = schema.getColumn(physicalColumnNames.get(0)).get();
-        if (!expectedType.equals(column.getDataType().getLogicalType())) {
+        if (!supportedType.test(column.getDataType().getLogicalType())) {
             throw new IllegalArgumentException(
                     String.format(
                             "%s column %s should be %s, but is a %s.",

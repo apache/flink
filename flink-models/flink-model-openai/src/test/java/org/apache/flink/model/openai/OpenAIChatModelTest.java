@@ -19,13 +19,17 @@ package org.apache.flink.model.openai;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.variant.Variant;
 
@@ -42,6 +46,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,6 +55,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -246,6 +253,46 @@ public class OpenAIChatModelTest {
         assertThat(result).isEmpty();
     }
 
+    @ParameterizedTest
+    @MethodSource("stringInputTypes")
+    public void testStringInputSchema(final DataType inputType) {
+        final Schema inputSchema = Schema.newBuilder().column("input", inputType).build();
+        final Table input =
+                tEnv.fromValues(
+                        DataTypes.ROW(DataTypes.FIELD("input", inputType)), Row.of("hello"));
+        tEnv.createTemporaryView("TypedInput", input);
+        createModel(inputSchema, OUTPUT_SCHEMA);
+
+        assertThat(
+                        tEnv.sqlQuery(
+                                        String.format(
+                                                "SELECT content FROM ML_PREDICT(TABLE TypedInput, MODEL %s, DESCRIPTOR(`input`))",
+                                                MODEL_NAME))
+                                .explain())
+                .isNotBlank();
+
+        final ModelDescriptor.Builder descriptor =
+                ModelDescriptor.forProvider("openai")
+                        .inputSchema(inputSchema)
+                        .outputSchema(OUTPUT_SCHEMA);
+        modelOptions.forEach(descriptor::option);
+        assertThat(
+                        tEnv.fromModel(descriptor.build())
+                                .predict(input, ColumnList.of("input"))
+                                .explain())
+                .isNotBlank();
+    }
+
+    private static Stream<DataType> stringInputTypes() {
+        return Stream.of(
+                DataTypes.CHAR(14),
+                DataTypes.CHAR(14).notNull(),
+                DataTypes.VARCHAR(32),
+                DataTypes.VARCHAR(32).notNull(),
+                DataTypes.STRING(),
+                DataTypes.STRING().notNull());
+    }
+
     @Test
     public void testInvalidInputSchema() {
         Schema inputSchemaWithInvalidColumnType =
@@ -263,10 +310,11 @@ public class OpenAIChatModelTest {
                 .hasMessageContainingAll("input", "DOUBLE", "STRING");
     }
 
-    @Test
-    public void testInvalidOutputSchema() {
-        Schema outputSchemaWithInvalidColumnType =
-                Schema.newBuilder().column("output", DataTypes.DOUBLE()).build();
+    @ParameterizedTest
+    @MethodSource("invalidOutputTypes")
+    public void testInvalidOutputSchema(final DataType outputType) {
+        final Schema outputSchemaWithInvalidColumnType =
+                Schema.newBuilder().column("output", outputType).build();
 
         createModel(INPUT_SCHEMA, outputSchemaWithInvalidColumnType);
         assertThatThrownBy(
@@ -277,7 +325,16 @@ public class OpenAIChatModelTest {
                                                 MODEL_NAME)))
                 .rootCause()
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContainingAll("output", "DOUBLE", "STRING");
+                .hasMessageContainingAll(
+                        "output", outputType.getLogicalType().asSummaryString(), "STRING");
+    }
+
+    private static Stream<DataType> invalidOutputTypes() {
+        return Stream.of(
+                DataTypes.DOUBLE(),
+                DataTypes.CHAR(14),
+                DataTypes.VARCHAR(32),
+                DataTypes.STRING().notNull());
     }
 
     private void createModel() {
