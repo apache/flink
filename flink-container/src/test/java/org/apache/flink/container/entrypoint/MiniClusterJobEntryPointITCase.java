@@ -52,7 +52,10 @@ import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.highavailability.ApplicationResultStoreOptions;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
 import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
@@ -104,6 +107,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.jar.Attributes;
@@ -639,6 +643,36 @@ class MiniClusterJobEntryPointITCase {
             assertThat(zooKeeperNodeExists("/flink/" + haClusterId))
                     .as("the HA metadata is removed, as by a standalone application cluster")
                     .isFalse();
+        } finally {
+            stop(process);
+        }
+    }
+
+    @Test
+    void failedShutdownAfterApplicationFinishesExitsWithRuntimeFailureCode() throws Exception {
+        final Process process =
+                startProcess(
+                        "process",
+                        MiniClusterJobEntryPoint.class,
+                        applicationArguments(
+                                RecordingJob.class,
+                                List.of(
+                                        dynamicProperty(
+                                                DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH,
+                                                true),
+                                        dynamicProperty(
+                                                HighAvailabilityOptions.HA_MODE,
+                                                FailingCleanupHaServicesFactory.class.getName()))));
+        try {
+            assertThat(awaitExit(process, "process"))
+                    .as(
+                            "the exit code a standalone application cluster uses if shutting down fails")
+                    .isEqualTo(2);
+            assertThat(logFile("process"))
+                    .content()
+                    .contains("ERROR MiniClusterJobEntryPoint - Could not close the MiniCluster.")
+                    .contains(FailingCleanupHaServicesFactory.FAILURE_MESSAGE)
+                    .contains("Application finished with status SUCCEEDED.");
         } finally {
             stop(process);
         }
@@ -1224,6 +1258,24 @@ class MiniClusterJobEntryPointITCase {
 
     private static String entry(ConfigOption<?> option, Object value) {
         return option.key() + ": " + value;
+    }
+
+    /** Creates HA services that fail to clean up their data. */
+    public static final class FailingCleanupHaServicesFactory
+            implements HighAvailabilityServicesFactory {
+
+        static final String FAILURE_MESSAGE = "Could not clean up the HA data.";
+
+        @Override
+        public HighAvailabilityServices createHAServices(
+                Configuration configuration, Executor executor) {
+            return new EmbeddedHaServices(executor) {
+                @Override
+                public void cleanupAllData() throws Exception {
+                    throw new IOException(FAILURE_MESSAGE);
+                }
+            };
+        }
     }
 
     public static final class RecordingJob {

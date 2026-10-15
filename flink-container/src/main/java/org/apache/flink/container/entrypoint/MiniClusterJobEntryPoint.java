@@ -139,7 +139,7 @@ public final class MiniClusterJobEntryPoint {
                             () -> {
                                 if (STOPPING.compareAndSet(false, true)) {
                                     closedByShutdownHook = true;
-                                    closeQuietly(miniCluster, SHUTDOWN_HOOK_TIMEOUT);
+                                    tryClose(miniCluster, SHUTDOWN_HOOK_TIMEOUT);
                                     program.close();
                                 }
                             },
@@ -167,7 +167,7 @@ public final class MiniClusterJobEntryPoint {
             return 0;
         }
 
-        closeQuietly(miniCluster, SHUTDOWN_TIMEOUT);
+        final boolean closed = tryClose(miniCluster, SHUTDOWN_TIMEOUT);
         program.close();
 
         final CompletableFuture<ApplicationStatus> applicationShutDown =
@@ -178,7 +178,10 @@ public final class MiniClusterJobEntryPoint {
         }
         final ApplicationStatus applicationStatus = applicationShutDown.join();
         LOG.info("Application finished with status {}.", applicationStatus);
-        return applicationStatus.processExitCode();
+        // report a failed shut down (e.g. not removing the HA data) over application's status
+        return closed
+                ? applicationStatus.processExitCode()
+                : ClusterEntrypoint.RUNTIME_FAILURE_RETURN_CODE;
     }
 
     private static MiniClusterConfiguration buildMiniClusterConfiguration(
@@ -201,11 +204,14 @@ public final class MiniClusterJobEntryPoint {
                 .build();
     }
 
-    private static void closeQuietly(final MiniCluster miniCluster, final Duration timeout) {
+    /** Returns whether the MiniCluster closed within the timeout. */
+    private static boolean tryClose(final MiniCluster miniCluster, final Duration timeout) {
         try {
             miniCluster.closeAsync().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            return true;
         } catch (Exception e) {
-            LOG.warn("Error closing MiniCluster during shutdown.", e);
+            LOG.error("Could not close the MiniCluster.", e);
+            return false;
         }
     }
 
