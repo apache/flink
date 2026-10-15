@@ -79,7 +79,7 @@ class DataFrameUDAFDeclarationTests(unittest.TestCase):
     def test_declaration_forms(self):
         for declaration in (pf.udaf(Sum), pf.udaf()(Sum), pf.udaf(return_dtype=int)(Sum),
                             pf.udaf(Sum())):
-            self.assertEqual(declaration.return_dtype, pf.DataType.int64())
+            self.assertEqual(declaration.return_dtype, pf.DataType.int64().not_null())
             self.assertEqual(declaration.__name__, "Sum")
 
     def test_general_requires_aggregate_function(self):
@@ -100,8 +100,9 @@ class DataFrameUDAFDeclarationTests(unittest.TestCase):
         self.assertEqual(declaration.return_dtype, pf.DataType.int32())
         self.assertEqual(declaration.accumulator_type, pf.DataType.list(pf.DataType.int64()))
         declaration = pf.udaf(TypedSum, return_dtype=float, accumulator_type=list[float])
-        self.assertEqual(declaration.return_dtype, pf.DataType.float64())
-        self.assertEqual(declaration.accumulator_type, pf.DataType.list(pf.DataType.float64()))
+        self.assertEqual(declaration.return_dtype, pf.DataType.float64().not_null())
+        self.assertEqual(declaration.accumulator_type,
+                         pf.DataType.list(pf.DataType.float64().not_null()).not_null())
 
         class ExplicitSum(Sum):
             def get_result_type(self):
@@ -111,17 +112,19 @@ class DataFrameUDAFDeclarationTests(unittest.TestCase):
                 raise AssertionError("Explicit accumulator_type must take precedence")
 
         self.assertEqual(pf.udaf(ExplicitSum, return_dtype=int,
-                                 accumulator_type=list[int]).return_dtype, pf.DataType.int64())
+                                 accumulator_type=list[int]).return_dtype,
+                         pf.DataType.int64().not_null())
 
     def test_return_annotation_is_resolved_independently(self):
         def total(values):
             return values.sum()
 
         total.__annotations__ = {"values": "UnknownInput", "return": int}
-        self.assertEqual(pf.udaf(total, func_type="pandas").return_dtype, pf.DataType.int64())
+        self.assertEqual(pf.udaf(total, func_type="pandas").return_dtype,
+                         pf.DataType.int64().not_null())
         total.__annotations__["return"] = "UnknownOutput"
         self.assertEqual(pf.udaf(total, return_dtype=int, func_type="pandas").return_dtype,
-                         pf.DataType.int64())
+                         pf.DataType.int64().not_null())
 
     def test_missing_and_invalid_types(self):
         class UntypedSum(Sum):
@@ -265,8 +268,13 @@ class DataFrameUDAFDeclarationTests(unittest.TestCase):
             def get_value(self, accumulator):
                 return {"nested": [{"value": accumulator[0]}]}
 
-        self.assertEqual(_aggregate(pf.udaf(Nested, return_dtype=dtype), 3),
-                         Row(nested=[Row(value=3)], missing=None))
+        for func_type, expected in (
+            ("general", Row(nested=[Row(value=3)], missing=None)),
+            ("pandas", ([(3,)], None)),
+        ):
+            with self.subTest(func_type=func_type):
+                self.assertEqual(_aggregate(pf.udaf(
+                    Nested, return_dtype=dtype, func_type=func_type), 3), expected)
 
         def fail(values) -> int:
             raise RuntimeError("user failure")
@@ -328,7 +336,7 @@ class DataFrameUDAFBatchTests(PyFlinkBatchTableTestCase):
             total=weighted(pf.col("value"), pf.col("weight")))
         self.assertEqual(result.columns, ["category", "total"])
         self.assertEqual(result.schema.get_field_data_types(),
-                         [DataTypes.STRING(), DataTypes.BIGINT()])
+                         [DataTypes.STRING(), DataTypes.BIGINT().not_null()])
         second = source.group_by("category").agg(
             total=pf.udaf(WeightedSum, func_type="pandas")(pf.col("value"), pf.col("weight")))
         self.assertCountEqual(result.union_all(second).collect(),
@@ -350,6 +358,30 @@ class DataFrameUDAFBatchTests(PyFlinkBatchTableTestCase):
         projected = combined.select(pf.col("summary").get("total"),
                                     pf.col("summary").get("count"))
         self.assertCountEqual(projected.collect(), [Row(6, 3)] * 3)
+
+    def test_pandas_nested_struct_results(self):
+        def summarize(values):
+            return {"nested": {
+                "sum": {"label": "total", "value": int(values.sum())},
+            }}
+
+        class Summary(AggregateFunction):
+            def create_accumulator(self):
+                return [None]
+
+            def accumulate(self, accumulator, values):
+                accumulator[0] = summarize(values)
+
+            def get_value(self, accumulator):
+                return accumulator[0]
+
+        dtype = "ROW<nested MAP<STRING, ROW<value BIGINT, label STRING>>>"
+        function = pf.udaf(summarize, return_dtype=dtype, func_type="pandas")
+        aggregate = pf.udaf(Summary, return_dtype=dtype, func_type="pandas")
+        source = pf.from_dict({"value": [1, 2, 3]})
+        result = source.agg(function(pf.col("value")), aggregate(pf.col("value")))
+        expected = Row({"sum": Row(6, "total")})
+        self.assertEqual(result.collect(), [Row(expected, expected)])
 
     def test_empty_nulls_and_table_udaf_compatibility(self):
         def total(values) -> int:

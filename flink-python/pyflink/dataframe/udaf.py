@@ -73,7 +73,7 @@ class _DataFrameUDAFWrapper:
         if self._cached_table_udf_wrapper is None:
             wrapper = table_udaf(
                 _DataFrameAggregateFunctionAdapter(
-                    self._func, self.return_dtype, self._deterministic),
+                    self._func, self.return_dtype, self._deterministic, self._func_type),
                 result_type=self.return_dtype._to_table_data_type(),
                 accumulator_type=(self.accumulator_type._to_table_data_type()
                                   if self.accumulator_type is not None else None),
@@ -257,10 +257,13 @@ def _resolve_aggregate_type(
 
 
 class _DataFrameAggregateFunctionAdapter(AggregateFunction):
-    def __init__(self, func: _UDAFInput, return_dtype: DataType, deterministic: bool) -> None:
+    def __init__(
+        self, func: _UDAFInput, return_dtype: DataType, deterministic: bool, func_type: str,
+    ) -> None:
         self._func = func
         self._return_dtype = return_dtype
         self._deterministic = deterministic
+        self._func_type = func_type
         self._active_func: Optional[AggregateFunction] = None
         self._normalizer: Optional[Callable[[Any], Any]] = None
         self.__name__ = getattr(func, "__name__", type(func).__name__)
@@ -273,7 +276,9 @@ class _DataFrameAggregateFunctionAdapter(AggregateFunction):
             if not callable(invoke):
                 raise TypeError("UDAF class must construct a callable instance.")
             active_func = DelegatingPandasAggregateFunction(invoke)
-        normalizer = _create_result_normalizer(self._return_dtype._to_table_data_type())
+        # Arrow requires tuples or dictionaries for structs, including nested ones.
+        normalizer = _create_result_normalizer(
+            self._return_dtype._to_table_data_type(), row_as_tuple=self._func_type == "pandas")
         active_func.open(function_context)
         self._active_func = active_func
         self._normalizer = normalizer
