@@ -161,18 +161,18 @@ class ApplicationModeMiniCluster extends MiniCluster {
      */
     private FatalErrorHandler createProcessFatalErrorHandler(String component) {
         return exception -> {
-            if (closeRequestedFuture.isDone()) {
-                LOG.debug("Ignoring {} error during shutdown.", component, exception);
-                return;
-            }
-            LOG.error("{} failed. Shutting the MiniCluster down.", component, exception);
             if (ExceptionUtils.isJvmFatalOrOutOfMemoryError(exception)) {
                 LOG.error(
-                        "Terminating the process with exit code {}.",
-                        ClusterEntrypoint.RUNTIME_FAILURE_RETURN_CODE);
+                        "{} failed. Terminating the process with exit code {}.",
+                        component,
+                        ClusterEntrypoint.RUNTIME_FAILURE_RETURN_CODE,
+                        exception);
                 FlinkSecurityManager.forceProcessExit(
                         ClusterEntrypoint.RUNTIME_FAILURE_RETURN_CODE);
+            } else if (closeRequestedFuture.isDone()) {
+                LOG.warn("{} failed while shutting down.", component, exception);
             } else {
+                LOG.error("{} failed. Shutting the MiniCluster down.", component, exception);
                 closeAsync();
             }
         };

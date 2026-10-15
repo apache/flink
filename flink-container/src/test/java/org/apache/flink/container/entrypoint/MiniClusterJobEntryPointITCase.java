@@ -27,6 +27,7 @@ import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigConstants;
@@ -59,6 +60,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory
 import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
@@ -745,6 +747,24 @@ class MiniClusterJobEntryPointITCase {
     }
 
     @Test
+    void outOfMemoryErrorDuringShutdownExitsProcess() throws Exception {
+        final Process process =
+                startProcess("process", OutOfMemoryErrorAfterCloseProgram.class, List.of());
+        try {
+            assertThat(awaitExit(process, "process"))
+                    .as("the exit code a cluster entrypoint uses for fatal errors")
+                    .isEqualTo(2);
+            assertThat(logFile("process"))
+                    .content()
+                    .contains(
+                            "ERROR ApplicationModeMiniCluster - TaskManager #0 failed. Terminating"
+                                    + " the process with exit code 2.");
+        } finally {
+            stop(process);
+        }
+    }
+
+    @Test
     void runsJobFromJarsGivenAsLocalUris() throws Exception {
         final Path jar = tempDir.resolve("job.jar");
         writeJar(jar, RecordingJob.class);
@@ -1393,6 +1413,24 @@ class MiniClusterJobEntryPointITCase {
                     Files.createFile(markerDir.resolve(FINISHED));
                 }
             };
+        }
+    }
+
+    /** Reports an OOM to an {@link ApplicationModeMiniCluster} that is shutting down. */
+    public static final class OutOfMemoryErrorAfterCloseProgram {
+
+        public static void main(String[] args) throws Exception {
+            final ApplicationModeMiniCluster miniCluster =
+                    new ApplicationModeMiniCluster(
+                            new MiniClusterConfiguration.Builder().build(),
+                            PackagedProgram.newBuilder()
+                                    .setEntryPointClassName(RecordingJob.class.getName())
+                                    .build());
+            miniCluster.closeAsync();
+
+            miniCluster
+                    .createTaskManagerFatalErrorHandler(0)
+                    .onFatalError(new OutOfMemoryError("during shutdown"));
         }
     }
 

@@ -118,7 +118,7 @@ class ApplicationModeMiniClusterTest {
     }
 
     @Test
-    void taskManagerFatalErrorIgnoredAfterCloseRequested() {
+    void taskManagerFatalErrorLoggedAsWarningAfterCloseRequested() {
         final ApplicationModeMiniCluster miniCluster =
                 new ApplicationModeMiniCluster(miniClusterConfiguration, program);
         miniCluster.closeAsync();
@@ -127,7 +127,8 @@ class ApplicationModeMiniClusterTest {
                 .createTaskManagerFatalErrorHandler(0)
                 .onFatalError(new RuntimeException("error during shutdown"));
 
-        assertThat(loggerAuditingExtension.getMessages()).isEmpty();
+        assertThat(loggerAuditingExtension.getMessages())
+                .containsExactly("TaskManager #0 failed while shutting down.");
     }
 
     @Test
