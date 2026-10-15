@@ -781,12 +781,20 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
         case lateralSnapshotJoin: StreamPhysicalLateralSnapshotJoin =>
           // Probe (left) is required to be append-only.
-          // Build (right) side requires BEFORE_AND_AFTER for updates.
           val left = lateralSnapshotJoin.getLeft.asInstanceOf[StreamPhysicalRel]
           val right = lateralSnapshotJoin.getRight.asInstanceOf[StreamPhysicalRel]
           val newLeftOption = this.visit(left, UpdateKindTrait.NONE)
           val rightInputModifyKindSet = getModifyKindSet(right)
-          val newRightOption = this.visit(right, beforeAfterOrNone(rightInputModifyKindSet))
+          // The upsert-keyed layout applies updates by key, so ONLY_UPDATE_AFTER suffices. The
+          // multi-set layout matches by full row and needs BEFORE_AND_AFTER.
+          val newRightOption =
+            if (lateralSnapshotJoin.getBuildUpsertKey.isPresent) {
+              this
+                .visit(right, onlyAfterOrNone(rightInputModifyKindSet))
+                .orElse(this.visit(right, beforeAfterOrNone(rightInputModifyKindSet)))
+            } else {
+              this.visit(right, beforeAfterOrNone(rightInputModifyKindSet))
+            }
           (newLeftOption, newRightOption) match {
             case (Some(newLeft), Some(newRight)) =>
               createNewNode(
@@ -1354,14 +1362,13 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             _: StreamPhysicalPythonGroupTableAggregate | _: StreamPhysicalGroupWindowAggregateBase |
             _: StreamPhysicalWindowAggregate | _: StreamPhysicalSort | _: StreamPhysicalRank |
             _: StreamPhysicalSortLimit | _: StreamPhysicalTemporalJoin |
-            _: StreamPhysicalLateralSnapshotJoin | _: StreamPhysicalCorrelateBase |
-            _: StreamPhysicalLookupJoin | _: StreamPhysicalWatermarkAssigner |
-            _: StreamPhysicalWindowTableFunction | _: StreamPhysicalWindowRank |
-            _: StreamPhysicalWindowDeduplicate | _: StreamPhysicalTemporalSort |
-            _: StreamPhysicalMatch | _: StreamPhysicalOverAggregate |
-            _: StreamPhysicalIntervalJoin | _: StreamPhysicalPythonOverAggregate |
-            _: StreamPhysicalWindowJoin | _: StreamPhysicalMLPredictTableFunction |
-            _: StreamPhysicalVectorSearchTableFunction =>
+            _: StreamPhysicalCorrelateBase | _: StreamPhysicalLookupJoin |
+            _: StreamPhysicalWatermarkAssigner | _: StreamPhysicalWindowTableFunction |
+            _: StreamPhysicalWindowRank | _: StreamPhysicalWindowDeduplicate |
+            _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
+            _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
+            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin |
+            _: StreamPhysicalMLPredictTableFunction | _: StreamPhysicalVectorSearchTableFunction =>
           // if not explicitly supported, all operators require full deletes if there are updates
           val children = rel.getInputs.map {
             case child: StreamPhysicalRel =>
@@ -1420,6 +1427,30 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             fullDeleteOrNone(modifyTrait)
           )
           createNewNode(process, Some(children), providedDeleteTrait)
+
+        case lateralSnapshotJoin: StreamPhysicalLateralSnapshotJoin =>
+          // The upsert-keyed layout consumes deletes by key, the multi-set layout needs full
+          // deletes.
+          val left = lateralSnapshotJoin.getLeft.asInstanceOf[StreamPhysicalRel]
+          val right = lateralSnapshotJoin.getRight.asInstanceOf[StreamPhysicalRel]
+          val newLeftOption = this.visit(left, fullDeleteOrNone(getModifyKindSet(left)))
+          val rightModifyKindSet = getModifyKindSet(right)
+          val newRightOption =
+            if (lateralSnapshotJoin.getBuildUpsertKey.isPresent) {
+              this
+                .visit(right, deleteOnKeyOrNone(rightModifyKindSet))
+                .orElse(this.visit(right, fullDeleteOrNone(rightModifyKindSet)))
+            } else {
+              this.visit(right, fullDeleteOrNone(rightModifyKindSet))
+            }
+          (newLeftOption, newRightOption) match {
+            case (Some(newLeft), Some(newRight)) =>
+              createNewNode(
+                lateralSnapshotJoin,
+                Some(List(newLeft, newRight)),
+                fullDeleteOrNone(getModifyKindSet(rel)))
+            case _ => None
+          }
 
         case join: StreamPhysicalJoin =>
           val children = join.getInputs.zipWithIndex.map {
