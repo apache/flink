@@ -801,6 +801,27 @@ Sink(table=[default_catalog.default_database.sink_agg_with_int_pk], fields=[EXPR
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testOnConflictIsNotRequiredWithoutMaterialize">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sinkWithPkNoMaterialize], fields=[EXPR$0, EXPR$1])
++- LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
+   +- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)], EXPR$1=[COUNT()])
+      +- LogicalProject(c=[$2], a=[$0])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sinkWithPkNoMaterialize], fields=[EXPR$0, EXPR$1], changelogMode=[NONE])
++- Calc(select=[EXPR$0, EXPR$1], changelogMode=[I,UB,UA])
+   +- GroupAggregate(groupBy=[c], select=[c, MAX(a) AS EXPR$0, COUNT(*) AS EXPR$1], changelogMode=[I,UB,UA])
+      +- Exchange(distribution=[hash[c]], changelogMode=[I])
+         +- Calc(select=[c, a], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRetractAndUpsertSink">
     <Resource name="ast">
       <![CDATA[
