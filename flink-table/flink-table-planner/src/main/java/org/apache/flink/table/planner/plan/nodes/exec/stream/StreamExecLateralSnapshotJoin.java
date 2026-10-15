@@ -39,7 +39,7 @@ import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
-import org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator;
+import org.apache.flink.table.runtime.operators.join.snapshot.MultiSetLateralSnapshotJoinOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -54,8 +54,8 @@ import java.util.List;
 
 /**
  * {@link StreamExecNode} for the LATERAL SNAPSHOT processing-time temporal table join. The
- * underlying {@link LateralSnapshotJoinOperator} runs in two phases (LOAD then JOIN) gated by a
- * flip point on the build-side watermark.
+ * underlying {@link MultiSetLateralSnapshotJoinOperator} runs in two phases (LOAD then JOIN) gated
+ * by a flip point on the build-side watermark.
  */
 @ExecNodeMetadata(
         name = "stream-exec-lateral-snapshot-join",
@@ -204,8 +204,8 @@ public class StreamExecLateralSnapshotJoin extends ExecNodeBase<RowData>
         final long effectiveStateTtlMs =
                 stateTtlMs != null ? stateTtlMs : config.getStateRetentionTime();
 
-        final LateralSnapshotJoinOperator operator =
-                new LateralSnapshotJoinOperator(
+        final MultiSetLateralSnapshotJoinOperator operator =
+                new MultiSetLateralSnapshotJoinOperator(
                         isLeftOuterJoin,
                         InternalTypeInfo.of(leftInputType),
                         InternalTypeInfo.of(rightInputType),
