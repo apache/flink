@@ -42,6 +42,7 @@ import org.slf4j.event.Level;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -159,6 +160,59 @@ class ApplicationModeMiniClusterTest {
                 };
 
         assertThatThrownBy(miniCluster::start).hasMessage("startup failure");
+    }
+
+    @Test
+    void closeDuringStartDoesNotWaitForStart() throws Exception {
+        final OneShotLatch startBlocked = new OneShotLatch();
+        final OneShotLatch unblockStart = new OneShotLatch();
+        final ApplicationModeMiniCluster miniCluster =
+                new ApplicationModeMiniCluster(miniClusterConfiguration, program) {
+                    @Override
+                    protected Collection<? extends DispatcherResourceManagerComponent>
+                            createDispatcherResourceManagerComponents(
+                                    Configuration configuration,
+                                    RpcServiceFactory rpcServiceFactory,
+                                    BlobServer blobServer,
+                                    HeartbeatServices heartbeatServices,
+                                    DelegationTokenManager delegationTokenManager,
+                                    MetricRegistry metricRegistry,
+                                    MetricQueryServiceRetriever metricQueryServiceRetriever,
+                                    FatalErrorHandler fatalErrorHandler)
+                                    throws Exception {
+                        startBlocked.trigger();
+                        unblockStart.await();
+                        return super.createDispatcherResourceManagerComponents(
+                                configuration,
+                                rpcServiceFactory,
+                                blobServer,
+                                heartbeatServices,
+                                delegationTokenManager,
+                                metricRegistry,
+                                metricQueryServiceRetriever,
+                                fatalErrorHandler);
+                    }
+                };
+        final CompletableFuture<Void> startFuture =
+                CompletableFuture.runAsync(
+                        () -> {
+                            try {
+                                miniCluster.start();
+                            } catch (Exception e) {
+                                throw new CompletionException(e);
+                            }
+                        });
+        try {
+            startBlocked.await();
+
+            assertThat(CompletableFuture.supplyAsync(miniCluster::closeAsync))
+                    .as("closing must not wait for the lock held by start()")
+                    .succeedsWithin(Duration.ofSeconds(10));
+        } finally {
+            unblockStart.trigger();
+            startFuture.get();
+            miniCluster.close();
+        }
     }
 
     @Test
