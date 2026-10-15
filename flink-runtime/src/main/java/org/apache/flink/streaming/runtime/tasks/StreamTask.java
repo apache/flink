@@ -2068,12 +2068,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         final String taskNameWithSubtasks = environment.getTaskInfo().getTaskNameWithSubtasks();
         switch (mode) {
             case REBALANCE:
-                LOG.debug(
+                LOG.warn(
                         "Replacing forward partitioner with rebalance for {} "
-                                + "(producer parallelism {} != consumer parallelism {}).",
+                                + "(producer parallelism {} != consumer parallelism {}). This may "
+                                + "reorder records and produce incorrect results for order-sensitive "
+                                + "(changelog) streams. Set '{}' to {} or {} to avoid it.",
                         taskNameWithSubtasks,
                         producerParallelism,
-                        consumerParallelism);
+                        consumerParallelism,
+                        PipelineOptions.FORWARD_EDGE_PARALLELISM_MISMATCH_MODE.key(),
+                        ForwardEdgeParallelismMismatchMode.FAIL,
+                        ForwardEdgeParallelismMismatchMode.KEEP_FORWARD);
                 streamOutput.setPartitioner(new RebalancePartitioner<>());
                 break;
             case KEEP_FORWARD:
