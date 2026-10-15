@@ -906,11 +906,66 @@ class TableSinkTest extends TableTestBase {
   }
 
   @Test
+  def testOnConflictIsRequiredWithForcedMaterialize(): Unit = {
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      ExecutionConfigOptions.UpsertMaterialize.FORCE)
+    util.addTable(s"""
+                     |CREATE TABLE sinkWithPkForcedMaterialize (
+                     |  `id` INT,
+                     |  `cnt` BIGINT,
+                     |  PRIMARY KEY (id) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    // The upsert key is the grouping key c, which is not written to the sink, so it can never
+    // match the primary key. FORCE adds the materializer, so the clause takes effect and is
+    // required here for the same reason it is under AUTO.
+    stmtSet.addInsertSql(
+      "INSERT INTO sinkWithPkForcedMaterialize SELECT MAX(a), COUNT(*) FROM MyTable GROUP BY c")
+    assertThatThrownBy(() => util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining(
+        "The query has an upsert key that differs from the primary key of the sink table")
+  }
+
+  @Test
+  def testOnConflictIsNotRequiredWithoutMaterialize(): Unit = {
+    util.tableEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      ExecutionConfigOptions.UpsertMaterialize.NONE)
+    util.addTable(s"""
+                     |CREATE TABLE sinkWithPkNoMaterialize (
+                     |  `id` INT,
+                     |  `cnt` BIGINT,
+                     |  PRIMARY KEY (id) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    // NONE removes the materializer, the only thing that would apply a conflict strategy, so the
+    // clause stays optional under it. Keep this behaviour, it is documented with the option.
+    stmtSet.addInsertSql(
+      "INSERT INTO sinkWithPkNoMaterialize SELECT MAX(a), COUNT(*) FROM MyTable GROUP BY c")
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testForcedMaterializeWithAppendOnlyInput(): Unit = {
     util.getStreamEnv.setParallelism(1)
     util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
       ExecutionConfigOptions.UpsertMaterialize.FORCE)
+    // This test covers what FORCE materializes, not ON CONFLICT enforcement. The input is append
+    // only and carries no upsert key, so the clause would otherwise be required, exactly as it
+    // already is under AUTO in testAppendOnlyInputWithoutOnConflict.
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, Boolean.box(false))
     util.addTable(s"""
                      |CREATE TABLE forcedSink (
                      |  `a` INT,

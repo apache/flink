@@ -1172,7 +1172,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      *      contain upsertKeys of the input update stream, unless the input is insert only and the
      *      effective conflict strategy is DEDUPLICATE.
      *
-     * Also validates that ON CONFLICT clause is specified when upsert key differs from primary key.
+     * Also validates that an ON CONFLICT clause is specified when the upsert key differs from the
+     * primary key. That applies to every setting that can add the materializer, AUTO and FORCE,
+     * because the materializer is what applies the conflict strategy.
      */
     private def analyzeUpsertMaterializeStrategy(sink: StreamPhysicalSink): Boolean = {
       val tableConfig = unwrapTableConfig(sink)
@@ -1209,13 +1211,26 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         validateSourcesHaveWatermarks(sink)
       }
 
+      // An ON CONFLICT clause is only meaningful for an upsert sink with a primary key, because
+      // it is rejected for append and retract sinks above.
+      val sinkIsUpsertWithPk = primaryKeys.nonEmpty && !sinkIsAppend && !sinkIsRetract
+
       tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE) match {
-        case UpsertMaterialize.FORCE => primaryKeys.nonEmpty && !sinkIsRetract
+        case UpsertMaterialize.FORCE =>
+          // FORCE adds the materializer, which is what applies the conflict strategy, so an
+          // absent clause is rejected here just as it is under AUTO.
+          if (sinkIsUpsertWithPk) {
+            val upsertKeyDiffersFromPk = !sink.primaryKeysContainsUpsertKey
+            validateOnConflictSpecifiedIfRequired(sink, tableConfig, upsertKeyDiffersFromPk)
+          }
+          primaryKeys.nonEmpty && !sinkIsRetract
+        // NONE removes the materializer, so nothing is left to apply a conflict strategy and the
+        // clause is not required. This is the documented way to opt out of conflict handling.
         case UpsertMaterialize.NONE => false
         case UpsertMaterialize.AUTO =>
           // if the sink is not an UPSERT sink (has no PK, or is an APPEND or RETRACT sink)
           // we don't need to materialize results
-          if (primaryKeys.isEmpty || sinkIsAppend || sinkIsRetract) {
+          if (!sinkIsUpsertWithPk) {
             return false
           }
 
