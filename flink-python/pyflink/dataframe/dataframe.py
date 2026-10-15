@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     import pyarrow
     from pyflink.dataframe.udf import _DataTypeLike
     from pyflink.dataframe.udtf import _DataFrameUDTFCall, _DataFrameUDTFWrapper
+    from pyflink.dataframe.llm import LLMAccessor
     from pyflink.table.table_environment import TableEnvironment
     from pyflink.table.table_schema import TableSchema
 
@@ -2638,6 +2639,22 @@ class DataFrame:
         return self._table.to_pandas()
 
     # ======================== Properties ========================
+
+    @property
+    @PublicEvolving()
+    def llm(self) -> "LLMAccessor":
+        """
+        Access model inference operations for this DataFrame.
+
+        Example::
+
+            >>> result = df.llm.predict("question", provider="chat", model="gpt-6-luna")
+
+        .. versionadded:: 2.4.0
+        """
+        from pyflink.dataframe.llm import LLMAccessor
+
+        return LLMAccessor(self)
 
     @property
     @PublicEvolving()

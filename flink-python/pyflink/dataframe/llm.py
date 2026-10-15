@@ -19,9 +19,16 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping as MappingABC
 import json
-from typing import Dict, List, Literal, Mapping, Optional, Tuple, overload
+from typing import Callable, Dict, List, Literal, Mapping, Optional, Tuple, Union, cast, overload
 
+from pyflink.dataframe.dataframe import DataFrame
+from pyflink.dataframe.datatype import DataType
 from pyflink.dataframe.validation import _require_int, _require_number
+from pyflink.table.model_descriptor import ModelDescriptor
+from pyflink.table.schema import Schema
+from pyflink.table.types import (
+    DataType as TableDataType, DataTypes, RowType, _from_java_data_type,
+)
 from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = [
@@ -140,12 +147,12 @@ class ModelProvider(ABC):
 @PublicEvolving()
 class OpenAIProvider(ModelProvider):
     """
-    Configure an OpenAI-compatible service for chat completions or embeddings.
+    Configure an OpenAI-compatible service.
 
-    The full endpoint URL selects the task: use a URL ending in ``/chat/completions``
-    for chat or ``/embeddings`` for embedding vectors. Chat options such as
-    ``system_prompt`` and ``temperature`` apply to chat requests; ``dimension`` applies
-    to embeddings. Supply a model name here or when calling an AI function.
+    For chat completions, use a full endpoint URL ending in ``/chat/completions``.
+    Supply a model name here or when calling ``df.llm.predict``. Chat accepts one
+    string input column and returns one string output column, matching the default
+    ``output_type``.
 
     All optional parameters default to ``None``. Omitted options use the Flink defaults
     described below, or the service's defaults where Flink defines none.
@@ -175,8 +182,8 @@ class OpenAIProvider(ModelProvider):
                  supplied).
     :param response_format: Chat response format: ``text`` or ``json_object``.
                             Default: ``None`` (service default).
-    :param dimension: Number of elements in each embedding vector. Default: ``None``
-                      (the embedding model's default dimension).
+    :param dimension: Requested output vector dimension, when supported by the service.
+                      Default: ``None`` (service default).
     :param max_context_size: Maximum number of input context tokens before applying
                              ``context_overflow_action``. Default: ``None`` (no Flink
                              context limit).
@@ -201,12 +208,22 @@ class OpenAIProvider(ModelProvider):
         >>> chat = pf.OpenAIProvider(
         ...     endpoint="https://api.openai.com/v1/chat/completions", api_key="key")
         >>> pf.set_model_provider("chat", chat)
-        >>> embeddings = pf.OpenAIProvider(
-        ...     endpoint="https://api.openai.com/v1/embeddings", api_key="key")
-        >>> pf.set_model_provider("embed", embeddings)
+        >>> questions = pf.from_records([{"question": "What is Apache Flink?"}])
+        >>> answers = questions.llm.predict("question", provider="chat", model="gpt-6-luna")
 
     .. versionadded:: 2.4.0
     """
+
+    _OPTION_MAP = {
+        "endpoint": "endpoint", "api_key": "api-key", "model": "model",
+        "system_prompt": "system-prompt", "temperature": "temperature", "top_p": "top-p",
+        "max_tokens": "max-tokens", "stop": "stop", "presence_penalty": "presence-penalty",
+        "n": "n", "seed": "seed", "response_format": "response-format", "dimension": "dimension",
+        "max_context_size": "max-context-size",
+        "context_overflow_action": "context-overflow-action",
+        "error_handling_strategy": "error-handling-strategy", "retry_num": "retry-num",
+        "retry_fallback_strategy": "retry-fallback-strategy",
+    }
 
     def __init__(
         self, endpoint: str, api_key: str, *, model: Optional[str] = None,
@@ -230,8 +247,7 @@ class OpenAIProvider(ModelProvider):
         retry_fallback_strategy: Optional[Literal["FAILOVER", "IGNORE"]] = None,
         options: Optional[Mapping[str, str]] = None,
     ):
-        _validate_name(endpoint, "endpoint")
-        _validate_name(api_key, "api_key")
+        self._validate_required_options({"endpoint": endpoint, "api-key": api_key})
         typed_options: Dict[str, object] = {
             "endpoint": endpoint, "api-key": api_key, "model": model,
             "system-prompt": system_prompt, "temperature": temperature, "top-p": top_p,
@@ -265,7 +281,14 @@ class OpenAIProvider(ModelProvider):
         ):
             if number is not None:
                 _require_number(number, name, lower_bound, maximum=upper_bound)
-        self._options = _merge_options(options, _stringify_options(typed_options))
+        self._parameters = {name: typed_options[key] for name, key in self._OPTION_MAP.items()}
+        self._typed_options = _stringify_options(typed_options)
+        self._options = _merge_options(options, self._typed_options)
+
+    @staticmethod
+    def _validate_required_options(options: Mapping[str, object]) -> None:
+        _validate_name(options.get("endpoint"), "endpoint")
+        _validate_name(options.get("api-key"), "api_key")
 
     def provider_identifier(self) -> str:
         """Return ``openai``.
@@ -291,6 +314,9 @@ class TritonProvider(ModelProvider):
     ``flatten_batch_dim`` to match the model's expected shape. Retry and
     fallback options control how failed requests are handled; health checks and the
     circuit breaker can reduce requests to an unavailable server.
+
+    Set ``output_type`` in ``df.llm.predict`` to match the deployed model's output
+    type. The default is ``STRING``; other output types must be declared explicitly.
 
     All optional parameters default to ``None``. Omitted options use the Flink defaults
     described below. Specify durations as strings such as ``"30 s"`` or ``"100 ms"``.
@@ -352,9 +378,28 @@ class TritonProvider(ModelProvider):
         ...     endpoint="http://localhost:8000", model_name="classifier",
         ...     flatten_batch_dim=True, max_retries=2, default_value="-1")
         >>> pf.set_model_provider("classifier", provider)
+        >>> features = pf.from_records([{"features": [0.1, 0.9]}])
+        >>> predictions = features.llm.predict(
+        ...     "features", provider="classifier", output_type=pf.DataType.int32())
 
     .. versionadded:: 2.4.0
     """
+
+    _OPTION_MAP = {
+        "endpoint": "endpoint", "model_name": "model-name", "model_version": "model-version",
+        "timeout": "timeout", "flatten_batch_dim": "flatten-batch-dim", "priority": "priority",
+        "sequence_id": "sequence-id", "sequence_start": "sequence-start",
+        "sequence_end": "sequence-end", "compression": "compression", "auth_token": "auth-token",
+        "custom_headers": "custom-headers",
+        "max_retries": "max-retries", "retry_initial_backoff": "retry-initial-backoff",
+        "retry_max_backoff": "retry-max-backoff", "default_value": "default-value",
+        "health_check_enabled": "health-check-enabled",
+        "health_check_interval": "health-check-interval",
+        "circuit_breaker_enabled": "circuit-breaker-enabled",
+        "circuit_breaker_failure_threshold": "circuit-breaker-failure-threshold",
+        "circuit_breaker_timeout": "circuit-breaker-timeout",
+        "circuit_breaker_half_open_requests": "circuit-breaker-half-open-requests",
+    }
 
     def __init__(
         self, endpoint: str, *, model_name: Optional[str] = None,
@@ -380,7 +425,7 @@ class TritonProvider(ModelProvider):
         circuit_breaker_half_open_requests: Optional[int] = None,
         options: Optional[Mapping[str, str]] = None,
     ):
-        _validate_name(endpoint, "endpoint")
+        self._validate_required_options({"endpoint": endpoint})
         typed_options: Dict[str, object] = {
             "endpoint": endpoint, "model-name": model_name, "model-version": model_version,
             "timeout": timeout, "flatten-batch-dim": flatten_batch_dim, "priority": priority,
@@ -413,7 +458,15 @@ class TritonProvider(ModelProvider):
         if circuit_breaker_failure_threshold is not None:
             _require_number(circuit_breaker_failure_threshold, "circuit_breaker_failure_threshold",
                             0, maximum=1, include_minimum=False)
-        self._options = _merge_options(options, _stringify_options(typed_options))
+        self._parameters = {name: typed_options[key] for name, key in self._OPTION_MAP.items()}
+        self._parameters["custom_headers"] = (
+            dict(custom_headers) if custom_headers is not None else None)
+        self._typed_options = _stringify_options(typed_options)
+        self._options = _merge_options(options, self._typed_options)
+
+    @staticmethod
+    def _validate_required_options(options: Mapping[str, object]) -> None:
+        _validate_name(options.get("endpoint"), "endpoint")
 
     def provider_identifier(self) -> str:
         """Return ``triton``.
@@ -435,6 +488,9 @@ class TritonProvider(ModelProvider):
         .. versionadded:: 2.4.0
         """
         return dict(self._options)
+
+
+TYPED_PROVIDERS = (OpenAIProvider, TritonProvider)
 
 
 @PublicEvolving()
@@ -610,3 +666,189 @@ def _resolve_provider(name: Optional[str] = None) -> ModelProvider:
         "Multiple model providers are registered; call set_default_model_provider() "
         "or select a provider explicitly"
     )
+
+
+def _override_options(
+    options: Mapping[str, str], overrides: Mapping[str, object],
+) -> Dict[str, str]:
+    result = dict(options)
+    for key, value in overrides.items():
+        if not isinstance(key, str):
+            raise TypeError("Option keys must be strings")
+        if value is None:
+            result.pop(key, None)
+        elif isinstance(value, str):
+            result[key] = value
+        else:
+            raise TypeError(f"Option {key!r} must have a string value or None")
+    return result
+
+
+def _provider_options(
+    provider: ModelProvider, overrides: Mapping[str, object],
+) -> Dict[str, str]:
+    configured = provider.to_options()
+    if not isinstance(configured, MappingABC):
+        raise TypeError("ModelProvider.to_options() must return a mapping of strings to strings")
+    options = _merge_options(configured, {})
+    if type(provider) not in TYPED_PROVIDERS:
+        return _override_options(options, overrides)
+    if not overrides:
+        return options
+
+    typed_provider = cast(Union[OpenAIProvider, TritonProvider], provider)
+    parameters = dict(overrides)
+    raw_supplied = "options" in parameters
+    raw = parameters.pop("options", None)
+    if raw is not None and not isinstance(raw, MappingABC):
+        raise TypeError("options must be a mapping of strings to strings or None")
+
+    for name in parameters:
+        if name not in typed_provider._OPTION_MAP:
+            raise TypeError(f"Unexpected provider parameter {name!r}")
+    constructor: Callable[..., ModelProvider] = type(typed_provider)
+    validated = constructor(**{**typed_provider._parameters, **parameters}).to_options()
+    typed = {typed_provider._OPTION_MAP[name]: validated.get(typed_provider._OPTION_MAP[name])
+             for name in parameters}
+    if raw_supplied and raw is None:
+        options = dict(typed_provider._typed_options)
+    elif raw is not None:
+        # Validate raw values even if an equal typed override supplies the same key.
+        _override_options({}, raw)
+        for key in typed.keys() & raw.keys():
+            if typed[key] != raw[key]:
+                raise ValueError(f"conflicting values for option {key!r}")
+
+    options = _override_options(options, typed)
+    if raw is not None:
+        options = _override_options(options, raw)
+    typed_provider._validate_required_options(options)
+    return options
+
+
+def _prediction_output_columns(
+    output_type: Optional[Union[str, DataType]],
+) -> List[Tuple[str, TableDataType]]:
+    if output_type is None:
+        return [("output", DataTypes.STRING())]
+    if isinstance(output_type, str):
+        return [("output", DataType._from_sql(output_type)._to_table_data_type())]
+    if not isinstance(output_type, DataType):
+        raise TypeError("output_type must be a SQL type string or a pyflink.dataframe.DataType")
+    table_type = output_type._to_table_data_type()
+    if not isinstance(table_type, RowType):
+        return [("output", table_type)]
+    if not table_type.fields:
+        raise ValueError("Struct output_type must contain at least one field")
+    return [(field.name, field.data_type) for field in table_type.fields]
+
+
+@PublicEvolving()
+class LLMAccessor:
+    """Model inference operations accessed through :attr:`DataFrame.llm`.
+
+    .. versionadded:: 2.4.0
+    """
+
+    def __init__(self, dataframe: DataFrame):
+        self._df = dataframe
+
+    @PublicEvolving()
+    def predict(
+        self, *input_cols: str, provider: Optional[str] = None, model: Optional[str] = None,
+        output_type: Optional[Union[str, DataType]] = None,
+        config: Optional[Mapping[str, str]] = None, **kwargs: object,
+    ) -> DataFrame:
+        """
+        Predict each row and append the model's output columns.
+
+        The selected provider validates input and output types and the number of columns.
+
+        :param input_cols: One or more existing column names, in model input order.
+        :param provider: Registered provider name. If omitted, use the selected default
+                         or the sole registered provider.
+        :param model: Override the provider's model name for this call.
+        :param output_type: SQL type string or :class:`DataType` declaring the provider's
+                            native output schema. Defaults to ``STRING``. A scalar or container
+                            type appends one column named ``output``.
+                            ``DataType.struct(...)`` appends its top-level fields as
+                            named columns, preserving nested types. Output names must
+                            be unique and must not occur in the input DataFrame.
+        :param config: Runtime configuration as string keys and values.
+        :param kwargs: Provider constructor overrides for this call. Built-ins accept
+                       their typed Python parameter names and merge ``options`` per key.
+                       Custom providers accept raw option names and string values.
+                       ``None`` removes an inherited option; ``options=None`` clears
+                       inherited raw options. The registered provider stays unchanged.
+        :return: A new DataFrame containing the input and prediction columns.
+
+        Examples::
+
+            >>> import pyflink.dataframe as pf
+            >>> pf.set_model_provider(pf.OpenAIProvider(
+            ...     "https://api.openai.com/v1/chat/completions", api_key="key", retry_num=3))
+            >>> df = pf.from_records([{"question": "What is Apache Flink?"}])
+            >>> answer = df.llm.predict("question", model="gpt-6-luna")
+
+            >>> # Override the provider's retry_num parameter for this call.
+            >>> answer = df.llm.predict(
+            ...     "question", model="gpt-6-luna", retry_num=0)
+
+            >>> # Name the prediction column "answer" instead of the default "output".
+            >>> answer = df.llm.predict(
+            ...     "question", model="gpt-6-luna",
+            ...     output_type=pf.DataType.struct({"answer": pf.DataType.string()}))
+
+        .. versionadded:: 2.4.0
+        """
+        if not input_cols:
+            raise ValueError("predict() requires at least one input column")
+        for name in input_cols:
+            _validate_name(name, "input column")
+        if len(set(input_cols)) != len(input_cols):
+            raise ValueError("predict() input columns must be unique")
+        if model is not None:
+            _validate_name(model, "model")
+        if config is not None and not isinstance(config, MappingABC):
+            raise TypeError("config must be a mapping of strings to strings")
+        runtime_options = _merge_options(config, {})
+        selected = _resolve_provider(provider)
+        identifier = _validate_name(selected.provider_identifier(), "provider identifier")
+        options = _provider_options(selected, kwargs)
+        if model is not None:
+            key = _validate_name(selected.model_option_key(), "model option key")
+            options[key] = model
+        output_columns = _prediction_output_columns(output_type)
+        output_names = [name for name, _ in output_columns]
+        for name in output_names:
+            _validate_name(name, "output field name")
+        if len(set(output_names)) != len(output_names):
+            raise ValueError("Struct output_type contains duplicate field names")
+
+        resolved = self._df._table.get_resolved_schema()
+        names = list(resolved.get_column_names())
+        missing = [name for name in input_cols if name not in names]
+        if missing:
+            raise ValueError(f"Input columns not found in DataFrame: {missing}")
+        collisions = sorted(set(names).intersection(output_names))
+        if collisions:
+            raise ValueError(
+                f"Prediction output columns conflict with existing columns: {collisions}")
+
+        input_schema = Schema.new_builder()
+        column_indexes = {name: index for index, name in enumerate(names)}
+        j_column_types = resolved._j_resolved_schema.getColumnDataTypes()
+        for name in input_cols:
+            input_schema.column(
+                name, _from_java_data_type(j_column_types.get(column_indexes[name])))
+        output_schema = Schema.new_builder()
+        for name, dtype in output_columns:
+            output_schema.column(name, dtype)
+        descriptor = (ModelDescriptor.for_provider(identifier)
+                      .input_schema(input_schema.build())
+                      .output_schema(output_schema.build()))
+        for key, value in options.items():
+            if key != "provider":
+                descriptor.option(key, value)
+        flink_model = self._df._table._t_env.from_model(descriptor.build())
+        return DataFrame(flink_model.predict(self._df._table, list(input_cols), runtime_options))

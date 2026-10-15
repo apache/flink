@@ -28,8 +28,10 @@ __all__ = ['Model']
 @PublicEvolving()
 class Model(object):
     """
-    A model object represents a machine learning model registered in the catalog.
-    It provides a way to perform predictions on input tables using the predict method.
+    A model object represents a machine learning model retrieved from the catalog or
+    created from a model descriptor. Use :meth:`~TableEnvironment.from_model` to retrieve
+    a named model or create an anonymous model, then :meth:`predict` to perform
+    predictions on input tables.
 
     .. versionadded:: 2.4.0
     """

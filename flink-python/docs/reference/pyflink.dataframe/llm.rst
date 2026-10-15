@@ -48,6 +48,43 @@ For other providers available in the application's classpath, use ``GenericProvi
 with provider-specific option names and string values, or subclass ``ModelProvider``
 to create a reusable configuration.
 
+Prediction
+----------
+
+Use ``df.llm.predict`` to infer a result for each row and append the output columns.
+Supply one or more column names in model input order. The provider determines which
+input types and number of columns it supports.
+
+.. code-block:: python
+
+    pf.set_model_provider("chat", pf.OpenAIProvider(
+        endpoint="https://api.openai.com/v1/chat/completions", api_key="key", retry_num=3))
+    questions = pf.from_records([{"question": "What is Apache Flink?"}])
+    answers = questions.llm.predict(
+        "question", provider="chat", model="gpt-6-luna")
+
+The default output is one ``STRING`` column named ``output``. Set ``output_type``
+to a SQL type string or a ``DataType`` to declare the provider's native output schema.
+
+A ``DataType.struct(...)`` expands its top-level fields into named output columns.
+Output field names must be unique and must not already occur in the input DataFrame.
+The provider validates the output schema it supports.
+
+.. code-block:: python
+
+    # Name the prediction column "answer" instead of the default "output".
+    answers = questions.llm.predict(
+        "question", provider="chat", model="gpt-6-luna",
+        output_type=pf.DataType.struct({"answer": pf.DataType.string()}))
+
+You can pass in extra arguments to override the selected provider's constructor settings:
+
+.. code-block:: python
+
+    # Override the provider's retry_num parameter for this call.
+    answers = questions.llm.predict(
+        "question", provider="chat", model="gpt-6-luna", retry_num=0)
+
 .. currentmodule:: pyflink.dataframe
 
 .. autosummary::
@@ -60,3 +97,5 @@ to create a reusable configuration.
     set_model_provider
     set_default_model_provider
     list_model_providers
+
+.. automethod:: pyflink.dataframe.llm.LLMAccessor.predict
