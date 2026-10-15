@@ -27,9 +27,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.UUID;
+
+import static org.apache.flink.types.variant.BinaryVariantUtil.microsSinceEpoch;
+import static org.apache.flink.types.variant.BinaryVariantUtil.nanosSinceEpoch;
 
 /** Builder for binary encoded variant. */
 @Internal
@@ -133,33 +135,6 @@ public class BinaryVariantBuilder implements VariantBuilder {
             builder.appendTimestampNanos(nanosSinceEpoch(instant));
         }
         return builder.build();
-    }
-
-    private static long microsSinceEpoch(Instant instant) {
-        try {
-            return Math.addExact(
-                    Math.multiplyExact(instant.getEpochSecond(), 1_000_000L),
-                    instant.getNano() / 1000);
-        } catch (ArithmeticException e) {
-            throw new VariantTypeException(
-                    String.format(
-                            "%s is outside the range supported by microsecond precision variant "
-                                    + "timestamps.",
-                            instant));
-        }
-    }
-
-    private static long nanosSinceEpoch(Instant instant) {
-        try {
-            return ChronoUnit.NANOS.between(Instant.EPOCH, instant);
-        } catch (ArithmeticException e) {
-            throw new VariantTypeException(
-                    String.format(
-                            "%s is outside the +/-292 year range (1677-09-21 to 2262-04-11) "
-                                    + "supported by nanosecond precision variant timestamps. Use "
-                                    + "microsecond precision instead.",
-                            instant));
-        }
     }
 
     @Override

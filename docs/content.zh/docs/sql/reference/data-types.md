@@ -1536,8 +1536,8 @@ The `PARSE_JSON` function produces only the kinds that JSON syntax can express:
 | Array                                               | array (elements encoded by the same rules)      |
 | Object                                              | object (values encoded by the same rules)       |
 
-Because JSON has no literal for them, `PARSE_JSON` never produces `FLOAT`, `DATE`, `TIMESTAMP`,
-`TIMESTAMP_LTZ`, or `BYTES`.
+Because JSON has no literal for them, `PARSE_JSON` never produces `FLOAT`, `DATE`, `TIME`,
+`TIMESTAMP`, `TIMESTAMP_LTZ`, `BYTES`, or `UUID`.
 
 The JSON specification has no `NaN` or infinity literals, so `PARSE_JSON('NaN')`,
 `PARSE_JSON('Infinity')`, and `PARSE_JSON('-Infinity')` fail. `PARSE_JSON('1e400')` fails as well
@@ -1545,6 +1545,9 @@ because a value outside the `DOUBLE` range cannot be stored as a finite number. 
 cases `TRY_PARSE_JSON` returns `NULL`.
 To store one of these values, cast the number to a `VARIANT` instead of parsing it, for example
 `CAST(CAST('Infinity' AS DOUBLE) AS VARIANT)`.
+
+`PARSE_XML` maps an XML document to an object, see
+[XML to VARIANT]({{< ref "docs/sql/functions/built-in-functions" >}}#xml-to-variant).
 
 A `VARIANT` can be converted to a scalar type with `CAST` or `TRY_CAST`. A cast succeeds only when
 the target holds the stored value without reinterpreting it, so a value is never wrapped or rounded
@@ -1754,10 +1757,11 @@ SELECT * FROM t WHERE CAST(v['a'] AS INT) = 1                              -- co
 VARIANT
 ```
 
-Variant type is usually produced by the `PARSE_JSON` function. For example:
+Variant type is usually produced by the `PARSE_JSON` or `PARSE_XML` function. For example:
 
 ```sql
 SELECT PARSE_JSON('{"a":1,"b":["a","b","c"]}') AS v
+SELECT PARSE_XML('<a><b>1</b><b>2</b></a>') AS v
 ```
 
 {{< /tab >}}

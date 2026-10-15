@@ -377,9 +377,9 @@ class ToVariantConverterTest {
         final BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
         final int start = builder.getWritePos();
         final ArrayList<FieldEntry> fields = new ArrayList<>();
-        fields.add(new FieldEntry("a", builder.addKey("a"), builder.getWritePos() - start));
+        builder.addField(fields, start, "a");
         converter.writeTo(builder, new GenericArrayData(new Object[] {1, null}));
-        fields.add(new FieldEntry("b", builder.addKey("b"), builder.getWritePos() - start));
+        builder.addField(fields, start, "b");
         converter.writeTo(builder, null);
         builder.finishWritingObject(start, fields);
 

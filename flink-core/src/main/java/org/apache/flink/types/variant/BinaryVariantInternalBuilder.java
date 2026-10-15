@@ -369,7 +369,7 @@ public class BinaryVariantInternalBuilder {
     }
 
     // The variant spec requires a scale in [0, 38] and a precision of at most 38.
-    private static BigDecimal toVariantDecimal(BigDecimal d) {
+    public static BigDecimal toVariantDecimal(BigDecimal d) {
         BigDecimal result = d;
         if (d.scale() < 0) {
             // A non-zero value with a scale below -38 has more than 38 digits after rescaling.
@@ -486,6 +486,12 @@ public class BinaryVariantInternalBuilder {
     // `finishWritingObject` or `finishWritingArray`.
     public int getWritePos() {
         return writePos;
+    }
+
+    // Add a field to the object that starts at `start`. Call it right before writing the value,
+    // since the field records the current write position as its offset.
+    public void addField(ArrayList<FieldEntry> fields, int start, String key) {
+        fields.add(new FieldEntry(key, addKey(key), writePos - start));
     }
 
     // Finish writing a variant object after all of its fields have already been written. The
@@ -633,8 +639,7 @@ public class BinaryVariantInternalBuilder {
                                                 value, offsetStart + offsetSize * i, offsetSize);
                                 int elementPos = dataStart + offset;
                                 String key = getMetadataKey(metadata, id);
-                                int newId = addKey(key);
-                                fields.add(new FieldEntry(key, newId, writePos - start));
+                                addField(fields, start, key);
                                 appendVariantImpl(value, metadata, elementPos);
                             }
                             finishWritingObject(start, fields);
@@ -726,8 +731,7 @@ public class BinaryVariantInternalBuilder {
                     while (parser.nextToken() != JsonToken.END_OBJECT) {
                         String key = parser.currentName();
                         parser.nextToken();
-                        int id = addKey(key);
-                        fields.add(new FieldEntry(key, id, writePos - start));
+                        addField(fields, start, key);
                         buildJson(parser);
                     }
                     finishWritingObject(start, fields);
