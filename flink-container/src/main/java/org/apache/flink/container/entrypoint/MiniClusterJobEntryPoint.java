@@ -48,7 +48,9 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -70,6 +72,9 @@ public final class MiniClusterJobEntryPoint {
     private static final Duration SHUTDOWN_HOOK_TIMEOUT = Duration.ofSeconds(4);
 
     private static final AtomicBoolean STOPPING = new AtomicBoolean();
+
+    /** Completed once whichever of the main thread and the shutdown hook is stopping is done. */
+    private static final CompletableFuture<Void> STOPPED = new CompletableFuture<>();
 
     /** Whether the JVM is exiting for another reason, which decides its exit code. */
     private static volatile boolean closedByShutdownHook;
@@ -141,6 +146,10 @@ public final class MiniClusterJobEntryPoint {
                                     closedByShutdownHook = true;
                                     tryClose(miniCluster, SHUTDOWN_HOOK_TIMEOUT);
                                     program.close();
+                                } else {
+                                    // the JVM halts once the hooks finish, so wait for the
+                                    // main thread to finish stopping
+                                    awaitStopped();
                                 }
                             },
                             serviceName + " shutdown hook"),
@@ -151,6 +160,7 @@ public final class MiniClusterJobEntryPoint {
         } catch (Throwable t) {
             if (STOPPING.compareAndSet(false, true)) {
                 program.close();
+                STOPPED.complete(null);
             }
             throw t;
         }
@@ -167,8 +177,13 @@ public final class MiniClusterJobEntryPoint {
             return 0;
         }
 
-        final boolean closed = tryClose(miniCluster, SHUTDOWN_TIMEOUT);
-        program.close();
+        final boolean closed;
+        try {
+            closed = tryClose(miniCluster, SHUTDOWN_TIMEOUT);
+            program.close();
+        } finally {
+            STOPPED.complete(null);
+        }
 
         final CompletableFuture<ApplicationStatus> applicationShutDown =
                 miniCluster.getApplicationShutDownFuture();
@@ -212,6 +227,18 @@ public final class MiniClusterJobEntryPoint {
         } catch (Exception e) {
             LOG.error("Could not close the MiniCluster.", e);
             return false;
+        }
+    }
+
+    private static void awaitStopped() {
+        try {
+            STOPPED.get(SHUTDOWN_HOOK_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            LOG.warn("Stopping did not finish within {}.", SHUTDOWN_HOOK_TIMEOUT);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            // never completed exceptionally
         }
     }
 

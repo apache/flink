@@ -31,6 +31,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExternalResourceOptions;
@@ -679,6 +680,37 @@ class MiniClusterJobEntryPointITCase {
     }
 
     @Test
+    void sigtermDuringShutdownWaitsForTheShutdown() throws Exception {
+        final Process process =
+                startProcess(
+                        "process",
+                        MiniClusterJobEntryPoint.class,
+                        applicationArguments(
+                                RecordingJob.class,
+                                List.of(
+                                        dynamicProperty(
+                                                DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH,
+                                                true),
+                                        dynamicProperty(
+                                                HighAvailabilityOptions.HA_MODE,
+                                                SlowCleanupHaServicesFactory.class.getName()),
+                                        dynamicProperty(
+                                                SlowCleanupHaServicesFactory.MARKER_DIR,
+                                                tempDir))));
+        try {
+            awaitFile(process, "process", tempDir.resolve(SlowCleanupHaServicesFactory.STARTED));
+            process.destroy();
+            awaitExit(process, "process");
+
+            assertThat(tempDir.resolve(SlowCleanupHaServicesFactory.FINISHED))
+                    .as("the HA cleanup that was under way when SIGTERM arrived finishes")
+                    .exists();
+        } finally {
+            stop(process);
+        }
+    }
+
+    @Test
     void runsJobFromJarsGivenAsLocalUris() throws Exception {
         final Path jar = tempDir.resolve("job.jar");
         writeJar(jar, RecordingJob.class);
@@ -1190,6 +1222,24 @@ class MiniClusterJobEntryPointITCase {
         return process.exitValue();
     }
 
+    private void awaitFile(Process process, String name, Path file) throws Exception {
+        final long deadline = System.nanoTime() + TIMEOUT.toNanos();
+        while (System.nanoTime() < deadline) {
+            if (Files.exists(file)) {
+                return;
+            }
+            if (!process.isAlive()) {
+                printLog(name);
+                fail(
+                        "The %s process exited with code %d while waiting for %s.",
+                        name, process.exitValue(), file);
+            }
+            Thread.sleep(POLL_INTERVAL.toMillis());
+        }
+        printLog(name);
+        fail("%s was not created by the %s process within %s.", file, name, TIMEOUT);
+    }
+
     private boolean zooKeeperNodeExists(String path) throws Exception {
         return ZOOKEEPER
                         .getCustomExtension()
@@ -1273,6 +1323,40 @@ class MiniClusterJobEntryPointITCase {
                 @Override
                 public void cleanupAllData() throws Exception {
                     throw new IOException(FAILURE_MESSAGE);
+                }
+            };
+        }
+    }
+
+    /**
+     * Creates HA services whose cleanup takes a while, writing marker files to the directory given
+     * by {@link #MARKER_DIR} as it starts and finishes.
+     */
+    public static final class SlowCleanupHaServicesFactory
+            implements HighAvailabilityServicesFactory {
+
+        static final ConfigOption<String> MARKER_DIR =
+                ConfigOptions.key("test.ha-cleanup-marker-dir").stringType().noDefaultValue();
+        static final String STARTED = "ha-cleanup-started";
+        static final String FINISHED = "ha-cleanup-finished";
+
+        /**
+         * Long enough to send SIGTERM during, and short enough that it and the rest of the shutdown
+         * finish well within the shutdown hook's timeout, even on a slow machine.
+         */
+        private static final Duration CLEANUP_DURATION = Duration.ofSeconds(1);
+
+        @Override
+        public HighAvailabilityServices createHAServices(
+                Configuration configuration, Executor executor) {
+            final Path markerDir = Path.of(configuration.get(MARKER_DIR));
+            return new EmbeddedHaServices(executor) {
+                @Override
+                public void cleanupAllData() throws Exception {
+                    Files.createFile(markerDir.resolve(STARTED));
+                    Thread.sleep(CLEANUP_DURATION.toMillis());
+                    super.cleanupAllData();
+                    Files.createFile(markerDir.resolve(FINISHED));
                 }
             };
         }
