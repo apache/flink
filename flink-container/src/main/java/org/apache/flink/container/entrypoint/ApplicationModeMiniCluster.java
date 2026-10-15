@@ -59,6 +59,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -69,7 +70,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * it has leadership, recovering from high availability metadata where available.
  */
 @Internal
-final class ApplicationModeMiniCluster extends MiniCluster {
+class ApplicationModeMiniCluster extends MiniCluster {
 
     private static final Logger LOG = LoggerFactory.getLogger(ApplicationModeMiniCluster.class);
 
@@ -82,6 +83,9 @@ final class ApplicationModeMiniCluster extends MiniCluster {
     private final CompletableFuture<Void> closeRequestedFuture = new CompletableFuture<>();
     private final Collection<DispatcherResourceManagerComponent>
             dispatcherResourceManagerComponents = new CopyOnWriteArrayList<>();
+
+    /** The close that is under way, once one has started while the MiniCluster was running. */
+    private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
 
     ApplicationModeMiniCluster(
             final MiniClusterConfiguration miniClusterConfiguration,
@@ -196,21 +200,42 @@ final class ApplicationModeMiniCluster extends MiniCluster {
     @Override
     public CompletableFuture<Void> closeAsync() {
         closeRequestedFuture.complete(null);
+        // checked first, as a close is recorded before it stops the MiniCluster running
+        final boolean running = isRunning();
+        final CompletableFuture<Void> closeUnderWay = closeFuture.get();
+        if (closeUnderWay != null) {
+            return closeUnderWay;
+        }
+        if (!running) {
+            // Nothing more to close while it is not running. A failed start calls this while
+            // holding the lock that closing it waits for, so returning now to avoid deadlock
+            return stopDispatcher();
+        }
+        final CompletableFuture<Void> newCloseFuture = new CompletableFuture<>();
+        if (!closeFuture.compareAndSet(null, newCloseFuture)) {
+            return closeFuture.get();
+        }
+        // the cluster's high availability data is only removed if the dispatcher has shut down,
+        // which it does when the application finishes if execution.shutdown-on-application-finish
+        // is set. Otherwise, the data is kept so that a restarted process can recover.
         final boolean cleanupHighAvailabilityData = isDispatcherShutDown();
-        return FutureUtils.composeAfterwards(
-                FutureUtils.completeAll(
+        FutureUtils.forward(
+                FutureUtils.composeAfterwards(
                         // stop the dispatcher before the MiniCluster stops TaskManagers so it
                         // suspends jobs first
-                        dispatcherResourceManagerComponents.stream()
-                                .map(DispatcherResourceManagerComponent::stopProcess)
-                                .collect(Collectors.toList())),
-                // the cluster's high availability data is only removed if the dispatcher has shut
-                // down, which it does when the application finishes if
-                // execution.shutdown-on-application-finish is set. Otherwise, the data is kept so
-                // that a restarted process can recover.
-                cleanupHighAvailabilityData
-                        ? super::closeAsync
-                        : super::closeAsyncWithoutCleaningHighAvailabilityData);
+                        stopDispatcher(),
+                        cleanupHighAvailabilityData
+                                ? super::closeAsync
+                                : super::closeAsyncWithoutCleaningHighAvailabilityData),
+                newCloseFuture);
+        return newCloseFuture;
+    }
+
+    private CompletableFuture<Void> stopDispatcher() {
+        return FutureUtils.completeAll(
+                dispatcherResourceManagerComponents.stream()
+                        .map(DispatcherResourceManagerComponent::stopProcess)
+                        .collect(Collectors.toList()));
     }
 
     @VisibleForTesting
