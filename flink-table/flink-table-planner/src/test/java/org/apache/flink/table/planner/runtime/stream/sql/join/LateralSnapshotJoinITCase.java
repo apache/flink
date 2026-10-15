@@ -50,7 +50,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThatList;
  * Result tests for the {@code LATERAL SNAPSHOT} processing-time temporal join that are
  * non-deterministic or benefit from dual-backend (HEAP/ROCKSDB) coverage. Deterministic,
  * backend-agnostic cases live in {@code LateralSnapshotJoinSemanticTests}; time-driven behavior
- * (idle-timeout flip, state-TTL eviction) in {@code LateralSnapshotJoinOperatorTest}.
+ * (idle-timeout flip, state-TTL eviction) in {@code MultiSetLateralSnapshotJoinOperatorTest}.
  *
  * <p>To stabilize results, each build source appends a non-matching "flip-trigger" row at {@link
  * #MID_FLIP} (after all real rows); its per-record watermark flips the operator to the JOIN phase.

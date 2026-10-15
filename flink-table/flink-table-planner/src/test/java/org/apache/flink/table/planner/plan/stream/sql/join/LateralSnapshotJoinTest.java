@@ -750,7 +750,7 @@ public class LateralSnapshotJoinTest extends TableTestBase {
                 .orElseThrow(
                         () ->
                                 new AssertionError(
-                                        "No LateralSnapshotJoinOperator found in the plan."));
+                                        "No LATERAL SNAPSHOT join operator found in the plan."));
     }
 
     private void enableTryResolve() {
