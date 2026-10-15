@@ -46,6 +46,7 @@ import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricherFactory;
@@ -622,6 +623,7 @@ class MiniClusterJobEntryPointITCase {
     @ValueSource(classes = {RecordingJob.class, FailingJob.class})
     void shutdownOnApplicationFinishExitsWithApplicationsExitCode(Class<?> jobClass)
             throws Exception {
+        final Path webTmpDir = Files.createDirectories(tempDir.resolve("web"));
         final Process process =
                 startProcess(
                         "process",
@@ -631,7 +633,8 @@ class MiniClusterJobEntryPointITCase {
                                 List.of(
                                         dynamicProperty(
                                                 DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH,
-                                                true))));
+                                                true),
+                                        dynamicProperty(WebOptions.TMP_DIR, webTmpDir))));
         try {
             final ApplicationStatus expected =
                     jobClass == RecordingJob.class
@@ -644,6 +647,7 @@ class MiniClusterJobEntryPointITCase {
             assertThat(zooKeeperNodeExists("/flink/" + haClusterId))
                     .as("the HA metadata is removed, as by a standalone application cluster")
                     .isFalse();
+            assertThat(webTmpDir).as("the process's web directory is removed").isEmptyDirectory();
         } finally {
             stop(process);
         }
@@ -705,6 +709,36 @@ class MiniClusterJobEntryPointITCase {
             assertThat(tempDir.resolve(SlowCleanupHaServicesFactory.FINISHED))
                     .as("the HA cleanup that was under way when SIGTERM arrived finishes")
                     .exists();
+        } finally {
+            stop(process);
+        }
+    }
+
+    @Test
+    void usesItsOwnWebDirectoryAndRemovesItOnShutdown() throws Exception {
+        final Path webTmpDir = Files.createDirectories(tempDir.resolve("web"));
+        final Process process =
+                startProcess(
+                        "process",
+                        MiniClusterJobEntryPoint.class,
+                        applicationArguments(
+                                RecordingJob.class,
+                                List.of(dynamicProperty(WebOptions.TMP_DIR, webTmpDir))));
+        try {
+            awaitClusterServing(process, "process");
+            try (Stream<Path> webDirs = Files.list(webTmpDir)) {
+                assertThat(webDirs)
+                        .as("a directory of its own, as a cluster entrypoint uses")
+                        .singleElement()
+                        .satisfies(
+                                dir ->
+                                        assertThat(dir.getFileName().toString())
+                                                .matches("flink-web-[0-9a-f-]{36}"));
+            }
+
+            stop(process);
+
+            assertThat(webTmpDir).isEmptyDirectory();
         } finally {
             stop(process);
         }

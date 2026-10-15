@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
@@ -41,12 +42,16 @@ import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -131,20 +136,23 @@ public final class MiniClusterJobEntryPoint {
         final PackagedProgram program =
                 ApplicationClusterEntryPointUtils.getPackagedProgram(
                         clusterConfiguration, configuration);
+        final File webTmpDir =
+                new File(configuration.get(WebOptions.TMP_DIR), "flink-web-" + UUID.randomUUID());
         final ApplicationModeMiniCluster miniCluster;
         try {
             ApplicationClusterEntryPoint.configureExecution(configuration, program);
 
             miniCluster =
                     new ApplicationModeMiniCluster(
-                            buildMiniClusterConfiguration(configuration, pluginManager), program);
+                            buildMiniClusterConfiguration(configuration, pluginManager, webTmpDir),
+                            program);
             final String serviceName = MiniClusterJobEntryPoint.class.getSimpleName();
             ShutdownHookUtil.addShutdownHookThread(
                     new Thread(
                             () -> {
                                 if (STOPPING.compareAndSet(false, true)) {
                                     closedByShutdownHook = true;
-                                    tryClose(miniCluster, SHUTDOWN_HOOK_TIMEOUT);
+                                    tryClose(miniCluster, webTmpDir, SHUTDOWN_HOOK_TIMEOUT);
                                     program.close();
                                 } else {
                                     // the JVM halts once the hooks finish, so wait for the
@@ -159,6 +167,7 @@ public final class MiniClusterJobEntryPoint {
             miniCluster.start();
         } catch (Throwable t) {
             if (STOPPING.compareAndSet(false, true)) {
+                tryDeleteWebTmpDir(webTmpDir);
                 program.close();
                 STOPPED.complete(null);
             }
@@ -179,7 +188,7 @@ public final class MiniClusterJobEntryPoint {
 
         final boolean closed;
         try {
-            closed = tryClose(miniCluster, SHUTDOWN_TIMEOUT);
+            closed = tryClose(miniCluster, webTmpDir, SHUTDOWN_TIMEOUT);
             program.close();
         } finally {
             STOPPED.complete(null);
@@ -200,8 +209,11 @@ public final class MiniClusterJobEntryPoint {
     }
 
     private static MiniClusterConfiguration buildMiniClusterConfiguration(
-            final Configuration configuration, final PluginManager pluginManager) {
+            final Configuration configuration,
+            final PluginManager pluginManager,
+            final File webTmpDir) {
         final Configuration clusterConfiguration = new Configuration(configuration);
+        clusterConfiguration.set(WebOptions.TMP_DIR, webTmpDir.getAbsolutePath());
         if (!clusterConfiguration.contains(RpcOptions.ASK_TIMEOUT_DURATION)) {
             clusterConfiguration.set(
                     RpcOptions.ASK_TIMEOUT_DURATION,
@@ -219,13 +231,27 @@ public final class MiniClusterJobEntryPoint {
                 .build();
     }
 
-    /** Returns whether the MiniCluster closed within the timeout. */
-    private static boolean tryClose(final MiniCluster miniCluster, final Duration timeout) {
+    /**
+     * Returns whether the MiniCluster closed within the timeout and its web directory was removed.
+     */
+    private static boolean tryClose(
+            final MiniCluster miniCluster, final File webTmpDir, final Duration timeout) {
+        boolean closed = true;
         try {
             miniCluster.closeAsync().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            return true;
         } catch (Exception e) {
             LOG.error("Could not close the MiniCluster.", e);
+            closed = false;
+        }
+        return tryDeleteWebTmpDir(webTmpDir) && closed;
+    }
+
+    private static boolean tryDeleteWebTmpDir(final File webTmpDir) {
+        try {
+            FileUtils.deleteDirectory(webTmpDir);
+            return true;
+        } catch (IOException e) {
+            LOG.error("Could not remove the web directory {}.", webTmpDir, e);
             return false;
         }
     }
