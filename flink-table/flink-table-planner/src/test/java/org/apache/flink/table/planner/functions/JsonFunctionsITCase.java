@@ -1034,8 +1034,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_STRING(f0)",
                                 "{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}",
                                 STRING().notNull()),
-                // DATE/TIME edge cases: fractional seconds and values nested inside a collection,
-                // which take a different code path than top-level values.
+                // DATE/TIME cases
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
                         .onFieldsWithData(
                                 LocalTime.parse("13:37:42.123"),
