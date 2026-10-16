@@ -39,8 +39,6 @@ import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.metrics.MetricPublisher;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
-import software.amazon.awssdk.retries.StandardRetryStrategy;
-import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -99,6 +97,7 @@ class S3ClientProvider implements AutoCloseableAsync {
     private final Duration retryThrottleBaseDelay;
     private final Duration retryMaxBackoff;
     private final boolean retryCircuitBreakerEnabled;
+    private final NativeS3FileSystemFactory.RetryMode retryMode;
     @Nullable private final String region;
     @Nullable private final String endpoint;
     @Nullable private final String assumeRoleArn;
@@ -132,6 +131,7 @@ class S3ClientProvider implements AutoCloseableAsync {
             Duration retryThrottleBaseDelay,
             Duration retryMaxBackoff,
             boolean retryCircuitBreakerEnabled,
+            NativeS3FileSystemFactory.RetryMode retryMode,
             @Nullable String region,
             @Nullable String endpoint,
             @Nullable String assumeRoleArn,
@@ -176,6 +176,7 @@ class S3ClientProvider implements AutoCloseableAsync {
         this.retryMaxBackoff =
                 Preconditions.checkNotNull(retryMaxBackoff, "retryMaxBackoff must not be null");
         this.retryCircuitBreakerEnabled = retryCircuitBreakerEnabled;
+        this.retryMode = Preconditions.checkNotNull(retryMode, "retryMode must not be null");
         this.region = region;
         this.endpoint = endpoint;
         this.assumeRoleArn = assumeRoleArn;
@@ -277,6 +278,11 @@ class S3ClientProvider implements AutoCloseableAsync {
     @VisibleForTesting
     boolean isRetryCircuitBreakerEnabled() {
         return retryCircuitBreakerEnabled;
+    }
+
+    @VisibleForTesting
+    NativeS3FileSystemFactory.RetryMode getRetryMode() {
+        return retryMode;
     }
 
     @VisibleForTesting
@@ -438,6 +444,8 @@ class S3ClientProvider implements AutoCloseableAsync {
                 NativeS3FileSystemFactory.RETRY_MAX_BACKOFF.defaultValue();
         private boolean retryCircuitBreakerEnabled =
                 NativeS3FileSystemFactory.RETRY_CIRCUIT_BREAKER_ENABLED.defaultValue();
+        private NativeS3FileSystemFactory.RetryMode retryMode =
+                NativeS3FileSystemFactory.RETRY_MODE.defaultValue();
         private Duration clientCloseTimeout =
                 NativeS3FileSystemFactory.CLIENT_CLOSE_TIMEOUT.defaultValue();
 
@@ -570,6 +578,11 @@ class S3ClientProvider implements AutoCloseableAsync {
             return this;
         }
 
+        public Builder retryMode(NativeS3FileSystemFactory.RetryMode retryMode) {
+            this.retryMode = Preconditions.checkNotNull(retryMode, "retryMode must not be null");
+            return this;
+        }
+
         public Builder assumeRoleArn(@Nullable String assumeRoleArn) {
             this.assumeRoleArn = assumeRoleArn;
             return this;
@@ -687,17 +700,13 @@ class S3ClientProvider implements AutoCloseableAsync {
             ClientOverrideConfiguration.Builder overrideConfigBuilder =
                     ClientOverrideConfiguration.builder()
                             .retryStrategy(
-                                    StandardRetryStrategy.builder()
-                                            .maxAttempts(maxRetries + 1)
-                                            .backoffStrategy(
-                                                    BackoffStrategy.exponentialDelay(
-                                                            retryBaseDelay, retryMaxBackoff))
-                                            .throttlingBackoffStrategy(
-                                                    BackoffStrategy.exponentialDelay(
-                                                            retryThrottleBaseDelay,
-                                                            retryMaxBackoff))
-                                            .circuitBreakerEnabled(retryCircuitBreakerEnabled)
-                                            .build());
+                                    S3RetryStrategyFactory.create(
+                                            retryMode,
+                                            maxRetries,
+                                            retryBaseDelay,
+                                            retryThrottleBaseDelay,
+                                            retryMaxBackoff,
+                                            retryCircuitBreakerEnabled));
 
             if (useCrt) {
                 LOG.info(
@@ -742,6 +751,7 @@ class S3ClientProvider implements AutoCloseableAsync {
                     retryThrottleBaseDelay,
                     retryMaxBackoff,
                     retryCircuitBreakerEnabled,
+                    retryMode,
                     region,
                     endpoint,
                     assumeRoleArn,
