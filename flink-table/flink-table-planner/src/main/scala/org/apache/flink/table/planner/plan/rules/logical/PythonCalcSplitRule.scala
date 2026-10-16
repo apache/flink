@@ -54,8 +54,8 @@ object PythonCalcSplitRule {
 
   /**
    * These rules should be applied sequentially in the order of SPLIT_CONDITION,
-   * CONDITION_PROJECTION_CSE, SPLIT_PROJECT, SPLIT_PANDAS_IN_PROJECT, EXPAND_PROJECT,
-   * PUSH_CONDITION, REWRITE_PROJECT and PROJECTION_CSE.
+   * CONDITION_PROJECTION_CSE, SPLIT_PROJECT, SPLIT_PANDAS_IN_PROJECT, SPLIT_CONCURRENCY_IN_PROJECT,
+   * EXPAND_PROJECT, PUSH_CONDITION, REWRITE_PROJECT and PROJECTION_CSE.
    */
   private val callFinder = new PythonRemoteCallFinder()
   val SPLIT_CONDITION: RelOptRule = new RemoteCalcSplitConditionRule(callFinder)
@@ -63,6 +63,8 @@ object PythonCalcSplitRule {
     RemoteCalcConditionProjectionCseRule.Config.DEFAULT.withRemoteCallFinder(callFinder).toRule()
   val SPLIT_PROJECT: RelOptRule = new RemoteCalcSplitProjectionRule(callFinder)
   val SPLIT_PANDAS_IN_PROJECT: RelOptRule = new PythonCalcSplitFunctionKindRule(callFinder)
+  val SPLIT_CONCURRENCY_IN_PROJECT: RelOptRule =
+    new PythonCalcSplitConcurrencyRule(callFinder)
   val SPLIT_PROJECTION_REX_FIELD: RelOptRule = new RemoteCalcSplitProjectionRexFieldRule(callFinder)
   val SPLIT_CONDITION_REX_FIELD: RelOptRule = new RemoteCalcSplitConditionRexFieldRule(callFinder)
   val EXPAND_PROJECT: RelOptRule = new RemoteCalcExpandProjectRule(callFinder)
