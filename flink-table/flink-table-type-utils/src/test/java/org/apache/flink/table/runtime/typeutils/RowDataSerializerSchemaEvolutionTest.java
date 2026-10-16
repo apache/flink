@@ -168,19 +168,38 @@ class RowDataSerializerSchemaEvolutionTest {
 
     /**
      * With the option off, field names are not consulted at all: an identical positional layout
-     * resolves exactly as it does without this feature, whatever the names did.
+     * resolves exactly as it does without this feature, whatever the names did. Enabling or
+     * disabling TTL on restore still turns that verdict into a migration and hands each value to
+     * {@code migrate}, which must then leave it positional.
      */
     @Test
-    void sameTypedReorderIsCompatibleAsIsWhenNotOptedIn() throws IOException {
+    void sameTypedReorderStaysPositionalWhenNotOptedIn() throws IOException {
         RowDataSerializerSnapshot oldSnap =
                 oldSnapshot(row(new String[] {"a", "b"}, new IntType(), new IntType()));
         RowDataSerializerSnapshot unarmedNewSnap =
-                (RowDataSerializerSnapshot)
-                        InternalSerializers.create(
-                                        row(new String[] {"b", "a"}, new IntType(), new IntType()))
-                                .snapshotConfiguration();
+                unarmedSnapshot(row(new String[] {"b", "a"}, new IntType(), new IntType()));
 
         assertThat(unarmedNewSnap.resolveSchemaCompatibility(oldSnap).isCompatibleAsIs()).isTrue();
+
+        RowData value = GenericRowData.of(7, 42);
+        assertThat(unarmedNewSnap.migrate(oldSnap, value)).isSameAs(value);
+    }
+
+    /**
+     * The rename counterpart: with the option off it resolves positionally, so the value must
+     * survive the {@code migrate} a TTL toggle triggers instead of being dropped as a removed
+     * field.
+     */
+    @Test
+    void sameTypedRenameStaysPositionalWhenNotOptedIn() throws IOException {
+        RowDataSerializerSnapshot oldSnap = oldSnapshot(row(new String[] {"a"}, new IntType()));
+        RowDataSerializerSnapshot unarmedNewSnap =
+                unarmedSnapshot(row(new String[] {"renamed"}, new IntType()));
+
+        assertThat(unarmedNewSnap.resolveSchemaCompatibility(oldSnap).isCompatibleAsIs()).isTrue();
+
+        RowData value = GenericRowData.of(7);
+        assertThat(unarmedNewSnap.migrate(oldSnap, value)).isSameAs(value);
     }
 
     /**
@@ -581,6 +600,12 @@ class RowDataSerializerSchemaEvolutionTest {
      */
     private static RowDataSerializerSnapshot newSnapshot(RowType rowType) {
         return (RowDataSerializerSnapshot) armed(rowType).snapshotConfiguration();
+    }
+
+    /** The new side of a resolution with the option off. */
+    private static RowDataSerializerSnapshot unarmedSnapshot(RowType rowType) {
+        return (RowDataSerializerSnapshot)
+                InternalSerializers.create(rowType).snapshotConfiguration();
     }
 
     /** The old side of a resolution, read back from bytes the way a restore produces it. */

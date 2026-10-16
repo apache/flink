@@ -397,7 +397,8 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
          * Whether the serializer this snapshot was taken from admits a backward-compatible schema
          * change. It is deliberately not part of the snapshot format: a snapshot read back from
          * bytes describes stored state, not a running job's configuration, so it always resolves
-         * with evolution off.
+         * with evolution off. It also gates {@link #migrate}, which passes values through unchanged
+         * while it is off.
          */
         private boolean stateSchemaEvolutionEnabled;
 
@@ -641,8 +642,11 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
         @Override
         public RowData migrate(
                 TypeSerializerSnapshot<RowData> oldSerializerSnapshot, RowData value) {
-            if (value == null) {
-                return null;
+            // Not only an armed evolution migrates: a TTL toggle turns an unarmed compatibleAsIs
+            // into compatibleAfterMigration too. That verdict matched fields by position, so a
+            // name-based remap would null a renamed field or swap reordered ones.
+            if (value == null || !stateSchemaEvolutionEnabled) {
+                return value;
             }
             // Runs once per restored entry, so a mismatch would otherwise surface as a bare
             // ClassCastException from deep inside a migration loop.
