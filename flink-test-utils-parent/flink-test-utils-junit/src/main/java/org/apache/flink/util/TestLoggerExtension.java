@@ -65,16 +65,14 @@ public class TestLoggerExtension implements TestWatcher, BeforeEachCallback {
                 exceptionToString(cause));
     }
 
-    private static String exceptionToString(Throwable t) {
+    static String exceptionToString(Throwable t) {
         if (t == null) {
             return "(null)";
         }
 
-        try {
-            StringWriter stm = new StringWriter();
-            PrintWriter wrt = new PrintWriter(stm);
+        try (StringWriter stm = new StringWriter();
+                PrintWriter wrt = new PrintWriter(stm)) {
             t.printStackTrace(wrt);
-            wrt.close();
             return stm.toString();
         } catch (Throwable ignored) {
             return t.getClass().getName() + " (error while printing stack trace)";
