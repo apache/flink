@@ -150,7 +150,7 @@ public final class JsonCodeGenUtils {
                             + "    "
                             + parsed
                             + " = "
-                            + CodeGenUtils.qualifyMethod(BuiltInMethods.VARIANT_PARSE_JSON())
+                            + CodeGenUtils.qualifyMethod(BuiltInMethods.PARSE_JSON())
                             + "(in, java.lang.Boolean.TRUE.equals(allowDup));\n"
                             + "  } catch (Exception e) {\n"
                             + "    "
