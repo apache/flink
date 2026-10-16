@@ -55,17 +55,18 @@ public final class JsonCodeGenUtils {
      * java.lang.Boolean variantParseDup$0;
      *
      * private Variant parseVariant$0(StringData in, java.lang.Boolean allowDup) {
-     *   if (in != variantParseInput$0 || !java.util.Objects.equals(allowDup, variantParseDup$0)) {
-     *     variantParseInput$0 = in;
-     *     variantParseDup$0 = allowDup;
-     *     variantParseError$0 = null;
-     *     try {
-     *       variantParsed$0 =
-     *           SqlJsonUtils.parseJsonToVariant(in, java.lang.Boolean.TRUE.equals(allowDup));
-     *     } catch (Exception e) {
-     *       variantParsed$0 = null;
-     *       variantParseError$0 = t;
-     *     }
+     *   if (in == variantParseInput$0 && java.util.Objects.equals(allowDup, variantParseDup$0)) {
+     *     return variantParsed$0;
+     *   }
+     *   variantParseInput$0 = in;
+     *   variantParseDup$0 = allowDup;
+     *   variantParseError$0 = null;
+     *   try {
+     *     variantParsed$0 =
+     *         SqlJsonUtils.parseJsonToVariant(in, java.lang.Boolean.TRUE.equals(allowDup));
+     *   } catch (Exception e) {
+     *     variantParsed$0 = null;
+     *     variantParseError$0 = t;
      *   }
      *   return variantParsed$0;
      * }
@@ -127,34 +128,37 @@ public final class JsonCodeGenUtils {
                             + "("
                             + inputType
                             + " in, java.lang.Boolean allowDup) {\n"
-                            + "  if (in != "
+                            + "  if (in == "
                             + lastInput
-                            + " || !java.util.Objects.equals(allowDup, "
+                            + " && java.util.Objects.equals(allowDup, "
                             + lastDup
                             + ")) {\n"
-                            + "    "
+                            + "    return "
+                            + parsed
+                            + ";\n"
+                            + "  }\n"
+                            + "  "
                             + lastInput
                             + " = in;\n"
-                            + "    "
+                            + "  "
                             + lastDup
                             + " = allowDup;\n"
-                            + "    "
+                            + "  "
                             + error
                             + " = null;\n"
-                            + "    try {\n"
-                            + "      "
+                            + "  try {\n"
+                            + "    "
                             + parsed
                             + " = "
                             + CodeGenUtils.qualifyMethod(BuiltInMethods.VARIANT_PARSE_JSON())
                             + "(in, java.lang.Boolean.TRUE.equals(allowDup));\n"
-                            + "    } catch (Exception e) {\n"
-                            + "      "
+                            + "  } catch (Exception e) {\n"
+                            + "    "
                             + parsed
                             + " = null;\n"
-                            + "      "
+                            + "    "
                             + error
                             + " = e;\n"
-                            + "    }\n"
                             + "  }\n"
                             + "  return "
                             + parsed
