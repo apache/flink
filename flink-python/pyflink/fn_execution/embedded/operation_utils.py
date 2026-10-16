@@ -90,7 +90,8 @@ def create_table_operation_from_proto(proto, input_coder_info, output_coder_into
 
     serialized_fn = parse_function_proto(proto)
 
-    input_data_converter = row_data_converter_from_coder_proto(input_coder_info)
+    input_data_converter = (
+        from_schema_proto(parse_coder_proto(input_coder_info).flatten_row_type.schema))
     output_data_converter = (
         from_schema_proto(parse_coder_proto(output_coder_into).flatten_row_type.schema))
 

@@ -118,7 +118,7 @@ public class EmbeddedPythonScalarFunctionOperator
                         .anyMatch(
                                 pythonFunctionInfo ->
                                         pythonFunctionInfo.getPythonFunction().takesRowAsInput());
-        hasOnlyOneInputArgument = takesRowAsInput || udfInputOffsets.length == 1;
+        hasOnlyOneInputArgument = !takesRowAsInput && udfInputOffsets.length == 1;
         hasOnlyOneUserDefinedFunction = udfOutputType.getFieldCount() == 1;
 
         if (forwardedFieldGeneratedProjection != null) {

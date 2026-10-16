@@ -345,6 +345,31 @@ class EmbeddedThreadRowBasedOperationITTests(PyFlinkBatchTableTestCase):
         actual = sorted(tuple(row) for row in t.map(func).alias("a", "b").execute().collect())
         self.assertEqual(actual, [(1, 0), (3, 16)])
 
+    def test_map_chain_preserves_scalar_arguments(self) -> None:
+        t = self.t_env.from_elements(
+            [(2, 4), (0, 0)],
+            DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.BIGINT()),
+                 DataTypes.FIELD("b", DataTypes.BIGINT())]))
+
+        for fields, plain, mapper, expected in (
+                (("a",), lambda a: Row(a * 10), lambda row: Row(row[0] + 1),
+                 [(1,), (21,)]),
+                (("b",), lambda b: Row(b * 10), lambda row: Row(row[0] + 1),
+                 [(1,), (41,)]),
+                (("a", "b"), lambda a, b: Row(a, b),
+                 lambda row: Row(row[0] * 10, row[1]), [(0, 0), (20, 4)]),
+                (("b", "a"), lambda b, a: Row(b, a),
+                 lambda row: Row(row[0] * 10, row[1]), [(0, 0), (40, 2)])):
+            with self.subTest(fields=fields):
+                result_type = DataTypes.ROW(
+                    [DataTypes.FIELD(field, DataTypes.BIGINT()) for field in fields])
+                first = udf(plain, result_type=result_type)
+                second = udf(mapper, result_type=result_type)
+                result = t.map(first(*(getattr(t, field) for field in fields))).map(second)
+                with result.execute().collect() as rows:
+                    self.assertEqual(sorted(tuple(row) for row in rows), expected)
+
 
 class CountAndSumAggregateFunction(AggregateFunction):
 
