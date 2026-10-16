@@ -2384,26 +2384,28 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
 
 ### UDF
 
-The following metrics are registered per SQL/Table user-defined function when UDF metrics are enabled (see [UDF metrics](#udf-metrics) below). They are attached to the operator that runs the function and scoped under `udf.<udf_name>`, so the full metric identifier is `<operator_name>.udf.<udf_name>.<metric>`.
+The following metrics are registered per SQL/Table user-defined function when UDF metrics are enabled (see [UDF metrics](#udf-metrics) below). They are registered only on the operator that runs the function, under the infix `udf.<udf_name>`, so the identifier is the operator scope (`metrics.scope.operator`) followed by `udf.<udf_name>.<metric>`.
 
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 18%">Scope</th>
-      <th class="text-left" style="width: 30%">Metrics</th>
-      <th class="text-left" style="width: 44%">Description</th>
-      <th class="text-left" style="width: 8%">Type</th>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 15%">Infix</th>
+      <th class="text-left" style="width: 15%">Metrics</th>
+      <th class="text-left" style="width: 50%">Description</th>
+      <th class="text-left" style="width: 5%">Type</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <th rowspan="2"><strong>Task/Operator</strong></th>
-      <td>udf.&lt;udf_name&gt;.udfProcessingTime</td>
+      <th rowspan="2"><strong>Operator</strong></th>
+      <td rowspan="2">udf.&lt;udf_name&gt;</td>
+      <td>udfProcessingTime</td>
       <td>The time (in nanoseconds) taken by a single invocation of the user-defined function. For asynchronous functions this spans from dispatch to completion. Sampled: only one invocation out of every <samp>table.exec.udf-metric.sample-interval</samp> is measured.</td>
       <td>Histogram</td>
     </tr>
     <tr>
-      <td>udf.&lt;udf_name&gt;.udfExceptionCount</td>
+      <td>udfExceptionCount</td>
       <td>The number of exceptions escaping the user-defined function. For synchronous functions this counts exceptions propagating out of <samp>eval</samp>; for asynchronous functions it counts exceptional completions. Counted on every invocation, not sampled.</td>
       <td>Counter</td>
     </tr>
@@ -2481,7 +2483,7 @@ This configuration has a default value of 100. A smaller value will get more acc
 Because only the sampled invocations are timed, the remaining invocations cost a single counter increment, so the default interval keeps the overhead of the enabled path small.
 Exceptions are counted on every invocation and are not sampled.
 
-The metrics cover scalar and table functions that a query calls directly, both synchronous and asynchronous. Not covered: process table functions (`PROCESS_TABLE`), aggregate functions, functions registered through the deprecated `registerFunction` API, and the functions invoked internally by lookup joins, model prediction, and vector search.
+The metrics cover scalar and table functions that a query calls directly, both synchronous and asynchronous. Not covered: Python functions (they run in dedicated Python operators), process table functions (`PROCESS_TABLE`), aggregate functions, functions registered through the deprecated `registerFunction` API, and the functions invoked internally by lookup joins, model prediction, and vector search.
 
 <span class="label label-danger">Warning</span> Enabling UDF metrics may impact the performance, both from the sampled timing and from the metric reporter.
 It is recommended to only use them for debugging purposes.
