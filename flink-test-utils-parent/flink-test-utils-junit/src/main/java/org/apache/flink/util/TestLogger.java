@@ -25,8 +25,7 @@ import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import static org.apache.flink.util.TestLoggerExtension.exceptionToString;
 
 /**
  * Adds automatic test name logging. Every test which wants to log which test is currently executed
@@ -73,20 +72,4 @@ public class TestLogger {
             };
 
     @Rule public final TestRule nameProvider = new TestNameProvider();
-
-    private static String exceptionToString(Throwable t) {
-        if (t == null) {
-            return "(null)";
-        }
-
-        try {
-            StringWriter stm = new StringWriter();
-            PrintWriter wrt = new PrintWriter(stm);
-            t.printStackTrace(wrt);
-            wrt.close();
-            return stm.toString();
-        } catch (Throwable ignored) {
-            return t.getClass().getName() + " (error while printing stack trace)";
-        }
-    }
 }
