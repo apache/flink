@@ -37,16 +37,21 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests that multiple JSON function calls on the same input reuse the parsed JSON. */
 class JsonParseReuseTest {
 
     private static final Pattern JSON_PARSE_PATTERN =
             Pattern.compile("\\b" + Pattern.quote(BuiltInMethods.JSON_PARSE().getName()) + "\\(");
+
+    private static final Pattern PARSE_JSON_PATTERN =
+            Pattern.compile("\\b" + Pattern.quote(BuiltInMethods.PARSE_JSON().getName()) + "\\(");
 
     private StreamTableEnvironment tEnv;
 
@@ -72,7 +77,20 @@ class JsonParseReuseTest {
     }
 
     private static int countJsonParse(final String code) {
-        return GeneratedCodeTestUtils.countMatches(JSON_PARSE_PATTERN, code);
+        return count(JSON_PARSE_PATTERN, code);
+    }
+
+    private static int countParseJson(final String code) {
+        return count(PARSE_JSON_PATTERN, code);
+    }
+
+    private static int count(final Pattern pattern, final String code) {
+        final Matcher m = pattern.matcher(code);
+        int count = 0;
+        while (m.find()) {
+            count++;
+        }
+        return count;
     }
 
     private List<String> generatedClassCodes(final String sql) {
@@ -185,15 +203,25 @@ class JsonParseReuseTest {
                 "SELECT JSON_VALUE(TRIM(json_data), '$.type'), "
                         + "JSON_QUERY(TRIM(json_data), '$.address'), "
                         + "JSON_TYPE(TRIM(json_data)), "
-                        + "JSON_LENGTH(TRIM(json_data)) FROM json_src";
+                        + "JSON_LENGTH(TRIM(json_data)), "
+                        + "JSON_STRING(PARSE_JSON(TRIM(json_data))), "
+                        + "JSON_STRING(TRY_PARSE_JSON(TRIM(json_data))) FROM json_src";
         final List<Row> rows = collect(sql);
+        // PARSE_JSON returns a VARIANT, which sorts object keys
+        final String variant1 =
+                "{\"address\":{\"city\":\"Munich\"},\"age\":42,\"roles\":[\"user\",\"viewer\"],\"type\":\"account\"}";
+        final String variant2 =
+                "{\"address\":{\"city\":\"Berlin\"},\"age\":30,\"roles\":[\"admin\"],\"type\":\"admin\"}";
         assertThat(rows)
                 .containsExactlyInAnyOrder(
-                        Row.of("account", "{\"city\":\"Munich\"}", "object", 4),
-                        Row.of("admin", "{\"city\":\"Berlin\"}", "object", 4));
+                        Row.of("account", "{\"city\":\"Munich\"}", "object", 4, variant1, variant1),
+                        Row.of("admin", "{\"city\":\"Berlin\"}", "object", 4, variant2, variant2));
         final String code = extractGeneratedCode(sql);
         assertThat(countJsonParse(code))
-                .as("Calls on the same computed input should parse once")
+                .as("JSON_VALUE-family calls on the same computed input should parse once")
+                .isOne();
+        assertThat(countParseJson(code))
+                .as("PARSE_JSON + TRY_PARSE_JSON on the same computed input should parse once")
                 .isOne();
     }
 
@@ -481,5 +509,69 @@ class JsonParseReuseTest {
         assertThat(countJsonParse(extractGeneratedCode(sql)))
                 .as("JSON_TYPE + JSON_VALUE on the same input should parse once")
                 .isOne();
+    }
+
+    @Test
+    void testParseJsonAndTryParseJsonShareParse() {
+        final String sql =
+                "SELECT JSON_STRING(PARSE_JSON(json_data)), "
+                        + "JSON_STRING(TRY_PARSE_JSON(json_data)) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).hasSize(2).allSatisfy(row -> assertThat(row.getField(0)).isNotNull());
+        assertThat(rows).allSatisfy(row -> assertThat(row.getField(0)).isEqualTo(row.getField(1)));
+        assertThat(countParseJson(extractGeneratedCode(sql)))
+                .as("PARSE_JSON + TRY_PARSE_JSON on the same input should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testParseErrorRethrowForParseJson() {
+        final String badSrc = "(VALUES ('not json')) AS t(j)";
+        final String sharedSql =
+                "SELECT JSON_STRING(TRY_PARSE_JSON(j)), JSON_STRING(PARSE_JSON(j)) FROM " + badSrc;
+        assertThat(countParseJson(extractGeneratedCode(sharedSql)))
+                .as("PARSE_JSON + TRY_PARSE_JSON on the same input should parse once")
+                .isOne();
+        assertThatThrownBy(() -> collect(sharedSql))
+                .hasStackTraceContaining("Failed to parse JSON string");
+
+        assertThat(collect("SELECT JSON_STRING(TRY_PARSE_JSON(j)) FROM " + badSrc))
+                .containsExactly(Row.of((String) null));
+    }
+
+    @Test
+    void testParseJsonDifferentInputsParseSeparately() {
+        final String sql =
+                "SELECT JSON_STRING(PARSE_JSON(json_data)), "
+                        + "JSON_STRING(TRY_PARSE_JSON(other_json)) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).hasSize(2);
+        assertThat(countParseJson(extractGeneratedCode(sql)))
+                .as("PARSE_JSON calls on different inputs should parse separately")
+                .isEqualTo(2);
+    }
+
+    @Test
+    void testParseJsonSameAllowDuplicateKeysSharesParse() {
+        final String sql =
+                "SELECT JSON_STRING(PARSE_JSON(json_data, true)), "
+                        + "JSON_STRING(TRY_PARSE_JSON(json_data, true)) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).hasSize(2);
+        assertThat(countParseJson(extractGeneratedCode(sql)))
+                .as("same input and allowDuplicateKeys should parse once")
+                .isOne();
+    }
+
+    @Test
+    void testParseJsonDifferentAllowDuplicateKeysParseSeparately() {
+        final String sql =
+                "SELECT JSON_STRING(PARSE_JSON(json_data, true)), "
+                        + "JSON_STRING(TRY_PARSE_JSON(json_data, false)) FROM json_src";
+        final List<Row> rows = collect(sql);
+        assertThat(rows).hasSize(2);
+        assertThat(countParseJson(extractGeneratedCode(sql)))
+                .as("different allowDuplicateKeys should parse separately")
+                .isEqualTo(2);
     }
 }
