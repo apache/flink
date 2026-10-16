@@ -23,21 +23,31 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.table.functions.python.PythonScalarFunction;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.AsyncPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PandasScalarFunction;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
+import org.apache.flink.table.runtime.operators.sort.LimitOperator;
+import org.apache.flink.table.runtime.operators.sort.SortLimitOperator;
+import org.apache.flink.table.types.DataType;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -112,30 +122,131 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
         assertThat(pythonCalc.isParallelismConfigured()).isTrue();
     }
 
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "python_parallel(a, b)",
+                "python_parallel(a, b) + 1",
+                "python_default(python_parallel(a, b), b)",
+                "python_one(python_parallel(a, b), b)",
+                "(python_row(a, b)).x"
+            })
+    void testSortLimitRemainsAfterExplicitConcurrencyProjection(String projection) {
+        util.addTemporarySystemFunction(
+                "python_parallel", new ResourcePandasScalarFunction("python_parallel", 2, -1));
+        util.addTemporarySystemFunction(
+                "python_default", new ResourcePandasScalarFunction("python_default", -1, -1));
+        util.addTemporarySystemFunction(
+                "python_one", new ResourcePandasScalarFunction("python_one", 1, -1));
+        util.addTemporarySystemFunction(
+                "python_row",
+                new PythonScalarFunction(
+                        "python_row",
+                        new byte[0],
+                        new DataType[] {DataTypes.INT(), DataTypes.INT()},
+                        DataTypes.ROW(DataTypes.FIELD("x", DataTypes.INT())),
+                        PythonFunctionKind.GENERAL,
+                        true,
+                        false,
+                        false,
+                        new PythonEnv(PythonEnv.ExecType.PROCESS),
+                        2,
+                        -1));
+
+        final Transformation<?> transformation =
+                getTransformation(
+                        "INSERT INTO sink_table SELECT a, "
+                                + projection
+                                + " FROM source_table ORDER BY a DESC LIMIT 3 OFFSET 1");
+        final OneInputTransformation<?, ?> sort =
+                findOperator(transformation, SortLimitOperator.class::isInstance);
+        assertThat(sort).isNotNull();
+        assertThat(sort.getParallelism()).isEqualTo(1);
+        OneInputTransformation<?, ?> pythonCalc = findPythonTransformation(sort);
+        assertThat(pythonCalc).isNotNull();
+        boolean hasParallelPythonCalc = false;
+        while (pythonCalc != null) {
+            assertThat(
+                            findOperator(
+                                    pythonCalc.getInputs().get(0),
+                                    SortLimitOperator.class::isInstance))
+                    .isNull();
+            hasParallelPythonCalc |= pythonCalc.getParallelism() == 2;
+            pythonCalc = findPythonTransformation(pythonCalc.getInputs().get(0));
+        }
+        assertThat(hasParallelPythonCalc).isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {-1, 32})
+    void testSortLimitPushesThroughProjectionWithoutExplicitConcurrency(int batchSize) {
+        util.addTemporarySystemFunction(
+                "python_default",
+                new ResourcePandasScalarFunction("python_default", -1, batchSize));
+
+        final OneInputTransformation<?, ?> pythonCalc =
+                getPythonTransformation(
+                        "INSERT INTO sink_table SELECT a, python_default(a, b) "
+                                + "FROM source_table ORDER BY a LIMIT 3");
+
+        assertThat(pythonCalc.getParallelism()).isEqualTo(1);
+        assertThat(pythonCalc.isParallelismConfigured()).isFalse();
+        assertThat(findOperator(pythonCalc.getInputs().get(0), SortLimitOperator.class::isInstance))
+                .isNotNull();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"LIMIT 3", "LIMIT 3 OFFSET 1"})
+    void testLimitWithoutOrderingPushesThroughExplicitConcurrencyProjection(String limit) {
+        util.addTemporarySystemFunction(
+                "python_parallel", new ResourcePandasScalarFunction("python_parallel", 2, -1));
+
+        final OneInputTransformation<?, ?> pythonCalc =
+                getPythonTransformation(
+                        "INSERT INTO sink_table SELECT a, python_parallel(a, b) "
+                                + "FROM source_table "
+                                + limit);
+
+        assertThat(pythonCalc.getParallelism()).isEqualTo(2);
+        assertThat(pythonCalc.isParallelismConfigured()).isTrue();
+        assertThat(findOperator(pythonCalc.getInputs().get(0), LimitOperator.class::isInstance))
+                .isNotNull();
+    }
+
     private OneInputTransformation<?, ?> getPythonTransformation(String statement) {
+        return findPythonTransformation(getTransformation(statement));
+    }
+
+    private Transformation<?> getTransformation(String statement) {
         final List<Operation> operations = util.getPlanner().getParser().parse(statement);
         final List<Transformation<?>> transformations =
                 util.getPlanner()
                         .translate(Collections.singletonList((ModifyOperation) operations.get(0)));
         assertThat(transformations).hasSize(1);
-        return findPythonTransformation(transformations.get(0));
+        return transformations.get(0);
     }
 
     private OneInputTransformation<?, ?> findPythonTransformation(
             Transformation<?> transformation) {
+        return findOperator(
+                transformation, operator -> operator.getClass().getSimpleName().contains("Python"));
+    }
+
+    private OneInputTransformation<?, ?> findOperator(
+            Transformation<?> transformation, Predicate<Object> predicate) {
         if (transformation instanceof OneInputTransformation) {
             final OneInputTransformation<?, ?> oneInput =
                     (OneInputTransformation<?, ?>) transformation;
             if (oneInput.getOperatorFactory() instanceof SimpleOperatorFactory) {
                 final Object operator =
                         ((SimpleOperatorFactory<?>) oneInput.getOperatorFactory()).getOperator();
-                if (operator.getClass().getSimpleName().contains("Python")) {
+                if (predicate.test(operator)) {
                     return oneInput;
                 }
             }
         }
         for (Transformation<?> input : transformation.getInputs()) {
-            final OneInputTransformation<?, ?> result = findPythonTransformation(input);
+            final OneInputTransformation<?, ?> result = findOperator(input, predicate);
             if (result != null) {
                 return result;
             }

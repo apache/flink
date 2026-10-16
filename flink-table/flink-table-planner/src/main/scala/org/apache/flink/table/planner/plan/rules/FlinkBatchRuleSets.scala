@@ -266,7 +266,7 @@ object FlinkBatchRuleSets {
     // transpose project and snapshot for scan optimization
     ProjectSnapshotTransposeRule.INSTANCE,
     // reorder sort and projection
-    CoreRules.SORT_PROJECT_TRANSPOSE,
+    FlinkSortProjectTransposeRule.INSTANCE,
     // remove unnecessary sort rule
     CoreRules.SORT_REMOVE,
 

@@ -3228,6 +3228,20 @@ class DataFrameBatchITTests(PyFlinkITTestCase):
         self.addCleanup(pf.set_table_environment, previous_environment)
         self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
 
+    def test_sort_limit_after_concurrent_python_projection(self):
+        self.t_env.get_config().set("table.exec.resource.default-parallelism", "4")
+
+        @pf.udf(concurrency=2)
+        def identity(value: int) -> int:
+            return value
+
+        source = pf.from_table(self.t_env.from_elements(
+            [(value,) for value in range(40, 0, -1)], ["id"]))
+        result = (source.with_column("copy", identity(pf.col("id")))
+                  .sort("id").limit(20))
+
+        self.assertEqual(result.collect(), [Row(value, value) for value in range(1, 21)])
+
     def test_attribute_column_access_executes(self):
         dataframe = pf.from_table(self.t_env.sql_query(
             "SELECT * FROM (VALUES (1, 'Alice'), (2, 'Bob')) AS T(id, name)"
