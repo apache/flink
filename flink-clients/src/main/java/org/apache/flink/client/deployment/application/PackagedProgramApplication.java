@@ -342,7 +342,11 @@ public class PackagedProgramApplication extends AbstractApplication {
         // unhandled. This behavior may change in the future.
         finishApplicationFuture.handle(
                 (ignored, t) -> {
-                    closeProgram();
+                    try {
+                        closeProgram();
+                    } catch (Exception e) {
+                        LOG.warn("Failed to close the packaged program.", e);
+                    }
                     return null;
                 });
 
@@ -377,8 +381,14 @@ public class PackagedProgramApplication extends AbstractApplication {
         closeProgram();
     }
 
+    // Clearing the field makes close idempotent and ensures a closed program is neither closed
+    // twice by finish + dispose nor observable via getPackagedProgram().
     private void closeProgram() {
-        final PackagedProgram currentProgram = program;
+        final PackagedProgram currentProgram;
+        synchronized (this) {
+            currentProgram = program;
+            program = null;
+        }
         if (currentProgram != null) {
             currentProgram.close();
         }

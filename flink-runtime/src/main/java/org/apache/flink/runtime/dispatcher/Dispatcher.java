@@ -982,7 +982,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         getMainThreadExecutor())
                 .whenCompleteAsync(
                         (ack, throwable) -> {
-                            // a rejected application is never executed, so release its resources
+                            // A rejected application is never executed, so release its resources.
+                            // Failures after registration are not disposed here; the registered
+                            // application is cleaned up through the regular execution/dispose path.
                             if (throwable != null
                                     && applications.get(applicationId) != application) {
                                 application.dispose();

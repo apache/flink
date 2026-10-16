@@ -155,6 +155,8 @@ public class PackagedProgramApplicationTest {
         application.dispose();
         application.dispose();
 
+        // dispose clears the field so the closed program is no longer observable
+        assertThat(application.getPackagedProgram()).isNull();
         assertThat(extractedLibrary).doesNotExist();
     }
 
@@ -176,13 +178,23 @@ public class PackagedProgramApplicationTest {
                 finishedJobGatewayBuilder().build(),
                 scheduledExecutor,
                 fatalError::complete);
+        // the execute path reconstructs the program from the descriptor
+        final long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
+        PackagedProgram reconstructed = recovered.getPackagedProgram();
+        while (reconstructed == null && System.nanoTime() < deadlineNanos) {
+            Thread.sleep(10);
+            reconstructed = recovered.getPackagedProgram();
+        }
+        assertThat(reconstructed).isNotNull();
+        final Path extractedLibrary = getExtractedLibrary(reconstructed);
+        assertThat(extractedLibrary).exists();
+
         recovered.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
         assertThat(fatalError).isNotDone();
-        final PackagedProgram reconstructed = recovered.getPackagedProgram();
-        assertThat(reconstructed).isNotNull();
-        // only the job jar remains once the extracted nested libraries are deleted
-        assertThat(reconstructed.getJobJarAndDependencies()).hasSize(1);
+        // finishing the application closed and cleared the reconstructed program
+        assertThat(recovered.getPackagedProgram()).isNull();
+        assertThat(extractedLibrary).doesNotExist();
         program.close();
     }
 
