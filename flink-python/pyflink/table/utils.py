@@ -217,10 +217,9 @@ def pandas_to_arrow(schema, timezone, field_types, series):
         field_type = field_types[i]
         schema_type = schema.types[i]
         if type(s) == pd.DataFrame:
-            array_names = [(create_array(s[s.columns[j]], field.type), field.name)
-                           for j, field in enumerate(schema_type)]
-            struct_arrays, struct_names = zip(*array_names)
-            arrays.append(pa.StructArray.from_arrays(struct_arrays, struct_names))
+            struct_arrays = [create_array(s[s.columns[j]], field.type)
+                             for j, field in enumerate(schema_type)]
+            arrays.append(pa.StructArray.from_arrays(struct_arrays, fields=list(schema_type)))
         else:
             arrays.append(create_array(
                 tz_convert_to_internal(s, field_type, timezone), schema_type))

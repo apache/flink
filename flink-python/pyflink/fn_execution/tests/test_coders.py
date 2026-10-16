@@ -36,6 +36,32 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class ArrowSchemaTests(unittest.TestCase):
+    def test_pandas_row_preserves_field_nullability(self):
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+        from pyflink.table.utils import pandas_to_arrow
+
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD("total", DataTypes.BIGINT().not_null()),
+            DataTypes.FIELD("label", DataTypes.STRING()),
+        ]).not_null()
+        schema = create_arrow_schema(["summary"], [row_type])
+        values = [{"total": 6, "label": None}, {"total": 9, "label": "ok"}]
+        dataframe = pd.DataFrame(values)
+        for size in (0, len(values)):
+            with self.subTest(size=size):
+                batch = pandas_to_arrow(schema, pytz.UTC, [row_type], [dataframe.iloc[:size]])
+                with pa.BufferOutputStream() as output:
+                    with pa.ipc.new_stream(output, schema) as writer:
+                        writer.write_batch(batch)
+                    decoded = pa.ipc.open_stream(output.getvalue()).read_next_batch()
+                self.assertEqual(decoded.schema, schema)
+                self.assertFalse(decoded.column(0).type.field("total").nullable)
+                self.assertTrue(decoded.column(0).type.field("label").nullable)
+                self.assertEqual(decoded.to_pylist(),
+                                 [{"summary": value} for value in values[:size]])
+
     def test_pandas_positional_rows_require_matching_arity(self):
         import pandas as pd
         from pyflink.common import Row

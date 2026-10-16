@@ -1555,12 +1555,13 @@ def _wrap_map_arrow(func, input_type: RowType, output_type: RowType):
 
 
 def _create_result_normalizer(
-    data_type: Any, *, require_row_fields: bool = False,
+    data_type: Any, *, require_row_fields: bool = False, row_as_tuple: bool = False,
 ) -> Optional[Callable[[Any], Any]]:
     if isinstance(data_type, RowType):
         field_names = data_type.field_names()
         field_normalizers = tuple(
-            _create_result_normalizer(field.data_type, require_row_fields=require_row_fields)
+            _create_result_normalizer(
+                field.data_type, require_row_fields=require_row_fields, row_as_tuple=row_as_tuple)
             for field in data_type
         )
 
@@ -1577,6 +1578,8 @@ def _create_result_normalizer(
                     field_values, field_normalizers
                 )
             ]
+            if row_as_tuple:
+                return tuple(normalized_fields)
             row = Row(*normalized_fields)
             row.set_field_names(field_names)
             if isinstance(value, Row):
@@ -1586,7 +1589,8 @@ def _create_result_normalizer(
         return normalize_row
     if isinstance(data_type, ArrayType):
         element_normalizer = _create_result_normalizer(
-            data_type.element_type, require_row_fields=require_row_fields)
+            data_type.element_type, require_row_fields=require_row_fields,
+            row_as_tuple=row_as_tuple)
         if element_normalizer is None:
 
             def normalize_leaf_array(value: Any) -> Any:
@@ -1602,9 +1606,9 @@ def _create_result_normalizer(
         return normalize_array
     if isinstance(data_type, MapType):
         key_normalizer = _create_result_normalizer(
-            data_type.key_type, require_row_fields=require_row_fields)
+            data_type.key_type, require_row_fields=require_row_fields, row_as_tuple=row_as_tuple)
         value_normalizer = _create_result_normalizer(
-            data_type.value_type, require_row_fields=require_row_fields)
+            data_type.value_type, require_row_fields=require_row_fields, row_as_tuple=row_as_tuple)
 
         def normalize_map(value: Any) -> Any:
             if value is None:
