@@ -484,21 +484,8 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
 
             RowDataSerializerSnapshot oldRowDataSerializerSnapshot =
                     (RowDataSerializerSnapshot) oldSerializerSnapshot;
-            // A side that carries no names cannot disagree with anything: without names a reorder
-            // is undetectable, so identical types keep meaning "compatible as is" there, exactly as
-            // they do unarmed.
-            boolean namesDisagree =
-                    stateSchemaEvolutionEnabled
-                            && fieldNames != null
-                            && oldRowDataSerializerSnapshot.fieldNames != null
-                            && !Arrays.equals(fieldNames, oldRowDataSerializerSnapshot.fieldNames);
-
-            // Identical positional layout: the nested composite path. Equal types at equal
-            // positions say nothing about which field is which, so an armed resolution has to see
-            // the names agree as well before it can treat the layout as unchanged -- otherwise a
-            // reorder or a rename among same-typed fields resolves here as needing no migration
-            // and leaves every value sitting under a neighbour's name.
-            if (Arrays.equals(types, oldRowDataSerializerSnapshot.types) && !namesDisagree) {
+            // Identical layout: the nested composite path.
+            if (hasSameLayoutAs(oldRowDataSerializerSnapshot)) {
                 CompositeTypeSerializerUtil.IntermediateCompatibilityResult<RowData>
                         intermediateResult =
                                 CompositeTypeSerializerUtil
@@ -517,7 +504,28 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
 
                 return intermediateResult.getFinalResult();
             }
+            return resolveEvolution(oldRowDataSerializerSnapshot);
+        }
 
+        private boolean hasSameLayoutAs(RowDataSerializerSnapshot oldSnapshot) {
+            // A side that carries no names cannot disagree with anything: without names a reorder
+            // is undetectable, so identical types keep meaning "compatible as is" there, exactly as
+            // they do unarmed.
+            boolean namesDisagree =
+                    stateSchemaEvolutionEnabled
+                            && fieldNames != null
+                            && oldSnapshot.fieldNames != null
+                            && !Arrays.equals(fieldNames, oldSnapshot.fieldNames);
+
+            // Equal types at equal positions say nothing about which field is which, so an armed
+            // resolution has to see the names agree as well before it can treat the layout as
+            // unchanged -- otherwise a reorder or a rename among same-typed fields would need no
+            // migration and leave every value sitting under a neighbour's name.
+            return Arrays.equals(types, oldSnapshot.types) && !namesDisagree;
+        }
+
+        private TypeSerializerSchemaCompatibility<RowData> resolveEvolution(
+                RowDataSerializerSnapshot oldSnapshot) {
             if (!stateSchemaEvolutionEnabled) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
@@ -529,9 +537,9 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
-            return oldRowDataSerializerSnapshot.fieldNames != null
-                    ? checkNameBasedEvolution(oldRowDataSerializerSnapshot)
-                    : checkPositionalEvolution(oldRowDataSerializerSnapshot);
+            return oldSnapshot.fieldNames != null
+                    ? checkNameBasedEvolution(oldSnapshot)
+                    : checkPositionalEvolution(oldSnapshot);
         }
 
         private TypeSerializerSchemaCompatibility<RowData> checkNameBasedEvolution(
@@ -567,7 +575,9 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
             }
 
             // (C) Recurse into the aligned nested snapshot pairs.
-            return resolveAlignedNested(alignedNewNested, oldSnapshot);
+            return canRemapAligned(alignedNewNested, oldSnapshot)
+                    ? TypeSerializerSchemaCompatibility.compatibleAfterMigration()
+                    : TypeSerializerSchemaCompatibility.incompatible();
         }
 
         /**
@@ -602,24 +612,50 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData>
                     Arrays.copyOf(
                             nestedSerializersSnapshotDelegate.getNestedSerializerSnapshots(),
                             oldSnapshot.types.length);
-            return resolveAlignedNested(alignedNewNested, oldSnapshot);
+            return canRemapAligned(alignedNewNested, oldSnapshot)
+                    ? TypeSerializerSchemaCompatibility.compatibleAfterMigration()
+                    : TypeSerializerSchemaCompatibility.incompatible();
         }
 
-        private TypeSerializerSchemaCompatibility<RowData> resolveAlignedNested(
+        /**
+         * Whether {@code migrate} can carry every aligned field over. It rebuilds only the ROW
+         * spine; every other value keeps the bytes its old serializer wrote and is copied verbatim,
+         * so its new serializer has to read those bytes as they are. A reconfiguration or migration
+         * below that spine would never be applied.
+         */
+        private static boolean canRemapAligned(
                 TypeSerializerSnapshot<?>[] alignedNewNested,
                 RowDataSerializerSnapshot oldSnapshot) {
-            CompositeTypeSerializerUtil.IntermediateCompatibilityResult<RowData> nested =
-                    CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
-                            alignedNewNested,
-                            oldSnapshot.nestedSerializersSnapshotDelegate
-                                    .getNestedSerializerSnapshots());
-            // A reconfigured nested serializer is deliberately not propagated here, unlike on the
-            // identical-layout path. Reconfiguration exists so a new serializer can read old bytes;
-            // once the values have been remapped there are no old bytes left, because the migrated
-            // row is re-encoded by the state's own new serializer.
-            return nested.isIncompatible()
-                    ? TypeSerializerSchemaCompatibility.incompatible()
-                    : TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+            TypeSerializerSnapshot<?>[] oldNested =
+                    oldSnapshot.nestedSerializersSnapshotDelegate.getNestedSerializerSnapshots();
+            for (int i = 0; i < oldNested.length; i++) {
+                if (alignedNewNested[i] instanceof RowDataSerializerSnapshot
+                        && oldNested[i] instanceof RowDataSerializerSnapshot) {
+                    if (!((RowDataSerializerSnapshot) alignedNewNested[i])
+                            .canRemapFrom((RowDataSerializerSnapshot) oldNested[i])) {
+                        return false;
+                    }
+                } else if (!CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
+                                new TypeSerializerSnapshot<?>[] {alignedNewNested[i]},
+                                new TypeSerializerSnapshot<?>[] {oldNested[i]})
+                        .isCompatibleAsIs()) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /**
+         * The nested-ROW counterpart of {@link #resolveSchemaCompatibility}. Its identical-layout
+         * path may hand back a reconfigured serializer that a remapped parent never installs, so an
+         * unchanged nested row goes through {@link #canRemapAligned} as well.
+         */
+        private boolean canRemapFrom(RowDataSerializerSnapshot oldSnapshot) {
+            return hasSameLayoutAs(oldSnapshot)
+                    ? canRemapAligned(
+                            nestedSerializersSnapshotDelegate.getNestedSerializerSnapshots(),
+                            oldSnapshot)
+                    : !resolveEvolution(oldSnapshot).isIncompatible();
         }
 
         /**

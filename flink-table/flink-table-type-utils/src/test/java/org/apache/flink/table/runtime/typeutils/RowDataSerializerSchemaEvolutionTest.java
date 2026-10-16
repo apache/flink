@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.StateSchemaEvolvingSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -34,6 +35,7 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -399,6 +401,95 @@ class RowDataSerializerSchemaEvolutionTest {
     }
 
     // ------------------------------------------------------------------------
+    //  RAW leaves
+    // ------------------------------------------------------------------------
+
+    /**
+     * The control for the cases below: the reorder surfaces only through the nested snapshot, which
+     * an unchanged layout still reports as reconfigured.
+     */
+    @Test
+    void reorderedKryoRegistrationsInUnchangedLayoutAreReconfigured() throws IOException {
+        RawType<Object> oldRaw = kryoRaw(Integer.class, Long.class);
+        RawType<Object> newRaw = kryoRaw(Long.class, Integer.class);
+        // RawType equality ignores the registration order, so only the nested snapshot sees it.
+        assertThat(newRaw).isEqualTo(oldRaw);
+
+        assertThat(
+                        newSnapshot(row(new String[] {"id", "r"}, new IntType(), newRaw))
+                                .resolveSchemaCompatibility(
+                                        oldSnapshot(
+                                                row(
+                                                        new String[] {"id", "r"},
+                                                        new IntType(),
+                                                        oldRaw)))
+                                .isCompatibleWithReconfiguredSerializer())
+                .isTrue();
+    }
+
+    /**
+     * The remap copies a RAW payload's bytes, so a leaf whose serializer needs reconfiguring would
+     * keep the old Kryo registration ids.
+     */
+    @Test
+    void reconfiguredRawLeafIsIncompatibleWhenTheRowEvolves() throws IOException {
+        RowDataSerializerSnapshot oldSnap =
+                oldSnapshot(
+                        row(
+                                new String[] {"id", "r"},
+                                new IntType(),
+                                kryoRaw(Integer.class, Long.class)));
+        RowDataSerializerSnapshot newSnap =
+                newSnapshot(
+                        row(
+                                new String[] {"id", "r", "added"},
+                                new IntType(),
+                                kryoRaw(Long.class, Integer.class),
+                                new IntType()));
+
+        assertThat(newSnap.resolveSchemaCompatibility(oldSnap).isIncompatible()).isTrue();
+    }
+
+    /**
+     * An unchanged nested row would resolve as reconfigured on its own, but under an evolving
+     * parent it is remapped too, and its RAW payload is copied just the same.
+     */
+    @Test
+    void reconfiguredRawLeafInUnchangedNestedRowIsIncompatible() throws IOException {
+        RowDataSerializerSnapshot oldSnap =
+                oldSnapshot(
+                        row(
+                                new String[] {"id", "nested"},
+                                new IntType(),
+                                row(new String[] {"r"}, kryoRaw(Integer.class, Long.class))));
+        RowDataSerializerSnapshot newSnap =
+                newSnapshot(
+                        row(
+                                new String[] {"id", "nested", "added"},
+                                new IntType(),
+                                row(new String[] {"r"}, kryoRaw(Long.class, Integer.class)),
+                                new IntType()));
+
+        assertThat(newSnap.resolveSchemaCompatibility(oldSnap).isIncompatible()).isTrue();
+    }
+
+    /** The positional remap copies RAW payloads exactly as the name-based one does. */
+    @Test
+    void positionalReconfiguredRawLeafIsIncompatible() {
+        RowDataSerializerSnapshot oldSnap =
+                nameLessSnapshot(new IntType(), kryoRaw(Integer.class, Long.class));
+        RowDataSerializerSnapshot newSnap =
+                newSnapshot(
+                        row(
+                                new String[] {"id", "r", "added"},
+                                new IntType(),
+                                kryoRaw(Long.class, Integer.class),
+                                new IntType()));
+
+        assertThat(newSnap.resolveSchemaCompatibility(oldSnap).isIncompatible()).isTrue();
+    }
+
+    // ------------------------------------------------------------------------
     //  Opt-in semantics
     // ------------------------------------------------------------------------
 
@@ -616,6 +707,15 @@ class RowDataSerializerSchemaEvolutionTest {
     /** A prior snapshot from before field names were persisted. */
     private static RowDataSerializerSnapshot nameLessSnapshot(LogicalType... types) {
         return (RowDataSerializerSnapshot) new RowDataSerializer(types).snapshotConfiguration();
+    }
+
+    /** A RAW type whose Kryo serializer registers {@code registrationOrder} in that order. */
+    private static RawType<Object> kryoRaw(Class<?>... registrationOrder) {
+        SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
+        for (Class<?> registration : registrationOrder) {
+            serializerConfig.registerKryoType(registration);
+        }
+        return new RawType<>(Object.class, new KryoSerializer<>(Object.class, serializerConfig));
     }
 
     private static RowDataSerializerSnapshot roundTrip(TypeSerializerSnapshot<RowData> snapshot)
