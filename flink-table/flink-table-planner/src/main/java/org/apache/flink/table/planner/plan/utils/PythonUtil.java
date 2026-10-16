@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -29,6 +30,7 @@ import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel;
 import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
 
 import org.apache.calcite.plan.hep.HepRelVertex;
@@ -41,6 +43,7 @@ import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexNodeAndFieldIndex;
+import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
 
@@ -211,6 +214,19 @@ public class PythonUtil {
             return firstExplicitParallelism(((RexFieldAccess) node).getReferenceExpr());
         }
         return Optional.empty();
+    }
+
+    /** Rejects explicit concurrency that can reorder updates and deletes. */
+    public static void validatePythonCalcConcurrency(StreamPhysicalRel calc, RexProgram program) {
+        if (!ChangelogPlanUtils.inputInsertOnly(calc)
+                && program.getProjectList().stream()
+                        .map(program::expandLocalRef)
+                        .anyMatch(node -> firstExplicitParallelism(node).isPresent())) {
+            throw new TableException(
+                    "Python UDF concurrency is only supported for insert-only streaming inputs. "
+                            + "The input may contain updates or deletes. "
+                            + "Omit concurrency to inherit the upstream parallelism.");
+        }
     }
 
     /** Returns all explicit Python parallelisms in the expression tree. */

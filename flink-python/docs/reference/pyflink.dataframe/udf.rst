@@ -47,8 +47,10 @@ declaration forms, type inference, lifecycle, and examples, and
 
 Use the ``concurrency`` argument to set the parallelism of the Python operator
 that executes a UDF. UDFs with different explicit concurrency values are placed
-in separate operators. For pandas and Arrow UDFs, ``batch_size`` sets the maximum
-Arrow batch size. If compatible vectorized UDFs share an operator, the smallest
+in separate operators. Explicit concurrency is supported for batch and insert-only
+streaming inputs. Omit ``concurrency`` for inputs that can emit updates or deletes
+to inherit the upstream parallelism. For pandas and Arrow UDFs, ``batch_size`` sets
+the maximum Arrow batch size. If compatible vectorized UDFs share an operator, the smallest
 explicit batch size is used; otherwise the configured default applies.
 
 Aggregate Functions

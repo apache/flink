@@ -526,7 +526,6 @@ def udf(
                       unbound container annotations select pandas or Arrow mode;
                       otherwise general mode is used.
     :param concurrency: Optional parallelism for the Python operator that executes this UDF.
-                        UDFs with different explicit values run in separate operators.
     :param batch_size: Optional maximum Arrow batch size for a pandas or Arrow UDF. If compatible
                        vectorized UDFs are fused, the smallest explicit value is used.
     :return: A callable that accepts DataFrame expressions or Python literals and
