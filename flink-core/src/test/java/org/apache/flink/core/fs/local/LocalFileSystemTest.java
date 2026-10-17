@@ -38,6 +38,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
@@ -169,6 +170,31 @@ class LocalFileSystemTest {
         assertThat(lfs.delete(pathtotmpdir, true)).isTrue();
 
         assertThat(tempdir).doesNotExist();
+    }
+
+    @Test
+    void testListStatusIgnoresFilesDeletedConcurrently() throws Exception {
+        final File directory = TempDirUtils.newFolder(tempFolder);
+        final File retainedFile = new File(directory, "retained");
+        final File disappearingFile = new File(directory, "disappearing");
+        assertThat(retainedFile.createNewFile()).isTrue();
+        assertThat(disappearingFile.createNewFile()).isTrue();
+
+        final Path disappearingPath = new Path(disappearingFile.toURI());
+        final LocalFileSystem fileSystem =
+                new LocalFileSystem() {
+                    @Override
+                    public FileStatus getFileStatus(Path path) throws IOException {
+                        if (path.equals(disappearingPath)) {
+                            Files.delete(disappearingFile.toPath());
+                        }
+                        return super.getFileStatus(path);
+                    }
+                };
+
+        assertThat(fileSystem.listStatus(new Path(directory.toURI())))
+                .extracting(status -> status.getPath().getName())
+                .containsExactly("retained");
     }
 
     @Test
