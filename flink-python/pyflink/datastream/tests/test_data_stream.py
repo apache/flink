@@ -28,7 +28,7 @@ from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream import (RuntimeContext, SlotSharingGroup, StreamExecutionEnvironment,
                                 RuntimeExecutionMode)
-from pyflink.datastream.data_stream import DataStream
+from pyflink.datastream.data_stream import DataStream, _derive_uid_hash
 from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFlatMapFunction,
                                           MapFunction, FilterFunction, FlatMapFunction,
                                           KeyedCoProcessFunction, KeyedProcessFunction, KeySelector,
@@ -1596,6 +1596,75 @@ class CommonDataStreamTests(PyFlinkTestCase):
             .add_sink(self.test_sink).uid('sink')
 
         self.env.get_execution_plan()
+
+    def _source_with_uid(self):
+        self.env.get_config().disable_auto_generated_uids()
+        return self.env.from_collection([('a', 1), ('b', 2)],
+                                        type_info=Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .uid('source')
+
+    def test_key_by_uid(self):
+        """The operators key_by adds get uids derived from the uid of their input."""
+        source = self._source_with_uid()
+        source.key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .reduce(lambda a, b: (a[0], a[1] + b[1])).uid('reduce') \
+            .add_sink(self.test_sink).uid('sink')
+        source.key_by(lambda x: x[1], key_type=Types.INT()) \
+            .add_sink(self.test_sink).uid('sink2')
+
+        # Without a uid on every operator, this raises an IllegalStateException.
+        self.env.get_execution_plan()
+
+        # The uids identify the operators in a savepoint, so they must not change.
+        self.assertEqual(self._uids_and_hashes('_stream_key_by_map_operator'),
+                         [('source-key-by', None), ('source-key-by-2', None)])
+        self.assertEqual(self._uids_and_hashes('_keyed_stream_values_operator'),
+                         [('source-key-by-2-values', None)])
+
+    def test_key_by_uid_hash(self):
+        """With only a uid hash on the input, the helpers get uid hashes derived from it."""
+        self.env.get_config().disable_auto_generated_uids()
+        uid_hash = '0123456789abcdef0123456789abcdef'
+        self.env.from_collection([('a', 1), ('b', 2)],
+                                 type_info=Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .set_uid_hash(uid_hash) \
+            .key_by(lambda x: x[1], key_type=Types.INT()) \
+            .add_sink(self.test_sink).uid('sink')
+
+        self.env.get_execution_plan()
+
+        # The same derivation as for the operators assign_timestamps_and_watermarks hides.
+        key_by_uid_hash = _derive_uid_hash(uid_hash, 'key-by')
+        self.assertEqual(self._uids_and_hashes('_stream_key_by_map_operator'),
+                         [(None, key_by_uid_hash)])
+        self.assertEqual(self._uids_and_hashes('_keyed_stream_values_operator'),
+                         [(None, _derive_uid_hash(key_by_uid_hash, 'values'))])
+
+    def test_key_by_uid_after_python_operator(self):
+        """A key-by helper fused into the Python operator before it keeps that operator's uid."""
+        output_type = Types.TUPLE([Types.STRING(), Types.INT()])
+        self._source_with_uid() \
+            .map(lambda x: x, output_type=output_type).uid('map') \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .map(lambda x: x, output_type=output_type).uid('keyed') \
+            .add_sink(self.test_sink).uid('sink')
+
+        self.env.get_execution_plan()
+
+        self.assertEqual(self._uids_and_hashes('Map, _stream_key_by_map_operator'),
+                         [('map', None)])
+
+    def test_partition_custom_uid(self):
+        self._source_with_uid() \
+            .partition_custom(lambda key, num_partitions: key % num_partitions, lambda x: x[1]) \
+            .add_sink(self.test_sink).uid('sink')
+
+        self.env.get_execution_plan()
+
+        self.assertEqual(self._uids_and_hashes('_partition_custom_map_operator'),
+                         [('source-partition-custom', None)])
+        self.assertEqual(self._uids_and_hashes('_keyed_stream_values_operator'),
+                         [('source-partition-custom-values', None)])
 
     def test_keyed_stream_partitioning(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)])
