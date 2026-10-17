@@ -1126,6 +1126,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_QUERY(f0, '$.bools' RETURNING ARRAY<BOOLEAN>)",
                                 new Boolean[] {true, false},
                                 ARRAY(BOOLEAN()))
+                        // nested element is not a BOOLEAN -> ON ERROR (NULL)
+                        .testSqlResult(
+                                "JSON_QUERY('{\"a\": [[1], true]}', '$.a' RETURNING ARRAY<BOOLEAN>)",
+                                null,
+                                ARRAY(BOOLEAN()))
                         .testResult(
                                 $("f0").jsonQuery("$.ints", ARRAY(INT().notNull())),
                                 "JSON_QUERY(f0, '$.ints' RETURNING ARRAY<INT NOT NULL>)",
