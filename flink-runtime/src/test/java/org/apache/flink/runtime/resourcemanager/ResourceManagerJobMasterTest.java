@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
@@ -34,6 +35,9 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
+import org.apache.flink.runtime.security.token.DelegationTokenManager;
+import org.apache.flink.runtime.security.token.NoOpDelegationTokenManager;
+import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -43,11 +47,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.resourcemanager.ResourceManagerPartitionLifecycleTest.registerTaskExecutor;
@@ -93,10 +99,16 @@ class ResourceManagerJobMasterTest {
     }
 
     private void createAndStartResourceManagerService() throws Exception {
+        createAndStartResourceManagerService(new NoOpDelegationTokenManager());
+    }
+
+    private void createAndStartResourceManagerService(DelegationTokenManager delegationTokenManager)
+            throws Exception {
         final TestingLeaderElection leaderElection = new TestingLeaderElection();
         resourceManagerService =
                 TestingResourceManagerService.newBuilder()
                         .setRpcService(rpcService)
+                        .setDelegationTokenManager(delegationTokenManager)
                         .setJmLeaderRetrieverFunction(
                                 requestedJobId -> {
                                     if (requestedJobId.equals(jobId)) {
@@ -121,12 +133,16 @@ class ResourceManagerJobMasterTest {
                                                 "RM not available after confirming leadership."));
     }
 
-    @AfterEach
-    void teardown() throws Exception {
+    private void stopResourceManagerService() throws Exception {
         if (resourceManagerService != null) {
             resourceManagerService.rethrowFatalErrorIfAny();
-            resourceManagerService.cleanUp();
+            resourceManagerService.closeAsync().get();
         }
+    }
+
+    @AfterEach
+    void teardown() throws Exception {
+        stopResourceManagerService();
 
         if (rpcService != null) {
             RpcUtils.terminateRpcService(rpcService);
@@ -146,10 +162,76 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
                         jobId,
+                        new Configuration(),
                         TIMEOUT);
         assertThatFuture(successfulFuture)
                 .succeedsWithin(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
                 .isInstanceOf(JobMasterRegistrationSuccess.class);
+    }
+
+    /**
+     * Verifies that failed delegation token registration leaves no JobMaster registration behind
+     * and that a subsequent registration attempt succeeds.
+     */
+    @Test
+    void testRegisterJobMasterSucceedsAfterDelegationTokenRegistrationFailure() throws Exception {
+        // Rebuild the RM service with a delegation token manager that rejects the first attempt.
+        stopResourceManagerService();
+        final FlinkRuntimeException failure =
+                new FlinkRuntimeException("registerJob rejected by provider");
+        final FailingOnceDelegationTokenManager delegationTokenManager =
+                new FailingOnceDelegationTokenManager(failure);
+        createAndStartResourceManagerService(delegationTokenManager);
+        final Configuration jobConfiguration = new Configuration();
+
+        final CompletableFuture<RegistrationResponse> registrationFuture =
+                resourceManagerGateway.registerJobMaster(
+                        jobMasterGateway.getFencingToken(),
+                        jobMasterResourceId,
+                        jobMasterGateway.getAddress(),
+                        jobId,
+                        jobConfiguration,
+                        RpcUtils.INF_TIMEOUT);
+
+        final RegistrationResponse response = registrationFuture.get();
+        assertThat(response).isInstanceOf(RegistrationResponse.Failure.class);
+        final Throwable reason = ((RegistrationResponse.Failure) response).getReason();
+        assertThat(reason.getMessage()).contains(jobId.toString());
+        assertThat(reason.getMessage()).contains("delegation token manager");
+        assertThat(reason.getCause().getMessage()).contains("registerJob rejected by provider");
+        assertThat(delegationTokenManager.registrationAttempts.get()).isEqualTo(1);
+
+        final ResourceRequirements resourceRequirements =
+                ResourceRequirements.create(
+                        jobId, jobMasterGateway.getAddress(), Collections.emptyList());
+        assertThatFuture(
+                        resourceManagerGateway.declareRequiredResources(
+                                jobMasterGateway.getFencingToken(),
+                                resourceRequirements,
+                                RpcUtils.INF_TIMEOUT))
+                .eventuallyFails()
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(ResourceManagerException.class)
+                .withMessageContaining("Could not find registered job manager");
+
+        final CompletableFuture<RegistrationResponse> retryFuture =
+                resourceManagerGateway.registerJobMaster(
+                        jobMasterGateway.getFencingToken(),
+                        jobMasterResourceId,
+                        jobMasterGateway.getAddress(),
+                        jobId,
+                        jobConfiguration,
+                        RpcUtils.INF_TIMEOUT);
+        assertThatFuture(retryFuture)
+                .eventuallySucceeds()
+                .isInstanceOf(JobMasterRegistrationSuccess.class);
+        assertThat(delegationTokenManager.registrationAttempts.get()).isEqualTo(2);
+        assertThatFuture(
+                        resourceManagerGateway.declareRequiredResources(
+                                jobMasterGateway.getFencingToken(),
+                                resourceRequirements,
+                                RpcUtils.INF_TIMEOUT))
+                .eventuallySucceeds();
     }
 
     @Test
@@ -184,6 +266,7 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
                         jobId,
+                        new Configuration(),
                         TIMEOUT);
         assertThatFuture(successfulFuture)
                 .succeedsWithin(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
@@ -225,6 +308,7 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
                         jobId,
+                        new Configuration(),
                         TIMEOUT);
         assertThatFuture(unMatchedLeaderFuture)
                 .withFailMessage("Should fail because we are using the wrong fencing token.")
@@ -245,6 +329,7 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
                         jobId,
+                        new Configuration(),
                         TIMEOUT);
         assertThatFuture(unMatchedLeaderFuture)
                 .eventuallySucceeds()
@@ -263,6 +348,7 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         invalidAddress,
                         jobId,
+                        new Configuration(),
                         TIMEOUT);
         assertThatFuture(invalidAddressFuture)
                 .succeedsWithin(5, TimeUnit.SECONDS)
@@ -284,6 +370,7 @@ class ResourceManagerJobMasterTest {
                         jobMasterResourceId,
                         jobMasterGateway.getAddress(),
                         unknownJobIDToHAServices,
+                        new Configuration(),
                         TIMEOUT);
 
         assertThatFuture(registrationFuture)
@@ -294,5 +381,25 @@ class ResourceManagerJobMasterTest {
 
         // ignore the reported error
         resourceManagerService.ignoreFatalErrors();
+    }
+
+    /** A {@link DelegationTokenManager} whose first {@code registerJob} call throws. */
+    private static final class FailingOnceDelegationTokenManager
+            extends NoOpDelegationTokenManager {
+
+        private final Exception failure;
+
+        private final AtomicInteger registrationAttempts = new AtomicInteger();
+
+        private FailingOnceDelegationTokenManager(Exception failure) {
+            this.failure = failure;
+        }
+
+        @Override
+        public void registerJob(JobID jobId, Configuration jobConfiguration) throws Exception {
+            if (registrationAttempts.incrementAndGet() == 1) {
+                throw failure;
+            }
+        }
     }
 }
