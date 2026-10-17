@@ -25,13 +25,17 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -40,10 +44,12 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the parameter handling of the {@link JarPlanHandler}. */
 class JarPlanHandlerParameterTest
@@ -74,6 +80,25 @@ class JarPlanHandlerParameterTest
                             LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.set(jobGraph);
                             return new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph));
                         });
+    }
+
+    @Test
+    void testMissingJarFailsWithBadRequestAsynchronously() throws Exception {
+        final HandlerRequest<JarPlanRequestBody> request =
+                createRequest(
+                        getDefaultJarRequestBody(),
+                        getUnresolvedJarMessageParameters(),
+                        getUnresolvedJarMessageParameters(),
+                        jarDir.resolve("missing.jar"));
+
+        final CompletableFuture<JobPlanInfo> result =
+                handler.handleRequest(request, restfulGateway);
+
+        assertThatThrownBy(result::get)
+                .hasRootCauseInstanceOf(RestHandlerException.class)
+                .rootCause()
+                .extracting(e -> ((RestHandlerException) e).getHttpResponseStatus())
+                .isEqualTo(HttpResponseStatus.BAD_REQUEST);
     }
 
     @Override

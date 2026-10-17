@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.rest.handler.util.HandlerRequestUtils.fromRequestBodyOrQueryParameter;
@@ -106,6 +107,20 @@ public class JarRunApplicationHandler
                 effectiveConfiguration);
 
         final PackagedProgram program = context.toPackagedProgram(effectiveConfiguration);
+        try {
+            context.applyProgramToConfiguration(effectiveConfiguration, program);
+            return submitApplication(gateway, context, effectiveConfiguration, program);
+        } catch (Throwable t) {
+            program.close();
+            throw t;
+        }
+    }
+
+    private CompletableFuture<JarRunApplicationResponseBody> submitApplication(
+            final DispatcherGateway gateway,
+            final JarHandlerContext context,
+            final Configuration effectiveConfiguration,
+            final PackagedProgram program) {
 
         ApplicationID applicationId = context.getApplicationId().orElse(ApplicationID.generate());
 
@@ -123,6 +138,9 @@ public class JarRunApplicationHandler
             jarUploadFuture = CompletableFuture.completedFuture(null);
         }
 
+        // Once the application is created it owns the program and the dispatcher disposes it if
+        // the submission is rejected, so the handler only closes the program before that point.
+        final AtomicReference<PackagedProgramApplication> applicationRef = new AtomicReference<>();
         return jarUploadFuture
                 .thenCompose(
                         jarInfo -> {
@@ -137,11 +155,22 @@ public class JarRunApplicationHandler
                                             false,
                                             false,
                                             jarInfo);
+                            applicationRef.set(application);
                             return gateway.submitApplication(application, timeout);
                         })
                 .handle(
                         (acknowledge, throwable) -> {
                             if (throwable != null) {
+                                // The RPC may have failed before the dispatcher registered the
+                                // application, in which case nobody else releases the program.
+                                // dispose() closes the program and is idempotent, so it is safe
+                                // even if the dispatcher already disposed a rejected application.
+                                final PackagedProgramApplication application = applicationRef.get();
+                                if (application != null) {
+                                    application.dispose();
+                                } else {
+                                    program.close();
+                                }
                                 throw new CompletionException(
                                         new RestHandlerException(
                                                 "Could not submit application.",
