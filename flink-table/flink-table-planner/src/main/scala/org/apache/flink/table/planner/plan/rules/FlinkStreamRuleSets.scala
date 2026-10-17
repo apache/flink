@@ -391,6 +391,7 @@ object FlinkStreamRuleSets {
     CalcPythonCorrelateTransposeRule.INSTANCE,
     // Rule that splits java calls from python TableFunction
     PythonCorrelateSplitRule.INSTANCE,
+    PythonCorrelateSplitConcurrencyRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
     // remove output of rank number when it is not used by successor calc

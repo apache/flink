@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
-import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
+import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, PythonUtil}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -69,6 +69,8 @@ class StreamPhysicalPythonCorrelate(
       }
       throw new TableException("The condition of StreamPhysicalPythonCorrelate should be null.")
     }
+
+    PythonUtil.validatePythonCorrelateConcurrency(this, scan.getCall)
 
     new StreamExecPythonCorrelate(
       unwrapTableConfig(this),

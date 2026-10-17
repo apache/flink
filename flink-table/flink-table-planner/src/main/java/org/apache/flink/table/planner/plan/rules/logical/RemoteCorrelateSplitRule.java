@@ -44,8 +44,11 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.immutables.value.Value;
 
+import javax.annotation.Nullable;
+
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import scala.collection.Iterator;
@@ -66,7 +69,7 @@ public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.C
         this.callFinder = callFinder;
     }
 
-    private FlinkLogicalTableFunctionScan createNewScan(
+    private static FlinkLogicalTableFunctionScan createNewScan(
             FlinkLogicalTableFunctionScan scan, ScalarFunctionSplitter splitter) {
         RexCall rightRexCall = (RexCall) scan.getCall();
         // extract Java funcs from Remote TableFunction or Remote funcs from Java TableFunction.
@@ -89,13 +92,8 @@ public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.C
     @Override
     public boolean matches(RelOptRuleCall call) {
         FlinkLogicalCorrelate correlate = call.rel(0);
-        RelNode right = ((HepRelVertex) correlate.getRight()).getCurrentRel();
-        FlinkLogicalTableFunctionScan tableFunctionScan;
-        if (right instanceof FlinkLogicalTableFunctionScan) {
-            tableFunctionScan = (FlinkLogicalTableFunctionScan) right;
-        } else if (right instanceof FlinkLogicalCalc) {
-            tableFunctionScan = StreamPhysicalCorrelateRule.getTableScan((FlinkLogicalCalc) right);
-        } else {
+        final FlinkLogicalTableFunctionScan tableFunctionScan = getTableFunctionScan(correlate);
+        if (tableFunctionScan == null) {
             return false;
         }
         RexNode rexNode = tableFunctionScan.getCall();
@@ -108,7 +106,7 @@ public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.C
         return false;
     }
 
-    private List<String> createNewFieldNames(
+    private static List<String> createNewFieldNames(
             RelDataType rowType,
             RexBuilder rexBuilder,
             int primitiveFieldCount,
@@ -180,7 +178,7 @@ public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.C
                 nameList, rexBuilder.getTypeFactory().getTypeSystem().isSchemaCaseSensitive());
     }
 
-    private FlinkLogicalCalc createNewLeftCalc(
+    private static FlinkLogicalCalc createNewLeftCalc(
             RelNode left,
             RexBuilder rexBuilder,
             ArrayBuffer<RexNode> extractedRexNodes,
@@ -205,7 +203,7 @@ public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.C
                         leftRowType, leftCalcProjects, null, leftCalcCalcFieldNames, rexBuilder));
     }
 
-    private FlinkLogicalCalc createTopCalc(
+    private static FlinkLogicalCalc createTopCalc(
             int primitiveLeftFieldCount,
             RexBuilder rexBuilder,
             ArrayBuffer<RexNode> extractedRexNodes,
@@ -238,65 +236,65 @@ public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.C
                         rexBuilder));
     }
 
-    private ScalarFunctionSplitter createScalarFunctionSplitter(
-            RexBuilder rexBuilder,
-            int primitiveLeftFieldCount,
-            ArrayBuffer<RexNode> extractedRexNodes,
-            RexNode tableFunctionNode) {
-        return new ScalarFunctionSplitter(
-                // The scan should not contain any local references to resolve, so null is passed.
-                null,
-                rexBuilder,
-                primitiveLeftFieldCount,
-                extractedRexNodes,
-                node -> {
-                    if (callFinder.isNonRemoteCall(tableFunctionNode)) {
-                        // splits the RexCalls which contain Remote functions into separate node
-                        return callFinder.isRemoteCall(node);
-                    } else if (callFinder.containsNonRemoteCall(node)) {
-                        // splits the RexCalls which contain non-Remote functions into separate node
-                        return callFinder.isNonRemoteCall(node);
-                    } else {
-                        // splits the RexFieldAccesses which contain non-Remote functions into
-                        // separate node
-                        return node instanceof RexFieldAccess;
-                    }
-                },
-                callFinder);
+    @Nullable
+    static FlinkLogicalTableFunctionScan getTableFunctionScan(FlinkLogicalCorrelate correlate) {
+        final RelNode right = ((HepRelVertex) correlate.getRight()).getCurrentRel();
+        if (right instanceof FlinkLogicalTableFunctionScan) {
+            return (FlinkLogicalTableFunctionScan) right;
+        }
+        if (right instanceof FlinkLogicalCalc) {
+            return StreamPhysicalCorrelateRule.getTableScan((FlinkLogicalCalc) right);
+        }
+        return null;
+    }
+
+    private Predicate<RexNode> createSplitPredicate(RexNode tableFunctionNode) {
+        return node -> {
+            if (callFinder.isNonRemoteCall(tableFunctionNode)) {
+                return callFinder.isRemoteCall(node);
+            } else if (callFinder.containsNonRemoteCall(node)) {
+                return callFinder.isNonRemoteCall(node);
+            } else {
+                return node instanceof RexFieldAccess;
+            }
+        };
     }
 
     @Override
     public void onMatch(RelOptRuleCall call) {
-        FlinkLogicalCorrelate correlate = call.rel(0);
-        RexBuilder rexBuilder = call.builder().getRexBuilder();
+        final FlinkLogicalCorrelate correlate = call.rel(0);
+        final FlinkLogicalTableFunctionScan scan = getTableFunctionScan(correlate);
+        call.transformTo(
+                splitCorrelate(correlate, createSplitPredicate(scan.getCall()), callFinder));
+    }
+
+    static RelNode splitCorrelate(
+            FlinkLogicalCorrelate correlate,
+            Predicate<RexNode> shouldExtract,
+            RemoteCallFinder callFinder) {
+        final RexBuilder rexBuilder = correlate.getCluster().getRexBuilder();
         RelNode left = ((HepRelVertex) correlate.getLeft()).getCurrentRel();
         RelNode right = ((HepRelVertex) correlate.getRight()).getCurrentRel();
         int primitiveLeftFieldCount = left.getRowType().getFieldCount();
         ArrayBuffer<RexNode> extractedRexNodes = new ArrayBuffer<>();
+        final ScalarFunctionSplitter splitter =
+                new ScalarFunctionSplitter(
+                        null,
+                        rexBuilder,
+                        primitiveLeftFieldCount,
+                        extractedRexNodes,
+                        shouldExtract::test,
+                        callFinder);
 
         RelNode rightNewInput;
         if (right instanceof FlinkLogicalTableFunctionScan) {
             FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) right;
-            rightNewInput =
-                    createNewScan(
-                            scan,
-                            createScalarFunctionSplitter(
-                                    rexBuilder,
-                                    primitiveLeftFieldCount,
-                                    extractedRexNodes,
-                                    scan.getCall()));
+            rightNewInput = createNewScan(scan, splitter);
         } else {
             FlinkLogicalCalc calc = (FlinkLogicalCalc) right;
             FlinkLogicalTableFunctionScan scan = StreamPhysicalCorrelateRule.getTableScan(calc);
             FlinkLogicalCalc mergedCalc = StreamPhysicalCorrelateRule.getMergedCalc(calc);
-            FlinkLogicalTableFunctionScan newScan =
-                    createNewScan(
-                            scan,
-                            createScalarFunctionSplitter(
-                                    rexBuilder,
-                                    primitiveLeftFieldCount,
-                                    extractedRexNodes,
-                                    scan.getCall()));
+            FlinkLogicalTableFunctionScan newScan = createNewScan(scan, splitter);
             rightNewInput =
                     mergedCalc.copy(mergedCalc.getTraitSet(), newScan, mergedCalc.getProgram());
         }
@@ -335,7 +333,7 @@ public class RemoteCorrelateSplitRule extends RelRule<RemoteCorrelateSplitRule.C
                         correlate.getRowType(),
                         newCorrelate);
 
-        call.transformTo(newTopCalc);
+        return newTopCalc;
     }
 
     // Consider the rules to be equal if they are the same class and their call finders are the same

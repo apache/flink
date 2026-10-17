@@ -218,10 +218,22 @@ public class PythonUtil {
 
     /** Rejects explicit concurrency that can reorder updates and deletes. */
     public static void validatePythonCalcConcurrency(StreamPhysicalRel calc, RexProgram program) {
-        if (!ChangelogPlanUtils.inputInsertOnly(calc)
-                && program.getProjectList().stream()
+        validatePythonConcurrency(
+                calc,
+                program.getProjectList().stream()
                         .map(program::expandLocalRef)
-                        .anyMatch(node -> firstExplicitParallelism(node).isPresent())) {
+                        .anyMatch(node -> firstExplicitParallelism(node).isPresent()));
+    }
+
+    /** Rejects explicit concurrency in a correlate that can reorder updates and deletes. */
+    public static void validatePythonCorrelateConcurrency(
+            StreamPhysicalRel correlate, RexNode invocation) {
+        validatePythonConcurrency(correlate, firstExplicitParallelism(invocation).isPresent());
+    }
+
+    private static void validatePythonConcurrency(
+            StreamPhysicalRel rel, boolean hasExplicitParallelism) {
+        if (hasExplicitParallelism && !ChangelogPlanUtils.inputInsertOnly(rel)) {
             throw new TableException(
                     "Python UDF concurrency is only supported for insert-only streaming inputs. "
                             + "The input may contain updates or deletes. "
