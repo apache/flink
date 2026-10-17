@@ -884,7 +884,7 @@ public class SqlJsonUtils {
         }
         try {
             return convertToType(raw, typeRoot, precision, scale);
-        } catch (JsonConversionException e) {
+        } catch (TableRuntimeException e) {
             switch (errorBehavior) {
                 case NULL:
                     return null;
@@ -917,12 +917,12 @@ public class SqlJsonUtils {
                 if (rawArr[i] != null) {
                     converted[i] = convertToType(rawArr[i], elementTypeRoot, precision, scale);
                 } else if (!elementNullable) {
-                    throw new JsonConversionException(
+                    throw new TableRuntimeException(
                             "Null element at index " + i + " in NOT NULL array");
                 }
             }
             return new GenericArrayData(converted);
-        } catch (JsonConversionException e) {
+        } catch (TableRuntimeException e) {
             switch (errorBehavior) {
                 case NULL:
                     return null;
@@ -950,43 +950,48 @@ public class SqlJsonUtils {
                 String trimmed = ((String) raw).trim();
                 return convertToType(new BigDecimal(trimmed), typeRoot, precision, scale);
             } catch (NumberFormatException e) {
-                throw new JsonConversionException(
+                throw new TableRuntimeException(
                         "Cannot parse string '" + raw + "' as " + typeRoot, e);
             }
         }
-        switch (typeRoot) {
-            case BOOLEAN:
-                if (raw instanceof Number) {
-                    BigDecimal bd =
-                            raw instanceof BigDecimal
-                                    ? (BigDecimal) raw
-                                    : new BigDecimal(raw.toString());
-                    if (BigDecimal.ZERO.compareTo(bd) == 0) {
-                        return false;
+        try {
+            switch (typeRoot) {
+                case BOOLEAN:
+                    if (raw instanceof Number) {
+                        BigDecimal bd =
+                                raw instanceof BigDecimal
+                                        ? (BigDecimal) raw
+                                        : new BigDecimal(raw.toString());
+                        if (BigDecimal.ZERO.compareTo(bd) == 0) {
+                            return false;
+                        }
+                        if (BigDecimal.ONE.compareTo(bd) == 0) {
+                            return true;
+                        }
+                        throw new TableRuntimeException("Cannot convert " + raw + " to BOOLEAN");
                     }
-                    if (BigDecimal.ONE.compareTo(bd) == 0) {
-                        return true;
-                    }
-                    throw new JsonConversionException("Cannot convert " + raw + " to BOOLEAN");
-                }
-                return (Boolean) raw;
-            case TINYINT:
-                return toCheckedByte((Number) raw);
-            case SMALLINT:
-                return toCheckedShort((Number) raw);
-            case INTEGER:
-                return toCheckedInt((Number) raw);
-            case BIGINT:
-                return toCheckedLong((Number) raw);
-            case FLOAT:
-                return toCheckedFloat((Number) raw);
-            case DOUBLE:
-                return toCheckedDouble((Number) raw);
-            case DECIMAL:
-                return toCheckedDecimal(raw.toString(), precision, scale);
-            default:
-                throw new JsonConversionException(
-                        "Unsupported type for JSON conversion: " + typeRoot);
+                    return raw;
+                case TINYINT:
+                    return toCheckedByte((Number) raw);
+                case SMALLINT:
+                    return toCheckedShort((Number) raw);
+                case INTEGER:
+                    return toCheckedInt((Number) raw);
+                case BIGINT:
+                    return toCheckedLong((Number) raw);
+                case FLOAT:
+                    return toCheckedFloat((Number) raw);
+                case DOUBLE:
+                    return toCheckedDouble((Number) raw);
+                case DECIMAL:
+                    return toCheckedDecimal(raw.toString(), precision, scale);
+                default:
+                    throw new TableRuntimeException(
+                            "Unsupported type for JSON conversion: " + typeRoot);
+            }
+        } catch (ClassCastException e) {
+            throw new TableRuntimeException(
+                    "Cannot convert " + raw.getClass().getName() + " to " + typeRoot, e);
         }
     }
 
@@ -997,7 +1002,7 @@ public class SqlJsonUtils {
         }
         try {
             return convertToType(defaultValue, typeRoot, precision, scale);
-        } catch (JsonConversionException e) {
+        } catch (TableRuntimeException e) {
             throw new TableRuntimeException(
                     "Default value " + defaultValue + " cannot be represented as " + typeRoot, e);
         }
@@ -1018,13 +1023,13 @@ public class SqlJsonUtils {
         if (bi != null) {
             if (bi.compareTo(BigInteger.valueOf(Byte.MAX_VALUE)) > 0
                     || bi.compareTo(BigInteger.valueOf(Byte.MIN_VALUE)) < 0) {
-                throw new JsonConversionException("Value " + n + " is out of range for TINYINT");
+                throw new TableRuntimeException("Value " + n + " is out of range for TINYINT");
             }
             return bi.byteValue();
         }
         long v = n.longValue();
         if (v < Byte.MIN_VALUE || v > Byte.MAX_VALUE) {
-            throw new JsonConversionException("Value " + n + " is out of range for TINYINT");
+            throw new TableRuntimeException("Value " + n + " is out of range for TINYINT");
         }
         return (byte) v;
     }
@@ -1034,13 +1039,13 @@ public class SqlJsonUtils {
         if (bi != null) {
             if (bi.compareTo(BigInteger.valueOf(Short.MAX_VALUE)) > 0
                     || bi.compareTo(BigInteger.valueOf(Short.MIN_VALUE)) < 0) {
-                throw new JsonConversionException("Value " + n + " is out of range for SMALLINT");
+                throw new TableRuntimeException("Value " + n + " is out of range for SMALLINT");
             }
             return bi.shortValue();
         }
         long v = n.longValue();
         if (v < Short.MIN_VALUE || v > Short.MAX_VALUE) {
-            throw new JsonConversionException("Value " + n + " is out of range for SMALLINT");
+            throw new TableRuntimeException("Value " + n + " is out of range for SMALLINT");
         }
         return (short) v;
     }
@@ -1050,13 +1055,13 @@ public class SqlJsonUtils {
         if (bi != null) {
             if (bi.compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0
                     || bi.compareTo(BigInteger.valueOf(Integer.MIN_VALUE)) < 0) {
-                throw new JsonConversionException("Value " + n + " is out of range for INTEGER");
+                throw new TableRuntimeException("Value " + n + " is out of range for INTEGER");
             }
             return bi.intValue();
         }
         long v = n.longValue();
         if (v < Integer.MIN_VALUE || v > Integer.MAX_VALUE) {
-            throw new JsonConversionException("Value " + n + " is out of range for INTEGER");
+            throw new TableRuntimeException("Value " + n + " is out of range for INTEGER");
         }
         return (int) v;
     }
@@ -1064,7 +1069,7 @@ public class SqlJsonUtils {
     static float toCheckedFloat(Number n) {
         float f = n.floatValue();
         if (Float.isInfinite(f) || Float.isNaN(f)) {
-            throw new JsonConversionException("Value " + n + " is out of range for FLOAT");
+            throw new TableRuntimeException("Value " + n + " is out of range for FLOAT");
         }
         return f;
     }
@@ -1072,7 +1077,7 @@ public class SqlJsonUtils {
     static double toCheckedDouble(Number n) {
         double d = n.doubleValue();
         if (Double.isInfinite(d) || Double.isNaN(d)) {
-            throw new JsonConversionException("Value " + n + " is out of range for DOUBLE");
+            throw new TableRuntimeException("Value " + n + " is out of range for DOUBLE");
         }
         return d;
     }
@@ -1082,7 +1087,7 @@ public class SqlJsonUtils {
         if (bi != null) {
             if (bi.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0
                     || bi.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0) {
-                throw new JsonConversionException("Value " + n + " is out of range for BIGINT");
+                throw new TableRuntimeException("Value " + n + " is out of range for BIGINT");
             }
             return bi.longValue();
         }
@@ -1092,7 +1097,7 @@ public class SqlJsonUtils {
     static DecimalData toCheckedDecimal(String value, int precision, int scale) {
         DecimalData result = DecimalDataUtils.castFrom(value, precision, scale);
         if (result == null) {
-            throw new JsonConversionException(
+            throw new TableRuntimeException(
                     "Value "
                             + value
                             + " cannot be represented as DECIMAL("

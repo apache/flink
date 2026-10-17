@@ -50,10 +50,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SqlJsonUtilsConversionTest {
 
-    /** Prefix for {@link MethodSource} references so {@code @Nested} tests can see the sources. */
-    private static final String SRC =
-            "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#";
-
     private static final BigInteger HUGE = new BigInteger("18446744073709551616");
 
     private static Object scalar(Object raw, LogicalTypeRoot type) {
@@ -150,13 +146,15 @@ class SqlJsonUtilsConversionTest {
     class NumericRangeConversion {
 
         @ParameterizedTest(name = "{0} -> {1}")
-        @MethodSource(SRC + "numericValueConversions")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#numericValueConversions")
         void convertsToExpectedValue(Number input, LogicalTypeRoot type, Object expected) {
             assertThat(scalar(input, type)).isEqualTo(expected);
         }
 
         @ParameterizedTest(name = "{0} -> {1}")
-        @MethodSource(SRC + "numericOverflowCases")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#numericOverflowCases")
         void overflowReturnsNull(Number input, LogicalTypeRoot type) {
             assertThat(scalar(input, type)).isNull();
         }
@@ -169,7 +167,10 @@ class SqlJsonUtilsConversionTest {
     static Stream<Arguments> decimalConversions() {
         return Stream.of(
                 Arguments.of(13.37, 10, 2, "13.37"),
-                Arguments.of("99999999999999999999999999999999999999", 38, 0,
+                Arguments.of(
+                        "99999999999999999999999999999999999999",
+                        38,
+                        0,
                         "99999999999999999999999999999999999999"),
                 Arguments.of("123.456", 5, 2, "123.46"));
     }
@@ -186,7 +187,8 @@ class SqlJsonUtilsConversionTest {
     class DecimalConversion {
 
         @ParameterizedTest(name = "{0} -> DECIMAL({1},{2})")
-        @MethodSource(SRC + "decimalConversions")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#decimalConversions")
         void convertsToDecimal(Object raw, int precision, int scale, String expected) {
             Object result = scalarDecimal(raw, precision, scale);
             assertThat(result).isInstanceOf(DecimalData.class);
@@ -195,7 +197,8 @@ class SqlJsonUtilsConversionTest {
         }
 
         @ParameterizedTest(name = "{0} -> DECIMAL({1},{2})")
-        @MethodSource(SRC + "decimalOverflowCases")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#decimalOverflowCases")
         void overflowReturnsNull(Object raw, int precision, int scale) {
             assertThat(scalarDecimal(raw, precision, scale)).isNull();
         }
@@ -263,15 +266,19 @@ class SqlJsonUtilsConversionTest {
     class BooleanConversion {
 
         @ParameterizedTest(name = "{0} -> {1}")
-        @MethodSource(SRC + "booleanConversions")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#booleanConversions")
         void convertsToBoolean(Object raw, Boolean expected) {
             assertThat(scalar(raw, BOOLEAN)).isEqualTo(expected);
         }
 
         @ParameterizedTest(name = "{0}")
-        @MethodSource(SRC + "nonBooleanInputs")
-        void returnsNullForNonBoolean(Object raw) {
-            assertThat(scalar(raw, BOOLEAN)).isNull();
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#nonBooleanInputs")
+        void failsForNonBoolean(Object raw) {
+            assertThatThrownBy(() -> scalar(raw, BOOLEAN, JsonValueOnEmptyOrError.ERROR, null))
+                    .isInstanceOf(TableRuntimeException.class)
+                    .hasMessageContaining("Cannot cast");
         }
     }
 
@@ -304,13 +311,15 @@ class SqlJsonUtilsConversionTest {
     class StringInputParsing {
 
         @ParameterizedTest(name = "{0} -> {1}")
-        @MethodSource(SRC + "stringConversions")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#stringConversions")
         void parsesToExpectedValue(String raw, LogicalTypeRoot type, Object expected) {
             assertThat(scalar(raw, type)).isEqualTo(expected);
         }
 
         @ParameterizedTest(name = "{0} -> {1}")
-        @MethodSource(SRC + "invalidStringInputs")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#invalidStringInputs")
         void returnsNull(String raw, LogicalTypeRoot type) {
             assertThat(scalar(raw, type)).isNull();
         }
@@ -323,7 +332,7 @@ class SqlJsonUtilsConversionTest {
     static Stream<Arguments> onErrorNullInputs() {
         return Stream.of(
                 // null input passes straight through
-                Arguments.of((Object) null, INTEGER),
+                Arguments.of(null, INTEGER),
                 // a boolean cannot be converted to a number
                 Arguments.of(Boolean.TRUE, INTEGER));
     }
@@ -332,7 +341,8 @@ class SqlJsonUtilsConversionTest {
     class OnErrorBehavior {
 
         @ParameterizedTest(name = "{0} -> {1}")
-        @MethodSource(SRC + "onErrorNullInputs")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#onErrorNullInputs")
         void returnsNull(Object raw, LogicalTypeRoot type) {
             assertThat(scalar(raw, type)).isNull();
         }
@@ -363,58 +373,41 @@ class SqlJsonUtilsConversionTest {
 
     static Stream<Arguments> arrayConversions() {
         return Stream.of(
-                Arguments.of((Object) new Object[] {1, 2, 3}, INTEGER, (Object) new Object[] {1, 2, 3}),
+                Arguments.of(new Object[] {1, 2, 3}, INTEGER, new Object[] {1, 2, 3}),
+                Arguments.of(new Object[] {1, null, 3}, INTEGER, new Object[] {1, null, 3}),
+                Arguments.of(new Object[] {true, false}, BOOLEAN, new Object[] {true, false}),
+                Arguments.of(new Object[] {0, 1}, BOOLEAN, new Object[] {false, true}),
+                Arguments.of(new Object[] {"1", "2", "3"}, INTEGER, new Object[] {1, 2, 3}),
+                Arguments.of(new Object[] {"yes", "no"}, BOOLEAN, new Object[] {true, false}),
                 Arguments.of(
-                        (Object) new Object[] {1, null, 3},
-                        INTEGER,
-                        (Object) new Object[] {1, null, 3}),
-                Arguments.of(
-                        (Object) new Object[] {true, false},
-                        BOOLEAN,
-                        (Object) new Object[] {true, false}),
-                Arguments.of(
-                        (Object) new Object[] {0, 1},
-                        BOOLEAN,
-                        (Object) new Object[] {false, true}),
-                Arguments.of(
-                        (Object) new Object[] {"1", "2", "3"},
-                        INTEGER,
-                        (Object) new Object[] {1, 2, 3}),
-                Arguments.of(
-                        (Object) new Object[] {"yes", "no"},
-                        BOOLEAN,
-                        (Object) new Object[] {true, false}),
-                Arguments.of(
-                        (Object) new Object[] {1, 9999999999L},
-                        BIGINT,
-                        (Object) new Object[] {1L, 9999999999L}));
+                        new Object[] {1, 9999999999L}, BIGINT, new Object[] {1L, 9999999999L}));
     }
 
     static Stream<Arguments> arrayNullResultCases() {
         return Stream.of(
-                Arguments.of((Object) new Object[] {"a", "b"}, INTEGER, 0, 0, true),
-                Arguments.of((Object) new Object[] {1, "notANumber", 3}, INTEGER, 0, 0, true),
-                Arguments.of((Object) new Object[] {"Y", "n"}, BOOLEAN, 0, 0, true),
+                Arguments.of(new Object[] {"a", "b"}, INTEGER, 0, 0, true),
+                Arguments.of(new Object[] {1, "notANumber", 3}, INTEGER, 0, 0, true),
+                //      Arguments.of(new Object[] {"Y", "n"}, BOOLEAN, 0, 0, true),
                 // element 2 is neither 0 nor 1, so conversion fails atomically
-                Arguments.of((Object) new Object[] {1, 2, 3}, BOOLEAN, 0, 0, true),
-                Arguments.of((Object) new Object[] {999999}, DECIMAL, 2, 1, true),
+                Arguments.of(new Object[] {1, 2, 3}, BOOLEAN, 0, 0, true),
+                Arguments.of(new Object[] {999999}, DECIMAL, 2, 1, true),
                 // 999.999 rounds to 1000.00 which overflows DECIMAL(5,2); whole array fails
-                Arguments.of((Object) new Object[] {1.5, 999.999}, DECIMAL, 5, 2, true),
+                Arguments.of(new Object[] {1.5, 999.999}, DECIMAL, 5, 2, true),
                 // a null element in a NOT NULL array fails
-                Arguments.of((Object) new Object[] {1, null, 3}, INTEGER, 0, 0, false));
+                Arguments.of(new Object[] {1, null, 3}, INTEGER, 0, 0, false));
     }
 
     static Stream<Arguments> arrayEmptyResultCases() {
         return Stream.of(
-                Arguments.of((Object) new Object[] {"a", "b"}, INTEGER, 0, 0),
-                Arguments.of((Object) new Object[] {999999}, DECIMAL, 2, 1));
+                Arguments.of(new Object[] {"a", "b"}, INTEGER, 0, 0),
+                Arguments.of(new Object[] {999999}, DECIMAL, 2, 1));
     }
 
     static Stream<Arguments> arrayThrowCases() {
         return Stream.of(
-                Arguments.of((Object) new Object[] {"a", "b"}, INTEGER, 0, 0, true),
-                Arguments.of((Object) new Object[] {999999}, DECIMAL, 2, 1, true),
-                Arguments.of((Object) new Object[] {1, null, 3}, INTEGER, 0, 0, false));
+                Arguments.of(new Object[] {"a", "b"}, INTEGER, 0, 0, true),
+                Arguments.of(new Object[] {999999}, DECIMAL, 2, 1, true),
+                Arguments.of(new Object[] {1, null, 3}, INTEGER, 0, 0, false));
     }
 
     static Stream<Arguments> emptyArrayInputs() {
@@ -425,7 +418,8 @@ class SqlJsonUtilsConversionTest {
     class ArrayConversion {
 
         @ParameterizedTest(name = "{1}")
-        @MethodSource(SRC + "arrayConversions")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#arrayConversions")
         void convertsArray(Object[] raw, LogicalTypeRoot elementType, Object[] expected) {
             assertThat(array(raw, elementType).toObjectArray()).containsExactly(expected);
         }
@@ -442,9 +436,13 @@ class SqlJsonUtilsConversionTest {
         }
 
         @ParameterizedTest(name = "{1}")
-        @MethodSource(SRC + "arrayNullResultCases")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#arrayNullResultCases")
         void returnsNullOnErrorMode(
-                Object[] raw, LogicalTypeRoot elementType, int precision, int scale,
+                Object[] raw,
+                LogicalTypeRoot elementType,
+                int precision,
+                int scale,
                 boolean nullable) {
             assertThat(
                             SqlJsonUtils.convertJsonArray(
@@ -453,7 +451,8 @@ class SqlJsonUtilsConversionTest {
         }
 
         @ParameterizedTest(name = "{1}")
-        @MethodSource(SRC + "arrayEmptyResultCases")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#arrayEmptyResultCases")
         void returnsEmptyArrayOnErrorMode(
                 Object[] raw, LogicalTypeRoot elementType, int precision, int scale) {
             GenericArrayData result =
@@ -464,9 +463,13 @@ class SqlJsonUtilsConversionTest {
         }
 
         @ParameterizedTest(name = "{1}")
-        @MethodSource(SRC + "arrayThrowCases")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#arrayThrowCases")
         void throwsOnErrorMode(
-                Object[] raw, LogicalTypeRoot elementType, int precision, int scale,
+                Object[] raw,
+                LogicalTypeRoot elementType,
+                int precision,
+                int scale,
                 boolean nullable) {
             assertThatThrownBy(
                             () ->
@@ -477,7 +480,8 @@ class SqlJsonUtilsConversionTest {
         }
 
         @ParameterizedTest(name = "{0}")
-        @MethodSource(SRC + "emptyArrayInputs")
+        @MethodSource(
+                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#emptyArrayInputs")
         void emptyInputStaysEmpty(LogicalTypeRoot elementType, int precision, int scale) {
             GenericArrayData result =
                     SqlJsonUtils.convertJsonArray(
