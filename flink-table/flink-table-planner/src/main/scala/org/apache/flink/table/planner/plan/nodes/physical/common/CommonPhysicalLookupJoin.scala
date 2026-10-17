@@ -91,7 +91,8 @@ abstract class CommonPhysicalLookupJoin(
     val lookupHint: Option[RelHint] = Option.empty[RelHint],
     val upsertMaterialize: Boolean = false,
     val enableLookupShuffle: Boolean = false,
-    val preferCustomShuffle: Boolean = false)
+    val preferCustomShuffle: Boolean = false,
+    val hints: util.List[RelHint] = Collections.emptyList[RelHint]())
   extends SingleRel(cluster, traitSet, inputRel)
   with FlinkRelNode {
 
@@ -208,7 +209,15 @@ abstract class CommonPhysicalLookupJoin(
       .itemIf("async", asyncOptions.getOrElse(""), asyncOptions.isDefined)
       .itemIf("shuffle", "true", enableLookupShuffle)
       .itemIf("retry", retryOptions.getOrElse(""), retryOptions.isDefined)
+      .itemIf("hints", hintsDigest, !hints.isEmpty)
   }
+
+  /**
+   * Returns the digest of the hints attached to the scan of the temporal table. Two lookup joins on
+   * the same table that carry different hints (e.g. OPTIONS) must not be deduplicated into a single
+   * node, since they may read with different connector options.
+   */
+  def hintsDigest: String = RelExplainUtil.hintsToString(hints)
 
   private def getInputChangelogMode(rel: RelNode): ChangelogMode = rel match {
     case streamPhysicalRel: StreamPhysicalRel =>
