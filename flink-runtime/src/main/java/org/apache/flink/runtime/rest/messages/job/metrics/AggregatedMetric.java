@@ -45,6 +45,12 @@ public class AggregatedMetric {
 
     private static final String FIELD_NAME_SKEW = "skew";
 
+    private static final String FIELD_NAME_P50 = "p50";
+
+    private static final String FIELD_NAME_P90 = "p90";
+
+    private static final String FIELD_NAME_P99 = "p99";
+
     @JsonProperty(value = FIELD_NAME_ID, required = true)
     private final String id;
 
@@ -68,6 +74,18 @@ public class AggregatedMetric {
     @JsonProperty(FIELD_NAME_SKEW)
     private final Double skew;
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonProperty(FIELD_NAME_P50)
+    private final Double p50;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonProperty(FIELD_NAME_P90)
+    private final Double p90;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonProperty(FIELD_NAME_P99)
+    private final Double p99;
+
     @JsonCreator
     public AggregatedMetric(
             final @JsonProperty(value = FIELD_NAME_ID, required = true) String id,
@@ -75,7 +93,10 @@ public class AggregatedMetric {
             final @Nullable @JsonProperty(FIELD_NAME_MAX) Double max,
             final @Nullable @JsonProperty(FIELD_NAME_AVG) Double avg,
             final @Nullable @JsonProperty(FIELD_NAME_SUM) Double sum,
-            final @Nullable @JsonProperty(FIELD_NAME_SKEW) Double skew) {
+            final @Nullable @JsonProperty(FIELD_NAME_SKEW) Double skew,
+            final @Nullable @JsonProperty(FIELD_NAME_P50) Double p50,
+            final @Nullable @JsonProperty(FIELD_NAME_P90) Double p90,
+            final @Nullable @JsonProperty(FIELD_NAME_P99) Double p99) {
 
         this.id = requireNonNull(id, "id must not be null");
         this.min = min;
@@ -83,10 +104,13 @@ public class AggregatedMetric {
         this.avg = avg;
         this.sum = sum;
         this.skew = skew;
+        this.p50 = p50;
+        this.p90 = p90;
+        this.p99 = p99;
     }
 
     public AggregatedMetric(final @JsonProperty(value = FIELD_NAME_ID, required = true) String id) {
-        this(id, null, null, null, null, null);
+        this(id, null, null, null, null, null, null, null, null);
     }
 
     @JsonIgnore
@@ -119,6 +143,21 @@ public class AggregatedMetric {
         return skew;
     }
 
+    @JsonIgnore
+    public Double getP50() {
+        return p50;
+    }
+
+    @JsonIgnore
+    public Double getP90() {
+        return p90;
+    }
+
+    @JsonIgnore
+    public Double getP99() {
+        return p99;
+    }
+
     @Override
     public String toString() {
         return "AggregatedMetric{"
@@ -139,6 +178,15 @@ public class AggregatedMetric {
                 + '\''
                 + ", skew='"
                 + skew
+                + '\''
+                + ", p50='"
+                + p50
+                + '\''
+                + ", p90='"
+                + p90
+                + '\''
+                + ", p99='"
+                + p99
                 + '\''
                 + '}';
     }
