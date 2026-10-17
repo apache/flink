@@ -34,6 +34,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -68,6 +69,7 @@ import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -215,6 +217,43 @@ class ExecutorImplITCase {
             final List<String> expectedField = Collections.singletonList("IntegerField1");
             assertThat(executor.completeStatement("SELECT * FROM TableNumber1 WHERE Inte", 37))
                     .isEqualTo(expectedField);
+        }
+    }
+
+    @Test
+    void testIncompleteStatementIsReported() {
+        try (Executor executor = createRestServiceExecutor()) {
+            initSession(executor, Collections.emptyMap());
+            assertThatThrownBy(() -> fetchAll(executor, "SELECT 1 FROM TableNumber1 WHERE"))
+                    .satisfies(anyCauseMatches(SqlParserEOFException.class));
+        }
+    }
+
+    @Test
+    void testEchoedStatementTextIsNotTakenForAnIncompleteStatement() {
+        try (Executor executor = createRestServiceExecutor()) {
+            initSession(executor, Collections.emptyMap());
+            assertThatThrownBy(
+                            () ->
+                                    fetchAll(
+                                            executor,
+                                            "SELECT 1 UNION foo_bar -- Encountered \"<EOF>\""))
+                    .satisfies(
+                            e ->
+                                    assertThat(
+                                                    ExceptionUtils.findThrowable(
+                                                            e, SqlParserEOFException.class))
+                                            .isEmpty())
+                    .satisfies(
+                            anyCauseMatches("Non-query expression encountered in illegal context"));
+        }
+    }
+
+    private static void fetchAll(Executor executor, String statement) {
+        try (StatementResult result = executor.executeStatement(statement)) {
+            while (result.hasNext()) {
+                result.next();
+            }
         }
     }
 
