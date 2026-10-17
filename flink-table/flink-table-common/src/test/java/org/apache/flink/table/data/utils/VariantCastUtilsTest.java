@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions;
+package org.apache.flink.table.data.utils;
 
 import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.TimeZone;
 
-import static org.apache.flink.table.runtime.functions.VariantCastUtils.toPrintString;
+import static org.apache.flink.table.data.utils.VariantCastUtils.toPrintString;
 import static org.apache.flink.types.variant.BinaryVariantUtil.primitiveHeader;
 import static org.apache.flink.types.variant.BinaryVariantUtil.shortStrHeader;
 import static org.assertj.core.api.Assertions.assertThat;

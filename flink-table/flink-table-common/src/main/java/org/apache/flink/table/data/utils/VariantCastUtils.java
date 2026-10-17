@@ -16,16 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions;
+package org.apache.flink.table.data.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryStringData;
-import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.binary.StringUtf8Utils;
-import org.apache.flink.table.data.utils.ToVariantConverter;
 import org.apache.flink.table.types.logical.utils.UuidUtils;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.EncodingUtils;
@@ -109,8 +107,7 @@ public final class VariantCastUtils {
             return key.substring(0, targetLength);
         }
         if (charTarget && length < targetLength) {
-            return BinaryStringDataUtil.concat(
-                    key, BinaryStringData.blankString(targetLength - length));
+            return BinaryStringData.fromString(name + " ".repeat(targetLength - length));
         }
         return key;
     }

@@ -2094,6 +2094,7 @@ object ScalarOperatorGens {
       override def isPrinting(): Boolean = false
       override def legacyBehaviour(): Boolean = isLegacyCastBehaviourEnabled(ctx)
       override def getSessionTimeZoneTerm: String = ctx.addReusableSessionTimeZone()
+      override def getSessionZoneId: ZoneId = TableConfigUtils.getLocalTimeZone(ctx.tableConfig)
       override def declareVariable(ty: String, variablePrefix: String): String =
         ctx.addReusableLocalVariable(ty, variablePrefix)
       override def declareTypeSerializer(ty: LogicalType): String =
