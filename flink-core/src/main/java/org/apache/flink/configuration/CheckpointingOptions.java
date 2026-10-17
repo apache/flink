@@ -232,6 +232,30 @@ public class CheckpointingOptions {
                                     .build());
 
     /**
+     * Whether the checkpoint directories are created when the job starts, instead of when the first
+     * checkpoint is triggered.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_CHECKPOINTING)
+    public static final ConfigOption<Boolean> CREATE_DIRECTORIES_ON_JOB_START =
+            ConfigOptions.key("execution.checkpointing.create-directories-on-job-start")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to create the directories of the checkpoint storage (for example the "
+                                                    + "'shared' and 'taskowned' directories) when the job starts. If set to false, "
+                                                    + "they are created when the first checkpoint is triggered instead, which avoids "
+                                                    + "blocking job startup on file systems where creating directories is a slow "
+                                                    + "remote call, such as object stores.")
+                                    .linebreak()
+                                    .text(
+                                            "WARNING: If set to false, an unusable checkpoint location is no longer detected "
+                                                    + "when the job starts. It surfaces as checkpoint failures, and fails the job "
+                                                    + "once the tolerable number of checkpoint failures is exceeded.")
+                                    .build());
+
+    /**
      * The minimum size of state data files. All state chunks smaller than that are stored inline in
      * the root checkpoint metadata file.
      */
