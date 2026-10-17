@@ -1012,7 +1012,15 @@ public class SqlJsonUtils {
 
     private static @Nullable BigInteger toBigIntegerTruncated(Number n) {
         if (n instanceof BigDecimal) {
-            return ((BigDecimal) n).toBigInteger();
+            final BigDecimal bd = (BigDecimal) n;
+            final int integerDigits = bd.precision() - bd.scale();
+            if (integerDigits <= 0) {
+                return BigInteger.ZERO;
+            }
+            if (integerDigits > 19) {
+                throw new TableRuntimeException("Value " + n + " is out of range");
+            }
+            return bd.toBigInteger();
         }
         if (n instanceof BigInteger) {
             return (BigInteger) n;

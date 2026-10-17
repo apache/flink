@@ -148,7 +148,10 @@ class SqlJsonUtilsConversionTest {
                 Arguments.of(1e20, BIGINT),
                 Arguments.of(1e20f, BIGINT),
                 Arguments.of(Double.NaN, BIGINT),
-                Arguments.of(Double.POSITIVE_INFINITY, BIGINT));
+                Arguments.of(Double.POSITIVE_INFINITY, BIGINT),
+                // huge exponent: reject before toBigInteger() materializes 10^999999999
+                Arguments.of(new BigDecimal("1E999999999"), INTEGER),
+                Arguments.of(new BigDecimal("1E999999999"), BIGINT));
     }
 
     @Nested
