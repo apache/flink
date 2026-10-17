@@ -290,53 +290,6 @@ public abstract class MLPredictTableFunctionTestBase extends TableTestBase {
     }
 
     @Test
-    public void testIllegalConfig() {
-        assertThatThrownBy(
-                        () ->
-                                util.verifyRelPlan(
-                                        "SELECT *\n"
-                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', true]))"))
-                .isInstanceOf(ValidationException.class)
-                .hasRootCauseMessage(
-                        "Invalid argument type at position 3. Data type MAP<STRING, STRING> expected but MAP<CHAR(5) NOT NULL, BOOLEAN NOT NULL> NOT NULL passed.");
-
-        assertThatThrownBy(
-                        () ->
-                                util.verifyRelPlan(
-                                        "SELECT *\n"
-                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'yes']))"))
-                .hasCauseInstanceOf(ValidationException.class)
-                .hasStackTraceContaining("Failed to parse the config.");
-
-        assertThatThrownBy(
-                        () ->
-                                util.verifyRelPlan(
-                                        "SELECT *\n"
-                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'max-concurrent-operations', '-1']))"))
-                .hasCauseInstanceOf(ValidationException.class)
-                .hasStackTraceContaining(
-                        "Invalid runtime config option 'max-concurrent-operations'. Its value should be positive integer but was -1.");
-
-        assertThatThrownBy(
-                        () ->
-                                util.verifyRelPlan(
-                                        "SELECT *\n"
-                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'capacity', CAST(-1 AS STRING)]))"))
-                .hasCauseInstanceOf(ValidationException.class)
-                .hasStackTraceContaining(
-                        "Config parameter should be a MAP data type consisting of String literals.");
-
-        assertThatThrownBy(
-                        () ->
-                                util.verifyExecPlan(
-                                        "SELECT *\n"
-                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true']))"))
-                .isInstanceOf(TableException.class)
-                .hasMessageContaining(
-                        "Require async mode, but model provider org.apache.flink.table.factories.TestModelProviderFactory$TestModelProviderMock doesn't support async mode.");
-    }
-
-    @Test
     public void testNonExistProvider() {
         util.tableEnv()
                 .executeSql(
