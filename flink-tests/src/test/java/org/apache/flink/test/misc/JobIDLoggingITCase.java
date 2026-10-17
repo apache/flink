@@ -27,7 +27,6 @@ import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.MdcOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -51,7 +50,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import static java.util.Arrays.asList;
@@ -107,7 +105,7 @@ class JobIDLoggingITCase {
                             .setNumberSlotsPerTaskManager(1)
                             .build());
 
-    private static Configuration getConfiguration() {
+    static Configuration getConfiguration() {
         Configuration configuration = new Configuration();
         configuration.set(SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
         return configuration;
@@ -230,51 +228,11 @@ class JobIDLoggingITCase {
                         ".* finished asynchronous part of checkpoint .*"));
     }
 
-    @Test
-    void testEnrichedMdcLogging(@InjectClusterClient ClusterClient<?> clusterClient)
-            throws Exception {
-        final Configuration enrichmentConfig = new Configuration();
-        enrichmentConfig.set(
-                MdcOptions.JOB_CONFIGURATION_TO_MDC_KEYS, Map.of("job.key-1", "mdc-key-1"));
-        enrichmentConfig.setString("job.key-1", "val-1");
-
-        final JobID jobID = runJob(clusterClient, enrichmentConfig);
-        clusterClient.cancel(jobID).get();
-
-        assertKeyPresent(
-                "mdc-key-1",
-                "val-1",
-                jobMasterLogging,
-                asList("Initializing job .*", "Starting execution of job .*"),
-                "Registration at ResourceManager.*",
-                "Registration with ResourceManager.*",
-                "Resolved ResourceManager address.*");
-
-        assertKeyPresent(
-                "mdc-key-1",
-                "val-1",
-                taskExecutorLogging,
-                asList("Received task .*"),
-                "TaskManager received a checkpoint confirmation for unknown task.*",
-                "TaskManager received an aborted checkpoint for unknown task.*",
-                "Un-registering task.*",
-                "Successful registration.*",
-                "Establish JobManager connection.*",
-                "Offer reserved slots.*",
-                ".*ResourceManager.*",
-                "Operator event.*",
-                "Recovered slot allocation snapshots.*",
-                ".*heartbeat.*",
-                ".*leadership.*",
-                "Freeing inactive slots.*");
-    }
-
     private static JobID runJob(ClusterClient<?> clusterClient) throws Exception {
         return runJob(clusterClient, new Configuration());
     }
 
-    private static JobID runJob(ClusterClient<?> clusterClient, Configuration jobConfig)
-            throws Exception {
+    static JobID runJob(ClusterClient<?> clusterClient, Configuration jobConfig) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.fromSource(
