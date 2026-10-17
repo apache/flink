@@ -300,7 +300,7 @@ class SqlJsonUtilsConversionTest {
         void failsForNonBoolean(Object raw) {
             assertThatThrownBy(() -> scalar(raw, BOOLEAN, JsonValueOnEmptyOrError.ERROR, null))
                     .isInstanceOf(TableRuntimeException.class)
-                    .hasMessageContaining("Cannot cast");
+                    .hasMessage("Cannot cast " + raw.getClass().getName() + " to BOOLEAN");
         }
     }
 
@@ -385,7 +385,7 @@ class SqlJsonUtilsConversionTest {
                                             JsonValueOnEmptyOrError.ERROR,
                                             null))
                     .isInstanceOf(TableRuntimeException.class)
-                    .hasMessageContaining("Cannot cast");
+                    .hasMessage("Cannot cast java.lang.Long to INTEGER");
         }
     }
 
@@ -498,7 +498,7 @@ class SqlJsonUtilsConversionTest {
                                     SqlJsonUtils.convertJsonArray(
                                             raw, elementType, precision, scale, nullable, ERROR))
                     .isInstanceOf(TableRuntimeException.class)
-                    .hasMessageContaining("Array element type mismatch");
+                    .hasMessage("Array element type mismatch in JSON_QUERY");
         }
 
         @ParameterizedTest(name = "{0}")

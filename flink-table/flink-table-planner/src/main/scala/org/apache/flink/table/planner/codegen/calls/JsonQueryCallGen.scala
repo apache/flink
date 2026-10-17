@@ -118,9 +118,9 @@ class JsonQueryCallGen extends CallGenerator {
                   + "for RETURNING ARRAY in JSON_QUERY().")
             case LogicalTypeRoot.ARRAY =>
               val jsonUtils =
-                "org.apache.flink.table.runtime.functions.SqlJsonUtils"
+                classOf[SqlJsonUtils].getName
               val typeRootEnum =
-                s"org.apache.flink.table.types.logical.LogicalTypeRoot.${elementType.getTypeRoot.name()}"
+                s"${classOf[LogicalTypeRoot].getName}.${elementType.getTypeRoot.name()}"
               val (precisionStr, scaleStr) = elementType.getTypeRoot match {
                 case LogicalTypeRoot.DECIMAL =>
                   val dt = elementType.asInstanceOf[DecimalType]

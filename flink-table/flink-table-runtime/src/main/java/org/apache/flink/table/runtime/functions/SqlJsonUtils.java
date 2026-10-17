@@ -63,6 +63,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -857,8 +858,8 @@ public class SqlJsonUtils {
 
     // --- Type conversion for JSON_VALUE / JSON_QUERY RETURNING ---
 
-    private static final java.util.EnumSet<LogicalTypeRoot> SUPPORTED_JSON_RETURNING_TYPES =
-            java.util.EnumSet.of(
+    private static final EnumSet<LogicalTypeRoot> SUPPORTED_JSON_RETURNING_TYPES =
+            EnumSet.of(
                     LogicalTypeRoot.BOOLEAN,
                     LogicalTypeRoot.TINYINT,
                     LogicalTypeRoot.SMALLINT,

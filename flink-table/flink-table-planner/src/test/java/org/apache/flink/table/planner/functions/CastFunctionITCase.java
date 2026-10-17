@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.annotation.DataTypeHint;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -1210,12 +1209,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(BOOLEAN(), null, null)
-                        .failRuntime(CHAR(3), "foo", TableException.class)
+                        .failRuntime(CHAR(3), "foo", TableRuntimeException.class)
                         .fromCase(CHAR(4), "true", true)
                         .fromCase(VARCHAR(5), "FalsE", false)
-                        .failRuntime(STRING(), "Apache Flink", TableException.class)
+                        .failRuntime(STRING(), "Apache Flink", TableRuntimeException.class)
                         .fromCase(STRING(), "TRUE", true)
-                        .failRuntime(STRING(), "", TableException.class)
+                        .failRuntime(STRING(), "", TableRuntimeException.class)
                         .fromCase(BOOLEAN(), true, true)
                         .fromCase(BOOLEAN(), false, false)
                         // Not supported - no fix

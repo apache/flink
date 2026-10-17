@@ -18,7 +18,6 @@
 package org.apache.flink.table.data.binary;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
@@ -156,7 +155,7 @@ public class BinaryStringDataUtil {
     }
 
     /** Parse a {@link StringData} to boolean. */
-    public static boolean toBoolean(BinaryStringData str) throws TableException {
+    public static boolean toBoolean(BinaryStringData str) {
         BinaryStringData lowerCase = str.toLowerCase();
         if (TRUE_STRINGS.contains(lowerCase)) {
             return true;
