@@ -314,6 +314,44 @@ class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 "All types in a comparison should support 'EQUALS' comparison with each other."
                                         + " Can not compare `cat`.`db`.`type1` with `cat`.`db`.`type2`"),
                 TestSpec.forStrategy(
+                                "VARIANT types are not comparable",
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                        .calledWithArgumentTypes(DataTypes.VARIANT(), DataTypes.VARIANT())
+                        .expectErrorMessage(
+                                "All types in a comparison should support 'EQUALS' comparison with each other."
+                                        + " Can not compare VARIANT with VARIANT"),
+                TestSpec.forStrategy(
+                                "Constructed types containing VARIANT are not comparable",
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                        .calledWithArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.VARIANT()),
+                                DataTypes.ARRAY(DataTypes.VARIANT()))
+                        .expectErrorMessage(
+                                "All types in a comparison should support 'EQUALS' comparison with each other."
+                                        + " Can not compare ARRAY<VARIANT> with ARRAY<VARIANT>"),
+                TestSpec.forStrategy(
+                                "Structured types with a VARIANT attribute are not comparable",
+                                SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE)
+                        .calledWithArgumentTypes(
+                                structuredType(
+                                        "type",
+                                        singletonList(DataTypes.VARIANT()),
+                                        StructuredComparison.EQUALS),
+                                structuredType(
+                                        "type",
+                                        singletonList(DataTypes.VARIANT()),
+                                        StructuredComparison.EQUALS))
+                        .expectErrorMessage(
+                                "All types in a comparison should support 'EQUALS' comparison with each other."
+                                        + " Can not compare `cat`.`db`.`type` with `cat`.`db`.`type`"),
+                TestSpec.forStrategy(
+                                "VARIANT types have no order",
+                                SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
+                        .calledWithArgumentTypes(DataTypes.VARIANT(), DataTypes.VARIANT())
+                        .expectErrorMessage(
+                                "All types in a comparison should support both 'EQUALS' and 'ORDER' comparison"
+                                        + " with each other. Can not compare VARIANT with VARIANT"),
+                TestSpec.forStrategy(
                                 "Not comparable array types",
                                 SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE)
                         .calledWithArgumentTypes(
