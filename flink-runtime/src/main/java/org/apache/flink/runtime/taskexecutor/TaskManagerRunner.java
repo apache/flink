@@ -26,6 +26,8 @@ import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.Plugin;
+import org.apache.flink.core.plugin.PluginContext;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.core.security.FlinkSecurityManager;
@@ -271,10 +273,15 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             this,
                             delegationTokenReceiverRepository);
 
+            // This to be replaced the concrete plugin class name
+            pluginManager.load(Plugin.class).forEachRemaining(p -> p.configure(configuration));
+
             handleUnexpectedTaskExecutorServiceTermination();
 
             MemoryLogger.startIfConfigured(
                     LOG, configuration, terminationFuture.thenAccept(ignored -> {}));
+
+            pluginManager.open(new PluginContext(resourceId.unwrap().getStringWithMetadata()));
         }
     }
 
@@ -359,6 +366,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             terminationFuture.complete(terminationResult);
                         }
                     });
+
+            pluginManager.close();
 
             shutdown = true;
             return terminationFuture;

@@ -37,4 +37,10 @@ public class TestingPluginManager implements PluginManager {
     public <P> Iterator<P> load(Class<P> service) {
         return (Iterator<P>) plugins.getOrDefault(service, IteratorUtils.emptyIterator());
     }
+
+    @Override
+    public void open(PluginContext context) {}
+
+    @Override
+    public void close() {}
 }
