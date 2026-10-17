@@ -195,6 +195,34 @@ public final class DecimalData implements Comparable<DecimalData> {
     }
 
     /**
+     * Rescales a compact unscaled value to the given {@code precision}/{@code scale} with HALF_UP
+     * in long arithmetic (no {@link BigDecimal}). Returns {@code null} on precision overflow, like
+     * {@link #fromBigDecimal}. Callers must ensure the source and target are compact.
+     */
+    static @Nullable DecimalData fromCompactRescale(
+            long unscaled, int fromScale, int precision, int scale) {
+        final int scaleDiff = scale - fromScale; // both scales in [0, 18] => scaleDiff in [-18, 18]
+        final long result;
+        if (scaleDiff >= 0) {
+            final long factor = POW10[scaleDiff];
+            result = unscaled * factor; // exact scale-up
+            if (result / factor != unscaled) { // long overflow => precision overflow
+                return null;
+            }
+        } else {
+            final long divisor = POW10[-scaleDiff];
+            final long rem = unscaled % divisor; // HALF_UP: round half away from zero
+            result =
+                    unscaled / divisor + (Math.abs(rem) * 2 >= divisor ? Long.signum(unscaled) : 0);
+        }
+        final long bound = POW10[precision]; // digit count must not exceed precision
+        if (result <= -bound || result >= bound) {
+            return null;
+        }
+        return new DecimalData(precision, scale, result, null);
+    }
+
+    /**
      * Creates an instance of {@link DecimalData} from an unscaled long value and the given
      * precision and scale.
      */

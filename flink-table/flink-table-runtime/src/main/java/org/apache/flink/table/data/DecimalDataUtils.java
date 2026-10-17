@@ -180,11 +180,14 @@ public final class DecimalDataUtils {
     }
 
     public static DecimalData castToDecimal(DecimalData dec, int precision, int scale) {
+        if (dec.isCompact() && precision <= DecimalData.MAX_COMPACT_PRECISION) {
+            return DecimalData.fromCompactRescale(dec.longVal, dec.scale, precision, scale);
+        }
         return fromBigDecimal(dec.toBigDecimal(), precision, scale);
     }
 
     public static DecimalData castFrom(DecimalData dec, int precision, int scale) {
-        return fromBigDecimal(dec.toBigDecimal(), precision, scale);
+        return castToDecimal(dec, precision, scale);
     }
 
     public static DecimalData castFrom(String string, int precision, int scale) {
@@ -196,6 +199,9 @@ public final class DecimalDataUtils {
     }
 
     public static DecimalData castFrom(long val, int p, int s) {
+        if (p <= DecimalData.MAX_COMPACT_PRECISION) {
+            return DecimalData.fromCompactRescale(val, 0, p, s);
+        }
         return fromBigDecimal(BigDecimal.valueOf(val), p, s);
     }
 
