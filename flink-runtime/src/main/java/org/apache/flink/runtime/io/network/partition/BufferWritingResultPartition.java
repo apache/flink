@@ -459,6 +459,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             hardBackPressuredTimeMsPerSecond.markEnd();
             return bufferBuilder;
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new IOException("Interrupted while waiting for buffer");
         }
     }

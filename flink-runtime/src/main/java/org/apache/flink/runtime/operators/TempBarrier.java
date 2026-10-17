@@ -141,6 +141,7 @@ public class TempBarrier<T> implements CloseableInputProvider<T> {
             this.tempWriter.shutdown();
             this.tempWriter.join();
         } catch (InterruptedException iex) {
+            Thread.currentThread().interrupt();
             throw new IOException("Interrupted");
         }
 

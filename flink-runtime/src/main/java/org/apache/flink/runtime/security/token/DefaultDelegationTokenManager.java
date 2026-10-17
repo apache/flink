@@ -353,7 +353,7 @@ public class DefaultDelegationTokenManager implements DelegationTokenManager {
                         "Tokens update task not started because either no tokens obtained or none of the tokens specified its renewal date");
             }
         } catch (InterruptedException e) {
-            // Ignore, may happen if shutting down.
+            Thread.currentThread().interrupt();
             LOG.debug("Interrupted", e);
         } catch (Exception e) {
             long delay = calculateRetryDelay(Clock.systemDefaultZone());
