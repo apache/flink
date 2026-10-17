@@ -27,11 +27,11 @@ The ``ProcessFunction`` is a low-level stream processing operation, giving acces
 all (acyclic) streaming applications:
 
 - events (stream elements)
-- state (fault-tolerant, consistent, only on keyed stream)
-- timers (event time and processing time, only on keyed stream)
+- state and timers (available through ``KeyedProcessFunction`` on a keyed stream)
 
-The ``ProcessFunction`` can be thought of as a ``FlatMapFunction`` with access to keyed state and timers. It handles events
-by being invoked for each event received in the input stream(s).
+The ``ProcessFunction`` can be thought of as a ``FlatMapFunction`` that also exposes event time.
+Use ``KeyedProcessFunction`` on a ``KeyedStream`` to access keyed state and register timers.
+Both function types handle events by being invoked for each event received in the input stream.
 
 Please refer to :flinkdoc:`Process Function <docs/dev/datastream/operators/process_function/>`
 for more details about the concept and usage of ``ProcessFunction``.
@@ -40,7 +40,7 @@ Execution behavior of timer
 ============================
 
 Python user-defined functions are executed in a separate Python process from Flink's operators which run in a JVM,
-the timer registration requests made in ``ProcessFunction`` will be sent to the Java operator asynchronously.
+the timer registration requests made in ``KeyedProcessFunction`` will be sent to the Java operator asynchronously.
 Once received timer registration requests, the Java operator will register it into the underlying timer service.
 
 If the registered timer has already passed the current time (the current system time for processing time timer,
