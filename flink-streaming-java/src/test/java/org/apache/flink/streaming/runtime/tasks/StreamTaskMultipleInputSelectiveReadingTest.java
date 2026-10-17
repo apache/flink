@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestAnyModeMultipleInputStreamOperator;
 import org.apache.flink.streaming.util.TestAnyModeMultipleInputStreamOperator.ToStringInput;
+import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TestSequentialMultipleInputStreamOperator;
 
 import org.junit.jupiter.api.Test;
@@ -169,11 +170,15 @@ class StreamTaskMultipleInputSelectiveReadingTest {
             }
             testHarness.waitForTaskCompletion();
 
+            // Filter out WatermarkStatus (e.g., FINISHED watermark status when task finishes) -
+            // this test focuses on selective reading behavior.
+            Queue<Object> filteredOutput =
+                    TestHarnessUtil.filterOutWatermarkStatus(testHarness.getOutput());
+
             if (orderedCheck) {
-                assertThat(testHarness.getOutput()).containsExactlyElementsOf(expectedOutput);
+                assertThat(filteredOutput).containsExactlyElementsOf(expectedOutput);
             } else {
-                assertThat(testHarness.getOutput())
-                        .containsExactlyInAnyOrderElementsOf(expectedOutput);
+                assertThat(filteredOutput).containsExactlyInAnyOrderElementsOf(expectedOutput);
             }
         }
     }
