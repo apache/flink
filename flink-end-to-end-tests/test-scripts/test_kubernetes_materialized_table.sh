@@ -69,10 +69,12 @@ function open_session() {
     session_options="{}"
   fi
 
+  # Returns the whole response: the caller needs the errors of a failed openSession, and an
+  # `exit` in here would only leave the command substitution the caller runs this in.
   curl -s -X POST \
     -H "Content-Type: application/json" \
     -d "{\"properties\": $session_options}" \
-    "http://localhost:$SQL_GATEWAY_REST_PORT/sessions" | jq -r '.sessionHandle'
+    "http://localhost:$SQL_GATEWAY_REST_PORT/sessions"
 }
 
 function configure_session() {
@@ -198,7 +200,12 @@ session_options="{\"table.catalog-store.kind\": \"file\",
                  \"s3.endpoint\": \"$S3_ENDPOINT\",
                  \"workflow-scheduler.type\": \"embedded\"}"
 
-session_handle=$(open_session "$session_options")
+session_response=$(open_session "$session_options")
+session_handle=$(echo "$session_response" | jq -r '.sessionHandle')
+if [ -z "$session_handle" ] || [ "$session_handle" == "null" ]; then
+  echo "Failed to open a session, response: $session_response"
+  exit 1
+fi
 echo "[INFO] Session Handle $session_handle"
 
 # prepare catalog & database
