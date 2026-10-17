@@ -624,8 +624,8 @@ public class SqlFunctionUtils {
             return null;
         }
 
-        Pattern p = Pattern.compile("(&|^)" + Pattern.quote(key) + "=([^&]*)");
-        Matcher m = p.matcher(query);
+        final String s = "(&|^)" + Pattern.quote(key) + "=([^&]*)";
+        Matcher m = REGEXP_PATTERN_CACHE.get(s).matcher(query);
         if (m.find()) {
             return m.group(2);
         }
