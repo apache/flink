@@ -32,9 +32,9 @@ public class SerializedThrowableSerializer extends StdSerializer<SerializedThrow
 
     private static final long serialVersionUID = 1L;
 
-    static final String FIELD_NAME_CLASS = "class";
+    public static final String FIELD_NAME_CLASS = "class";
 
-    static final String FIELD_NAME_STACK_TRACE = "stack-trace";
+    public static final String FIELD_NAME_STACK_TRACE = "stack-trace";
 
     public static final String FIELD_NAME_SERIALIZED_THROWABLE = "serialized-throwable";
 
