@@ -385,6 +385,7 @@ object FlinkBatchRuleSets {
     CalcPythonCorrelateTransposeRule.INSTANCE,
     // Rule that splits java calls from python TableFunction
     PythonCorrelateSplitRule.INSTANCE,
+    PythonCorrelateSplitFunctionKindRule.INSTANCE,
     PythonCorrelateSplitConcurrencyRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ParallelPythonScalarFunction;
@@ -30,6 +31,7 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
@@ -39,8 +41,92 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for scalar UDF concurrency in lateral table function calls. */
+/** Tests for scalar UDF splitting and concurrency in lateral table function calls. */
 class PythonCorrelateConcurrencyTest extends TableTestBase {
+
+    @ParameterizedTest
+    @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
+    void testSplitsFunctionKindBeforeConcurrency(boolean streaming, PythonFunctionKind kind) {
+        final TableTestUtil util = createUtil(streaming);
+        util.addTemporarySystemFunction(
+                "vector5", new KindPythonScalarFunction("vector5", 5, kind));
+        final List<Transformation<?>> operators =
+                pythonOperators(translate(util, "f3(vector5(a, b), b)"));
+
+        assertThat(operators).extracting(Transformation::getParallelism).containsExactly(5, 3);
+        assertThat(operators).allMatch(Transformation::isParallelismConfigured);
+        assertThat(operators.get(0).getName()).contains("PythonCalc");
+        assertThat(operators.get(1).getName()).contains("PythonCorrelate");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
+    void testSplitsFunctionKindWithMatchingConcurrency(boolean streaming, PythonFunctionKind kind) {
+        final TableTestUtil util = createUtil(streaming);
+        util.addTemporarySystemFunction(
+                "vector3", new KindPythonScalarFunction("vector3", 3, kind));
+        final List<Transformation<?>> operators =
+                pythonOperators(translate(util, "f3(vector3(a, b), b)"));
+
+        assertThat(operators).extracting(Transformation::getParallelism).containsExactly(3, 3);
+        assertThat(operators).allMatch(Transformation::isParallelismConfigured);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
+    void testSplitsFunctionKindWithoutConcurrency(boolean streaming, PythonFunctionKind kind) {
+        final TableTestUtil util = createUtil(streaming);
+        util.addTemporarySystemFunction("vector", new KindPythonScalarFunction("vector", -1, kind));
+        final List<Transformation<?>> operators = pythonOperators(translate(util, "vector(a, b)"));
+
+        assertThat(operators).extracting(Transformation::getParallelism).containsExactly(2, 2);
+        assertThat(operators).noneMatch(Transformation::isParallelismConfigured);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
+    void testSplitsKindsInsideExtractedCalc(boolean streaming, PythonFunctionKind kind) {
+        final TableTestUtil util = createUtil(streaming);
+        util.addTemporarySystemFunction(
+                "vector5", new KindPythonScalarFunction("vector5", 5, kind));
+        final List<Transformation<?>> operators =
+                pythonOperators(translate(util, "f3(vector5(f3(a, b), b), b)"));
+
+        assertThat(operators).extracting(Transformation::getParallelism).containsExactly(3, 5, 3);
+        assertThat(operators).allMatch(Transformation::isParallelismConfigured);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
+    void testSplitsConcurrencyAfterFunctionKind(boolean streaming, PythonFunctionKind kind) {
+        final TableTestUtil util = createUtil(streaming);
+        util.addTemporarySystemFunction(
+                "vector3", new KindPythonScalarFunction("vector3", 3, kind));
+        final List<Transformation<?>> operators =
+                pythonOperators(translate(util, "f3(f5(vector3(a, b), b), b)"));
+
+        assertThat(operators).extracting(Transformation::getParallelism).containsExactly(3, 5, 3);
+        assertThat(operators).allMatch(Transformation::isParallelismConfigured);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
+    void testPreservesJoinAndFilterWithDifferentKind(boolean streaming, PythonFunctionKind kind) {
+        final TableTestUtil util = createUtil(streaming);
+        util.addTemporarySystemFunction(
+                "vector5", new KindPythonScalarFunction("vector5", 5, kind));
+        for (String join : new String[] {"LEFT JOIN", "JOIN"}) {
+            final String query =
+                    "SELECT x, y FROM src "
+                            + join
+                            + " LATERAL TABLE(tf(a, f3(vector5(a, b), b))) AS T(x, y) ON "
+                            + (join.equals("JOIN") ? "y > 0" : "TRUE");
+            assertThat(pythonOperators(translateQuery(util, query)))
+                    .as(query)
+                    .extracting(Transformation::getParallelism)
+                    .containsExactly(5, 3);
+        }
+    }
 
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
@@ -180,5 +266,20 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
             operators.add(root);
         }
         return operators;
+    }
+
+    /** Python scalar function with a configured batch representation and parallelism. */
+    public static class KindPythonScalarFunction extends ParallelPythonScalarFunction {
+        private final PythonFunctionKind kind;
+
+        public KindPythonScalarFunction(String name, int parallelism, PythonFunctionKind kind) {
+            super(name, parallelism);
+            this.kind = kind;
+        }
+
+        @Override
+        public PythonFunctionKind getPythonFunctionKind() {
+            return kind;
+        }
     }
 }
