@@ -184,7 +184,9 @@ class SqlJsonUtilsConversionTest {
                         38,
                         0,
                         "99999999999999999999999999999999999999"),
-                Arguments.of("123.456", 5, 2, "123.46"));
+                Arguments.of("123.456", 5, 2, "123.46"),
+                // huge positive scale: round to zero before setScale() materializes 10^999999999
+                Arguments.of(new BigDecimal("1E-999999999"), 10, 2, "0"));
     }
 
     static Stream<Arguments> decimalOverflowCases() {
@@ -192,7 +194,9 @@ class SqlJsonUtilsConversionTest {
                 Arguments.of(123456789.99, 5, 2),
                 Arguments.of("999999999999999999999999999999999999999", 38, 0),
                 // 999.999 rounds to 1000.00 (precision 6) which overflows DECIMAL(5,2)
-                Arguments.of("999.999", 5, 2));
+                Arguments.of("999.999", 5, 2),
+                // huge exponent: reject before setScale() materializes 10^999999999
+                Arguments.of(new BigDecimal("1E999999999"), 10, 2));
     }
 
     @Nested

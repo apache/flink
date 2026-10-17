@@ -1124,6 +1124,23 @@ public class SqlJsonUtils {
             throw new TableRuntimeException(
                     "Cannot convert " + raw.getClass().getName() + " to DECIMAL");
         }
+        if (raw instanceof BigDecimal) {
+            final BigDecimal bd = (BigDecimal) raw;
+            final long integerDigits = (long) bd.precision() - bd.scale();
+            if (integerDigits <= -(long) scale - 1) {
+                return DecimalData.fromBigDecimal(BigDecimal.ZERO, precision, scale);
+            }
+            if (integerDigits > precision - scale) {
+                throw new TableRuntimeException(
+                        "Value "
+                                + raw
+                                + " cannot be represented as DECIMAL("
+                                + precision
+                                + ", "
+                                + scale
+                                + ")");
+            }
+        }
         DecimalData result = DecimalDataUtils.castFrom(raw.toString(), precision, scale);
         if (result == null) {
             throw new TableRuntimeException(
