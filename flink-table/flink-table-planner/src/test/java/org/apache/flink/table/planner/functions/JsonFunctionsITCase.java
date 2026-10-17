@@ -561,6 +561,16 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE(f0, 'lax $.invalid' RETURNING INTEGER DEFAULT 42 ON EMPTY ERROR ON ERROR)",
                         42,
                         INT())
+                // A DECIMAL-typed default into a non-DECIMAL RETURNING type must be converted,
+                // not dropped to NULL
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 1}', 'lax $.missing' RETURNING INTEGER DEFAULT 1.5 ON EMPTY)",
+                        1,
+                        INT())
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 1}', 'lax $.missing' RETURNING BIGINT DEFAULT 1.5 ON EMPTY)",
+                        1L,
+                        BIGINT())
                 .testResult(
                         $("f0").jsonValue(
                                         "strict $.invalid",

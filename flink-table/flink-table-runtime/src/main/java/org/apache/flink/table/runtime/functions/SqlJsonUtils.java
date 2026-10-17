@@ -938,6 +938,9 @@ public class SqlJsonUtils {
 
     private static Object convertToType(
             Object raw, LogicalTypeRoot typeRoot, int precision, int scale) {
+        if (raw instanceof DecimalData) {
+            return convertToType(((DecimalData) raw).toBigDecimal(), typeRoot, precision, scale);
+        }
         if (raw instanceof StringData) {
             return convertToType(raw.toString(), typeRoot, precision, scale);
         }
@@ -954,44 +957,43 @@ public class SqlJsonUtils {
                         "Cannot parse string '" + raw + "' as " + typeRoot, e);
             }
         }
-        try {
-            switch (typeRoot) {
-                case BOOLEAN:
-                    if (raw instanceof Number) {
-                        BigDecimal bd =
-                                raw instanceof BigDecimal
-                                        ? (BigDecimal) raw
-                                        : new BigDecimal(raw.toString());
-                        if (BigDecimal.ZERO.compareTo(bd) == 0) {
-                            return false;
-                        }
-                        if (BigDecimal.ONE.compareTo(bd) == 0) {
-                            return true;
-                        }
-                        throw new TableRuntimeException("Cannot convert " + raw + " to BOOLEAN");
+        switch (typeRoot) {
+            case BOOLEAN:
+                if (raw instanceof Number) {
+                    BigDecimal bd =
+                            raw instanceof BigDecimal
+                                    ? (BigDecimal) raw
+                                    : new BigDecimal(raw.toString());
+                    if (BigDecimal.ZERO.compareTo(bd) == 0) {
+                        return false;
                     }
+                    if (BigDecimal.ONE.compareTo(bd) == 0) {
+                        return true;
+                    }
+                    throw new TableRuntimeException("Cannot convert " + raw + " to BOOLEAN");
+                }
+                if (raw instanceof Boolean) {
                     return raw;
-                case TINYINT:
-                    return toCheckedByte((Number) raw);
-                case SMALLINT:
-                    return toCheckedShort((Number) raw);
-                case INTEGER:
-                    return toCheckedInt((Number) raw);
-                case BIGINT:
-                    return toCheckedLong((Number) raw);
-                case FLOAT:
-                    return toCheckedFloat((Number) raw);
-                case DOUBLE:
-                    return toCheckedDouble((Number) raw);
-                case DECIMAL:
-                    return toCheckedDecimal(raw, precision, scale);
-                default:
-                    throw new TableRuntimeException(
-                            "Unsupported type for JSON conversion: " + typeRoot);
-            }
-        } catch (ClassCastException e) {
-            throw new TableRuntimeException(
-                    "Cannot convert " + raw.getClass().getName() + " to " + typeRoot, e);
+                }
+                throw new TableRuntimeException(
+                        "Cannot convert " + raw.getClass().getName() + " to BOOLEAN");
+            case TINYINT:
+                return toCheckedByte(asNumber(raw, typeRoot));
+            case SMALLINT:
+                return toCheckedShort(asNumber(raw, typeRoot));
+            case INTEGER:
+                return toCheckedInt(asNumber(raw, typeRoot));
+            case BIGINT:
+                return toCheckedLong(asNumber(raw, typeRoot));
+            case FLOAT:
+                return toCheckedFloat(asNumber(raw, typeRoot));
+            case DOUBLE:
+                return toCheckedDouble(asNumber(raw, typeRoot));
+            case DECIMAL:
+                return toCheckedDecimal(raw, precision, scale);
+            default:
+                throw new TableRuntimeException(
+                        "Unsupported type for JSON conversion: " + typeRoot);
         }
     }
 
@@ -1101,8 +1103,16 @@ public class SqlJsonUtils {
         return n.longValue();
     }
 
+    private static Number asNumber(Object raw, LogicalTypeRoot typeRoot) {
+        if (!(raw instanceof Number)) {
+            throw new TableRuntimeException(
+                    "Cannot convert " + raw.getClass().getName() + " to " + typeRoot);
+        }
+        return (Number) raw;
+    }
+
     static DecimalData toCheckedDecimal(Object raw, int precision, int scale) {
-        if (!(raw instanceof Number) && !(raw instanceof DecimalData)) {
+        if (!(raw instanceof Number)) {
             throw new TableRuntimeException(
                     "Cannot convert " + raw.getClass().getName() + " to DECIMAL");
         }
