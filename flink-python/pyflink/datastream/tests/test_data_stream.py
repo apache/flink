@@ -1537,6 +1537,27 @@ class CommonDataStreamTests(PyFlinkTestCase):
         pre_ship_strategy = shuffle_node['predecessors'][0]['ship_strategy']
         self.assertEqual(pre_ship_strategy, 'SHUFFLE')
 
+    def test_timestamp_assigner_uid(self):
+        """A uid on the stream must cover the operators the timestamp assigner hides."""
+        class MyTimestampAssigner(TimestampAssigner):
+
+            def extract_timestamp(self, value, record_timestamp) -> int:
+                return int(value[0])
+
+        self.env.get_config().disable_auto_generated_uids()
+
+        ds = self.env.from_collection([(1603708211000, 'hi'), (1603708224000, 'hello')])
+        ds.uid('source') \
+            .assign_timestamps_and_watermarks(
+                WatermarkStrategy.for_monotonous_timestamps()
+                .with_timestamp_assigner(MyTimestampAssigner())) \
+            .uid('watermarks') \
+            .map(lambda x: x).uid('map') \
+            .add_sink(self.test_sink).uid('sink')
+
+        # Without a uid on every operator, this raises an IllegalStateException.
+        self.env.get_execution_plan()
+
     def test_keyed_stream_partitioning(self):
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)])
         keyed_stream = ds.key_by(lambda x: x[1])

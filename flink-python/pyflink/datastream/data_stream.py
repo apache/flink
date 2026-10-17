@@ -65,6 +65,11 @@ __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams',
 
 WINDOW_STATE_NAME = 'window-contents'
 
+# Appended to the uid of an assign_timestamps_and_watermarks() stream, to build one for each of
+# the operators it hides. They are part of the uid, so they must stay as they are.
+UID_SUFFIX_EXTRACT_TIMESTAMP = 'extract-timestamp'
+UID_SUFFIX_TIMESTAMPS_AND_WATERMARKS = 'timestamps-and-watermarks'
+
 
 class DataStream(object):
     """
@@ -704,9 +709,15 @@ class DataStream(object):
             # step 3: remove the timestamp field which is added in step 1
             JRemoveTimestampMapFunction = gateway.jvm.org.apache.flink.streaming.api.functions \
                 .python.eventtime.RemoveTimestampMapFunction
-            result = DataStream(j_watermarked_data_stream.map(
-                JRemoveTimestampMapFunction(), self._j_data_stream.getType()))
-            result.name("Remove-Timestamp")
+            result = _TimestampsAndWatermarksDataStream(
+                j_watermarked_data_stream.map(
+                    JRemoveTimestampMapFunction(), self._j_data_stream.getType()),
+                [(UID_SUFFIX_EXTRACT_TIMESTAMP,
+                  timestamped_data_stream._j_data_stream.getTransformation()),
+                 (UID_SUFFIX_TIMESTAMPS_AND_WATERMARKS,
+                  j_watermarked_data_stream.getTransformation())])
+            # Not result.name(), which would be taken for a name set by the user.
+            result._j_data_stream.name("Remove-Timestamp")
             return result
         else:
             # if user not specify a TimestampAssigner, then return directly assign the Java
@@ -961,6 +972,38 @@ class DataStream(object):
             return transformed_data_stream
         else:
             return self
+
+
+class _TimestampsAndWatermarksDataStream(DataStream):
+    """
+    The stream which :func:`DataStream.assign_timestamps_and_watermarks` returns for a Python
+    TimestampAssigner.
+
+    Such an assigner needs three operators: one extracts the timestamp, one assigns the
+    timestamps and the watermarks, and one removes the extracted timestamp again. Only the last
+    one is represented by the returned stream, so a uid set on it would leave the two others
+    without one. They then make the job impossible to submit if auto generated uids are
+    disabled, see :func:`~pyflink.common.ExecutionConfig.disable_auto_generated_uids`. This
+    stream gives them a uid too, derived from the one it receives.
+    """
+
+    def __init__(self, j_data_stream, hidden_j_transformations):
+        super(_TimestampsAndWatermarksDataStream, self).__init__(j_data_stream)
+        # The (uid suffix, transformation) pairs of the two operators the assigner hides.
+        self._hidden_j_transformations = hidden_j_transformations
+
+    def uid(self, uid: str) -> 'DataStream':
+        """
+        Sets an ID for this operator, and one derived from it for each of the operators the
+        timestamp assigner hides.
+
+        :param uid: The unique user-specified ID of this transformation.
+        :return: The operator with the specified ID.
+        """
+        super(_TimestampsAndWatermarksDataStream, self).uid(uid)
+        for uid_suffix, j_transformation in self._hidden_j_transformations:
+            j_transformation.setUid("%s-%s" % (uid, uid_suffix))
+        return self
 
 
 class DataStreamSink(object):
