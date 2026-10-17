@@ -1640,7 +1640,7 @@ object ScalarOperatorGens {
     val keyTypeTerm = primitiveTypeTermForType(keyType)
     val valueTypeTerm = primitiveTypeTermForType(valueType)
     val valueDefault = primitiveDefaultValue(valueType)
-    val binaryMapTerm = newName(ctx, "binaryMap")
+    val mapDataTerm = newName(ctx, "mapData")
     val genericMapTerm = newName(ctx, "genericMap")
     val boxedValueTypeTerm = boxedTypeTermForType(valueType)
 
@@ -1657,11 +1657,20 @@ object ScalarOperatorGens {
     )
     val code =
       s"""
-         |if ($mapTerm instanceof $BINARY_MAP) {
-         |  $BINARY_MAP $binaryMapTerm = ($BINARY_MAP) $mapTerm;
-         |  final int $length = $binaryMapTerm.size();
-         |  final $BINARY_ARRAY $keys = $binaryMapTerm.keyArray();
-         |  final $BINARY_ARRAY $values = $binaryMapTerm.valueArray();
+         |if ($mapTerm instanceof $GENERIC_MAP) {
+         |  $GENERIC_MAP $genericMapTerm = ($GENERIC_MAP) $mapTerm;
+         |  $boxedValueTypeTerm $tmpValue =
+         |    ($boxedValueTypeTerm) $genericMapTerm.get(($keyTypeTerm) ${key.resultTerm});
+         |  if ($tmpValue == null) {
+         |    $nullTerm = true;
+         |  } else {
+         |    $resultTerm = $tmpValue;
+         |  }
+         |} else {
+         |  final $MAP_DATA $mapDataTerm = ($MAP_DATA) $mapTerm;
+         |  final int $length = $mapDataTerm.size();
+         |  final $ARRAY_DATA $keys = $mapDataTerm.keyArray();
+         |  final $ARRAY_DATA $values = $mapDataTerm.valueArray();
          |
          |  int $index = 0;
          |  boolean $found = false;
@@ -1689,15 +1698,6 @@ object ScalarOperatorGens {
          |    $nullTerm = true;
          |  } else {
          |    $resultTerm = ${rowFieldReadAccess(index, values, valueType)};
-         |  }
-         |} else {
-         |  $GENERIC_MAP $genericMapTerm = ($GENERIC_MAP) $mapTerm;
-         |  $boxedValueTypeTerm $tmpValue =
-         |    ($boxedValueTypeTerm) $genericMapTerm.get(($keyTypeTerm) ${key.resultTerm});
-         |  if ($tmpValue == null) {
-         |    $nullTerm = true;
-         |  } else {
-         |    $resultTerm = $tmpValue;
          |  }
          |}
         """.stripMargin
