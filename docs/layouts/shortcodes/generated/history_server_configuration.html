@@ -116,5 +116,11 @@
             <td>String</td>
             <td>Local directory that is used by the history server REST API for temporary files.</td>
         </tr>
+        <tr>
+            <td><h5>historyserver.yarn.log.enable-custom-url-handlers</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Boolean</td>
+            <td>Enable custom URL handlers for JobManager and TaskManager logs. The HistoryServer will generate a URL based off of these custom TaskManagerLogUrlHandler and JobManagerLogUrlHandler all custom logic should be handled in the above classes. When this configuration is set, the historyserver.log.jobmanager.url-pattern and historyserver.log.taskmanager.url-pattern configurations will be ignored.</td>
+        </tr>
     </tbody>
 </table>
