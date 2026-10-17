@@ -116,6 +116,7 @@ The plugin emits the following metric names:
 | Key | Default | Description |
 |-----|---------|-------------|
 | s3.retry.max-num-retries | 3 | Maximum retry attempts for failed S3 requests. Uses the AWS SDK's default retry strategy (exponential backoff with jitter). Set to `0` to disable retries |
+| s3.retry.mode | adaptive | `adaptive`: additionally a client-side rate limiter, shared by all requests of the S3 client (one per TaskManager), slows the requests down after throttling answers (HTTP 429, S3 `SlowDown`) and lets them speed up after successful ones, so that many parallel writers settle at the request rate the object store accepts. `standard`: every request retries on its own, which keeps all of them retrying at full speed against a request limit |
 | s3.connection.timeout | 60s | HTTP connection timeout for the S3 client (time to establish a connection) |
 | s3.socket.timeout | 60s | HTTP socket timeout for the S3 client (time to wait for data after connection is established) |
 | s3.connection.max-idle-time | 60s | Maximum idle time for HTTP connections in the connection pool |
