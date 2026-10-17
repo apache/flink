@@ -30,11 +30,13 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Period;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.DATE;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
@@ -79,7 +81,8 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                         mapFromArraysTestCases(),
                         mapContainsKeyTestCases(),
                         mapFromEntriesTestCases(),
-                        mapUnionTestCases())
+                        mapUnionTestCases(),
+                        mapEqualsTestCases())
                 .flatMap(s -> s);
     }
 
@@ -888,5 +891,250 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                 "MAP_UNION(f7, ARRAY[1, 2, 3, 4])",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "MAP_UNION(<COMMON>, <COMMON>...)"));
+    }
+
+    private Stream<TestSetSpec> mapEqualsTestCases() {
+        return Stream.of(
+                // f0-f2 DOUBLE, f3-f5 INT, f6-f8 DATE, f9-f11 DECIMAL, f12-f14 MAP. In each group
+                // the second map reverses the first and the third differs in one value.
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.EQUALS, "MAP value types")
+                        .onFieldsWithData(
+                                orderedMap(A, 1.5, B, 2.5),
+                                orderedMap(B, 2.5, A, 1.5),
+                                orderedMap(A, 1.5, B, 1.5),
+                                orderedMap(A, 7, B, 5000),
+                                orderedMap(B, 5000, A, 7),
+                                orderedMap(A, 7, B, 6000),
+                                orderedMap(A, TEST_DATE_1, B, TEST_DATE_2),
+                                orderedMap(B, TEST_DATE_2, A, TEST_DATE_1),
+                                orderedMap(A, TEST_DATE_1, B, TEST_DATE_1),
+                                orderedMap(A, new BigDecimal("1.50"), B, new BigDecimal("2.50")),
+                                orderedMap(B, new BigDecimal("2.50"), A, new BigDecimal("1.50")),
+                                orderedMap(A, new BigDecimal("1.50"), B, new BigDecimal("1.50")),
+                                orderedMap(
+                                        A, orderedMap(A, 5000, B, 6000),
+                                        B, orderedMap(A, 7000, B, 8000)),
+                                orderedMap(
+                                        B, orderedMap(B, 8000, A, 7000),
+                                        A, orderedMap(B, 6000, A, 5000)),
+                                orderedMap(
+                                        A, orderedMap(A, 5000, B, 6000),
+                                        B, orderedMap(A, 7000, B, 9000)))
+                        .andDataTypes(
+                                MAP(STRING(), DOUBLE()),
+                                MAP(STRING(), DOUBLE()),
+                                MAP(STRING(), DOUBLE()),
+                                MAP(STRING(), INT()),
+                                MAP(STRING(), INT()),
+                                MAP(STRING(), INT()),
+                                MAP(STRING(), DATE()),
+                                MAP(STRING(), DATE()),
+                                MAP(STRING(), DATE()),
+                                MAP(STRING(), DECIMAL(10, 2)),
+                                MAP(STRING(), DECIMAL(10, 2)),
+                                MAP(STRING(), DECIMAL(10, 2)),
+                                MAP(STRING(), MAP(STRING(), INT())),
+                                MAP(STRING(), MAP(STRING(), INT())),
+                                MAP(STRING(), MAP(STRING(), INT())))
+                        .testResult(
+                                resultSpec($("f0").isEqual($("f1")), "f0 = f1", true, BOOLEAN()),
+                                resultSpec(
+                                        $("f0").isNotEqual($("f1")), "f0 <> f1", false, BOOLEAN()),
+                                resultSpec($("f0").isEqual($("f2")), "f0 = f2", false, BOOLEAN()),
+                                resultSpec(
+                                        $("f0").isNotEqual($("f2")), "f0 <> f2", true, BOOLEAN()),
+                                resultSpec($("f3").isEqual($("f4")), "f3 = f4", true, BOOLEAN()),
+                                resultSpec(
+                                        $("f3").isNotEqual($("f4")), "f3 <> f4", false, BOOLEAN()),
+                                resultSpec($("f3").isEqual($("f5")), "f3 = f5", false, BOOLEAN()),
+                                resultSpec(
+                                        $("f3").isNotEqual($("f5")), "f3 <> f5", true, BOOLEAN()),
+                                resultSpec($("f6").isEqual($("f7")), "f6 = f7", true, BOOLEAN()),
+                                resultSpec(
+                                        $("f6").isNotEqual($("f7")), "f6 <> f7", false, BOOLEAN()),
+                                resultSpec($("f6").isEqual($("f8")), "f6 = f8", false, BOOLEAN()),
+                                resultSpec(
+                                        $("f6").isNotEqual($("f8")), "f6 <> f8", true, BOOLEAN()),
+                                resultSpec($("f9").isEqual($("f10")), "f9 = f10", true, BOOLEAN()),
+                                resultSpec(
+                                        $("f9").isNotEqual($("f10")),
+                                        "f9 <> f10",
+                                        false,
+                                        BOOLEAN()),
+                                resultSpec($("f9").isEqual($("f11")), "f9 = f11", false, BOOLEAN()),
+                                resultSpec(
+                                        $("f9").isNotEqual($("f11")), "f9 <> f11", true, BOOLEAN()),
+                                resultSpec(
+                                        $("f12").isEqual($("f13")), "f12 = f13", true, BOOLEAN()),
+                                resultSpec(
+                                        $("f12").isNotEqual($("f13")),
+                                        "f12 <> f13",
+                                        false,
+                                        BOOLEAN()),
+                                resultSpec(
+                                        $("f12").isEqual($("f14")), "f12 = f14", false, BOOLEAN()),
+                                resultSpec(
+                                        $("f12").isNotEqual($("f14")),
+                                        "f12 <> f14",
+                                        true,
+                                        BOOLEAN())),
+                // f0-f2 differ in keys or size. f3-f5 hold a NULL value, which equals nothing.
+                // f6 and LOWER(f7) are both 'x' only at runtime, so the maps hold 'x' twice and the
+                // last entry counts. Keys compare like SQL '=', so the bytes of f8 and f9 match and
+                // f11 * -1E0 is -0.0, which equals 0.0.
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.EQUALS, "MAP keys and NULL values")
+                        .onFieldsWithData(
+                                orderedMap(A, 5000, B, 6000),
+                                orderedMap(A, 5000, "c", 6000),
+                                Collections.singletonMap(A, 5000),
+                                orderedMap(A, 1.5, B, lit(null, DOUBLE())),
+                                orderedMap(B, lit(null, DOUBLE()), A, 1.5),
+                                orderedMap(A, 1.5, B, 2.5),
+                                "x",
+                                "X",
+                                new byte[] {1, 2},
+                                new byte[] {1, 2},
+                                new byte[] {3},
+                                0.0)
+                        .andDataTypes(
+                                MAP(STRING(), INT()),
+                                MAP(STRING(), INT()),
+                                MAP(STRING(), INT()),
+                                MAP(STRING(), DOUBLE()),
+                                MAP(STRING(), DOUBLE()),
+                                MAP(STRING(), DOUBLE()),
+                                STRING(),
+                                STRING(),
+                                BYTES(),
+                                BYTES(),
+                                BYTES(),
+                                DOUBLE())
+                        .testResult(
+                                resultSpec($("f0").isEqual($("f1")), "f0 = f1", false, BOOLEAN()),
+                                resultSpec(
+                                        $("f0").isNotEqual($("f1")), "f0 <> f1", true, BOOLEAN()),
+                                resultSpec($("f0").isEqual($("f2")), "f0 = f2", false, BOOLEAN()),
+                                resultSpec(
+                                        $("f0").isNotEqual($("f2")), "f0 <> f2", true, BOOLEAN()),
+                                resultSpec($("f3").isEqual($("f4")), "f3 = f4", false, BOOLEAN()),
+                                resultSpec(
+                                        $("f3").isNotEqual($("f4")), "f3 <> f4", true, BOOLEAN()),
+                                resultSpec($("f3").isEqual($("f5")), "f3 = f5", false, BOOLEAN()),
+                                resultSpec(
+                                        $("f3").isNotEqual($("f5")), "f3 <> f5", true, BOOLEAN()),
+                                resultSpec(
+                                        map($("f6"), 1, $("f7").lowerCase(), 2).cardinality(),
+                                        "CARDINALITY(MAP[f6, 1, LOWER(f7), 2])",
+                                        2,
+                                        INT().notNull()),
+                                resultSpec(
+                                        map($("f6"), 1, $("f7").lowerCase(), 2)
+                                                .isEqual(map($("f7").lowerCase(), 1, $("f6"), 2)),
+                                        "MAP[f6, 1, LOWER(f7), 2] = MAP[LOWER(f7), 1, f6, 2]",
+                                        true,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        map($("f6"), 1, $("f7").lowerCase(), 2)
+                                                .isEqual(map($("f7").lowerCase(), 2, $("f6"), 1)),
+                                        "MAP[f6, 1, LOWER(f7), 2] = MAP[LOWER(f7), 2, f6, 1]",
+                                        false,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        map($("f6"), nullOf(INT()), $("f7").lowerCase(), 2)
+                                                .isEqual(map($("f7").lowerCase(), 1, $("f6"), 2)),
+                                        "MAP[f6, CAST(NULL AS INT), LOWER(f7), 2]"
+                                                + " = MAP[LOWER(f7), 1, f6, 2]",
+                                        true,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        map($("f6"), 1, $("f7").lowerCase(), 1, "y", 2)
+                                                .isEqual(map("x", 1, "y", 2, "z", 3)),
+                                        "MAP[f6, 1, LOWER(f7), 1, 'y', 2] = MAP['x', 1, 'y', 2, 'z', 3]",
+                                        false,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        map($("f6"), 1, $("f7").lowerCase(), 2)
+                                                .isEqual(map("x", 2)),
+                                        "MAP[f6, 1, LOWER(f7), 2] = MAP['x', 2]",
+                                        false,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        map($("f8"), 1, $("f10"), 2)
+                                                .isEqual(map($("f10"), 2, $("f9"), 1)),
+                                        "MAP[f8, 1, f10, 2] = MAP[f10, 2, f9, 1]",
+                                        true,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        map($("f8"), 1, $("f10"), 2)
+                                                .isEqual(map($("f10"), 1, $("f9"), 2)),
+                                        "MAP[f8, 1, f10, 2] = MAP[f10, 1, f9, 2]",
+                                        false,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        map($("f11"), 1).isEqual(map($("f11").times(-1.0), 1)),
+                                        "MAP[f11, 1] = MAP[f11 * -1E0, 1]",
+                                        true,
+                                        BOOLEAN().notNull())),
+                // CreateMultiset turns f0-f2 into multisets. f3 and f4 are DOUBLE columns.
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.EQUALS, "MULTISET and MAP from columns")
+                        .withFunction(JsonFunctionsITCase.CreateMultiset.class)
+                        .onFieldsWithData(
+                                orderedMap(A, 200, B, 300),
+                                orderedMap(B, 300, A, 200),
+                                orderedMap(A, 200, B, 301),
+                                3.0,
+                                1.5)
+                        .andDataTypes(
+                                MAP(STRING(), INT()),
+                                MAP(STRING(), INT()),
+                                MAP(STRING(), INT()),
+                                DOUBLE(),
+                                DOUBLE())
+                        .testResult(
+                                resultSpec(
+                                        call("CreateMultiset", $("f0"))
+                                                .isEqual(call("CreateMultiset", $("f1"))),
+                                        "CreateMultiset(f0) = CreateMultiset(f1)",
+                                        true,
+                                        BOOLEAN()),
+                                resultSpec(
+                                        call("CreateMultiset", $("f0"))
+                                                .isNotEqual(call("CreateMultiset", $("f1"))),
+                                        "CreateMultiset(f0) <> CreateMultiset(f1)",
+                                        false,
+                                        BOOLEAN()),
+                                resultSpec(
+                                        call("CreateMultiset", $("f0"))
+                                                .isEqual(call("CreateMultiset", $("f2"))),
+                                        "CreateMultiset(f0) = CreateMultiset(f2)",
+                                        false,
+                                        BOOLEAN()),
+                                resultSpec(
+                                        call("CreateMultiset", $("f0"))
+                                                .isNotEqual(call("CreateMultiset", $("f2"))),
+                                        "CreateMultiset(f0) <> CreateMultiset(f2)",
+                                        true,
+                                        BOOLEAN()),
+                                resultSpec(
+                                        map(lit(A), $("f3").dividedBy(2))
+                                                .isEqual(map(lit(A), $("f4"))),
+                                        "MAP['a', f3 / 2] = MAP['a', f4]",
+                                        true,
+                                        BOOLEAN().notNull()),
+                                resultSpec(
+                                        map(lit(A), $("f3")).isEqual(map(lit(A), $("f4"))),
+                                        "MAP['a', f3] = MAP['a', f4]",
+                                        false,
+                                        BOOLEAN().notNull())));
+    }
+
+    private static Map<String, Object> orderedMap(
+            String key1, Object value1, String key2, Object value2) {
+        final Map<String, Object> map = new LinkedHashMap<>();
+        map.put(key1, value1);
+        map.put(key2, value2);
+        return map;
     }
 }
