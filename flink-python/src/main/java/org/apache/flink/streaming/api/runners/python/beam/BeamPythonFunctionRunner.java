@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateRequest
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.TemporaryClassLoaderContext;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.LongFunctionWithException;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -55,7 +56,6 @@ import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -93,6 +93,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -165,7 +169,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private transient StageBundleFactory stageBundleFactory;
 
     /** Handler for state requests. */
-    private transient StateRequestHandler stateRequestHandler;
+    private transient BeamStateRequestHandler stateRequestHandler;
 
     /** Handler for bundle progress messages, both during bundle execution and on its completion. */
     private transient BundleProgressHandler progressHandler;
@@ -194,6 +198,32 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     /** The shared resource among Python operators of the same slot. */
     private transient OpaqueMemoryResource<PythonSharedResources> sharedResources;
+
+    /** Prevents duplicate teardown from explicit close and the JVM shutdown hook. */
+    private transient boolean closed;
+
+    /** Coordinates duplicate close calls until teardown has finished. */
+    @Nullable private transient CompletableFuture<Void> closeCompletion;
+
+    /** Whether cancellation should skip waiting for an in-flight bundle close. */
+    private transient boolean cancelRequested;
+
+    /** Prevents duplicate resource teardown from close and cancellation. */
+    private transient boolean resourcesClosed;
+
+    /** Coordinates duplicate close and cancel calls while the state handler drains requests. */
+    @Nullable private transient CompletableFuture<Void> stateHandlerCloseCompletion;
+
+    /** Owns a detached bundle close after cancellation returns to the task cleanup path. */
+    @Nullable private transient ExecutorService cancellationBundleCloseExecutor;
+
+    /**
+     * The bundle close currently owned by a flush thread.
+     *
+     * <p>The operation remains reachable while it is running so a concurrent graceful close can
+     * wait for the same bundle close without attempting a second one.
+     */
+    @Nullable private transient BundleCloseOperation bundleCloseOperation;
 
     private transient Thread shutdownHook;
 
@@ -328,45 +358,74 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
         shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
-                        this, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
+                        this::cancel, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
 
         unregisteredTimers = Collections.synchronizedList(new LinkedList<>());
     }
 
     @Override
     public void close() throws Exception {
-        try {
-            if (jobBundleFactory != null) {
-                jobBundleFactory.close();
-            }
-        } finally {
-            jobBundleFactory = null;
+        if (!startClose()) {
+            awaitCloseCompletion();
+            return;
         }
 
         try {
-            if (sharedResources != null) {
-                sharedResources.close();
-            } else {
-                // if sharedResources is not null, the close of environmentManager will be managed
-                // in sharedResources,
-                // otherwise, we need to close the environmentManager explicitly
-                environmentManager.close();
+            try {
+                // Normal shutdown finishes this runner's bundle before tearing down its factory or
+                // shared lease. Cancellation uses the separate non-blocking path below.
+                flush();
+            } finally {
+                try {
+                    closeResources();
+                } finally {
+                    try {
+                        closeStateRequestHandler();
+                    } finally {
+                        removeShutdownHook();
+                    }
+                }
             }
         } finally {
-            sharedResources = null;
+            completeClose();
         }
+    }
 
-        if (shutdownHook != null) {
-            ShutdownHookUtil.removeShutdownHook(
-                    shutdownHook, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
-            shutdownHook = null;
+    @Override
+    public void cancel() throws Exception {
+        final BundleCloseClaim bundleCloseClaim = requestCancel();
+
+        try {
+            if (bundleCloseClaim != null && bundleCloseClaim.ownsBundleClose) {
+                closeBundleAfterCancellation(bundleCloseClaim.closeOperation);
+            }
+            // Release only this runner's resource lease. If it is the final lease, the shared
+            // resource disposer owns factory teardown; otherwise co-located runners keep using the
+            // shared worker.
+            closeResources();
+        } finally {
+            try {
+                // A bundle close already owned by another thread may still issue callbacks while
+                // it unwinds. Gate those callbacks before state backends are disposed.
+                closeStateRequestHandler();
+            } finally {
+                try {
+                    removeShutdownHook();
+                } finally {
+                    completeClose();
+                }
+            }
         }
     }
 
     @Override
     public void process(byte[] data) throws Exception {
-        checkInvokeStartBundle();
-        mainInputReceiver.accept(WindowedValues.valueInGlobalWindow(data));
+        final FnDataReceiver<WindowedValue<byte[]>> inputReceiver;
+        synchronized (this) {
+            checkInvokeStartBundle();
+            inputReceiver = mainInputReceiver;
+        }
+        inputReceiver.accept(WindowedValues.valueInGlobalWindow(data));
     }
 
     @Override
@@ -381,23 +440,34 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     @Override
     public void processTimer(byte[] timerData) throws Exception {
-        if (timerInputReceiver == null) {
-            checkInvokeStartBundle();
-            timerInputReceiver =
-                    Preconditions.checkNotNull(
-                            Iterables.getOnlyElement(remoteBundle.getTimerReceivers().values()),
-                            "Failed to retrieve main input receiver.");
+        final FnDataReceiver<Timer> inputReceiver;
+        synchronized (this) {
+            if (timerInputReceiver == null) {
+                checkInvokeStartBundle();
+                timerInputReceiver =
+                        Preconditions.checkNotNull(
+                                Iterables.getOnlyElement(remoteBundle.getTimerReceivers().values()),
+                                "Failed to retrieve main input receiver.");
+            }
+            inputReceiver = timerInputReceiver;
         }
 
         Timer<byte[]> timerValue = Timer.cleared(timerData, "", Collections.emptyList());
-        timerInputReceiver.accept(timerValue);
+        inputReceiver.accept(timerValue);
     }
 
     /** Checks whether to invoke startBundle. */
     private void checkInvokeStartBundle() {
+        if (closed) {
+            throw new IllegalStateException("Beam Python function runner is closed.");
+        }
         if (!bundleStarted) {
+            if (bundleCloseOperation != null && !bundleCloseOperation.isDone()) {
+                throw new IllegalStateException("The previous Beam bundle is still closing.");
+            }
             startBundle();
             bundleStarted = true;
+            bundleCloseOperation = null;
         }
     }
 
@@ -442,12 +512,33 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     @Override
     public void flush() throws Exception {
-        if (bundleStarted) {
-            try {
-                finishBundle();
-            } finally {
-                bundleStarted = false;
+        final BundleCloseOperation closeOperation;
+        final boolean ownsBundleClose;
+        synchronized (this) {
+            if (cancelRequested) {
+                return;
             }
+
+            if (bundleStarted) {
+                closeOperation = new BundleCloseOperation(remoteBundle);
+                bundleCloseOperation = closeOperation;
+                bundleStarted = false;
+                clearBundleReferences();
+                ownsBundleClose = true;
+            } else {
+                closeOperation = bundleCloseOperation;
+                ownsBundleClose = false;
+            }
+        }
+
+        if (closeOperation == null) {
+            return;
+        }
+
+        if (ownsBundleClose) {
+            finishBundle(closeOperation);
+        } else {
+            closeOperation.await();
         }
     }
 
@@ -456,15 +547,249 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         resultBuffer.add(Tuple2.of(null, new byte[0]));
     }
 
-    private void finishBundle() {
+    private void finishBundle(BundleCloseOperation closeOperation) {
+        RuntimeException failure = null;
         try {
-            remoteBundle.close();
+            closeOperation.remoteBundle.close();
         } catch (Throwable t) {
-            throw new RuntimeException("Failed to close remote bundle", t);
+            failure = new RuntimeException("Failed to close remote bundle", t);
+            throw failure;
         } finally {
-            remoteBundle = null;
-            mainInputReceiver = null;
-            timerInputReceiver = null;
+            closeOperation.complete(failure);
+            if (isCancelRequested()) {
+                try {
+                    closeResources();
+                } catch (Exception e) {
+                    LOG.warn("Failed to clean up Python resources after cancellation.", e);
+                }
+            }
+        }
+    }
+
+    private synchronized boolean startClose() {
+        if (closed) {
+            return false;
+        }
+        closed = true;
+        closeCompletion = new CompletableFuture<>();
+        return true;
+    }
+
+    /**
+     * Starts cancellation without waiting for a concurrent bundle close.
+     *
+     * <p>If no flush thread owns the active bundle yet, cancellation detaches it and becomes
+     * responsible for finishing it asynchronously.
+     */
+    @Nullable
+    private synchronized BundleCloseClaim requestCancel() {
+        cancelRequested = true;
+        closed = true;
+        if (closeCompletion == null) {
+            closeCompletion = new CompletableFuture<>();
+        }
+
+        if (bundleStarted) {
+            final BundleCloseOperation closeOperation = new BundleCloseOperation(remoteBundle);
+            bundleCloseOperation = closeOperation;
+            bundleStarted = false;
+            clearBundleReferences();
+            return new BundleCloseClaim(closeOperation, true);
+        }
+        if (bundleCloseOperation != null && !bundleCloseOperation.isDone()) {
+            return new BundleCloseClaim(bundleCloseOperation, false);
+        }
+        clearBundleReferences();
+        return null;
+    }
+
+    private synchronized boolean isCancelRequested() {
+        return cancelRequested;
+    }
+
+    private void awaitCloseCompletion() throws Exception {
+        final CompletableFuture<Void> currentCloseCompletion;
+        synchronized (this) {
+            currentCloseCompletion = closeCompletion;
+        }
+        if (currentCloseCompletion != null) {
+            awaitCompletion(currentCloseCompletion);
+        }
+    }
+
+    private void completeClose() {
+        final CompletableFuture<Void> currentCloseCompletion;
+        synchronized (this) {
+            currentCloseCompletion = closeCompletion;
+        }
+        if (currentCloseCompletion != null) {
+            currentCloseCompletion.complete(null);
+        }
+    }
+
+    private void closeResources() throws Exception {
+        final JobBundleFactory ownedJobBundleFactory;
+        final OpaqueMemoryResource<PythonSharedResources> currentSharedResources;
+        synchronized (this) {
+            if (resourcesClosed) {
+                return;
+            }
+            resourcesClosed = true;
+            ownedJobBundleFactory = jobBundleFactory;
+            currentSharedResources = sharedResources;
+            jobBundleFactory = null;
+            sharedResources = null;
+        }
+
+        if (currentSharedResources != null) {
+            try {
+                currentSharedResources.close();
+            } finally {
+                clearBundleReferences();
+            }
+        } else {
+            try {
+                if (ownedJobBundleFactory != null) {
+                    ownedJobBundleFactory.close();
+                }
+            } finally {
+                try {
+                    environmentManager.close();
+                } finally {
+                    clearBundleReferences();
+                }
+            }
+        }
+    }
+
+    private void closeBundleAfterCancellation(BundleCloseOperation closeOperation) {
+        final ExecutorService executor;
+        synchronized (this) {
+            if (cancellationBundleCloseExecutor == null) {
+                cancellationBundleCloseExecutor =
+                        Executors.newSingleThreadExecutor(
+                                new ExecutorThreadFactory("beam-python-bundle-cancellation"));
+            }
+            executor = cancellationBundleCloseExecutor;
+        }
+        executor.execute(
+                () -> {
+                    try {
+                        finishBundle(closeOperation);
+                    } catch (Throwable t) {
+                        LOG.debug("Beam bundle close failed during cancellation.", t);
+                    } finally {
+                        executor.shutdown();
+                    }
+                });
+    }
+
+    private void closeStateRequestHandler() throws Exception {
+        final BeamStateRequestHandler currentStateRequestHandler;
+        final CompletableFuture<Void> closeCompletion;
+        final boolean ownsClose;
+        synchronized (this) {
+            if (stateHandlerCloseCompletion == null) {
+                closeCompletion = new CompletableFuture<>();
+                stateHandlerCloseCompletion = closeCompletion;
+                currentStateRequestHandler = stateRequestHandler;
+                stateRequestHandler = null;
+                ownsClose = true;
+            } else {
+                closeCompletion = stateHandlerCloseCompletion;
+                currentStateRequestHandler = null;
+                ownsClose = false;
+            }
+        }
+
+        if (ownsClose) {
+            RuntimeException failure = null;
+            try {
+                if (currentStateRequestHandler != null) {
+                    currentStateRequestHandler.close();
+                }
+            } catch (RuntimeException e) {
+                failure = e;
+                throw e;
+            } finally {
+                if (failure == null) {
+                    closeCompletion.complete(null);
+                } else {
+                    closeCompletion.completeExceptionally(failure);
+                }
+            }
+        } else {
+            awaitCompletion(closeCompletion);
+        }
+    }
+
+    private synchronized void clearBundleReferences() {
+        remoteBundle = null;
+        mainInputReceiver = null;
+        timerInputReceiver = null;
+    }
+
+    private void removeShutdownHook() {
+        final Thread currentShutdownHook;
+        synchronized (this) {
+            currentShutdownHook = shutdownHook;
+            shutdownHook = null;
+        }
+        if (currentShutdownHook != null) {
+            ShutdownHookUtil.removeShutdownHook(
+                    currentShutdownHook, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
+        }
+    }
+
+    private static final class BundleCloseOperation {
+
+        private final RemoteBundle remoteBundle;
+        private final CompletableFuture<Void> completion = new CompletableFuture<>();
+
+        private BundleCloseOperation(RemoteBundle remoteBundle) {
+            this.remoteBundle = remoteBundle;
+        }
+
+        private boolean isDone() {
+            return completion.isDone();
+        }
+
+        private void complete(@Nullable RuntimeException failure) {
+            if (failure == null) {
+                completion.complete(null);
+            } else {
+                completion.completeExceptionally(failure);
+            }
+        }
+
+        private void await() throws Exception {
+            awaitCompletion(completion);
+        }
+    }
+
+    private static final class BundleCloseClaim {
+
+        private final BundleCloseOperation closeOperation;
+        private final boolean ownsBundleClose;
+
+        private BundleCloseClaim(BundleCloseOperation closeOperation, boolean ownsBundleClose) {
+            this.closeOperation = closeOperation;
+            this.ownsBundleClose = ownsBundleClose;
+        }
+    }
+
+    private static void awaitCompletion(CompletableFuture<Void> completion) throws Exception {
+        try {
+            completion.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
+        } catch (ExecutionException e) {
+            final Throwable cause = e.getCause();
+            if (cause instanceof Exception) {
+                throw (Exception) cause;
+            }
+            throw new RuntimeException(cause);
         }
     }
 
@@ -735,7 +1060,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         return new TimerReceiverFactory(stageBundleFactory, timerDataConsumer, null);
     }
 
-    private static StateRequestHandler getStateRequestHandler(
+    private static BeamStateRequestHandler getStateRequestHandler(
             @Nullable KeyedStateBackend<?> keyedStateBackend,
             @Nullable OperatorStateBackend operatorStateBackend,
             @Nullable TypeSerializer<?> keySerializer,
