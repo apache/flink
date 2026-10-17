@@ -1044,6 +1044,17 @@ class Expression(Generic[T]):
         return _unary_op("end")(self)
 
     @property
+    def cbrt(self) -> 'Expression[float]':
+        """
+        Returns the cube root of a numeric value.
+        For positive numbers, returns a positive cube root. For negative numbers, returns a negative cube root.
+        Zero returns zero. Returns null if the argument is null.
+
+        For example, CBRT(27) returns 3.0, CBRT(-8) returns -2.0, and CBRT(0) returns 0.0.
+        """
+        return _unary_op("bitCount")(self)
+
+    @property
     def bin(self) -> 'Expression[str]':
         """
         Returns a string representation of an integer numeric value in binary format. Returns null
