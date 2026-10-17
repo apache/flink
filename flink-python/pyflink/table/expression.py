@@ -2305,8 +2305,13 @@ class Expression(Generic[T]):
 
         * `STRING`
         * `BOOLEAN`
+        * `TINYINT`
+        * `SMALLINT`
         * `INT`
+        * `BIGINT`
+        * `FLOAT`
         * `DOUBLE`
+        * `DECIMAL`
 
         For empty path expressions or errors a behavior can be defined to either return `null`,
         raise an error or return a defined default value instead.

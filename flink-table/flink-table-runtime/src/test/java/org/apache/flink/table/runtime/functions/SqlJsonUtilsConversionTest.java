@@ -239,9 +239,13 @@ class SqlJsonUtilsConversionTest {
                 Arguments.of("f", false),
                 Arguments.of("yes", true),
                 Arguments.of("no", false),
+                Arguments.of("y", true),
+                Arguments.of("n", false),
+                Arguments.of("Y", true),
+                Arguments.of("N", false),
                 Arguments.of("1", true),
                 Arguments.of("0", false),
-                // parseStringAsBoolean trims before matching
+                // leading/trailing whitespace is trimmed before matching
                 Arguments.of(" true ", true),
                 Arguments.of(" FALSE ", false));
     }
@@ -379,6 +383,7 @@ class SqlJsonUtilsConversionTest {
                 Arguments.of(new Object[] {0, 1}, BOOLEAN, new Object[] {false, true}),
                 Arguments.of(new Object[] {"1", "2", "3"}, INTEGER, new Object[] {1, 2, 3}),
                 Arguments.of(new Object[] {"yes", "no"}, BOOLEAN, new Object[] {true, false}),
+                Arguments.of(new Object[] {"Y", "n"}, BOOLEAN, new Object[] {true, false}),
                 Arguments.of(
                         new Object[] {1, 9999999999L}, BIGINT, new Object[] {1L, 9999999999L}));
     }
@@ -387,7 +392,6 @@ class SqlJsonUtilsConversionTest {
         return Stream.of(
                 Arguments.of(new Object[] {"a", "b"}, INTEGER, 0, 0, true),
                 Arguments.of(new Object[] {1, "notANumber", 3}, INTEGER, 0, 0, true),
-                //      Arguments.of(new Object[] {"Y", "n"}, BOOLEAN, 0, 0, true),
                 // element 2 is neither 0 nor 1, so conversion fails atomically
                 Arguments.of(new Object[] {1, 2, 3}, BOOLEAN, 0, 0, true),
                 Arguments.of(new Object[] {999999}, DECIMAL, 2, 1, true),

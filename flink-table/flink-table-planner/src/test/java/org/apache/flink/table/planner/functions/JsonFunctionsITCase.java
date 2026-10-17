@@ -487,6 +487,10 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE(f0, '$.activated' RETURNING BOOLEAN)",
                         true,
                         BOOLEAN())
+                // string-to-boolean coercion matches CAST (BinaryStringDataUtil.toBoolean)
+                .testSqlResult("JSON_VALUE('{\"a\": \"y\"}', '$.a' RETURNING BOOLEAN)", true, BOOLEAN())
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": \"N\"}', '$.a' RETURNING BOOLEAN)", false, BOOLEAN())
                 .testResult(
                         $("f0").jsonValue("$.age", INT()),
                         "JSON_VALUE(f0, '$.age' RETURNING INT)",

@@ -2436,8 +2436,13 @@ public abstract class BaseExpressions<InType, OutType> {
      * <ul>
      *   <li>{@link DataTypes#STRING()}
      *   <li>{@link DataTypes#BOOLEAN()}
+     *   <li>{@link DataTypes#TINYINT()}
+     *   <li>{@link DataTypes#SMALLINT()}
      *   <li>{@link DataTypes#INT()}
+     *   <li>{@link DataTypes#BIGINT()}
+     *   <li>{@link DataTypes#FLOAT()}
      *   <li>{@link DataTypes#DOUBLE()}
+     *   <li>{@link DataTypes#DECIMAL(int, int)}
      * </ul>
      *
      * <p>For empty path expressions or errors a behavior can be defined to either return {@code
