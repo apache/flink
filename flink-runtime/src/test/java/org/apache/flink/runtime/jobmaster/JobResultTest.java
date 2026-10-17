@@ -125,6 +125,34 @@ class JobResultTest {
     }
 
     @Test
+    void testSafeFailedJobThrowsJobExecutionExceptionWithoutDeserializing() {
+        final FlinkException cause = new FlinkException("Test exception");
+        final JobResult jobResult =
+                JobResult.createFrom(
+                        new ArchivedExecutionGraphBuilder()
+                                .setJobID(new JobID())
+                                .setState(JobStatus.FAILED)
+                                .setFailureCause(new ErrorInfo(cause, 42L))
+                                .build());
+
+        // toSafeJobExecutionResult() must not call SerializedThrowable#deserializeError itself:
+        // the cause is the SerializedThrowable, and only an explicit, separate deserializeError()
+        // call recovers the original, live exception object.
+        assertThatThrownBy(() -> jobResult.toSafeJobExecutionResult(getClass().getClassLoader()))
+                .isInstanceOf(JobExecutionException.class)
+                .cause()
+                .isInstanceOf(SerializedThrowable.class);
+
+        assertThatThrownBy(() -> jobResult.toSafeJobExecutionResult(getClass().getClassLoader()))
+                .extracting(Throwable::getCause)
+                .extracting(
+                        c ->
+                                ((SerializedThrowable) c)
+                                        .deserializeError(getClass().getClassLoader()))
+                .isEqualTo(cause);
+    }
+
+    @Test
     void testFailureResultRequiresFailureCause() {
         assertThatThrownBy(
                         () ->
