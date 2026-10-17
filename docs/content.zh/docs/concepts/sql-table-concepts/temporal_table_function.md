@@ -121,14 +121,14 @@ WHERE
 ```java
 Table result = orders
     .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")))
-    .select($("(o_amount").times($("r_rate")).sum().as("amount"));
+    .select($("o_amount").times($("r_rate")).sum().as("amount"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 val result = orders
     .joinLateral($"rates(order_time)", $"orders.currency = rates.currency")
-    .select($"(o_amount * r_rate).sum as amount"))
+    .select($"(o_amount * r_rate).sum as amount")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
