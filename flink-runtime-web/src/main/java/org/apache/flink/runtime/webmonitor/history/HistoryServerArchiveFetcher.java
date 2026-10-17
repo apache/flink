@@ -733,6 +733,9 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
 
     /** Marks the job as recently viewed and evicts the least recently viewed ones locally. */
     void markRecentlyViewed(String jobId) {
+        if (!isOwnedByRefreshDirectory(jobId)) {
+            return;
+        }
         List<ArchiveEvent> events = new ArrayList<>();
         synchronized (mostRecentlyViewedJobs) {
             mostRecentlyViewedJobs.put(jobId, Boolean.TRUE);
@@ -752,6 +755,16 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             updateOverview();
             events.forEach(archiveEventListener);
         }
+    }
+
+    /** Application-owned jobs are nested deeper and managed by the application fetcher. */
+    private boolean isOwnedByRefreshDirectory(String jobId) {
+        ArchiveMetaInfo metaInfo = archiveMetaInfoCache.get(jobId);
+        if (metaInfo == null || metaInfo.getArchivePath() == null) {
+            return false;
+        }
+        Path parent = metaInfo.getArchivePath().getParent();
+        return refreshDirs.stream().anyMatch(dir -> dir.getPath().equals(parent));
     }
 
     void cleanUpArchives(HistoryServerOptions.HistoryServerArchiveLoadMode archiveLoadMode) {

@@ -36,6 +36,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -501,18 +502,50 @@ class HistoryServerArchiveFetcherTest {
         JobID newest = JobID.generate();
         JobID older = JobID.generate();
         Path olderArchive = createArchive(older, 1000);
-        createArchive(newest, 2000);
 
         fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
         fetcher.fetchArchives(EAGER);
-        view(fetcher, older, olderArchive);
         assertThat(isCachedLocally(older)).isTrue();
+        view(fetcher, older, olderArchive);
 
+        createArchive(newest, 2000);
         archiveEvents.clear();
         fetcher.fetchArchives(EAGER);
 
-        assertThat(archiveEvents).isEmpty();
+        assertThat(isCachedLocally(newest)).isTrue();
         assertThat(isCachedLocally(older)).isTrue();
+        assertThat(archiveEvents)
+                .noneMatch(
+                        e ->
+                                e.getId().equals(older.toString())
+                                        && e.getType()
+                                                == HistoryServerArchiveFetcher.ArchiveEventType
+                                                        .DELETED);
+    }
+
+    @TestTemplate
+    void testViewingApplicationJobsDoesNotEvictThem() throws Exception {
+        JobID appJobA = JobID.generate();
+        JobID appJobB = JobID.generate();
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        for (JobID id : Arrays.asList(appJobA, appJobB)) {
+            archiveStorage.putArchiveContent("overviews/" + id + ".json", "{}");
+            archiveMetaInfoCache.put(
+                    id.toString(),
+                    new ArchiveMetaInfo(
+                            id.toString(),
+                            CREATED,
+                            new Path(
+                                    remoteArchiveRootPath.toURI().toString(),
+                                    "cluster/applications/app/jobs/" + id)));
+        }
+
+        fetcher.markRecentlyViewed(appJobA.toString());
+        fetcher.markRecentlyViewed(appJobB.toString());
+
+        assertThat(isCachedLocally(appJobA)).isTrue();
+        assertThat(isCachedLocally(appJobB)).isTrue();
+        assertThat(archiveMetaInfoCache).containsKeys(appJobA.toString(), appJobB.toString());
     }
 
     @TestTemplate
