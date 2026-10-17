@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>historyserver.archive.cached-retained-jobs</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The maximum number of the latest job archives to keep in the local cache. Older archives are evicted from the local cache only. They stay in the remote directory until <code class="highlighter-rouge">historyserver.archive.retained-jobs</code> or <code class="highlighter-rouge">historyserver.archive.retained-ttl</code> removes them, and can be fetched on demand when <code class="highlighter-rouge">historyserver.archive.load.mode</code> is <code class="highlighter-rouge">LAZY</code>. If not set, every retained job archive is cached locally. The remote directory is then only bounded by the retention options, so set <code class="highlighter-rouge">historyserver.archive.retained-ttl</code> to avoid unbounded growth. This option only applies to job archives, not to application archives.</td>
+        </tr>
+        <tr>
             <td><h5>historyserver.archive.clean-expired-applications</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -37,6 +43,12 @@
             <td style="word-wrap: break-word;">EAGER</td>
             <td><p>Enum</p></td>
             <td>The mode that HistoryServer loads archives.<br /><br />Possible values:<ul><li>"EAGER"</li><li>"LAZY"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.archive.num-cached-most-recently-viewed-jobs</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The maximum number of most recently viewed job archives kept in the local cache, in addition to the ones governed by <code class="highlighter-rouge">historyserver.archive.cached-retained-jobs</code>. It does not limit how many remote archives can be fetched, only how many stay cached locally. Must be at least 1.</td>
         </tr>
         <tr>
             <td><h5>historyserver.archive.retained-applications</h5></td>

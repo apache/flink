@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.history.FsJsonArchivist;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.webmonitor.history.retaining.ArchiveRetainedStrategy;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -134,6 +135,40 @@ class HistoryServerArchiveFetcherTest {
                 archiveMetaInfoCache,
                 4,
                 4);
+    }
+
+    private HistoryServerArchiveFetcher<?> createArchiveFetcher(
+            ArchiveRetainedStrategy retainedStrategy, int cachedRetainedJobs, int numViewedJobs)
+            throws Exception {
+        return new HistoryServerArchiveFetcher<>(
+                Collections.singletonList(createRefreshLocation(remoteArchiveRootPath)),
+                localArchiveRootPath,
+                event -> archiveEvents.add(event),
+                true,
+                retainedStrategy,
+                archiveStorage,
+                archiveMetaInfoCache,
+                4,
+                4,
+                cachedRetainedJobs,
+                numViewedJobs);
+    }
+
+    private Path createArchive(JobID jobId, long modificationTime) throws Exception {
+        Path archive = createJobArchive(remoteArchiveRootPath, jobId, true);
+        assertThat(new File(archive.toUri()).setLastModified(modificationTime)).isTrue();
+        return archive;
+    }
+
+    private boolean isCachedLocally(JobID jobId) throws Exception {
+        return archiveStorage.exists("overviews/" + jobId + ".json");
+    }
+
+    private void view(HistoryServerArchiveFetcher<?> fetcher, JobID jobId, Path archive)
+            throws Exception {
+        fetcher.lazyFetchArchiveProactively(jobId.toString(), archive);
+        fetcher.markRecentlyViewed(jobId.toString());
+        waitForArchiveLoaded(archiveMetaInfoCache, jobId.toString());
     }
 
     // =========================================================================
@@ -418,6 +453,102 @@ class HistoryServerArchiveFetcherTest {
         fetcher.scanArchives(EAGER, false);
         assertThat(archiveEvents).isEmpty();
         assertThat(archiveStorage.exists("overviews/" + jobId + ".json")).isFalse();
+    }
+
+    @TestTemplate
+    void testArchivesBeyondCachedLimitAreOnlyCachedLocallyWithinLimit() throws Exception {
+        JobID newest = JobID.generate();
+        JobID older = JobID.generate();
+        Path olderArchive = createArchive(older, 1000);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(isCachedLocally(newest)).isTrue();
+        assertThat(isCachedLocally(older)).isFalse();
+        assertThat(olderArchive.getFileSystem().exists(olderArchive)).isTrue();
+    }
+
+    @TestTemplate
+    void testCachedArchivePushedOutOfLimitIsEvictedLocallyOnly() throws Exception {
+        JobID first = JobID.generate();
+        JobID second = JobID.generate();
+        Path firstArchive = createArchive(first, 1000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        assertThat(isCachedLocally(first)).isTrue();
+
+        createArchive(second, 2000);
+        archiveEvents.clear();
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(isCachedLocally(first)).isFalse();
+        assertThat(isCachedLocally(second)).isTrue();
+        assertThat(firstArchive.getFileSystem().exists(firstArchive)).isTrue();
+        assertThat(archiveEvents)
+                .anyMatch(
+                        e ->
+                                e.getId().equals(first.toString())
+                                        && e.getType()
+                                                == HistoryServerArchiveFetcher.ArchiveEventType
+                                                        .DELETED);
+    }
+
+    @TestTemplate
+    void testViewedArchiveBeyondLimitSurvivesNextScan() throws Exception {
+        JobID newest = JobID.generate();
+        JobID older = JobID.generate();
+        Path olderArchive = createArchive(older, 1000);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, older, olderArchive);
+        assertThat(isCachedLocally(older)).isTrue();
+
+        archiveEvents.clear();
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(archiveEvents).isEmpty();
+        assertThat(isCachedLocally(older)).isTrue();
+    }
+
+    @TestTemplate
+    void testLeastRecentlyViewedArchiveIsEvictedLocally() throws Exception {
+        JobID newest = JobID.generate();
+        JobID old1 = JobID.generate();
+        JobID old2 = JobID.generate();
+        Path old1Archive = createArchive(old1, 1000);
+        Path old2Archive = createArchive(old2, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher(RETAIN_ALL, 1, 1);
+        fetcher.fetchArchives(EAGER);
+        view(fetcher, old1, old1Archive);
+        view(fetcher, old2, old2Archive);
+
+        assertThat(isCachedLocally(old1)).isFalse();
+        assertThat(isCachedLocally(old2)).isTrue();
+        assertThat(old1Archive.getFileSystem().exists(old1Archive)).isTrue();
+    }
+
+    @TestTemplate
+    void testRetainedLimitStillDeletesRemoteWhenCachedLimitIsSet() throws Exception {
+        JobID newest = JobID.generate();
+        JobID middle = JobID.generate();
+        JobID oldest = JobID.generate();
+        Path oldestArchive = createArchive(oldest, 1000);
+        Path middleArchive = createArchive(middle, 1500);
+        createArchive(newest, 2000);
+
+        fetcher = createArchiveFetcher((file, index) -> index <= 2, 1, 1);
+        fetcher.fetchArchives(EAGER);
+
+        assertThat(oldestArchive.getFileSystem().exists(oldestArchive)).isFalse();
+        assertThat(middleArchive.getFileSystem().exists(middleArchive)).isTrue();
+        assertThat(isCachedLocally(middle)).isFalse();
     }
 
     @TestTemplate

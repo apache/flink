@@ -52,6 +52,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -143,6 +145,15 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
     private final Map<String, Future<?>> individualFetchTasks;
     private final ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache;
 
+    /** Max number of latest archives cached locally, or -1 if all retained ones are cached. */
+    private final int cachedRetainedJobs;
+
+    private final int numCachedMostRecentlyViewedJobs;
+
+    /** Access ordered, the eldest entry is the least recently viewed job. */
+    private final Map<String, Boolean> mostRecentlyViewedJobs =
+            new LinkedHashMap<>(16, 0.75f, true);
+
     HistoryServerArchiveFetcher(
             List<HistoryServer.RefreshLocation> refreshDirs,
             File webDir,
@@ -154,13 +165,43 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             int lazyFetchExecutorCommonPoolSize,
             int lazyFetchExecutorIndividualPoolSize)
             throws IOException {
+        this(
+                refreshDirs,
+                webDir,
+                archiveEventListener,
+                cleanupExpiredArchives,
+                retainedStrategy,
+                archiveStorage,
+                archiveMetaInfoCache,
+                lazyFetchExecutorCommonPoolSize,
+                lazyFetchExecutorIndividualPoolSize,
+                -1,
+                1);
+    }
+
+    HistoryServerArchiveFetcher(
+            List<HistoryServer.RefreshLocation> refreshDirs,
+            File webDir,
+            Consumer<ArchiveEvent> archiveEventListener,
+            boolean cleanupExpiredArchives,
+            ArchiveRetainedStrategy retainedStrategy,
+            ArchiveStorage<Entry> archiveStorage,
+            ConcurrentHashMap<String, ArchiveMetaInfo> archiveMetaInfoCache,
+            int lazyFetchExecutorCommonPoolSize,
+            int lazyFetchExecutorIndividualPoolSize,
+            int cachedRetainedJobs,
+            int numCachedMostRecentlyViewedJobs)
+            throws IOException {
+        this.cachedRetainedJobs = cachedRetainedJobs;
+        this.numCachedMostRecentlyViewedJobs = numCachedMostRecentlyViewedJobs;
         this.refreshDirs = checkNotNull(refreshDirs);
         this.archiveEventListener = archiveEventListener;
         this.processExpiredArchiveDeletion = cleanupExpiredArchives;
         this.retainedStrategy = checkNotNull(retainedStrategy);
         this.cachedArchivesPerRefreshDirectory = new HashMap<>();
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
-            cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
+            cachedArchivesPerRefreshDirectory.put(
+                    refreshDir.getPath(), ConcurrentHashMap.newKeySet());
         }
         checkNotNull(webDir);
         this.archiveStorage = archiveStorage;
@@ -198,6 +239,7 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             cachedArchivesPerRefreshDirectory.forEach(
                     (path, archives) -> archivesToRemove.put(path, new HashSet<>(archives)));
             Map<Path, Set<Path>> archivesBeyondRetainedLimit = new HashMap<>();
+            Map<Path, Set<String>> archivesToEvictLocally = new HashMap<>();
             for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
                 Path refreshDir = refreshLocation.getPath();
                 LOG.debug("Checking archive directory {}.", refreshDir);
@@ -229,6 +271,17 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
                         continue;
                     }
 
+                    if (cachedRetainedJobs > 0
+                            && fileOrderedIndexOnModifiedTime > cachedRetainedJobs) {
+                        // the remote archive stays, only evict what an earlier scan cached
+                        if (cachedArchivesPerRefreshDirectory.get(refreshDir).contains(archiveId)) {
+                            archivesToEvictLocally
+                                    .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
+                                    .add(archiveId);
+                        }
+                        continue;
+                    }
+
                     if (fetch) {
                         fetchArchive(refreshDir, archiveId, archivePath, archiveLoadMode, events);
                     }
@@ -243,6 +296,15 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             // clean remote and local
             if (!archivesBeyondRetainedLimit.isEmpty()) {
                 events.addAll(cleanupArchivesBeyondRetainedLimit(archivesBeyondRetainedLimit));
+            }
+            // clean local only
+            if (!archivesToEvictLocally.isEmpty()) {
+                synchronized (mostRecentlyViewedJobs) {
+                    archivesToEvictLocally
+                            .values()
+                            .forEach(ids -> ids.removeAll(mostRecentlyViewedJobs.keySet()));
+                    events.addAll(cleanupExpiredArchives(archivesToEvictLocally));
+                }
             }
             if (!events.isEmpty()) {
                 updateOverview();
@@ -666,6 +728,29 @@ public class HistoryServerArchiveFetcher<Entry> implements AutoCloseable {
             if (refreshDir.getFs().exists(archivePath)) {
                 lazyProcessJobArchive(jobId, archivePath, true);
             }
+        }
+    }
+
+    /** Marks the job as recently viewed and evicts the least recently viewed ones locally. */
+    void markRecentlyViewed(String jobId) {
+        List<ArchiveEvent> events = new ArrayList<>();
+        synchronized (mostRecentlyViewedJobs) {
+            mostRecentlyViewedJobs.put(jobId, Boolean.TRUE);
+            Iterator<String> eldest = mostRecentlyViewedJobs.keySet().iterator();
+            while (mostRecentlyViewedJobs.size() > numCachedMostRecentlyViewedJobs) {
+                String evictedId = eldest.next();
+                eldest.remove();
+                // archives still inside the cached window are managed by the scan
+                if (cachedArchivesPerRefreshDirectory.values().stream()
+                        .noneMatch(ids -> ids.contains(evictedId))) {
+                    cleanUpLazyFetchTask(evictedId);
+                    events.add(deleteJobFiles(evictedId));
+                }
+            }
+        }
+        if (!events.isEmpty()) {
+            updateOverview();
+            events.forEach(archiveEventListener);
         }
     }
 
