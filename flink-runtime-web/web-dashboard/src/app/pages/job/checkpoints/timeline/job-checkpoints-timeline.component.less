@@ -1,0 +1,177 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.timeline-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.hint {
+  margin-left: 8px;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.legend {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  color: #595959;
+  list-style: none;
+  font-size: 12px;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    border: 1px solid transparent;
+    border-radius: 2px;
+  }
+
+  .completed {
+    background: #52c41a;
+  }
+
+  .savepoint {
+    background: #722ed1;
+  }
+
+  .in-progress {
+    background: #faad14;
+  }
+
+  .failed {
+    background: #f5222d;
+  }
+
+  .phase-start {
+    background: #b8c0cc;
+  }
+
+  .phase-align {
+    background: #91caff;
+  }
+
+  .phase-sync {
+    background: #fa8c16;
+  }
+
+  .phase-async {
+    background: #52c41a;
+  }
+
+  .outlier {
+    border: 1.5px dashed #f5222d;
+    background: transparent;
+  }
+}
+
+.strip-canvas {
+  width: 100%;
+  min-height: 80px;
+  cursor: pointer;
+}
+
+.pin-badge {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: #faad14;
+  color: #fff;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.rotated-out-note {
+  // Fixed height so the chart doesn't shift when the note toggles.
+  min-height: 18px;
+  margin: 0 0 8px;
+  color: #8c8c8c;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.timeline-title {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.timeline-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.follow-newest {
+  padding: 2px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+  color: #1890ff;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #1890ff;
+  }
+}
+
+.partial-failure {
+  margin-bottom: 12px;
+}
+
+.timeline-canvas-wrapper {
+  position: relative;
+  min-height: 160px;
+
+  &.loading {
+    opacity: 0.7;
+  }
+}
+
+.timeline-canvas {
+  width: 100%;
+
+  &.hidden {
+    display: none;
+  }
+}
