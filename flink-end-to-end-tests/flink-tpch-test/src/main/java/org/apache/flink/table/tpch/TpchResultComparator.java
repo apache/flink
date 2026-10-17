@@ -40,7 +40,7 @@ public class TpchResultComparator {
         if (partitions == null) {
             throw new IllegalArgumentException(
                     String.format(
-                            "The specified actual result path: %s doesn't exists.", actualPath));
+                            "The specified actual result path: %s doesn't exist.", actualPath));
         }
         if (partitions.length > 1) {
             throw new UnsupportedOperationException(
