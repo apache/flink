@@ -66,17 +66,26 @@ public class CallContextMock implements CallContext {
 
     @Override
     public boolean isArgumentLiteral(int pos) {
-        return argumentLiterals.get(pos);
+        if (argumentLiterals == null || pos >= argumentLiterals.size()) {
+            return false;
+        }
+        return Boolean.TRUE.equals(argumentLiterals.get(pos));
     }
 
     @Override
     public boolean isArgumentNull(int pos) {
-        return argumentNulls.get(pos);
+        if (argumentNulls == null || pos >= argumentNulls.size()) {
+            return true;
+        }
+        return Boolean.TRUE.equals(argumentNulls.get(pos));
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
+        if (argumentValues == null || pos >= argumentValues.size()) {
+            return Optional.empty();
+        }
         return (Optional<T>)
                 argumentValues.get(pos).filter(v -> clazz.isAssignableFrom(v.getClass()));
     }
