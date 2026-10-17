@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.GeographyType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -199,6 +200,7 @@ class LogicalTypeJsonSerDeTest {
                         new MultisetType(VarBinaryType.ofEmptyLiteral()),
                         new BitmapType(),
                         new UuidType(),
+                        new GeographyType(),
                         RowType.of(new BigIntType(), new IntType(false), new VarCharType(200)),
                         RowType.of(
                                 new LogicalType[] {
@@ -207,6 +209,7 @@ class LogicalTypeJsonSerDeTest {
                                 new String[] {"f1", "f2", "f3"}),
                         RowType.of(
                                 new TimestampType(false, 3), new LocalZonedTimestampType(false, 3)),
+                        RowType.of(new GeographyType(false), new ArrayType(new GeographyType())),
                         RowType.of(
                                 CharType.ofEmptyLiteral(),
                                 VarCharType.ofEmptyLiteral(),

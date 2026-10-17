@@ -1057,6 +1057,34 @@ public final class BinarySegmentUtils {
     }
 
     /**
+     * Get geography data, if len less than 8, it will be included in variablePartOffsetAndLen.
+     *
+     * @param baseOffset base offset of composite binary format.
+     * @param fieldOffset absolute start offset of 'variablePartOffsetAndLen'.
+     * @param variablePartOffsetAndLen a long value, real data or offset and len.
+     */
+    public static BinaryGeographyData readGeographyData(
+            MemorySegment[] segments,
+            int baseOffset,
+            int fieldOffset,
+            long variablePartOffsetAndLen) {
+        long mark = variablePartOffsetAndLen & HIGHEST_FIRST_BIT;
+        if (mark == 0) {
+            final int subOffset = (int) (variablePartOffsetAndLen >> 32);
+            final int len = (int) variablePartOffsetAndLen;
+            return BinaryGeographyData.fromAddress(segments, baseOffset + subOffset, len);
+        } else {
+            int len = (int) ((variablePartOffsetAndLen & HIGHEST_SECOND_TO_EIGHTH_BIT) >>> 56);
+            if (BinarySegmentUtils.LITTLE_ENDIAN) {
+                return BinaryGeographyData.fromAddress(segments, fieldOffset, len);
+            } else {
+                // fieldOffset + 1 to skip header.
+                return BinaryGeographyData.fromAddress(segments, fieldOffset + 1, len);
+            }
+        }
+    }
+
+    /**
      * Get binary string, if len less than 8, will be include in variablePartOffsetAndLen.
      *
      * <p>Note: Need to consider the ByteOrder.

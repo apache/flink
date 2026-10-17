@@ -248,6 +248,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
             case VARIANT:
             case BITMAP:
             case UUID:
+            case GEOGRAPHY:
                 return BinaryArrayWriter::setNullLong;
             case BOOLEAN:
                 return BinaryArrayWriter::setNullBoolean;

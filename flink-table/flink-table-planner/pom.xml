@@ -189,6 +189,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-code-splitter</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- ArchUnit test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
