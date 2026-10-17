@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.highavailability.nonha.standalone;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.AbstractNonHaServices;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
@@ -57,6 +58,29 @@ public class StandaloneHaServices extends AbstractNonHaServices {
             String resourceManagerAddress,
             String dispatcherAddress,
             String clusterRestEndpointAddress) {
+        // not passing any configuration means that the defaults are applied, i.e. the clean job
+        // results of the embedded job result store are retained indefinitely
+        this(
+                resourceManagerAddress,
+                dispatcherAddress,
+                clusterRestEndpointAddress,
+                new Configuration());
+    }
+
+    /**
+     * Creates a new services class for the fix pre-defined leaders.
+     *
+     * @param resourceManagerAddress The fix address of the ResourceManager
+     * @param dispatcherAddress The fix address of the Dispatcher
+     * @param clusterRestEndpointAddress The fix address of the cluster REST endpoint
+     * @param configuration The configuration that is used for setting up the job result store
+     */
+    public StandaloneHaServices(
+            String resourceManagerAddress,
+            String dispatcherAddress,
+            String clusterRestEndpointAddress,
+            Configuration configuration) {
+        super(configuration);
         this.resourceManagerAddress =
                 checkNotNull(resourceManagerAddress, "resourceManagerAddress");
         this.dispatcherAddress = checkNotNull(dispatcherAddress, "dispatcherAddress");
