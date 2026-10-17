@@ -131,4 +131,34 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
         assertThat(((Service) servicesWithHeadlessClusterIP.get(0)).getSpec().getClusterIP())
                 .isEqualTo(HeadlessClusterIPService.HEADLESS_CLUSTER_IP);
     }
+
+    @Test
+    void testDefaultRestServicePortName() throws IOException {
+        final List<HasMetadata> resources =
+                this.externalServiceDecorator.buildAccompanyingKubernetesResources();
+        final Service restService = (Service) resources.get(0);
+
+        assertThat(restService.getSpec().getPorts())
+                .singleElement()
+                .extracting(ServicePort::getName)
+                .isEqualTo(Constants.REST_PORT_NAME);
+    }
+
+    @Test
+    void testCustomRestServicePortName() throws IOException {
+        final String customPortName = "flink-rest";
+        this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_PORT_NAME, customPortName);
+        // Rebuild the decorator so it picks up the updated configuration.
+        this.externalServiceDecorator =
+                new ExternalServiceDecorator(this.kubernetesJobManagerParameters);
+
+        final List<HasMetadata> resources =
+                this.externalServiceDecorator.buildAccompanyingKubernetesResources();
+        final Service restService = (Service) resources.get(0);
+
+        assertThat(restService.getSpec().getPorts())
+                .singleElement()
+                .extracting(ServicePort::getName)
+                .isEqualTo(customPortName);
+    }
 }
