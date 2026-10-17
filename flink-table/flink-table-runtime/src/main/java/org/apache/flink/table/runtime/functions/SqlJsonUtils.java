@@ -28,6 +28,8 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.data.binary.StringUtf8Utils;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
@@ -941,7 +943,8 @@ public class SqlJsonUtils {
         }
         if (raw instanceof String) {
             if (typeRoot == LogicalTypeRoot.BOOLEAN) {
-                return parseStringAsBoolean((String) raw);
+                return BinaryStringDataUtil.toBoolean(
+                        BinaryStringData.fromString(((String) raw).trim()));
             }
             try {
                 String trimmed = ((String) raw).trim();
@@ -951,41 +954,39 @@ public class SqlJsonUtils {
                         "Cannot parse string '" + raw + "' as " + typeRoot, e);
             }
         }
-        try {
-            switch (typeRoot) {
-                case BOOLEAN:
-                    if (raw instanceof Number) {
-                        double d = ((Number) raw).doubleValue();
-                        if (d == 0.0) {
-                            return false;
-                        }
-                        if (d == 1.0) {
-                            return true;
-                        }
-                        throw new JsonConversionException("Cannot convert " + raw + " to BOOLEAN");
+        switch (typeRoot) {
+            case BOOLEAN:
+                if (raw instanceof Number) {
+                    BigDecimal bd =
+                            raw instanceof BigDecimal
+                                    ? (BigDecimal) raw
+                                    : new BigDecimal(raw.toString());
+                    if (BigDecimal.ZERO.compareTo(bd) == 0) {
+                        return false;
                     }
-                    return (Boolean) raw;
-                case TINYINT:
-                    return toCheckedByte((Number) raw);
-                case SMALLINT:
-                    return toCheckedShort((Number) raw);
-                case INTEGER:
-                    return toCheckedInt((Number) raw);
-                case BIGINT:
-                    return toCheckedLong((Number) raw);
-                case FLOAT:
-                    return toCheckedFloat((Number) raw);
-                case DOUBLE:
-                    return toCheckedDouble((Number) raw);
-                case DECIMAL:
-                    return toCheckedDecimal(raw.toString(), precision, scale);
-                default:
-                    throw new JsonConversionException(
-                            "Unsupported type for JSON conversion: " + typeRoot);
-            }
-        } catch (ClassCastException e) {
-            throw new JsonConversionException(
-                    "Cannot convert " + raw.getClass().getName() + " to " + typeRoot, e);
+                    if (BigDecimal.ONE.compareTo(bd) == 0) {
+                        return true;
+                    }
+                    throw new JsonConversionException("Cannot convert " + raw + " to BOOLEAN");
+                }
+                return (Boolean) raw;
+            case TINYINT:
+                return toCheckedByte((Number) raw);
+            case SMALLINT:
+                return toCheckedShort((Number) raw);
+            case INTEGER:
+                return toCheckedInt((Number) raw);
+            case BIGINT:
+                return toCheckedLong((Number) raw);
+            case FLOAT:
+                return toCheckedFloat((Number) raw);
+            case DOUBLE:
+                return toCheckedDouble((Number) raw);
+            case DECIMAL:
+                return toCheckedDecimal(raw.toString(), precision, scale);
+            default:
+                throw new JsonConversionException(
+                        "Unsupported type for JSON conversion: " + typeRoot);
         }
     }
 
@@ -1058,24 +1059,6 @@ public class SqlJsonUtils {
             throw new JsonConversionException("Value " + n + " is out of range for INTEGER");
         }
         return (int) v;
-    }
-
-    static boolean parseStringAsBoolean(String s) {
-        String v = s.trim().toLowerCase(Locale.ROOT);
-        switch (v) {
-            case "true":
-            case "t":
-            case "yes":
-            case "1":
-                return true;
-            case "false":
-            case "f":
-            case "no":
-            case "0":
-                return false;
-            default:
-                throw new JsonConversionException("Cannot parse string '" + s + "' as BOOLEAN");
-        }
     }
 
     static float toCheckedFloat(Number n) {

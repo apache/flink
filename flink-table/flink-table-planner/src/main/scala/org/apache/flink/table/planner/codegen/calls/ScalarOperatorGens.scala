@@ -623,14 +623,7 @@ object ScalarOperatorGens {
         isNumeric(left.resultType) && isNumeric(right.resultType)
         || isTime(left.resultType) &&
         isTime(right.resultType)
-      ) {
-        (leftTerm, rightTerm) =>
-          {
-            val l = s"((${primitiveTypeTermForType(left.resultType)}) $leftTerm)"
-            val r = s"((${primitiveTypeTermForType(right.resultType)}) $rightTerm)"
-            s"$l $operator $r"
-          }
-      }
+      ) { (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm" }
 
       // both sides are timestamp
       else if (isTimestamp(left.resultType) && isTimestamp(right.resultType)) {
@@ -654,8 +647,7 @@ object ScalarOperatorGens {
         isInteroperable(left.resultType, right.resultType)
       ) {
         operator match {
-          case "==" | "!=" =>
-            (leftTerm, rightTerm) => s"((boolean) $leftTerm) $operator ((boolean) $rightTerm)"
+          case "==" | "!=" => (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
           case ">" | "<" | "<=" | ">=" =>
             (leftTerm, rightTerm) => s"java.lang.Boolean.compare($leftTerm, $rightTerm) $operator 0"
           case _ => throw new CodeGenException(s"Unsupported boolean comparison '$operator'.")
@@ -964,20 +956,10 @@ object ScalarOperatorGens {
       case codeGeneratorCastRule: CodeGeneratorCastRule[_, _] =>
         val inputType = operand.resultType.copy(true)
 
-        // Ensure primitive-backed inputs are unboxed before entering cast rules.
-        // Some code generators (e.g. JsonValueCallGen) produce boxed result terms
-        // for primitive-backed types, which breaks cast rules that emit primitive
-        // casts like ((long)(java.lang.Double)).
-        val inputTerm = if (isPrimitive(operand.resultType)) {
-          s"((${primitiveTypeTermForType(operand.resultType)})(${operand.resultTerm}))"
-        } else {
-          operand.resultTerm
-        }
-
         // Generate the code block
         val castCodeBlock = codeGeneratorCastRule.generateCodeBlock(
           toCodegenCastContext(ctx),
-          inputTerm,
+          operand.resultTerm,
           operand.nullTerm,
           inputType,
           targetType

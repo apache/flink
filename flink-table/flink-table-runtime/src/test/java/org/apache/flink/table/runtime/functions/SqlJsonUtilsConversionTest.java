@@ -50,6 +50,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SqlJsonUtilsConversionTest {
 
+    /** Prefix for {@link MethodSource} references so {@code @Nested} tests can see the sources. */
+    private static final String SRC =
+            "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#";
+
+    private static final BigInteger HUGE = new BigInteger("18446744073709551616");
+
     private static Object scalar(Object raw, LogicalTypeRoot type) {
         return SqlJsonUtils.convertJsonScalar(raw, type, 0, 0, JsonValueOnEmptyOrError.NULL, null);
     }
@@ -79,9 +85,11 @@ class SqlJsonUtilsConversionTest {
         return SqlJsonUtils.convertJsonArray(raw, DECIMAL, precision, scale, true, onError);
     }
 
-    private static final BigInteger HUGE = new BigInteger("18446744073709551616");
+    // ------------------------------------------------------------------------
+    //  Numeric range conversion
+    // ------------------------------------------------------------------------
 
-    static Stream<Arguments> validConversions() {
+    static Stream<Arguments> numericValueConversions() {
         return Stream.of(
                 Arguments.of(42, TINYINT, (byte) 42),
                 Arguments.of(127L, TINYINT, Byte.MAX_VALUE),
@@ -94,10 +102,18 @@ class SqlJsonUtilsConversionTest {
                 Arguments.of(9_999_999_999L, BIGINT, 9_999_999_999L),
                 Arguments.of(new BigDecimal("9223372036854775807.5"), BIGINT, Long.MAX_VALUE),
                 Arguments.of(13.37, FLOAT, 13.37f),
-                Arguments.of(13.37, DOUBLE, 13.37));
+                Arguments.of(13.37, DOUBLE, 13.37),
+                // fraction truncation
+                Arguments.of(13.37, INTEGER, 13),
+                Arguments.of(-13.99, INTEGER, -13),
+                Arguments.of(new BigDecimal("9999999999.5"), BIGINT, 9_999_999_999L),
+                Arguments.of(new BigDecimal("-42.9"), BIGINT, -42L),
+                // silent precision loss when the target type cannot hold the value exactly
+                Arguments.of(16777217, FLOAT, 16777216.0f),
+                Arguments.of(9007199254740993L, DOUBLE, 9.007199254740992E15));
     }
 
-    static Stream<Arguments> overflowCases() {
+    static Stream<Arguments> numericOverflowCases() {
         return Stream.of(
                 Arguments.of(128, TINYINT),
                 Arguments.of(-129, TINYINT),
@@ -120,95 +136,74 @@ class SqlJsonUtilsConversionTest {
                 Arguments.of(new BigDecimal("18446744073709551616"), INTEGER),
                 Arguments.of(HUGE, BIGINT),
                 Arguments.of(HUGE.negate(), BIGINT),
-                Arguments.of(new BigDecimal("18446744073709551616"), BIGINT));
+                Arguments.of(new BigDecimal("18446744073709551616"), BIGINT),
+                Arguments.of(BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE), BIGINT),
+                Arguments.of(BigInteger.valueOf(Long.MIN_VALUE).subtract(BigInteger.ONE), BIGINT),
+                Arguments.of(new BigDecimal(Long.MAX_VALUE).add(BigDecimal.ONE), BIGINT),
+                Arguments.of(1e40, FLOAT),
+                Arguments.of(-1e40, FLOAT),
+                Arguments.of(new BigDecimal("1E309"), DOUBLE),
+                Arguments.of(new BigDecimal("-1E309"), DOUBLE));
     }
 
     @Nested
-    class RangeCheckedConversions {
+    class NumericRangeConversion {
 
         @ParameterizedTest(name = "{0} -> {1}")
-        @MethodSource(
-                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#validConversions")
-        void convertsWithinRange(Number input, LogicalTypeRoot type, Object expected) {
+        @MethodSource(SRC + "numericValueConversions")
+        void convertsToExpectedValue(Number input, LogicalTypeRoot type, Object expected) {
             assertThat(scalar(input, type)).isEqualTo(expected);
         }
 
         @ParameterizedTest(name = "{0} -> {1}")
-        @MethodSource(
-                "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#overflowCases")
+        @MethodSource(SRC + "numericOverflowCases")
         void overflowReturnsNull(Number input, LogicalTypeRoot type) {
             assertThat(scalar(input, type)).isNull();
         }
+    }
 
-        @Test
-        void intTruncatesFraction() {
-            assertThat(scalar(13.37, INTEGER)).isEqualTo(13);
-            assertThat(scalar(-13.99, INTEGER)).isEqualTo(-13);
-        }
+    // ------------------------------------------------------------------------
+    //  Decimal conversion
+    // ------------------------------------------------------------------------
 
-        @Test
-        void bigIntegerOverflow() {
-            BigInteger tooLarge = BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE);
-            assertThat(scalar(tooLarge, BIGINT)).isNull();
-        }
+    static Stream<Arguments> decimalConversions() {
+        return Stream.of(
+                Arguments.of(13.37, 10, 2, "13.37"),
+                Arguments.of("99999999999999999999999999999999999999", 38, 0,
+                        "99999999999999999999999999999999999999"),
+                Arguments.of("123.456", 5, 2, "123.46"));
+    }
 
-        @Test
-        void negativeBigIntegerOverflow() {
-            BigInteger tooSmall = BigInteger.valueOf(Long.MIN_VALUE).subtract(BigInteger.ONE);
-            assertThat(scalar(tooSmall, BIGINT)).isNull();
-        }
-
-        @Test
-        void bigDecimalOverflow() {
-            BigDecimal tooLarge = new BigDecimal(Long.MAX_VALUE).add(BigDecimal.ONE);
-            assertThat(scalar(tooLarge, BIGINT)).isNull();
-        }
-
-        @Test
-        void bigDecimalToBigintTruncatesFraction() {
-            assertThat(scalar(new BigDecimal("9999999999.5"), BIGINT)).isEqualTo(9_999_999_999L);
-            assertThat(scalar(new BigDecimal("-42.9"), BIGINT)).isEqualTo(-42L);
-        }
-
-        @Test
-        void floatOverflowReturnsNull() {
-            assertThat(scalar(1e40, FLOAT)).isNull();
-            assertThat(scalar(-1e40, FLOAT)).isNull();
-        }
-
-        @Test
-        void doubleOverflowReturnsNull() {
-            assertThat(scalar(new BigDecimal("1E309"), DOUBLE)).isNull();
-            assertThat(scalar(new BigDecimal("-1E309"), DOUBLE)).isNull();
-        }
-
-        @Test
-        void floatPrecisionLossSilent() {
-            // 2^24+1 cannot be represented exactly in float; rounds to 2^24
-            assertThat(scalar(16777217, FLOAT)).isEqualTo(16777216.0f);
-        }
-
-        @Test
-        void doublePrecisionLossSilent() {
-            // 2^53+1 cannot be represented exactly in double; rounds to 2^53
-            assertThat(scalar(9007199254740993L, DOUBLE)).isEqualTo(9.007199254740992E15);
-        }
+    static Stream<Arguments> decimalOverflowCases() {
+        return Stream.of(
+                Arguments.of(123456789.99, 5, 2),
+                Arguments.of("999999999999999999999999999999999999999", 38, 0),
+                // 999.999 rounds to 1000.00 (precision 6) which overflows DECIMAL(5,2)
+                Arguments.of("999.999", 5, 2));
     }
 
     @Nested
     class DecimalConversion {
 
-        @Test
-        void validPrecision() {
-            Object result = scalarDecimal(13.37, 10, 2);
+        @ParameterizedTest(name = "{0} -> DECIMAL({1},{2})")
+        @MethodSource(SRC + "decimalConversions")
+        void convertsToDecimal(Object raw, int precision, int scale, String expected) {
+            Object result = scalarDecimal(raw, precision, scale);
             assertThat(result).isInstanceOf(DecimalData.class);
             assertThat(((DecimalData) result).toBigDecimal())
-                    .isEqualByComparingTo(new BigDecimal("13.37"));
+                    .isEqualByComparingTo(new BigDecimal(expected));
+        }
+
+        @ParameterizedTest(name = "{0} -> DECIMAL({1},{2})")
+        @MethodSource(SRC + "decimalOverflowCases")
+        void overflowReturnsNull(Object raw, int precision, int scale) {
+            assertThat(scalarDecimal(raw, precision, scale)).isNull();
         }
 
         @Test
-        void precisionOverflowReturnsNull() {
-            assertThat(scalarDecimal(123456789.99, 5, 2)).isNull();
+        void scientificNotation() {
+            DecimalData result = SqlJsonUtils.toCheckedDecimal("1.5E1", 10, 2);
+            assertThat(result.toBigDecimal()).isEqualByComparingTo(new BigDecimal("15.00"));
         }
 
         @Test
@@ -220,128 +215,136 @@ class SqlJsonUtilsConversionTest {
             assertThat(((DecimalData) result).toBigDecimal())
                     .isEqualByComparingTo(new BigDecimal("0.00"));
         }
+    }
 
-        @Test
-        void scientificNotation() {
-            DecimalData result = SqlJsonUtils.toCheckedDecimal("1.5E1", 10, 2);
-            assertThat(result.toBigDecimal()).isEqualByComparingTo(new BigDecimal("15.00"));
-        }
+    // ------------------------------------------------------------------------
+    //  Boolean conversion
+    // ------------------------------------------------------------------------
 
-        @Test
-        void maxPrecision38Digits() {
-            Object result = scalarDecimal("99999999999999999999999999999999999999", 38, 0);
-            assertThat(result).isInstanceOf(DecimalData.class);
-            assertThat(((DecimalData) result).toBigDecimal())
-                    .isEqualByComparingTo(new BigDecimal("99999999999999999999999999999999999999"));
-        }
+    static Stream<Arguments> booleanConversions() {
+        return Stream.of(
+                Arguments.of(0, false),
+                Arguments.of(1, true),
+                Arguments.of(0L, false),
+                Arguments.of(1L, true),
+                Arguments.of(0.0, false),
+                Arguments.of(1.0, true),
+                Arguments.of("true", true),
+                Arguments.of("false", false),
+                Arguments.of("TRUE", true),
+                Arguments.of("t", true),
+                Arguments.of("f", false),
+                Arguments.of("yes", true),
+                Arguments.of("no", false),
+                Arguments.of("1", true),
+                Arguments.of("0", false),
+                // parseStringAsBoolean trims before matching
+                Arguments.of(" true ", true),
+                Arguments.of(" FALSE ", false));
+    }
 
-        @Test
-        void overflowAt39DigitsReturnsNull() {
-            assertThat(scalarDecimal("999999999999999999999999999999999999999", 38, 0)).isNull();
-        }
-
-        @Test
-        void roundingHalfUp() {
-            Object result = scalarDecimal("123.456", 5, 2);
-            assertThat(result).isInstanceOf(DecimalData.class);
-            assertThat(((DecimalData) result).toBigDecimal())
-                    .isEqualByComparingTo(new BigDecimal("123.46"));
-        }
-
-        @Test
-        void roundingOverflow() {
-            // 999.999 rounds to 1000.00 (precision 6) which overflows DECIMAL(5,2)
-            assertThat(scalarDecimal("999.999", 5, 2)).isNull();
-        }
+    static Stream<Arguments> nonBooleanInputs() {
+        return Stream.of(
+                Arguments.of(42),
+                Arguments.of(-1),
+                Arguments.of(2),
+                Arguments.of(1.9),
+                Arguments.of(0.5),
+                Arguments.of(-0.1),
+                // exact BigDecimal comparison rejects values that doubleValue() would round to 0/1
+                Arguments.of(new BigDecimal("1.00000000000000000001")),
+                Arguments.of(new BigDecimal("0.99999999999999999999")),
+                Arguments.of(new BigDecimal("1E-400")),
+                Arguments.of("maybe"),
+                Arguments.of("2"));
     }
 
     @Nested
-    class ScalarErrorHandling {
+    class BooleanConversion {
 
-        @Test
-        void nullInputPassesThrough() {
-            assertThat(scalar(null, INTEGER)).isNull();
+        @ParameterizedTest(name = "{0} -> {1}")
+        @MethodSource(SRC + "booleanConversions")
+        void convertsToBoolean(Object raw, Boolean expected) {
+            assertThat(scalar(raw, BOOLEAN)).isEqualTo(expected);
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource(SRC + "nonBooleanInputs")
+        void returnsNullForNonBoolean(Object raw) {
+            assertThat(scalar(raw, BOOLEAN)).isNull();
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    //  String input parsing
+    // ------------------------------------------------------------------------
+
+    static Stream<Arguments> stringConversions() {
+        return Stream.of(
+                Arguments.of("42", INTEGER, 42),
+                Arguments.of("13.37", FLOAT, 13.37f),
+                Arguments.of("9999999999", BIGINT, 9_999_999_999L),
+                // CAST trims leading/trailing whitespace (matches PostgreSQL)
+                Arguments.of(" 42 ", INTEGER, 42),
+                Arguments.of(" 13.37 ", DOUBLE, 13.37));
+    }
+
+    static Stream<Arguments> invalidStringInputs() {
+        return Stream.of(
+                Arguments.of("9999999999", INTEGER),
+                Arguments.of("", INTEGER),
+                Arguments.of("NaN", FLOAT),
+                Arguments.of("NaN", DOUBLE),
+                Arguments.of("NaN", INTEGER),
+                Arguments.of("Infinity", FLOAT),
+                Arguments.of("-Infinity", DOUBLE));
+    }
+
+    @Nested
+    class StringInputParsing {
+
+        @ParameterizedTest(name = "{0} -> {1}")
+        @MethodSource(SRC + "stringConversions")
+        void parsesToExpectedValue(String raw, LogicalTypeRoot type, Object expected) {
+            assertThat(scalar(raw, type)).isEqualTo(expected);
+        }
+
+        @ParameterizedTest(name = "{0} -> {1}")
+        @MethodSource(SRC + "invalidStringInputs")
+        void returnsNull(String raw, LogicalTypeRoot type) {
+            assertThat(scalar(raw, type)).isNull();
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    //  On-error behavior
+    // ------------------------------------------------------------------------
+
+    static Stream<Arguments> onErrorNullInputs() {
+        return Stream.of(
+                // null input passes straight through
+                Arguments.of((Object) null, INTEGER),
+                // a boolean cannot be converted to a number
+                Arguments.of(Boolean.TRUE, INTEGER));
+    }
+
+    @Nested
+    class OnErrorBehavior {
+
+        @ParameterizedTest(name = "{0} -> {1}")
+        @MethodSource(SRC + "onErrorNullInputs")
+        void returnsNull(Object raw, LogicalTypeRoot type) {
+            assertThat(scalar(raw, type)).isNull();
         }
 
         @Test
-        void numericStringParsedAsInteger() {
-            assertThat(scalar("42", INTEGER)).isEqualTo(42);
-        }
-
-        @Test
-        void numericStringParsedAsFloat() {
-            assertThat(scalar("13.37", FLOAT)).isEqualTo(13.37f);
-        }
-
-        @Test
-        void numericStringParsedAsBigint() {
-            assertThat(scalar("9999999999", BIGINT)).isEqualTo(9_999_999_999L);
-        }
-
-        @Test
-        void numericStringOverflowReturnsNull() {
-            assertThat(scalar("9999999999", INTEGER)).isNull();
-        }
-
-        @Test
-        void nonNumericStringReturnsDefault() {
+        void returnsDefaultForUnparsableString() {
             assertThat(scalar("notANumber", INTEGER, JsonValueOnEmptyOrError.DEFAULT, 42))
                     .isEqualTo(42);
         }
 
         @Test
-        void emptyStringReturnsNull() {
-            assertThat(scalar("", INTEGER)).isNull();
-        }
-
-        @Test
-        void nanStringReturnsNull() {
-            assertThat(scalar("NaN", FLOAT)).isNull();
-            assertThat(scalar("NaN", DOUBLE)).isNull();
-            assertThat(scalar("NaN", INTEGER)).isNull();
-        }
-
-        @Test
-        void infinityStringReturnsNull() {
-            assertThat(scalar("Infinity", FLOAT)).isNull();
-            assertThat(scalar("-Infinity", DOUBLE)).isNull();
-        }
-
-        @Test
-        void booleanStringCoerced() {
-            assertThat(scalar("true", BOOLEAN)).isEqualTo(true);
-            assertThat(scalar("false", BOOLEAN)).isEqualTo(false);
-            assertThat(scalar("TRUE", BOOLEAN)).isEqualTo(true);
-            assertThat(scalar("t", BOOLEAN)).isEqualTo(true);
-            assertThat(scalar("f", BOOLEAN)).isEqualTo(false);
-            assertThat(scalar("yes", BOOLEAN)).isEqualTo(true);
-            assertThat(scalar("no", BOOLEAN)).isEqualTo(false);
-            assertThat(scalar("1", BOOLEAN)).isEqualTo(true);
-            assertThat(scalar("0", BOOLEAN)).isEqualTo(false);
-        }
-
-        @Test
-        void invalidBooleanStringReturnsNull() {
-            assertThat(scalar("maybe", BOOLEAN)).isNull();
-            assertThat(scalar("2", BOOLEAN)).isNull();
-        }
-
-        @Test
-        void whitespaceInNumericStringIsTrimmed() {
-            // Matches PostgreSQL: CAST trims leading/trailing whitespace
-            assertThat(scalar(" 42 ", INTEGER)).isEqualTo(42);
-            assertThat(scalar(" 13.37 ", DOUBLE)).isEqualTo(13.37);
-        }
-
-        @Test
-        void whitespaceInBooleanStringSucceeds() {
-            // parseStringAsBoolean trims before matching
-            assertThat(scalar(" true ", BOOLEAN)).isEqualTo(true);
-            assertThat(scalar(" FALSE ", BOOLEAN)).isEqualTo(false);
-        }
-
-        @Test
-        void typeMismatchThrows() {
+        void throwsOnErrorMode() {
             assertThatThrownBy(
                             () ->
                                     scalar(
@@ -352,168 +355,83 @@ class SqlJsonUtilsConversionTest {
                     .isInstanceOf(TableRuntimeException.class)
                     .hasMessageContaining("Cannot cast");
         }
+    }
 
-        @Test
-        void booleanToIntReturnsNull() {
-            assertThat(scalar(Boolean.TRUE, INTEGER)).isNull();
-        }
+    // ------------------------------------------------------------------------
+    //  Array conversion
+    // ------------------------------------------------------------------------
 
-        @Test
-        void intZeroOneToBooleanConverts() {
-            assertThat(scalar(0, BOOLEAN)).isEqualTo(false);
-            assertThat(scalar(1, BOOLEAN)).isEqualTo(true);
-            assertThat(scalar(0L, BOOLEAN)).isEqualTo(false);
-            assertThat(scalar(1L, BOOLEAN)).isEqualTo(true);
-        }
+    static Stream<Arguments> arrayConversions() {
+        return Stream.of(
+                Arguments.of((Object) new Object[] {1, 2, 3}, INTEGER, (Object) new Object[] {1, 2, 3}),
+                Arguments.of(
+                        (Object) new Object[] {1, null, 3},
+                        INTEGER,
+                        (Object) new Object[] {1, null, 3}),
+                Arguments.of(
+                        (Object) new Object[] {true, false},
+                        BOOLEAN,
+                        (Object) new Object[] {true, false}),
+                Arguments.of(
+                        (Object) new Object[] {0, 1},
+                        BOOLEAN,
+                        (Object) new Object[] {false, true}),
+                Arguments.of(
+                        (Object) new Object[] {"1", "2", "3"},
+                        INTEGER,
+                        (Object) new Object[] {1, 2, 3}),
+                Arguments.of(
+                        (Object) new Object[] {"yes", "no"},
+                        BOOLEAN,
+                        (Object) new Object[] {true, false}),
+                Arguments.of(
+                        (Object) new Object[] {1, 9999999999L},
+                        BIGINT,
+                        (Object) new Object[] {1L, 9999999999L}));
+    }
 
-        @Test
-        void otherIntToBooleanReturnsNull() {
-            assertThat(scalar(42, BOOLEAN)).isNull();
-            assertThat(scalar(-1, BOOLEAN)).isNull();
-            assertThat(scalar(2, BOOLEAN)).isNull();
-        }
+    static Stream<Arguments> arrayNullResultCases() {
+        return Stream.of(
+                Arguments.of((Object) new Object[] {"a", "b"}, INTEGER, 0, 0, true),
+                Arguments.of((Object) new Object[] {1, "notANumber", 3}, INTEGER, 0, 0, true),
+                Arguments.of((Object) new Object[] {"Y", "n"}, BOOLEAN, 0, 0, true),
+                // element 2 is neither 0 nor 1, so conversion fails atomically
+                Arguments.of((Object) new Object[] {1, 2, 3}, BOOLEAN, 0, 0, true),
+                Arguments.of((Object) new Object[] {999999}, DECIMAL, 2, 1, true),
+                // 999.999 rounds to 1000.00 which overflows DECIMAL(5,2); whole array fails
+                Arguments.of((Object) new Object[] {1.5, 999.999}, DECIMAL, 5, 2, true),
+                // a null element in a NOT NULL array fails
+                Arguments.of((Object) new Object[] {1, null, 3}, INTEGER, 0, 0, false));
+    }
 
-        @Test
-        void fractionalNumberToBooleanReturnsNull() {
-            assertThat(scalar(1.9, BOOLEAN)).isNull();
-            assertThat(scalar(0.5, BOOLEAN)).isNull();
-            assertThat(scalar(-0.1, BOOLEAN)).isNull();
-        }
+    static Stream<Arguments> arrayEmptyResultCases() {
+        return Stream.of(
+                Arguments.of((Object) new Object[] {"a", "b"}, INTEGER, 0, 0),
+                Arguments.of((Object) new Object[] {999999}, DECIMAL, 2, 1));
+    }
 
-        @Test
-        void exactDoubleZeroOneToBooleanConverts() {
-            assertThat(scalar(0.0, BOOLEAN)).isEqualTo(false);
-            assertThat(scalar(1.0, BOOLEAN)).isEqualTo(true);
-        }
+    static Stream<Arguments> arrayThrowCases() {
+        return Stream.of(
+                Arguments.of((Object) new Object[] {"a", "b"}, INTEGER, 0, 0, true),
+                Arguments.of((Object) new Object[] {999999}, DECIMAL, 2, 1, true),
+                Arguments.of((Object) new Object[] {1, null, 3}, INTEGER, 0, 0, false));
+    }
+
+    static Stream<Arguments> emptyArrayInputs() {
+        return Stream.of(Arguments.of(INTEGER, 0, 0), Arguments.of(DECIMAL, 10, 2));
     }
 
     @Nested
     class ArrayConversion {
 
-        @Test
-        void nullInputPassesThrough() {
-            assertThat(SqlJsonUtils.convertJsonArray(null, INTEGER, 0, 0, true, NULL)).isNull();
+        @ParameterizedTest(name = "{1}")
+        @MethodSource(SRC + "arrayConversions")
+        void convertsArray(Object[] raw, LogicalTypeRoot elementType, Object[] expected) {
+            assertThat(array(raw, elementType).toObjectArray()).containsExactly(expected);
         }
 
         @Test
-        void convertsIntegerArray() {
-            assertThat(array(new Object[] {1, 2, 3}, INTEGER).toObjectArray())
-                    .containsExactly(1, 2, 3);
-        }
-
-        @Test
-        void preservesNullElementsInNullableArray() {
-            assertThat(array(new Object[] {1, null, 3}, INTEGER).toObjectArray())
-                    .containsExactly(1, null, 3);
-        }
-
-        @Test
-        void nullElementInNotNullArrayReturnsNull() {
-            assertThat(
-                            SqlJsonUtils.convertJsonArray(
-                                    new Object[] {1, null, 3}, INTEGER, 0, 0, false, NULL))
-                    .isNull();
-        }
-
-        @Test
-        void nullElementInNotNullArrayThrows() {
-            assertThatThrownBy(
-                            () ->
-                                    SqlJsonUtils.convertJsonArray(
-                                            new Object[] {1, null, 3}, INTEGER, 0, 0, false, ERROR))
-                    .isInstanceOf(TableRuntimeException.class)
-                    .hasMessageContaining("Array element type mismatch");
-        }
-
-        @Test
-        void convertsBooleanArray() {
-            assertThat(array(new Object[] {true, false}, BOOLEAN).toObjectArray())
-                    .containsExactly(true, false);
-        }
-
-        @Test
-        void integerZeroOneToBooleanArray() {
-            assertThat(array(new Object[] {0, 1}, BOOLEAN).toObjectArray())
-                    .containsExactly(false, true);
-        }
-
-        @Test
-        void numericStringArrayParsed() {
-            assertThat(array(new Object[] {"1", "2", "3"}, INTEGER).toObjectArray())
-                    .containsExactly(1, 2, 3);
-        }
-
-        @Test
-        void emptyArrayStaysEmpty() {
-            assertThat(array(new Object[0], INTEGER).size()).isZero();
-        }
-
-        @Test
-        void typeMismatchReturnsNull() {
-            assertThat(
-                            SqlJsonUtils.convertJsonArray(
-                                    new Object[] {"a", "b"}, INTEGER, 0, 0, true, NULL))
-                    .isNull();
-        }
-
-        @Test
-        void typeMismatchReturnsEmptyArray() {
-            GenericArrayData result =
-                    SqlJsonUtils.convertJsonArray(
-                            new Object[] {"a", "b"}, INTEGER, 0, 0, true, EMPTY_ARRAY);
-            assertThat(result).isNotNull();
-            assertThat(result.size()).isZero();
-        }
-
-        @Test
-        void typeMismatchThrows() {
-            assertThatThrownBy(
-                            () ->
-                                    SqlJsonUtils.convertJsonArray(
-                                            new Object[] {"a", "b"}, INTEGER, 0, 0, true, ERROR))
-                    .isInstanceOf(TableRuntimeException.class)
-                    .hasMessageContaining("Array element type mismatch");
-        }
-
-        @Test
-        void partialMismatchFailsAtomically() {
-            assertThat(
-                            SqlJsonUtils.convertJsonArray(
-                                    new Object[] {1, "notANumber", 3}, INTEGER, 0, 0, true, NULL))
-                    .isNull();
-        }
-
-        @Test
-        void decimalOverflowTriggersOnError() {
-            assertThat(
-                            SqlJsonUtils.convertJsonArray(
-                                    new Object[] {999999}, DECIMAL, 2, 1, true, NULL))
-                    .isNull();
-        }
-
-        @Test
-        void decimalOverflowTriggersEmptyArray() {
-            GenericArrayData result = arrayDecimal(new Object[] {999999}, 2, 1, EMPTY_ARRAY);
-            assertThat(result).isNotNull();
-            assertThat(result.size()).isZero();
-        }
-
-        @Test
-        void decimalOverflowTriggersError() {
-            assertThatThrownBy(() -> arrayDecimal(new Object[] {999999}, 2, 1, ERROR))
-                    .isInstanceOf(TableRuntimeException.class)
-                    .hasMessageContaining("Array element type mismatch");
-        }
-
-        @Test
-        void emptyArrayWithDecimalType() {
-            GenericArrayData result = arrayDecimal(new Object[0], 10, 2, NULL);
-            assertThat(result).isNotNull();
-            assertThat(result.size()).isZero();
-        }
-
-        @Test
-        void decimalArrayWithRounding() {
+        void convertsDecimalArrayWithRounding() {
             GenericArrayData result = arrayDecimal(new Object[] {1.5, 123.456}, 5, 2, NULL);
             assertThat(result).isNotNull();
             Object[] elements = result.toObjectArray();
@@ -523,39 +441,54 @@ class SqlJsonUtilsConversionTest {
                     .isEqualByComparingTo(new BigDecimal("123.46"));
         }
 
-        @Test
-        void decimalArrayRoundingOverflowFailsAtomically() {
-            // 999.999 rounds to 1000.00 which overflows DECIMAL(5,2); whole array fails
-            assertThat(arrayDecimal(new Object[] {1.5, 999.999}, 5, 2, NULL)).isNull();
-        }
-
-        @Test
-        void booleanStringArrayConverted() {
-            assertThat(array(new Object[] {"yes", "no"}, BOOLEAN).toObjectArray())
-                    .containsExactly(true, false);
-        }
-
-        @Test
-        void invalidBooleanStringArrayReturnsNull() {
+        @ParameterizedTest(name = "{1}")
+        @MethodSource(SRC + "arrayNullResultCases")
+        void returnsNullOnErrorMode(
+                Object[] raw, LogicalTypeRoot elementType, int precision, int scale,
+                boolean nullable) {
             assertThat(
                             SqlJsonUtils.convertJsonArray(
-                                    new Object[] {"Y", "n"}, BOOLEAN, 0, 0, true, NULL))
+                                    raw, elementType, precision, scale, nullable, NULL))
                     .isNull();
         }
 
-        @Test
-        void intArrayToBooleanReturnsNull() {
-            // [1, 2, 3]: element 2 is not 0 or 1, so conversion fails atomically
-            assertThat(
-                            SqlJsonUtils.convertJsonArray(
-                                    new Object[] {1, 2, 3}, BOOLEAN, 0, 0, true, NULL))
-                    .isNull();
+        @ParameterizedTest(name = "{1}")
+        @MethodSource(SRC + "arrayEmptyResultCases")
+        void returnsEmptyArrayOnErrorMode(
+                Object[] raw, LogicalTypeRoot elementType, int precision, int scale) {
+            GenericArrayData result =
+                    SqlJsonUtils.convertJsonArray(
+                            raw, elementType, precision, scale, true, EMPTY_ARRAY);
+            assertThat(result).isNotNull();
+            assertThat(result.size()).isZero();
+        }
+
+        @ParameterizedTest(name = "{1}")
+        @MethodSource(SRC + "arrayThrowCases")
+        void throwsOnErrorMode(
+                Object[] raw, LogicalTypeRoot elementType, int precision, int scale,
+                boolean nullable) {
+            assertThatThrownBy(
+                            () ->
+                                    SqlJsonUtils.convertJsonArray(
+                                            raw, elementType, precision, scale, nullable, ERROR))
+                    .isInstanceOf(TableRuntimeException.class)
+                    .hasMessageContaining("Array element type mismatch");
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource(SRC + "emptyArrayInputs")
+        void emptyInputStaysEmpty(LogicalTypeRoot elementType, int precision, int scale) {
+            GenericArrayData result =
+                    SqlJsonUtils.convertJsonArray(
+                            new Object[0], elementType, precision, scale, true, NULL);
+            assertThat(result).isNotNull();
+            assertThat(result.size()).isZero();
         }
 
         @Test
-        void mixedLongAndIntegerArray() {
-            assertThat(array(new Object[] {1, 9999999999L}, BIGINT).toObjectArray())
-                    .containsExactly(1L, 9999999999L);
+        void nullInputPassesThrough() {
+            assertThat(SqlJsonUtils.convertJsonArray(null, INTEGER, 0, 0, true, NULL)).isNull();
         }
     }
 }
