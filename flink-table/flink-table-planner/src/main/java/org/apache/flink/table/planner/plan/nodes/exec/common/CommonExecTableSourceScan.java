@@ -259,10 +259,6 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         }
     }
 
-    protected RowType getPhysicalRowType(ResolvedSchema schema) {
-        return (RowType) schema.toPhysicalRowDataType().getLogicalType();
-    }
-
     protected int[] getPrimaryKeyIndices(RowType sourceRowType, ResolvedSchema schema) {
         return schema.getPrimaryKey()
                 .map(k -> k.getColumns().stream().mapToInt(sourceRowType::getFieldIndex).toArray())
@@ -283,8 +279,8 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         if (!changelogMode.containsOnly(RowKind.INSERT)) {
             final ResolvedSchema schema =
                     tableSourceSpec.getContextResolvedTable().getResolvedSchema();
-            final RowType physicalRowType = getPhysicalRowType(schema);
-            final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
+            final RowType outputRowType = (RowType) getOutputType();
+            final int[] primaryKeys = getPrimaryKeyIndices(outputRowType, schema);
             final boolean hasPk = primaryKeys.length > 0;
             if (!hasPk) {
                 throw new TableException(
