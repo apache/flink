@@ -36,6 +36,8 @@ Consequently, they can be configured when using [standalone Flink on Kubernetes]
 In order to use Flink's Kubernetes HA services you must fulfill the following prerequisites:
 
 - Kubernetes >= 1.9.
+- Java 11.0.19 or newer when running Flink on Java 11; Java 17 and later are unaffected (see [Java compatibility]({{< ref "docs/deployment/java_compatibility" >}}#native-kubernetes-minimum-version)).
+- If the API server is reached through a proxy, it must be an HTTP proxy. SOCKS proxies are not supported: `socks5://` in the KubeConfig `proxy-url`, `HTTPS_PROXY` or `ALL_PROXY` fails on client creation, and the JVM `socksProxyHost` setting is ignored.
 - Service account with permissions to create, edit, delete ConfigMaps. 
   Take a look at how to configure a service account for [Flink's native Kubernetes integration]({{< ref "docs/deployment/resource-providers/native_kubernetes" >}}#rbac) and [standalone Flink on Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}#kubernetes-high-availability-services) for more information. 
 
