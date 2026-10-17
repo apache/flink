@@ -94,7 +94,7 @@ class OggJsonFormatFactoryTest {
                         anyCauseMatches(
                                 ValidationException.class,
                                 "Unsupported value 'test' for timestamp-format.standard. "
-                                        + "Supported values are [SQL, ISO-8601]."));
+                                        + "Supported values are [SQL, ISO-8601, ISO-8601-WITH-OFFSET]."));
     }
 
     @Test
