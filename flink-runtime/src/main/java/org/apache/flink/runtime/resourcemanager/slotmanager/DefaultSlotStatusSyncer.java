@@ -44,6 +44,8 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -54,6 +56,10 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultSlotStatusSyncer.class);
 
     private final Set<AllocationID> pendingSlotAllocations = new HashSet<>();
+
+    /** In-flight slot request RPC futures, cancelled on {@link #close()}. */
+    private final Map<AllocationID, CompletableFuture<Acknowledge>> pendingSlotRequests =
+            new HashMap<>();
 
     /** Timeout for slot requests to the task manager. */
     private final Duration taskManagerRequestTimeout;
@@ -85,11 +91,17 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
 
     @Override
     public void close() {
+        // cancel in-flight requests while the executor is still alive, so their callbacks are not
+        // scheduled on an already shut down executor (FLINK-34427)
+        pendingSlotAllocations.clear();
+        for (CompletableFuture<Acknowledge> requestFuture : pendingSlotRequests.values()) {
+            requestFuture.cancel(false);
+        }
+        pendingSlotRequests.clear();
         this.taskManagerTracker = null;
         this.resourceTracker = null;
         this.mainThreadExecutor = null;
         this.resourceManagerId = null;
-        this.pendingSlotAllocations.clear();
         started = false;
     }
 
@@ -142,6 +154,8 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
                             resourceManagerId,
                             taskManagerRequestTimeout);
 
+            pendingSlotRequests.put(allocationId, requestFuture);
+            
             CompletableFuture<Void> returnedFuture = new CompletableFuture<>();
 
             FutureUtils.assertNoException(
@@ -166,6 +180,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
         return (Acknowledge acknowledge, Throwable throwable) -> {
             try (MdcUtils.MdcCloseable ignored =
                     MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
+                pendingSlotRequests.remove(allocationId);
                 if (!pendingSlotAllocations.remove(allocationId)) {
                     LOG.debug(
                             "Ignoring slot allocation update from task manager {} for allocation {} and job {}, because the allocation was already completed or cancelled.",
