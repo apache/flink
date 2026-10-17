@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.runtime.functions;
 
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -31,6 +33,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TestHarnessTimerManagerTest {
 
+    /** P1 and P2 are single STRING-column partition keys. */
+    private static final TestHarnessStateManager.PartitionKeyInfo KEY_INFO =
+            new TestHarnessStateManager.PartitionKeyInfo(
+                    1, new String[] {"k"}, new DataType[] {DataTypes.STRING()});
+
     private static final Row P1 = Row.of("P1");
     private static final Row P2 = Row.of("P2");
 
@@ -38,7 +45,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testNamedTimerRegistration() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.register(P1, 1000L, "timer-a");
         manager.register(P1, 2000L, "timer-b");
@@ -48,7 +55,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testNamedTimerReplacementOverwritesTimestamp() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
         List<Timer> fired = new ArrayList<>();
 
         manager.register(P1, 1000L, "timer-a");
@@ -69,7 +76,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testNamedTimerReplacementIsPerPartition() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.register(P1, 1000L, "timer-a");
         manager.register(P2, 2000L, "timer-a");
@@ -79,7 +86,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testUnnamedTimerRegistration() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.register(P1, 1000L, null);
         manager.register(P1, 2000L, null);
@@ -89,7 +96,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testUnnamedTimerDeduplicationBySameTimestamp() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.register(P1, 1000L, null);
         manager.register(P1, 1000L, null);
@@ -99,7 +106,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testUnnamedTimerDeduplicationIsPerPartition() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.register(P1, 1000L, null);
         manager.register(P2, 1000L, null);
@@ -109,7 +116,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testNamedAndUnnamedTimersAreIndependent() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.register(P1, 1000L, "timer-a");
         manager.register(P1, 1000L, null);
@@ -119,7 +126,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testGlobalWatermarkIsMinAcrossTables() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.setTableWatermark("table-a", 1000L);
         manager.setTableWatermark("table-b", 3000L);
@@ -130,7 +137,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testGlobalWatermarkAdvancesWhenLaggingTableCatchesUp() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.setTableWatermark("table-a", 1000L);
         manager.setTableWatermark("table-b", 3000L);
@@ -144,7 +151,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testPerTableWatermarkCannotMoveBackward() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.setTableWatermark("table-a", 2000L);
         assertThrows(
@@ -153,7 +160,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testPerTableWatermarkTrackedIndependently() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.setTableWatermark("table-a", 1000L);
         manager.setTableWatermark("table-b", 3000L);
@@ -164,7 +171,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testNewTableCanCauseGlobalWatermarkBackwardError() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.setTableWatermark("table-a", 5000L);
         manager.updateGlobalWatermarkAndFireTimers(NOOP_FIRER);
@@ -178,7 +185,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testTimerFiresWhenWatermarkAdvancesPastTimestamp() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
         List<Timer> fired = new ArrayList<>();
 
         manager.register(P1, 1000L, "timer-a");
@@ -193,7 +200,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testTimerDoesNotFireBeforeWatermark() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
         List<Timer> fired = new ArrayList<>();
 
         manager.register(P1, 3000L, "timer-a");
@@ -206,7 +213,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testTimerFiresAtExactWatermark() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
         List<Timer> fired = new ArrayList<>();
 
         manager.register(P1, 2000L, "timer-a");
@@ -218,7 +225,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testFiringOrderIsDeterministic() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
         List<String> firingOrder = new ArrayList<>();
 
         manager.register(P1, 2000L, "b-timer");
@@ -237,7 +244,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testCascadingTimerFiring() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
         List<String> fired = new ArrayList<>();
 
         manager.register(P1, 1000L, "first");
@@ -259,7 +266,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testTimerClearedDuringFiringCallbackDoesNotFire() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
         List<String> fired = new ArrayList<>();
 
         manager.register(P1, 1000L, "first");
@@ -289,7 +296,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testMultiTableTimerOnlyFiresWhenGlobalWatermarkAdvances() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
         List<Timer> fired = new ArrayList<>();
 
         manager.register(P1, 2000L, "timer-a");
@@ -309,7 +316,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testClearByName() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.register(P1, 1000L, "timer-a");
         manager.register(P1, 2000L, "timer-b");
@@ -321,7 +328,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testClearByTimestampOnlyAffectsUnnamedTimers() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.register(P1, 1000L, "named");
         manager.register(P1, 1000L, null);
@@ -333,7 +340,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testClearAll() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.register(P1, 1000L, "timer-a");
         manager.register(P1, 2000L, null);
@@ -344,7 +351,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testClearAllIsPerPartition() {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.register(P1, 1000L, "timer-a");
         manager.register(P2, 2000L, "timer-b");
@@ -356,7 +363,7 @@ class TestHarnessTimerManagerTest {
 
     @Test
     void testClearFiredTimers() throws Exception {
-        TestHarnessTimerManager manager = new TestHarnessTimerManager();
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
 
         manager.register(P1, 1000L, "timer-a");
         manager.setTableWatermark("table-a", 2000L);
@@ -365,5 +372,114 @@ class TestHarnessTimerManagerTest {
         assertThat(manager.getFiredTimers()).hasSize(1);
         manager.clearFiredTimers();
         assertThat(manager.getFiredTimers()).isEmpty();
+    }
+
+    @Test
+    void testSnapshotRestoresPendingAndFiredTimers() throws Exception {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
+
+        manager.register(P1, 1000L, "fired-timer");
+        manager.register(P2, 3000L, "pending-timer");
+        manager.setTableWatermark("table-a", 1000L);
+        manager.updateGlobalWatermarkAndFireTimers(NOOP_FIRER);
+
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        TestHarnessTimerManager restored = new TestHarnessTimerManager(KEY_INFO);
+        restored.restore(snapshot);
+
+        assertThat(restored.getPendingTimers()).hasSize(1);
+        assertThat(restored.getPendingTimers().get(0).getName()).isEqualTo("pending-timer");
+        assertThat(restored.getFiredTimers()).hasSize(1);
+        assertThat(restored.getFiredTimers().get(0).getName()).isEqualTo("fired-timer");
+        assertThat(restored.getFiredTimers().get(0).hasFired()).isTrue();
+    }
+
+    @Test
+    void testSnapshotDoesNotSeeTimersFiredAfterwards() throws Exception {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
+
+        manager.register(P1, 1000L, "timer-a");
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        manager.setTableWatermark("table-a", 1000L);
+        manager.updateGlobalWatermarkAndFireTimers(NOOP_FIRER);
+
+        TestHarnessTimerManager restored = new TestHarnessTimerManager(KEY_INFO);
+        restored.restore(snapshot);
+
+        assertThat(restored.getPendingTimers()).hasSize(1);
+        assertThat(restored.getPendingTimers().get(0).hasFired()).isFalse();
+        assertThat(restored.getFiredTimers()).isEmpty();
+    }
+
+    @Test
+    void testSnapshotDoesNotSeeTimersRegisteredOrClearedAfterwards() {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
+
+        manager.register(P1, 1000L, "timer-a");
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        manager.register(P1, 2000L, "timer-b");
+        manager.clearAll(P1);
+
+        TestHarnessTimerManager restored = new TestHarnessTimerManager(KEY_INFO);
+        restored.restore(snapshot);
+
+        assertThat(restored.getPendingTimers()).hasSize(1);
+        assertThat(restored.getPendingTimers().get(0).getName()).isEqualTo("timer-a");
+    }
+
+    @Test
+    void testRestoreRequiresAFreshManager() {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
+
+        manager.register(P1, 1000L, "timer-a");
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        // A harness installs timers while it is being built, so restoring onto a populated
+        // manager is not something the harness can do.
+        assertThrows(IllegalStateException.class, () -> manager.restore(snapshot));
+    }
+
+    @Test
+    void testSnapshotRestoresWatermarks() throws Exception {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
+
+        manager.setTableWatermark("table-a", 1000L);
+        manager.updateGlobalWatermarkAndFireTimers(NOOP_FIRER);
+
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        TestHarnessTimerManager restored = new TestHarnessTimerManager(KEY_INFO);
+        restored.restore(snapshot);
+
+        assertThat(restored.getWatermarkForTable("table-a")).isEqualTo(1000L);
+        assertThat(restored.getGlobalWatermark()).isEqualTo(1000L);
+
+        // a table seen for the first time after the restore must not pull the global watermark
+        // back behind the restored one
+        restored.setTableWatermark("table-b", 500L);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> restored.updateGlobalWatermarkAndFireTimers(NOOP_FIRER));
+    }
+
+    @Test
+    void testSnapshotCanBeRestoredMoreThanOnce() {
+        TestHarnessTimerManager manager = new TestHarnessTimerManager(KEY_INFO);
+
+        manager.register(P1, 1000L, "timer-a");
+        TestHarnessTimerManager.TimerSnapshot snapshot = manager.snapshot();
+
+        TestHarnessTimerManager first = new TestHarnessTimerManager(KEY_INFO);
+        first.restore(snapshot);
+        first.clearAll(P1);
+
+        TestHarnessTimerManager second = new TestHarnessTimerManager(KEY_INFO);
+        second.restore(snapshot);
+
+        assertThat(first.getPendingTimers()).isEmpty();
+        assertThat(second.getPendingTimers()).hasSize(1);
     }
 }

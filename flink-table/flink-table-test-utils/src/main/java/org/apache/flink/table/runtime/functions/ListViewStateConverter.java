@@ -23,6 +23,7 @@ import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
+import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
 import org.apache.flink.table.types.logical.ArrayType;
 
 import java.util.ArrayList;
@@ -38,11 +39,13 @@ class ListViewStateConverter implements StateConverter {
 
     private final DataStructureConverter<Object, Object> elementConverter;
     private final ArrayData.ElementGetter elementGetter;
+    private final ArrayDataSerializer arrayDataSerializer;
 
     ListViewStateConverter(
             ArrayType arrayType, DataStructureConverter<Object, Object> elementConverter) {
         this.elementConverter = elementConverter;
         this.elementGetter = ArrayData.createElementGetter(arrayType.getElementType());
+        this.arrayDataSerializer = new ArrayDataSerializer(arrayType.getElementType());
     }
 
     @Override
@@ -75,5 +78,10 @@ class ListViewStateConverter implements StateConverter {
     @Override
     public Object createNewInternalState() {
         return new GenericArrayData(new Object[0]);
+    }
+
+    @Override
+    public Object copyInternal(Object internal) {
+        return arrayDataSerializer.copy((ArrayData) internal);
     }
 }

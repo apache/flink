@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.function.UnaryOperator;
 
 /**
  * A timer registered by a {@link org.apache.flink.table.functions.ProcessTableFunction} during
@@ -41,9 +42,14 @@ public class Timer implements Comparable<Timer> {
     private boolean fired;
 
     Timer(long timestamp, @Nullable String name, Row partitionKey) {
+        this(timestamp, name, partitionKey, false);
+    }
+
+    Timer(long timestamp, @Nullable String name, Row partitionKey, boolean fired) {
         this.timestamp = timestamp;
         this.name = name;
         this.partitionKey = partitionKey;
+        this.fired = fired;
     }
 
     public long getTimestamp() {
@@ -79,6 +85,15 @@ public class Timer implements Comparable<Timer> {
 
     void markFired() {
         this.fired = true;
+    }
+
+    /**
+     * Creates an isolated copy of this timer, including whether it has already fired. The partition
+     * key is copied by the given copier rather than {@link Row#copy(Row)}, which copies only the
+     * field array.
+     */
+    Timer copy(UnaryOperator<Row> keyCopier) {
+        return new Timer(timestamp, name, keyCopier.apply(partitionKey), fired);
     }
 
     /**
