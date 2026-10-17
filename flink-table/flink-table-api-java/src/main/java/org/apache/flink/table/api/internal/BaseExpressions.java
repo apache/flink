@@ -94,6 +94,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_XOR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_XOR_AGG;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BITMAP_XOR_CARDINALITY_AGG;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BIT_COUNT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.BTRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CARDINALITY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
@@ -898,6 +899,17 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Rounds the given number to integer places right to the decimal point. */
     public OutType round(InType places) {
         return toApiSpecificExpression(unresolvedCall(ROUND, toExpr(), objectToExpression(places)));
+    }
+
+    /**
+     * Returns the number of set bits in the 64-bit two's-complement representation of an integer.
+     * Negative TINYINT, SMALLINT, and INT values are sign-extended to 64 bits before counting.
+     * Boolean true and false return 1 and 0, respectively. Returns null if the argument is null.
+     *
+     * <p>For example, 3 returns 2 and -1 returns 64. The result type is INT.
+     */
+    public OutType bitCount() {
+        return toApiSpecificExpression(unresolvedCall(BIT_COUNT, toExpr()));
     }
 
     /**
