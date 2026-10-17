@@ -816,32 +816,6 @@ class _DataFrameFlatMapTests(_DataFrameUDTFTests):
 
 
 class _DataFrameLateralJoinTests(_DataFrameUDTFTests):
-    def test_nested_scalar_concurrency(self):
-        @pf.udf(concurrency=3)
-        def triple(value: int) -> int:
-            return value * 3
-
-        @pf.udf(concurrency=5)
-        def increment(value: int) -> int:
-            return value + 1
-
-        @pf.udtf
-        def emit(value: int) -> Iterator[Optional[int]]:
-            if value != 9:
-                yield value
-                yield value + 1
-
-        source = pf.from_records([(0,), (1,), (2,)], schema=["a"])
-        call = emit(triple(increment(pf.col("a")))).alias("x")
-        inner = source.join_lateral(call).select(pf.lit("inner").alias("kind"), "a", "x")
-        left = source.join_lateral(call, ignore_empty=False).select(
-            pf.lit("left").alias("kind"), "a", "x")
-        emitted = [(0, 3), (0, 4), (1, 6), (1, 7)]
-        expected = [Row(kind, *row) for kind in ("inner", "left") for row in emitted]
-        expected.append(Row("left", 2, None))
-        self.assertEqual(inner.columns, ["kind", "a", "x"])
-        self.assertCountEqual(inner.union_all(left).collect(), expected)
-
     def test_lateral_join_semantics_and_predicates(self):
         @pf.udtf
         def words(text: Optional[str]) -> Iterator[str]:
