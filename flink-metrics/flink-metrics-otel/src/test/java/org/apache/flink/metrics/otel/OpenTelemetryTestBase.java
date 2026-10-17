@@ -90,8 +90,20 @@ public class OpenTelemetryTestBase {
 
     public static void eventuallyConsumeJson(ThrowingConsumer<JsonNode, Exception> jsonConsumer)
             throws Exception {
+        eventuallyConsumeJson(() -> {}, jsonConsumer);
+    }
+
+    /**
+     * Runs {@code beforeAttempt} at the start of every retry iteration, so on-demand reporters can
+     * re-export instead of letting a single failed export doom the whole retry budget.
+     */
+    public static void eventuallyConsumeJson(
+            ThrowingRunnable<Exception> beforeAttempt,
+            ThrowingConsumer<JsonNode, Exception> jsonConsumer)
+            throws Exception {
         eventually(
                 () -> {
+                    beforeAttempt.run();
                     // otel-collector dumps every report in a new line, so in order to re-use the
                     // same collector across multiple tests, let's read only the last line
                     getOtelContainer()
