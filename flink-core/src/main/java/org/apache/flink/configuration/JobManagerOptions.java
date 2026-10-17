@@ -786,6 +786,43 @@ public class JobManagerOptions {
                                                     + "will not fire if a checkpoint is already in progress or being triggered.")
                                     .build());
 
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<String>
+            SCHEDULER_RETRY_EXECUTION_GRAPH_CREATION_RESTART_STRATEGY =
+                    key("jobmanager.adaptive-scheduler.retry-execution-graph-creation.restart-strategy.type")
+                            .stringType()
+                            .defaultValue(
+                                    RestartStrategyOptions.RestartStrategyType.NO_RESTART_STRATEGY
+                                            .getMainValue())
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Restart strategy used to retry transient ExecutionGraph-creation "
+                                                            + "failures (e.g. checkpoint-storage or filesystem timeouts while building "
+                                                            + "the graph), independent of the job's %s so these retries do not consume "
+                                                            + "the job's restart budget.",
+                                                    code(
+                                                            RestartStrategyOptions.RESTART_STRATEGY
+                                                                    .key()))
+                                            .linebreak()
+                                            .text(
+                                                    "Per-type parameters reuse the %s keys placed under the "
+                                                            + "jobmanager.adaptive-scheduler.retry-execution-graph-creation. prefix. "
+                                                            + "Defaults to no restart (fail fast); set e.g. to %s to enable retries.",
+                                                    code(
+                                                            RestartStrategyOptions
+                                                                            .RESTART_STRATEGY_CONFIG_PREFIX
+                                                                    + ".*"),
+                                                    code(
+                                                            RestartStrategyOptions
+                                                                    .RestartStrategyType
+                                                                    .EXPONENTIAL_DELAY
+                                                                    .getMainValue()))
+                                            .build());
+
     /**
      * @deprecated Use {@link
      *     JobManagerOptions#SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT}.

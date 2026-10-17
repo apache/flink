@@ -123,6 +123,12 @@
             <td>The maximum time the JobManager will wait with evaluating previously observed events for rescaling (default: 0ms if checkpointing is disabled and the checkpointing interval multiplied by the by-1-incremented parameter value of jobmanager.adaptive-scheduler.rescale-trigger.max-checkpoint-failures if checkpointing is enabled).</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.adaptive-scheduler.retry-execution-graph-creation.restart-strategy.type</h5></td>
+            <td style="word-wrap: break-word;">"disable"</td>
+            <td>String</td>
+            <td>Restart strategy used to retry transient ExecutionGraph-creation failures (e.g. checkpoint-storage or filesystem timeouts while building the graph), independent of the job's <code class="highlighter-rouge">restart-strategy.type</code> so these retries do not consume the job's restart budget.<br />Per-type parameters reuse the <code class="highlighter-rouge">restart-strategy.*</code> keys placed under the jobmanager.adaptive-scheduler.retry-execution-graph-creation. prefix. Defaults to no restart (fail fast); set e.g. to <code class="highlighter-rouge">exponential-delay</code> to enable retries.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.submission.resource-stabilization-timeout</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
