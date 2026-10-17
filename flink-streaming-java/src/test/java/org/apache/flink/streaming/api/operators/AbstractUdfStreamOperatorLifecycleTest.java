@@ -104,6 +104,8 @@ class AbstractUdfStreamOperatorLifecycleTest {
                     + "initializeState[interface org.apache.flink.streaming.api.operators.StreamTaskStateInitializer], "
                     + "notifyCheckpointAborted[long], "
                     + "notifyCheckpointComplete[long], "
+                    + "notifyRegionalCheckpointComplete[long, class org.apache.flink.api.common.state.RegionalCheckpointInfo], "
+                    + "notifyRegionalCheckpointFallback[long, long], "
                     + "open[], "
                     + "prepareSnapshotPreBarrier[long], "
                     + "setCurrentKey[class java.lang.Object], "
