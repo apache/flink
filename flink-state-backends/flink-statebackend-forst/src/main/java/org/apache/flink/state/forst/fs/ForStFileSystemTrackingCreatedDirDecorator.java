@@ -56,4 +56,20 @@ public class ForStFileSystemTrackingCreatedDirDecorator extends ForStFlinkFileSy
         }
         return super.exists(f);
     }
+
+    /**
+     * Renaming a tracked directory moves its tracked existence to the destination. A directory
+     * rename recreates the destination through the undecorated file system, where mkdir() has no
+     * effect, so without this the destination is reported as missing. RocksDB relies on it when it
+     * renames the export directory into place while restoring at a lower parallelism with ingest-DB
+     * restore mode.
+     */
+    @Override
+    public synchronized boolean rename(Path src, Path dst) throws IOException {
+        boolean renamed = super.rename(src, dst);
+        if (renamed && createdDirPaths.remove(src)) {
+            createdDirPaths.add(dst);
+        }
+        return renamed;
+    }
 }
