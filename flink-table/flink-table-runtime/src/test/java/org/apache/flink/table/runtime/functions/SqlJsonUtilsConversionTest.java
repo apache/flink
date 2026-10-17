@@ -270,18 +270,22 @@ class SqlJsonUtilsConversionTest {
 
     static Stream<Arguments> nonBooleanInputs() {
         return Stream.of(
-                Arguments.of(42),
-                Arguments.of(-1),
-                Arguments.of(2),
-                Arguments.of(1.9),
-                Arguments.of(0.5),
-                Arguments.of(-0.1),
+                Arguments.of(42, "Cannot convert 42 to BOOLEAN"),
+                Arguments.of(-1, "Cannot convert -1 to BOOLEAN"),
+                Arguments.of(2, "Cannot convert 2 to BOOLEAN"),
+                Arguments.of(1.9, "Cannot convert 1.9 to BOOLEAN"),
+                Arguments.of(0.5, "Cannot convert 0.5 to BOOLEAN"),
+                Arguments.of(-0.1, "Cannot convert -0.1 to BOOLEAN"),
                 // exact BigDecimal comparison rejects values that doubleValue() would round to 0/1
-                Arguments.of(new BigDecimal("1.00000000000000000001")),
-                Arguments.of(new BigDecimal("0.99999999999999999999")),
-                Arguments.of(new BigDecimal("1E-400")),
-                Arguments.of("maybe"),
-                Arguments.of("2"));
+                Arguments.of(
+                        new BigDecimal("1.00000000000000000001"),
+                        "Cannot convert 1.00000000000000000001 to BOOLEAN"),
+                Arguments.of(
+                        new BigDecimal("0.99999999999999999999"),
+                        "Cannot convert 0.99999999999999999999 to BOOLEAN"),
+                Arguments.of(new BigDecimal("1E-400"), "Cannot convert 1E-400 to BOOLEAN"),
+                Arguments.of("maybe", "Cannot cast 'maybe' as BOOLEAN."),
+                Arguments.of("2", "Cannot cast '2' as BOOLEAN."));
     }
 
     @Nested
@@ -297,10 +301,12 @@ class SqlJsonUtilsConversionTest {
         @ParameterizedTest(name = "{0}")
         @MethodSource(
                 "org.apache.flink.table.runtime.functions.SqlJsonUtilsConversionTest#nonBooleanInputs")
-        void failsForNonBoolean(Object raw) {
+        void failsForNonBoolean(Object raw, String causeMessage) {
             assertThatThrownBy(() -> scalar(raw, BOOLEAN, JsonValueOnEmptyOrError.ERROR, null))
                     .isInstanceOf(TableRuntimeException.class)
-                    .hasMessage("Cannot cast " + raw.getClass().getName() + " to BOOLEAN");
+                    .hasMessage("Cannot cast " + raw.getClass().getName() + " to BOOLEAN")
+                    .cause()
+                    .hasMessage(causeMessage);
         }
     }
 
@@ -385,7 +391,18 @@ class SqlJsonUtilsConversionTest {
                                             JsonValueOnEmptyOrError.ERROR,
                                             null))
                     .isInstanceOf(TableRuntimeException.class)
-                    .hasMessage("Cannot cast java.lang.Long to INTEGER");
+                    .hasMessage("Cannot cast java.lang.Long to INTEGER")
+                    .cause()
+                    .hasMessage("Value 9999999999 is out of range for INTEGER");
+        }
+
+        @Test
+        void errorModeSurfacesParseCause() {
+            assertThatThrownBy(() -> scalar("abc", INTEGER, JsonValueOnEmptyOrError.ERROR, null))
+                    .isInstanceOf(TableRuntimeException.class)
+                    .hasMessage("Cannot cast java.lang.String to INTEGER")
+                    .cause()
+                    .hasMessage("Cannot parse string 'abc' as INTEGER");
         }
     }
 
@@ -427,9 +444,28 @@ class SqlJsonUtilsConversionTest {
 
     static Stream<Arguments> arrayThrowCases() {
         return Stream.of(
-                Arguments.of(new Object[] {"a", "b"}, INTEGER, 0, 0, true),
-                Arguments.of(new Object[] {999999}, DECIMAL, 2, 1, true),
-                Arguments.of(new Object[] {1, null, 3}, INTEGER, 0, 0, false));
+                Arguments.of(
+                        new Object[] {"a", "b"},
+                        INTEGER,
+                        0,
+                        0,
+                        true,
+                        "Cannot parse string 'a' as INTEGER"),
+                Arguments.of(
+                        new Object[] {999999},
+                        DECIMAL,
+                        2,
+                        1,
+                        true,
+                        "Value 999999 cannot be represented as DECIMAL(2, 1)"),
+                // a null element in a NOT NULL array must surface the real cause through the chain
+                Arguments.of(
+                        new Object[] {1, null, 3},
+                        INTEGER,
+                        0,
+                        0,
+                        false,
+                        "Null element at index 1 in NOT NULL array"));
     }
 
     static Stream<Arguments> emptyArrayInputs() {
@@ -492,13 +528,16 @@ class SqlJsonUtilsConversionTest {
                 LogicalTypeRoot elementType,
                 int precision,
                 int scale,
-                boolean nullable) {
+                boolean nullable,
+                String causeMessage) {
             assertThatThrownBy(
                             () ->
                                     SqlJsonUtils.convertJsonArray(
                                             raw, elementType, precision, scale, nullable, ERROR))
                     .isInstanceOf(TableRuntimeException.class)
-                    .hasMessage("Array element type mismatch in JSON_QUERY");
+                    .hasMessage("Array element type mismatch in JSON_QUERY")
+                    .cause()
+                    .hasMessage(causeMessage);
         }
 
         @ParameterizedTest(name = "{0}")
