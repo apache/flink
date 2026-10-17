@@ -782,6 +782,6 @@
   includeAdditionalDeclarations: false
   includeParsingStringLiteralAsArrayLiteral: false
   includeIntervalWithoutQualifier: false
-  includeStarExclude: true
+  includeStarExclude: false
   includeSelectBy: false
 }
