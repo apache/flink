@@ -36,6 +36,7 @@ import org.jline.reader.SyntaxError;
 import org.jline.reader.impl.DefaultParser;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 import static org.apache.flink.table.client.config.ResultMode.TABLEAU;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
@@ -60,6 +61,9 @@ public class SqlMultiLineParser extends DefaultParser {
     /** Sql command executor. */
     private final Executor executor;
 
+    /** Callback for updated session configuration. */
+    private final Consumer<ReadableConfig> sessionConfigConsumer;
+
     /** Exception caught in parsing. */
     private SqlExecutionException parseException = null;
 
@@ -68,9 +72,18 @@ public class SqlMultiLineParser extends DefaultParser {
 
     public SqlMultiLineParser(
             SqlCommandParser parser, Executor executor, CliClient.ExecutionMode mode) {
+        this(parser, executor, mode, ignored -> {});
+    }
+
+    public SqlMultiLineParser(
+            SqlCommandParser parser,
+            Executor executor,
+            CliClient.ExecutionMode mode,
+            Consumer<ReadableConfig> sessionConfigConsumer) {
         this.parser = parser;
         this.mode = mode;
         this.executor = executor;
+        this.sessionConfigConsumer = sessionConfigConsumer;
         setEscapeChars(null);
         setQuoteChars(null);
     }
@@ -117,6 +130,7 @@ public class SqlMultiLineParser extends DefaultParser {
                             long queryBeginTime = System.currentTimeMillis();
                             StatementResult result = executor.executeStatement(line);
                             ReadableConfig sessionConfig = executor.getSessionConfig();
+                            sessionConfigConsumer.accept(sessionConfig);
                             if (mode == CliClient.ExecutionMode.NON_INTERACTIVE_EXECUTION
                                     && result.isQueryResult()
                                     && sessionConfig.get(SqlClientOptions.EXECUTION_RESULT_MODE)
