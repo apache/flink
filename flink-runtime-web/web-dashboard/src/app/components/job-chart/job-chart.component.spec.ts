@@ -37,14 +37,44 @@ describe('JobChartComponent', () => {
   });
 
   it('appends the metric value for its own title and forwards data to the chart', () => {
-    const changeData = vi.fn();
-    component.chartInstance = { changeData } as unknown as Chart;
+    const data = vi.fn();
+    const render = vi.fn();
+    component.chartInstance = { render } as unknown as Chart;
+    component.lineMark = { data, scale: vi.fn() } as unknown as JobChartComponent['lineMark'];
 
     component.refresh({ timestamp: 1000, values: { cpu: 42, mem: 7 } });
 
     expect(component.latestValue).toBe(42);
     expect(component.data).toEqual([{ time: 1000, value: 42, type: 'cpu' }]);
-    expect(changeData).toHaveBeenCalledWith(component.data);
+    expect(data).toHaveBeenCalledWith(component.data);
+    expect(render).toHaveBeenCalled();
+  });
+
+  it('anchors a constant series to the bottom of the y axis and labels only its value', () => {
+    const scale = vi.fn();
+    component.chartInstance = { render: vi.fn() } as unknown as Chart;
+    component.lineMark = { data: vi.fn(), scale } as unknown as JobChartComponent['lineMark'];
+
+    component.refresh({ timestamp: 1, values: { cpu: 0 } });
+    component.refresh({ timestamp: 2, values: { cpu: 0 } });
+
+    const [axis, options] = scale.mock.calls[scale.mock.calls.length - 1];
+    expect(axis).toBe('y');
+    expect(options.domain).toEqual([0, 1]);
+    expect(options.tickMethod()).toEqual([0]);
+  });
+
+  it('lets g2 choose the y domain again once the values vary', () => {
+    const scale = vi.fn();
+    component.chartInstance = { render: vi.fn() } as unknown as Chart;
+    component.lineMark = { data: vi.fn(), scale } as unknown as JobChartComponent['lineMark'];
+
+    component.refresh({ timestamp: 1, values: { cpu: 3 } });
+    component.refresh({ timestamp: 2, values: { cpu: 9 } });
+
+    const [, options] = scale.mock.calls[scale.mock.calls.length - 1];
+    expect(options.domain).toBeUndefined();
+    expect(options.tickMethod).toBeUndefined();
   });
 
   it('keeps only the most recent 20 samples', () => {
