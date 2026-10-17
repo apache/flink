@@ -85,17 +85,17 @@ class JobMasterPartitionReleaseTest {
     private TestingFatalErrorHandler testingFatalErrorHandler;
 
     @BeforeAll
-    private static void setupClass() {
+    static void setupClass() {
         rpcService = new TestingRpcService();
     }
 
     @BeforeEach
-    private void setup() throws IOException {
+    void setup() throws IOException {
         testingFatalErrorHandler = new TestingFatalErrorHandler();
     }
 
     @AfterEach
-    private void teardown() throws Exception {
+    void teardown() throws Exception {
         if (testingFatalErrorHandler != null) {
             testingFatalErrorHandler.rethrowError();
         }
@@ -104,7 +104,7 @@ class JobMasterPartitionReleaseTest {
     }
 
     @AfterAll
-    private static void teardownClass() {
+    static void teardownClass() {
         if (rpcService != null) {
             rpcService.closeAsync();
             rpcService = null;
