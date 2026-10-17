@@ -535,7 +535,7 @@ class SqlJsonUtilsConversionTest {
                                     SqlJsonUtils.convertJsonArray(
                                             raw, elementType, precision, scale, nullable, ERROR))
                     .isInstanceOf(TableRuntimeException.class)
-                    .hasMessage("Array element type mismatch in JSON_QUERY")
+                    .hasMessage("JSON_QUERY array element conversion failed")
                     .cause()
                     .hasMessage(causeMessage);
         }

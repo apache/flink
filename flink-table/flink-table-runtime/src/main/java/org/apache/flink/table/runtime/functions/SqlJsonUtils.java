@@ -930,7 +930,8 @@ public class SqlJsonUtils {
                 case EMPTY_ARRAY:
                     return new GenericArrayData(new Object[0]);
                 case ERROR:
-                    throw new TableRuntimeException("Array element type mismatch in JSON_QUERY", e);
+                    throw new TableRuntimeException(
+                            "JSON_QUERY array element conversion failed", e);
                 default:
                     return null;
             }

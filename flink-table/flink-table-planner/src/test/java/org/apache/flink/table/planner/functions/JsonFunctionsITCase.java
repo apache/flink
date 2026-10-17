@@ -1167,7 +1167,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlRuntimeError(
                                 "JSON_QUERY(f0, '$.strings' RETURNING ARRAY<INT> ERROR ON ERROR)",
                                 TableRuntimeException.class,
-                                "Array element type mismatch in JSON_QUERY")
+                                "Cannot parse string 'a' as INTEGER")
 
                         // Empty JSON array and missing path
                         .testResult(
