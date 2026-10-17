@@ -572,6 +572,20 @@
               }}
             </td>
           </tr>
+          <tr>
+            <td>Regional Checkpoint</td>
+            <td>
+              {{ checkPointConfig['regional_checkpoint_enabled'] ? 'Enabled' : 'Disabled' }}
+            </td>
+          </tr>
+          <tr *ngIf="checkPointConfig['regional_checkpoint_enabled']">
+            <td>Regional Checkpoint Max Failure Ratio</td>
+            <td>{{ checkPointConfig['regional_max_failure_ratio'] }}</td>
+          </tr>
+          <tr *ngIf="checkPointConfig['regional_checkpoint_enabled']">
+            <td>Regional Checkpoint Max Consecutive Failures</td>
+            <td>{{ checkPointConfig['regional_max_consecutive_failures'] }}</td>
+          </tr>
         </ng-container>
       </tbody>
     </nz-table>

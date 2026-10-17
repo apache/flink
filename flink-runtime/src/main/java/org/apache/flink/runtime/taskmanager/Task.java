@@ -1490,6 +1490,21 @@ public class Task
                 NotifyCheckpointOperation.SUBSUME);
     }
 
+    /**
+     * Notifies the task that a regional checkpoint has completed but this task's region fell back
+     * to a historical checkpoint. Used by {@link
+     * org.apache.flink.runtime.taskexecutor.TaskExecutor#confirmCheckpoint} when {@code
+     * fallbackCheckpointId != INVALID_CHECKPOINT_ID}.
+     *
+     * @param checkpointId the completed regional checkpoint id
+     * @param fallbackCheckpointId the historical checkpoint this task fell back to
+     */
+    public void notifyRegionalCheckpointFallback(
+            final long checkpointId, final long fallbackCheckpointId) {
+        notifyCheckpoint(
+                checkpointId, fallbackCheckpointId, NotifyCheckpointOperation.REGIONAL_FALLBACK);
+    }
+
     private void notifyCheckpoint(
             long checkpointId,
             long latestCompletedCheckpointId,
@@ -1509,6 +1524,11 @@ public class Task
                         ((CheckpointableTask) invokable)
                                 .notifyCheckpointCompleteAsync(checkpointId);
                         break;
+                    case REGIONAL_FALLBACK:
+                        ((CheckpointableTask) invokable)
+                                .notifyRegionalCheckpointFallbackAsync(
+                                        checkpointId, latestCompletedCheckpointId);
+                        break;
                     case SUBSUME:
                         ((CheckpointableTask) invokable)
                                 .notifyCheckpointSubsumedAsync(checkpointId);
@@ -1526,6 +1546,7 @@ public class Task
                 switch (notifyCheckpointOperation) {
                     case ABORT:
                     case COMPLETE:
+                    case REGIONAL_FALLBACK:
                         if (getExecutionState() == ExecutionState.RUNNING) {
                             failExternally(
                                     new RuntimeException(
@@ -1902,6 +1923,7 @@ public class Task
     public enum NotifyCheckpointOperation {
         ABORT,
         COMPLETE,
+        REGIONAL_FALLBACK,
         SUBSUME
     }
 }

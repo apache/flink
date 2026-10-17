@@ -94,4 +94,7 @@ public class TestingCheckpointStatsTracker implements CheckpointStatsTracker {
         numPendingCheckpoints.incrementAndGet();
         return PENDING_CHECKPOINT_STATS;
     }
+
+    @Override
+    public void reportRegionalCheckpointCompleted() {}
 }

@@ -144,7 +144,10 @@ public class CheckpointConfigHandler
                     checkpointCoordinatorConfiguration.isEnableCheckpointsAfterTasksFinish(),
                     stateChangelogEnabled,
                     periodicMaterializeIntervalMillis,
-                    changelogStorageName);
+                    changelogStorageName,
+                    checkpointCoordinatorConfiguration.isRegionalCheckpointEnabled(),
+                    checkpointCoordinatorConfiguration.getRegionalMaxFailureRatio(),
+                    checkpointCoordinatorConfiguration.getRegionalMaxConsecutiveFailures());
         }
     }
 }

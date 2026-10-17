@@ -31,10 +31,16 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -137,6 +143,12 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
 
         completedCheckpoints.addLast(checkpoint);
 
+        // Compute the set of checkpoint IDs that are transitively referenced via
+        // refCheckpointId by the retained checkpoints. These must not be subsumed.
+        Set<Long> protectedIds =
+                computeReferencedCheckpointIds(
+                        completedCheckpoints, maxNumberOfCheckpointsToRetain);
+
         // Remove completed checkpoint from queue and checkpointStateHandleStore, not discard.
         Optional<CompletedCheckpoint> subsume =
                 CheckpointSubsumeHelper.subsume(
@@ -145,7 +157,8 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
                         completedCheckpoint -> {
                             tryRemove(completedCheckpoint.getCheckpointID());
                             checkpointsCleaner.addSubsumedCheckpoint(completedCheckpoint);
-                        });
+                        },
+                        protectedIds);
 
         findLowest(completedCheckpoints)
                 .ifPresent(
@@ -246,5 +259,77 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
     private boolean tryRemove(long checkpointId) throws Exception {
         return checkpointStateHandleStore.releaseAndTryRemove(
                 completedCheckpointStoreUtil.checkpointIDToName(checkpointId));
+    }
+
+    /**
+     * Computes the set of checkpoint IDs that are transitively referenced via {@code
+     * refCheckpointId} by the checkpoints that would be retained (the last {@code numRetain}
+     * checkpoints in the deque). Only returns IDs that are NOT among the retained checkpoints
+     * themselves (since those are already protected by the retention count).
+     */
+    static Set<Long> computeReferencedCheckpointIds(
+            ArrayDeque<CompletedCheckpoint> checkpoints, int numRetain) {
+        if (checkpoints.size() <= numRetain) {
+            return Collections.emptySet();
+        }
+
+        // Build a map of checkpointId -> checkpoint for quick lookup
+        Map<Long, CompletedCheckpoint> checkpointById =
+                checkpoints.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        CompletedCheckpoint::getCheckpointID,
+                                        cp -> cp,
+                                        (a, b) -> b));
+
+        // The retained checkpoints are the last numRetain in the deque
+        Set<Long> retainedIds = new HashSet<>();
+        int skipCount = Math.max(0, checkpoints.size() - numRetain);
+        int idx = 0;
+        for (CompletedCheckpoint cp : checkpoints) {
+            if (idx >= skipCount) {
+                retainedIds.add(cp.getCheckpointID());
+            }
+            idx++;
+        }
+
+        // Transitively follow refCheckpointId links starting from retained checkpoints
+        Set<Long> protectedIds = new HashSet<>();
+        Set<Long> toProcess = new HashSet<>(retainedIds);
+        while (!toProcess.isEmpty()) {
+            Set<Long> nextToProcess = new HashSet<>();
+            for (Long cpId : toProcess) {
+                CompletedCheckpoint cp = checkpointById.get(cpId);
+                if (cp == null) {
+                    continue;
+                }
+                Set<Long> refs = extractReferencedCheckpointIds(cp);
+                for (Long refId : refs) {
+                    if (!retainedIds.contains(refId) && protectedIds.add(refId)) {
+                        nextToProcess.add(refId);
+                    }
+                }
+            }
+            toProcess = nextToProcess;
+        }
+
+        return protectedIds;
+    }
+
+    /**
+     * Extracts all distinct refCheckpointId values from all OperatorSubtaskStates within the given
+     * checkpoint.
+     */
+    static Set<Long> extractReferencedCheckpointIds(CompletedCheckpoint checkpoint) {
+        Set<Long> refIds = new HashSet<>();
+        for (OperatorState operatorState : checkpoint.getOperatorStates().values()) {
+            for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
+                OptionalLong refId = subtaskState.getRefCheckpointId();
+                if (refId.isPresent()) {
+                    refIds.add(refId.getAsLong());
+                }
+            }
+        }
+        return refIds;
     }
 }

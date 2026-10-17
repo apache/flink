@@ -73,7 +73,8 @@ public final class TaskCheckpointStatisticsWithSubtaskDetails extends TaskCheckp
                 processedData,
                 persistedData,
                 numSubtasks,
-                numAckSubtasks);
+                numAckSubtasks,
+                null);
 
         this.summary = Preconditions.checkNotNull(summary);
         this.subtaskCheckpointStatistics = Preconditions.checkNotNull(subtaskCheckpointStatistics);
