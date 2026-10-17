@@ -488,7 +488,8 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         true,
                         BOOLEAN())
                 // string-to-boolean coercion matches CAST (BinaryStringDataUtil.toBoolean)
-                .testSqlResult("JSON_VALUE('{\"a\": \"y\"}', '$.a' RETURNING BOOLEAN)", true, BOOLEAN())
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": \"y\"}', '$.a' RETURNING BOOLEAN)", true, BOOLEAN())
                 .testSqlResult(
                         "JSON_VALUE('{\"a\": \"N\"}', '$.a' RETURNING BOOLEAN)", false, BOOLEAN())
                 .testResult(
@@ -632,6 +633,27 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         "JSON_VALUE(f0, '$.longBalance' RETURNING DECIMAL(5, 2) DEFAULT '0.00' ON ERROR)",
                         new BigDecimal("0.00"),
                         DECIMAL(5, 2))
+                // Non-numeric JSON value RETURNING DECIMAL must route to ON ERROR, not throw
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": true}', '$.a' RETURNING DECIMAL(5, 2))",
+                        null,
+                        DECIMAL(5, 2))
+                .testSqlRuntimeError(
+                        "JSON_VALUE('{\"a\": true}', '$.a' RETURNING DECIMAL(5, 2) ERROR ON ERROR)",
+                        TableRuntimeException.class,
+                        "Cannot cast java.lang.Boolean to DECIMAL")
+                // Floating JSON value out of integer range overflows to ON ERROR
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 1e20}', '$.a' RETURNING TINYINT)", null, TINYINT())
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 1e20}', '$.a' RETURNING SMALLINT)", null, SMALLINT())
+                .testSqlResult("JSON_VALUE('{\"a\": 1e20}', '$.a' RETURNING INTEGER)", null, INT())
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 1e20}', '$.a' RETURNING BIGINT)", null, BIGINT())
+                .testSqlRuntimeError(
+                        "JSON_VALUE('{\"a\": 1e20}', '$.a' RETURNING BIGINT ERROR ON ERROR)",
+                        TableRuntimeException.class,
+                        "Cannot cast java.math.BigDecimal to BIGINT")
 
                 // Outer CAST on JSON_VALUE result (boxed-to-primitive codegen)
                 .testSqlResult(
@@ -670,7 +692,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlRuntimeError(
                         "JSON_VALUE('{\"a\": 1.9}', '$.a' RETURNING BOOLEAN ERROR ON ERROR)",
                         TableRuntimeException.class,
-                        "Cannot cast")
+                        "Cannot cast java.math.BigDecimal to BOOLEAN")
                 .testSqlResult(
                         "JSON_VALUE('{\"a\": \"maybe\"}', '$.a' RETURNING BOOLEAN)",
                         null,
@@ -678,7 +700,7 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                 .testSqlRuntimeError(
                         "JSON_VALUE('{\"a\": \"maybe\"}', '$.a' RETURNING BOOLEAN ERROR ON ERROR)",
                         TableRuntimeException.class,
-                        "Cannot cast")
+                        "Cannot cast java.lang.String to BOOLEAN")
 
                 // Equality on typed RETURNING results from different paths
                 // (distinct objects, same value -- must use value comparison, not reference)

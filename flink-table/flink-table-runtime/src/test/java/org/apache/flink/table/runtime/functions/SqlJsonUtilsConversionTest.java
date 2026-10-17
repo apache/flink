@@ -139,7 +139,16 @@ class SqlJsonUtilsConversionTest {
                 Arguments.of(1e40, FLOAT),
                 Arguments.of(-1e40, FLOAT),
                 Arguments.of(new BigDecimal("1E309"), DOUBLE),
-                Arguments.of(new BigDecimal("-1E309"), DOUBLE));
+                Arguments.of(new BigDecimal("-1E309"), DOUBLE),
+                // Double/Float inputs to integer types must range-check, not saturate via
+                // Number.xxxValue() ((long) 1e20 -> Long.MAX_VALUE, (long) NaN -> 0)
+                Arguments.of(1e20, TINYINT),
+                Arguments.of(1e20, SMALLINT),
+                Arguments.of(1e20, INTEGER),
+                Arguments.of(1e20, BIGINT),
+                Arguments.of(1e20f, BIGINT),
+                Arguments.of(Double.NaN, BIGINT),
+                Arguments.of(Double.POSITIVE_INFINITY, BIGINT));
     }
 
     @Nested
@@ -205,8 +214,10 @@ class SqlJsonUtilsConversionTest {
 
         @Test
         void scientificNotation() {
-            DecimalData result = SqlJsonUtils.toCheckedDecimal("1.5E1", 10, 2);
-            assertThat(result.toBigDecimal()).isEqualByComparingTo(new BigDecimal("15.00"));
+            Object result = scalarDecimal("1.5E1", 10, 2);
+            assertThat(result).isInstanceOf(DecimalData.class);
+            assertThat(((DecimalData) result).toBigDecimal())
+                    .isEqualByComparingTo(new BigDecimal("15.00"));
         }
 
         @Test

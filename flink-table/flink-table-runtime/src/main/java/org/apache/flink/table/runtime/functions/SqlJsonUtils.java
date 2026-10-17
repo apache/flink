@@ -984,7 +984,7 @@ public class SqlJsonUtils {
                 case DOUBLE:
                     return toCheckedDouble((Number) raw);
                 case DECIMAL:
-                    return toCheckedDecimal(raw.toString(), precision, scale);
+                    return toCheckedDecimal(raw, precision, scale);
                 default:
                     throw new TableRuntimeException(
                             "Unsupported type for JSON conversion: " + typeRoot);
@@ -1014,6 +1014,13 @@ public class SqlJsonUtils {
         }
         if (n instanceof BigInteger) {
             return (BigInteger) n;
+        }
+        if (n instanceof Double || n instanceof Float) {
+            double d = n.doubleValue();
+            if (Double.isNaN(d) || Double.isInfinite(d)) {
+                throw new TableRuntimeException("Value " + n + " is out of range");
+            }
+            return new BigDecimal(d).toBigInteger();
         }
         return null;
     }
@@ -1094,12 +1101,16 @@ public class SqlJsonUtils {
         return n.longValue();
     }
 
-    static DecimalData toCheckedDecimal(String value, int precision, int scale) {
-        DecimalData result = DecimalDataUtils.castFrom(value, precision, scale);
+    static DecimalData toCheckedDecimal(Object raw, int precision, int scale) {
+        if (!(raw instanceof Number) && !(raw instanceof DecimalData)) {
+            throw new TableRuntimeException(
+                    "Cannot convert " + raw.getClass().getName() + " to DECIMAL");
+        }
+        DecimalData result = DecimalDataUtils.castFrom(raw.toString(), precision, scale);
         if (result == null) {
             throw new TableRuntimeException(
                     "Value "
-                            + value
+                            + raw
                             + " cannot be represented as DECIMAL("
                             + precision
                             + ", "
