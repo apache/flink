@@ -41,7 +41,9 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,6 +56,7 @@ import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BINARY;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
+import static org.apache.flink.table.api.DataTypes.DATE;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
@@ -61,6 +64,7 @@ import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
@@ -1029,6 +1033,31 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 jsonString($("f0")),
                                 "JSON_STRING(f0)",
                                 "{\"field\\ttab\":\"val4\",\"field\\nline\":\"val3\",\"field\\rreturn\":\"val5\",\"field\\\"quote\":\"val1\",\"field\\\\slash\":\"val2\"}",
+                                STRING().notNull()),
+                // DATE/TIME cases
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_STRING)
+                        .onFieldsWithData(
+                                LocalTime.parse("13:37:42.123"),
+                                LocalTime.parse("13:37:42.000"),
+                                Arrays.asList(
+                                        LocalDate.parse("1990-06-02"),
+                                        null,
+                                        LocalDate.parse("2000-01-01")))
+                        .andDataTypes(TIME(3).notNull(), TIME(3).notNull(), ARRAY(DATE()).notNull())
+                        .testResult(
+                                jsonString($("f0")),
+                                "JSON_STRING(f0)",
+                                "\"13:37:42.123\"",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString($("f1")),
+                                "JSON_STRING(f1)",
+                                "\"13:37:42\"",
+                                STRING().notNull())
+                        .testResult(
+                                jsonString($("f2")),
+                                "JSON_STRING(f2)",
+                                "[\"1990-06-02\",null,\"2000-01-01\"]",
                                 STRING().notNull()));
     }
 
@@ -1470,7 +1499,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 multisetData,
                                 "Test".getBytes(StandardCharsets.UTF_8),
                                 "Test".getBytes(StandardCharsets.UTF_8),
-                                Row.of(Collections.singletonList(Row.of(1, 2))))
+                                Row.of(Collections.singletonList(Row.of(1, 2))),
+                                LocalDate.parse("1990-06-02"),
+                                LocalTime.parse("13:37:42"))
                         .andDataTypes(
                                 STRING(),
                                 BOOLEAN(),
@@ -1485,7 +1516,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 MAP(STRING(), INT()),
                                 BINARY(4),
                                 VARBINARY(4),
-                                ROW(ARRAY(ROW(INT(), INT()))))
+                                ROW(ARRAY(ROW(INT(), INT()))),
+                                DATE(),
+                                TIME())
                         .withFunction(CreateMultiset.class)
                         .withFunction(CreateStructuredType.class)
                         .withFunction(CreateInternalRow.class)
@@ -1530,7 +1563,11 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         "Q",
                                         call("CreateStructuredType", $("f0"), $("f2"), $("f9")),
                                         "R",
-                                        call("CreateInternalRow", $("f0"), nullOf(INT()))),
+                                        call("CreateInternalRow", $("f0"), nullOf(INT())),
+                                        "S",
+                                        $("f14"),
+                                        "T",
+                                        $("f15")),
                                 "JSON_OBJECT("
                                         + "'A' VALUE f0, "
                                         + "'B' VALUE f1, "
@@ -1549,7 +1586,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "'O' VALUE JSON_OBJECT(KEY 'A' VALUE 'B'), "
                                         + "'P' VALUE JSON_ARRAY('A', JSON_OBJECT('K' VALUE 'V')), "
                                         + "'Q' VALUE CreateStructuredType(f0, f2, f9), "
-                                        + "'R' VALUE CreateInternalRow(f0, NULL)"
+                                        + "'R' VALUE CreateInternalRow(f0, NULL), "
+                                        + "'S' VALUE f14, "
+                                        + "'T' VALUE f15"
                                         + ")",
                                 "{"
                                         + "\"A\":\"V\","
@@ -1569,7 +1608,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "\"O\":{\"A\":\"B\"},"
                                         + "\"P\":[\"A\",{\"K\":\"V\"}],"
                                         + "\"Q\":{\"age\":1,\"name\":\"V\",\"payload\":{\"M1\":\"V1\",\"M2\":\"V2\"}},"
-                                        + "\"R\":{\"f0\":\"V\",\"f1\":null}"
+                                        + "\"R\":{\"f0\":\"V\",\"f1\":null},"
+                                        + "\"S\":\"1990-06-02\","
+                                        + "\"T\":\"13:37:42\""
                                         + "}",
                                 STRING().notNull(),
                                 STRING().notNull()),
@@ -2078,7 +2119,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 multisetData,
                                 "Test".getBytes(StandardCharsets.UTF_8),
                                 "Test".getBytes(StandardCharsets.UTF_8),
-                                Row.of(Collections.singletonList(Row.of(1, 2))))
+                                Row.of(Collections.singletonList(Row.of(1, 2))),
+                                LocalDate.parse("1990-06-02"),
+                                LocalTime.parse("13:37:42"))
                         .andDataTypes(
                                 STRING(),
                                 BOOLEAN(),
@@ -2093,7 +2136,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 MAP(STRING(), INT()),
                                 BINARY(4),
                                 VARBINARY(4),
-                                ROW(ARRAY(ROW(INT(), INT()))))
+                                ROW(ARRAY(ROW(INT(), INT()))),
+                                DATE(),
+                                TIME())
                         .withFunction(CreateMultiset.class)
                         .withFunction(CreateStructuredType.class)
                         .testResult(
@@ -2118,7 +2163,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                                 JsonOnNull.NULL,
                                                 "K",
                                                 jsonArray(JsonOnNull.NULL, "V")),
-                                        call("CreateStructuredType", $("f0"), $("f2"), $("f9"))),
+                                        call("CreateStructuredType", $("f0"), $("f2"), $("f9")),
+                                        $("f14"),
+                                        $("f15")),
                                 "JSON_ARRAY("
                                         + "f0, "
                                         + "f1, "
@@ -2136,7 +2183,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "f13, "
                                         + "JSON_ARRAY('V'), "
                                         + "JSON_OBJECT('K' VALUE JSON_ARRAY('V')), "
-                                        + "CreateStructuredType(f0, f2, f9)"
+                                        + "CreateStructuredType(f0, f2, f9), "
+                                        + "f14, "
+                                        + "f15"
                                         + ")",
                                 "["
                                         + "\"V\","
@@ -2155,7 +2204,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "{\"f0\":[{\"f0\":1,\"f1\":2}]},"
                                         + "[\"V\"],"
                                         + "{\"K\":[\"V\"]},"
-                                        + "{\"age\":1,\"name\":\"V\",\"payload\":{\"M1\":\"V1\",\"M2\":\"V2\"}}"
+                                        + "{\"age\":1,\"name\":\"V\",\"payload\":{\"M1\":\"V1\",\"M2\":\"V2\"}},"
+                                        + "\"1990-06-02\","
+                                        + "\"13:37:42\""
                                         + "]",
                                 STRING().notNull(),
                                 STRING().notNull()),
