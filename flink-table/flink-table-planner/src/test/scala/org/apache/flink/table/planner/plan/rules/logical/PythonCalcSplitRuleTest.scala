@@ -121,6 +121,12 @@ class PythonCalcSplitRuleTest extends TableTestBase {
   }
 
   @Test
+  def testSamePythonFunctionUsedInMultipleProjectionExpressions(): Unit = {
+    val sqlQuery = "SELECT pyFunc1(a, c) + 1, pyFunc1(a, c) + 2 FROM MyTable"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
   def testReorderPythonCalc(): Unit = {
     val sqlQuery = "SELECT a, pyFunc1(a, c), b FROM MyTable"
     util.verifyRelPlan(sqlQuery)
