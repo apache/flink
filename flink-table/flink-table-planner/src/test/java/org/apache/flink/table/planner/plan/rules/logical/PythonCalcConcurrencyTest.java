@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ParallelPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ResourcePythonScalarFunction;
@@ -30,6 +31,11 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Plans concurrency groups and ordering around Python projections. */
 class PythonCalcConcurrencyTest extends TableTestBase {
@@ -72,6 +78,29 @@ class PythonCalcConcurrencyTest extends TableTestBase {
     @Test
     void testUnspecifiedOuterWithDifferentInnerConcurrencies() {
         util.verifyRelPlan("SELECT plain(p1(a, b), p2(a, c)) FROM T");
+    }
+
+    @Test
+    void testSharedDependencyAcrossAlternatingConcurrencies() {
+        util.verifyRelPlan("SELECT p1(a, b), p1(p2(p1(a, b), c), b) FROM T");
+    }
+
+    @Test
+    void testNonDeterministicDependenciesRemainSeparate() {
+        util.tableEnv()
+                .createTemporarySystemFunction(
+                        "random", new NonDeterministicPythonScalarFunction("random"));
+        util.verifyRelPlan("SELECT p1(random(a, b), b), p2(random(a, b), b) FROM T");
+    }
+
+    @Test
+    void testWideProjectionWithUnspecifiedConcurrency() {
+        final String projects =
+                IntStream.range(0, 128)
+                        .mapToObj(i -> (i < 64 ? "plain" : "p2") + "(a, " + i + ")")
+                        .collect(Collectors.joining(", "));
+        assertThat(util.tableEnv().explainSql("SELECT " + projects + ", p4(a, b) FROM T"))
+                .contains("p4(a, b)");
     }
 
     @Test

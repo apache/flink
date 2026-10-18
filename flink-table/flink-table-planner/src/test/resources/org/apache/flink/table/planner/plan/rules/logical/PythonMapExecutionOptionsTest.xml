@@ -31,23 +31,6 @@ Calc(select=[f0.f0 AS f0, f0.f1 AS f1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testConflictingBatchSizesAreNotMerged">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(f0=[AS(batch128(AS(batch64($0).f0, _UTF-16LE'f0'), AS(batch64($0).f1, _UTF-16LE'f1')).f0, _UTF-16LE'f0')], f1=[AS(batch128(AS(batch64($0).f0, _UTF-16LE'f0'), AS(batch64($0).f1, _UTF-16LE'f1')).f1, _UTF-16LE'f1')])
-+- LogicalTableScan(table=[[default_catalog, default_database, T]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[f0.f0 AS f0, f0.f1 AS f1])
-+- PythonCalc(select=[batch128(f0, f1) AS f0])
-   +- Calc(select=[f0.f0 AS f0, f0.f1 AS f1])
-      +- PythonCalc(select=[batch64(a) AS f0])
-         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testNestedConflictingConcurrencyIsNotMerged">
     <Resource name="ast">
       <![CDATA[

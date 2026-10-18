@@ -22,9 +22,13 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import scala.Option;
@@ -33,7 +37,8 @@ import scala.Option;
  * Splits projections containing Python functions with different explicit concurrency values.
  * Functions without explicit concurrency can remain with any explicit group.
  */
-public class PythonCalcSplitConcurrencyRule extends RemoteCalcSplitProjectionRuleBase<Integer> {
+public class PythonCalcSplitConcurrencyRule
+        extends RemoteCalcSplitProjectionRuleBase<PythonCalcSplitConcurrencyRule.ConcurrencyGroup> {
 
     public PythonCalcSplitConcurrencyRule(RemoteCallFinder callFinder) {
         super("PythonCalcSplitConcurrencyRule", callFinder);
@@ -51,24 +56,57 @@ public class PythonCalcSplitConcurrencyRule extends RemoteCalcSplitProjectionRul
     }
 
     @Override
-    public boolean needConvert(RexProgram program, RexNode node, Option<Integer> matchState) {
+    public Option<ConcurrencyGroup> getMatchState() {
+        return Option.apply(new ConcurrencyGroup());
+    }
+
+    @Override
+    public boolean needConvert(
+            RexProgram program, RexNode node, Option<ConcurrencyGroup> matchState) {
         if (!callFinder().isRemoteCall(node)) {
             return false;
         }
+        final ConcurrencyGroup group = matchState.get();
+        if (group.parallelism == null) {
+            group.parallelism =
+                    program.getProjectList().stream()
+                            .map(program::expandLocalRef)
+                            .map(PythonUtil::firstExplicitParallelism)
+                            .filter(Optional::isPresent)
+                            .map(Optional::get)
+                            .findFirst()
+                            .get();
+        }
+        return group.contains(node);
+    }
 
-        final Optional<Integer> ownParallelism = PythonUtil.getOwnParallelism(node);
-        if (!ownParallelism.isPresent()) {
-            return false;
+    /** Selects a lower group whose calls do not depend on another explicit concurrency. */
+    static class ConcurrencyGroup {
+        private Integer parallelism;
+        private final Map<RexNode, Boolean> membership = new HashMap<>();
+
+        ConcurrencyGroup() {}
+
+        ConcurrencyGroup(RexNode invocation) {
+            parallelism = PythonUtil.firstExplicitParallelism(invocation).get();
         }
 
-        final Optional<Integer> targetParallelism =
-                program.getProjectList().stream()
-                        .map(program::expandLocalRef)
-                        .map(PythonUtil::firstExplicitParallelism)
-                        .filter(Optional::isPresent)
-                        .map(Optional::get)
-                        .findFirst();
-        return targetParallelism.isPresent()
-                && !targetParallelism.get().equals(ownParallelism.get());
+        boolean contains(RexNode node) {
+            final Boolean known = membership.get(node);
+            if (known != null) {
+                return known;
+            }
+            boolean compatible =
+                    PythonUtil.getOwnParallelism(node)
+                            .map(value -> value.equals(parallelism))
+                            .orElse(true);
+            if (compatible && node instanceof RexCall) {
+                compatible = ((RexCall) node).getOperands().stream().allMatch(this::contains);
+            } else if (compatible && node instanceof RexFieldAccess) {
+                compatible = contains(((RexFieldAccess) node).getReferenceExpr());
+            }
+            membership.put(node, compatible);
+            return compatible;
+        }
     }
 }

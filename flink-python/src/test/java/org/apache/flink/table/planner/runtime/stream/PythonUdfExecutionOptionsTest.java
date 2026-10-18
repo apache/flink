@@ -155,6 +155,37 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
         assertThat(python.isParallelismConfigured()).isTrue();
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"p1(a, b), p2(p1(a, b), b)", "p2(p1(a, b), b), p1(a, b)"})
+    void testSharedDependencyIsEvaluatedBeforeItsConsumers(String projection) {
+        util.addTemporarySystemFunction("p1", new ParallelPythonScalarFunction("p1", 1));
+        util.addTemporarySystemFunction("p2", new ParallelPythonScalarFunction("p2", 2));
+
+        assertThat(
+                        translate("SELECT " + projection + " FROM source_table")
+                                .get(0)
+                                .getTransitivePredecessors()
+                                .stream()
+                                .filter(node -> node.getName().startsWith("Python")))
+                .extracting(Transformation::getParallelism)
+                .containsExactly(2, 1);
+    }
+
+    @Test
+    void testUnspecifiedDependencyIsSharedAcrossConcurrencyGroups() {
+        util.addTemporarySystemFunction("plain", new PythonScalarFunction("plain"));
+        util.addTemporarySystemFunction("p1", new ParallelPythonScalarFunction("p1", 1));
+        util.addTemporarySystemFunction("p2", new ParallelPythonScalarFunction("p2", 2));
+
+        assertThat(
+                        translate("SELECT p1(plain(a, b), b), p2(plain(a, b), b) FROM source_table")
+                                .get(0)
+                                .getTransitivePredecessors()
+                                .stream()
+                                .filter(node -> node.getDescription().contains("plain(")))
+                .hasSize(1);
+    }
+
     private static Transformation<?> pythonTransformation(List<Transformation<?>> roots) {
         assertThat(roots).hasSize(1);
         return roots.get(0).getTransitivePredecessors().stream()

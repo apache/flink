@@ -60,14 +60,12 @@ public class PythonCorrelateSplitConcurrencyRule
         final FlinkLogicalCorrelate correlate = call.rel(0);
         final FlinkLogicalTableFunctionScan scan =
                 RemoteCorrelateSplitRule.getTableFunctionScan(correlate);
-        final int parallelism = PythonUtil.firstExplicitParallelism(scan.getCall()).get();
+        final PythonCalcSplitConcurrencyRule.ConcurrencyGroup group =
+                new PythonCalcSplitConcurrencyRule.ConcurrencyGroup(scan.getCall());
         call.transformTo(
                 RemoteCorrelateSplitRule.splitCorrelate(
                         correlate,
-                        node ->
-                                PythonUtil.getOwnParallelism(node)
-                                        .map(value -> value != parallelism)
-                                        .orElse(false),
+                        node -> PythonUtil.isPythonCall(node) && group.contains(node),
                         new PythonRemoteCallFinder()));
     }
 

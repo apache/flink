@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.withColumns;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests fusion of vectorized maps with execution options. */
 class PythonMapExecutionOptionsTest extends TableTestBase {
@@ -73,15 +74,17 @@ class PythonMapExecutionOptionsTest extends TableTestBase {
     }
 
     @Test
-    void testConflictingBatchSizesAreNotMerged() {
+    void testDifferentBatchSizeBoundsAreMerged() {
         util.tableEnv()
                 .createTemporarySystemFunction(
                         "batch64", new ResourceRowPythonScalarFunction("batch64", -1, 64));
         util.tableEnv()
                 .createTemporarySystemFunction(
                         "batch128", new ResourceRowPythonScalarFunction("batch128", -1, 128));
-        util.verifyRelPlan(
-                source.map(call("batch64", withColumns($("*"))))
-                        .map(call("batch128", withColumns($("*")))));
+        assertThat(
+                        source.map(call("batch64", withColumns($("*"))))
+                                .map(call("batch128", withColumns($("*"))))
+                                .explain())
+                .contains("batch128(batch64(a))");
     }
 }

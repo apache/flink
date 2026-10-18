@@ -48,10 +48,9 @@ LogicalProject(EXPR$0=[p2($0, $1)], EXPR$1=[p4($0, $2)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[f00 AS EXPR$0, f0 AS EXPR$1])
-+- PythonCalc(select=[f0, p2(a, b) AS f00])
-   +- PythonCalc(select=[a, b, p4(a, c) AS f0])
-      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+PythonCalc(select=[f0 AS EXPR$0, p4(a, c) AS EXPR$1])
++- PythonCalc(select=[a, c, p2(a, b) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -114,6 +113,24 @@ PythonCalc(select=[p2(a, f0) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNonDeterministicDependenciesRemainSeparate">
+    <Resource name="sql">
+      <![CDATA[SELECT p1(random(a, b), b), p2(random(a, b), b) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[p1(random($0, $1), $1)], EXPR$1=[p2(random($0, $1), $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+PythonCalc(select=[f0 AS EXPR$0, p2(f1, b) AS EXPR$1])
++- PythonCalc(select=[b, p1(random(a, b), b) AS f0, random(a, b) AS f1])
+   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowFieldConcurrencyRemainsBeforeTopN">
     <Resource name="sql">
       <![CDATA[SELECT a, row_func(a).f0 FROM T ORDER BY a DESC LIMIT 3]]>
@@ -149,6 +166,26 @@ LogicalProject(EXPR$0=[p2($0, $1)], EXPR$1=[p2($0, $2)], EXPR$2=[plain($0, $1)])
       <![CDATA[
 PythonCalc(select=[p2(a, b) AS EXPR$0, p2(a, c) AS EXPR$1, plain(a, b) AS EXPR$2])
 +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSharedDependencyAcrossAlternatingConcurrencies">
+    <Resource name="sql">
+      <![CDATA[SELECT p1(a, b), p1(p2(p1(a, b), c), b) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[p1($0, $1)], EXPR$1=[p1(p2(p1($0, $1), $2), $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+PythonCalc(select=[f0 AS EXPR$0, p1(f00, b) AS EXPR$1])
++- PythonCalc(select=[f0, b, p2(f1, c) AS f00])
+   +- Calc(select=[f0 AS c, f1 AS b, f2 AS f0, f2 AS f1])
+      +- PythonCalc(select=[c AS f0, b AS f1, p1(a, b) AS f2])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -204,8 +241,8 @@ LogicalProject(EXPR$0=[plain(p1($0, $1), p2($0, $2))])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-PythonCalc(select=[plain(p1(a, b), f0) AS EXPR$0])
-+- PythonCalc(select=[a, b, p2(a, c) AS f0])
+PythonCalc(select=[plain(f0, p2(a, c)) AS EXPR$0])
++- PythonCalc(select=[a, c, p1(a, b) AS f0])
    +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c])
 ]]>
     </Resource>

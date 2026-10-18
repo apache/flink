@@ -156,7 +156,22 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
                                 createUtil(true),
                                 "SELECT x, y FROM src, "
                                         + "LATERAL TABLE(tf(f3(a, b), f5(a, b))) AS T(x, y)"));
-        assertThat(operators).extracting(Transformation::getParallelism).containsExactly(5, 3);
+        assertThat(operators)
+                .extracting(Transformation::getParallelism)
+                .containsExactlyInAnyOrder(3, 5);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"f3(a, b), f5(f3(a, b), b)", "f5(f3(a, b), b), f3(a, b)"})
+    void testSharesDependenciesAcrossArguments(String arguments) {
+        final List<Transformation<?>> operators =
+                pythonOperators(
+                        translateQuery(
+                                createUtil(true),
+                                "SELECT x, y FROM src, LATERAL TABLE(tf("
+                                        + arguments
+                                        + ")) AS T(x, y)"));
+        assertThat(operators).extracting(Transformation::getParallelism).containsExactly(3, 5);
     }
 
     @ParameterizedTest

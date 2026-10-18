@@ -896,9 +896,10 @@ def _validate_udf_execution_options(func_type, concurrency, batch_size):
         if option_value is not None and (
                 isinstance(option_value, bool)
                 or not isinstance(option_value, int)
-                or option_value <= 0):
+                or not 1 <= option_value <= 2147483647):
             raise ValueError(
-                f"{option_name} must be a positive integer, got: {option_value}")
+                f"{option_name} must be a positive integer no greater than 2147483647, "
+                f"got: {option_value}")
 
     if batch_size is not None and func_type not in ('pandas', 'arrow'):
         raise ValueError("batch_size is only supported for pandas or Arrow UDFs.")

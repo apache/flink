@@ -197,12 +197,8 @@ public class PythonUtil {
         return Optional.of(function.getParallelism());
     }
 
-    /** Returns the first explicit Python parallelism in a pre-order traversal. */
+    /** Returns the first explicit Python parallelism in dependency order. */
     public static Optional<Integer> firstExplicitParallelism(RexNode node) {
-        final Optional<Integer> ownParallelism = getOwnParallelism(node);
-        if (ownParallelism.isPresent()) {
-            return ownParallelism;
-        }
         if (node instanceof RexCall) {
             for (RexNode operand : ((RexCall) node).getOperands()) {
                 final Optional<Integer> nestedParallelism = firstExplicitParallelism(operand);
@@ -213,7 +209,7 @@ public class PythonUtil {
         } else if (node instanceof RexFieldAccess) {
             return firstExplicitParallelism(((RexFieldAccess) node).getReferenceExpr());
         }
-        return Optional.empty();
+        return getOwnParallelism(node);
     }
 
     /** Rejects explicit concurrency that can reorder updates and deletes. */

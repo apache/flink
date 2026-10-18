@@ -44,8 +44,8 @@ def generate_random_table_name():
 class UdfExecutionOptionsTests(unittest.TestCase):
     def test_valid_options(self):
         for kind in ("general", "pandas", "arrow"):
-            for concurrency in (None, 1, 3):
-                for batch_size in ((None,) if kind == "general" else (None, 1, 64)):
+            for concurrency in (None, 1, 3, 2147483647):
+                for batch_size in ((None,) if kind == "general" else (None, 1, 64, 2147483647)):
                     with self.subTest(kind=kind, concurrency=concurrency, batch_size=batch_size):
                         wrapper = udf(lambda value: value, result_type=DataTypes.BIGINT(),
                                       func_type=kind, concurrency=concurrency,
@@ -55,7 +55,7 @@ class UdfExecutionOptionsTests(unittest.TestCase):
 
     def test_invalid_option_values(self):
         for option in ("concurrency", "batch_size"):
-            for value in (0, -1, True, False, 1.5, "2"):
+            for value in (0, -1, True, False, 1.5, "2", 2147483648, 10 ** 100):
                 with self.subTest(option=option, value=value):
                     with self.assertRaisesRegex(ValueError, f"{option} must be a positive integer"):
                         udf(lambda value: value, result_type=DataTypes.BIGINT(),

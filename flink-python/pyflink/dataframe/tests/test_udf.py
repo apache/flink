@@ -2420,6 +2420,9 @@ class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
             (async_add_one, 3, -1),
             (pandas_add_one, 4, 64),
             (arrow_add_one, 5, 128),
+            (pf.udf(lambda value: value, return_dtype=pf.DataType.int64(),
+                    func_type="arrow", concurrency=2147483647, batch_size=2147483647),
+             2147483647, 2147483647),
         ]
 
         async def default_async(value):
