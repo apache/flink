@@ -113,7 +113,20 @@ Joins
     :toctree: api/
 
     DataFrame.join
+    DataFrame.join_asof
     DataFrame.join_lateral
+
+Use ``join_asof`` to enrich rows from a dimension table at a left time attribute.
+Processing-time lookup joins require a lookup-capable right table; event-time temporal
+joins require watermarks on both inputs and the right primary key in the equality keys::
+
+    enriched = orders.join_asof(customers, on=pf.proctime(), by="customer_id", how="left")
+    historical = orders.join_asof(
+        rates, on="event_time", left_by="currency", right_by="currency_id")
+
+Only inner and left joins are supported. Conditions need at least one equality between
+the inputs and may include additional AND-combined predicates, but not OR conditions.
+The time attribute may also appear in equality keys and residual conditions.
 
 Missing-Value Handling
 ----------------------
@@ -197,7 +210,7 @@ Windowing
 Expressions
 -----------
 
-Functions for constructing column references and literal expressions.
+Functions for constructing column references, literals, and processing-time attributes.
 
 .. currentmodule:: pyflink.dataframe
 
@@ -206,6 +219,7 @@ Functions for constructing column references and literal expressions.
 
     col
     lit
+    proctime
 
 OVER windows
 ------------
