@@ -26,8 +26,11 @@ import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.LookupCallExpression;
 import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
+import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -44,6 +47,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunction;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.isFunctionOfKind;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
@@ -123,20 +127,38 @@ public class OperationExpressionsUtils {
      */
     public static CategorizedExpressions extractAggregationsAndProperties(
             List<Expression> expressions) {
-        AggregationAndPropertiesSplitter splitter = new AggregationAndPropertiesSplitter();
+        return extractAggregationsAndProperties(
+                expressions, Collections.emptyList(), Collections.emptyList());
+    }
+
+    /** Extracts aggregates and properties without shadowing input fields or explicit aliases. */
+    public static CategorizedExpressions extractAggregationsAndProperties(
+            List<Expression> expressions,
+            List<String> inputFieldNames,
+            List<Expression> namedExpressions) {
+        Set<String> usedNames = new HashSet<>(inputFieldNames);
+        for (Expression expression : namedExpressions) {
+            if (isFunction(expression, AS)) {
+                List<Expression> children = expression.getChildren();
+                // AS may assign multiple names to a composite aggregate result.
+                for (int i = 1; i < children.size(); i++) {
+                    extractValue(children.get(i), String.class).ifPresent(usedNames::add);
+                }
+            } else {
+                extractName(expression).ifPresent(usedNames::add);
+            }
+        }
+        AggregationAndPropertiesSplitter splitter = new AggregationAndPropertiesSplitter(usedNames);
         expressions.forEach(expr -> expr.accept(splitter));
 
         Map<Expression, String> extractedExpressionToFieldName =
                 new LinkedHashMap<>(splitter.aggregates);
         extractedExpressionToFieldName.putAll(splitter.properties);
 
+        ExpressionReplacer replacer = new ExpressionReplacer(extractedExpressionToFieldName);
         List<Expression> projections =
                 expressions.stream()
-                        .map(
-                                expr ->
-                                        expr.accept(
-                                                new ExpressionReplacer(
-                                                        extractedExpressionToFieldName)))
+                        .map(expr -> expr.accept(replacer))
                         .collect(Collectors.toList());
 
         List<Expression> aggregates = nameExpressions(splitter.aggregates);
@@ -162,17 +184,36 @@ public class OperationExpressionsUtils {
         }
 
         Map<Expression, String> groupingExpressionToFieldName = new LinkedHashMap<>();
+        Set<String> nonGroupingFieldNames =
+                new HashSet<>(
+                        aggregateOutputFieldNames.subList(
+                                groupingExpressions.size(), aggregateOutputFieldNames.size()));
         for (int i = 0; i < groupingExpressions.size(); i++) {
-            groupingExpressionToFieldName.put(
-                    groupingExpressions.get(i), aggregateOutputFieldNames.get(i));
+            Expression grouping = groupingExpressions.get(i);
+            // After aggregate(), an output alias takes precedence over a same-named input field.
+            if (canReplaceGroupingExpression(grouping, nonGroupingFieldNames)) {
+                groupingExpressionToFieldName.put(grouping, aggregateOutputFieldNames.get(i));
+            }
         }
 
+        ExpressionReplacer replacer = new ExpressionReplacer(groupingExpressionToFieldName);
         return projections.stream()
-                .map(
-                        projection ->
-                                projection.accept(
-                                        new ExpressionReplacer(groupingExpressionToFieldName)))
+                .map(projection -> projection.accept(replacer))
                 .collect(Collectors.toList());
+    }
+
+    private static boolean canReplaceGroupingExpression(
+            Expression expression, Set<String> nonGroupingFieldNames) {
+        // SQL calls hide their field references until resolution in the output scope.
+        if (expression instanceof SqlCallExpression) {
+            return false;
+        }
+        if (expression instanceof UnresolvedReferenceExpression) {
+            return !nonGroupingFieldNames.contains(
+                    ((UnresolvedReferenceExpression) expression).getName());
+        }
+        return expression.getChildren().stream()
+                .allMatch(child -> canReplaceGroupingExpression(child, nonGroupingFieldNames));
     }
 
     private static List<Expression> nameExpressions(Map<Expression, String> expressions) {
@@ -185,8 +226,21 @@ public class OperationExpressionsUtils {
             extends ApiExpressionDefaultVisitor<Void> {
 
         private int uniqueId = 0;
+        private final Set<String> usedNames;
         private final Map<Expression, String> aggregates = new LinkedHashMap<>();
         private final Map<Expression, String> properties = new LinkedHashMap<>();
+
+        private AggregationAndPropertiesSplitter(Set<String> usedNames) {
+            this.usedNames = usedNames;
+        }
+
+        private String nextName() {
+            String name;
+            do {
+                name = "EXPR$" + uniqueId++;
+            } while (!usedNames.add(name));
+            return name;
+        }
 
         @Override
         public Void visit(LookupCallExpression unresolvedCall) {
@@ -198,9 +252,9 @@ public class OperationExpressionsUtils {
         public Void visit(UnresolvedCallExpression unresolvedCall) {
             FunctionDefinition functionDefinition = unresolvedCall.getFunctionDefinition();
             if (isFunctionOfKind(unresolvedCall, AGGREGATE)) {
-                aggregates.computeIfAbsent(unresolvedCall, expr -> "EXPR$" + uniqueId++);
+                aggregates.computeIfAbsent(unresolvedCall, expr -> nextName());
             } else if (WINDOW_PROPERTIES.contains(functionDefinition)) {
-                properties.computeIfAbsent(unresolvedCall, expr -> "EXPR$" + uniqueId++);
+                properties.computeIfAbsent(unresolvedCall, expr -> nextName());
             } else if (functionDefinition == BuiltInFunctionDefinitions.OVER) {
                 // OVER aggregates are evaluated by window processing, not as regular aggregates.
             } else {
@@ -246,6 +300,12 @@ public class OperationExpressionsUtils {
                             .map(c -> c.accept(this))
                             .collect(Collectors.toList());
             return unresolvedCall.replaceArgs(args);
+        }
+
+        @Override
+        public Expression visit(ValueLiteralExpression literal) {
+            // Literals also represent alias names and column positions, not just grouping values.
+            return literal;
         }
 
         @Override

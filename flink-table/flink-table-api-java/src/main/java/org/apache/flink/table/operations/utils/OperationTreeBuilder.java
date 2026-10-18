@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -248,8 +249,79 @@ public final class OperationTreeBuilder {
         return project(finalFields, child, false);
     }
 
-    public List<Expression> expandExpressions(List<Expression> expressions, QueryOperation child) {
-        return getResolver(child).resolveExpanding(expressions);
+    public QueryOperation aggregateAndProject(
+            List<Expression> groupingExpressions,
+            List<Expression> aggregates,
+            List<Expression> projections,
+            QueryOperation child) {
+        List<Expression> expandedGroupings = expandGroupingExpressions(groupingExpressions, child);
+        QueryOperation aggregateOperation = aggregate(expandedGroupings, aggregates, child);
+        return projectAfterAggregation(projections, expandedGroupings, aggregateOperation, false);
+    }
+
+    public QueryOperation aggregateAndProject(
+            List<Expression> groupingExpressions,
+            Expression aggregate,
+            List<Expression> projections,
+            QueryOperation child) {
+        List<Expression> expandedGroupings = expandGroupingExpressions(groupingExpressions, child);
+        QueryOperation aggregateOperation = aggregate(expandedGroupings, aggregate, child);
+        return projectAfterAggregation(projections, expandedGroupings, aggregateOperation, false);
+    }
+
+    public QueryOperation windowAggregateAndProject(
+            List<Expression> groupingExpressions,
+            GroupWindow window,
+            List<Expression> windowProperties,
+            List<Expression> aggregates,
+            List<Expression> projections,
+            QueryOperation child) {
+        List<Expression> expandedGroupings = expandGroupingExpressions(groupingExpressions, child);
+        QueryOperation aggregateOperation =
+                windowAggregate(expandedGroupings, window, windowProperties, aggregates, child);
+        // Preserve time attributes for subsequent windows.
+        return projectAfterAggregation(projections, expandedGroupings, aggregateOperation, true);
+    }
+
+    public QueryOperation windowAggregateAndProject(
+            List<Expression> groupingExpressions,
+            GroupWindow window,
+            List<Expression> windowProperties,
+            Expression aggregate,
+            List<Expression> projections,
+            QueryOperation child) {
+        List<Expression> expandedGroupings = expandGroupingExpressions(groupingExpressions, child);
+        QueryOperation aggregateOperation =
+                windowAggregate(expandedGroupings, window, windowProperties, aggregate, child);
+        return projectAfterAggregation(projections, expandedGroupings, aggregateOperation, false);
+    }
+
+    private List<Expression> expandGroupingExpressions(
+            List<Expression> groupingExpressions, QueryOperation child) {
+        ExpressionResolver resolver = getResolver(child);
+        List<Expression> expandedGroupings = new ArrayList<>();
+        for (Expression grouping : resolver.resolveExpanding(groupingExpressions)) {
+            // FLATTEN expands during type resolution, unlike column-selection functions.
+            if (ApiExpressionUtils.isFunction(grouping, BuiltInFunctionDefinitions.FLATTEN)) {
+                expandedGroupings.addAll(resolver.resolve(Collections.singletonList(grouping)));
+            } else {
+                expandedGroupings.add(grouping);
+            }
+        }
+        return expandedGroupings;
+    }
+
+    private QueryOperation projectAfterAggregation(
+            List<Expression> projections,
+            List<Expression> groupingExpressions,
+            QueryOperation aggregateOperation,
+            boolean explicitAlias) {
+        List<Expression> rewrittenProjections =
+                OperationExpressionsUtils.replaceGroupingExpressions(
+                        projections,
+                        groupingExpressions,
+                        aggregateOperation.getResolvedSchema().getColumnNames());
+        return project(rewrittenProjections, aggregateOperation, explicitAlias);
     }
 
     public QueryOperation aggregate(
@@ -277,7 +349,10 @@ public final class OperationTreeBuilder {
             List<Expression> aggregates,
             QueryOperation child) {
 
-        ExpressionResolver resolver = getAggResolver(child, groupingExpressions);
+        List<Expression> namedGroupingExpressions =
+                addAliasToTheCallInAggregate(
+                        child.getResolvedSchema().getColumnNames(), groupingExpressions);
+        ExpressionResolver resolver = getAggResolver(child, namedGroupingExpressions);
         ResolvedGroupWindow resolvedWindow =
                 aggregateOperationFactory.createResolvedWindow(window, resolver);
 
@@ -290,7 +365,7 @@ public final class OperationTreeBuilder {
                         .build();
 
         List<ResolvedExpression> convertedGroupings =
-                resolverWithWindowReferences.resolve(groupingExpressions);
+                resolverWithWindowReferences.resolve(namedGroupingExpressions);
         List<ResolvedExpression> convertedAggregates =
                 resolverWithWindowReferences.resolve(aggregates);
         List<ResolvedExpression> convertedProperties =
@@ -952,10 +1027,16 @@ public final class OperationTreeBuilder {
 
         int attrNameCntr = 0;
         Set<String> usedFieldNames = new HashSet<>(inputFieldNames);
+        // Reserve all explicit names before generating aliases, regardless of expression order.
+        expressions.forEach(
+                expression ->
+                        OperationExpressionsUtils.extractName(expression)
+                                .ifPresent(usedFieldNames::add));
 
         List<Expression> result = new ArrayList<>();
         for (Expression groupingExpression : expressions) {
-            if (groupingExpression instanceof UnresolvedCallExpression
+            if ((groupingExpression instanceof UnresolvedCallExpression
+                            || groupingExpression instanceof CallExpression)
                     && !ApiExpressionUtils.isFunction(
                             groupingExpression, BuiltInFunctionDefinitions.AS)) {
                 String tempName = getUniqueName("TMP_" + attrNameCntr, usedFieldNames);
