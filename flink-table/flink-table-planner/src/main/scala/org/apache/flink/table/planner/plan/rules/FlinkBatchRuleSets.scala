@@ -266,7 +266,7 @@ object FlinkBatchRuleSets {
     // transpose project and snapshot for scan optimization
     ProjectSnapshotTransposeRule.INSTANCE,
     // reorder sort and projection
-    FlinkSortProjectTransposeRule.INSTANCE,
+    CoreRules.SORT_PROJECT_TRANSPOSE,
     // remove unnecessary sort rule
     CoreRules.SORT_REMOVE,
 
@@ -386,7 +386,6 @@ object FlinkBatchRuleSets {
     // Rule that splits java calls from python TableFunction
     PythonCorrelateSplitRule.INSTANCE,
     PythonCorrelateSplitFunctionKindRule.INSTANCE,
-    PythonCorrelateSplitConcurrencyRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions
@@ -396,7 +395,6 @@ object FlinkBatchRuleSets {
     PythonCalcSplitRule.CONDITION_PROJECTION_CSE,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
-    PythonCalcSplitRule.SPLIT_CONCURRENCY_IN_PROJECT,
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT,

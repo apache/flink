@@ -41,6 +41,37 @@ def generate_random_table_name():
     return "Table{0}".format(str(uuid.uuid1()).replace("-", "_"))
 
 
+class UdfExecutionOptionsTests(unittest.TestCase):
+    def test_valid_options(self):
+        for kind in ("general", "pandas", "arrow"):
+            for concurrency in (None, 1, 3):
+                for batch_size in ((None,) if kind == "general" else (None, 1, 64)):
+                    with self.subTest(kind=kind, concurrency=concurrency, batch_size=batch_size):
+                        wrapper = udf(lambda value: value, result_type=DataTypes.BIGINT(),
+                                      func_type=kind, concurrency=concurrency,
+                                      batch_size=batch_size)
+                        self.assertEqual(wrapper._concurrency, concurrency)
+                        self.assertEqual(wrapper._batch_size, batch_size)
+
+    def test_invalid_option_values(self):
+        for option in ("concurrency", "batch_size"):
+            for value in (0, -1, True, False, 1.5, "2"):
+                with self.subTest(option=option, value=value):
+                    with self.assertRaisesRegex(ValueError, f"{option} must be a positive integer"):
+                        udf(lambda value: value, result_type=DataTypes.BIGINT(),
+                            func_type="pandas", **{option: value})
+
+    def test_general_functions_reject_batch_size(self):
+        async def async_identity(value):
+            return value
+
+        for function in (lambda value: value, async_identity):
+            with self.subTest(function=function):
+                with self.assertRaisesRegex(
+                        ValueError, "batch_size is only supported for pandas or Arrow UDFs"):
+                    udf(function, result_type=DataTypes.BIGINT(), batch_size=32)
+
+
 class ArrowScalarOperationTests(unittest.TestCase):
     def operation(self, func, inputs, takes_row_as_input=False, preceding=(), output_indices=()):
         function = proto.UserDefinedFunction(

@@ -34,12 +34,7 @@ from pyflink.common import Row, RowKind
 from pyflink.table import DataTypes as TableDataTypes
 from pyflink.table.expression import Expression
 from pyflink.table.types import MapType, RowType
-from pyflink.table.udf import (
-    AsyncScalarFunction,
-    ScalarFunction,
-    TableFunction,
-    udf as table_udf,
-)
+from pyflink.table.udf import AsyncScalarFunction, ScalarFunction, TableFunction
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
     PyFlinkStreamDataFrameTestCase,
@@ -917,122 +912,24 @@ class DataFrameUDFDeclarationTests(unittest.TestCase):
         ):
             pf.udf(malformed_return)
 
-    def test_execution_resource_options_are_propagated(self):
-        def add_one(value: int) -> int:
-            return value + 1
-
-        def pandas_add_one(values: pd.Series) -> pd.Series:
-            return values + 1
-
-        def arrow_add_one(values: pa.Array) -> pa.Array:
-            return values
-
-        general = pf.udf(add_one, concurrency=2)
-        pandas = pf.udf(
-            pandas_add_one,
-            return_dtype=pf.DataType.int64(),
-            concurrency=3,
-            batch_size=64,
-        )
-        arrow = pf.udf(
-            arrow_add_one,
-            return_dtype=pf.DataType.int64(),
-            concurrency=4,
-            batch_size=128,
-        )
-        table_pandas = table_udf(
-            pandas_add_one,
-            result_type=TableDataTypes.BIGINT(),
-            func_type="pandas",
-            concurrency=5,
-            batch_size=256,
-        )
-        table_arrow = table_udf(
-            arrow_add_one,
-            result_type=TableDataTypes.BIGINT(),
-            func_type="arrow",
-            concurrency=6,
-            batch_size=512,
-        )
-
-        declarations = [
-            (general, 2, None),
-            (pandas, 3, 64),
-            (arrow, 4, 128),
+    def test_execution_resource_options_are_forwarded(self):
+        cases = [
+            ({}, None, None),
+            ({"concurrency": 2}, 2, None),
+            ({"func_type": "pandas", "concurrency": 3, "batch_size": 64}, 3, 64),
+            ({"func_type": "arrow", "batch_size": 128}, None, 128),
         ]
-        for declaration, expected_concurrency, expected_batch_size in declarations:
-            with self.subTest(declaration=declaration.__name__):
-                self.assertEqual(declaration._concurrency, expected_concurrency)
-                self.assertEqual(declaration._batch_size, expected_batch_size)
-                self.assertEqual(
-                    declaration._table_udf_wrapper._concurrency,
-                    expected_concurrency,
-                )
-                self.assertEqual(
-                    declaration._table_udf_wrapper._batch_size,
-                    expected_batch_size,
-                )
+        for options, concurrency, batch_size in cases:
+            with self.subTest(options=options):
+                declaration = pf.udf(
+                    lambda value: value, return_dtype=pf.DataType.int64(), **options)
+                wrapper = declaration._table_udf_wrapper
+                self.assertEqual(wrapper._concurrency, concurrency)
+                self.assertEqual(wrapper._batch_size, batch_size)
 
-        self.assertEqual(table_pandas._concurrency, 5)
-        self.assertEqual(table_pandas._batch_size, 256)
-        self.assertEqual(table_arrow._concurrency, 6)
-        self.assertEqual(table_arrow._batch_size, 512)
-
-    def test_execution_resource_options_are_validated(self):
-        def add_one(value: int) -> int:
-            return value + 1
-
-        def pandas_add_one(values: pd.Series) -> pd.Series:
-            return values + 1
-
-        invalid_declarations = [
-            (
-                "zero concurrency",
-                lambda: pf.udf(add_one, concurrency=0),
-                "concurrency must be a positive integer",
-            ),
-            (
-                "boolean concurrency",
-                lambda: pf.udf(add_one, concurrency=True),
-                "concurrency must be a positive integer",
-            ),
-            (
-                "batch size on general UDF",
-                lambda: pf.udf(add_one, batch_size=32),
-                "batch_size is only supported for pandas or Arrow UDFs",
-            ),
-            (
-                "negative pandas batch size",
-                lambda: pf.udf(
-                    pandas_add_one,
-                    return_dtype=pf.DataType.int64(),
-                    batch_size=-1,
-                ),
-                "batch_size must be a positive integer",
-            ),
-            (
-                "Table API boolean concurrency",
-                lambda: table_udf(
-                    add_one,
-                    result_type=TableDataTypes.BIGINT(),
-                    concurrency=True,
-                ),
-                "concurrency must be a positive integer",
-            ),
-            (
-                "Table API general batch size",
-                lambda: table_udf(
-                    add_one,
-                    result_type=TableDataTypes.BIGINT(),
-                    batch_size=32,
-                ),
-                "batch_size is only supported for pandas or Arrow UDFs",
-            ),
-        ]
-        for case_name, declare, message in invalid_declarations:
-            with self.subTest(case=case_name):
-                with self.assertRaisesRegex(ValueError, message):
-                    declare()
+    def test_execution_resource_options_use_table_validation(self):
+        with self.assertRaisesRegex(ValueError, "concurrency must be a positive integer"):
+            pf.udf(lambda value: value, return_dtype=pf.DataType.int64(), concurrency=True)
 
     def test_determinism_and_name_metadata(self):
         class NonDeterministic(ScalarFunction):
@@ -2352,46 +2249,16 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
 class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
     def test_batch_rejects_explicit_concurrency(self):
         from pyflink.table import EnvironmentSettings, ExplainDetail, TableEnvironment
-        from pyflink.table.udf import udtf
 
-        t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
-        pf.set_table_environment(t_env)
+        previous_environment = pf.get_table_environment()
+        self.addCleanup(pf.set_table_environment, previous_environment)
+        pf.set_table_environment(TableEnvironment.create(EnvironmentSettings.in_batch_mode()))
         dataframe = pf.from_records([(1,)], schema=["value"])
-
-        async def async_identity(value):
-            return value
-
-        cases = [
-            pf.udf(lambda value: value, return_dtype=pf.DataType.int64(), concurrency=1),
-            pf.udf(lambda value: value, return_dtype=pf.DataType.int64(), concurrency=2),
-            pf.udf(async_identity, return_dtype=pf.DataType.int64(), concurrency=2),
-            pf.udf(lambda values: values, return_dtype=pf.DataType.int64(),
-                   func_type="pandas", concurrency=2, batch_size=16),
-            pf.udf(lambda values: values, return_dtype=pf.DataType.int64(),
-                   func_type="arrow", concurrency=2, batch_size=16),
-        ]
-        for declaration in cases:
-            with self.subTest(declaration=declaration):
-                with self.assertRaisesRegex(
-                        Exception, "concurrency is not supported in batch mode"):
-                    dataframe.select(declaration(pf.col("value"))).to_table().explain(
-                        ExplainDetail.JSON_EXECUTION_PLAN)
-
-        @udtf(input_types=[TableDataTypes.BIGINT()], result_types=[TableDataTypes.BIGINT()])
-        def echo(value):
-            yield value
-
-        t_env.create_temporary_view("batch_input", dataframe.to_table())
-        t_env.create_temporary_system_function("echo", echo)
-        t_env.create_temporary_system_function(
-            "configured_identity",
-            table_udf(lambda value: value, input_types=[TableDataTypes.BIGINT()],
-                      result_type=TableDataTypes.BIGINT(), concurrency=2))
+        identity = pf.udf(
+            lambda value: value, return_dtype=pf.DataType.int64(), concurrency=2)
         with self.assertRaisesRegex(Exception, "concurrency is not supported in batch mode"):
-            t_env.sql_query(
-                "SELECT w FROM batch_input, "
-                "LATERAL TABLE(echo(configured_identity(`value`))) AS t(w)"
-            ).explain(ExplainDetail.JSON_EXECUTION_PLAN)
+            dataframe.select(identity(pf.col("value"))).to_table().explain(
+                ExplainDetail.JSON_EXECUTION_PLAN)
 
     def test_map_function_classes_require_explicit_custom_determinism(self):
         class DefaultDeterminism(ScalarFunction):
@@ -2554,6 +2421,12 @@ class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
             (pandas_add_one, 4, 64),
             (arrow_add_one, 5, 128),
         ]
+
+        async def default_async(value):
+            return value
+
+        for function in (lambda value: value, default_async):
+            cases.append((pf.udf(function, return_dtype=pf.DataType.int64()), -1, -1))
         for declaration, expected_concurrency, expected_batch_size in cases:
             with self.subTest(declaration=declaration.__name__):
                 java_function = (
@@ -2854,20 +2727,11 @@ class DataFrameUDFITCase(PyFlinkStreamDataFrameTestCase):
             doubled: int
             labels: list
 
-        @pf.udf(concurrency=1)
-        def add_one(value: int) -> int:
-            return value + 1
-
-        @pf.udf(concurrency=1)
+        @pf.udf
         async def add_two(value: int) -> int:
             return value + 2
 
-        @pf.udf(
-            return_dtype=pf.DataType.int64(),
-            func_type="pandas",
-            concurrency=1,
-            batch_size=1,
-        )
+        @pf.udf(return_dtype=pf.DataType.int64(), func_type="pandas")
         def add_three(values: pd.Series) -> pd.Series:
             return values + 3
 

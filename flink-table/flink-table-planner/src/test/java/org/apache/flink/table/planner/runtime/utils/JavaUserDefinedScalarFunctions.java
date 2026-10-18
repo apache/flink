@@ -232,6 +232,67 @@ public class JavaUserDefinedScalarFunctions {
         }
     }
 
+    /** Python scalar fixture with execution options. */
+    public static class ResourcePythonScalarFunction extends ParallelPythonScalarFunction {
+        private final PythonFunctionKind kind;
+        private final int maxArrowBatchSize;
+
+        public ResourcePythonScalarFunction(
+                String name, int parallelism, PythonFunctionKind kind, int maxArrowBatchSize) {
+            super(name, parallelism);
+            this.kind = kind;
+            this.maxArrowBatchSize = maxArrowBatchSize;
+        }
+
+        @Override
+        public PythonFunctionKind getPythonFunctionKind() {
+            return kind;
+        }
+
+        @Override
+        public int getMaxArrowBatchSize() {
+            return maxArrowBatchSize;
+        }
+    }
+
+    /** Async Python fixture with explicit concurrency. */
+    public static class ParallelAsyncPythonScalarFunction extends AsyncPythonScalarFunction {
+        private final int parallelism;
+
+        public ParallelAsyncPythonScalarFunction(String name, int parallelism) {
+            super(name);
+            this.parallelism = parallelism;
+        }
+
+        @Override
+        public int getParallelism() {
+            return parallelism;
+        }
+    }
+
+    /** Vectorized row fixture with execution options. */
+    public static class ResourceRowPythonScalarFunction extends RowPandasScalarFunction {
+        private final int parallelism;
+        private final int maxArrowBatchSize;
+
+        public ResourceRowPythonScalarFunction(
+                String name, int parallelism, int maxArrowBatchSize) {
+            super(name);
+            this.parallelism = parallelism;
+            this.maxArrowBatchSize = maxArrowBatchSize;
+        }
+
+        @Override
+        public int getParallelism() {
+            return parallelism;
+        }
+
+        @Override
+        public int getMaxArrowBatchSize() {
+            return maxArrowBatchSize;
+        }
+    }
+
     /** Test for Python Scalar Function. */
     public static class BooleanPythonScalarFunction extends ScalarFunction
             implements PythonFunction {

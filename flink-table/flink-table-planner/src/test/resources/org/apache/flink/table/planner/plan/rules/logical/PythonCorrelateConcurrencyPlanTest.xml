@@ -1,0 +1,62 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testInnerJoinPreservesFilterAndFields">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, x, y FROM src JOIN LATERAL TABLE(tf(a, f3(f5(a, b), b))) AS T(x, y) ON y > 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalFilter(condition=[>($1, 0)])
+      +- LogicalTableFunctionScan(invocation=[tf($cor0.a, f3(f5($cor0.a, $cor0.b), $cor0.b))], rowType=[RecordType(INTEGER x, INTEGER y)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, x, y], where=[>(y, 0)])
++- PythonCorrelate(invocation=[tf($0, f3($2, $1))], correlate=[table(tf(a,f3(f0, b)))], select=[a,b,f0,x,y], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER f0, INTEGER x, INTEGER y)], joinType=[INNER])
+   +- PythonCalc(select=[a, b, f5(a, b) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftJoinPreservesFieldsAcrossFunctionKinds">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, x, y FROM src LEFT JOIN LATERAL TABLE(tf(a, f3(vector5(a, b), b))) AS T(x, y) ON TRUE]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 1}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalTableFunctionScan(invocation=[tf($cor0.a, f3(vector5($cor0.a, $cor0.b), $cor0.b))], rowType=[RecordType(INTEGER x, INTEGER y)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, x, y])
++- PythonCorrelate(invocation=[tf($0, f3($2, $1))], correlate=[table(tf(a,f3(f0, b)))], select=[a,b,f0,x,y], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER f0, INTEGER x, INTEGER y)], joinType=[LEFT])
+   +- PythonCalc(select=[a, b, vector5(a, b) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

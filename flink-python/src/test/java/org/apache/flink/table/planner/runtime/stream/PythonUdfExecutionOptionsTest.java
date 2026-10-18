@@ -22,11 +22,14 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.AsyncPythonScalarFunction;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ParallelAsyncPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ParallelPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ResourcePythonScalarFunction;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
@@ -34,6 +37,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Collections;
@@ -71,32 +75,19 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
     }
 
     @ParameterizedTest
-    @CsvSource({"false, 2", "false, 4", "true, 2", "true, 4"})
-    void testRejectsExplicitConcurrencyOnUpdatingInput(boolean async, int concurrency) {
+    @CsvSource({
+        "false, 2, updating_source",
+        "true, 2, updating_source",
+        "false, 4, updating_source",
+        "false, 2, deleting_source",
+        "true, 2, deleting_source"
+    })
+    void testRejectsExplicitConcurrencyOnChangelogInput(
+            boolean async, int concurrency, String source) {
         util.addTemporarySystemFunction("parallel_func", function(async, concurrency));
-
-        assertThatThrownBy(
-                        () ->
-                                util.tableEnv()
-                                        .explainSql(
-                                                "SELECT a, parallel_func(b, b) FROM updating_source"))
+        assertThatThrownBy(() -> translate("SELECT a, parallel_func(b, b) FROM " + source))
                 .hasMessageContaining("Python UDF concurrency is only supported for insert-only")
                 .hasMessageContaining("Omit concurrency");
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = {false, true})
-    void testRejectsConcurrencyWhenCompilingUpdatingInput(boolean async) {
-        util.addTemporarySystemFunction("parallel_func", function(async, 2));
-
-        assertThatThrownBy(
-                        () ->
-                                util.tableEnv()
-                                        .compilePlanSql(
-                                                "INSERT INTO sink_table "
-                                                        + "SELECT a, parallel_func(b, b) "
-                                                        + "FROM updating_source"))
-                .hasMessageContaining("Python UDF concurrency is only supported for insert-only");
     }
 
     @Test
@@ -108,14 +99,6 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
                                 translate(
                                         "SELECT a, parallel_func(b, b) FROM "
                                                 + "(SELECT a, SUM(b) AS b FROM source_table GROUP BY a)"))
-                .hasMessageContaining("Python UDF concurrency is only supported for insert-only");
-    }
-
-    @Test
-    void testRejectsConcurrencyOnInputWithDeletes() {
-        util.addTemporarySystemFunction("parallel_func", function(false, 2));
-
-        assertThatThrownBy(() -> translate("SELECT a, parallel_func(b, b) FROM deleting_source"))
                 .hasMessageContaining("Python UDF concurrency is only supported for insert-only");
     }
 
@@ -141,7 +124,11 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
                         ? new AsyncPythonScalarFunction("default_func")
                         : new PythonScalarFunction("default_func"));
 
-        assertThat(translate("SELECT a, default_func(b, b) FROM updating_source")).hasSize(1);
+        final Transformation<?> python =
+                pythonTransformation(
+                        translate("SELECT a, default_func(b, b) FROM updating_source"));
+        assertThat(python.getParallelism()).isEqualTo(python.getInputs().get(0).getParallelism());
+        assertThat(python.isParallelismConfigured()).isFalse();
     }
 
     @ParameterizedTest
@@ -149,7 +136,31 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
     void testInsertOnlyInputWithExplicitConcurrencyIsSupported(boolean async, int concurrency) {
         util.addTemporarySystemFunction("parallel_func", function(async, concurrency));
 
-        assertThat(translate("SELECT a, parallel_func(b, b) FROM source_table")).hasSize(1);
+        final Transformation<?> python =
+                pythonTransformation(translate("SELECT a, parallel_func(b, b) FROM source_table"));
+        assertThat(python.getParallelism()).isEqualTo(concurrency);
+        assertThat(python.isParallelismConfigured()).isTrue();
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = PythonFunctionKind.class,
+            names = {"PANDAS", "ARROW"})
+    void testVectorizedConcurrency(PythonFunctionKind kind) {
+        util.addTemporarySystemFunction(
+                "vector", new ResourcePythonScalarFunction("vector", 3, kind, 32));
+        final Transformation<?> python =
+                pythonTransformation(translate("SELECT a, vector(a, b) FROM source_table"));
+        assertThat(python.getParallelism()).isEqualTo(3);
+        assertThat(python.isParallelismConfigured()).isTrue();
+    }
+
+    private static Transformation<?> pythonTransformation(List<Transformation<?>> roots) {
+        assertThat(roots).hasSize(1);
+        return roots.get(0).getTransitivePredecessors().stream()
+                .filter(node -> node.getName().startsWith("Python"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing Python operator"));
     }
 
     private List<Transformation<?>> translate(String query) {
@@ -161,21 +172,7 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
 
     private UserDefinedFunction function(boolean async, int concurrency) {
         return async
-                ? new ResourceAsyncPythonScalarFunction("parallel_func", concurrency)
+                ? new ParallelAsyncPythonScalarFunction("parallel_func", concurrency)
                 : new ParallelPythonScalarFunction("parallel_func", concurrency);
-    }
-
-    public static class ResourceAsyncPythonScalarFunction extends AsyncPythonScalarFunction {
-        private final int parallelism;
-
-        public ResourceAsyncPythonScalarFunction(String name, int parallelism) {
-            super(name);
-            this.parallelism = parallelism;
-        }
-
-        @Override
-        public int getParallelism() {
-            return parallelism;
-        }
     }
 }

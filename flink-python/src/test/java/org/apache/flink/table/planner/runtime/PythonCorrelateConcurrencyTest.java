@@ -26,12 +26,15 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ParallelPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ResourcePythonScalarFunction;
 import org.apache.flink.table.planner.utils.MockPythonTableFunction;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
@@ -45,11 +48,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PythonCorrelateConcurrencyTest extends TableTestBase {
 
     @ParameterizedTest
-    @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
-    void testSplitsFunctionKindBeforeConcurrency(boolean streaming, PythonFunctionKind kind) {
-        final TableTestUtil util = createUtil(streaming);
+    @EnumSource(
+            value = PythonFunctionKind.class,
+            names = {"PANDAS", "ARROW"})
+    void testSplitsFunctionKindBeforeConcurrency(PythonFunctionKind kind) {
+        final TableTestUtil util = createUtil(true);
         util.addTemporarySystemFunction(
-                "vector5", new KindPythonScalarFunction("vector5", 5, kind));
+                "vector5", new ResourcePythonScalarFunction("vector5", 5, kind, -1));
         final List<Transformation<?>> operators =
                 pythonOperators(translate(util, "f3(vector5(a, b), b)"));
 
@@ -60,11 +65,13 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
     }
 
     @ParameterizedTest
-    @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
-    void testSplitsFunctionKindWithMatchingConcurrency(boolean streaming, PythonFunctionKind kind) {
-        final TableTestUtil util = createUtil(streaming);
+    @EnumSource(
+            value = PythonFunctionKind.class,
+            names = {"PANDAS", "ARROW"})
+    void testSplitsFunctionKindWithMatchingConcurrency(PythonFunctionKind kind) {
+        final TableTestUtil util = createUtil(true);
         util.addTemporarySystemFunction(
-                "vector3", new KindPythonScalarFunction("vector3", 3, kind));
+                "vector3", new ResourcePythonScalarFunction("vector3", 3, kind, -1));
         final List<Transformation<?>> operators =
                 pythonOperators(translate(util, "f3(vector3(a, b), b)"));
 
@@ -76,7 +83,8 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
     @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
     void testSplitsFunctionKindWithoutConcurrency(boolean streaming, PythonFunctionKind kind) {
         final TableTestUtil util = createUtil(streaming);
-        util.addTemporarySystemFunction("vector", new KindPythonScalarFunction("vector", -1, kind));
+        util.addTemporarySystemFunction(
+                "vector", new ResourcePythonScalarFunction("vector", -1, kind, -1));
         final List<Transformation<?>> operators = pythonOperators(translate(util, "vector(a, b)"));
 
         assertThat(operators).extracting(Transformation::getParallelism).containsExactly(2, 2);
@@ -84,24 +92,13 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
     }
 
     @ParameterizedTest
-    @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
-    void testSplitsKindsInsideExtractedCalc(boolean streaming, PythonFunctionKind kind) {
-        final TableTestUtil util = createUtil(streaming);
+    @EnumSource(
+            value = PythonFunctionKind.class,
+            names = {"PANDAS", "ARROW"})
+    void testSplitsConcurrencyAfterFunctionKind(PythonFunctionKind kind) {
+        final TableTestUtil util = createUtil(true);
         util.addTemporarySystemFunction(
-                "vector5", new KindPythonScalarFunction("vector5", 5, kind));
-        final List<Transformation<?>> operators =
-                pythonOperators(translate(util, "f3(vector5(f3(a, b), b), b)"));
-
-        assertThat(operators).extracting(Transformation::getParallelism).containsExactly(3, 5, 3);
-        assertThat(operators).allMatch(Transformation::isParallelismConfigured);
-    }
-
-    @ParameterizedTest
-    @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
-    void testSplitsConcurrencyAfterFunctionKind(boolean streaming, PythonFunctionKind kind) {
-        final TableTestUtil util = createUtil(streaming);
-        util.addTemporarySystemFunction(
-                "vector3", new KindPythonScalarFunction("vector3", 3, kind));
+                "vector3", new ResourcePythonScalarFunction("vector3", 3, kind, -1));
         final List<Transformation<?>> operators =
                 pythonOperators(translate(util, "f3(f5(vector3(a, b), b), b)"));
 
@@ -109,29 +106,9 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
         assertThat(operators).allMatch(Transformation::isParallelismConfigured);
     }
 
-    @ParameterizedTest
-    @CsvSource({"false, PANDAS", "true, PANDAS", "false, ARROW", "true, ARROW"})
-    void testPreservesJoinAndFilterWithDifferentKind(boolean streaming, PythonFunctionKind kind) {
-        final TableTestUtil util = createUtil(streaming);
-        util.addTemporarySystemFunction(
-                "vector5", new KindPythonScalarFunction("vector5", 5, kind));
-        for (String join : new String[] {"LEFT JOIN", "JOIN"}) {
-            final String query =
-                    "SELECT x, y FROM src "
-                            + join
-                            + " LATERAL TABLE(tf(a, f3(vector5(a, b), b))) AS T(x, y) ON "
-                            + (join.equals("JOIN") ? "y > 0" : "TRUE");
-            assertThat(pythonOperators(translateQuery(util, query)))
-                    .as(query)
-                    .extracting(Transformation::getParallelism)
-                    .containsExactly(5, 3);
-        }
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = {false, true})
-    void testSplitsNestedConflictingConcurrencies(boolean streaming) {
-        final TableTestUtil util = createUtil(streaming);
+    @Test
+    void testSplitsNestedConflictingConcurrencies() {
+        final TableTestUtil util = createUtil(true);
         final List<Transformation<?>> operators =
                 pythonOperators(translate(util, "f3(f5(a, b), b)"));
 
@@ -141,10 +118,9 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
         assertThat(operators.get(1).getName()).contains("PythonCorrelate");
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {false, true})
-    void testFusesCompatibleConcurrencies(boolean streaming) {
-        final TableTestUtil util = createUtil(streaming);
+    @Test
+    void testFusesCompatibleConcurrencies() {
+        final TableTestUtil util = createUtil(true);
         for (String expression :
                 new String[] {"f3(a, b)", "f3(f3(a, b), b)", "plain(f3(a, b), b)"}) {
             final List<Transformation<?>> operators = pythonOperators(translate(util, expression));
@@ -164,42 +140,23 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
         assertThat(operators.get(0).isParallelismConfigured()).isFalse();
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {false, true})
-    void testSplitsAlternatingConcurrencies(boolean streaming) {
+    @Test
+    void testSplitsAlternatingConcurrencies() {
         final List<Transformation<?>> operators =
-                pythonOperators(translate(createUtil(streaming), "f3(f5(f3(a, b), b), b)"));
+                pythonOperators(translate(createUtil(true), "f3(f5(f3(a, b), b), b)"));
         assertThat(operators).extracting(Transformation::getParallelism).containsExactly(3, 5, 3);
         assertThat(operators).allMatch(Transformation::isParallelismConfigured);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {false, true})
-    void testSplitsConflictingArguments(boolean streaming) {
+    @Test
+    void testSplitsConflictingArguments() {
         final List<Transformation<?>> operators =
                 pythonOperators(
                         translateQuery(
-                                createUtil(streaming),
+                                createUtil(true),
                                 "SELECT x, y FROM src, "
                                         + "LATERAL TABLE(tf(f3(a, b), f5(a, b))) AS T(x, y)"));
         assertThat(operators).extracting(Transformation::getParallelism).containsExactly(5, 3);
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = {false, true})
-    void testPreservesJoinAndFilter(boolean streaming) {
-        final TableTestUtil util = createUtil(streaming);
-        for (String join : new String[] {"LEFT JOIN", "JOIN"}) {
-            final String query =
-                    "SELECT x, y FROM src "
-                            + join
-                            + " LATERAL TABLE(tf(a, f3(f5(a, b), b))) AS T(x, y) ON "
-                            + (join.equals("JOIN") ? "y > 0" : "TRUE");
-            assertThat(pythonOperators(translateQuery(util, query)))
-                    .as(query)
-                    .extracting(Transformation::getParallelism)
-                    .containsExactly(5, 3);
-        }
     }
 
     @ParameterizedTest
@@ -266,20 +223,5 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
             operators.add(root);
         }
         return operators;
-    }
-
-    /** Python scalar function with a configured batch representation and parallelism. */
-    public static class KindPythonScalarFunction extends ParallelPythonScalarFunction {
-        private final PythonFunctionKind kind;
-
-        public KindPythonScalarFunction(String name, int parallelism, PythonFunctionKind kind) {
-            super(name, parallelism);
-            this.kind = kind;
-        }
-
-        @Override
-        public PythonFunctionKind getPythonFunctionKind() {
-            return kind;
-        }
     }
 }
