@@ -33,6 +33,17 @@ DataFrame scalar UDFs support general synchronous and asynchronous callables,
 and synchronous pandas or Arrow vectorized callables. See :func:`pyflink.dataframe.udf`
 for declaration forms, type inference, execution modes, and examples.
 
+Use the ``concurrency`` argument to set the parallelism of the Python operator
+that executes a scalar UDF. UDFs with different explicit concurrency values are
+placed in separate operators. Explicit concurrency is supported only for
+insert-only streaming inputs. Batch mode and streaming inputs that can emit
+updates or deletes reject explicit concurrency, including ``concurrency=1``.
+Omit ``concurrency`` to inherit the upstream parallelism.
+
+For pandas and Arrow scalar UDFs, ``batch_size`` sets the maximum Arrow batch size
+in both batch and streaming mode. If compatible vectorized UDFs share an operator,
+the smallest explicit batch size is used; otherwise the configured default applies.
+
 Table Functions
 ===============
 
@@ -44,14 +55,6 @@ DataFrame table UDFs support synchronous functions, callable classes and instanc
 ``TableFunction`` instances or classes. See :func:`pyflink.dataframe.udtf` for
 declaration forms, type inference, lifecycle, and examples, and
 :meth:`~pyflink.dataframe.DataFrame.flat_map` for row input and output semantics.
-
-Use the ``concurrency`` argument to set the parallelism of the Python operator
-that executes a UDF. UDFs with different explicit concurrency values are placed
-in separate operators. Explicit concurrency is supported for batch and insert-only
-streaming inputs. Omit ``concurrency`` for inputs that can emit updates or deletes
-to inherit the upstream parallelism. For pandas and Arrow UDFs, ``batch_size`` sets
-the maximum Arrow batch size. If compatible vectorized UDFs share an operator, the smallest
-explicit batch size is used; otherwise the configured default applies.
 
 Aggregate Functions
 ===================

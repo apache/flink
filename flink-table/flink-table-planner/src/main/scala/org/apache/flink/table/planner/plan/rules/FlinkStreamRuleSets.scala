@@ -269,7 +269,7 @@ object FlinkStreamRuleSets {
     ProjectWatermarkAssignerTransposeRule.INSTANCE,
 
     // reorder sort and projection
-    CoreRules.SORT_PROJECT_TRANSPOSE,
+    FlinkSortProjectTransposeRule.INSTANCE,
     // remove unnecessary sort rule
     CoreRules.SORT_REMOVE,
 
