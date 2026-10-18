@@ -60,13 +60,6 @@ tox = [
 flake8 = [
     "flake8==7.2.0"
 ]
-sphinx = [
-    "Sphinx==7.4.7",
-    "Docutils==0.21.2",
-    "pydata_sphinx_theme==0.16.1",
-    "sphinx_mdinclude==0.6.2",
-    "sphinx-intl==2.3.2"
-]
 mypy = [
     "mypy==1.5.1",
     "types-pytz",
