@@ -57,6 +57,7 @@ import java.util.List;
         consumedOptions = {
             "table.exec.sink.not-null-enforcer",
             "table.exec.sink.type-length-enforcer",
+            "table.exec.sink.nested-constraint-enforcer",
         },
         producedTransformations = {
             CommonExecSink.CONSTRAINT_VALIDATOR_TRANSFORMATION,
