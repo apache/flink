@@ -645,6 +645,37 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         123456789L,
                         BIGINT())
 
+                // RETURNING BOOLEAN used directly as a condition: a null condition takes ELSE
+                .testSqlResult(
+                        "IF(JSON_VALUE(f0, '$.activated' RETURNING BOOLEAN), 1, 2)", 1, INT())
+                .testSqlResult("IF(JSON_VALUE(f0, '$.missing' RETURNING BOOLEAN), 1, 2)", 2, INT())
+
+                // A real value equal to the primitive default is kept, a null stays null
+                .testSqlResult("JSON_VALUE('{\"a\": -1}', '$.a' RETURNING INTEGER)", -1, INT())
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": false}', '$.a' RETURNING BOOLEAN)", false, BOOLEAN())
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": false}', '$.missing' RETURNING BOOLEAN)",
+                        null,
+                        BOOLEAN())
+
+                // Non-boolean value RETURNING BOOLEAN: default NULL ON ERROR yields null,
+                // explicit ERROR ON ERROR fails
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": 1.9}', '$.a' RETURNING BOOLEAN)", null, BOOLEAN())
+                .testSqlRuntimeError(
+                        "JSON_VALUE('{\"a\": 1.9}', '$.a' RETURNING BOOLEAN ERROR ON ERROR)",
+                        TableRuntimeException.class,
+                        "Cannot cast")
+                .testSqlResult(
+                        "JSON_VALUE('{\"a\": \"maybe\"}', '$.a' RETURNING BOOLEAN)",
+                        null,
+                        BOOLEAN())
+                .testSqlRuntimeError(
+                        "JSON_VALUE('{\"a\": \"maybe\"}', '$.a' RETURNING BOOLEAN ERROR ON ERROR)",
+                        TableRuntimeException.class,
+                        "Cannot cast")
+
                 // Equality on typed RETURNING results from different paths
                 // (distinct objects, same value -- must use value comparison, not reference)
                 .testSqlResult(
