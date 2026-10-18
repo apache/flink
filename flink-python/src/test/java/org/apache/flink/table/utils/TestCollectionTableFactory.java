@@ -260,7 +260,7 @@ public class TestCollectionTableFactory
         }
     }
 
-    static class TemporalTableFetcher extends TableFunction<Row> {
+    public static class TemporalTableFetcher extends TableFunction<Row> {
         private final LinkedList<Row> dimData;
         private final int[] keyes;
 

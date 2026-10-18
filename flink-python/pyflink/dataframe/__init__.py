@@ -62,7 +62,7 @@ from pyflink.dataframe.context import (
     get_table_environment,
     set_table_environment,
 )
-from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit
+from pyflink.dataframe.dataframe import DataFrame, GroupedDataFrame, col, lit, proctime
 from pyflink.dataframe.dataframe_config import config
 from pyflink.dataframe.datatype import DataType
 from pyflink.dataframe.io import (
@@ -102,6 +102,7 @@ __all__ = [
     "list_model_providers",
     "col",
     "lit",
+    "proctime",
     "udf",
     "udtf",
     "udaf",
