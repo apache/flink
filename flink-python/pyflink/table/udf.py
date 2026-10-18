@@ -868,6 +868,8 @@ def udf(f: Union[Callable, ScalarFunction, AsyncScalarFunction, Type] = None,
     :param func_type: the type of the python function, available value: general, pandas, arrow,
                      (default: general)
     :param concurrency: optional parallelism for the Python operator that executes this UDF.
+                        Only supported for insert-only streaming inputs. Batch mode rejects an
+                        explicit value; omit it to inherit the upstream parallelism.
     :param batch_size: optional maximum Arrow batch size. Only supported for pandas or Arrow UDFs.
     :return: UserDefinedScalarFunctionWrapper, UserDefinedAsyncScalarFunctionWrapper, or function.
 

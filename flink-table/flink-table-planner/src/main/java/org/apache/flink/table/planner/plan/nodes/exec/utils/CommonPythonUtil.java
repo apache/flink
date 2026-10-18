@@ -129,11 +129,18 @@ public class CommonPythonUtil {
     }
 
     public static Optional<Integer> deriveExplicitPythonFunctionParallelism(
-            PythonFunctionInfo[] pythonFunctionInfos, String functionsDescription) {
+            PythonFunctionInfo[] pythonFunctionInfos,
+            String functionsDescription,
+            boolean isBatchMode) {
         int explicitParallelism = -1;
         for (PythonFunction function : collectPythonFunctions(pythonFunctionInfos)) {
             final int parallelism = function.getParallelism();
             if (parallelism > 0) {
+                if (isBatchMode) {
+                    throw new TableException(
+                            "Python UDF concurrency is not supported in batch mode. "
+                                    + "Omit concurrency to inherit the upstream parallelism.");
+                }
                 if (explicitParallelism > 0 && explicitParallelism != parallelism) {
                     throw new TableException(
                             functionsDescription

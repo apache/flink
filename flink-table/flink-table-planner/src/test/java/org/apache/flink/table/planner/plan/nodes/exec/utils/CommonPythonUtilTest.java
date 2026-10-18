@@ -38,12 +38,13 @@ class CommonPythonUtilTest {
 
         assertThat(
                         CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
-                                new PythonFunctionInfo[] {nested}, "Python functions"))
+                                new PythonFunctionInfo[] {nested}, "Python functions", false))
                 .hasValue(3);
         assertThat(
                         CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
                                 new PythonFunctionInfo[] {functionInfo(-1, -1)},
-                                "Python functions"))
+                                "Python functions",
+                                false))
                 .isEmpty();
     }
 
@@ -55,9 +56,40 @@ class CommonPythonUtilTest {
         assertThatThrownBy(
                         () ->
                                 CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
-                                        new PythonFunctionInfo[] {nested}, "Python functions"))
+                                        new PythonFunctionInfo[] {nested},
+                                        "Python functions",
+                                        false))
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining("different concurrency values");
+    }
+
+    @Test
+    void testRejectExplicitParallelismInBatch() {
+        for (PythonFunctionInfo function :
+                new PythonFunctionInfo[] {
+                    functionInfo(1, -1), functionInfo(-1, -1, functionInfo(2, 64))
+                }) {
+            assertThatThrownBy(
+                            () ->
+                                    CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
+                                            new PythonFunctionInfo[] {function},
+                                            "Python functions",
+                                            true))
+                    .isInstanceOf(TableException.class)
+                    .hasMessageContaining("concurrency is not supported in batch mode");
+        }
+    }
+
+    @Test
+    void testBatchSizeWithoutConcurrencyIsSupportedInBatch() {
+        assertThat(
+                        CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
+                                new PythonFunctionInfo[] {
+                                    functionInfo(-1, 64, functionInfo(-1, 32))
+                                },
+                                "Python functions",
+                                true))
+                .isEmpty();
     }
 
     @Test

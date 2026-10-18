@@ -42,6 +42,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AsyncScalarUtil;
@@ -125,7 +126,7 @@ public abstract class CommonExecPythonAsyncCalc extends ExecNodeBase<RowData>
                 extractPythonFunctionInfos(classLoader);
         final Optional<Integer> explicitParallelism =
                 CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
-                        extractResult.f1, "Python async functions");
+                        extractResult.f1, "Python async functions", this instanceof BatchExecNode);
 
         InternalTypeInfo<RowData> inputTypeInfo =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();

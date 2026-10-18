@@ -44,6 +44,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.PythonCallCseResult;
@@ -195,7 +196,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         }
         final Optional<Integer> explicitParallelism =
                 CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
-                        pythonFunctionInfos, "Python functions");
+                        pythonFunctionInfos, "Python functions", this instanceof BatchExecNode);
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonScalarFunctionOperator(
                         config,

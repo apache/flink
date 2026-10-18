@@ -2350,6 +2350,49 @@ class DataFrameUDFAdapterTests(unittest.TestCase):
 
 
 class DataFrameUDFPlannerTests(PyFlinkDataFrameUTTestCase):
+    def test_batch_rejects_explicit_concurrency(self):
+        from pyflink.table import EnvironmentSettings, ExplainDetail, TableEnvironment
+        from pyflink.table.udf import udtf
+
+        t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
+        pf.set_table_environment(t_env)
+        dataframe = pf.from_records([(1,)], schema=["value"])
+
+        async def async_identity(value):
+            return value
+
+        cases = [
+            pf.udf(lambda value: value, return_dtype=pf.DataType.int64(), concurrency=1),
+            pf.udf(lambda value: value, return_dtype=pf.DataType.int64(), concurrency=2),
+            pf.udf(async_identity, return_dtype=pf.DataType.int64(), concurrency=2),
+            pf.udf(lambda values: values, return_dtype=pf.DataType.int64(),
+                   func_type="pandas", concurrency=2, batch_size=16),
+            pf.udf(lambda values: values, return_dtype=pf.DataType.int64(),
+                   func_type="arrow", concurrency=2, batch_size=16),
+        ]
+        for declaration in cases:
+            with self.subTest(declaration=declaration):
+                with self.assertRaisesRegex(
+                        Exception, "concurrency is not supported in batch mode"):
+                    dataframe.select(declaration(pf.col("value"))).to_table().explain(
+                        ExplainDetail.JSON_EXECUTION_PLAN)
+
+        @udtf(input_types=[TableDataTypes.BIGINT()], result_types=[TableDataTypes.BIGINT()])
+        def echo(value):
+            yield value
+
+        t_env.create_temporary_view("batch_input", dataframe.to_table())
+        t_env.create_temporary_system_function("echo", echo)
+        t_env.create_temporary_system_function(
+            "configured_identity",
+            table_udf(lambda value: value, input_types=[TableDataTypes.BIGINT()],
+                      result_type=TableDataTypes.BIGINT(), concurrency=2))
+        with self.assertRaisesRegex(Exception, "concurrency is not supported in batch mode"):
+            t_env.sql_query(
+                "SELECT w FROM batch_input, "
+                "LATERAL TABLE(echo(configured_identity(`value`))) AS t(w)"
+            ).explain(ExplainDetail.JSON_EXECUTION_PLAN)
+
     def test_map_function_classes_require_explicit_custom_determinism(self):
         class DefaultDeterminism(ScalarFunction):
             def eval(self, value):

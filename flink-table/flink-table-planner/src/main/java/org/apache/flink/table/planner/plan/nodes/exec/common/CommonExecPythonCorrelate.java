@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
@@ -136,7 +137,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
         final Optional<Integer> explicitParallelism =
                 CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
                         new PythonFunctionInfo[] {pythonFunctionInfo},
-                        "Python correlate functions");
+                        "Python correlate functions",
+                        this instanceof BatchExecNode);
         final int parallelism = explicitParallelism.orElse(inputTransform.getParallelism());
         LOG.info(
                 "Python correlate parallelism: {}, explicitly configured: {}.",
