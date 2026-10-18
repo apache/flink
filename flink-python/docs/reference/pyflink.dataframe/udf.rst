@@ -37,8 +37,7 @@ Use the ``concurrency`` argument to set the parallelism of the Python operator
 that executes a scalar UDF. UDFs with different explicit concurrency values are
 placed in separate operators. Explicit concurrency is supported only for
 insert-only streaming inputs. Batch mode and streaming inputs that can emit
-updates or deletes reject explicit concurrency, including ``concurrency=1``.
-Omit ``concurrency`` to inherit the upstream parallelism.
+updates or deletes reject explicit concurrency.
 
 For pandas and Arrow scalar UDFs, ``batch_size`` sets the maximum Arrow batch size
 in both batch and streaming mode. If compatible vectorized UDFs share an operator,

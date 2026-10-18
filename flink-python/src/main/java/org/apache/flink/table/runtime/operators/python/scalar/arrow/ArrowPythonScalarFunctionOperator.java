@@ -100,7 +100,6 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
     public void open() throws Exception {
         super.open();
         maxArrowBatchSize = Math.min(config.get(MAX_ARROW_BATCH_SIZE), maxBundleSize);
-        LOG.info("Python scalar effective Arrow batch size: {}.", maxArrowBatchSize);
         arrowSerializer = new ArrowSerializer(udfInputType, udfOutputType);
         arrowSerializer.open(bais, baos);
         currentBatchCount = 0;

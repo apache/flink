@@ -85,8 +85,14 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
                 .hasMessageContaining("Python UDF concurrency is not supported in batch mode");
     }
 
-    @Test
-    void testMinimumBatchSizeOverridesDefault() throws Exception {
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "pandas64(a, b), pandas32(a, b)",
+                "a, pandas64(pandas32(a, b), b)",
+                "a, pandas32(pandas64(a, b), b)"
+            })
+    void testMinimumBatchSizeOverridesDefault(String projection) throws Exception {
         util.getTableEnv().getConfig().set(PythonOptions.MAX_ARROW_BATCH_SIZE, 257);
         util.addTemporarySystemFunction(
                 "pandas64",
@@ -94,8 +100,7 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
         util.addTemporarySystemFunction(
                 "pandas32",
                 new ResourcePythonScalarFunction("pandas32", -1, PythonFunctionKind.PANDAS, 32));
-        final OneInputTransformation<?, ?> python =
-                translate("SELECT pandas64(a, b), pandas32(a, b) FROM src");
+        final OneInputTransformation<?, ?> python = translate("SELECT " + projection + " FROM src");
         assertThat(python.getParallelism()).isEqualTo(4);
         assertThat(python.isParallelismConfigured()).isFalse();
         assertThat(operatorConfig(python).get(PythonOptions.MAX_ARROW_BATCH_SIZE)).isEqualTo(32);

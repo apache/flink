@@ -52,8 +52,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.util.LinkedHashMap;
@@ -65,8 +63,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /** Base {@link ExecNode} which matches along with join a Python user defined table function. */
 public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(CommonExecPythonCorrelate.class);
 
     public static final String PYTHON_CORRELATE_TRANSFORMATION = "python-correlate";
 
@@ -139,11 +135,6 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                         new PythonFunctionInfo[] {pythonFunctionInfo},
                         "Python correlate functions",
                         this instanceof BatchExecNode);
-        final int parallelism = explicitParallelism.orElse(inputTransform.getParallelism());
-        LOG.info(
-                "Python correlate parallelism: {}, explicitly configured: {}.",
-                parallelism,
-                explicitParallelism.isPresent());
         InternalTypeInfo<RowData> pythonOperatorInputRowType =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
         InternalTypeInfo<RowData> pythonOperatorOutputRowType =
@@ -162,7 +153,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                 createTransformationMeta(PYTHON_CORRELATE_TRANSFORMATION, pythonNodeConfig),
                 pythonOperator,
                 pythonOperatorOutputRowType,
-                parallelism,
+                explicitParallelism.orElse(inputTransform.getParallelism()),
                 explicitParallelism.isPresent());
     }
 

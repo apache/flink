@@ -57,8 +57,6 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.util.LinkedHashMap;
@@ -72,8 +70,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Base class for exec Python Async Calc. */
 public abstract class CommonExecPythonAsyncCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(CommonExecPythonAsyncCalc.class);
 
     public static final String PYTHON_ASYNC_CALC_TRANSFORMATION = "python-async-calc";
 
@@ -131,11 +127,6 @@ public abstract class CommonExecPythonAsyncCalc extends ExecNodeBase<RowData>
         final Optional<Integer> explicitParallelism =
                 CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
                         extractResult.f1, "Python async functions", this instanceof BatchExecNode);
-        final int parallelism = explicitParallelism.orElse(inputTransform.getParallelism());
-        LOG.info(
-                "Python async parallelism: {}, explicitly configured: {}.",
-                parallelism,
-                explicitParallelism.isPresent());
 
         InternalTypeInfo<RowData> inputTypeInfo =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
@@ -155,7 +146,7 @@ public abstract class CommonExecPythonAsyncCalc extends ExecNodeBase<RowData>
                 createTransformationMeta(PYTHON_ASYNC_CALC_TRANSFORMATION, config),
                 pythonAsyncOperator,
                 outputTypeInfo,
-                parallelism,
+                explicitParallelism.orElse(inputTransform.getParallelism()),
                 explicitParallelism.isPresent());
     }
 

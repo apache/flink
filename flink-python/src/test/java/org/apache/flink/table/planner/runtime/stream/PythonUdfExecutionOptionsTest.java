@@ -46,7 +46,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for Python UDF concurrency on streaming changelog inputs. */
+/** Tests for Python UDF concurrency on streaming inputs. */
 class PythonUdfExecutionOptionsTest extends TableTestBase {
 
     private StreamTableTestUtil util;
@@ -186,17 +186,66 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
                 .hasSize(1);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testTemporalSortFollowsConcurrentPython(boolean projectRowtime) {
+        util.addTemporarySystemFunction("f", new ParallelPythonScalarFunction("f", 2));
+        util.getTableEnv()
+                .executeSql(
+                        "CREATE TABLE src (rt TIMESTAMP(3), v INT, "
+                                + "WATERMARK FOR rt AS rt - INTERVAL '1' SECOND) "
+                                + "WITH ('connector' = 'values')");
+        util.getTableEnv()
+                .executeSql(
+                        "CREATE TABLE ordered_sink ("
+                                + (projectRowtime ? "rt TIMESTAMP(3), " : "")
+                                + "p INT) WITH ('connector' = 'values')");
+        final Transformation<?> root =
+                translate(
+                                "SELECT "
+                                        + (projectRowtime ? "rt, " : "")
+                                        + "f(v, v) FROM src ORDER BY rt, v",
+                                "ordered_sink")
+                        .get(0);
+        final Transformation<?> sort = find(root, "TemporalSort");
+        final Transformation<?> python = find(root, "PythonCalc");
+        assertThat(sort.getParallelism()).isEqualTo(1);
+        assertThat(python.getParallelism()).isEqualTo(2);
+        assertThat(python.isParallelismConfigured()).isTrue();
+        assertThat(sort.getTransitivePredecessors()).contains(python);
+        assertThat(python.getTransitivePredecessors()).doesNotContain(sort);
+    }
+
+    @Test
+    void testTopNFollowsConcurrentPython() {
+        util.addTemporarySystemFunction("f", new ParallelPythonScalarFunction("f", 2));
+        final Transformation<?> root =
+                translate("SELECT a, f(a, b) FROM source_table ORDER BY a DESC LIMIT 3").get(0);
+        final Transformation<?> rank = find(root, "SortLimit");
+        final Transformation<?> python = find(root, "PythonCalc");
+        assertThat(python.getParallelism()).isEqualTo(2);
+        assertThat(rank.getTransitivePredecessors()).contains(python);
+    }
+
     private static Transformation<?> pythonTransformation(List<Transformation<?>> roots) {
         assertThat(roots).hasSize(1);
-        return roots.get(0).getTransitivePredecessors().stream()
-                .filter(node -> node.getName().startsWith("Python"))
+        return find(roots.get(0), "Python");
+    }
+
+    private static Transformation<?> find(Transformation<?> root, String name) {
+        return root.getTransitivePredecessors().stream()
+                .filter(node -> node.getName().startsWith(name))
                 .findFirst()
-                .orElseThrow(() -> new AssertionError("Missing Python operator"));
+                .orElseThrow(() -> new AssertionError("Missing " + name + " in " + root));
     }
 
     private List<Transformation<?>> translate(String query) {
+        return translate(query, "sink_table");
+    }
+
+    private List<Transformation<?>> translate(String query, String sink) {
         final List<Operation> operations =
-                util.getPlanner().getParser().parse("INSERT INTO sink_table " + query);
+                util.getPlanner().getParser().parse("INSERT INTO " + sink + " " + query);
         return util.getPlanner()
                 .translate(Collections.singletonList((ModifyOperation) operations.get(0)));
     }

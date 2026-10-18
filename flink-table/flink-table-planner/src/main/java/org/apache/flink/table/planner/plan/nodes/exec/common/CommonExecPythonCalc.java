@@ -197,11 +197,6 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
         final Optional<Integer> explicitParallelism =
                 CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
                         pythonFunctionInfos, "Python functions", this instanceof BatchExecNode);
-        final int parallelism = explicitParallelism.orElse(inputTransform.getParallelism());
-        LOG.info(
-                "Python scalar parallelism: {}, explicitly configured: {}.",
-                parallelism,
-                explicitParallelism.isPresent());
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonScalarFunctionOperator(
                         config,
@@ -226,7 +221,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                 createTransformationMeta(PYTHON_CALC_TRANSFORMATION, config),
                 pythonOperator,
                 pythonOperatorResultTyeInfo,
-                parallelism,
+                explicitParallelism.orElse(inputTransform.getParallelism()),
                 explicitParallelism.isPresent());
     }
 
