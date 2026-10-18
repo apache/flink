@@ -57,30 +57,30 @@ class DecimalDataTest {
     private static Stream<Arguments> compactCastCases() {
         return Stream.of(
                 // unscaled, srcPrecision, srcScale, targetPrecision, targetScale
-                arguments(0L, 5, 2, 3, 1), // zero
-                arguments(123L, 5, 2, 6, 2), // equal scale
-                arguments(12345L, 5, 0, 10, 2), // exact scale-up
-                arguments(24L, 2, 1, 2, 0), // scale-down, round half down
-                arguments(25L, 2, 1, 2, 0), // scale-down, round half up (+)
-                arguments(-25L, 2, 1, 2, 0), // scale-down, round half up (-)
-                arguments(995L, 3, 2, 2, 1), // rounds into precision overflow -> null
-                arguments(-995L, 3, 2, 2, 1), // rounds into precision overflow -> null (-)
-                arguments(999_999_999_999_999_999L, 18, 0, 18, 2), // long-overflow scale-up -> null
-                arguments(999_999_999_999_999_999L, 18, 0, 18, 0), // max 18-digit boundary
-                arguments(-999_999_999_999_999_999L, 18, 0, 18, 0), // max 18-digit boundary (-)
-                arguments(12345L, 5, 2, 3, 2)); // value exceeds target precision -> null
+                arguments(0L, 5, 2, 3, 1),
+                arguments(123L, 5, 2, 6, 2),
+                arguments(12345L, 5, 0, 10, 2),
+                arguments(24L, 2, 1, 2, 0),
+                arguments(25L, 2, 1, 2, 0),
+                arguments(-25L, 2, 1, 2, 0),
+                arguments(995L, 3, 2, 2, 1),
+                arguments(-995L, 3, 2, 2, 1),
+                arguments(999_999_999_999_999_999L, 18, 0, 18, 2),
+                arguments(999_999_999_999_999_999L, 18, 0, 18, 0),
+                arguments(-999_999_999_999_999_999L, 18, 0, 18, 0),
+                arguments(12345L, 5, 2, 3, 2));
     }
 
     private static Stream<Arguments> longCastCases() {
         return Stream.of(
                 // val, targetPrecision, targetScale
                 arguments(0L, 3, 1),
-                arguments(123L, 5, 2), // exact scale-up
+                arguments(123L, 5, 2),
                 arguments(-123L, 5, 2),
-                arguments(Long.MAX_VALUE, 18, 0), // 19 digits, exceeds precision -> null
-                arguments(Long.MIN_VALUE, 18, 0), // 19 digits, exceeds precision -> null
-                arguments(999_999_999_999_999_999L, 18, 0), // max 18-digit boundary
-                arguments(99L, 2, 1)); // scale-up overflow of precision -> null
+                arguments(Long.MAX_VALUE, 18, 0),
+                arguments(Long.MIN_VALUE, 18, 0),
+                arguments(999_999_999_999_999_999L, 18, 0),
+                arguments(99L, 2, 1));
     }
 
     @ParameterizedTest(name = "{0} -> DECIMAL({1},{2})")
@@ -90,14 +90,7 @@ class DecimalDataTest {
                 DecimalData.fromBigDecimal(BigDecimal.valueOf(val), targetPrecision, targetScale);
         final DecimalData actual = castFrom(val, targetPrecision, targetScale);
 
-        if (expected == null) {
-            assertThat(actual).isNull();
-        } else {
-            assertThat(actual).isNotNull();
-            assertThat(actual.precision()).isEqualTo(expected.precision());
-            assertThat(actual.scale()).isEqualTo(expected.scale());
-            assertThat(actual.toBigDecimal()).isEqualTo(expected.toBigDecimal());
-        }
+        assertCastMatches(actual, expected);
     }
 
     @ParameterizedTest(name = "unscaled={0} DECIMAL({1},{2}) -> DECIMAL({3},{4})")
@@ -109,13 +102,16 @@ class DecimalDataTest {
                 DecimalData.fromBigDecimal(src.toBigDecimal(), targetPrecision, targetScale);
         final DecimalData actual = castToDecimal(src, targetPrecision, targetScale);
 
+        assertCastMatches(actual, expected);
+    }
+
+    private static void assertCastMatches(DecimalData actual, DecimalData expected) {
         if (expected == null) {
             assertThat(actual).isNull();
         } else {
             assertThat(actual).isNotNull();
             assertThat(actual.precision()).isEqualTo(expected.precision());
             assertThat(actual.scale()).isEqualTo(expected.scale());
-            // BigDecimal.equals is scale-sensitive, so this pins value *and* scale
             assertThat(actual.toBigDecimal()).isEqualTo(expected.toBigDecimal());
         }
     }
