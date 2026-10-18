@@ -1095,7 +1095,7 @@ json:
       * `DECIMAL`
 
       JSON string values are coerced to the requested numeric or boolean type (for example `"42"`
-      to a number, or `"true"`/`"t"`/`"yes"`/`"y"`/`"1"` to `TRUE`), matching `CAST` semantics.
+      to a number, or `"true"`/`"t"`/`"yes"`/`"y"`/`"1"` to `TRUE`).
       Values that do not fit the requested type (overflow, non-numeric string, non-0/1 number for
       `BOOLEAN`) are treated as an error and follow the `ON ERROR` behavior.
 
