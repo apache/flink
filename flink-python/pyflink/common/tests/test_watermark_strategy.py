@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.common import Duration
-from pyflink.common.watermark_strategy import WatermarkStrategy
+from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import is_instance_of, get_field_value
 
@@ -36,6 +36,18 @@ class WatermarkStrategyTests(PyFlinkTestCase):
         ))
         self.assertEqual(get_field_value(j_watermark_strategy, "idlenessTimeout").toMillis(), 5000)
 
+    def test_with_idleness_preserves_timestamp_assigner(self):
+        timestamp_assigner = IdentityTimestampAssigner()
+        strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(timestamp_assigner)
+
+        idle_strategy = strategy.with_idleness(Duration.of_seconds(5))
+
+        self.assertIsNot(idle_strategy, strategy)
+        self.assertIs(idle_strategy._timestamp_assigner, timestamp_assigner)
+        idle_strategy.with_timestamp_assigner(IdentityTimestampAssigner())
+        self.assertIs(strategy._timestamp_assigner, timestamp_assigner)
+
     def test_with_watermark_alignment(self):
         jvm = get_gateway().jvm
         j_watermark_strategy = WatermarkStrategy.no_watermarks().with_watermark_alignment(
@@ -49,6 +61,33 @@ class WatermarkStrategyTests(PyFlinkTestCase):
         self.assertEqual(alignment_parameters.getWatermarkGroup(), "alignment-group-1")
         self.assertEqual(alignment_parameters.getMaxAllowedWatermarkDrift(), 20000)
         self.assertEqual(alignment_parameters.getUpdateInterval(), 10000)
+
+    def test_with_watermark_alignment_preserves_timestamp_assigner(self):
+        for update_interval in (None, Duration.of_seconds(10)):
+            with self.subTest(update_interval=update_interval):
+                timestamp_assigner = IdentityTimestampAssigner()
+                strategy = WatermarkStrategy.for_monotonous_timestamps() \
+                    .with_timestamp_assigner(timestamp_assigner)
+
+                aligned_strategy = strategy.with_watermark_alignment(
+                    "alignment-group-1", Duration.of_seconds(20), update_interval)
+
+                self.assertIsNot(aligned_strategy, strategy)
+                self.assertIs(aligned_strategy._timestamp_assigner, timestamp_assigner)
+                aligned_strategy.with_timestamp_assigner(IdentityTimestampAssigner())
+                self.assertIs(strategy._timestamp_assigner, timestamp_assigner)
+
+    def test_with_timestamp_assigner_after_enrichment(self):
+        strategy = WatermarkStrategy.for_monotonous_timestamps()
+        enriched_strategy = strategy.with_idleness(Duration.of_seconds(5)) \
+            .with_watermark_alignment("alignment-group-1", Duration.of_seconds(20))
+        self.assertIsNone(enriched_strategy._timestamp_assigner)
+
+        timestamp_assigner = IdentityTimestampAssigner()
+        enriched_strategy.with_timestamp_assigner(timestamp_assigner)
+
+        self.assertIs(enriched_strategy._timestamp_assigner, timestamp_assigner)
+        self.assertIsNone(strategy._timestamp_assigner)
 
     def test_for_monotonous_timestamps(self):
         jvm = get_gateway().jvm
@@ -77,3 +116,9 @@ class WatermarkStrategyTests(PyFlinkTestCase):
             j_watermark_strategy.createWatermarkGenerator(None),
             jvm.org.apache.flink.api.common.eventtime.NoWatermarksGenerator
         ))
+
+
+class IdentityTimestampAssigner(TimestampAssigner):
+
+    def extract_timestamp(self, value, record_timestamp: int) -> int:
+        return value
