@@ -52,6 +52,7 @@ from pyflink.table.udf import (
     UserDefinedFunctionWrapper,
     UserDefinedAsyncScalarFunctionWrapper,
     UserDefinedScalarFunctionWrapper,
+    _validate_udf_execution_options,
     udf as table_udf,
 )
 from pyflink.util.api_stability_decorators import PublicEvolving
@@ -200,6 +201,8 @@ class _DataFrameUDFWrapper:
     _return_dtype: DataType
     _deterministic: bool
     _func_type: str
+    _concurrency: Optional[int]
+    _batch_size: Optional[int]
     _cached_table_udf_wrapper: Optional[UserDefinedFunctionWrapper]
     _frozen: bool
     __name__: str
@@ -211,11 +214,15 @@ class _DataFrameUDFWrapper:
         deterministic: bool,
         name: str,
         func_type: str,
+        concurrency: Optional[int],
+        batch_size: Optional[int],
     ) -> None:
         object.__setattr__(self, "_runtime_source", runtime_source)
         object.__setattr__(self, "_return_dtype", return_dtype)
         object.__setattr__(self, "_deterministic", deterministic)
         object.__setattr__(self, "_func_type", func_type)
+        object.__setattr__(self, "_concurrency", concurrency)
+        object.__setattr__(self, "_batch_size", batch_size)
         object.__setattr__(self, "_cached_table_udf_wrapper", None)
 
         declaration_metadata = _unwrap_partial(runtime_source.callable_source)
@@ -273,6 +280,8 @@ class _DataFrameUDFWrapper:
                 deterministic=self._deterministic,
                 name=self.__name__,
                 func_type=self._func_type,
+                concurrency=self._concurrency,
+                batch_size=self._batch_size,
             ),
         )
         wrapper._returns_table_row = usage in (_UDFUsage.MAP, _UDFUsage.MAP_BATCHES)
@@ -337,6 +346,8 @@ def udf(
     deterministic: bool = ...,
     name: Optional[str] = ...,
     func_type: Optional[str] = ...,
+    concurrency: Optional[int] = ...,
+    batch_size: Optional[int] = ...,
 ) -> Callable[..., Expression]:
     ...
 
@@ -349,6 +360,8 @@ def udf(
     deterministic: bool = ...,
     name: Optional[str] = ...,
     func_type: Optional[str] = ...,
+    concurrency: Optional[int] = ...,
+    batch_size: Optional[int] = ...,
 ) -> Callable[[_UDFInput], Callable[..., Expression]]:
     ...
 
@@ -361,6 +374,8 @@ def udf(
     deterministic: bool = True,
     name: Optional[str] = None,
     func_type: Optional[str] = None,
+    concurrency: Optional[int] = None,
+    batch_size: Optional[int] = None,
 ) -> Union[
     Callable[..., Expression],
     Callable[[_UDFInput], Callable[..., Expression]],
@@ -456,7 +471,11 @@ def udf(
 
         >>> import pandas as pd
 
-        >>> @pf.udf(return_dtype=pf.DataType.int64(), func_type="pandas")
+        >>> @pf.udf(
+        ...     return_dtype=pf.DataType.int64(),
+        ...     func_type="pandas",
+        ...     batch_size=256,
+        ... )
         ... def pandas_add_one(values):
         ...     return values + 1
 
@@ -506,6 +525,10 @@ def udf(
     :param func_type: ``"general"``, ``"pandas"``, or ``"arrow"``. If omitted,
                       unbound container annotations select pandas or Arrow mode;
                       otherwise general mode is used.
+    :param concurrency: Optional parallelism for the Python operator that executes this UDF.
+                        Only supported for insert-only streaming inputs.
+    :param batch_size: Optional maximum Arrow batch size for a pandas or Arrow UDF. If compatible
+                       vectorized UDFs are fused, the smallest explicit value is used.
     :return: A callable that accepts DataFrame expressions or Python literals and
              returns an :class:`~pyflink.table.expression.Expression`, or a decorator
              producing such a callable when ``func`` is omitted.
@@ -523,7 +546,11 @@ def udf(
             else _detect_func_type(declaration_context)
         )
         _validate_scalar_udf_options(
-            actual_func_type, return_dtype, runtime_source.is_async
+            actual_func_type,
+            return_dtype,
+            runtime_source.is_async,
+            concurrency,
+            batch_size,
         )
         actual_return_dtype = _infer_return_dtype(
             declaration_context, return_dtype, runtime_source.default_name
@@ -543,6 +570,8 @@ def udf(
             deterministic,
             actual_name,
             actual_func_type,
+            concurrency,
+            batch_size,
         )
 
     return decorator if func is None else decorator(func)
@@ -562,6 +591,8 @@ def _validate_scalar_udf_options(
     func_type: str,
     return_dtype: Optional[_DataTypeLike],
     is_async: bool,
+    concurrency: Optional[int],
+    batch_size: Optional[int],
 ) -> None:
     if func_type not in ("general", "pandas", "arrow"):
         raise ValueError(
@@ -577,6 +608,7 @@ def _validate_scalar_udf_options(
             f"Async scalar functions do not support {func_type} func_type. "
             "Use func_type='general'."
         )
+    _validate_udf_execution_options(func_type, concurrency, batch_size)
 
 
 def _validate_pandas_map_schema(input_type: RowType, output_type: RowType) -> None:

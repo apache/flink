@@ -36,6 +36,7 @@ import org.apache.calcite.rex.RexProgramBuilder;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -106,7 +107,15 @@ public class PythonMapMergeRule extends RelOptRule {
 
         return PythonUtil.isFlattenCalc(middleCalc)
                 && isTopCalcTakesWholeMiddleCalcAsInputs(
-                        (RexCall) topProjects.get(0), middleCalc.getRowType().getFieldCount());
+                        (RexCall) topProjects.get(0), middleCalc.getRowType().getFieldCount())
+                && hasCompatibleParallelism(
+                        (RexCall) topProjects.get(0), (RexCall) bottomProjects.get(0));
+    }
+
+    private boolean hasCompatibleParallelism(RexCall topCall, RexCall bottomCall) {
+        final Set<Integer> parallelisms = PythonUtil.extractDistinctParallelisms(topCall);
+        parallelisms.addAll(PythonUtil.extractDistinctParallelisms(bottomCall));
+        return parallelisms.size() <= 1;
     }
 
     private boolean isTopCalcTakesWholeMiddleCalcAsInputs(
