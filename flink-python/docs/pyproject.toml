@@ -20,7 +20,7 @@
 name = "pyflink-docs"
 version = "0.1.0"
 description = "Sphinx documentation build for PyFlink"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 [dependency-groups]
 dev = [
