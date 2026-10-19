@@ -93,8 +93,10 @@ public enum ArgumentTrait {
      * state entries. State entries that are scoped to a set are passed as null. The PTF must not
      * emit results via {@code collect()} or register/clear timers.
      *
-     * <p>A change to a broadcast state entry has no effect on rows of the main table(s) that have
-     * been processed before. Rows of different tables are not processed in a deterministic order.
+     * <p>By default, a change to a broadcast state entry has no effect on rows of the main table(s)
+     * that have been processed before. Rows of different tables are not processed in a
+     * deterministic order. Use {@link #NOTIFY_STATEFUL_SETS} to re-evaluate all stateful sets based
+     * on the broadcast information.
      *
      * <p>A signature may declare multiple broadcast table arguments, but must declare at least one
      * {@link #ROW_SEMANTIC_TABLE} or {@link #SET_SEMANTIC_TABLE} argument next to them.
@@ -108,6 +110,36 @@ public enum ArgumentTrait {
      * <p>Note: This trait is only valid for {@link #SET_SEMANTIC_TABLE} arguments.
      */
     OPTIONAL_PARTITION_BY(false, StaticArgumentTrait.OPTIONAL_PARTITION_BY),
+
+    /**
+     * Notifies all existing stateful sets to re-evaluate based on the given broadcast row and the
+     * potentially updated broadcast state entries.
+     *
+     * <p>For every broadcast row, {@code eval()} is called multiple times:
+     *
+     * <ol>
+     *   <li>First, without scoping to a set (as described in {@link #BROADCAST_SEMANTIC_TABLE}):
+     *       This call updates the broadcast state, if available.
+     *   <li>Next, once for every set that holds at least one state entry: In this phase, the {@code
+     *       eval()} implementation has access to the incoming broadcast row, as well as all (keyed)
+     *       state entries.
+     * </ol>
+     *
+     * <p>At least one state entry scoped to a set must be declared. Sets without state entries are
+     * not notified. Timers are ignored. During notification, state entries of the set and timers
+     * are accessible and broadcast state is read-only. Similar to processing a row of the main
+     * table(s), the PTF can emit results via {@code collect()} and register timers. Results contain
+     * the partition key of the set.
+     *
+     * <p>Note: Notifying stateful sets is expensive. For every broadcast row, all keys in state are
+     * loaded and a PTF's {@code eval()} is called for each of them. Processing of other rows and
+     * checkpointing is blocked until all sets have been notified. Thus, this trait should only be
+     * used if broadcast rows are rare compared to rows of the main table(s) and the overall key
+     * space is relatively low.
+     *
+     * <p>Note: This trait is only valid for {@link #BROADCAST_SEMANTIC_TABLE} arguments.
+     */
+    NOTIFY_STATEFUL_SETS(false, StaticArgumentTrait.NOTIFY_STATEFUL_SETS),
 
     /**
      * Defines that all columns of a table argument (i.e. {@link #ROW_SEMANTIC_TABLE} or {@link

@@ -46,6 +46,7 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
     private final boolean passColumnsThrough;
     private final boolean hasSetSemantics;
     private final boolean hasBroadcastSemantics;
+    private final boolean notifiesStatefulSets;
     private final int timeColumn;
     private final List<int[]> upsertKeyColumns;
 
@@ -62,6 +63,7 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
             boolean passColumnsThrough,
             boolean hasSetSemantics,
             boolean hasBroadcastSemantics,
+            boolean notifiesStatefulSets,
             int timeColumn,
             List<int[]> upsertKeyColumns) {
         this.argName = argName;
@@ -74,6 +76,7 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
         this.passColumnsThrough = passColumnsThrough;
         this.hasSetSemantics = hasSetSemantics;
         this.hasBroadcastSemantics = hasBroadcastSemantics;
+        this.notifiesStatefulSets = notifiesStatefulSets;
         this.timeColumn = timeColumn;
         this.upsertKeyColumns = upsertKeyColumns;
     }
@@ -96,6 +99,10 @@ public class RuntimeTableSemantics implements TableSemantics, Serializable {
 
     public boolean hasBroadcastSemantics() {
         return hasBroadcastSemantics;
+    }
+
+    public boolean notifiesStatefulSets() {
+        return notifiesStatefulSets;
     }
 
     public ChangelogMode getChangelogMode() {

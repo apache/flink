@@ -113,7 +113,7 @@ public class SystemTypeInference {
                         origin.getInputTypeStrategy(),
                         origin.disableSystemArguments()));
         if (functionKind == FunctionKind.PROCESS_TABLE) {
-            checkBroadcastState(systemArgs, origin.getStateTypeStrategies());
+            checkStatefulBroadcast(systemArgs, origin.getStateTypeStrategies());
         }
         builder.stateTypeStrategies(origin.getStateTypeStrategies());
         builder.outputTypeStrategy(
@@ -277,17 +277,17 @@ public class SystemTypeInference {
         }
     }
 
+    private static void checkStatefulBroadcast(
+            List<StaticArgument> staticArgs, Map<String, StateTypeStrategy> stateTypeStrategies) {
+        checkBroadcastState(staticArgs, stateTypeStrategies);
+        checkNotifyStatefulSets(staticArgs, stateTypeStrategies);
+    }
+
     private static void checkBroadcastState(
-            @Nullable List<StaticArgument> staticArgs,
-            Map<String, StateTypeStrategy> stateTypeStrategies) {
+            List<StaticArgument> staticArgs, Map<String, StateTypeStrategy> stateTypeStrategies) {
         final boolean hasBroadcastTables =
-                staticArgs != null
-                        && staticArgs.stream()
-                                .anyMatch(
-                                        arg ->
-                                                arg.is(
-                                                        StaticArgumentTrait
-                                                                .BROADCAST_SEMANTIC_TABLE));
+                staticArgs.stream()
+                        .anyMatch(arg -> arg.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE));
         if (hasBroadcastTables) {
             return;
         }
@@ -301,6 +301,26 @@ public class SystemTypeInference {
                                             "Broadcast state entry '%s' requires at least one table "
                                                     + "argument with broadcast semantics.",
                                             e.getKey()));
+                        });
+    }
+
+    private static void checkNotifyStatefulSets(
+            List<StaticArgument> staticArgs, Map<String, StateTypeStrategy> stateTypeStrategies) {
+        staticArgs.stream()
+                .filter(arg -> arg.is(StaticArgumentTrait.NOTIFY_STATEFUL_SETS))
+                .findFirst()
+                .filter(
+                        arg ->
+                                stateTypeStrategies.values().stream()
+                                        .allMatch(StateTypeStrategy::isBroadcast))
+                .ifPresent(
+                        arg -> {
+                            throw new ValidationException(
+                                    String.format(
+                                            "Table argument '%s' notifies stateful sets which "
+                                                    + "requires at least one state entry that is "
+                                                    + "scoped to a set.",
+                                            arg.getName()));
                         });
     }
 

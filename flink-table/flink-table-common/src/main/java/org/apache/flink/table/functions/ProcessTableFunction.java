@@ -401,27 +401,6 @@ import java.time.LocalDateTime;
  * {@code @StateHint(StateKind.BROADCAST)}. This broadcast state is shared across all sets and can
  * be read when processing rows from the main table(s).
  *
- * <p>The following rules apply to broadcast tables and broadcast state:
- *
- * <ul>
- *   <li>At least one table argument with row or set semantics must be declared next to broadcast
- *       tables. Multiple broadcast tables and multiple broadcast state entries are supported.
- *   <li>Broadcast state can only be modified while processing a broadcast row. This includes
- *       clearing broadcast state. When processing rows of the main table(s), broadcast state is
- *       read-only.
- *   <li>While processing a broadcast row, there is no key context. State entries that are scoped to
- *       a set are passed as null, results can not be emitted via {@code collect()}, and timers
- *       cannot be registered or cleared. {@link Context#clearAllState()} only clears broadcast
- *       state in this case.
- *   <li>It is the responsibility of the PTF implementer to maintain identical broadcast state
- *       across all virtual processors, i.e. broadcast state should only be updated
- *       deterministically based on the broadcast rows.
- * </ul>
- *
- * <p>Note: The system decides which input row is streamed through the virtual processor next. A
- * change to a broadcast state entry has no effect on rows of the main table(s) that have been
- * processed before.
- *
  * <pre>{@code
  * // Function that filters sentences using a dynamically updated list of bad words
  * class RuleFunction extends ProcessTableFunction<String> {
@@ -445,6 +424,34 @@ import java.time.LocalDateTime;
  *   }
  * }
  * }</pre>
+ *
+ * <p>The following rules apply to broadcast tables and broadcast state:
+ *
+ * <ul>
+ *   <li>At least one table argument with row or set semantics must be declared next to broadcast
+ *       tables. Multiple broadcast tables and multiple broadcast state entries are supported.
+ *   <li>Broadcast state can only be modified while processing a broadcast row. This includes
+ *       clearing broadcast state. When processing rows of the main table(s), broadcast state is
+ *       read-only.
+ *   <li>While processing a broadcast row, there is no key context. State entries that are scoped to
+ *       a set are passed as null, results can not be emitted via {@code collect()}, and timers
+ *       cannot be registered or cleared. {@link Context#clearAllState()} only clears broadcast
+ *       state in this case.
+ *   <li>It is the responsibility of the PTF implementer to maintain identical broadcast state
+ *       across all virtual processors, i.e. broadcast state should only be updated
+ *       deterministically based on the broadcast rows.
+ * </ul>
+ *
+ * <p>Note: The system decides which input row is streamed through the virtual processor next. A
+ * change to a broadcast state entry has no effect on rows of the main table(s) that have been
+ * processed before.
+ *
+ * <p>Use {@link ArgumentTrait#NOTIFY_STATEFUL_SETS} to re-evaluate previously processed sets. For
+ * every broadcast row, {@code eval()} is then called multiple times: First, without scoping to a
+ * set to update the broadcast state, if available. Next, once for every set that holds at least one
+ * state entry: In this phase, the {@code eval()} implementation has access to the incoming
+ * broadcast row, as well as all (keyed) state entries. Notifying stateful sets is expensive and
+ * should only be used if broadcast rows are rare and the overall key space is relatively low.
  *
  * <h1>Time and Timers</h1>
  *

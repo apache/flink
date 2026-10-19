@@ -80,6 +80,7 @@ import java.util.stream.Stream;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.annotation.ArgumentTrait.BROADCAST_SEMANTIC_TABLE;
+import static org.apache.flink.table.annotation.ArgumentTrait.NOTIFY_STATEFUL_SETS;
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
 import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
 import static org.apache.flink.table.annotation.ArgumentTrait.ROW_SEMANTIC_TABLE;
@@ -563,6 +564,12 @@ class ProcessTableFunctionTest extends TableTestBase {
                         "SELECT * FROM f(input => TABLE t PARTITION BY name)",
                         "Broadcast state entry 's' requires at least one table argument with broadcast semantics."),
                 ErrorSpec.ofSelect(
+                        "notify stateful sets without state scoped to a set",
+                        InvalidNotifyStatefulSetsFunction.class,
+                        "SELECT * FROM f(input => TABLE t PARTITION BY name, rule => TABLE t_rules)",
+                        "Table argument 'rule' notifies stateful sets which requires at least one "
+                                + "state entry that is scoped to a set."),
+                ErrorSpec.ofSelect(
                         "missing on_time for broadcast table",
                         BroadcastTimersFunction.class,
                         "SELECT * FROM f(input => TABLE t_watermarked PARTITION BY name, rule => TABLE t_rules, on_time => DESCRIPTOR(ts))",
@@ -835,6 +842,15 @@ class ProcessTableFunctionTest extends TableTestBase {
         public void eval(
                 @StateHint(StateKind.BROADCAST) MapView<String, Integer> s,
                 @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {}
+    }
+
+    /** Testing function. */
+    public static class InvalidNotifyStatefulSetsFunction extends ProcessTableFunction<String> {
+        @SuppressWarnings("unused")
+        public void eval(
+                @StateHint(StateKind.BROADCAST) MapView<String, Integer> s,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row input,
+                @ArgumentHint({BROADCAST_SEMANTIC_TABLE, NOTIFY_STATEFUL_SETS}) Row rule) {}
     }
 
     /** Testing function. */

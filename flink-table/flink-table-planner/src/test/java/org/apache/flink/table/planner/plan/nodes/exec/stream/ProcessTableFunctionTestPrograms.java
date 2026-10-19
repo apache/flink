@@ -57,6 +57,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NamedTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NonNullMapStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NotifyRestoredSetFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NotifyStatefulSetsRulesFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalOnTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalPartitionOnTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OrderByFunction;
@@ -1852,6 +1854,71 @@ public class ProcessTableFunctionTestPrograms {
                             "INSERT INTO sink SELECT * FROM f(input => TABLE t PARTITION BY name, rule => TABLE rules)")
                     .build();
 
+    public static final TableTestProgram PROCESS_NOTIFY_STATEFUL_SETS =
+            TableTestProgram.of(
+                            "process-notify-stateful-sets",
+                            "broadcast rows are applied to new sets or notify existing sets")
+                    .setupTemporarySystemFunction("f", NotifyStatefulSetsRulesFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSource(TIMED_BROADCAST_RULES_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            // Rule Eve triggers the release of Dave to all keys
+                                            "+I[Bob, {{Dave=2}}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Alice, {{Dave=2}}, 1970-01-01T00:00:00.003Z]",
+                                            // 6 Bob events processed with all rules broadcasted and
+                                            // applied
+                                            "+I[Bob, {6, {Dave=2, Eve=5}, {Dave=2, Eve=5}}, 1970-01-01T00:00:01Z]",
+                                            // 1 Alice event processed with all rules broadcasted
+                                            // and applied
+                                            "+I[Alice, {1, {Dave=2, Eve=5}, {Dave=2, Eve=5}}, 1970-01-01T00:00:01Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "input => TABLE t PARTITION BY name, "
+                                    + "rule => TABLE rules, "
+                                    + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_NOTIFY_STATEFUL_SETS_RESTORE =
+            TableTestProgram.of(
+                            "process-notify-stateful-sets-restore",
+                            "broadcast rows notify sets that have been restored")
+                    .setupTemporarySystemFunction("f", NotifyRestoredSetFunction.class)
+                    .setupTableSource(BROADCAST_RESTORE_SOURCE)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("rules")
+                                    .addSchema(
+                                            "name STRING",
+                                            "weight INT",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR ts AS ts")
+                                    .producedBeforeRestore(
+                                            Row.of("Dave", 3, Instant.ofEpochMilli(0)))
+                                    // The rule after restore targets the restored set
+                                    .producedAfterRestore(Row.of("Bob", 4, Instant.ofEpochMilli(4)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[Bob, {+I[Bob, -1, 1970-01-01T00:00:00Z]}, 1970-01-01T00:00:00Z]")
+                                    .consumedAfterRestore(
+                                            "+I[Bob, {+I[Bob, 99, 1970-01-01T00:00:00.001Z]}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Alice, {+I[Alice, 42, 1970-01-01T00:00:00.002Z]}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Charly, {+I[Charly, 7, 1970-01-01T00:00:00.003Z]}, 1970-01-01T00:00:00.003Z]",
+                                            // Notification carries the rowtime of the broadcast row
+                                            "+I[Bob, {+I[Bob, 4, 1970-01-01T00:00:00.004Z], {Bob=4, Dave=3}}, 1970-01-01T00:00:00.004Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f("
+                                    + "input => TABLE t PARTITION BY name, "
+                                    + "rule => TABLE rules, "
+                                    + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
     public static final TableTestProgram PROCESS_INVALID_BROADCAST_COLLECT =
             TableTestProgram.of(
                             "process-invalid-broadcast-collect",
@@ -1889,8 +1956,8 @@ public class ProcessTableFunctionTestPrograms {
                     .runFailingSql(
                             "SELECT * FROM f(input => TABLE t PARTITION BY name, rule => TABLE rules)",
                             TableRuntimeException.class,
-                            "Broadcast state entry 'weights' is read-only while processing a table "
-                                    + "with row or set semantics.")
+                            "Broadcast state entry 'weights' is read-only. It is only writable when "
+                                    + "processing a table with broadcast semantics.")
                     .build();
 
     public static final TableTestProgram PROCESS_MULTI_INPUT =

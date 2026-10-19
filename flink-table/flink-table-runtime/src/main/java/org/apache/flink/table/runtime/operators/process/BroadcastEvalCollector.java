@@ -54,6 +54,11 @@ public class BroadcastEvalCollector extends PassThroughCollectorBase {
     }
 
     @Override
+    public void setKeyPrefix(RowData key) {
+        evalCollector.setKeyPrefix(key);
+    }
+
+    @Override
     public void setRowtime(Long time) {
         evalCollector.setRowtime(time);
     }

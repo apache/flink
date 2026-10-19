@@ -49,13 +49,16 @@ public class ProcessTableFunctionRestoreTests extends RestoreTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_ORDER_BY_RESTORE,
                 ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT_ORDER_BY_RESTORE,
                 ProcessTableFunctionTestPrograms.PROCESS_LATE_EVENTS_RESTORE,
-                ProcessTableFunctionTestPrograms.PROCESS_BROADCAST_STATE_RESTORE);
+                ProcessTableFunctionTestPrograms.PROCESS_BROADCAST_STATE_RESTORE,
+                ProcessTableFunctionTestPrograms.PROCESS_NOTIFY_STATEFUL_SETS_RESTORE);
     }
 
     @Override
     protected void awaitSavepointReady(TableTestProgram program, List<CompletableFuture<?>> futures)
             throws Exception {
-        if (program != ProcessTableFunctionTestPrograms.PROCESS_BROADCAST_STATE_RESTORE) {
+        if (program != ProcessTableFunctionTestPrograms.PROCESS_BROADCAST_STATE_RESTORE
+                && program
+                        != ProcessTableFunctionTestPrograms.PROCESS_NOTIFY_STATEFUL_SETS_RESTORE) {
             super.awaitSavepointReady(program, futures);
             return;
         }

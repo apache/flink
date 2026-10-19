@@ -251,6 +251,7 @@ class ProcessSetTableOperatorInterruptibleTimersTest {
                 /* passColumnsThrough */ false,
                 /* hasSetSemantics */ true,
                 /* hasBroadcastSemantics */ false,
+                /* notifiesStatefulSets */ false,
                 /* timeColumn */ 1,
                 /* upsertKeyColumns */ List.of());
     }
