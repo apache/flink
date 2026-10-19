@@ -15,16 +15,9 @@
  limitations under the License.
 */
 
-div div.sphinxsidebar {
-    width: 274px;
-}
-
-div div.bodywrapper {
-    margin: 0 0 0 274px;
-}
-
-div div.body {
-    max-width: none;
+/* long API names have no break opportunities and would overflow the article */
+.bd-article h1 {
+    overflow-wrap: anywhere;
 }
 
 dl.confval .sig-name.descname span.pre {

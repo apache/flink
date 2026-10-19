@@ -1742,7 +1742,6 @@ under the License.
 						<inputExclude>flink-python/lib/**</inputExclude>
 						<inputExclude>flink-python/dev/download/**</inputExclude>
 						<inputExclude>flink-python/docs/_build/**</inputExclude>
-						<inputExclude>flink-python/docs/_static/switcher.json</inputExclude>
 						<inputExclude>flink-python/docs/uv.lock</inputExclude>
 
 						<!-- AWS SDK config that does not support license headers -->
