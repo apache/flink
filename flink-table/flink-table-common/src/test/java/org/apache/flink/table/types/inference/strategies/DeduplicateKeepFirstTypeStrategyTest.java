@@ -59,25 +59,18 @@ class DeduplicateKeepFirstTypeStrategyTest {
     }
 
     @Test
-    void testCandidateStateWithoutOnTimeIsFixed() {
-        assertThat(CANDIDATE_STATE_TYPE_STRATEGY.inferType(callContext(-1)))
-                .contains(ValueView.newValueViewDataType(DataTypes.BOOLEAN()));
-    }
-
-    @Test
-    void testCandidateStateWithOnTimeNestsPayload() {
-        assertThat(CANDIDATE_STATE_TYPE_STRATEGY.inferType(callContext(2)))
-                .contains(
-                        ValueView.newValueViewDataType(
-                                DataTypes.ROW(
-                                        DataTypes.FIELD(
-                                                "payload",
-                                                DataTypes.ROW(
-                                                        DataTypes.FIELD(
-                                                                "action", DataTypes.STRING()),
-                                                        DataTypes.FIELD(
-                                                                "ts", DataTypes.TIMESTAMP_LTZ(3)))),
-                                        DataTypes.FIELD("event_time", DataTypes.BIGINT()))));
+    void testCandidateStateNestsPayloadInBothModes() {
+        final DataType expected =
+                ValueView.newValueViewDataType(
+                        DataTypes.ROW(
+                                DataTypes.FIELD(
+                                        "payload",
+                                        DataTypes.ROW(
+                                                DataTypes.FIELD("action", DataTypes.STRING()),
+                                                DataTypes.FIELD("ts", DataTypes.TIMESTAMP_LTZ(3)))),
+                                DataTypes.FIELD("event_time", DataTypes.BIGINT())));
+        assertThat(CANDIDATE_STATE_TYPE_STRATEGY.inferType(callContext(-1))).contains(expected);
+        assertThat(CANDIDATE_STATE_TYPE_STRATEGY.inferType(callContext(2))).contains(expected);
     }
 
     @Test

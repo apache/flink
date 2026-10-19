@@ -32,7 +32,6 @@ import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
 import org.apache.flink.table.types.inference.strategies.DeduplicateKeepFirstTypeStrategy;
-import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
@@ -53,11 +52,13 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
 
     private final RowType inputRowType;
 
+    private final boolean isEventTime;
+
     private transient ProjectedRowData projectedOutput;
 
     private transient RowData.FieldGetter[] payloadGetters;
 
-    private transient TypeSerializer<RowData> candidateSerializer;
+    private transient TypeSerializer<Object>[] payloadSerializers;
 
     public DeduplicateKeepFirst(final SpecializedContext context) {
         super(BuiltInFunctionDefinitions.DEDUPLICATE_KEEP_FIRST, context);
@@ -68,6 +69,7 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
                         .orElseThrow(() -> new IllegalStateException("Table argument expected."));
         this.outputIndices = ChangelogTypeStrategyUtils.computeOutputIndices(tableSemantics);
         this.inputRowType = (RowType) tableSemantics.dataType().getLogicalType();
+        this.isEventTime = tableSemantics.timeColumn() != -1;
     }
 
     @Override
@@ -75,13 +77,12 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
         super.open(context);
         projectedOutput = ProjectedRowData.from(outputIndices);
         payloadGetters = new RowData.FieldGetter[outputIndices.length];
-        final LogicalType[] payloadTypes = new LogicalType[outputIndices.length];
+        payloadSerializers = new TypeSerializer[outputIndices.length];
         for (int i = 0; i < outputIndices.length; i++) {
-            payloadTypes[i] = inputRowType.getTypeAt(outputIndices[i]);
-            payloadGetters[i] = RowData.createFieldGetter(payloadTypes[i], outputIndices[i]);
+            final LogicalType payloadType = inputRowType.getTypeAt(outputIndices[i]);
+            payloadGetters[i] = RowData.createFieldGetter(payloadType, outputIndices[i]);
+            payloadSerializers[i] = InternalSerializers.create(payloadType);
         }
-        candidateSerializer =
-                InternalSerializers.create(RowType.of(RowType.of(payloadTypes), new BigIntType()));
     }
 
     public void eval(
@@ -92,19 +93,18 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
             @Nullable final Long stateTtl,
             @Nullable final Boolean resetTtlOnDuplicate)
             throws Exception {
-        // state_ttl is applied at plan time via getTimeToLive(); the PTF codegen still requires
-        // a parameter for every declared argument, so it is unused here.
+        // state_ttl and reset_ttl_on_duplicate are applied at plan time via getTimeToLive(); the
+        // PTF codegen still requires a parameter for every declared argument, so it is unused here.
         final RowKind kind = input.getRowKind();
         if (kind == RowKind.UPDATE_BEFORE || kind == RowKind.DELETE) {
             return;
         }
 
-        final TimeContext<Long> context = ctx.timeContext(Long.class);
-        final Long rowtime = context.time();
-
-        if (rowtime != null) { // watermark mode
+        if (isEventTime) {
+            final TimeContext<Long> context = ctx.timeContext(Long.class);
+            final Long rowtime = context.time();
             final Long watermark = context.tableWatermark();
-            if (watermark != null && rowtime < watermark) {
+            if (watermark != null && rowtime <= watermark) {
                 return;
             }
 
@@ -117,8 +117,7 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
                         context.clearTimer(currentLowestEventTime);
                     }
                     // object reuse may overwrite the input's memory before the timer fires
-                    candidate.setValue(
-                            candidateSerializer.copy(materializeCandidate(input, rowtime)));
+                    candidate.setValue(materializeCandidate(input, rowtime));
                     context.registerOnTime(rowtime);
                 }
             } else { // already emitted → drop, optionally refresh the TTL
@@ -158,7 +157,8 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
     private GenericRowData materializeCandidate(final RowData input, final long rowtime) {
         final GenericRowData payload = new GenericRowData(outputIndices.length);
         for (int i = 0; i < outputIndices.length; i++) {
-            payload.setField(i, payloadGetters[i].getFieldOrNull(input));
+            final Object field = payloadGetters[i].getFieldOrNull(input);
+            payload.setField(i, field == null ? null : payloadSerializers[i].copy(field));
         }
         return GenericRowData.of(payload, rowtime);
     }

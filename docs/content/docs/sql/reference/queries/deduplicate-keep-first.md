@@ -60,7 +60,7 @@ SELECT * FROM DEDUPLICATE_KEEP_FIRST(
 | Parameter | Required | Description |
 |:----------|:---------|:------------|
 | `input` | Yes | The input table (append-only or updating). Use `PARTITION BY` to deduplicate per key; all rows for a key are routed to the same parallel instance. Without `PARTITION BY`, the whole input is a single group processed at parallelism 1, so only the first row of the entire stream is emitted and every later row is dropped regardless of its content. |
-| `state_ttl` | No | An `INTERVAL` giving the processing-time retention for the per-key deduplication state. After a key's state expires, a later record for that key starts a new deduplication period and may be emitted again. If omitted, falls back to `table.exec.state.ttl`; at its default of 0, state is retained indefinitely, but a retention can still be introduced later. `INTERVAL '0'` also retains state indefinitely, but excludes the TTL from the state layout, so a retention cannot be introduced later without losing the state. See [State TTL]({{< ref "docs/dev/table/functions/ptfs" >}}#state-ttl). |
+| `state_ttl` | No | An `INTERVAL` giving the processing-time retention for the per-key deduplication state. After a key's state expires, a later record for that key starts a new deduplication period and may be emitted again. If omitted, falls back to `table.exec.state.ttl`; at its default of 0, state is retained indefinitely, but a retention can still be introduced later. `state_ttl => INTERVAL '0'` also retains state indefinitely, but excludes the TTL from the state layout, so a retention cannot be introduced later without losing the state. See [State TTL]({{< ref "docs/dev/table/functions/ptfs" >}}#state-ttl). |
 | `reset_ttl_on_duplicate` | No | Whether a later duplicate refreshes the key's `state_ttl`. Defaults to `TRUE`, so retention tracks the most recent occurrence of a key. Only meaningful when a TTL applies, whether set through `state_ttl` or inherited from `table.exec.state.ttl`. |
 | `on_time` | No | A `DESCRIPTOR` naming a single watermarked column. When provided, the row with the smallest event time per key is kept and emitted once the watermark passes that timestamp (late rows are dropped). When omitted, the function keeps the first row observed for a key (arrival order). Requires append-only input; combining `on_time` with an updating input is rejected at planning time. |
 | `uid` | No | A unique identifier for the function's state in checkpoints and savepoints. Defaults to the function name, so it is required when `DEDUPLICATE_KEEP_FIRST` is called more than once in the same job. See [Query Evolution with UIDs]({{< ref "docs/dev/table/functions/ptfs" >}}#query-evolution-with-uids). |
@@ -149,7 +149,7 @@ SELECT user_name, action FROM DEDUPLICATE_KEEP_FIRST(
 -- +I[user_name:'Vas', action:'click']
 ```
 
-With `on_time`, the record with the smallest event time per key is kept (here `click` at `ts 1.000`, not `login` which arrived first) and emitted once the watermark passes that timestamp.
+With `on_time`, the record with the smallest event time per key is kept (here `click` at `ts 1.000`, not `login` which arrived first) and emitted once the watermark passes that timestamp. Late events (i.e. events with timestamp smaller or equal to the received watermark) are not taken into consideration.
 
 #### Updating input
 
