@@ -80,6 +80,14 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                         flinkPod.getPodWithoutMainContainer().getSpec().getDnsPolicy(),
                         kubernetesTaskManagerParameters.isHostNetworkEnabled());
 
+        final Boolean enableServiceLinks =
+                kubernetesTaskManagerParameters
+                        .getEnableServiceLinks()
+                        .orElse(
+                                flinkPod.getPodWithoutMainContainer()
+                                        .getSpec()
+                                        .getEnableServiceLinks());
+
         if (flinkPod.getPodWithoutMainContainer().getSpec().getRestartPolicy() != null) {
             logger.info(
                     "The restart policy of TaskManager pod will be overwritten to 'never' "
@@ -96,6 +104,7 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withRestartPolicy(Constants.RESTART_POLICY_OF_NEVER)
                 .withHostNetwork(kubernetesTaskManagerParameters.isHostNetworkEnabled())
                 .withDnsPolicy(dnsPolicy)
+                .withEnableServiceLinks(enableServiceLinks)
                 .endSpec();
 
         // Merge fields
