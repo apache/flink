@@ -33,12 +33,21 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 import { Chart } from '@antv/g2';
-import * as G2 from '@antv/g2';
 import { HumanizeChartNumericPipe } from '@flink-runtime-web/components/humanize-chart-numeric.pipe';
 import { JobChartService } from '@flink-runtime-web/components/job-chart/job-chart.service';
+import { timeFormat } from 'd3-time-format';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzSpaceModule } from 'ng-zorro-antd/space';
+
+// g2 5's string labelFormatter uses d3's numeric formatter, so a time scale needs a function.
+const formatTimeAxis = timeFormat('%H:%M:%S');
+
+// The chart is narrow: label the first sample plus one tick at 3/4 of the range so labels never touch or clip.
+const timeAxisTicks = (min: Date, max: Date): Date[] => [
+  min,
+  new Date(Number(min) + (Number(max) - Number(min)) * 0.75)
+];
 
 @Component({
   selector: 'flink-job-chart',
@@ -54,6 +63,7 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
   size = 'small';
   displayMode: 'chart' | 'numeric' = 'chart';
   chartInstance: Chart;
+  lineMark!: ReturnType<Chart['line']>;
   data: Array<{ time: number; value: number; type: string }> = [];
   latestValue: number;
   destroy$ = new Subject<void>();
@@ -78,7 +88,18 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
       this.data.shift();
     }
     if (this.chartInstance) {
-      this.chartInstance.changeData(this.data);
+      // g2 5 centers a constant series on a degenerate [v, v] domain; anchor it to the bottom like g2 4 did,
+      // labelling only its value.
+      const values = this.data.map(d => d.value);
+      const min = Math.min(...values);
+      this.lineMark.scale(
+        'y',
+        min === Math.max(...values)
+          ? { domain: [min, min + 1], tickMethod: () => [min] }
+          : { domain: undefined, tickMethod: undefined, tickCount: 4 }
+      );
+      this.lineMark.data(this.data);
+      this.chartInstance.render();
     }
   }
 
@@ -104,36 +125,40 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.cdr.detach();
-    this.chartInstance = new G2.Chart({
+    this.chartInstance = new Chart({
       container: this.chart.nativeElement,
-      height: 150,
-      autoFit: true,
-      padding: 'auto'
+      height: 180,
+      autoFit: true
     });
-    this.chartInstance.legend(false);
-    this.chartInstance.data(this.data);
-    this.chartInstance.scale({
-      time: {
-        alias: 'Time',
-        type: 'time',
-        mask: 'HH:mm:ss',
-        tickCount: 3
-      },
-      type: {
-        type: 'cat'
-      }
-    });
-    this.chartInstance
+    this.lineMark = this.chartInstance
       .line()
-      .position('time*value')
-      .shape('smooth')
-      .color('type')
-      .size(2)
-      .animate({
-        update: {
-          duration: 0
-        }
-      });
+      .data(this.data)
+      .encode('x', 'time')
+      .encode('y', 'value')
+      .encode('color', 'type')
+      .encode('shape', 'smooth')
+      .scale('x', { type: 'time', tickMethod: timeAxisTicks })
+      .style('lineWidth', 2)
+      .animate(false)
+      .axis('x', {
+        title: false,
+        grid: false,
+        line: true,
+        lineStroke: '#bfbfbf',
+        lineStrokeOpacity: 1,
+        lineLineWidth: 1,
+        labelTransform: 'rotate(0)',
+        labelFormatter: (d: Date) => formatTimeAxis(new Date(d))
+      })
+      .axis('y', {
+        title: false,
+        tick: false,
+        grid: true,
+        gridLineDash: [0, 0],
+        gridStroke: '#d9d9d9',
+        gridStrokeOpacity: 1
+      })
+      .legend(false);
     this.chartInstance.render();
     this.jobChartService.resize$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       if (this.chartInstance) {
