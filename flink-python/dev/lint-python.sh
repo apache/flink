@@ -302,29 +302,15 @@ function install_flake8() {
 }
 
 # Install sphinx.
-# In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
+# The docs toolchain is pinned by docs/uv.lock. It gets its own venv outside .uv/envs,
+# because activate() puts every env in there on PATH for tox.
 function install_sphinx() {
-    source $UV_HOME/bin/activate
-    if [ -f "$SPHINX_PATH" ]; then
-        $UV_PATH pip uninstall Sphinx -q 2>&1 >/dev/null
-        if [ $? -ne 0 ]; then
-            echo "uv pip uninstall sphinx failed \
-            please try to exec the script again.\
-            if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
-            exit 1
-        fi
-    fi
-
-    $CURRENT_DIR/install_command.sh -q --group "${PYPROJECT_PATH}:sphinx" 2>&1 >/dev/null
+    UV_PYTHON=3.13 UV_PROJECT_ENVIRONMENT="$DOCS_ENV" $UV_PATH sync -q --locked --project "$FLINK_PYTHON_DIR/docs"
     if [ $? -ne 0 ]; then
-        echo "uv pip install sphinx failed \
-        please try to exec the script again.\
-        if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
+        echo "uv sync of the docs environment failed; if flink-python/docs/pyproject.toml changed, run uv lock in flink-python/docs."
         exit 1
     fi
-    deactivate
 }
-
 
 # Install mypy.
 # In some situations, you need to run the script with "sudo". e.g. sudo ./lint-python.sh
@@ -630,7 +616,8 @@ function flake8_check() {
 
 # Sphinx check
 function sphinx_check() {
-    export SPHINXBUILD=$SPHINX_PATH
+    # sync again: the install step is skipped when .stage.txt says it already ran
+    install_sphinx
     # cd to $FLINK_PYTHON_DIR
     pushd "$FLINK_PYTHON_DIR"/docs &> /dev/null
     make clean
@@ -638,7 +625,10 @@ function sphinx_check() {
     # the return value of a pipeline is the status of the last command to exit
     # with a non-zero status or zero if no command exited with a non-zero status
     set -o pipefail
-    (SPHINXOPTS="-a -W" make html) 2>&1 | tee -a $LOG_FILE
+    # disable the gateway, because otherwise it tries to find FLINK_HOME to access Java classes.
+    # Not exported: the tox check runs after this one and needs the gateway.
+    (PYFLINK_GATEWAY_DISABLED=1 SPHINXBUILD="$SPHINX_PATH" SPHINXINTL="$DOCS_ENV/bin/sphinx-intl" \
+        SPHINXOPTS="-a -W" make html-zh) 2>&1 | tee -a $LOG_FILE
 
     SPHINXBUILD_STATUS=$?
     if [ $SPHINXBUILD_STATUS -ne 0 ]; then
@@ -700,8 +690,11 @@ TOX_PATH=$ENV_HOME/bin/tox
 # flake8 path
 FLAKE8_PATH=$ENV_HOME/bin/flake8
 
+# docs venv, see install_sphinx
+DOCS_ENV=$CURRENT_DIR/.uv/docs-venv
+
 # sphinx path
-SPHINX_PATH=$ENV_HOME/bin/sphinx-build
+SPHINX_PATH=$DOCS_ENV/bin/sphinx-build
 
 # mypy path
 MYPY_PATH=$ENV_HOME/bin/mypy
@@ -832,6 +825,7 @@ skip_checks=0
 if [[ ${CLEAN_UP_FLAG} -eq 1 ]]; then
     printf "clean up python environment"
     rm -rf ${UV_HOME}
+    rm -rf ${DOCS_ENV}
     rm -rf ${STAGE_FILE}
     rm -rf ${FLINK_PYTHON_DIR}/.tox
     skip_checks=1

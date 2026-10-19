@@ -27,6 +27,8 @@ ifneq ($(shell command -v uv 2>/dev/null),)
 SPHINXBUILD   = uv run sphinx-build
 SPHINXINTL    = uv run sphinx-intl
 PYTHON        = uv run python
+# same Python as the docs build in flink-python/dev/lint-python.sh
+export UV_PYTHON ?= 3.13
 else
 SPHINXBUILD   = sphinx-build
 SPHINXINTL    = sphinx-intl
@@ -85,7 +87,7 @@ html-zh: html zh
 
 zh: gettext
 	$(SPHINXINTL) update -p _build/gettext -l zh
-	$(SPHINXBUILD) -b html -D language=zh -d _build/doctrees-zh $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) . _build/html/zh
+	$(SPHINXBUILD) -b html -D language=zh -j auto -d _build/doctrees-zh $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) . _build/html/zh
 	@echo
 	@echo "Build finished. The Chinese HTML pages are in _build/html/zh."
 
