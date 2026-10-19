@@ -185,7 +185,30 @@ class PandasConversionITTests(PandasConversionTestBase):
     def test_empty_to_pandas(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
         pdf = table.filter(table.f1 < 0).to_pandas()
-        self.assertTrue(pdf.empty)
+        assert_frame_equal(pdf, table.to_pandas().iloc[:0])
+
+    def test_empty_to_pandas_with_timestamps(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone in ['UTC', 'Asia/Shanghai']:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(timezone)
+                table = self.t_env.sql_query("""
+                    SELECT
+                        1 AS a,
+                        CAST(TIMESTAMP '2024-01-01 00:00:00.123456789'
+                            AS TIMESTAMP(0)) AS ts_seconds,
+                        CAST(TIMESTAMP '2024-01-01 00:00:00.123456789'
+                            AS TIMESTAMP(3)) AS ts_millis,
+                        CAST(TIMESTAMP '2024-01-01 00:00:00.123456789'
+                            AS TIMESTAMP(6)) AS ts_micros,
+                        TIMESTAMP '2024-01-01 00:00:00.123456789' AS ts_nanos,
+                        TO_TIMESTAMP_LTZ(1704067200123, 3) AS ltz
+                """)
+                expected = table.to_pandas().iloc[:0]
+                result = table.filter(table.a < 0).to_pandas()
+                assert_frame_equal(result, expected)
+                self.assertEqual(timezone, str(result['ltz'].dt.tz))
 
     def test_to_pandas_for_retract_table(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
