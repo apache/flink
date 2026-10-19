@@ -42,6 +42,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
 
@@ -142,6 +143,93 @@ class RowDataStateSchemaEvolutionArmingTest {
                         ((RowDataSerializer) descriptor.getElementSerializer())
                                 .isStateSchemaEvolutionEnabled())
                 .isFalse();
+    }
+
+    @Test
+    void positionalFieldsValueStateIsNotArmed() {
+        RowDataSerializer serializer =
+                valueStateSerializer(InternalTypeInfo.ofFields(new IntType(), new IntType()));
+
+        assertThat(serializer.isSchemaEvolutionAllowed()).isFalse();
+        assertThat(serializer.isStateSchemaEvolutionEnabled()).isFalse();
+    }
+
+    @Test
+    void insertionIntoPositionalLayoutIsIncompatible() {
+        // Inserting an INT accumulator before two existing ones: by the generated names f0..f2 it
+        // would read as f2 being appended, and each stored value from the insertion point on would
+        // land in the wrong field.
+        RowDataSerializerSnapshot newSnapshot =
+                (RowDataSerializerSnapshot)
+                        valueStateSerializer(
+                                        InternalTypeInfo.ofFields(
+                                                new IntType(), new IntType(), new IntType()))
+                                .snapshotConfiguration();
+        RowDataSerializerSnapshot namedOldSnapshot =
+                (RowDataSerializerSnapshot)
+                        InternalTypeInfo.ofFields(new IntType(), new IntType())
+                                .toSerializer()
+                                .snapshotConfiguration();
+        RowDataSerializerSnapshot nameLessOldSnapshot =
+                (RowDataSerializerSnapshot)
+                        new RowDataSerializer(new IntType(), new IntType()).snapshotConfiguration();
+
+        assertThat(newSnapshot.resolveSchemaCompatibility(namedOldSnapshot).isIncompatible())
+                .isTrue();
+        assertThat(newSnapshot.resolveSchemaCompatibility(nameLessOldSnapshot).isIncompatible())
+                .isTrue();
+    }
+
+    @Test
+    void namedFieldsValueStateStaysArmed() {
+        RowDataSerializer serializer =
+                valueStateSerializer(
+                        InternalTypeInfo.ofFields(
+                                new LogicalType[] {new IntType(), new IntType(), new IntType()},
+                                new String[] {"a", "b", "c"}));
+        RowDataSerializerSnapshot oldSnapshot =
+                (RowDataSerializerSnapshot)
+                        InternalTypeInfo.ofFields(
+                                        new LogicalType[] {new IntType(), new IntType()},
+                                        new String[] {"a", "b"})
+                                .toSerializer()
+                                .snapshotConfiguration();
+
+        assertThat(serializer.isStateSchemaEvolutionEnabled()).isTrue();
+        assertThat(
+                        ((RowDataSerializerSnapshot) serializer.snapshotConfiguration())
+                                .resolveSchemaCompatibility(oldSnapshot)
+                                .isCompatibleAfterMigration())
+                .isTrue();
+    }
+
+    @Test
+    void positionalMarkSurvivesJavaSerialization() throws Exception {
+        InternalTypeInfo<RowData> shipped =
+                InstantiationUtil.clone(InternalTypeInfo.ofFields(new IntType(), new IntType()));
+
+        RowDataSerializer serializer = valueStateSerializer(shipped);
+
+        assertThat(serializer.isSchemaEvolutionAllowed()).isFalse();
+        assertThat(serializer.isStateSchemaEvolutionEnabled()).isFalse();
+    }
+
+    @Test
+    void positionalMarkIsNotPartOfEquality() {
+        InternalTypeInfo<RowData> positional =
+                InternalTypeInfo.ofFields(new IntType(), new IntType());
+        InternalTypeInfo<RowData> plain =
+                InternalTypeInfo.of(RowType.of(new IntType(), new IntType()));
+
+        assertThat(positional).isEqualTo(plain);
+        assertThat(positional.hashCode()).isEqualTo(plain.hashCode());
+    }
+
+    /** The value serializer a keyed {@code ValueState} gets on an arming backend, option on. */
+    private static RowDataSerializer valueStateSerializer(InternalTypeInfo<RowData> typeInfo) {
+        ValueStateDescriptor<RowData> descriptor = new ValueStateDescriptor<>("value", typeInfo);
+        descriptor.initializeSerializerUnlessSet(armingFactory(true));
+        return (RowDataSerializer) descriptor.getSerializer();
     }
 
     private static SerializerFactory armingFactory(boolean schemaEvolutionEnabled) {
