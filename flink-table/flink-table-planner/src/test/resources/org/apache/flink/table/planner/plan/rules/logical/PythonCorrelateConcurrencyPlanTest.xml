@@ -75,10 +75,32 @@ LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
       <![CDATA[
 Calc(select=[a, b, x, y])
 +- PythonCorrelate(invocation=[tf($3, f5($0, $1))], correlate=[table(tf(f00,f5(a, b)))], select=[a,b,f0,f00,x,y], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER f0, INTEGER f00, INTEGER x, INTEGER y)], joinType=[LEFT])
-   +- PythonCalc(select=[a, b, f0, f3(f1, b) AS f00])
-      +- Calc(select=[a, b, f0, f0 AS f1])
-         +- PythonAsyncCalc(select=[a, b, async_func(a, b) AS f0])
-            +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b])
+   +- PythonCalc(select=[a, b, f0, f3(f0, b) AS f00])
+      +- PythonAsyncCalc(select=[a, b, async_func(a, b) AS f0])
+         +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPreservesSharedPythonResultAcrossAsyncExtraction">
+    <Resource name="sql">
+      <![CDATA[SELECT p, x, y FROM (SELECT a, b, plain(a, b) AS p FROM src), LATERAL TABLE(tf(async_func(p, b), p)) AS T(x, y)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(p=[$2], x=[$3], y=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 2}])
+   :- LogicalProject(a=[$0], b=[$1], p=[plain($0, $1)])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalTableFunctionScan(invocation=[tf(async_func($cor0.p, $cor0.b), $cor0.p)], rowType=[RecordType(INTEGER x, INTEGER y)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[p, x, y])
++- PythonCorrelate(invocation=[tf($3, $2)], correlate=[table(tf(f0,p))], select=[a,b,p,f0,x,y], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER p, INTEGER f0, INTEGER x, INTEGER y)], joinType=[INNER])
+   +- PythonAsyncCalc(select=[a, b, p, async_func(p, b) AS f0])
+      +- PythonCalc(select=[a, b, plain(a, b) AS p])
+         +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
@@ -98,10 +120,9 @@ LogicalProject(x=[$2], y=[$3])
       <![CDATA[
 Calc(select=[x, y])
 +- PythonCorrelate(invocation=[tf($3, f5($0, $1))], correlate=[table(tf(f00,f5(a, b)))], select=[a,b,f0,f00,x,y], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER f0, INTEGER f00, INTEGER x, INTEGER y)], joinType=[INNER])
-   +- PythonCalc(select=[a, b, f0, f3(f1, b) AS f00])
-      +- Calc(select=[a, b, f0, f0 AS f1])
-         +- PythonAsyncCalc(select=[a, b, async_func(a, b) AS f0])
-            +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b])
+   +- PythonCalc(select=[a, b, f0, f3(f0, b) AS f00])
+      +- PythonAsyncCalc(select=[a, b, async_func(a, b) AS f0])
+         +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>

@@ -19,8 +19,13 @@
 package org.apache.flink.table.planner.runtime;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.functions.python.PythonAsyncScalarFunction;
+import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -31,6 +36,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.MockPythonTableFunction;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.table.types.DataType;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -190,6 +196,46 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
         assertThat(operators.get(1).getName()).contains("PythonCalc");
         assertThat(operators.get(2).getName()).contains("PythonCorrelate");
         assertThat(operators.subList(1, 3)).allMatch(Transformation::isParallelismConfigured);
+    }
+
+    @Test
+    void testUsesPythonAsyncOperatorAfterVectorizedExtraction() {
+        final TableTestUtil util = createUtil(true);
+        util.addTemporarySystemFunction(
+                "python_async",
+                new PythonAsyncScalarFunction(
+                        "python_async",
+                        new byte[0],
+                        new DataType[] {DataTypes.INT(), DataTypes.INT()},
+                        DataTypes.INT(),
+                        PythonFunctionKind.GENERAL,
+                        true,
+                        false,
+                        new PythonEnv(PythonEnv.ExecType.PROCESS)));
+        util.addTemporarySystemFunction(
+                "vector5",
+                new ResourcePythonScalarFunction("vector5", 5, PythonFunctionKind.PANDAS, -1));
+        final Transformation<?> root =
+                translateQuery(
+                        util,
+                        "SELECT x, y FROM src, "
+                                + "LATERAL TABLE(tf(f3(python_async(vector5(a, b) + 1, b), b), "
+                                + "f5(a, b))) AS T(x, y)");
+        assertThat(root.getTransitivePredecessors())
+                .noneMatch(
+                        node ->
+                                node instanceof OneInputTransformation
+                                        && ((OneInputTransformation<?, ?>) node)
+                                                        .getOperatorFactory()
+                                                instanceof AsyncWaitOperatorFactory);
+        final List<Transformation<?>> operators = pythonOperators(root);
+        assertThat(operators)
+                .extracting(Transformation::getParallelism)
+                .containsExactly(5, 5, 3, 5);
+        assertThat(operators.get(0).getName()).contains("PythonCalc");
+        assertThat(operators.get(1).getName()).contains("PythonAsyncCalc");
+        assertThat(operators.get(2).getName()).contains("PythonCalc");
+        assertThat(operators.get(3).getName()).contains("PythonCorrelate");
     }
 
     @Test

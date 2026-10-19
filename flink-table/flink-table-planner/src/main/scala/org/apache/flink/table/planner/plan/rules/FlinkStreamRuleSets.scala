@@ -392,10 +392,6 @@ object FlinkStreamRuleSets {
     // Rule that splits java calls from python TableFunction
     PythonCorrelateSplitRule.INSTANCE,
     PythonCorrelateSplitFunctionKindRule.INSTANCE,
-    // Extract async calls before splitting concurrency and normalizing the resulting Python calcs.
-    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_SCALAR,
-    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_TABLE,
-    PythonCorrelateSplitConcurrencyRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
     // remove output of rank number when it is not used by successor calc
@@ -414,6 +410,10 @@ object FlinkStreamRuleSets {
     // Rejects SNAPSHOT scans that survived the rewrite above, i.e. SNAPSHOT calls used outside a
     // LATERAL context. Must run after LogicalJoinToLateralSnapshotJoinRule.
     ForbidSnapshotOutsideLateralRule.INSTANCE,
+    // Extract after calc merging to preserve shared results, but before Python calc normalization.
+    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_SCALAR,
+    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_TABLE,
+    PythonCorrelateSplitConcurrencyRule.INSTANCE,
     // Avoids accessing a field from the result (condition).
     PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
     // Avoids accessing a field from the result (projection).

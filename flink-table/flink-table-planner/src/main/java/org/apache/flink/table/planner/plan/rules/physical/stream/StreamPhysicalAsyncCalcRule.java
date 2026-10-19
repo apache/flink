@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalAsyncCalc;
 import org.apache.flink.table.planner.plan.utils.AsyncUtil;
+import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -49,7 +50,8 @@ public class StreamPhysicalAsyncCalcRule extends ConverterRule {
     public boolean matches(RelOptRuleCall call) {
         FlinkLogicalCalc calc = call.rel(0);
         RexProgram program = calc.getProgram();
-        return program.getExprList().stream().anyMatch(AsyncUtil::containsAsyncCall);
+        return program.getExprList().stream().anyMatch(AsyncUtil::containsAsyncCall)
+                && program.getExprList().stream().noneMatch(PythonUtil::containsPythonCall);
     }
 
     @Override
