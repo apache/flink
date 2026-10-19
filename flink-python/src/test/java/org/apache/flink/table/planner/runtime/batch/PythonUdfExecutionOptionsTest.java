@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.runtime.batch;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -38,7 +39,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.lang.reflect.Field;
 import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -92,7 +92,7 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
                 "a, pandas64(pandas32(a, b), b)",
                 "a, pandas32(pandas64(a, b), b)"
             })
-    void testMinimumBatchSizeOverridesDefault(String projection) throws Exception {
+    void testMinimumBatchSizeOverridesDefault(String projection) {
         util.getTableEnv().getConfig().set(PythonOptions.MAX_ARROW_BATCH_SIZE, 257);
         util.addTemporarySystemFunction(
                 "pandas64",
@@ -109,7 +109,7 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
     }
 
     @Test
-    void testUnspecifiedOptionsInheritDefaults() throws Exception {
+    void testUnspecifiedOptionsInheritDefaults() {
         util.getTableEnv().getConfig().set(PythonOptions.MAX_ARROW_BATCH_SIZE, 257);
         util.addTemporarySystemFunction(
                 "plain",
@@ -139,20 +139,11 @@ class PythonUdfExecutionOptionsTest extends TableTestBase {
                         .orElseThrow(() -> new AssertionError("Missing Python operator"));
     }
 
-    private Configuration operatorConfig(OneInputTransformation<?, ?> transformation)
-            throws Exception {
-        final Object operator =
-                ((SimpleOperatorFactory<?>) transformation.getOperatorFactory()).getOperator();
-        Class<?> type = operator.getClass();
-        while (type != null) {
-            try {
-                final Field field = type.getDeclaredField("config");
-                field.setAccessible(true);
-                return (Configuration) field.get(operator);
-            } catch (NoSuchFieldException ignored) {
-                type = type.getSuperclass();
-            }
-        }
-        throw new AssertionError("Missing Python operator configuration");
+    private Configuration operatorConfig(OneInputTransformation<?, ?> transformation) {
+        final AbstractPythonFunctionOperator<?> operator =
+                (AbstractPythonFunctionOperator<?>)
+                        ((SimpleOperatorFactory<?>) transformation.getOperatorFactory())
+                                .getOperator();
+        return operator.getConfiguration();
     }
 }
