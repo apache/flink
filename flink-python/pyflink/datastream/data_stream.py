@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import hashlib
 import typing
 import uuid
 from enum import Enum
@@ -69,6 +70,14 @@ WINDOW_STATE_NAME = 'window-contents'
 # the operators it hides. They are part of the uid, so they must stay as they are.
 UID_SUFFIX_EXTRACT_TIMESTAMP = 'extract-timestamp'
 UID_SUFFIX_TIMESTAMPS_AND_WATERMARKS = 'timestamps-and-watermarks'
+
+
+def _derive_uid_hash(uid_hash: str, suffix: str) -> str:
+    """
+    Derives the hash of an operator the user cannot reach from the hash of one they can. A hash
+    must be 32 hex digits, so the suffix cannot be appended to it as it is to a uid.
+    """
+    return hashlib.sha256(("%s-%s" % (uid_hash, suffix)).encode('utf-8')).hexdigest()[:32]
 
 
 class DataStream(object):
@@ -716,8 +725,7 @@ class DataStream(object):
                   timestamped_data_stream._j_data_stream.getTransformation()),
                  (UID_SUFFIX_TIMESTAMPS_AND_WATERMARKS,
                   j_watermarked_data_stream.getTransformation())])
-            # Not result.name(), which would be taken for a name set by the user.
-            result._j_data_stream.name("Remove-Timestamp")
+            result.name("Remove-Timestamp")
             return result
         else:
             # if user not specify a TimestampAssigner, then return directly assign the Java
@@ -981,10 +989,10 @@ class _TimestampsAndWatermarksDataStream(DataStream):
 
     Such an assigner needs three operators: one extracts the timestamp, one assigns the
     timestamps and the watermarks, and one removes the extracted timestamp again. Only the last
-    one is represented by the returned stream, so a uid set on it would leave the two others
-    without one. They then make the job impossible to submit if auto generated uids are
-    disabled, see :func:`~pyflink.common.ExecutionConfig.disable_auto_generated_uids`. This
-    stream gives them a uid too, derived from the one it receives.
+    one is represented by the returned stream, so a uid or a uid hash set on it would leave the
+    two others without one. They then make the job impossible to submit if auto generated uids
+    are disabled, see :func:`~pyflink.common.ExecutionConfig.disable_auto_generated_uids`. This
+    stream gives them one too, derived from the one it receives.
     """
 
     def __init__(self, j_data_stream, hidden_j_transformations):
@@ -1003,6 +1011,19 @@ class _TimestampsAndWatermarksDataStream(DataStream):
         super(_TimestampsAndWatermarksDataStream, self).uid(uid)
         for uid_suffix, j_transformation in self._hidden_j_transformations:
             j_transformation.setUid("%s-%s" % (uid, uid_suffix))
+        return self
+
+    def set_uid_hash(self, uid_hash: str) -> 'DataStream':
+        """
+        Sets an user provided hash for this operator, and one derived from it for each of the
+        operators the timestamp assigner hides.
+
+        :param uid_hash: The user provided hash for this operator.
+        :return: The operator with the user provided hash.
+        """
+        super(_TimestampsAndWatermarksDataStream, self).set_uid_hash(uid_hash)
+        for uid_suffix, j_transformation in self._hidden_j_transformations:
+            j_transformation.setUidHash(_derive_uid_hash(uid_hash, uid_suffix))
         return self
 
 

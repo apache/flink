@@ -1537,8 +1537,7 @@ class CommonDataStreamTests(PyFlinkTestCase):
         pre_ship_strategy = shuffle_node['predecessors'][0]['ship_strategy']
         self.assertEqual(pre_ship_strategy, 'SHUFFLE')
 
-    def test_timestamp_assigner_uid(self):
-        """A uid on the stream must cover the operators the timestamp assigner hides."""
+    def _assign_timestamps(self):
         class MyTimestampAssigner(TimestampAssigner):
 
             def extract_timestamp(self, value, record_timestamp) -> int:
@@ -1546,16 +1545,56 @@ class CommonDataStreamTests(PyFlinkTestCase):
 
         self.env.get_config().disable_auto_generated_uids()
 
-        ds = self.env.from_collection([(1603708211000, 'hi'), (1603708224000, 'hello')])
-        ds.uid('source') \
+        ds = self.env.from_collection([(1603708211000, 'hi'), (1603708224000, 'hello')],
+                                      type_info=Types.TUPLE([Types.LONG(), Types.STRING()]))
+        return ds.uid('source') \
             .assign_timestamps_and_watermarks(
                 WatermarkStrategy.for_monotonous_timestamps()
-                .with_timestamp_assigner(MyTimestampAssigner())) \
-            .uid('watermarks') \
-            .map(lambda x: x).uid('map') \
-            .add_sink(self.test_sink).uid('sink')
+                .with_timestamp_assigner(MyTimestampAssigner()))
+
+    def _uids_and_hashes(self, name):
+        """The uid and the uid hash of each operator with the given name, in creation order."""
+        j_transformations = {}
+        for j_sink in self.env._j_stream_execution_environment.getTransformations():
+            for j_transformation in j_sink.getTransitivePredecessors():
+                j_transformations[j_transformation.getId()] = j_transformation
+        return [(j_transformation.getUid(), j_transformation.getUserProvidedNodeHash())
+                for _, j_transformation in sorted(j_transformations.items())
+                if j_transformation.getName() == name]
+
+    def test_timestamp_assigner_uid(self):
+        """A uid on the stream must cover the operators the timestamp assigner hides."""
+        self._assign_timestamps().uid('watermarks').add_sink(self.test_sink).uid('sink')
 
         # Without a uid on every operator, this raises an IllegalStateException.
+        self.env.get_execution_plan()
+
+        # The uids identify the operators in a savepoint, so they must not change.
+        self.assertEqual(self._uids_and_hashes('Extract-Timestamp'),
+                         [('watermarks-extract-timestamp', None)])
+        self.assertEqual(self._uids_and_hashes('Timestamps/Watermarks'),
+                         [('watermarks-timestamps-and-watermarks', None)])
+        self.assertEqual(self._uids_and_hashes('Remove-Timestamp'), [('watermarks', None)])
+
+    def test_timestamp_assigner_uid_hash(self):
+        self._assign_timestamps().set_uid_hash('0123456789abcdef0123456789abcdef') \
+            .add_sink(self.test_sink).uid('sink')
+
+        self.env.get_execution_plan()
+
+        self.assertEqual(self._uids_and_hashes('Extract-Timestamp'),
+                         [(None, '2230997a8b7cde93ec413c77bd3b152a')])
+        self.assertEqual(self._uids_and_hashes('Timestamps/Watermarks'),
+                         [(None, 'f20476c038a8d6395d90768849f9d94b')])
+
+    def test_timestamp_assigner_uid_with_python_operators(self):
+        self._assign_timestamps().uid('watermarks') \
+            .map(lambda x: x, output_type=Types.TUPLE([Types.LONG(), Types.STRING()])) \
+            .uid('map') \
+            .key_by(lambda x: x[1], key_type=Types.STRING()) \
+            .reduce(lambda a, b: (a[0] + b[0], a[1])).uid('reduce') \
+            .add_sink(self.test_sink).uid('sink')
+
         self.env.get_execution_plan()
 
     def test_keyed_stream_partitioning(self):
