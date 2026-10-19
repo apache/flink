@@ -51,7 +51,8 @@ public class StateSchemaEvolvingTestSerializer extends TypeSerializer<Integer>
         this.armed = armed;
     }
 
-    public boolean isArmed() {
+    @Override
+    public boolean isStateSchemaEvolutionEnabled() {
         return armed;
     }
 

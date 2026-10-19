@@ -45,6 +45,13 @@ public interface StateSchemaEvolvingSerializer<T> {
     TypeSerializer<T> withStateSchemaEvolution();
 
     /**
+     * Returns whether this serializer admits a backward-compatible schema change at restore, either
+     * because it was returned by {@link #withStateSchemaEvolution()} or because it was derived from
+     * such a serializer.
+     */
+    boolean isStateSchemaEvolutionEnabled();
+
+    /**
      * Decorates a factory so that the serializer it produces for a state value is armed for schema
      * evolution.
      *
@@ -83,5 +90,18 @@ public interface StateSchemaEvolvingSerializer<T> {
         return serializer instanceof StateSchemaEvolvingSerializer
                 ? ((StateSchemaEvolvingSerializer<T>) serializer).withStateSchemaEvolution()
                 : serializer;
+    }
+
+    /**
+     * Returns whether the given serializer is armed for schema evolution where {@link
+     * #armStateValueSerializer} arms one: the serializer itself, and nothing below it.
+     *
+     * <p>A state descriptor caches the serializer it was first initialized with, so a serializer
+     * armed for a keyed backend that migrates restored values can reach one that does not. Such a
+     * backend rejects a descriptor whose serializer this holds for.
+     */
+    static boolean isArmed(TypeSerializer<?> serializer) {
+        return serializer instanceof StateSchemaEvolvingSerializer
+                && ((StateSchemaEvolvingSerializer<?>) serializer).isStateSchemaEvolutionEnabled();
     }
 }

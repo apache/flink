@@ -27,11 +27,15 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.StateSchemaEvolvingSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -52,17 +56,23 @@ import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
+import org.apache.flink.util.StateMigrationException;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Stream;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests the backend capability gate on state schema evolution arming: only a keyed backend that
@@ -82,6 +92,13 @@ class StateSchemaEvolutionArmingTest {
             ConfigOptions.key("table.exec.state.schema-evolution.enabled")
                     .booleanType()
                     .defaultValue(false);
+
+    private final List<MockKeyedStateBackend<Integer>> keyedStateBackends = new ArrayList<>();
+
+    @AfterEach
+    void disposeKeyedStateBackends() {
+        keyedStateBackends.forEach(MockKeyedStateBackend::dispose);
+    }
 
     @Test
     void valueStateIsArmedOnAnObjectLevelMigratingBackend() {
@@ -125,6 +142,87 @@ class StateSchemaEvolutionArmingTest {
     }
 
     @Test
+    void descriptorArmedOnAMigratingBackendIsRejectedWithoutObjectLevelMigration()
+            throws Exception {
+        ValueStateDescriptor<Integer> descriptor =
+                new ValueStateDescriptor<>("value", StateSchemaEvolvingTestSerializer.typeInfo());
+        keyedStateBackend(true).getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, descriptor);
+
+        MockKeyedStateBackend<Integer> backend = keyedStateBackend(false);
+        assertThatThrownBy(
+                        () ->
+                                backend.getOrCreateKeyedState(
+                                        VoidNamespaceSerializer.INSTANCE, descriptor))
+                .isInstanceOf(StateMigrationException.class)
+                .hasMessageContaining("'value'");
+    }
+
+    /** The check must look at the user's descriptor, not the one TTL wraps its serializer in. */
+    @Test
+    void ttlDescriptorArmedOnAMigratingBackendIsRejectedWithoutObjectLevelMigration()
+            throws Exception {
+        ValueStateDescriptor<Integer> descriptor =
+                new ValueStateDescriptor<>("value", StateSchemaEvolvingTestSerializer.typeInfo());
+        descriptor.enableTimeToLive(StateTtlConfig.newBuilder(Duration.ofMinutes(1)).build());
+        keyedStateBackend(true).getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, descriptor);
+
+        MockKeyedStateBackend<Integer> backend = keyedStateBackend(false);
+        assertThatThrownBy(
+                        () ->
+                                backend.getOrCreateKeyedState(
+                                        VoidNamespaceSerializer.INSTANCE, descriptor))
+                .isInstanceOf(StateMigrationException.class);
+    }
+
+    @Test
+    void descriptorArmedThroughTheKeyedStoreIsRejectedWithoutObjectLevelMigration() {
+        ValueStateDescriptor<Integer> descriptor =
+                new ValueStateDescriptor<>("value", StateSchemaEvolvingTestSerializer.typeInfo());
+        keyedStateStore(true).getState(descriptor);
+
+        DefaultKeyedStateStore store =
+                new DefaultKeyedStateStore(keyedStateBackend(false), serializerFactory());
+        assertThatThrownBy(() -> store.getState(descriptor))
+                .satisfies(anyCauseMatches(StateMigrationException.class, "'value'"));
+    }
+
+    @Test
+    void unarmedDescriptorIsAcceptedOnAnotherBackendWithoutObjectLevelMigration() throws Exception {
+        ValueStateDescriptor<Integer> evolving =
+                new ValueStateDescriptor<>(
+                        "evolving", StateSchemaEvolvingTestSerializer.typeInfo());
+        ValueStateDescriptor<Integer> plain =
+                new ValueStateDescriptor<>("plain", IntSerializer.INSTANCE);
+        keyedStateBackend(false).getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, evolving);
+        keyedStateBackend(true).getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, plain);
+
+        MockKeyedStateBackend<Integer> backend = keyedStateBackend(false);
+
+        assertThat(backend.getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, evolving))
+                .isNotNull();
+        assertThat(backend.getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, plain))
+                .isNotNull();
+    }
+
+    /**
+     * The reverse of a rejected reuse: the descriptor keeps the unarmed serializer it was first
+     * given, so a later schema change is rejected as incompatible instead of migrated. That fails
+     * closed, which is why only the other direction needs a check.
+     */
+    @Test
+    void descriptorFirstUsedWithoutObjectLevelMigrationStaysUnarmedOnAMigratingBackend()
+            throws Exception {
+        ValueStateDescriptor<Integer> descriptor =
+                new ValueStateDescriptor<>("value", StateSchemaEvolvingTestSerializer.typeInfo());
+        keyedStateBackend(false)
+                .getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, descriptor);
+
+        keyedStateBackend(true).getOrCreateKeyedState(VoidNamespaceSerializer.INSTANCE, descriptor);
+
+        assertThat(armedFlagOf(descriptor.getSerializer())).isFalse();
+    }
+
+    @Test
     void v2ValueStateIsNotArmed() {
         org.apache.flink.api.common.state.v2.ValueStateDescriptor<Integer> descriptor =
                 new org.apache.flink.api.common.state.v2.ValueStateDescriptor<>(
@@ -156,9 +254,26 @@ class StateSchemaEvolutionArmingTest {
         assertThat(armedFlagOf(descriptor.getValueSerializer())).isFalse();
     }
 
+    /** Arming reaches only the state's own value serializer, so the check looks no deeper. */
+    @Test
+    void isArmedReportsOnlyTheSerializerItself() {
+        TypeSerializer<Integer> armed =
+                new StateSchemaEvolvingTestSerializer().withStateSchemaEvolution();
+
+        assertThat(StateSchemaEvolvingSerializer.isArmed(armed)).isTrue();
+        assertThat(StateSchemaEvolvingSerializer.isArmed(new StateSchemaEvolvingTestSerializer()))
+                .isFalse();
+        assertThat(StateSchemaEvolvingSerializer.isArmed(IntSerializer.INSTANCE)).isFalse();
+        assertThat(StateSchemaEvolvingSerializer.isArmed(new ListSerializer<>(armed))).isFalse();
+        assertThat(
+                        StateSchemaEvolvingSerializer.isArmed(
+                                new MapSerializer<>(IntSerializer.INSTANCE, armed)))
+                .isFalse();
+    }
+
     private static boolean armedFlagOf(TypeSerializer<Integer> serializer) {
         assertThat(serializer).isInstanceOf(StateSchemaEvolvingTestSerializer.class);
-        return ((StateSchemaEvolvingTestSerializer) serializer).isArmed();
+        return ((StateSchemaEvolvingTestSerializer) serializer).isStateSchemaEvolutionEnabled();
     }
 
     private static DefaultKeyedStateStore keyedStateStore(boolean objectLevelValueMigration) {
@@ -181,24 +296,27 @@ class StateSchemaEvolutionArmingTest {
      * this exercises lives in {@link AbstractKeyedStateBackend#getOrCreateKeyedState} and window
      * and async operators reach it directly rather than through {@link DefaultKeyedStateStore}.
      */
-    private static MockKeyedStateBackend<Integer> keyedStateBackend(
-            boolean objectLevelValueMigration) {
-        return new MockKeyedStateBackendBuilder<>(
-                        new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
-                        IntSerializer.INSTANCE,
-                        StateSchemaEvolutionArmingTest.class.getClassLoader(),
-                        1,
-                        KeyGroupRange.of(0, 0),
-                        new ExecutionConfig(configurationWithSchemaEvolutionEnabled()),
-                        TtlTimeProvider.DEFAULT,
-                        LatencyTrackingStateConfig.disabled(),
-                        SizeTrackingStateConfig.disabled(),
-                        Collections.emptyList(),
-                        UncompressedStreamCompressionDecorator.INSTANCE,
-                        new CloseableRegistry(),
-                        MockSnapshotSupplier.EMPTY)
-                .setSupportsObjectLevelValueMigration(objectLevelValueMigration)
-                .build();
+    private MockKeyedStateBackend<Integer> keyedStateBackend(boolean objectLevelValueMigration) {
+        MockKeyedStateBackend<Integer> backend =
+                new MockKeyedStateBackendBuilder<>(
+                                new KvStateRegistry()
+                                        .createTaskRegistry(new JobID(), new JobVertexID()),
+                                IntSerializer.INSTANCE,
+                                StateSchemaEvolutionArmingTest.class.getClassLoader(),
+                                1,
+                                KeyGroupRange.of(0, 0),
+                                new ExecutionConfig(configurationWithSchemaEvolutionEnabled()),
+                                TtlTimeProvider.DEFAULT,
+                                LatencyTrackingStateConfig.disabled(),
+                                SizeTrackingStateConfig.disabled(),
+                                Collections.emptyList(),
+                                UncompressedStreamCompressionDecorator.INSTANCE,
+                                new CloseableRegistry(),
+                                MockSnapshotSupplier.EMPTY)
+                        .setSupportsObjectLevelValueMigration(objectLevelValueMigration)
+                        .build();
+        keyedStateBackends.add(backend);
+        return backend;
     }
 
     private static DefaultOperatorStateBackend operatorStateBackend() throws Exception {

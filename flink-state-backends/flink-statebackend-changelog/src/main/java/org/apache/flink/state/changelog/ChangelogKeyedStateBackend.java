@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeutils.StateSchemaEvolvingSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.MetricGroup;
@@ -68,6 +69,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.changelog.restore.ChangelogRestoreTarget;
 import org.apache.flink.state.changelog.restore.FunctionDelegationHelper;
 import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationTarget;
+import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.guava33.com.google.common.io.Closer;
@@ -689,6 +691,9 @@ public class ChangelogKeyedStateBackend<K>
             if (!stateDescriptor.isSerializerInitialized()) {
                 stateDescriptor.initializeSerializerUnlessSet(executionConfig);
             }
+            if (!supportsObjectLevelValueMigration()) {
+                checkNotArmedForSchemaEvolution(stateDescriptor);
+            }
             kvState =
                     MetricsTrackingStateFactory.createStateAndWrapWithMetricsTrackingIfEnabled(
                             TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
@@ -702,6 +707,28 @@ public class ChangelogKeyedStateBackend<K>
         }
         functionDelegationHelper.addOrUpdate(stateDescriptor);
         return (S) kvState;
+    }
+
+    /**
+     * A descriptor keeps the serializer it was first initialized with, so one already used on a
+     * backend that migrates restored values may carry a serializer armed for schema evolution.
+     * States registered here are created on the nested backend without passing through its own
+     * check, and this backend does not support state schema evolution, so accepting it would let a
+     * changed schema pass the compatibility check while the restored values keep their old layout.
+     */
+    private void checkNotArmedForSchemaEvolution(StateDescriptor<?, ?> stateDescriptor)
+            throws StateMigrationException {
+        if (StateSchemaEvolvingSerializer.isArmed(stateDescriptor.getSerializer())) {
+            throw new StateMigrationException(
+                    "State descriptor '"
+                            + stateDescriptor.getName()
+                            + "' was already used for keyed state with state schema evolution"
+                            + " enabled and cannot be used on the changelog keyed state backend"
+                            + " (wrapping "
+                            + getBackendTypeIdentifier()
+                            + "), which does not support state schema evolution. Use a separate"
+                            + " descriptor instance.");
+        }
     }
 
     @Nonnull
