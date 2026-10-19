@@ -127,7 +127,7 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
     this.cdr.detach();
     this.chartInstance = new Chart({
       container: this.chart.nativeElement,
-      height: 180,
+      height: 150,
       autoFit: true
     });
     this.lineMark = this.chartInstance
