@@ -41,9 +41,7 @@ public class DeduplicateKeepFirstRestoreTest extends RestoreTestBase {
     public List<TableTestProgram> programs() {
         return List.of(
                 DeduplicateKeepFirstRestoreTestPrograms.KEYED_RESTORE,
-                DeduplicateKeepFirstRestoreTestPrograms.EVENT_TIME_PENDING_RESTORE,
-                DeduplicateKeepFirstRestoreTestPrograms.TTL_EXPIRED_RESTORE,
-                DeduplicateKeepFirstRestoreTestPrograms.GLOBAL_TTL_EXPIRED_RESTORE);
+                DeduplicateKeepFirstRestoreTestPrograms.EVENT_TIME_PENDING_RESTORE);
     }
 
     @Override

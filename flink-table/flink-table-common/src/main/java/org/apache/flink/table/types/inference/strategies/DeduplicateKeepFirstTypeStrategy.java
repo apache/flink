@@ -113,11 +113,6 @@ public final class DeduplicateKeepFirstTypeStrategy {
                                             () ->
                                                     new ValidationException(
                                                             "First argument must be a table for DEDUPLICATE_KEEP_FIRST."));
-                    // Only event-time mode buffers a candidate. Without on_time a fixed type keeps
-                    // the unused state independent of the input schema across query evolution.
-                    if (tableSemantics.timeColumn() == -1) {
-                        return Optional.of(ValueView.newValueViewDataType(DataTypes.BOOLEAN()));
-                    }
                     final List<Field> inputFields = DataType.getFields(tableSemantics.dataType());
                     final List<Field> payloadFields =
                             Arrays.stream(
@@ -166,7 +161,7 @@ public final class DeduplicateKeepFirstTypeStrategy {
                     "The 'state_ttl' argument must not be negative, but was '%s'. "
                             + "Use a positive INTERVAL to bound state retention, INTERVAL '0' to "
                             + "retain state indefinitely without a TTL, or omit the argument to "
-                            + "fall back to 'table.exec.state.ttl'.",
+                            + "fall back to session defaults.",
                     stateTtl.get());
         }
         return Optional.empty();

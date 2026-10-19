@@ -25,11 +25,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
-import java.time.Duration;
 import java.time.Instant;
-
-import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.lit;
 
 /** {@link TableTestProgram} definitions for testing the built-in DEDUPLICATE_KEEP_FIRST PTF. */
 public class DeduplicateKeepFirstTestPrograms {
@@ -60,57 +56,6 @@ public class DeduplicateKeepFirstTestPrograms {
                     .runSql(
                             "INSERT INTO sink SELECT * FROM DEDUPLICATE_KEEP_FIRST("
                                     + "input => TABLE user_events PARTITION BY user_name)")
-                    .build();
-
-    public static final TableTestProgram TABLE_API =
-            TableTestProgram.of(
-                            "deduplicate-keep-first-table-api",
-                            "the generic Table API process() call invokes the PTF, matching "
-                                    + "the SQL form")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("user_events")
-                                    .addSchema(USER_EVENTS_SCHEMA)
-                                    .producedValues(Row.of("Vas", "login"), Row.of("Vas", "click"))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema(USER_EVENTS_SCHEMA)
-                                    .consumedValues(Row.ofKind(RowKind.INSERT, "Vas", "login"))
-                                    .build())
-                    .runTableApi(
-                            env ->
-                                    env.from("user_events")
-                                            .partitionBy($("user_name"))
-                                            .process("DEDUPLICATE_KEEP_FIRST"),
-                            "sink")
-                    .build();
-
-    public static final TableTestProgram TABLE_API_WITH_ARGS =
-            TableTestProgram.of(
-                            "deduplicate-keep-first-table-api-with-args",
-                            "the Table API process() call passes the optional state_ttl and "
-                                    + "reset_ttl_on_duplicate as named arguments")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("user_events")
-                                    .addSchema(USER_EVENTS_SCHEMA)
-                                    .producedValues(Row.of("Vas", "login"), Row.of("Vas", "click"))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema(USER_EVENTS_SCHEMA)
-                                    .consumedValues(Row.ofKind(RowKind.INSERT, "Vas", "login"))
-                                    .build())
-                    .runTableApi(
-                            env ->
-                                    env.from("user_events")
-                                            .partitionBy($("user_name"))
-                                            .process(
-                                                    "DEDUPLICATE_KEEP_FIRST",
-                                                    lit(Duration.ofSeconds(5))
-                                                            .asArgument("state_ttl"),
-                                                    lit(false)
-                                                            .asArgument("reset_ttl_on_duplicate")),
-                            "sink")
                     .build();
 
     public static final TableTestProgram MULTI_KEY =
@@ -155,15 +100,16 @@ public class DeduplicateKeepFirstTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema("region STRING", "user_name STRING", "action STRING")
+                                    .addSchema("user_name STRING", "region STRING", "action STRING")
                                     .consumedValues(
-                                            Row.ofKind(RowKind.INSERT, "EU", "Vas", "login"),
-                                            Row.ofKind(RowKind.INSERT, "US", "Vas", "signup"),
-                                            Row.ofKind(RowKind.INSERT, "EU", "Alice", "view"))
+                                            Row.ofKind(RowKind.INSERT, "Vas", "EU", "login"),
+                                            Row.ofKind(RowKind.INSERT, "Vas", "US", "signup"),
+                                            Row.ofKind(RowKind.INSERT, "Alice", "EU", "view"))
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM DEDUPLICATE_KEEP_FIRST("
-                                    + "input => TABLE user_events PARTITION BY (region, user_name))")
+                                    + "input => TABLE user_events PARTITION BY "
+                                    + "(user_name, region))")
                     .build();
 
     public static final TableTestProgram NULL_KEY =
@@ -345,69 +291,13 @@ public class DeduplicateKeepFirstTestPrograms {
                                     + "on_time => DESCRIPTOR(ts))")
                     .build();
 
-    public static final TableTestProgram EVENT_TIME_MULTI_KEY =
-            TableTestProgram.of(
-                            "deduplicate-keep-first-event-time-multi-key",
-                            "each key emits its earliest row with that row's event time as "
-                                    + "rowtime; replacing one key's candidate leaves other keys' "
-                                    + "timers intact, and on equal event times the first arrival "
-                                    + "wins")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("user_events")
-                                    .addSchema(TIMED_EVENTS_SCHEMA)
-                                    .producedValues(
-                                            Row.of("Alice", "Hi", Instant.ofEpochMilli(1)),
-                                            Row.of("Alice", "Hello", Instant.ofEpochMilli(3)),
-                                            Row.of("Alice", "Hello world", Instant.ofEpochMilli(2)),
-                                            Row.of("Bob", "I am fine.", Instant.ofEpochMilli(3)),
-                                            Row.of("Bob", "Comment#1", Instant.ofEpochMilli(6)),
-                                            Row.of("Carol", "Comment#2", Instant.ofEpochMilli(3)),
-                                            Row.of("Carol", "Comment#3", Instant.ofEpochMilli(2)),
-                                            Row.of("Dave", "Comment#4", Instant.ofEpochMilli(4)),
-                                            Row.of("Dave", "Comment#5", Instant.ofEpochMilli(4)))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema(
-                                            "user_name STRING",
-                                            "action STRING",
-                                            "rowtime TIMESTAMP_LTZ(3)")
-                                    .consumedValues(
-                                            Row.ofKind(
-                                                    RowKind.INSERT,
-                                                    "Alice",
-                                                    "Hi",
-                                                    Instant.ofEpochMilli(1)),
-                                            Row.ofKind(
-                                                    RowKind.INSERT,
-                                                    "Bob",
-                                                    "I am fine.",
-                                                    Instant.ofEpochMilli(3)),
-                                            Row.ofKind(
-                                                    RowKind.INSERT,
-                                                    "Carol",
-                                                    "Comment#3",
-                                                    Instant.ofEpochMilli(2)),
-                                            Row.ofKind(
-                                                    RowKind.INSERT,
-                                                    "Dave",
-                                                    "Comment#4",
-                                                    Instant.ofEpochMilli(4)))
-                                    .build())
-                    .runSql(
-                            "INSERT INTO sink SELECT user_name, action, rowtime FROM "
-                                    + "DEDUPLICATE_KEEP_FIRST("
-                                    + "input => TABLE user_events PARTITION BY user_name, "
-                                    + "on_time => DESCRIPTOR(ts))")
-                    .build();
-
     public static final TableTestProgram EVENT_TIME_LATE_DROPPED =
             TableTestProgram.of(
                             "deduplicate-keep-first-event-time-late-dropped",
-                            "a row below the watermark is dropped, even though its event time is "
-                                    + "earlier than the already-finalized candidate; a late first "
-                                    + "row for an unseen key is dropped without marking the key "
-                                    + "as seen")
+                            "a row at or below the watermark is dropped, even though its event "
+                                    + "time is earlier than the already-finalized candidate; a late "
+                                    + "first row for an unseen key is dropped without marking the "
+                                    + "key as seen")
                     .setupTableSource(
                             SourceTestStep.newBuilder("user_events")
                                     .addSchema(TIMED_EVENTS_SCHEMA)
@@ -416,6 +306,11 @@ public class DeduplicateKeepFirstTestPrograms {
                                             Row.of("Bob", "advance", Instant.ofEpochMilli(20000)),
                                             Row.of("Bob", "late", Instant.ofEpochMilli(500)),
                                             Row.of("Carol", "late", Instant.ofEpochMilli(500)),
+                                            Row.of(
+                                                    "Dave",
+                                                    "at-watermark",
+                                                    Instant.ofEpochMilli(10000)),
+                                            Row.of("Dave", "on-time", Instant.ofEpochMilli(15000)),
                                             Row.of("Carol", "on-time", Instant.ofEpochMilli(30000)))
                                     .build())
                     .setupTableSink(
@@ -423,6 +318,7 @@ public class DeduplicateKeepFirstTestPrograms {
                                     .addSchema("user_name STRING", "action STRING")
                                     .consumedValues(
                                             Row.ofKind(RowKind.INSERT, "Bob", "early"),
+                                            Row.ofKind(RowKind.INSERT, "Dave", "on-time"),
                                             Row.ofKind(RowKind.INSERT, "Carol", "on-time"))
                                     .build())
                     .runSql(

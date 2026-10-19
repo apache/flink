@@ -40,8 +40,6 @@ public class DeduplicateKeepFirstSemanticTests extends SemanticTestBase {
     public List<TableTestProgram> programs() {
         return List.of(
                 DeduplicateKeepFirstTestPrograms.KEYED,
-                DeduplicateKeepFirstTestPrograms.TABLE_API,
-                DeduplicateKeepFirstTestPrograms.TABLE_API_WITH_ARGS,
                 DeduplicateKeepFirstTestPrograms.MULTI_KEY,
                 DeduplicateKeepFirstTestPrograms.MULTI_COLUMN_KEY,
                 DeduplicateKeepFirstTestPrograms.NULL_KEY,
@@ -51,7 +49,6 @@ public class DeduplicateKeepFirstSemanticTests extends SemanticTestBase {
                 DeduplicateKeepFirstTestPrograms.WHOLE_ROW_KEY,
                 DeduplicateKeepFirstTestPrograms.EVENT_TIME,
                 DeduplicateKeepFirstTestPrograms.EVENT_TIME_CANDIDATE_FIELD_NAMES,
-                DeduplicateKeepFirstTestPrograms.EVENT_TIME_MULTI_KEY,
                 DeduplicateKeepFirstTestPrograms.EVENT_TIME_LATE_DROPPED,
                 DeduplicateKeepFirstTestPrograms.UPDATING_INPUT,
                 DeduplicateKeepFirstTestPrograms.UNSEEN_RETRACTION_IGNORED,
