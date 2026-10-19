@@ -26,16 +26,16 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ResourcePythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ResourceRowPythonScalarFunction;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JavaTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** Plans concurrency groups and ordering around Python projections. */
 class PythonCalcConcurrencyTest extends TableTestBase {
@@ -99,8 +99,9 @@ class PythonCalcConcurrencyTest extends TableTestBase {
                 IntStream.range(0, 128)
                         .mapToObj(i -> (i < 64 ? "plain" : "p2") + "(a, " + i + ")")
                         .collect(Collectors.joining(", "));
-        assertThat(util.tableEnv().explainSql("SELECT " + projects + ", p4(a, b) FROM T"))
-                .contains("p4(a, b)");
+        util.verifyRelPlanExpected(
+                "SELECT " + projects + ", p4(a, b) FROM T",
+                JavaScalaConversionUtil.toScala(Collections.singletonList("p4(a, b)")));
     }
 
     @Test

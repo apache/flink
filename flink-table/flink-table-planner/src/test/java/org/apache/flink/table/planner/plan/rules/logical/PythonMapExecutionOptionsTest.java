@@ -22,16 +22,18 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ResourceRowPythonScalarFunction;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JavaTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
+
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.withColumns;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests fusion of vectorized maps with execution options. */
 class PythonMapExecutionOptionsTest extends TableTestBase {
@@ -81,10 +83,9 @@ class PythonMapExecutionOptionsTest extends TableTestBase {
         util.tableEnv()
                 .createTemporarySystemFunction(
                         "batch128", new ResourceRowPythonScalarFunction("batch128", -1, 128));
-        assertThat(
-                        source.map(call("batch64", withColumns($("*"))))
-                                .map(call("batch128", withColumns($("*"))))
-                                .explain())
-                .contains("batch128(batch64(a))");
+        util.verifyRelPlanExpected(
+                source.map(call("batch64", withColumns($("*"))))
+                        .map(call("batch128", withColumns($("*")))),
+                JavaScalaConversionUtil.toScala(Collections.singletonList("batch128(batch64(a))")));
     }
 }
