@@ -2451,6 +2451,14 @@ class Expression(Generic[T]):
         else:
             return _binary_op("tryParseXml")(self, force_array)
 
+    def xml_string(self) -> 'Expression[str]':
+        """
+        Converts a value of VARIANT type into an XML string. This is the inverse of
+        :func:`~Expression.parse_xml`. If the variant has no XML representation, an error is
+        thrown.
+        """
+        return _unary_op("xmlString")(self)
+
     def json_length(self, path=None) -> 'Expression':
         """
         Returns the number of elements in a JSON document, or the length of the value at the

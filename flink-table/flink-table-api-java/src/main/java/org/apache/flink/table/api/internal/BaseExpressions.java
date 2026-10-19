@@ -247,6 +247,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_PO
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_SAMP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_END;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_START;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.XML_STRING;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
@@ -1479,6 +1480,14 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType tryParseXml(InType forceArray) {
         return toApiSpecificExpression(
                 unresolvedCall(TRY_PARSE_XML, toExpr(), objectToExpression(forceArray)));
+    }
+
+    /**
+     * Converts a value of type {@link DataTypes#VARIANT()} into an XML string. This is the inverse
+     * of {@link #parseXml()}. If the variant has no XML representation, an error is thrown.
+     */
+    public OutType xmlString() {
+        return toApiSpecificExpression(unresolvedCall(XML_STRING, toExpr()));
     }
 
     /** Returns the base string decoded with base64. */

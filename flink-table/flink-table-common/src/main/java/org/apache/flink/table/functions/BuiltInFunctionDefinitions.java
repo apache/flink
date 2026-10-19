@@ -3266,6 +3266,16 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeProvided()
                     .build();
 
+    public static final BuiltInFunctionDefinition XML_STRING =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("XML_STRING")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeRoot.VARIANT)))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.XmlStringFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Bitmap functions
     // --------------------------------------------------------------------------------------------
