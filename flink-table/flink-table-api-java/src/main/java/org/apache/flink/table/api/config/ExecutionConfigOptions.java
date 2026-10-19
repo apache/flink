@@ -55,12 +55,19 @@ public class ExecutionConfigOptions {
                                     + "backward-compatible way (adding nullable fields, reordering "
                                     + "fields by name, evolving a nested ROW) is migrated when "
                                     + "state is restored, instead of the restore failing. Only a "
-                                    + "state's own value serializer is covered: a RowData nested "
-                                    + "below a composite serializer, or a state whose serializer "
-                                    + "the operator pre-builds, is still rejected. Takes effect "
-                                    + "only on a state backend that migrates restored values at "
-                                    + "the object level, currently RocksDB; on other backends the "
-                                    + "restore still fails. Disabled by default.");
+                                    + "state's own value serializer is covered, and only on a "
+                                    + "state backend that migrates restored values at the object "
+                                    + "level, currently RocksDB. When the option is disabled, and "
+                                    + "wherever it does not apply (a RowData nested below a "
+                                    + "composite serializer, a state whose serializer the "
+                                    + "operator pre-builds, or another backend), the restore "
+                                    + "matches fields by position: a change in the number or "
+                                    + "types of fields fails it, but a reorder or rename among "
+                                    + "fields of the same type is not detected and each value "
+                                    + "stays at its old position. State written by Flink 2.3 or "
+                                    + "earlier carries no field names and is matched by position "
+                                    + "as well, except that nullable fields appended at the end "
+                                    + "are migrated. Disabled by default.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Duration> IDLE_STATE_RETENTION =
