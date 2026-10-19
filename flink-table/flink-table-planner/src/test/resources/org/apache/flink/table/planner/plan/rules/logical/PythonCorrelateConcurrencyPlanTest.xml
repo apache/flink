@@ -59,4 +59,50 @@ Calc(select=[a, b, x, y])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLeftJoinPreservesFieldsAfterAsyncExtraction">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, x, y FROM src LEFT JOIN LATERAL TABLE(tf(f3(async_func(a, b), b), f5(a, b))) AS T(x, y) ON TRUE]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], x=[$2], y=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 1}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalTableFunctionScan(invocation=[tf(f3(async_func($cor0.a, $cor0.b), $cor0.b), f5($cor0.a, $cor0.b))], rowType=[RecordType(INTEGER x, INTEGER y)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, x, y])
++- PythonCorrelate(invocation=[tf($3, f5($0, $1))], correlate=[table(tf(f00,f5(a, b)))], select=[a,b,f0,f00,x,y], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER f0, INTEGER f00, INTEGER x, INTEGER y)], joinType=[LEFT])
+   +- PythonCalc(select=[a, b, f0, f3(f1, b) AS f00])
+      +- Calc(select=[a, b, f0, f0 AS f1])
+         +- PythonAsyncCalc(select=[a, b, async_func(a, b) AS f0])
+            +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSplitsConcurrencyAfterAsyncExtraction">
+    <Resource name="sql">
+      <![CDATA[SELECT x, y FROM src, LATERAL TABLE(tf(f3(async_func(a, b), b), f5(a, b))) AS T(x, y)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(x=[$2], y=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalTableFunctionScan(invocation=[tf(f3(async_func($cor0.a, $cor0.b), $cor0.b), f5($cor0.a, $cor0.b))], rowType=[RecordType(INTEGER x, INTEGER y)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[x, y])
++- PythonCorrelate(invocation=[tf($3, f5($0, $1))], correlate=[table(tf(f00,f5(a, b)))], select=[a,b,f0,f00,x,y], rowType=[RecordType(INTEGER a, INTEGER b, INTEGER f0, INTEGER f00, INTEGER x, INTEGER y)], joinType=[INNER])
+   +- PythonCalc(select=[a, b, f0, f3(f1, b) AS f00])
+      +- Calc(select=[a, b, f0, f0 AS f1])
+         +- PythonAsyncCalc(select=[a, b, async_func(a, b) AS f0])
+            +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

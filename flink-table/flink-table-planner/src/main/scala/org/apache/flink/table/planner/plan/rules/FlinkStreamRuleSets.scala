@@ -392,6 +392,9 @@ object FlinkStreamRuleSets {
     // Rule that splits java calls from python TableFunction
     PythonCorrelateSplitRule.INSTANCE,
     PythonCorrelateSplitFunctionKindRule.INSTANCE,
+    // Extract async calls before splitting concurrency and normalizing the resulting Python calcs.
+    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_SCALAR,
+    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_TABLE,
     PythonCorrelateSplitConcurrencyRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
@@ -441,10 +444,6 @@ object FlinkStreamRuleSets {
     PythonMapMergeRule.INSTANCE,
     // Similar to the python rules above, the goal is to limit complexity of calcs which
     // have async calls so that the implementation can be simplified to handle a single async call.
-    // Split async scalar calls from other types of calls in correlates
-    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_SCALAR,
-    // Split async table calls from other types of calls in correlates
-    AsyncCorrelateSplitRule.CORRELATE_SPLIT_ASYNC_TABLE,
     // Avoids accessing a field from an asynchronous result (condition).
     AsyncCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
     // Avoids accessing a field from an asynchronous result (projection).

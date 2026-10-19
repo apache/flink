@@ -24,6 +24,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.AsyncPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ParallelPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ResourcePythonScalarFunction;
@@ -162,6 +163,53 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
     }
 
     @ParameterizedTest
+    @CsvSource(
+            delimiter = ';',
+            value = {
+                "f3(async_func(a, b), b), f5(a, b); 3; 5",
+                "f5(a, b), f3(async_func(a, b), b); 5; 3",
+                "a, f3(f5(async_func(a, b), b), b); 5; 3",
+                "a, f5(f3(async_func(a, b), b), b); 3; 5"
+            })
+    void testSplitsConflictingConcurrenciesAfterAsyncExtraction(
+            String arguments, int calcParallelism, int correlateParallelism) {
+        final TableTestUtil util = createUtil(true);
+        final List<Transformation<?>> operators =
+                pythonOperators(
+                        translateQuery(
+                                util,
+                                "SELECT x, y FROM src, LATERAL TABLE(tf("
+                                        + arguments
+                                        + ")) AS T(x, y)"));
+
+        assertThat(operators)
+                .extracting(Transformation::getParallelism)
+                .containsExactly(2, calcParallelism, correlateParallelism);
+        assertThat(operators.get(0).getName()).contains("PythonAsyncCalc");
+        assertThat(operators.get(0).isParallelismConfigured()).isFalse();
+        assertThat(operators.get(1).getName()).contains("PythonCalc");
+        assertThat(operators.get(2).getName()).contains("PythonCorrelate");
+        assertThat(operators.subList(1, 3)).allMatch(Transformation::isParallelismConfigured);
+    }
+
+    @Test
+    void testFusesCompatibleConcurrenciesAfterAsyncExtraction() {
+        final List<Transformation<?>> operators =
+                pythonOperators(
+                        translateQuery(
+                                createUtil(true),
+                                "SELECT x, y FROM src, "
+                                        + "LATERAL TABLE(tf(f3(async_func(a, b), b), f3(a, b))) "
+                                        + "AS T(x, y)"));
+
+        assertThat(operators).extracting(Transformation::getParallelism).containsExactly(2, 3);
+        assertThat(operators.get(0).getName()).contains("PythonAsyncCalc");
+        assertThat(operators.get(0).isParallelismConfigured()).isFalse();
+        assertThat(operators.get(1).getName()).contains("PythonCorrelate");
+        assertThat(operators.get(1).isParallelismConfigured()).isTrue();
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"f3(a, b), f5(f3(a, b), b)", "f5(f3(a, b), b), f3(a, b)"})
     void testSharesDependenciesAcrossArguments(String arguments) {
         final List<Transformation<?>> operators =
@@ -211,6 +259,7 @@ class PythonCorrelateConcurrencyTest extends TableTestBase {
         util.addTemporarySystemFunction("f3", new ParallelPythonScalarFunction("f3", 3));
         util.addTemporarySystemFunction("f5", new ParallelPythonScalarFunction("f5", 5));
         util.addTemporarySystemFunction("plain", new PythonScalarFunction("plain"));
+        util.addTemporarySystemFunction("async_func", new AsyncPythonScalarFunction("async_func"));
         return util;
     }
 

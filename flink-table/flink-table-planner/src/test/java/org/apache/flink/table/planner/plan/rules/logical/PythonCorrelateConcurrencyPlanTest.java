@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.AsyncPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ParallelPythonScalarFunction;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.ResourcePythonScalarFunction;
 import org.apache.flink.table.planner.utils.JavaTableTestUtil;
@@ -50,6 +51,9 @@ class PythonCorrelateConcurrencyPlanTest extends TableTestBase {
                 .createTemporarySystemFunction("f5", new ParallelPythonScalarFunction("f5", 5));
         util.tableEnv()
                 .createTemporarySystemFunction(
+                        "async_func", new AsyncPythonScalarFunction("async_func"));
+        util.tableEnv()
+                .createTemporarySystemFunction(
                         "vector5",
                         new ResourcePythonScalarFunction(
                                 "vector5", 5, PythonFunctionKind.PANDAS, -1));
@@ -67,5 +71,19 @@ class PythonCorrelateConcurrencyPlanTest extends TableTestBase {
         util.verifyRelPlan(
                 "SELECT a, b, x, y FROM src LEFT JOIN "
                         + "LATERAL TABLE(tf(a, f3(vector5(a, b), b))) AS T(x, y) ON TRUE");
+    }
+
+    @Test
+    void testSplitsConcurrencyAfterAsyncExtraction() {
+        util.verifyRelPlan(
+                "SELECT x, y FROM src, "
+                        + "LATERAL TABLE(tf(f3(async_func(a, b), b), f5(a, b))) AS T(x, y)");
+    }
+
+    @Test
+    void testLeftJoinPreservesFieldsAfterAsyncExtraction() {
+        util.verifyRelPlan(
+                "SELECT a, b, x, y FROM src LEFT JOIN "
+                        + "LATERAL TABLE(tf(f3(async_func(a, b), b), f5(a, b))) AS T(x, y) ON TRUE");
     }
 }
