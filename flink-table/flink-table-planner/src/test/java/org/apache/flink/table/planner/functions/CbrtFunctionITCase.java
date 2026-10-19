@@ -101,50 +101,60 @@ class CbrtFunctionITCase extends BuiltInFunctionTestBase {
 
     private static TestSetSpec boundaries() {
         return TestSetSpec.forFunction(BuiltInFunctionDefinitions.CBRT, "boundaries and nulls")
-                .onFieldsWithData("-27.0", "8.0", "-0.0", "Infinity", "-Infinity", "NaN", null)
+                .onFieldsWithData(
+                        0.0,
+                        -0.0,
+                        27.0,
+                        -27.0,
+                        8.0,
+                        -8.0,
+                        Double.MIN_VALUE,
+                        Double.MAX_VALUE,
+                        Double.POSITIVE_INFINITY,
+                        Double.NEGATIVE_INFINITY,
+                        Double.NaN,
+                        null)
                 .andDataTypes(
-                        DataTypes.STRING(),
-                        DataTypes.STRING(),
-                        DataTypes.STRING(),
-                        DataTypes.STRING(),
-                        DataTypes.STRING(),
-                        DataTypes.STRING(),
-                        DataTypes.STRING())
+                        DataTypes.DOUBLE(),
+                        DataTypes.DOUBLE(),
+                        DataTypes.DOUBLE(),
+                        DataTypes.DOUBLE(),
+                        DataTypes.DOUBLE(),
+                        DataTypes.DOUBLE(),
+                        DataTypes.DOUBLE(),
+                        DataTypes.DOUBLE(),
+                        DataTypes.DOUBLE(),
+                        DataTypes.DOUBLE(),
+                        DataTypes.DOUBLE(),
+                        DataTypes.DOUBLE())
                 .testResult(
+                        resultSpec($("f0").cbrt(), "CBRT(f0)", 0.0, DataTypes.DOUBLE()),
+                        resultSpec($("f1").cbrt(), "CBRT(f1)", -0.0, DataTypes.DOUBLE()),
+                        resultSpec($("f2").cbrt(), "CBRT(f2)", 3.0, DataTypes.DOUBLE()),
+                        resultSpec($("f3").cbrt(), "CBRT(f3)", -3.0, DataTypes.DOUBLE()),
+                        resultSpec($("f4").cbrt(), "CBRT(f4)", 2.0, DataTypes.DOUBLE()),
+                        resultSpec($("f5").cbrt(), "CBRT(f5)", -2.0, DataTypes.DOUBLE()),
                         resultSpec(
-                                $("f0").cast(DataTypes.DOUBLE()).cbrt(),
-                                "CBRT(CAST(f0 AS DOUBLE))",
-                                -3.0,
+                                $("f6").cbrt(),
+                                "CBRT(f6)",
+                                1.7031839360032603e-108,
                                 DataTypes.DOUBLE()),
                         resultSpec(
-                                $("f1").cast(DataTypes.DOUBLE()).cbrt(),
-                                "CBRT(CAST(f1 AS DOUBLE))",
-                                2.0,
+                                $("f7").cbrt(),
+                                "CBRT(f7)",
+                                5.643803094122362e+102,
                                 DataTypes.DOUBLE()),
                         resultSpec(
-                                $("f2").cast(DataTypes.DOUBLE()).cbrt(),
-                                "CBRT(CAST(f2 AS DOUBLE))",
-                                -0.0,
-                                DataTypes.DOUBLE()),
-                        resultSpec(
-                                $("f3").cast(DataTypes.DOUBLE()).cbrt(),
-                                "CBRT(CAST(f3 AS DOUBLE))",
+                                $("f8").cbrt(),
+                                "CBRT(f8)",
                                 Double.POSITIVE_INFINITY,
                                 DataTypes.DOUBLE()),
                         resultSpec(
-                                $("f4").cast(DataTypes.DOUBLE()).cbrt(),
-                                "CBRT(CAST(f4 AS DOUBLE))",
+                                $("f9").cbrt(),
+                                "CBRT(f9)",
                                 Double.NEGATIVE_INFINITY,
                                 DataTypes.DOUBLE()),
-                        resultSpec(
-                                $("f5").cast(DataTypes.DOUBLE()).cbrt(),
-                                "CBRT(CAST(f5 AS DOUBLE))",
-                                Double.NaN,
-                                DataTypes.DOUBLE()),
-                        resultSpec(
-                                $("f6").cast(DataTypes.DOUBLE()).cbrt(),
-                                "CBRT(CAST(f6 AS DOUBLE))",
-                                null,
-                                DataTypes.DOUBLE()));
+                        resultSpec($("f10").cbrt(), "CBRT(f10)", Double.NaN, DataTypes.DOUBLE()),
+                        resultSpec($("f11").cbrt(), "CBRT(f11)", null, DataTypes.DOUBLE()));
     }
 }
