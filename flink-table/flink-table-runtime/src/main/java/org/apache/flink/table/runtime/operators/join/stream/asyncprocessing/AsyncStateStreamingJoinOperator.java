@@ -185,6 +185,10 @@ public class AsyncStateStreamingJoinOperator extends AbstractAsyncStateStreaming
 
         @Override
         public void addRecord(JoinRecordAsyncStateView stateView, RowData record) throws Exception {
+            // do not store a record that can never match
+            if (joinCondition.currentKeyCannotMatch()) {
+                return;
+            }
             // no need to wait for the future
             stateView.addRecord(record);
         }
@@ -200,6 +204,10 @@ public class AsyncStateStreamingJoinOperator extends AbstractAsyncStateStreaming
         public void addRecordInOuterSide(
                 OuterJoinRecordAsyncStateView stateView, RowData record, int numOfAssociations)
                 throws Exception {
+            // do not store a record that can never match
+            if (joinCondition.currentKeyCannotMatch()) {
+                return;
+            }
             // no need to wait for the future
             stateView.addRecord(record, numOfAssociations);
         }

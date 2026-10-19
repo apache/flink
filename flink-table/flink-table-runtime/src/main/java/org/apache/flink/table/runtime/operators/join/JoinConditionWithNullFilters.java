@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.join;
 import org.apache.flink.api.common.functions.WrappingFunction;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.NullAwareGetters;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 
 /** Utility to take null filters into consideration when apply join condition. */
@@ -52,15 +52,23 @@ public class JoinConditionWithNullFilters extends WrappingFunction<JoinCondition
 
     @Override
     public boolean apply(RowData left, RowData right) {
-        if (!nullSafe) { // is not null safe, return false if any null exists
-            // key is always BinaryRowData
-            NullAwareGetters joinKey = (NullAwareGetters) keyContext.getCurrentKey();
-            if (filterAllNulls ? joinKey.anyNull() : joinKey.anyNull(nullFilterKeys)) {
-                // find null present, return false directly
-                return false;
-            }
+        if (currentKeyCannotMatch()) {
+            return false;
         }
         // test condition
         return wrappedFunction.apply(left, right);
+    }
+
+    /**
+     * Returns whether no record of the current join key can ever match, because the key has a null
+     * in a field that is not null-safe. The current key must be set.
+     */
+    public boolean currentKeyCannotMatch() {
+        if (nullSafe) {
+            return false;
+        }
+        // key is always BinaryRowData
+        return NullAwareJoinHelper.shouldFilter(
+                false, filterAllNulls, nullFilterKeys, (BinaryRowData) keyContext.getCurrentKey());
     }
 }

@@ -48,12 +48,33 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for StreamingMiniBatchJoinOperatorTest. */
 final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTestBase {
 
     private RowDataKeySelector leftUniqueKeySelector;
     private RowDataKeySelector rightUniqueKeySelector;
+
+    @Tag("miniBatchSize=3")
+    @Test
+    void testLeftJoinSkipsNullKeys() throws Exception {
+        testHarness.processElement1(insertRecord("Ord#1", null, "3 Bellevue Drive"));
+        testHarness.processElement2(insertRecord("Ord#X", null, "AIR"));
+        testHarness.processElement1(insertRecord("Ord#2", "LineOrd#2", "4 Bellevue Drive"));
+        assertor.shouldEmitAll(
+                testHarness,
+                rowOfKind(RowKind.INSERT, "Ord#1", null, "3 Bellevue Drive", null, null, null),
+                rowOfKind(
+                        RowKind.INSERT,
+                        "Ord#2",
+                        "LineOrd#2",
+                        "4 Bellevue Drive",
+                        null,
+                        null,
+                        null));
+        assertThat(testHarness.numKeyedStateEntries()).isOne();
+    }
 
     @Tag("miniBatchSize=3")
     @Test
@@ -2091,7 +2112,7 @@ final class StreamingMiniBatchJoinOperatorTest extends StreamingJoinOperatorTest
                             RowType.of(
                                     new LogicalType[] {
                                         new CharType(false, 20),
-                                        new CharType(false, 20),
+                                        new CharType(true, 20),
                                         new CharType(true, 10)
                                     },
                                     new String[] {

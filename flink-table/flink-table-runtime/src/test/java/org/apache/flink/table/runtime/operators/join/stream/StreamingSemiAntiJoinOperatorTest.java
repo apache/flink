@@ -31,6 +31,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link StreamingSemiAntiJoinOperator}. */
 class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
@@ -287,6 +288,43 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
                 updateAfterRecord(
                         "Ord#1", "LineOrd#1", "23 W. River Avenue, Port Orange, FL 32127"));
         assertor.shouldEmitNothing(testHarness);
+    }
+
+    @Test
+    void testLeftSemiJoinSkipsNullKeys() throws Exception {
+        assertSkipsNullKeys(false);
+    }
+
+    /** An anti join emits and retracts a left row with a null key without storing it. */
+    @Test
+    void testLeftAntiJoinSkipsNullKeys() throws Exception {
+        assertSkipsNullKeys(true);
+    }
+
+    private void assertSkipsNullKeys(boolean isAntiJoin) throws Exception {
+        String address = "3 Bellevue Drive, Pottstown, PA 19464";
+        testHarness.processElement1(insertRecord("Ord#1", null, address));
+        if (isAntiJoin) {
+            assertor.shouldEmit(testHarness, rowOfKind(RowKind.INSERT, "Ord#1", null, address));
+        } else {
+            assertor.shouldEmitNothing(testHarness);
+        }
+        testHarness.processElement2(insertRecord(null, "AIR"));
+        assertor.shouldEmitNothing(testHarness);
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
+
+        testHarness.processElement1(deleteRecord("Ord#1", null, address));
+        if (isAntiJoin) {
+            assertor.shouldEmit(testHarness, rowOfKind(RowKind.DELETE, "Ord#1", null, address));
+        } else {
+            assertor.shouldEmitNothing(testHarness);
+        }
+        testHarness.processElement2(deleteRecord(null, "AIR"));
+        assertor.shouldEmitNothing(testHarness);
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
+
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        assertThat(testHarness.numKeyedStateEntries()).isOne();
     }
 
     private static final Predicate<String> ANTI_JOIN_CHECKER =
