@@ -96,11 +96,7 @@ public class CastRuleProvider {
                 .addRule(MapToMapAndMultisetToMultisetCastRule.INSTANCE)
                 .addRule(RowToRowCastRule.INSTANCE)
                 // Variant rules
-                .addRule(VariantToStringCastRule.INSTANCE)
-                .addRule(VariantToPrimitiveCastRule.INSTANCE)
-                .addRule(VariantToArrayCastRule.INSTANCE)
-                .addRule(VariantToRowCastRule.INSTANCE)
-                .addRule(VariantToMapCastRule.INSTANCE)
+                .addRule(FromVariantCastRule.INSTANCE)
                 .addRule(ToVariantCastRule.INSTANCE)
                 // Bitmap rules
                 .addRule(BitmapToStringCastRule.INSTANCE)

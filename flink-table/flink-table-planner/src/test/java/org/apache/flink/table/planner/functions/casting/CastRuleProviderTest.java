@@ -168,10 +168,9 @@ class CastRuleProviderTest {
 
     @Test
     void testResolveVariantToPrimitive() {
-        assertThat(CastRuleProvider.resolve(VARIANT, INT))
-                .isSameAs(VariantToPrimitiveCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(VARIANT, INT)).isSameAs(FromVariantCastRule.INSTANCE);
         assertThat(CastRuleProvider.resolve(VARIANT, BOOLEAN().getLogicalType()))
-                .isSameAs(VariantToPrimitiveCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
         assertThat(CastRuleProvider.exists(VARIANT, DECIMAL(10, 2).getLogicalType())).isTrue();
         assertThat(CastRuleProvider.exists(VARIANT, DATE().getLogicalType())).isTrue();
         assertThat(CastRuleProvider.exists(VARIANT, TIMESTAMP().getLogicalType())).isTrue();
@@ -184,9 +183,11 @@ class CastRuleProviderTest {
         // INTERVAL has no VARIANT counterpart, so it is not a castable target
         assertThat(CastRuleProvider.exists(VARIANT, INTERVAL(DataTypes.DAY()).getLogicalType()))
                 .isFalse();
-        // character strings keep going through the display-oriented rule
+        // character strings go through the same rule, including a bounded length
         assertThat(CastRuleProvider.resolve(VARIANT, STRING_TYPE))
-                .isSameAs(VariantToStringCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(VARIANT, CHAR(3).getLogicalType()))
+                .isSameAs(FromVariantCastRule.INSTANCE);
     }
 
     @Test
@@ -317,7 +318,7 @@ class CastRuleProviderTest {
     @Test
     void testResolveVariantToArray() {
         assertThat(CastRuleProvider.resolve(VARIANT, ARRAY(INT()).getLogicalType()))
-                .isSameAs(VariantToArrayCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
 
         // the element recurses through the VARIANT rules, including the identity leaf and nesting
         assertThat(CastRuleProvider.exists(VARIANT, ARRAY(VARIANT()).getLogicalType())).isTrue();
@@ -334,10 +335,10 @@ class CastRuleProviderTest {
     @Test
     void testResolveVariantToRow() {
         assertThat(CastRuleProvider.resolve(VARIANT, ROW(FIELD("f0", INT())).getLogicalType()))
-                .isSameAs(VariantToRowCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
         // a structured target shares the ROW rule
         assertThat(CastRuleProvider.resolve(VARIANT, STRUCTURED))
-                .isSameAs(VariantToRowCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
 
         // a field with no variant counterpart makes the whole cast unresolvable
         assertThat(
@@ -349,7 +350,7 @@ class CastRuleProviderTest {
     @Test
     void testResolveVariantToMap() {
         assertThat(CastRuleProvider.resolve(VARIANT, MAP(STRING(), INT()).getLogicalType()))
-                .isSameAs(VariantToMapCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
         // the value recurses through the VARIANT rules, including the identity leaf
         assertThat(CastRuleProvider.exists(VARIANT, MAP(STRING(), VARIANT()).getLogicalType()))
                 .isTrue();

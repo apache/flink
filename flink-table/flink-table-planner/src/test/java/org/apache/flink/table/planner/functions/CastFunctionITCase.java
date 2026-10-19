@@ -518,6 +518,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 "CAST(CAST(f5 AS VARIANT) AS TIMESTAMP_LTZ(3))",
                                 instant,
                                 TIMESTAMP_LTZ(3))
+                        // a TIMESTAMP_LTZ renders as a string in the session time zone
+                        .testResult(
+                                $("f5").cast(VARIANT()).cast(STRING()),
+                                "CAST(CAST(f5 AS VARIANT) AS STRING)",
+                                "2026-09-25 18:15:30.123000",
+                                STRING())
                         .testResult(
                                 $("f6").cast(VARIANT()).cast(UUID()),
                                 "CAST(CAST(f6 AS VARIANT) AS UUID)",
@@ -1052,6 +1058,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         final String objNull = "{\"id\": 7, \"name\": null}";
         final String nested =
                 "{\"user\": {\"id\": 1, \"since\": \"2020-01-01\"}, \"tags\": [\"x\", \"y\"]}";
+        final DataType stringRow = ROW(FIELD("d", STRING()));
         return List.of(
                 TestSetSpec.forExpression("Cast a VARIANT produced by parseJson() to a ROW")
                         .onFieldsWithData("null")
@@ -1155,7 +1162,42 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                         FIELD(
                                                 "user",
                                                 ROW(FIELD("id", INT()), FIELD("since", STRING()))),
-                                        FIELD("tags", ARRAY(STRING())))));
+                                        FIELD("tags", ARRAY(STRING())))),
+                // A ROW cast from VARIANT compares field by field, like a ROW built with ROW(...):
+                // NaN never equals NaN, and 0.0 equals -0.0. PARSE_JSON rejects NaN and
+                // infinities, so each VARIANT is built from a row of strings. Each pair spells its
+                // value differently, because the planner merges equal inputs and folds x = x to
+                // TRUE.
+                TestSetSpec.forExpression("Compare ROW values cast from VARIANT")
+                        .onFieldsWithData(
+                                Row.of("NaN"),
+                                Row.of("nan"),
+                                Row.of("0.0"),
+                                Row.of("-0.0"),
+                                Row.of("Infinity"),
+                                Row.of("inf"),
+                                Row.of("-Infinity"))
+                        .andDataTypes(
+                                stringRow, stringRow, stringRow, stringRow, stringRow, stringRow,
+                                stringRow)
+                        // NaN = NaN
+                        .testSqlResult(variantRowsEqual("f0", "f1"), false, BOOLEAN())
+                        // 0.0 = -0.0
+                        .testSqlResult(variantRowsEqual("f2", "f3"), true, BOOLEAN())
+                        // Infinity = Infinity
+                        .testSqlResult(variantRowsEqual("f4", "f5"), true, BOOLEAN())
+                        // Infinity = -Infinity
+                        .testSqlResult(variantRowsEqual("f4", "f6"), false, BOOLEAN()));
+    }
+
+    /** Casts two rows of strings to {@code ROW<d DOUBLE>} through a VARIANT and compares them. */
+    private static String variantRowsEqual(final String left, final String right) {
+        return variantRow(left) + " = " + variantRow(right);
+    }
+
+    private static String variantRow(final String field) {
+        return String.format(
+                "CAST(CAST(CAST(%s AS ROW<d DOUBLE>) AS VARIANT) AS ROW<d DOUBLE>)", field);
     }
 
     private static List<TestSetSpec> variantMapCasts() {

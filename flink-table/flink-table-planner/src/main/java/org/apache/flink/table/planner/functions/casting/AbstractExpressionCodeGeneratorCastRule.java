@@ -24,6 +24,7 @@ import org.apache.flink.table.runtime.generated.CompileUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
+import java.time.ZoneId;
 import java.util.Collections;
 
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.boxedTypeTermForType;
@@ -117,6 +118,11 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
             @Override
             public String getSessionTimeZoneTerm() {
                 return "java.util.TimeZone.getTimeZone(\"" + ctx.getSessionZoneId().getId() + "\")";
+            }
+
+            @Override
+            public ZoneId getSessionZoneId() {
+                return ctx.getSessionZoneId();
             }
 
             @Override
