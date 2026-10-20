@@ -115,6 +115,7 @@ export interface CheckpointTaskStatistics {
   alignment_buffered: number;
   num_subtasks: number;
   num_acknowledged_subtasks: number;
+  oldest_ref_checkpoint_id?: number;
 }
 
 export interface CheckpointConfig {
@@ -136,6 +137,9 @@ export interface CheckpointConfig {
   checkpoints_after_tasks_finish: boolean;
   changelog_storage: string;
   changelog_periodic_materialization_interval: number;
+  regional_checkpoint_enabled: boolean;
+  regional_max_failure_ratio: number;
+  regional_max_consecutive_failures: number;
 }
 
 export interface CheckpointDetail {
@@ -166,6 +170,7 @@ export interface CheckpointDetail {
       alignment_buffered: number;
       num_subtasks: number;
       num_acknowledged_subtasks: number;
+      oldest_ref_checkpoint_id?: number;
     };
   }>;
 }
@@ -188,6 +193,7 @@ export interface CompletedSubTaskCheckpointStatistics {
   start_delay: number;
   unaligned_checkpoint: boolean;
   aborted: boolean;
+  ref_checkpoint_id?: number;
 }
 
 export interface PendingSubTaskCheckpointStatistics {}

@@ -19,12 +19,15 @@
 package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
+
+import javax.annotation.Nullable;
 
 import java.util.Objects;
 
@@ -129,6 +132,8 @@ public class SubtaskCheckpointStatistics {
 
         public static final String FIELD_NAME_ABORTED = "aborted";
 
+        public static final String FIELD_NAME_REF_CHECKPOINT_ID = "ref_checkpoint_id";
+
         @JsonProperty(FIELD_NAME_ACK_TIMESTAMP)
         private final long ackTimestamp;
 
@@ -156,6 +161,11 @@ public class SubtaskCheckpointStatistics {
         @JsonProperty(FIELD_NAME_ABORTED)
         private final boolean aborted;
 
+        @JsonProperty(FIELD_NAME_REF_CHECKPOINT_ID)
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @Nullable
+        private final Long refCheckpointId;
+
         @JsonCreator
         public CompletedSubtaskCheckpointStatistics(
                 @JsonProperty(FIELD_NAME_INDEX) int index,
@@ -167,7 +177,8 @@ public class SubtaskCheckpointStatistics {
                 @JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment alignment,
                 @JsonProperty(FIELD_NAME_START_DELAY) long startDelay,
                 @JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINT) boolean unalignedCheckpoint,
-                @JsonProperty(FIELD_NAME_ABORTED) boolean aborted) {
+                @JsonProperty(FIELD_NAME_ABORTED) boolean aborted,
+                @JsonProperty(FIELD_NAME_REF_CHECKPOINT_ID) @Nullable Long refCheckpointId) {
             super(index, "completed");
             this.ackTimestamp = ackTimestamp;
             this.duration = duration;
@@ -178,6 +189,7 @@ public class SubtaskCheckpointStatistics {
             this.startDelay = startDelay;
             this.unalignedCheckpoint = unalignedCheckpoint;
             this.aborted = aborted;
+            this.refCheckpointId = refCheckpointId;
         }
 
         public long getAckTimestamp() {
@@ -216,6 +228,11 @@ public class SubtaskCheckpointStatistics {
             return aborted;
         }
 
+        @Nullable
+        public Long getRefCheckpointId() {
+            return refCheckpointId;
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -233,7 +250,8 @@ public class SubtaskCheckpointStatistics {
                     && Objects.equals(alignment, that.alignment)
                     && startDelay == that.startDelay
                     && unalignedCheckpoint == that.unalignedCheckpoint
-                    && aborted == that.aborted;
+                    && aborted == that.aborted
+                    && Objects.equals(refCheckpointId, that.refCheckpointId);
         }
 
         @Override
@@ -247,7 +265,8 @@ public class SubtaskCheckpointStatistics {
                     alignment,
                     startDelay,
                     unalignedCheckpoint,
-                    aborted);
+                    aborted,
+                    refCheckpointId);
         }
 
         /** Duration of the checkpoint. */

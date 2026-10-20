@@ -284,7 +284,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
             ExecutionAttemptID executionAttemptID,
             long checkpointId,
             long checkpointTimestamp,
-            long lastSubsumedCheckpointId) {
+            long lastSubsumedCheckpointId,
+            long fallbackCheckpointId) {
         return confirmCheckpointFunction.apply(
                 executionAttemptID, checkpointId, checkpointTimestamp);
     }
