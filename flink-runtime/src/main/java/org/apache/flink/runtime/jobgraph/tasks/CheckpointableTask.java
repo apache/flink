@@ -77,6 +77,20 @@ public interface CheckpointableTask {
     Future<Void> notifyCheckpointCompleteAsync(long checkpointId);
 
     /**
+     * Invoked when a regional checkpoint has completed but this task's region fell back to a
+     * historical checkpoint. The task should clean up stale local state from the failed checkpoint
+     * attempt.
+     *
+     * @param checkpointId The ID of the completed regional checkpoint.
+     * @param fallbackCheckpointId The ID of the historical checkpoint this task fell back to.
+     * @return future that completes when the notification has been processed by the task.
+     */
+    default Future<Void> notifyRegionalCheckpointFallbackAsync(
+            long checkpointId, long fallbackCheckpointId) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
      * Invoked when a checkpoint has been aborted, i.e., when the checkpoint coordinator has
      * received a decline message from one task and try to abort the targeted checkpoint by
      * notification.

@@ -85,12 +85,14 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
             JobID jobId,
             long completedCheckpointId,
             long completedTimestamp,
-            long lastSubsumedCheckpointId) {
+            long lastSubsumedCheckpointId,
+            long fallbackCheckpointId) {
         taskExecutorGateway.confirmCheckpoint(
                 executionAttemptID,
                 completedCheckpointId,
                 completedTimestamp,
-                lastSubsumedCheckpointId);
+                lastSubsumedCheckpointId,
+                fallbackCheckpointId);
     }
 
     @Override
