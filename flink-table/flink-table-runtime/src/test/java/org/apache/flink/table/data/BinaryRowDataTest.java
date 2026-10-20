@@ -453,6 +453,55 @@ class BinaryRowDataTest {
             row.setDecimal(0, decimal2, precision);
             assertThat(row.getDecimal(0, precision, scale).toString()).isEqualTo("6.55000");
         }
+
+        // 3.not compact, values around the 8-byte boundary
+        {
+            int precision = 38;
+            int scale = 2;
+            for (String value :
+                    new String[] {
+                        "0.00",
+                        "-0.01",
+                        "1.28",
+                        "-1.29",
+                        "92233720368547758.07",
+                        "-92233720368547758.08",
+                        "92233720368547758.08",
+                        "-92233720368547758.09",
+                        "123456789012345678901234567890.12"
+                    }) {
+                DecimalData decimal =
+                        DecimalData.fromBigDecimal(new BigDecimal(value), precision, scale);
+                BinaryRowData row = new BinaryRowData(1);
+                BinaryRowWriter writer = new BinaryRowWriter(row);
+                writer.writeDecimal(0, decimal, precision);
+                writer.complete();
+
+                assertThat(row.getDecimal(0, precision, scale).toBigDecimal())
+                        .isEqualTo(decimal.toBigDecimal());
+                assertThat(row.getDecimal(0, precision, scale).longBacked)
+                        .isEqualTo(decimal.toUnscaledBytes().length <= 8);
+                row.setDecimal(0, row.getDecimal(0, precision, scale), precision);
+                assertThat(row.getDecimal(0, precision, scale).toBigDecimal())
+                        .isEqualTo(decimal.toBigDecimal());
+
+                // split the row so that the decimal bytes cross a segment boundary
+                int fixedSize = row.getFixedLengthPartSize();
+                for (int split = 1; split < 8; split++) {
+                    int segmentSize = fixedSize + split;
+                    MemorySegment ms1 = MemorySegmentFactory.wrap(new byte[segmentSize]);
+                    MemorySegment ms2 = MemorySegmentFactory.wrap(new byte[segmentSize]);
+                    row.getSegments()[0].copyTo(0, ms1, 0, segmentSize);
+                    row.getSegments()[0].copyTo(
+                            segmentSize, ms2, 0, row.getSizeInBytes() - segmentSize);
+                    BinaryRowData splitRow = new BinaryRowData(1);
+                    splitRow.pointTo(new MemorySegment[] {ms1, ms2}, 0, row.getSizeInBytes());
+
+                    assertThat(splitRow.getDecimal(0, precision, scale).toBigDecimal())
+                            .isEqualTo(decimal.toBigDecimal());
+                }
+            }
+        }
     }
 
     @Test
