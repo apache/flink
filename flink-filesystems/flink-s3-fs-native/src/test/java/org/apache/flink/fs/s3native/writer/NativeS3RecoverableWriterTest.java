@@ -45,6 +45,15 @@ class NativeS3RecoverableWriterTest {
     private static final String UUID_REGEX =
             "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
+    /** Where the 2.3 release stores the tail: under the target key. */
+    private static final String TAIL_KEY_OF_RELEASE_2_3 = KEY + "/.incomplete/U1/tail";
+
+    /** Where the tail is stored now: in the target's directory. */
+    private static final String TAIL_KEY_IN_TARGET_DIRECTORY = "dir/.incomplete/U1/tail";
+
+    /** Where the tail of a target without a directory is stored now: at the bucket root. */
+    private static final String TAIL_KEY_OF_ROOT_LEVEL_TARGET = ".incomplete/U1/tail";
+
     @TempDir java.nio.file.Path tmp;
 
     private FakeNativeS3Operations s3;
@@ -56,7 +65,12 @@ class NativeS3RecoverableWriterTest {
 
     /** Recovery reads the tail by the key stored in the recoverable, whatever its layout. */
     @ParameterizedTest
-    @ValueSource(strings = {".incomplete/U1/tail", "dir/.incomplete/U1/tail"})
+    @ValueSource(
+            strings = {
+                TAIL_KEY_OF_RELEASE_2_3,
+                TAIL_KEY_IN_TARGET_DIRECTORY,
+                TAIL_KEY_OF_ROOT_LEVEL_TARGET
+            })
     void recoverResumesFromTailAtStoredKey(String tailKey) throws Exception {
         final String uploadId = s3.startMultiPartUpload(KEY);
         s3.objects.put(tailKey, ascii("AAAAA"));
@@ -71,7 +85,12 @@ class NativeS3RecoverableWriterTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {".incomplete/U1/tail", "dir/.incomplete/U1/tail"})
+    @ValueSource(
+            strings = {
+                TAIL_KEY_OF_RELEASE_2_3,
+                TAIL_KEY_IN_TARGET_DIRECTORY,
+                TAIL_KEY_OF_ROOT_LEVEL_TARGET
+            })
     void cleanupDeletesOnlyTailAtStoredKey(String tailKey) throws Exception {
         s3.objects.put(tailKey, ascii("AAAAA"));
         s3.objects.put("dir/other", ascii("other"));
@@ -125,6 +144,42 @@ class NativeS3RecoverableWriterTest {
         assertThat(recoverable.incompleteObjectName())
                 .matches(Pattern.quote(".incomplete/" + recoverable.uploadId() + "/") + UUID_REGEX);
         assertTailStored(recoverable, "AAAAA");
+    }
+
+    /**
+     * A job upgraded from the 2.3 release restores from a tail stored under the target key, then
+     * checkpoints into the new location. The old checkpoint stays restorable until it is retired,
+     * retiring it leaves the new tail alone, and the new checkpoint restores as well.
+     */
+    @Test
+    void upgradeFromRelease23Checkpoint() throws Exception {
+        final String uploadId = s3.startMultiPartUpload(KEY);
+        s3.objects.put(TAIL_KEY_OF_RELEASE_2_3, ascii("AAAAA"));
+        final NativeS3Recoverable oldCheckpoint =
+                new NativeS3Recoverable(
+                        KEY, uploadId, Collections.emptyList(), 0L, TAIL_KEY_OF_RELEASE_2_3, 5L);
+
+        final RecoverableFsDataOutputStream resumed = writer().recover(oldCheckpoint);
+        resumed.write(ascii("BBB"), 0, 3);
+        final NativeS3Recoverable newCheckpoint = (NativeS3Recoverable) resumed.persist();
+        resumed.close();
+
+        assertThat(newCheckpoint.incompleteObjectName())
+                .startsWith("dir/.incomplete/" + uploadId + "/");
+
+        // A failure before the new checkpoint completes restores from the old one again.
+        final RecoverableFsDataOutputStream resumedAgain = writer().recover(oldCheckpoint);
+        assertThat(resumedAgain.getPos()).isEqualTo(5L);
+        resumedAgain.close();
+
+        assertThat(writer().cleanupRecoverableState(oldCheckpoint)).isTrue();
+        assertThat(s3.objects).containsOnlyKeys(newCheckpoint.incompleteObjectName());
+
+        final RecoverableFsDataOutputStream restored = writer().recover(newCheckpoint);
+        restored.write(ascii("C"), 0, 1);
+        restored.closeForCommit().commit();
+
+        assertThat(s3.committedObjects.get(KEY)).isEqualTo(ascii("AAAAABBBC"));
     }
 
     private NativeS3Recoverable persistFiveBytes(String key) throws IOException {
