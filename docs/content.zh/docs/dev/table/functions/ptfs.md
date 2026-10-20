@@ -1541,7 +1541,10 @@ public static class ControllableDedup extends ProcessTableFunction<String> {
 
 The following rules apply to notifying stateful sets:
 
-- At least one state entry scoped to a set must be declared. Sets without state entries are not notified. Timers are ignored.
+- At least one state entry scoped to a set must be declared. Sets without state entries are not notified. Registered timers alone don't count as state.
+- Sets whose state entries have expired due to [state TTL](#state-ttl) might still be notified until the state backend
+  has cleaned them up. In this case, the state entries of the set are empty, and writing to them during notification
+  keeps the set alive.
 - During notification, state entries of the set and timers are accessible and broadcast state is read-only. Similar to processing a row
   of the main table(s), the PTF can emit results via `collect()` and register timers. Results contain the partition key
   of the set.

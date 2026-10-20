@@ -564,11 +564,11 @@ class ProcessTableFunctionTest extends TableTestBase {
                         "SELECT * FROM f(input => TABLE t PARTITION BY name)",
                         "Broadcast state entry 's' requires at least one table argument with broadcast semantics."),
                 ErrorSpec.ofSelect(
-                        "notify stateful sets without state scoped to a set",
-                        InvalidNotifyStatefulSetsFunction.class,
-                        "SELECT * FROM f(input => TABLE t PARTITION BY name, rule => TABLE t_rules)",
+                        "notify stateful sets without set semantic table",
+                        InvalidNotifyStatefulSetsWithRowFunction.class,
+                        "SELECT * FROM f(input => TABLE t, rule => TABLE t_rules)",
                         "Table argument 'rule' notifies stateful sets which requires at least one "
-                                + "state entry that is scoped to a set."),
+                                + "table argument with set semantics."),
                 ErrorSpec.ofSelect(
                         "missing on_time for broadcast table",
                         BroadcastTimersFunction.class,
@@ -845,11 +845,12 @@ class ProcessTableFunctionTest extends TableTestBase {
     }
 
     /** Testing function. */
-    public static class InvalidNotifyStatefulSetsFunction extends ProcessTableFunction<String> {
+    public static class InvalidNotifyStatefulSetsWithRowFunction
+            extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
         public void eval(
-                @StateHint(StateKind.BROADCAST) MapView<String, Integer> s,
-                @ArgumentHint(SET_SEMANTIC_TABLE) Row input,
+                @StateHint MapView<String, Integer> s,
+                @ArgumentHint(ROW_SEMANTIC_TABLE) Row input,
                 @ArgumentHint({BROADCAST_SEMANTIC_TABLE, NOTIFY_STATEFUL_SETS}) Row rule) {}
     }
 

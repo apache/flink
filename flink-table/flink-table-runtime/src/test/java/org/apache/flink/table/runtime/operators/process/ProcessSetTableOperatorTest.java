@@ -28,6 +28,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
+import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.ValueView;
@@ -48,6 +49,7 @@ import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -88,7 +90,7 @@ class ProcessSetTableOperatorTest {
     @Test
     void testNotifyStatefulSets() throws Exception {
         try (StreamTaskMailboxTestHarness<RowData> harness =
-                createBroadcastHarness(new NotifyStatefulSetsOperatorCreator(true))) {
+                createBroadcastHarness(new NotifyStatefulSetsOperatorCreator(true, 0))) {
             processMainRows(harness, 1L, 2L, 1L);
             // Notifies sets 1 and 2
             processBroadcastRow(harness, "a");
@@ -116,13 +118,42 @@ class ProcessSetTableOperatorTest {
     @Test
     void testWithoutNotifyStatefulSets() throws Exception {
         try (StreamTaskMailboxTestHarness<RowData> harness =
-                createBroadcastHarness(new NotifyStatefulSetsOperatorCreator(false))) {
+                createBroadcastHarness(new NotifyStatefulSetsOperatorCreator(false, 0))) {
             processMainRows(harness, 1L, 2L, 1L);
             processBroadcastRow(harness, "a");
             processWatermark(harness, TIMER_TIME, 2);
 
             assertThat(describeOutput(harness))
                     .containsExactly("1:count-1", "2:count-1", "1:count-2");
+        }
+    }
+
+    @Test
+    void testNotifyStatefulSetsWithExpiredState() throws Exception {
+        try (KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
+                createTtlBroadcastHarness(new NotifyStatefulSetsOperatorCreator(true, 10))) {
+            harness.setStateTtlProcessingTime(0);
+            processMainRows(harness, 1L);
+            harness.setStateTtlProcessingTime(12);
+            // Notifies set 1 with expired state, reading it cleans it up in the heap backend
+            processBroadcastRow(harness, "a");
+            // No stateful sets left
+            processBroadcastRow(harness, "b");
+
+            processMainRows(harness, 2L);
+            harness.setStateTtlProcessingTime(24);
+            // Notifies set 2 with expired state, writing it keeps the set alive
+            processBroadcastRow(harness, "reset");
+            harness.setStateTtlProcessingTime(30);
+            processBroadcastRow(harness, "c");
+
+            assertThat(describeOutput(harness.getOutput()))
+                    .containsExactly(
+                            "1:count-1",
+                            "1:notified-null-a-read-only",
+                            "2:count-1",
+                            "2:notified-null-reset-read-only",
+                            "2:notified-0-c-read-only");
         }
     }
 
@@ -197,6 +228,14 @@ class ProcessSetTableOperatorTest {
         }
     }
 
+    private static void processMainRows(
+            KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness, long... keys)
+            throws Exception {
+        for (long key : keys) {
+            harness.processElement(0, new StreamRecord<>(GenericRowData.of(key)));
+        }
+    }
+
     /** Advances the watermark of all inputs. */
     private static void processWatermark(
             StreamTaskMailboxTestHarness<RowData> harness, long watermark, int inputCount)
@@ -209,7 +248,11 @@ class ProcessSetTableOperatorTest {
 
     /** Describes emitted rows as "key:label". */
     private static List<String> describeOutput(StreamTaskMailboxTestHarness<RowData> harness) {
-        return harness.getOutput().stream()
+        return describeOutput(harness.getOutput());
+    }
+
+    private static List<String> describeOutput(Collection<Object> output) {
+        return output.stream()
                 .filter(StreamRecord.class::isInstance)
                 .map(r -> (RowData) ((StreamRecord<?>) r).getValue())
                 .map(r -> r.getLong(0) + ":" + r.getString(1))
@@ -256,6 +299,20 @@ class ProcessSetTableOperatorTest {
         return createHarness(operatorCreator, BROADCAST_TYPE_INFO);
     }
 
+    /**
+     * Creates an operator-level harness instead of a task-level harness, because only the former
+     * allows controlling the time of state TTL.
+     */
+    private static KeyedMultiInputStreamOperatorTestHarness<RowData, RowData>
+            createTtlBroadcastHarness(OperatorCreator operatorCreator) throws Exception {
+        final KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
+                new KeyedMultiInputStreamOperatorTestHarness<>(
+                        new TestOperatorFactory(operatorCreator), KEY_SELECTOR.getProducedType());
+        harness.setKeySelector(0, KEY_SELECTOR);
+        harness.open();
+        return harness;
+    }
+
     private static RuntimeTableSemantics broadcastTableSemantics(boolean notifyStatefulSets) {
         return new RuntimeTableSemantics(
                 "broadcast",
@@ -279,14 +336,23 @@ class ProcessSetTableOperatorTest {
                 new StreamRecord<>(GenericRowData.of(StringData.fromString(rule))), 1);
     }
 
+    private static void processBroadcastRow(
+            KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness, String rule)
+            throws Exception {
+        harness.processElement(
+                1, new StreamRecord<>(GenericRowData.of(StringData.fromString(rule))));
+    }
+
     /** Operator for {@link NotifyStatefulSetsRunner} with a keyed count and a broadcast rule. */
     private static class NotifyStatefulSetsOperatorCreator implements OperatorCreator {
         private static final long serialVersionUID = 1L;
 
         private final boolean notifyStatefulSets;
+        private final long countTimeToLive;
 
-        NotifyStatefulSetsOperatorCreator(boolean notifyStatefulSets) {
+        NotifyStatefulSetsOperatorCreator(boolean notifyStatefulSets, long countTimeToLive) {
             this.notifyStatefulSets = notifyStatefulSets;
+            this.countTimeToLive = countTimeToLive;
         }
 
         @Override
@@ -298,7 +364,7 @@ class ProcessSetTableOperatorTest {
                             new RuntimeStateInfo(
                                     "count",
                                     ValueView.newValueViewDataType(DataTypes.INT()),
-                                    0,
+                                    countTimeToLive,
                                     false),
                             new RuntimeStateInfo(
                                     "rule",
@@ -312,8 +378,9 @@ class ProcessSetTableOperatorTest {
     /**
      * {@link ProcessTableRunner} that counts rows of the main table per set. A broadcast row
      * updates a broadcast rule. If notified, every stateful set emits its count together with the
-     * rule and registers a timer. The rule "clear" clears the set's state. State handles are
-     * accessed directly instead of converting state like generated code does.
+     * rule and registers a timer. The rule "clear" clears the set's state, the rule "reset" resets
+     * the set's count. State handles are accessed directly instead of converting state like
+     * generated code does.
      */
     private static class NotifyStatefulSetsRunner extends ProcessTableRunner {
 
@@ -339,6 +406,8 @@ class ProcessSetTableOperatorTest {
                 runnerContext.timeContext(Long.class).registerOnTime(TIMER_TIME);
                 if (rule.value().equals("clear")) {
                     count.clear();
+                } else if (rule.value().equals("reset")) {
+                    count.update(0);
                 }
             }
         }

@@ -1956,8 +1956,9 @@ public class ProcessTableFunctionTestPrograms {
                     .runFailingSql(
                             "SELECT * FROM f(input => TABLE t PARTITION BY name, rule => TABLE rules)",
                             TableRuntimeException.class,
-                            "Broadcast state entry 'weights' is read-only. It is only writable when "
-                                    + "processing a table with broadcast semantics.")
+                            "Broadcast state entry 'weights' is read-only. It can only be modified while "
+                                    + "processing a row of a table with broadcast semantics, not while "
+                                    + "processing other tables, firing timers, or notifying stateful sets.")
                     .build();
 
     public static final TableTestProgram PROCESS_MULTI_INPUT =

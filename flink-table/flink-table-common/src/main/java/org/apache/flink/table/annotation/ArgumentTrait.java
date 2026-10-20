@@ -126,10 +126,15 @@ public enum ArgumentTrait {
      * </ol>
      *
      * <p>At least one state entry scoped to a set must be declared. Sets without state entries are
-     * not notified. Timers are ignored. During notification, state entries of the set and timers
-     * are accessible and broadcast state is read-only. Similar to processing a row of the main
-     * table(s), the PTF can emit results via {@code collect()} and register timers. Results contain
-     * the partition key of the set.
+     * not notified. Registered timers alone don't count as state. Sets whose state entries have
+     * expired due to a time-to-live (TTL) might still be notified until the state backend has
+     * cleaned them up. In this case, the state entries of the set are empty, and writing to them
+     * during notification keeps the set alive.
+     *
+     * <p>During notification, state entries of the set and timers are accessible and broadcast
+     * state is read-only. Similar to processing a row of the main table(s), the PTF can emit
+     * results via {@code collect()} and register timers. Results contain the partition key of the
+     * set.
      *
      * <p>Note: Notifying stateful sets is expensive. For every broadcast row, all keys in state are
      * loaded and a PTF's {@code eval()} is called for each of them. Processing of other rows and
@@ -137,7 +142,8 @@ public enum ArgumentTrait {
      * used if broadcast rows are rare compared to rows of the main table(s) and the overall key
      * space is relatively low.
      *
-     * <p>Note: This trait is only valid for {@link #BROADCAST_SEMANTIC_TABLE} arguments.
+     * <p>Note: This trait is only valid for {@link #BROADCAST_SEMANTIC_TABLE} arguments and
+     * requires at least one {@link #SET_SEMANTIC_TABLE} argument.
      */
     NOTIFY_STATEFUL_SETS(false, StaticArgumentTrait.NOTIFY_STATEFUL_SETS),
 
