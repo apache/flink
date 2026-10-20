@@ -344,6 +344,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 tableArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
                 tableArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE),
                 tableArg.is(StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE),
+                tableArg.is(StaticArgumentTrait.NOTIFY_STATEFUL_SETS),
                 timeColumn,
                 upsertKeys);
     }

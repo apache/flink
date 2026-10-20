@@ -52,7 +52,8 @@ import java.util.stream.IntStream;
  * least one table with set semantics or at least one table with broadcast semantics.
  *
  * <p>Tables with broadcast semantics have no key context. Similar to tables with set semantics,
- * they contribute to the operator's watermark.
+ * they contribute to the operator's watermark. If configured, every broadcast row is additionally
+ * forwarded to all sets that hold state.
  */
 public class ProcessSetTableOperator extends AbstractProcessTableOperator
         implements MultipleInputStreamOperator<RowData> {
@@ -113,6 +114,9 @@ public class ProcessSetTableOperator extends AbstractProcessTableOperator
                                     if (inputSemantics.hasBroadcastSemantics()) {
                                         processBroadcastTableEvent(
                                                 inputIdx, element.getValue(), timeColumn);
+                                        if (inputSemantics.notifiesStatefulSets()) {
+                                            notifyStatefulSets();
+                                        }
                                         return;
                                     }
                                     final InputSortBuffer sortBuffer = inputSortBuffers[inputIdx];

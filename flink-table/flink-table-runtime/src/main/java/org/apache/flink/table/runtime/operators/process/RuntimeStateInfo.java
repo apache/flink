@@ -59,4 +59,19 @@ public class RuntimeStateInfo implements Serializable {
     public boolean isBroadcast() {
         return broadcast;
     }
+
+    @Override
+    public String toString() {
+        return "RuntimeStateInfo{"
+                + "stateName='"
+                + stateName
+                + '\''
+                + ", dataType="
+                + dataType
+                + ", timeToLive="
+                + timeToLive
+                + ", broadcast="
+                + broadcast
+                + '}';
+    }
 }

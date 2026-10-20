@@ -1471,6 +1471,91 @@ The following rules apply to broadcast tables and broadcast state:
 - It is the responsibility of the PTF implementer to maintain identical broadcast state across all virtual processors,
   i.e. broadcast state should only be updated deterministically based on the broadcast rows.
 
+#### Notifying Stateful Sets
+
+By default, a change to a broadcast state entry has no effect on sets that have been processed before. Especially when
+building a rule engine, the question arises how to re-evaluate previously processed sets with the new broadcast
+information. For this, a broadcast table can be declared with `ArgumentTrait.NOTIFY_STATEFUL_SETS`.
+
+For every row of such a broadcast table, `eval()` is called multiple times:
+
+1. First, without scoping to a set (as described above): This call updates the broadcast state, if available.
+2. Next, once for every set that holds at least one state entry: In this phase, the `eval()` implementation
+   has access to the incoming broadcast row, as well as all (keyed) state entries.
+
+The following example deduplicates events per key. A row of the broadcast table resets the deduplication for all keys.
+
+{{< tabs "5ddc43b1-d719-4bb6-be26-4aed9476e5d3" >}}
+{{< tab "Java" >}}
+```java
+TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+env.executeSql("CREATE VIEW Events(id, payload) AS VALUES (1, 'a'), (1, 'a'), (2, 'b')");
+env.executeSql("CREATE VIEW Resets(reason) AS VALUES ('cache invalidation')");
+
+env.createFunction("ControllableDedup", ControllableDedup.class);
+
+env
+  .executeSql("SELECT * FROM ControllableDedup(data => TABLE Events PARTITION BY id, resets => TABLE Resets)")
+  .print();
+
+// --------------------
+// Function declaration
+// --------------------
+
+// Function that deduplicates events per key until a reset is broadcast
+public static class ControllableDedup extends ProcessTableFunction<String> {
+
+  public void eval(
+      Context ctx,
+      @StateHint ValueView<String> seen,
+      @ArgumentHint(SET_SEMANTIC_TABLE) Row data,
+      @ArgumentHint({BROADCAST_SEMANTIC_TABLE, NOTIFY_STATEFUL_SETS}) Row resets
+  ) throws Exception {
+    // Process row from table 'Events': emit only the first payload per key
+    if (data != null) {
+      if (seen.getValue() == null) {
+        String payload = data.getFieldAs("payload");
+        seen.setValue(payload);
+        collect(payload);
+      }
+      return;
+    }
+
+    // Process row from table 'Resets' - broadcast phase:
+    // state scoped to a set is null, nothing to do
+    if (resets != null && seen == null) {
+      return;
+    }
+
+    // Process row from table 'Resets' - notification phase:
+    // state scoped to a set is present, act on notification
+    if (resets != null && seen != null) {
+      ctx.clearAllState();
+    }
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+The following rules apply to notifying stateful sets:
+
+- At least one state entry scoped to a set must be declared. Sets without state entries are not notified. Registered timers alone don't count as state.
+- Sets whose state entries have expired due to [state TTL](#state-ttl) might still be notified until the state backend
+  has cleaned them up. In this case, the state entries of the set are empty, and writing to them during notification
+  keeps the set alive.
+- During notification, state entries of the set and timers are accessible and broadcast state is read-only. Similar to processing a row
+  of the main table(s), the PTF can emit results via `collect()` and register timers. Results contain the partition key
+  of the set.
+
+{{< hint warning >}}
+Notifying stateful sets is expensive. For every broadcast row, all keys in state are loaded and a PTF's eval() is called for
+each of them. Processing of other rows and checkpointing is blocked until all sets have been notified. Thus, this trait
+should only be used if broadcast rows are rare compared to rows of the main table(s) and the overall key space is
+relatively low.
+{{< /hint >}}
+
 ### Efficiency and Design Principles
 
 A high number of input tables can negatively impact a single TaskManager or subtask. Network buffers must be allocated
@@ -2224,12 +2309,124 @@ for `Charly` could not be found.
 +----+-------------+-------------+--------------------------------+--------------------------------+
 ```
 
+{{< top >}}
+
+### Blockable Score Aggregation
+
+The following example combines various PTF concepts for influencing the aggregation of scores:
+- a table with set semantics,
+- broadcast table with broadcast state that notifies previous stateful sets,
+- and an updating output.
+
+The PTF sums up scores per user and emits the current sum as an upsert. A broadcast table contains blocked
+users that are stored in broadcast state. Score events of blocked users are ignored. If a user is blocked after being
+processed, the notification removes the user's state and sends a `RowKind.DELETE` downstream.
+
+{{< tabs "16dccd99-2d64-415b-9f5e-9683e30e9300" >}}
+{{< tab "Java" >}}
+```java
+TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+env.executeSql("CREATE VIEW ScoreEvents(name, score) AS VALUES ('Bob', 12), ('Alice', 42), ('Bob', 7), ('Alice', 3)");
+env.executeSql("CREATE VIEW BlockedUsers(name) AS VALUES ('Bob')");
+
+// The PTF emits upserts, thus, the sink declares the PARTITION BY key as primary key
+env.executeSql(
+  "CREATE TABLE UserScores (name STRING, total INT, PRIMARY KEY (name) NOT ENFORCED) WITH ("
+    + "'connector' = 'upsert-kafka', "
+    + "'topic' = 'user-scores', "
+    + "'properties.bootstrap.servers' = 'localhost:9092', "
+    + "'key.format' = 'json', "
+    + "'value.format' = 'json')");
+
+env.createFunction("BlockableScoreSum", BlockableScoreSum.class);
+
+env.executeSql(
+  "INSERT INTO UserScores SELECT * FROM BlockableScoreSum("
+    + "scores => TABLE ScoreEvents PARTITION BY name, "
+    + "blockedUsers => TABLE BlockedUsers)");
+
+// --------------------
+// Function declaration
+// --------------------
+
+// Function that sums up and continuously updates scores per user.
+// It removes blocked users from the result when instructed to do so from a
+// controlling BlockedUsers table.
+@DataTypeHint("ROW<total INT>")
+public static class BlockableScoreSum
+  extends ProcessTableFunction<Row>
+  implements ChangelogFunction {
+
+  @Override
+  public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
+    // Tells the system that the PTF produces upserts with deletes that contain all fields
+    return ChangelogMode.upsert(false);
+  }
+
+  public static class UserScore {
+    public String name;
+    public int total;
+  }
+
+  public void eval(
+      Context ctx,
+      @StateHint UserScore user,
+      @StateHint(StateKind.BROADCAST) MapView<String, Boolean> blockList,
+      @ArgumentHint(SET_SEMANTIC_TABLE) Row scores,
+      @ArgumentHint({BROADCAST_SEMANTIC_TABLE, NOTIFY_STATEFUL_SETS}) Row blockedUsers
+  ) throws Exception {
+    // Process row from table 'ScoreEvents': ignore blocked users, otherwise emit the current sum
+    if (scores != null) {
+      String name = scores.getFieldAs("name");
+      if (blockList.contains(name)) {
+        return;
+      }
+      RowKind kind = user.name == null ? RowKind.INSERT : RowKind.UPDATE_AFTER;
+      user.name = name;
+      user.total += scores.<Integer>getFieldAs("score");
+      collect(Row.ofKind(kind, user.total));
+      return;
+    }
+
+    String blockedName = blockedUsers.getFieldAs("name");
+
+    // Process row from table 'BlockedUsers' - broadcast phase:
+    // state scoped to a set is null, store the blocked user
+    if (user == null) {
+      blockList.put(blockedName, true);
+      return;
+    }
+
+    // Process row from table 'BlockedUsers' - notification phase:
+    // state scoped to a set is present, remove the blocked user from the result and from state
+    if (blockedName.equals(user.name)) {
+      collect(Row.ofKind(RowKind.DELETE, user.total));
+      ctx.clearAllState();
+    }
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+If `Bob` is blocked after his first score event has been processed, the sink receives the following changelog:
+
+```text
++I[Bob, 12]
+-D[Bob, 12]
++I[Alice, 42]
++U[Alice, 45]
+```
+
+If the broadcast row is processed before any score event of `Bob`, `Bob` never appears in the changelog. In both cases,
+the materialized result only contains `Alice` with a total of 45.
+
 Limitations
 -----------
 
 PTFs are in an early stage. The following limitations apply:
 - PTFs cannot run in batch mode.
-- Broadcast state
 
 Testing Process Table Functions
 -------------------------------

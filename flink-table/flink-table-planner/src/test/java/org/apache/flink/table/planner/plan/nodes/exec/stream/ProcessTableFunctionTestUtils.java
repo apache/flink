@@ -62,6 +62,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.annotation.ArgumentTrait.BROADCAST_SEMANTIC_TABLE;
+import static org.apache.flink.table.annotation.ArgumentTrait.NOTIFY_STATEFUL_SETS;
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
 import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
 import static org.apache.flink.table.annotation.ArgumentTrait.REQUIRE_FULL_DELETE;
@@ -1489,6 +1490,123 @@ public class ProcessTableFunctionTestUtils {
             count.setValue(c);
             collectObjects(
                     input, c, weights.get(input.getFieldAs("name")), totalWeight.getValue(), stats);
+        }
+    }
+
+    /**
+     * Testing function that applies every broadcast rule exactly once to every set. Depending on
+     * the order in which tables are processed, a rule is applied when a set is created or when an
+     * existing set is notified. Timers act as synchronization barriers as they only fire after all
+     * broadcast rows up to the timer's time have been processed.
+     */
+    public static class NotifyStatefulSetsRulesFunction extends AppendProcessTableFunctionBase {
+        @SuppressWarnings("unused")
+        public void eval(
+                Context ctx,
+                @StateHint ValueView<Integer> count,
+                @StateHint MapView<String, Long> appliedRules,
+                @StateHint(StateKind.BROADCAST) MapView<String, Long> allRules,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row input,
+                @ArgumentHint({BROADCAST_SEMANTIC_TABLE, NOTIFY_STATEFUL_SETS}) Row rule)
+                throws Exception {
+            final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
+
+            // Process row from table 't'
+            if (input != null) {
+                if (count.getValue() == null) {
+                    // New set: catch up with all rules received so far
+                    for (Map.Entry<String, Long> r : allRules.entries()) {
+                        appliedRules.put(r.getKey(), r.getValue());
+                    }
+                    // Fires once all rules up to this time have been processed
+                    // (in other words: when Eve triggers the release of Dave to all keys)
+                    timeCtx.registerOnTime("middle", 3L);
+                    // Exceeds all input timestamps, thus, only fires at the end of all tables
+                    timeCtx.registerOnTime("end", 1000L);
+                    count.setValue(1);
+                } else {
+                    count.setValue(count.getValue() + 1);
+                }
+                return;
+            }
+
+            final String ruleName = rule.getFieldAs("name");
+            final long ruleTime = timeCtx.time();
+
+            // Process row from table 'rules' - broadcast phase:
+            // state scoped to a set is null, store the rule
+            if (count == null) {
+                allRules.put(ruleName, ruleTime);
+                return;
+            }
+
+            // Process row from table 'rules' - notification phase:
+            // state scoped to a set is present, apply the stored rule exactly once
+            assertThat(allRules.get(ruleName)).isEqualTo(ruleTime);
+            assertThat(appliedRules.contains(ruleName)).isFalse();
+            assertThatThrownBy(() -> allRules.remove(ruleName))
+                    .isInstanceOf(TableRuntimeException.class)
+                    .hasMessageContaining("is read-only");
+            appliedRules.put(ruleName, ruleTime);
+        }
+
+        public void onTimer(
+                OnTimerContext ctx,
+                ValueView<Integer> count,
+                MapView<String, Long> appliedRules,
+                MapView<String, Long> allRules)
+                throws Exception {
+            if (ctx.currentTimer().equals("end")) {
+                // All rules have been applied to every set
+                collectObjects(
+                        count.getValue(), toSortedString(appliedRules), toSortedString(allRules));
+                return;
+            }
+            // Only rules up to the timer's time are guaranteed to be applied
+            final long time = ctx.timeContext(Long.class).time();
+            final MapView<String, Long> passedRules = new MapView<>();
+            for (Map.Entry<String, Long> r : appliedRules.entries()) {
+                if (r.getValue() <= time) {
+                    passedRules.put(r.getKey(), r.getValue());
+                }
+            }
+            collectObjects(toSortedString(passedRules));
+        }
+    }
+
+    /**
+     * Testing function that notifies the set targeted by a rule. All output is independent of the
+     * order in which main and broadcast tables are processed.
+     */
+    public static class NotifyRestoredSetFunction extends AppendProcessTableFunctionBase {
+        @SuppressWarnings("unused")
+        public void eval(
+                @StateHint ValueView<String> setName,
+                @StateHint(StateKind.BROADCAST) MapView<String, Integer> rules,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row input,
+                @ArgumentHint({BROADCAST_SEMANTIC_TABLE, NOTIFY_STATEFUL_SETS}) Row rule)
+                throws Exception {
+            // Process row from table 't'
+            if (input != null) {
+                setName.setValue(input.getFieldAs("name"));
+                collectObjects(input);
+                return;
+            }
+
+            final String ruleName = rule.getFieldAs("name");
+
+            // Process row from table 'rules' - broadcast phase:
+            // state scoped to a set is null, store the rule
+            if (setName == null) {
+                rules.put(ruleName, rule.getFieldAs("weight"));
+                return;
+            }
+
+            // Process row from table 'rules' - notification phase:
+            // only the targeted set reacts, other sets might not exist yet
+            if (ruleName.equals(setName.getValue())) {
+                collectObjects(rule, toSortedString(rules));
+            }
         }
     }
 

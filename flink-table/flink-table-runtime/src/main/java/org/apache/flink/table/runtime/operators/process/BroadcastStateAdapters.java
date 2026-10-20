@@ -218,8 +218,9 @@ public final class BroadcastStateAdapters {
     public static TableRuntimeException broadcastStateIsReadOnly(String stateName) {
         return new TableRuntimeException(
                 String.format(
-                        "Broadcast state entry '%s' is read-only while processing a table "
-                                + "with row or set semantics.",
+                        "Broadcast state entry '%s' is read-only. It can only be modified while "
+                                + "processing a row of a table with broadcast semantics, not while "
+                                + "processing other tables, firing timers, or notifying stateful sets.",
                         stateName));
     }
 

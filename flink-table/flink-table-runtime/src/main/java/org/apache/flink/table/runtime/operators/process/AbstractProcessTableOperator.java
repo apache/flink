@@ -33,6 +33,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
@@ -75,10 +76,12 @@ import javax.annotation.Nullable;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Base class for operators for {@link ProcessTableFunction}. */
 @Internal
@@ -100,6 +103,7 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
     private transient PassAllCollector onTimerCollector;
     private transient StateDescriptor<?, ?>[] stateDescriptors;
     private transient StateHandle[] stateHandles;
+    private transient List<String> keyedStateNames;
 
     private transient @Nullable MapState<StringData, Long> namedTimersMapState;
     private transient @Nullable InternalTimerService<StringData> namedTimerService;
@@ -180,6 +184,27 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
 
     @Override
     public void onProcessingTime(InternalTimer<RowData, Object> timer) throws Exception {}
+
+    /**
+     * Calls the function for every set that holds at least one state entry on this virtual
+     * processor. The previously ingested broadcast row is passed together with the set's key
+     * context.
+     */
+    protected void notifyStatefulSets() throws Exception {
+        // Keys are materialized upfront because state backends don't support modifications of
+        // state while iterating over its keys
+        final KeyedStateBackend<RowData> keyedStateBackend = getKeyedStateBackend();
+        final List<RowData> keys;
+        try (Stream<RowData> keyStream =
+                keyedStateBackend.getKeys(keyedStateNames, VoidNamespace.INSTANCE)) {
+            keys = keyStream.collect(Collectors.toList());
+        }
+        for (RowData key : keys) {
+            setCurrentKey(key);
+            processTableRunner.ingestBroadcastNotification(key);
+            processTableRunner.processEval();
+        }
+    }
 
     // --------------------------------------------------------------------------------------------
     // Context implementation
@@ -447,6 +472,7 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
 
     private void setStateHandles() throws Exception {
         final StateHandle[] stateHandles = new StateHandle[stateDescriptors.length];
+        final List<String> keyedStateNames = new ArrayList<>();
         for (int i = 0; i < stateDescriptors.length; i++) {
             final RuntimeStateInfo stateInfo = stateInfos.get(i);
             // The kind must be derived from the declared type, not the descriptor, because both
@@ -458,6 +484,7 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
                 stateHandle = createBroadcastStateHandle(stateInfo.getStateName(), kind, i);
             } else {
                 stateHandle = createKeyedStateHandle(i);
+                keyedStateNames.add(stateInfo.getStateName());
             }
             // Hash function and equaliser are only used by eager value state to reduce state
             // updates; views access state lazily and don't need them.
@@ -466,9 +493,15 @@ public abstract class AbstractProcessTableOperator extends AbstractStreamOperato
             final RecordEqualiser equaliser = isEagerValue ? stateEquals[i] : null;
             stateHandles[i] =
                     new StateHandle(
-                            kind, stateInfo.isBroadcast(), stateHandle, hashFunction, equaliser);
+                            stateInfo.getStateName(),
+                            kind,
+                            stateInfo.isBroadcast(),
+                            stateHandle,
+                            hashFunction,
+                            equaliser);
         }
         this.stateHandles = stateHandles;
+        this.keyedStateNames = keyedStateNames;
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
