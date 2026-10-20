@@ -45,7 +45,7 @@ public final class DeduplicateKeepFirstTypeStrategy {
     public static final int ARG_STATE_TTL = 1;
     public static final int ARG_RESET_TTL_ON_DUPLICATE = 2;
     private static final String SEEN_STATE_NAME = "seen";
-    private static final String CANDIDATE_STATE_NAME = "candidate";
+    public static final String CANDIDATE_STATE_NAME = "candidate";
 
     public static final InputTypeStrategy INPUT_TYPE_STRATEGY =
             new ValidationOnlyInputTypeStrategy() {

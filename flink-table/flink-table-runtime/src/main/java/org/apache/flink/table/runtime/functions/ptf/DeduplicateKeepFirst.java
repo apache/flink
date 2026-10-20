@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.functions.ptf;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.dataview.ValueView;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.ProjectedRowData;
@@ -30,6 +31,8 @@ import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.StateTypeStrategy;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.strategies.ChangelogTypeStrategyUtils;
 import org.apache.flink.table.types.inference.strategies.DeduplicateKeepFirstTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -37,6 +40,8 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
 import javax.annotation.Nullable;
+
+import java.util.LinkedHashMap;
 
 /** Implementation of the {@code DEDUPLICATE_KEEP_FIRST} process table function. */
 @Internal
@@ -85,10 +90,29 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
         }
     }
 
+    @Override
+    public TypeInference getTypeInference(final DataTypeFactory typeFactory) {
+        final TypeInference typeInference = super.getTypeInference(typeFactory);
+        if (isEventTime) {
+            return typeInference;
+        }
+        final LinkedHashMap<String, StateTypeStrategy> stateTypeStrategies =
+                new LinkedHashMap<>(typeInference.getStateTypeStrategies());
+        stateTypeStrategies.remove(DeduplicateKeepFirstTypeStrategy.CANDIDATE_STATE_NAME);
+        return TypeInference.newBuilder()
+                .staticArguments(
+                        typeInference.getStaticArguments().orElseThrow(IllegalStateException::new))
+                .inputTypeStrategy(typeInference.getInputTypeStrategy())
+                .stateTypeStrategies(stateTypeStrategies)
+                .outputTypeStrategy(typeInference.getOutputTypeStrategy())
+                .disableSystemArguments(typeInference.disableSystemArguments())
+                .build();
+    }
+
+    /** Watermarkless mode: emits the first arriving row per key. */
     public void eval(
             final Context ctx,
             final ValueView<Boolean> seen,
-            final ValueView<RowData> candidate,
             final RowData input,
             @Nullable final Long stateTtl,
             @Nullable final Boolean resetTtlOnDuplicate)
@@ -100,45 +124,54 @@ public class DeduplicateKeepFirst extends BuiltInProcessTableFunction<RowData> {
             return;
         }
 
-        if (isEventTime) {
-            final TimeContext<Long> context = ctx.timeContext(Long.class);
-            final Long rowtime = context.time();
-            final Long watermark = context.tableWatermark();
-            if (watermark != null && rowtime <= watermark) {
-                return;
-            }
-
-            if (seen.getValue() == null) { // not yet emitted → buffer the earliest candidate
-                final RowData currLowest = candidate.getValue();
-                final Long currentLowestEventTime =
-                        currLowest == null ? null : currLowest.getLong(CANDIDATE_EVENT_TIME);
-                if (currentLowestEventTime == null || rowtime < currentLowestEventTime) {
-                    if (currentLowestEventTime != null) {
-                        context.clearTimer(currentLowestEventTime);
-                    }
-                    // object reuse may overwrite the input's memory before the timer fires
-                    candidate.setValue(materializeCandidate(input, rowtime));
-                    context.registerOnTime(rowtime);
-                }
-            } else { // already emitted → drop, optionally refresh the TTL
-                if (resetTtlOnDuplicate == null || resetTtlOnDuplicate) {
-                    seen.setValue(true);
-                }
-            }
-
-        } else { // watermarkless mode
-            if (seen.getValue() == null) {
-                projectedOutput.replaceRow(input);
-                projectedOutput.setRowKind(RowKind.INSERT);
-                collect(projectedOutput);
-                seen.setValue(true);
-            } else {
-                if (resetTtlOnDuplicate == null || resetTtlOnDuplicate) {
-                    seen.setValue(true);
-                }
-            }
+        if (seen.getValue() == null) {
+            projectedOutput.replaceRow(input);
+            projectedOutput.setRowKind(RowKind.INSERT);
+            collect(projectedOutput);
+            seen.setValue(true);
+        } else if (resetTtlOnDuplicate == null || resetTtlOnDuplicate) {
+            seen.setValue(true);
         }
     }
+
+    /** Event-time mode: emits the row with the earliest event time per key. */
+    public void eval(
+            final Context ctx,
+            final ValueView<Boolean> seen,
+            final ValueView<RowData> candidate,
+            final RowData input,
+            @Nullable final Long stateTtl,
+            @Nullable final Boolean resetTtlOnDuplicate)
+            throws Exception {
+        final TimeContext<Long> context = ctx.timeContext(Long.class);
+        final Long rowtime = context.time();
+        final Long watermark = context.tableWatermark();
+        if (watermark != null && rowtime <= watermark) {
+            return;
+        }
+
+        if (seen.getValue() == null) { // not yet emitted → buffer the earliest candidate
+            final RowData currLowest = candidate.getValue();
+            final Long currentLowestEventTime =
+                    currLowest == null ? null : currLowest.getLong(CANDIDATE_EVENT_TIME);
+            if (currentLowestEventTime == null || rowtime < currentLowestEventTime) {
+                if (currentLowestEventTime != null) {
+                    context.clearTimer(currentLowestEventTime);
+                }
+                // object reuse may overwrite the input's memory before the timer fires
+                candidate.setValue(materializeCandidate(input, rowtime));
+                context.registerOnTime(rowtime);
+            }
+        } else if (resetTtlOnDuplicate == null || resetTtlOnDuplicate) {
+            seen.setValue(true);
+        }
+    }
+
+    /**
+     * Never called: watermarkless mode registers no timers, but codegen requires an {@code onTimer}
+     * matching the state layout once any {@code onTimer} is declared.
+     */
+    public void onTimer(final OnTimerContext ctx, final ValueView<Boolean> seen) {}
 
     public void onTimer(
             final OnTimerContext ctx,
