@@ -49,7 +49,7 @@ import java.util.concurrent.RunnableFuture;
 
 import static org.apache.flink.state.forst.ForStTestUtils.createKeyedStateBackend;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the State Migration of {@link ForStKeyedStateBackend}. */
 public class ForStStateMigrationTest extends ForStStateTestBase {
