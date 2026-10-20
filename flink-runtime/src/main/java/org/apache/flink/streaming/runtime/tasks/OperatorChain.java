@@ -352,6 +352,14 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
 
     public abstract void notifyCheckpointSubsumed(long checkpointId) throws Exception;
 
+    /**
+     * Propagates {@link
+     * org.apache.flink.api.common.state.CheckpointListener#notifyRegionalCheckpointFallback(long,
+     * long)} to all operators in the chain.
+     */
+    public abstract void notifyRegionalCheckpointFallback(
+            long checkpointId, long fallbackCheckpointId) throws Exception;
+
     public abstract void snapshotState(
             Map<OperatorID, OperatorSnapshotFutures> operatorSnapshotsInProgress,
             CheckpointMetaData checkpointMetaData,
