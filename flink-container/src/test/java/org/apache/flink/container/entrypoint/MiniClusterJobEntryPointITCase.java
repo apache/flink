@@ -73,7 +73,6 @@ import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
@@ -817,10 +816,6 @@ class MiniClusterJobEntryPointITCase {
 
     @Test
     void startsJmxServerOnConfiguredPort() throws Exception {
-        final int jmxPort;
-        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
-            jmxPort = port.getPort();
-        }
         final Process process =
                 startProcess(
                         "process",
@@ -829,9 +824,18 @@ class MiniClusterJobEntryPointITCase {
                                 RecordingJob.class,
                                 List.of(
                                         dynamicProperty(
-                                                JMXServerOptions.JMX_SERVER_PORT, jmxPort))));
+                                                JMXServerOptions.JMX_SERVER_PORT, "21010-21110"))));
         try {
-            awaitClusterServing(process, "process");
+            final int jmxPort =
+                    awaitRest(
+                                    process,
+                                    "process",
+                                    "/taskmanagers",
+                                    "a TaskManager with a JMX server",
+                                    json -> json.at("/taskmanagers/0/jmxPort").asInt(-1) > 0)
+                            .at("/taskmanagers/0/jmxPort")
+                            .asInt();
+            assertThat(jmxPort).isBetween(21010, 21110);
             final JMXServiceURL url =
                     new JMXServiceURL(
                             "service:jmx:rmi://localhost:"
