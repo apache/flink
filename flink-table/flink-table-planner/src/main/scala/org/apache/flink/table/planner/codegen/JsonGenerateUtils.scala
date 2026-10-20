@@ -99,7 +99,7 @@ object JsonGenerateUtils {
         s"$nodeFactoryTerm.textNode($isoTerm)"
 
       case DATE =>
-        val formatter = s"${typeTerm(classOf[DateTimeFormatter])}.ISO_DATE"
+        val formatter = s"${typeTerm(classOf[DateTimeFormatter])}.ISO_LOCAL_DATE"
         val isoTerm =
           s"${typeTerm(classOf[DateTimeUtils])}.toLocalDate($valueTerm).format($formatter)"
         s"$nodeFactoryTerm.textNode($isoTerm)"
