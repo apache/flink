@@ -56,9 +56,13 @@ abstract class TimeIntervalStreamJoinTestBase {
     // instance cannot be opened twice. Restore tests that open a second operator must build a fresh
     // function for the restored harness.
     protected IntervalJoinFunction newJoinFunction() {
+        return newJoinFunction(new boolean[] {true});
+    }
+
+    protected IntervalJoinFunction newJoinFunction(boolean[] filterNulls) {
         return new IntervalJoinFunction(
                 new GeneratedJoinCondition("TestIntervalJoinCondition", funcCode, new Object[0]),
                 outputRowType,
-                new boolean[] {true});
+                filterNulls);
     }
 }
