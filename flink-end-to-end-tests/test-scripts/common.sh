@@ -998,6 +998,8 @@ internal_run_with_timeout() {
       eval "${on_failure}"
       kill "$command_pid") & watchdog_pid=$!
       echo $watchdog_pid > $TEST_DATA_DIR/job_watchdog.pid
+      # Stop this watchdog when the command ends; job_watchdog.pid only tracks the last one.
+      trap 'kill $watchdog_pid 2>/dev/null' EXIT
       # invoke
       $command
   )
