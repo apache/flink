@@ -43,7 +43,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -217,11 +216,7 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
         IOUtils.closeQuietly(this.db);
         IOUtils.closeQuietly(this.resourceContainer);
         IOUtils.closeQuietly(this.resourceGuard);
-        try {
-            FileUtils.deleteDirectory(temporaryFolder.toFile());
-        } catch (IOException e) {
-            LOG.warn("Failed to delete temporary folder {}.", temporaryFolder, e);
-        }
+        FileUtils.deleteDirectoryQuietly(temporaryFolder.toFile());
     }
 
     @Override
