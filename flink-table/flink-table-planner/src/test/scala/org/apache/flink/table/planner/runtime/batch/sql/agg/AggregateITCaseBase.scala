@@ -134,10 +134,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
       "x")
     registerCollection("TwoRowTable", Seq(row(1), row(2)), new RowTypeInfo(Types.INT), "y")
 
-    // SUM and COUNT of the same column make the planner reduce AVG to SUM / COUNT
-    checkResult(
-      "SELECT AVG(x), SUM(CAST(x AS BIGINT)), COUNT(x) FROM MaxIntTable",
-      Seq(row(1431655765, 4294967295L, 3L)))
+    // SUM and COUNT of the same column make the planner reduce AVG to SUM / COUNT;
+    // SUM(x) itself stays INT and wraps to -1
+    checkResult("SELECT AVG(x), SUM(x), COUNT(x) FROM MaxIntTable", Seq(row(1431655765, -1, 3L)))
     // AVG pushed below a join is reduced to SUM / COUNT as well
     checkResult("SELECT AVG(x) FROM MaxIntTable, TwoRowTable", Seq(row(1431655765)))
   }
