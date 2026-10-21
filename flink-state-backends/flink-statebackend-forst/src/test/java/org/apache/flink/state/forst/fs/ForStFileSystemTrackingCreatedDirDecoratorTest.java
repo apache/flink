@@ -61,6 +61,48 @@ public class ForStFileSystemTrackingCreatedDirDecoratorTest {
         mkdirAndCheck(true);
     }
 
+    @Test
+    public void testRenameDirAndCheck() throws IOException {
+        renameDirAndCheck(false);
+    }
+
+    @Test
+    public void testDummyMkdirRenameDirAndCheck() throws IOException {
+        renameDirAndCheck(true);
+    }
+
+    void renameDirAndCheck(boolean enableDummyMkdir) throws IOException {
+        org.apache.flink.core.fs.Path remotePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
+        org.apache.flink.core.fs.Path localPath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/local");
+
+        ForStFlinkFileSystem fileSystem =
+                ForStFileSystemUtils.tryDecorate(
+                        new ForStFlinkFileSystem(
+                                new MockLocalFileSystem(enableDummyMkdir),
+                                remotePath.toString(),
+                                localPath.toString(),
+                                null));
+
+        // mirrors RocksDB's export: create "<dir>.tmp", then rename it into place as "<dir>"
+        String dirPathStr = genRandomFilePathStr();
+        org.apache.flink.core.fs.Path tmpDir =
+                new org.apache.flink.core.fs.Path(dirPathStr + ".tmp");
+        org.apache.flink.core.fs.Path dstDir = new org.apache.flink.core.fs.Path(dirPathStr);
+        fileSystem.mkdirs(tmpDir);
+        assertThat(fileSystem.exists(tmpDir)).isTrue();
+        assertThat(fileSystem.exists(dstDir)).isFalse();
+
+        assertThat(fileSystem.rename(tmpDir, dstDir)).isTrue();
+        assertThat(fileSystem.exists(dstDir)).isTrue();
+        if (enableDummyMkdir) {
+            // the source was never materialized, so it is gone once it is no longer tracked
+            // (a materialized source directory is not deleted by a ForSt directory rename)
+            assertThat(fileSystem.exists(tmpDir)).isFalse();
+        }
+    }
+
     void mkdirAndCheck(boolean enableDummyMkdir) throws IOException {
         org.apache.flink.core.fs.Path remotePath =
                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
