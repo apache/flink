@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -32,6 +33,7 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.descriptor;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.map;
+import static org.apache.flink.table.api.Expressions.nullOf;
 
 /** {@link TableTestProgram} definitions for testing the built-in TO_CHANGELOG PTF. */
 public class ToChangelogTestPrograms {
@@ -820,6 +822,54 @@ public class ToChangelogTestPrograms {
                                     + "op_mapping => MAP['INSERT, DELETE', 'A', 'DELETE', 'B'])",
                             ValidationException.class,
                             "Duplicate change operation: 'DELETE'")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_OP_MAPPING_WITH_NESTED_CALL =
+            TableTestProgram.of(
+                            "to-changelog-table-api-op-mapping-with-nested-call",
+                            "fails when a map() op_mapping entry is a nested call")
+                    .setupTableSource(SIMPLE_SOURCE)
+                    .runFailingTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    map("INSERT", lit("i").upperCase())
+                                                            .asArgument("op_mapping")),
+                            "sink",
+                            ValidationException.class,
+                            "The 'op_mapping' argument must be a constant MAP literal.")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_OP_MAPPING_WITH_COLUMN_REFERENCE =
+            TableTestProgram.of(
+                            "to-changelog-table-api-op-mapping-with-column-reference",
+                            "fails when a map() op_mapping entry is a non-literal column reference")
+                    .setupTableSource(SIMPLE_SOURCE)
+                    .runFailingTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    map("INSERT", $("name"))
+                                                            .asArgument("op_mapping")),
+                            "sink",
+                            ValidationException.class,
+                            "Cannot resolve field [name], input field list:[].")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_OP_MAPPING_WITH_NULL_ENTRY =
+            TableTestProgram.of(
+                            "to-changelog-table-api-op-mapping-with-null-entry",
+                            "fails when a map() op_mapping entry is NULL")
+                    .setupTableSource(SIMPLE_SOURCE)
+                    .runFailingTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    map("INSERT", nullOf(DataTypes.STRING()))
+                                                            .asArgument("op_mapping")),
+                            "sink",
+                            ValidationException.class,
+                            "The 'op_mapping' argument must be a constant MAP literal.")
                     .build();
 
     // --------------------------------------------------------------------------------------------
