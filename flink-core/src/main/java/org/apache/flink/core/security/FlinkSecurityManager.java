@@ -73,14 +73,13 @@ public class FlinkSecurityManager extends SecurityManager {
     }
 
     /**
-     * Instantiate FlinkUserSecurityManager from configuration. Return null if no security manager
-     * check is needed, so that a caller can skip setting security manager avoiding runtime check
-     * cost, if there is no security check set up already. Use {@link #setFromConfiguration} helper,
-     * which handles disabled case.
+     * Instantiate FlinkSecurityManager from configuration. Return null if no security manager check
+     * is needed, so that a caller can skip setting security manager avoiding runtime check cost, if
+     * there is no security check set up already. Use {@link #setFromConfiguration} helper, which
+     * handles disabled case.
      *
      * @param configuration to instantiate the security manager from
-     * @return FlinkUserSecurityManager instantiated based on configuration. Return null if
-     *     disabled.
+     * @return FlinkSecurityManager instantiated based on configuration. Return null if disabled.
      */
     @VisibleForTesting
     static FlinkSecurityManager fromConfiguration(Configuration configuration) {
