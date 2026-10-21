@@ -199,6 +199,25 @@ public class OverAggregateTestPrograms {
         "+I[Hello World, 202, 1970-01-01T00:03:22, 20, 2, 2, 40]"
     };
 
+    private static final String[] BEFORE_RESTORE_NON_PARTITIONED_DATA_WITH_OUT_OF_ORDER_RECORDS = {
+        "+I[Hello, 10, 1970-01-01T00:00:10, 1, 0, 1, 1]",
+        "+I[Hello, 15, 1970-01-01T00:00:15, 15, 0, 2, 2]",
+        "+I[Hello, 16, 1970-01-01T00:00:16, 16, 0, 3, 3]",
+        "+I[Hello, 20, 1970-01-01T00:00:20, 2, 0, 4, 5]",
+        "+I[Hello, 30, 1970-01-01T00:00:30, 3, 0, 2, 5]",
+        "+I[Hello, 40, 1970-01-01T00:00:40, 4, 0, 2, 7]",
+        "+I[Hello, 50, 1970-01-01T00:00:50, 5, 1, 2, 9]",
+        "+I[Hello, 60, 1970-01-01T00:01, 6, 2, 2, 11]",
+        "+I[Hello, 65, 1970-01-01T00:01:05, 65, 2, 2, 12]",
+        "+I[Hello, 90, 1970-01-01T00:01:30, 9, 1, 1, 6]",
+        "+I[Hello, 95, 1970-01-01T00:01:35, 18, 2, 2, 12]",
+        "+I[Hello World, 100, 1970-01-01T00:01:40, 7, 3, 3, 19]",
+        "+I[Hello World, 110, 1970-01-01T00:01:50, 17, 2, 2, 14]",
+        "+I[Hello World, 140, 1970-01-01T00:02:20, 18, 1, 1, 7]",
+        "+I[Hello World, 150, 1970-01-01T00:02:30, 8, 2, 2, 15]",
+        "+I[Hello World, 200, 1970-01-01T00:03:20, 20, 1, 1, 20]"
+    };
+
     public static final TableTestProgram OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS =
             getTableTestProgram(
                     "over-aggregate-bounded-partitioned-rows",
@@ -234,8 +253,8 @@ public class OverAggregateTestPrograms {
                             "validates over aggregate node with time range and no partitioning",
                             "ORDER BY rowtime RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW",
                             SOURCE_WITH_OUT_OF_ORDER_RECORDS,
-                            BEFORE_RESTORE_DATA_WITH_OUT_OF_ORDER_RECORDS,
-                            AFTER_RESTORE_OUTPUT_WITH_OUT_OF_ORDER_RECORDS);
+                            BEFORE_RESTORE_NON_PARTITIONED_DATA_WITH_OUT_OF_ORDER_RECORDS,
+                            AFTER_RESTORE_DATA);
 
     private static final String[] BEFORE_RESTORE_DATA_UNBOUNDED = {
         "+I[Hello, 10, 1970-01-01T00:00:10, 1, 0, 1, 1]",
