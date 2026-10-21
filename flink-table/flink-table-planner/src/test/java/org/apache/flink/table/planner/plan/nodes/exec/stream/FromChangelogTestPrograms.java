@@ -26,7 +26,12 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
+import java.time.Instant;
+
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.descriptor;
+import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.map;
 
 /** {@link TableTestProgram} definitions for testing the built-in FROM_CHANGELOG PTF. */
 public class FromChangelogTestPrograms {
@@ -310,6 +315,163 @@ public class FromChangelogTestPrograms {
                                     .build())
                     .runTableApi(
                             env -> env.from("cdc_stream").partitionBy($("id")).fromChangelog(),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_CUSTOM_OP_MAPPING =
+            TableTestProgram.of(
+                            "from-changelog-table-api-custom-op-mapping",
+                            "Table.fromChangelog() with a map() op_mapping using comma-separated keys")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema(SIMPLE_CDC_SCHEMA)
+                                    .producedValues(
+                                            Row.of(1, "c", "Alice"),
+                                            Row.of(2, "r", "Bob"),
+                                            Row.of(1, "ub", "Alice"),
+                                            Row.of(1, "ua", "Alice2"),
+                                            Row.of(2, "d", "Bob"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "name STRING")
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, 1, "Alice"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, "Alice2"),
+                                            Row.ofKind(RowKind.DELETE, 2, "Bob"))
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("cdc_stream")
+                                            .fromChangelog(
+                                                    descriptor("op").asArgument("op"),
+                                                    map(
+                                                                    "c, r",
+                                                                    "INSERT",
+                                                                    "ub",
+                                                                    "UPDATE_BEFORE",
+                                                                    "ua",
+                                                                    "UPDATE_AFTER",
+                                                                    "d",
+                                                                    "DELETE")
+                                                            .asArgument("op_mapping")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_UPSERT_PARTITION_BY =
+            TableTestProgram.of(
+                            "from-changelog-table-api-upsert-partition-by",
+                            "PartitionedTable.fromChangelog() with a map() op_mapping without "
+                                    + "UPDATE_BEFORE produces an upsert changelog")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema("name STRING", "id INT", "op STRING")
+                                    .producedValues(
+                                            Row.of("Alice", 1, "INSERT"),
+                                            Row.of("Bob", 2, "INSERT"),
+                                            Row.of("Alice2", 1, "UPDATE_AFTER"),
+                                            Row.of("Bob", 2, "DELETE"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "name STRING")
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, "Alice2"),
+                                            Row.ofKind(RowKind.DELETE, 2, "Bob"))
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("cdc_stream")
+                                            .partitionBy($("id"))
+                                            .fromChangelog(
+                                                    map(
+                                                                    "INSERT",
+                                                                    "INSERT",
+                                                                    "UPDATE_AFTER",
+                                                                    "UPDATE_AFTER",
+                                                                    "DELETE",
+                                                                    "DELETE")
+                                                            .asArgument("op_mapping")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_SKIP_INVALID_OP_HANDLING =
+            TableTestProgram.of(
+                            "from-changelog-table-api-unmapped-codes-dropped",
+                            "Table.fromChangelog() with error_handling='SKIP' drops unmapped op codes")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema(SIMPLE_CDC_SCHEMA)
+                                    .producedValues(
+                                            Row.of(1, "INSERT", "Alice"),
+                                            Row.of(2, "INSERT", "Bob"),
+                                            Row.of(1, "UNKNOWN", "Alice2"),
+                                            Row.of(2, "DELETE", "Bob"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT", "name STRING")
+                                    .consumedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "Alice"),
+                                            Row.ofKind(RowKind.INSERT, 2, "Bob"),
+                                            Row.ofKind(RowKind.DELETE, 2, "Bob"))
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("cdc_stream")
+                                            .fromChangelog(
+                                                    lit("SKIP").asArgument("error_handling")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_ORDER_BY_CUSTOM_OP_MAPPING =
+            TableTestProgram.of(
+                            "from-changelog-table-api-order-by-custom-op-mapping",
+                            "PartitionedTable.orderBy().fromChangelog() with a map() op_mapping "
+                                    + "applies out-of-order events per key in event-time order")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("cdc_stream")
+                                    .addSchema(
+                                            "id INT",
+                                            "op STRING",
+                                            "name STRING",
+                                            "event_time TIMESTAMP_LTZ(3)",
+                                            "WATERMARK FOR event_time AS event_time - INTERVAL '1' MINUTE")
+                                    // Each key's events arrive in reverse event-time order. The
+                                    // watermark delay keeps them all on time.
+                                    .producedValues(
+                                            Row.of(1, "ua", "Alice2", Instant.ofEpochMilli(2)),
+                                            Row.of(1, "c", "Alice", Instant.ofEpochMilli(1)),
+                                            Row.of(2, "d", "Bob", Instant.ofEpochMilli(4)),
+                                            Row.of(2, "c", "Bob", Instant.ofEpochMilli(3)),
+                                            Row.of(3, "c", "Carol", Instant.ofEpochMilli(5)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("id INT PRIMARY KEY NOT ENFORCED", "name STRING")
+                                    // Arrival order would leave [1, Alice] and [2, Bob].
+                                    .consumedValues("+I[1, Alice2]", "+I[3, Carol]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("cdc_stream")
+                                            .partitionBy($("id"))
+                                            .orderBy($("event_time").asc())
+                                            .fromChangelog(
+                                                    map(
+                                                                    "c",
+                                                                    "INSERT",
+                                                                    "ua",
+                                                                    "UPDATE_AFTER",
+                                                                    "d",
+                                                                    "DELETE")
+                                                            .asArgument("op_mapping"))
+                                            .select($("id"), $("name")),
                             "sink")
                     .build();
 
