@@ -355,6 +355,9 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
 
     private final GeneratedJoinCondition[] joinConditions;
     private final JoinKeyExtractor keyExtractor;
+    // For each input, the fields in which a NULL means that a record can never be part of a join
+    // result together with a record of another input, so it is not stored.
+    private final int[][] nullFilterFields;
 
     private transient List<MultiJoinStateView> stateHandlers;
     private transient TimestampedCollector<RowData> collector;
@@ -371,7 +374,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             GeneratedJoinCondition[] joinConditions,
             JoinKeyExtractor keyExtractor,
             // We currently don't use this, but it might be useful in the future for optimizations
-            Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
+            Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
+            int[][] nullFilterFields) {
         super(parameters, inputSpecs.size());
         this.inputTypes = inputTypes;
         this.inputSpecs = inputSpecs;
@@ -381,6 +385,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         this.keyExtractor = keyExtractor;
         this.typedInputs = new ArrayList<>(inputSpecs.size());
         this.multiJoinCondition = multiJoinCondition;
+        this.nullFilterFields = nullFilterFields;
 
         initializeInputs();
     }
@@ -788,6 +793,16 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     private void addRecordToState(RowData input, int inputId) throws Exception {
         final boolean isUpsert = isUpsert(input);
         RowData joinKey = keyExtractor.getJoinKey(input, inputId);
+        // A record that can never match isn't stored. Retractions still go to state: removing a
+        // record that was never stored is a no-op, and one stored by an earlier version is removed.
+        if (isUpsert && cannotMatch(input, inputId)) {
+            // Storing an upsert replaces the previous version of the record with the same unique
+            // key, which may arrive without UPDATE_BEFORE, so that version is removed instead.
+            if (inputSpecs.get(inputId).hasUniqueKey()) {
+                stateHandlers.get(inputId).retractRecord(joinKey, input);
+            }
+            return;
+        }
 
         // Always use insert so we store and retract records correctly from state
         input.setRowKind(RowKind.INSERT);
@@ -870,6 +885,15 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                                 element);
             }
         };
+    }
+
+    private boolean cannotMatch(RowData input, int inputId) {
+        for (int field : nullFilterFields[inputId]) {
+            if (input.isNullAt(field)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isUpsert(RowData row) {

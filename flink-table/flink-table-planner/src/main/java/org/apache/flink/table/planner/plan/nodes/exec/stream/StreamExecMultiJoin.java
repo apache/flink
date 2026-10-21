@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.MultiJoinUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperatorFactory;
@@ -233,7 +234,9 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                         inputTypeInfos,
                         inputSideSpecs,
                         generatedJoinConditions,
-                        keyExtractor);
+                        keyExtractor,
+                        MultiJoinUtil.createNullFilterFields(
+                                inputRowTypes, joinConditions, joinTypes));
 
         final List<KeySelector<RowData, RowData>> commonJoinKeySelectors =
                 createKeySelectors(planner, inputTypeInfos, keyExtractor);
@@ -287,7 +290,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             final List<InternalTypeInfo<RowData>> inputTypeInfos,
             final List<JoinInputSideSpec> inputSideSpecs,
             final GeneratedJoinCondition[] joinConditions,
-            final JoinKeyExtractor keyExtractor) {
+            final JoinKeyExtractor keyExtractor,
+            final int[][] nullFilterFields) {
         final List<Long> stateTtls =
                 StateMetadata.getStateTtlForMultiInputOperator(
                         config, inputTypeInfos.size(), stateMetadataList);
@@ -301,7 +305,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 stateRetentionTimes,
                 joinConditions,
                 keyExtractor,
-                joinAttributeMap);
+                joinAttributeMap,
+                nullFilterFields);
     }
 
     private List<KeySelector<RowData, RowData>> createKeySelectors(
