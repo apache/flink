@@ -32,7 +32,6 @@ import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -42,7 +41,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Integration test to check exit behaviour for the {@link ClusterUncaughtExceptionHandler}. */
-@Tag("org.apache.flink.testutils.junit.FailsOnJava25")
 @ExtendWith(TestLoggerExtension.class)
 class ClusterUncaughtExceptionHandlerITCase {
 
