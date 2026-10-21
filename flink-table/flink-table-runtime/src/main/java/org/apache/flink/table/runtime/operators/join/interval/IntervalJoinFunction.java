@@ -71,11 +71,8 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
 
     @Override
     public void join(RowData first, RowData second, Collector<RowData> out) throws Exception {
-        if (!nullSafe) { // is not null safe, return false if any null exists
-            if (filterAllNulls ? joinKey.anyNull() : joinKey.anyNull(nullFilterKeys)) {
-                // find null present, return false directly
-                return;
-            }
+        if (currentKeyCannotMatch()) {
+            return;
         }
         if (joinCondition.apply(first, second)) {
             out.collect(reusedJoinRowData.replace(first, second));
@@ -89,5 +86,13 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
 
     public void setJoinKey(RowData currentKey) {
         this.joinKey = (NullAwareGetters) currentKey;
+    }
+
+    /**
+     * Returns whether no record of the current join key can ever match, because the key has a null
+     * in a field that is not null-safe. The join key must be set.
+     */
+    public boolean currentKeyCannotMatch() {
+        return !nullSafe && (filterAllNulls ? joinKey.anyNull() : joinKey.anyNull(nullFilterKeys));
     }
 }
