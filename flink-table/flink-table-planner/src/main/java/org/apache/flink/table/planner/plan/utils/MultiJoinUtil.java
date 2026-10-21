@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 public class MultiJoinUtil {
@@ -52,17 +53,24 @@ public class MultiJoinUtil {
         }
 
         for (final RexNode condition : joinConditions) {
-            extractEqualityConditions(condition, inputOffsets, inputFieldCounts, joinAttributeMap);
+            forEachEquality(
+                    condition,
+                    inputOffsets,
+                    inputFieldCounts,
+                    (leftRef, rightRef) -> addAttributeRefs(leftRef, rightRef, joinAttributeMap));
         }
         return joinAttributeMap;
     }
 
-    private static void extractEqualityConditions(
+    /**
+     * Calls {@code consumer} for each {@code =} between two input fields in the conjuncts of {@code
+     * condition}, with the field of the input with the lower index first.
+     */
+    private static void forEachEquality(
             final RexNode condition,
             final List<Integer> inputOffsets,
             final List<Integer> inputFieldCounts,
-            final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
-                    joinAttributeMap) {
+            final BiConsumer<InputRef, InputRef> consumer) {
         if (!(condition instanceof RexCall)) {
             return;
         }
@@ -75,8 +83,7 @@ public class MultiJoinUtil {
             // All other condition types are deferred to the postJoinFilter.
             if (kind == SqlKind.AND) {
                 for (final RexNode operand : call.getOperands()) {
-                    extractEqualityConditions(
-                            operand, inputOffsets, inputFieldCounts, joinAttributeMap);
+                    forEachEquality(operand, inputOffsets, inputFieldCounts, consumer);
                 }
             }
             return;
@@ -102,16 +109,18 @@ public class MultiJoinUtil {
             return;
         }
 
-        final InputRef leftRef;
-        final InputRef rightRef;
         if (inputRef1.inputIndex < inputRef2.inputIndex) {
-            leftRef = inputRef1;
-            rightRef = inputRef2;
+            consumer.accept(inputRef1, inputRef2);
         } else {
-            leftRef = inputRef2;
-            rightRef = inputRef1;
+            consumer.accept(inputRef2, inputRef1);
         }
+    }
 
+    private static void addAttributeRefs(
+            final InputRef leftRef,
+            final InputRef rightRef,
+            final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
+                    joinAttributeMap) {
         // Special case for input 0:
         // Since we are building attribute references that do left -> right index,
         // we need a special base case for input 0 which has no input to the left.
