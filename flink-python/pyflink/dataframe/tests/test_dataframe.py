@@ -1347,13 +1347,48 @@ class DataFrameAsOfJoinTests(PyFlinkDataFrameUTTestCase):
                                 on="pt", by="id").to_table().explain()
 
     def test_event_time_expression_keys_preserve_primary_key(self):
+        from pyflink.table.expressions import call_sql
+
         right = self.versions.rename_columns({"id": "d_id"})
         for left_key, right_key in (
             (pf.col("id"), pf.col("d_id")),
             ([pf.col("id").alias("key")], [pf.col("d_id").alias("dim_key")]),
+            ("id", pf.col("d_id").cast(TableDataTypes.INT())),
+            ("id", pf.col("d_id").cast(TableDataTypes.INT()).alias("dim_key")),
+            ("id", call_sql("CAST(d_id AS INT)")),
         ):
-            result = self.left.join_asof(right, on="ts", left_by=left_key, right_by=right_key)
-            self.assertIn("TemporalJoin", result.to_table().explain())
+            with self.subTest(right_key=str(right_key)):
+                result = self.left.join_asof(right, on="ts", left_by=left_key, right_by=right_key)
+                self.assertIn("TemporalJoin", result.to_table().explain())
+
+    def test_time_attribute_in_residual_predicates(self):
+        from pyflink.table.expressions import call_sql
+
+        right = self.versions.rename_columns({"id": "d_id"})
+        for predicate in (
+            (pf.col("id") == pf.col("d_id")) & (pf.col("ts") > pf.col("rt")),
+            call_sql("id = d_id AND ts > rt"),
+            (pf.col("id") == pf.col("d_id")) & ~(pf.col("ts") == pf.col("rt")),
+            call_sql("id = d_id AND CASE WHEN ts = rt THEN FALSE ELSE TRUE END"),
+            (pf.col("id") == pf.col("d_id")) &
+            (pf.col("ts").cast(TableDataTypes.STRING()) == "2024-01-01 00:00:02"),
+        ):
+            with self.subTest(predicate=str(predicate)):
+                result = self.left.join_asof(right, on="ts", by=predicate, how="left")
+                self.assertIn("TemporalJoin", result.to_table().explain())
+
+    def test_type_changing_key_cast_is_preserved(self):
+        from pyflink.dataframe.dataframe import _asof_field_index
+        from pyflink.table.expressions import call_sql
+
+        for key in (
+            pf.col("id").cast(TableDataTypes.BIGINT()), call_sql("CAST(id AS BIGINT)"),
+            pf.col("rt").cast(TableDataTypes.TIMESTAMP(3)), call_sql("CAST(rt AS TIMESTAMP(3))"),
+        ):
+            with self.subTest(key=str(key)):
+                selected = self.versions.to_table().select(key)
+                resolved = selected._j_table.getQueryOperation().getProjectList().get(0)
+                self.assertIsNone(_asof_field_index(resolved))
 
     def test_sql_expressions_follow_the_same_validation(self):
         from pyflink.table.expressions import call_sql
@@ -4188,7 +4223,7 @@ class DataFrameAsOfJoinITTests(PyFlinkStreamDataFrameTestCase):
                          "1,2024-01-01 00:00:06\n3,2024-01-01 00:00:06\n")
         with open(rates_path, "w", encoding="utf-8") as output:
             output.write("1,10,2024-01-01 00:00:01\n2,30,2024-01-01 00:00:03\n"
-                         "1,20,2024-01-01 00:00:05\n")
+                         "1,20,2024-01-01 00:00:04\n")
         self.t_env.execute_sql(
             "CREATE TEMPORARY TABLE asof_orders (id INT, ts TIMESTAMP(3), "
             "WATERMARK FOR ts AS ts - INTERVAL '1' SECOND) "
@@ -4203,12 +4238,20 @@ class DataFrameAsOfJoinITTests(PyFlinkStreamDataFrameTestCase):
             pf.lit("inner").alias("kind"), "id", "rate")
         outer = left.join_asof(
             right.rename_columns({"id": "d_id"}), on=pf.col("ts"),
-            left_by=pf.col("id"), right_by=pf.col("d_id"), how="left").select(
+            left_by=pf.col("id"), right_by=pf.col("d_id").cast(TableDataTypes.INT()),
+            how="left").select(
             pf.lit("left").alias("kind"), "id", "rate")
-        self.assertCountEqual(inner.union_all(outer).collect(), [
+        residual = left.join_asof(
+            right.rename_columns({"id": "d_id"}), on="ts", how="left",
+            by=(pf.col("id") == pf.col("d_id")) &
+            (pf.col("ts") > pf.col("rt") + pf.lit(1).seconds)).select(
+            pf.lit("residual").alias("kind"), "id", "rate")
+        self.assertCountEqual(inner.union_all(outer).union_all(residual).collect(), [
             Row("inner", 1, 10), Row("inner", 1, 20),
             Row("left", 1, 10), Row("left", 1, 20),
             Row("left", 2, None), Row("left", 3, None),
+            Row("residual", 1, None), Row("residual", 1, 20),
+            Row("residual", 2, None), Row("residual", 3, None),
         ])
 
 

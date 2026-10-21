@@ -126,7 +126,7 @@ joins require watermarks on both inputs and the right primary key in the equalit
 
 Only inner and left joins are supported. Conditions need at least one equality between
 the inputs and may include additional AND-combined predicates, but not OR conditions.
-The time attribute must not also be a join key.
+The time attribute must not also be an equality key, but may appear in residual conditions.
 
 Missing-Value Handling
 ----------------------

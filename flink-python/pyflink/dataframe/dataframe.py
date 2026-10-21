@@ -1349,7 +1349,8 @@ class DataFrame:
         covered by the equality keys. These requirements follow the underlying Table API.
 
         Shared named keys occur once in the result. Other duplicate column names must
-        be renamed before joining. The time attribute must not be used as a join key.
+        be renamed before joining. The time attribute must not be used as an equality
+        key, but may appear in residual conditions.
         Conditions require an equality between the inputs, optionally AND-combined
         with other conditions; OR conditions and purely non-equi conditions are rejected.
 
@@ -3521,7 +3522,9 @@ def _prepare_join(
                         raise ValueError("join keys must be row-wise expressions, not aggregations")
                     resolved = projection.getProjectList().get(0)
                     time_index = left_columns.index(asof_time) if table is left_table else -1
-                    _asof_expression_info(resolved, time_index, len(columns))
+                    references, _ = _asof_expression_info(resolved, time_index, len(columns))
+                    if (0, time_index) in references:
+                        raise ValueError("the ASOF time attribute must not be used as a join key")
                     field_index = _asof_field_index(resolved)
                     if field_index is not None:
                         keys[index] = columns[field_index]
@@ -3587,10 +3590,25 @@ def _prepare_join(
 
 
 def _asof_field_index(expression) -> Optional[int]:
+    definitions = get_gateway().jvm.org.apache.flink.table.functions.BuiltInFunctionDefinitions
+    checks = get_gateway().jvm.org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+    while (expression.getClass().getSimpleName() == "CallExpression" and
+           expression.getFunctionDefinition().equals(definitions.CAST)):
+        child = expression.getResolvedChildren().get(0)
+        # DataType equality ignores time-attribute kinds; casting materializes such attributes.
+        if (not expression.getOutputDataType().equals(child.getOutputDataType()) or
+                checks.isTimeAttribute(child.getOutputDataType().getLogicalType())):
+            return None
+        expression = child
     if expression.getClass().getSimpleName() == "FieldReferenceExpression":
         return expression.getFieldIndex()
     if expression.getClass().getSimpleName() == "RexNodeExpression":
         node = expression.getRexNode()
+        while node.getKind().name() == "CAST":
+            child = node.getOperands().get(0)
+            if not node.getType().equals(child.getType()):
+                return None
+            node = child
         if node.getKind().name() == "INPUT_REF":
             return node.getIndex()
     return None
@@ -3618,23 +3636,24 @@ def _prepare_asof_time(table: Table, on, right_columns: List[str]) -> Tuple[Tabl
     return table.add_columns(expression.alias(name)), name
 
 
-def _asof_expression_info(expression, time_index: int, left_arity: int) -> Tuple[Set[int], bool]:
+def _asof_expression_info(
+    expression, time_index: int, left_arity: int, *, is_conjunct: bool = True
+) -> Tuple[Set[Tuple[int, int]], bool]:
+    """Return referenced (input, field) pairs and whether an equi-join key is present."""
     class_name = expression.getClass().getSimpleName()
     if class_name == "RexNodeExpression":
-        return _asof_expression_info(expression.getRexNode(), time_index, left_arity)
+        return _asof_expression_info(
+            expression.getRexNode(), time_index, left_arity, is_conjunct=is_conjunct)
     if class_name == "FieldReferenceExpression":
-        if expression.getInputIndex() == 0 and expression.getFieldIndex() == time_index:
-            raise ValueError("the ASOF time attribute must not be used as a join key")
-        return {expression.getInputIndex()}, False
+        return {(expression.getInputIndex(), expression.getFieldIndex())}, False
     operator = None
     if expression.getClass().getName().startswith("org.apache.calcite.rex."):
         # SQL expressions use flattened input indices rather than Table API input/field pairs.
         operator = expression.getKind().name()
         if operator == "INPUT_REF":
             index = expression.getIndex()
-            if index == time_index:
-                raise ValueError("the ASOF time attribute must not be used as a join key")
-            return {0 if index < left_arity else 1}, False
+            reference = (0, index) if index < left_arity else (1, index - left_arity)
+            return {reference}, False
         if operator == "LITERAL":
             return set(), False
         if operator == "FIELD_ACCESS":
@@ -3658,15 +3677,19 @@ def _asof_expression_info(expression, time_index: int, left_arity: int) -> Tuple
     child_info = []
     references = set()
     for child in children:
-        info = _asof_expression_info(child, time_index, left_arity)
+        info = _asof_expression_info(
+            child, time_index, left_arity, is_conjunct=is_conjunct and operator == "AND")
         references.update(info[0])
         child_info.append(info)
     has_equality = False
     if operator == "AND":
         has_equality = any(info[1] for info in child_info)
     elif operator == "EQUALS":
-        left, right = child_info[0][0], child_info[1][0]
+        left = {input_index for input_index, _ in child_info[0][0]}
+        right = {input_index for input_index, _ in child_info[1][0]}
         has_equality = (left == {0} and right == {1}) or (left == {1} and right == {0})
+        if is_conjunct and has_equality and (0, time_index) in references:
+            raise ValueError("the ASOF time attribute must not be used as a join key")
     return references, has_equality
 
 
