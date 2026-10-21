@@ -1086,8 +1086,18 @@ json:
 
       * `VARCHAR` / `STRING`
       * `BOOLEAN`
+      * `TINYINT`
+      * `SMALLINT`
       * `INTEGER`
+      * `BIGINT`
+      * `FLOAT`
       * `DOUBLE`
+      * `DECIMAL`
+
+      JSON string values are coerced to the requested numeric or boolean type (for example `"42"`
+      to a number, or `"true"`/`"t"`/`"yes"`/`"y"`/`"1"` to `TRUE`).
+      Values that do not fit the requested type (overflow, non-numeric string, non-0/1 number for
+      `BOOLEAN`) are treated as an error and follow the `ON ERROR` behavior.
 
       For empty path expressions or errors a behavior can be defined to either return `null`, raise
       an error or return a defined default value instead. When omitted, the default is
@@ -1127,7 +1137,11 @@ json:
     description: |
       Extracts JSON values from a JSON string.
 
-      The result is returned as a `STRING` or `ARRAY<STRING>`. This can be controlled with the `RETURNING` clause.
+      The result is returned as a `STRING` by default. Using the `RETURNING` clause it can also be
+      returned as an `ARRAY` whose element type is `STRING` or any of the scalar types supported by
+      `JSON_VALUE` (`BOOLEAN`, `TINYINT`, `SMALLINT`, `INTEGER`, `BIGINT`, `FLOAT`, `DOUBLE`,
+      `DECIMAL`). Array elements are converted with the same coercion and `ON ERROR` rules as
+      `JSON_VALUE`.
 
       The `wrappingBehavior` determines whether the extracted value should be wrapped into an array,
       and whether to do so unconditionally or only if the value itself isn't an array already.

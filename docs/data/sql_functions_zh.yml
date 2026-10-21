@@ -1219,8 +1219,18 @@ json:
 
       * `VARCHAR` / `STRING`
       * `BOOLEAN`
+      * `TINYINT`
+      * `SMALLINT`
       * `INTEGER`
+      * `BIGINT`
+      * `FLOAT`
       * `DOUBLE`
+      * `DECIMAL`
+
+      JSON string values are coerced to the requested numeric or boolean type (for example `"42"`
+      to a number, or `"true"`/`"t"`/`"yes"`/`"y"`/`"1"` to `TRUE`).
+      Values that do not fit the requested type (overflow, non-numeric string, non-0/1 number for
+      `BOOLEAN`) are treated as an error and follow the `ON ERROR` behavior.
 
       对于空路径表达式或错误，可以将行为定义为返回 `null`、引发错误或返回定义的默认值。当省略时，默认为 `NULL ON EMPTY` 或
       `NULL ON ERROR`。默认值可以是文字或表达式。如果默认值本身引发错误，就会造成 `ON EMPTY` 的错误行为，并引发 `ON ERROR` 的错误。
@@ -1250,12 +1260,16 @@ json:
       -- "right"
       JSON_VALUE('{"contains blank": "right"}', 'strict $.[''contains blank'']' NULL ON EMPTY DEFAULT 'wrong' ON ERROR)
       ```
-  - sql: JSON_QUERY(jsonValue, path [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
-    table: STRING.jsonQuery(path [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ])
+  - sql: JSON_QUERY(jsonValue, path [RETURNING <dataType>] [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
+    table: STRING.jsonQuery(path [, returnType [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ] ])
     description: |
-      从 JSON 字符串中提取 JSON 值。
+      Extracts JSON values from a JSON string.
 
-      结果总是以 `STRING` 的形式返回。目前尚不支持 `RETURNING` 子句。
+      The result is returned as a `STRING` by default. Using the `RETURNING` clause it can also be
+      returned as an `ARRAY` whose element type is `STRING` or any of the scalar types supported by
+      `JSON_VALUE` (`BOOLEAN`, `TINYINT`, `SMALLINT`, `INTEGER`, `BIGINT`, `FLOAT`, `DOUBLE`,
+      `DECIMAL`). Array elements are converted with the same coercion and `ON ERROR` rules as
+      `JSON_VALUE`.
 
       `wrappingBehavior` 决定是否将提取的值包装到一个数组中，以及是否无条件地这样做，还是只有当值本身不是数组时才这样做。
 
