@@ -29,12 +29,23 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.v2.AbstractKeyedState;
 
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
+import org.forstdb.RocksIterator;
 import org.forstdb.WriteOptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,6 +53,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit test for {@link ForStStateExecutor}. */
 class ForStStateExecutorTest extends ForStDBOperationTestBase {
+
+    private static final int KEY = 1;
+
+    private static final int NO_ERROR = Integer.MAX_VALUE;
 
     @Test
     @SuppressWarnings("unchecked")
@@ -228,6 +243,88 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         forStStateExecutor.shutdown();
     }
 
+    @ParameterizedTest
+    @CsvSource({
+        "MAP_ITER, 0",
+        "MAP_ITER, 1",
+        "MAP_ITER, " + ForStIterateOperation.CACHE_SIZE_LIMIT,
+        "MAP_IS_EMPTY, 0",
+        "CLEAR, 1"
+    })
+    void testIteratorErrorFailsRequest(StateRequestType requestType, int entriesBeforeError)
+            throws Exception {
+        ForStMapState<Integer, VoidNamespace, String, String> state =
+                buildForStMapState("map-state");
+        putEntries(state, 200, null);
+        IteratorFault fault = new IteratorFault(state.getColumnFamilyHandle(), entriesBeforeError);
+        ForStStateExecutor forStStateExecutor =
+                new ForStStateExecutor(
+                        false, false, 2, 1, new FaultyIteratorDb(db, fault), new WriteOptions());
+        try {
+            AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
+                    forStStateExecutor.createRequestContainer();
+            StateRequest<?, ?, ?, ?> request = buildMapRequest(state, requestType, KEY, null, 0);
+            requests.offer(request);
+            forStStateExecutor.executeBatchRequests(requests);
+
+            assertThat(((TestAsyncFuture<?>) request.getFuture()).future)
+                    .failsWithin(30, TimeUnit.SECONDS)
+                    .withThrowableThat()
+                    .havingRootCause()
+                    .isSameAs(fault.error);
+            // Closing may be asynchronous.
+            assertThat(fault.closed.await(30, TimeUnit.SECONDS)).isTrue();
+            assertThat(fault.closes).hasValue(1);
+        } finally {
+            forStStateExecutor.shutdown();
+        }
+    }
+
+    @Test
+    void testBatchFailureLeavesIteratorsToTheirOwners() throws Exception {
+        ForStMapState<Integer, VoidNamespace, String, String> heldState =
+                buildForStMapState("held-map-state");
+        ForStMapState<Integer, VoidNamespace, String, String> failingState =
+                buildForStMapState("failing-map-state");
+        putEntries(heldState, 3, null);
+        // Cannot be deserialized.
+        putEntries(failingState, 1, new byte[0]);
+        IteratorFault held = new IteratorFault(heldState.getColumnFamilyHandle(), NO_ERROR);
+        held.releaseNext = new CountDownLatch(1);
+        IteratorFault failing = new IteratorFault(failingState.getColumnFamilyHandle(), NO_ERROR);
+        // The failing request only starts once the held one is iterating.
+        failing.seekGate = held.inNext;
+        ForStStateExecutor forStStateExecutor =
+                new ForStStateExecutor(
+                        false,
+                        false,
+                        2,
+                        1,
+                        new FaultyIteratorDb(db, held, failing),
+                        new WriteOptions());
+        try {
+            AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
+                    forStStateExecutor.createRequestContainer();
+            StateRequest<?, ?, ?, ?> heldRequest =
+                    buildMapRequest(heldState, StateRequestType.MAP_ITER, KEY, null, 0);
+            requests.offer(heldRequest);
+            requests.offer(buildMapRequest(failingState, StateRequestType.MAP_ITER, KEY, null, 0));
+            CompletableFuture<Void> batch = forStStateExecutor.executeBatchRequests(requests);
+
+            assertThat(held.inNext.await(30, TimeUnit.SECONDS)).isTrue();
+            assertThat(batch).failsWithin(30, TimeUnit.SECONDS);
+            assertThat(held.closes).hasValue(0);
+
+            held.releaseNext.countDown();
+            assertThat(((TestAsyncFuture<?>) heldRequest.getFuture()).future)
+                    .succeedsWithin(30, TimeUnit.SECONDS);
+            assertThat(held.closes).hasValue(1);
+        } finally {
+            held.releaseNext.countDown();
+            forStStateExecutor.shutdown();
+        }
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     public void testExecuteAggregatingStateRequest() throws Exception {
@@ -363,5 +460,158 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         TestAsyncFuture stateFuture = new TestAsyncFuture<>();
         return new StateRequest<>(
                 innerTable, requestType, false, value, stateFuture, recordContext);
+    }
+
+    /** Stores {@code count} entries under {@link #KEY}, with {@code rawValue} if not null. */
+    private void putEntries(
+            ForStMapState<Integer, VoidNamespace, String, String> state,
+            int count,
+            @Nullable byte[] rawValue)
+            throws Exception {
+        for (int i = 0; i < count; i++) {
+            ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(KEY);
+            contextKey.setUserKey("uk-" + i);
+            db.put(
+                    state.getColumnFamilyHandle(),
+                    state.serializeKey(contextKey),
+                    rawValue != null ? rawValue : state.serializeValue("uv-" + i));
+        }
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            if (!latch.await(30, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Timed out waiting for the test.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** How the iterators of one column family misbehave, and how often they were closed. */
+    private static final class IteratorFault {
+        final ColumnFamilyHandle columnFamily;
+        final int entriesBeforeError;
+        final RocksDBException error = new RocksDBException("Injected iterator failure");
+        final AtomicInteger closes = new AtomicInteger();
+        final CountDownLatch closed = new CountDownLatch(1);
+
+        /** Awaited before seeking. */
+        CountDownLatch seekGate = new CountDownLatch(0);
+
+        /** Counted down by the first next(), which then waits for {@link #releaseNext}. */
+        final CountDownLatch inNext = new CountDownLatch(1);
+
+        CountDownLatch releaseNext = new CountDownLatch(0);
+
+        IteratorFault(ColumnFamilyHandle columnFamily, int entriesBeforeError) {
+            this.columnFamily = columnFamily;
+            this.entriesBeforeError = entriesBeforeError;
+        }
+    }
+
+    /** Hands out a {@link FaultyIterator} for the column families of the given faults. */
+    private static final class FaultyIteratorDb extends RocksDB {
+        /** Creates the iterators: one created by this disowned DB is never freed on close. */
+        private final RocksDB owningDb;
+
+        private final List<IteratorFault> faults;
+
+        FaultyIteratorDb(RocksDB db, IteratorFault... faults) {
+            super(db.getNativeHandle());
+            disOwnNativeHandle();
+            this.owningDb = db;
+            this.faults = List.of(faults);
+        }
+
+        @Override
+        public RocksIterator newIterator(ColumnFamilyHandle columnFamily) {
+            RocksIterator iterator = owningDb.newIterator(columnFamily);
+            for (IteratorFault fault : faults) {
+                if (fault.columnFamily == columnFamily) {
+                    return new FaultyIterator(this, iterator, fault);
+                }
+            }
+            return iterator;
+        }
+    }
+
+    /**
+     * A real iterator that becomes invalid with {@link IteratorFault#error} after {@link
+     * IteratorFault#entriesBeforeError} entries. Use after close fails in Java instead of touching
+     * freed native memory.
+     */
+    private static final class FaultyIterator extends RocksIterator {
+        private final RocksIterator delegate;
+        private final IteratorFault fault;
+        private int entries;
+        private volatile boolean closed;
+
+        FaultyIterator(RocksDB db, RocksIterator delegate, IteratorFault fault) {
+            super(db, delegate.getNativeHandle());
+            disOwnNativeHandle();
+            this.delegate = delegate;
+            this.fault = fault;
+        }
+
+        @Override
+        public void seek(byte[] target) {
+            await(fault.seekGate);
+            checkOpen();
+            delegate.seek(target);
+        }
+
+        @Override
+        public boolean isValid() {
+            checkOpen();
+            return entries < fault.entriesBeforeError && delegate.isValid();
+        }
+
+        @Override
+        public void status() throws RocksDBException {
+            checkOpen();
+            if (entries >= fault.entriesBeforeError) {
+                throw fault.error;
+            }
+            delegate.status();
+        }
+
+        @Override
+        public byte[] key() {
+            checkOpen();
+            return delegate.key();
+        }
+
+        @Override
+        public byte[] value() {
+            checkOpen();
+            return delegate.value();
+        }
+
+        @Override
+        public void next() {
+            if (entries == 0) {
+                fault.inNext.countDown();
+                await(fault.releaseNext);
+            }
+            checkOpen();
+            delegate.next();
+            entries++;
+        }
+
+        @Override
+        public void close() {
+            closed = true;
+            fault.closes.incrementAndGet();
+            delegate.close();
+            fault.closed.countDown();
+        }
+
+        private void checkOpen() {
+            if (closed) {
+                throw new IllegalStateException("Iterator used after close.");
+            }
+        }
     }
 }
