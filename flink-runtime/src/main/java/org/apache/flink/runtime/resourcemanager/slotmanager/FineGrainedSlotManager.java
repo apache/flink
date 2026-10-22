@@ -222,6 +222,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
         resourceManagerId = Preconditions.checkNotNull(newResourceManagerId);
         mainThreadExecutor = Preconditions.checkNotNull(newMainThreadExecutor);
+        mainThreadExecutor.assertRunningInMainThread();
         resourceAllocator = Preconditions.checkNotNull(newResourceAllocator);
         resourceEventListener = Preconditions.checkNotNull(newResourceEventListener);
         slotStatusSyncer.initialize(
@@ -264,6 +265,7 @@ public class FineGrainedSlotManager implements SlotManager {
         if (!started) {
             return;
         }
+        mainThreadExecutor.assertRunningInMainThread();
 
         LOG.info("Suspending the slot manager.");
 
@@ -1014,7 +1016,7 @@ public class FineGrainedSlotManager implements SlotManager {
     private void checkInit() {
         Preconditions.checkState(started, "The slot manager has not been started.");
         Preconditions.checkNotNull(resourceManagerId);
-        Preconditions.checkNotNull(mainThreadExecutor);
+        Preconditions.checkNotNull(mainThreadExecutor).assertRunningInMainThread();
         Preconditions.checkNotNull(resourceAllocator);
         Preconditions.checkNotNull(resourceEventListener);
     }
