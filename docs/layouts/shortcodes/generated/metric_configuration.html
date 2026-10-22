@@ -15,6 +15,12 @@
             <td>Update interval for the metric fetcher used by the web UI. Decrease this value for faster updating metrics. Increase this value if the metric fetcher causes too much load. Setting this value to 0 disables the metric fetching completely.</td>
         </tr>
         <tr>
+            <td><h5>metrics.internal.query-service.filter.excludes</h5></td>
+            <td style="word-wrap: break-word;">"*.operator.split.watermark:*:*"</td>
+            <td>List&lt;String&gt;</td>
+            <td>The metrics that should be excluded from Flink's internal metric query service, which backs the metrics exposed via the REST API and the web UI. Excluded metrics are still reported to configured metric reporters. Filters use the same format as <code class="highlighter-rouge">metrics.reporter.&lt;name&gt;.filter.excludes</code>.<br />By default the per-split watermark metrics of sources are excluded, because the number of splits a source reads over its lifetime is unbounded and the REST API retains the metrics of every split it has ever seen.</td>
+        </tr>
+        <tr>
             <td><h5>metrics.internal.query-service.port</h5></td>
             <td style="word-wrap: break-word;">"0"</td>
             <td>String</td>

@@ -1963,6 +1963,9 @@ Note that the metrics are only available via reporters.
       <td>watermark.currentWatermark</td>
       <td>
         The last watermark this split has received (in milliseconds).
+        <p><strong>Note:</strong> Split metrics are reported to metric reporters only. By default they are not
+        exposed via the REST API or the web UI, because the number of splits a source reads over its lifetime is
+        unbounded; see <code>metrics.internal.query-service.filter.excludes</code> to change this.</p>
       </td>
       <td>Gauge</td>
     </tr>
