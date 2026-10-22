@@ -93,23 +93,16 @@ public class ForStIterateOperation implements ForStDBOperation {
     }
 
     /**
-     * Closes the request's native iterator and then completes its state future exceptionally.
-     *
-     * <p>{@link org.forstdb.RocksIterator} has neither a Cleaner nor a finalizer, so an iterator
-     * that is never explicitly closed leaks its native allocation for the lifetime of the JVM. A
-     * request can hold a live iterator on both failure paths: after a partial {@link
-     * ForStDBIterRequest#process} that already created one, and on an {@code ITERATOR_LOADING}
-     * continuation that deliberately carries an open iterator forward from a previous batch.
-     *
-     * <p>This must only be called from the worker thread that owns {@code request}. Closing an
-     * iterator from another thread could free it while its owning worker is still reading from it.
+     * Closes the request's native iterator on its owning worker thread and completes its state
+     * future exceptionally.
      */
     private static void failRequest(ForStDBIterRequest<?, ?, ?, ?, ?> request, Throwable failure) {
         try {
             request.close();
         } catch (Throwable closeFailure) {
-            // Never let a close failure mask the error that actually failed the request.
-            failure.addSuppressed(closeFailure);
+            if (closeFailure != failure) {
+                failure.addSuppressed(closeFailure);
+            }
         }
         request.completeStateFutureExceptionally(
                 "Error when execute ForStDb iterate operation", failure);

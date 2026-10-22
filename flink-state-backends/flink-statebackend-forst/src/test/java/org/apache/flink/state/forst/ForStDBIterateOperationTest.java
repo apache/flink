@@ -196,15 +196,7 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
         }
     }
 
-    /**
-     * A failing iterate request must close its native iterator. {@link org.forstdb.RocksIterator}
-     * has no Cleaner and no finalizer, so an iterator that is not explicitly closed leaks its
-     * native allocation for the lifetime of the JVM.
-     *
-     * <p>This drives the catch path: {@code process()} creates and seeks the iterator, fills a full
-     * cache batch (so the iterator is deliberately retained for a follow-up request) and then
-     * throws while deserializing.
-     */
+    /** Verifies that a failing iterate request closes the native iterator it created. */
     @Test
     void testIteratorClosedWhenProcessFails() throws Exception {
         ForStMapState<Integer, VoidNamespace, String, String> mapState =
@@ -232,10 +224,8 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
     }
 
     /**
-     * A request that is failed because an earlier request in the same batch failed must also close
-     * its iterator. An {@code ITERATOR_LOADING} continuation carries a live iterator from a
-     * previous partial iteration, so this path leaks too even though the request is never
-     * processed.
+     * Verifies that a continuation skipped after an earlier request in the batch failed closes its
+     * carried-over native iterator.
      */
     @Test
     void testIteratorClosedWhenBatchAlreadyFailed() throws Exception {

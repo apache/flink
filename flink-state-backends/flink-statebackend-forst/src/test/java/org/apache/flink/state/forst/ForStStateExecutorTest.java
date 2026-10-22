@@ -258,36 +258,40 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
                 buildForStMapState("map-state");
         putEntries(state, 200, null);
         IteratorFault fault = new IteratorFault(state.getColumnFamilyHandle(), entriesBeforeError);
-        ForStStateExecutor forStStateExecutor =
-                new ForStStateExecutor(
-                        false, false, 2, 1, new FaultyIteratorDb(db, fault), new WriteOptions());
-        try {
-            AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
-                    forStStateExecutor.createRequestContainer();
-            StateRequest<?, ?, ?, ?> request = buildMapRequest(state, requestType, KEY, null, 0);
-            requests.offer(request);
-            forStStateExecutor.executeBatchRequests(requests);
+        try (WriteOptions writeOptions = new WriteOptions()) {
+            ForStStateExecutor forStStateExecutor =
+                    new ForStStateExecutor(
+                            false, false, 2, 1, new FaultyIteratorDb(db, fault), writeOptions);
+            try {
+                AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
+                        forStStateExecutor.createRequestContainer();
+                StateRequest<?, ?, ?, ?> request =
+                        buildMapRequest(state, requestType, KEY, null, 0);
+                requests.offer(request);
+                CompletableFuture<Void> batch = forStStateExecutor.executeBatchRequests(requests);
 
-            assertThat(((TestAsyncFuture<?>) request.getFuture()).future)
-                    .failsWithin(30, TimeUnit.SECONDS)
-                    .withThrowableThat()
-                    .havingRootCause()
-                    .isSameAs(fault.error);
-            // Closing may be asynchronous.
-            assertThat(fault.closed.await(30, TimeUnit.SECONDS)).isTrue();
-            assertThat(fault.closes).hasValue(1);
-        } finally {
-            forStStateExecutor.shutdown();
+                assertThat(batch).failsWithin(30, TimeUnit.SECONDS);
+                assertThat(((TestAsyncFuture<?>) request.getFuture()).future)
+                        .failsWithin(30, TimeUnit.SECONDS)
+                        .withThrowableThat()
+                        .havingRootCause()
+                        .isSameAs(fault.error);
+                // Closing may be asynchronous.
+                assertThat(fault.closed.await(30, TimeUnit.SECONDS)).isTrue();
+                assertThat(fault.closes).hasValue(1);
+            } finally {
+                forStStateExecutor.shutdown();
+            }
         }
     }
 
     @ParameterizedTest
     @ValueSource(ints = {3, ForStIterateOperation.CACHE_SIZE_LIMIT + 10})
-    void testBatchFailureLeavesIteratorsToTheirOwners(int heldEntryCount) throws Exception {
+    void testBatchFailureDoesNotCloseIteratorsInUse(int heldEntryCount) throws Exception {
         ForStMapState<Integer, VoidNamespace, String, String> heldState =
-                buildForStMapState("held-map-state-" + heldEntryCount);
+                buildForStMapState("held-map-state");
         ForStMapState<Integer, VoidNamespace, String, String> failingState =
-                buildForStMapState("failing-map-state-" + heldEntryCount);
+                buildForStMapState("failing-map-state");
         putEntries(heldState, heldEntryCount, null);
         // Cannot be deserialized.
         putEntries(failingState, 1, new byte[0]);
@@ -296,42 +300,113 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         IteratorFault failing = new IteratorFault(failingState.getColumnFamilyHandle(), NO_ERROR);
         // The failing request only starts once the held one is iterating.
         failing.seekGate = held.inNext;
-        ForStStateExecutor forStStateExecutor =
-                new ForStStateExecutor(
-                        false,
-                        false,
-                        2,
-                        1,
-                        new FaultyIteratorDb(db, held, failing),
-                        new WriteOptions());
-        try {
-            AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
-                    forStStateExecutor.createRequestContainer();
-            StateRequest<?, ?, ?, ?> heldRequest =
-                    buildMapRequest(heldState, StateRequestType.MAP_ITER, KEY, null, 0);
-            requests.offer(heldRequest);
-            requests.offer(buildMapRequest(failingState, StateRequestType.MAP_ITER, KEY, null, 0));
-            CompletableFuture<Void> batch = forStStateExecutor.executeBatchRequests(requests);
+        try (WriteOptions writeOptions = new WriteOptions()) {
+            ForStStateExecutor forStStateExecutor =
+                    new ForStStateExecutor(
+                            false,
+                            false,
+                            2,
+                            1,
+                            new FaultyIteratorDb(db, held, failing),
+                            writeOptions);
+            try {
+                AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
+                        forStStateExecutor.createRequestContainer();
+                StateRequest<?, ?, ?, ?> heldRequest =
+                        buildMapRequest(heldState, StateRequestType.MAP_ITER, KEY, null, 0);
+                requests.offer(heldRequest);
+                requests.offer(
+                        buildMapRequest(failingState, StateRequestType.MAP_ITER, KEY, null, 0));
+                CompletableFuture<Void> batch = forStStateExecutor.executeBatchRequests(requests);
 
-            assertThat(held.inNext.await(30, TimeUnit.SECONDS)).isTrue();
-            assertThat(batch).failsWithin(30, TimeUnit.SECONDS);
-            assertThat(held.closes).hasValue(0);
+                assertThat(held.inNext.await(30, TimeUnit.SECONDS)).isTrue();
+                assertThat(batch).failsWithin(30, TimeUnit.SECONDS);
+                assertThat(held.closes).hasValue(0);
 
-            held.releaseNext.countDown();
+                held.releaseNext.countDown();
+                assertThat(((TestAsyncFuture<?>) heldRequest.getFuture()).future)
+                        .succeedsWithin(30, TimeUnit.SECONDS);
+                if (heldEntryCount <= ForStIterateOperation.CACHE_SIZE_LIMIT) {
+                    assertThat(held.closes).hasValue(1);
+                } else {
+                    // A partial page keeps its iterator open until shutdown reclaims it after
+                    // workers stop.
+                    assertThat(held.closes).hasValue(0);
+                }
+            } finally {
+                held.releaseNext.countDown();
+                forStStateExecutor.shutdown();
+            }
+            assertThat(held.closes).hasValue(1);
+        }
+    }
+
+    @Test
+    void testInterruptedShutdownWaitsForActiveReaderBeforeClosingIterators() throws Exception {
+        ForStMapState<Integer, VoidNamespace, String, String> heldState =
+                buildForStMapState("held-map-state");
+        ForStMapState<Integer, VoidNamespace, String, String> failingState =
+                buildForStMapState("failing-map-state");
+        putEntries(heldState, ForStIterateOperation.CACHE_SIZE_LIMIT + 10, null);
+        putEntries(failingState, 1, new byte[0]);
+        IteratorFault held = new IteratorFault(heldState.getColumnFamilyHandle(), NO_ERROR);
+        held.releaseNext = new CountDownLatch(1);
+        IteratorFault failing = new IteratorFault(failingState.getColumnFamilyHandle(), NO_ERROR);
+        failing.seekGate = held.inNext;
+        try (WriteOptions writeOptions = new WriteOptions()) {
+            ForStStateExecutor forStStateExecutor =
+                    new ForStStateExecutor(
+                            true,
+                            false,
+                            2,
+                            1,
+                            new FaultyIteratorDb(db, held, failing),
+                            writeOptions);
+            Thread shutdownThread = null;
+            AtomicInteger shutdownInterrupted = new AtomicInteger();
+            StateRequest<?, ?, ?, ?> heldRequest;
+            try {
+                AsyncRequestContainer<StateRequest<?, ?, ?, ?>> requests =
+                        forStStateExecutor.createRequestContainer();
+                heldRequest = buildMapRequest(heldState, StateRequestType.MAP_ITER, KEY, null, 0);
+                requests.offer(heldRequest);
+                requests.offer(
+                        buildMapRequest(failingState, StateRequestType.MAP_ITER, KEY, null, 0));
+                CompletableFuture<Void> batch = forStStateExecutor.executeBatchRequests(requests);
+
+                assertThat(held.inNext.await(30, TimeUnit.SECONDS)).isTrue();
+                assertThat(batch).failsWithin(30, TimeUnit.SECONDS);
+
+                CountDownLatch shutdownEntered = new CountDownLatch(1);
+                shutdownThread =
+                        new Thread(
+                                () -> {
+                                    Thread.currentThread().interrupt();
+                                    shutdownEntered.countDown();
+                                    forStStateExecutor.shutdown();
+                                    if (Thread.currentThread().isInterrupted()) {
+                                        shutdownInterrupted.incrementAndGet();
+                                    }
+                                });
+                shutdownThread.start();
+                assertThat(shutdownEntered.await(30, TimeUnit.SECONDS)).isTrue();
+                assertThat(held.releaseNextAwaitedAfterInterrupt.await(30, TimeUnit.SECONDS))
+                        .isTrue();
+                assertThat(held.closes).hasValue(0);
+            } finally {
+                held.releaseNext.countDown();
+                if (shutdownThread != null) {
+                    shutdownThread.join(30_000L);
+                } else {
+                    forStStateExecutor.shutdown();
+                }
+            }
+            assertThat(shutdownThread.isAlive()).isFalse();
             assertThat(((TestAsyncFuture<?>) heldRequest.getFuture()).future)
                     .succeedsWithin(30, TimeUnit.SECONDS);
-            if (heldEntryCount <= ForStIterateOperation.CACHE_SIZE_LIMIT) {
-                assertThat(held.closes).hasValue(1);
-            } else {
-                // A partial page keeps its iterator open until shutdown reclaims it after workers
-                // stop.
-                assertThat(held.closes).hasValue(0);
-            }
-        } finally {
-            held.releaseNext.countDown();
-            forStStateExecutor.shutdown();
+            assertThat(held.closes).hasValue(1);
+            assertThat(shutdownInterrupted).hasValue(1);
         }
-        assertThat(held.closes).hasValue(1);
     }
 
     @Test
@@ -498,6 +573,35 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         }
     }
 
+    private static void awaitUninterruptibly(
+            CountDownLatch latch, @Nullable CountDownLatch interruptedSignal) {
+        boolean interrupted = false;
+        long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+        try {
+            while (true) {
+                long remainingNanos = deadlineNanos - System.nanoTime();
+                if (remainingNanos <= 0) {
+                    throw new IllegalStateException("Timed out waiting for the test.");
+                }
+                try {
+                    if (latch.await(remainingNanos, TimeUnit.NANOSECONDS)) {
+                        return;
+                    }
+                    throw new IllegalStateException("Timed out waiting for the test.");
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                    if (interruptedSignal != null) {
+                        interruptedSignal.countDown();
+                    }
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
     /** How the iterators of one column family misbehave, and how often they were closed. */
     private static final class IteratorFault {
         final ColumnFamilyHandle columnFamily;
@@ -511,6 +615,9 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
 
         /** Counted down by the first next(), which then waits for {@link #releaseNext}. */
         final CountDownLatch inNext = new CountDownLatch(1);
+
+        /** Counted down when {@link #releaseNext} receives a worker interrupt (shutdownNow()). */
+        final CountDownLatch releaseNextAwaitedAfterInterrupt = new CountDownLatch(1);
 
         CountDownLatch releaseNext = new CountDownLatch(0);
 
@@ -602,7 +709,7 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         public void next() {
             if (entries == 0) {
                 fault.inNext.countDown();
-                await(fault.releaseNext);
+                awaitUninterruptibly(fault.releaseNext, fault.releaseNextAwaitedAfterInterrupt);
             }
             checkOpen();
             delegate.next();

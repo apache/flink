@@ -22,6 +22,7 @@ import org.apache.flink.runtime.asyncprocessing.AsyncRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.state.forst.fs.cache.FileBasedCache;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -31,7 +32,6 @@ import org.forstdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -311,23 +311,26 @@ public class ForStStateExecutor implements StateExecutor {
         if (!sharedWriteThread) {
             shutdownAndWait(writeThreads);
         }
-        ForStDBIterRequest<?, ?, ?, ?, ?> iterRequest;
-        while ((iterRequest = cleanupIterRequests.poll()) != null) {
-            try {
-                iterRequest.close();
-            } catch (IOException ioException) {
-                LOG.error("Close iterRequests fail", ioException);
-            }
-        }
+        IOUtils.closeAllQuietly(cleanupIterRequests);
         LOG.info("Shutting down the ForStStateExecutor.");
     }
 
     private void shutdownAndWait(ExecutorService executorService) {
+        boolean interrupted = false;
+        executorService.shutdown();
         try {
-            executorService.shutdown();
-            while (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {}
-        } catch (InterruptedException e) {
-            executorService.shutdownNow();
+            while (!executorService.isTerminated()) {
+                try {
+                    executorService.awaitTermination(60, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                    executorService.shutdownNow();
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
