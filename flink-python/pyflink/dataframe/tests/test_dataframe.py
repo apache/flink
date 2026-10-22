@@ -36,6 +36,7 @@ from pyflink.dataframe.dataframe import (
     _to_interval_expression,
 )
 from pyflink.dataframe.datatype import DataType
+from pyflink.java_gateway import get_gateway
 from pyflink.table import (
     DataTypes as TableDataTypes,
     EnvironmentSettings,
@@ -1208,6 +1209,234 @@ class DataFrameRenameColumnsTests(PyFlinkDataFrameUTTestCase):
             with self.subTest(name=name):
                 with self.assertRaisesRegex(error, message):
                     invalid_call()
+
+
+class DataFrameAsOfJoinTests(PyFlinkDataFrameUTTestCase):
+    def setUp(self):
+        super().setUp()
+        self.t_env.execute_sql(
+            "CREATE TABLE orders (id INT, amount INT, pt AS PROCTIME(), "
+            "ts TIMESTAMP(3), WATERMARK FOR ts AS ts) "
+            "WITH ('connector' = 'COLLECTION')"
+        )
+        self.t_env.execute_sql(
+            "CREATE TABLE rates (id INT, rate INT, rt TIMESTAMP(3), "
+            "WATERMARK FOR rt AS rt, PRIMARY KEY (id) NOT ENFORCED) "
+            "WITH ('connector' = 'COLLECTION')"
+        )
+        self.left = pf.from_table(self.t_env.from_path("orders"))
+        self.versions = pf.from_table(self.t_env.from_path("rates"))
+        self.t_env.execute_sql(
+            "CREATE TABLE dimension (id INT, rate INT, rt TIMESTAMP(3)) "
+            "WITH ('connector' = 'COLLECTION')"
+        )
+        self.right = pf.from_table(self.t_env.from_path("dimension"))
+
+    def test_time_attributes_and_lazy_construction(self):
+        original = self.left.to_table()
+        for on, operator in (
+            ("pt", "LookupJoin"), (pf.col("pt"), "LookupJoin"),
+            (pf.proctime(), "LookupJoin"), ("ts", "TemporalJoin"),
+        ):
+            with self.subTest(on=str(on)):
+                with patch.object(Table, "execute") as execute:
+                    with patch.object(Table, "explain") as explain:
+                        right = self.versions if operator == "TemporalJoin" else self.right
+                        result = self.left.join_asof(right, on=on, by="id", how="left")
+                execute.assert_not_called()
+                explain.assert_not_called()
+                self.assert_dataframe_schema(result, ["id", "amount", "pt", "ts", "rate", "rt"])
+                self.assertIs(self.left.to_table(), original)
+                plan = result.to_table().explain()
+                self.assertIn(operator, plan)
+
+    def test_key_forms_and_inline_functions(self):
+        right = self.right.rename_columns({"id": "d_id"})
+        identity = pf.udf(lambda value: value, return_dtype=int)
+        for keys in (
+            {"by": pf.col("id") == pf.col("d_id")},
+            {"by": [pf.col("id") == pf.col("d_id"), pf.col("amount") > pf.col("rate")]},
+            {"left_by": "id", "right_by": "d_id"},
+            {"left_by": [pf.col("id") + 1], "right_by": [pf.col("d_id")]},
+            {"by": (pf.col("id") == pf.col("d_id")) & (identity(pf.col("amount")) > 0)},
+        ):
+            with self.subTest(keys=str(keys)):
+                before = set(self.t_env.list_user_defined_functions())
+                result = self.left.join_asof(right, on="pt", **keys)
+                self.assertEqual(result.columns, self.left.columns + right.columns)
+                self.assertEqual(set(self.t_env.list_user_defined_functions()), before)
+                self.assertIn("LookupJoin", result.to_table().explain())
+
+        result = self.left.join_asof(
+            self.right, on="pt", by=["id", pf.col("amount") > pf.col("rate")])
+        self.assertIn("LookupJoin", result.to_table().explain())
+        result = self.left.join_asof(
+            self.right.rename_columns({"rate": "amount"}), on="pt", by=["id", "amount"])
+        self.assertEqual(result.columns, self.left.columns + ["rt"])
+        self.assertIn("LookupJoin", result.to_table().explain())
+
+    def test_invalid_arguments(self):
+        for kwargs, error, message in (
+            ({"on": None, "by": "id"}, ValueError, "on"),
+            ({"on": 1, "by": "id"}, TypeError, "on"),
+            ({"on": "pt", "by": "id", "how": "full"}, ValueError, "how"),
+            ({"on": "pt", "by": "id", "how": 1}, TypeError, "how"),
+            ({"on": "pt"}, ValueError, "by"),
+            ({"on": "pt", "by": []}, ValueError, "empty"),
+            ({"on": "pt", "by": [1]}, TypeError, "by"),
+            ({"on": "pt", "by": ["id", "id"]}, ValueError, "duplicate"),
+            ({"on": "pt", "by": "id", "left_by": "id"}, ValueError, "combined"),
+            ({"on": "pt", "left_by": "id"}, ValueError, "together"),
+            ({"on": "pt", "left_by": ["id", "amount"], "right_by": "id"},
+             ValueError, "same number"),
+            ({"on": "amount", "by": "id"}, ValueError, "time attribute"),
+            ({"on": "pt", "left_by": pf.col("*"), "right_by": "id"},
+             ValueError, "single column"),
+            ({"on": "pt", "left_by": pf.col("id").sum, "right_by": "id"},
+             ValueError, "row-wise"),
+            ({"on": "pt", "left_by": "id", "right_by": pf.col("id").sum},
+             ValueError, "row-wise"),
+        ):
+            with self.subTest(kwargs=str(kwargs)):
+                with self.assertRaisesRegex(error, message):
+                    self.left.join_asof(self.right, **kwargs)
+        with self.assertRaisesRegex(TypeError, "other"):
+            self.left.join_asof(object(), on="pt", by="id")
+        other_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
+        with self.assertRaisesRegex(ValueError, "same TableEnvironment"):
+            self.left.join_asof(pf.from_table(other_env.from_elements([(1,)], ["id"])),
+                                on="pt", by="id")
+
+    def test_predicate_requires_cross_input_equality_and_no_or(self):
+        right = self.right.rename_columns({"id": "d_id"})
+        for predicate in (
+            pf.col("id") > pf.col("d_id"),
+            pf.col("id") == pf.col("amount"),
+            (pf.col("id") == pf.col("d_id")) | (pf.col("amount") > 1),
+            (pf.col("id") == pf.col("d_id")) &
+            ((pf.col("amount") > 1) | (pf.col("rate") < 10)),
+        ):
+            with self.subTest(predicate=str(predicate)):
+                with self.assertRaises(ValueError):
+                    self.left.join_asof(right, on="ts", by=predicate)
+
+    def test_time_attribute_in_equality_keys(self):
+        from pyflink.table.expressions import call_sql
+
+        right = self.versions.rename_columns({"id": "d_id"})
+        for keys in (
+            {"by": (pf.col("id") == pf.col("d_id")) & (pf.col("ts") == pf.col("rt"))},
+            {"by": call_sql("id = d_id AND ts = rt")},
+            {"left_by": ["id", "ts"], "right_by": ["d_id", "rt"]},
+            {"left_by": ["id", pf.col("ts").alias("time_key")],
+             "right_by": ["d_id", pf.col("rt").alias("dim_time_key")]},
+            {"left_by": ["id", call_sql("ts")], "right_by": ["d_id", call_sql("rt")]},
+            {"left_by": ["id", pf.col("ts").cast(TableDataTypes.STRING())],
+             "right_by": ["d_id", pf.col("rt").cast(TableDataTypes.STRING())]},
+        ):
+            with self.subTest(keys=str(keys)):
+                result = self.left.join_asof(right, on="ts", **keys)
+                self.assertEqual(result.columns, self.left.columns + right.columns)
+                self.assertIn("TemporalJoin", result.to_table().explain())
+
+        shared = self.versions.rename_columns({"rt": "ts"})
+        result = self.left.join_asof(shared, on="ts", by=["id", "ts"])
+        self.assertEqual(result.columns, self.left.columns + ["rate"])
+        self.assertIn("TemporalJoin", result.to_table().explain())
+
+    def test_quoted_keys_and_internal_name_conflicts(self):
+        left = self.left.rename_columns({"id": "order`id"}).with_column("__pf_asof_time", pf.lit(1))
+        right = self.right.rename_columns({"id": "order`id"})
+        result = left.join_asof(right, on=pf.proctime(), by="order`id")
+        self.assertEqual(result.columns, left.columns + ["rate", "rt"])
+        self.assertIn("LookupJoin", result.to_table().explain())
+
+    def test_planner_validates_dimension_requirements(self):
+        with self.assertRaisesRegex(ValueError, "time attribute"):
+            self.left.join_asof(self.right, on=pf.col("ts").cast(TableDataTypes.STRING()), by="id")
+        self.t_env.execute_sql(
+            "CREATE TABLE no_primary_key (id INT, rate INT, rt TIMESTAMP(3), "
+            "WATERMARK FOR rt AS rt) WITH ('connector' = 'COLLECTION')")
+        right = pf.from_table(self.t_env.from_path("no_primary_key"))
+        with self.assertRaisesRegex(Exception, "primary key"):
+            self.left.join_asof(right, on="ts", by="id").to_table().explain()
+        with self.assertRaisesRegex(Exception, "primary key|Processing-time temporal join"):
+            self.left.join_asof(pf.from_records([(1,)], schema=["id"]),
+                                on="pt", by="id").to_table().explain()
+
+    def test_event_time_expression_keys_preserve_primary_key(self):
+        from pyflink.table.expressions import call_sql
+
+        right = self.versions.rename_columns({"id": "d_id"})
+        for left_key, right_key in (
+            (pf.col("id"), pf.col("d_id")),
+            ([pf.col("id").alias("key")], [pf.col("d_id").alias("dim_key")]),
+            ("id", pf.col("d_id").cast(TableDataTypes.INT())),
+            ("id", pf.col("d_id").cast(TableDataTypes.INT()).alias("dim_key")),
+            ("id", call_sql("CAST(d_id AS INT)")),
+        ):
+            with self.subTest(right_key=str(right_key)):
+                result = self.left.join_asof(right, on="ts", left_by=left_key, right_by=right_key)
+                self.assertIn("TemporalJoin", result.to_table().explain())
+
+    def test_time_attribute_in_residual_predicates(self):
+        from pyflink.table.expressions import call_sql
+
+        right = self.versions.rename_columns({"id": "d_id"})
+        for predicate in (
+            (pf.col("id") == pf.col("d_id")) & (pf.col("ts") > pf.col("rt")),
+            call_sql("id = d_id AND ts > rt"),
+            (pf.col("id") == pf.col("d_id")) & ~(pf.col("ts") == pf.col("rt")),
+            call_sql("id = d_id AND CASE WHEN ts = rt THEN FALSE ELSE TRUE END"),
+            (pf.col("id") == pf.col("d_id")) &
+            (pf.col("ts").cast(TableDataTypes.STRING()) == "2024-01-01 00:00:02"),
+        ):
+            with self.subTest(predicate=str(predicate)):
+                result = self.left.join_asof(right, on="ts", by=predicate, how="left")
+                self.assertIn("TemporalJoin", result.to_table().explain())
+
+    def test_type_changing_key_cast_is_preserved(self):
+        from pyflink.dataframe.dataframe import _asof_field_index
+        from pyflink.table.expressions import call_sql
+
+        for key in (
+            pf.col("id").cast(TableDataTypes.BIGINT()), call_sql("CAST(id AS BIGINT)"),
+            pf.col("rt").cast(TableDataTypes.TIMESTAMP(3)), call_sql("CAST(rt AS TIMESTAMP(3))"),
+        ):
+            with self.subTest(key=str(key)):
+                selected = self.versions.to_table().select(key)
+                resolved = selected._j_table.getQueryOperation().getProjectList().get(0)
+                self.assertIsNone(_asof_field_index(resolved))
+
+    def test_sql_expressions_follow_the_same_validation(self):
+        from pyflink.table.expressions import call_sql
+
+        right = self.versions.rename_columns({"id": "d_id"})
+        result = self.left.join_asof(right, on=call_sql("ts"), by=call_sql("id = d_id"))
+        self.assertIn("TemporalJoin", result.to_table().explain())
+        result = self.left.join_asof(
+            right, on="ts", left_by=call_sql("id"), right_by=call_sql("d_id"))
+        self.assertIn("TemporalJoin", result.to_table().explain())
+        for predicate in (
+            call_sql("id > d_id"),
+            call_sql("id = d_id OR amount > rate"),
+            (pf.col("id") == pf.col("d_id")) & call_sql("amount > rate OR amount = 0"),
+        ):
+            with self.subTest(predicate=str(predicate)):
+                with self.assertRaises(ValueError):
+                    self.left.join_asof(right, on=call_sql("ts"), by=predicate)
+        time_first = self.left.select("pt", "id", "ts")
+        for on in (pf.col("ts").max, call_sql("MAX(ts)")):
+            with self.subTest(on=str(on)):
+                with self.assertRaisesRegex(ValueError, "row-wise"):
+                    time_first.join_asof(self.right, on=on, by="id")
+        for keys in (
+            {"left_by": call_sql("SUM(id) + 1"), "right_by": "d_id"},
+            {"left_by": "id", "right_by": call_sql("SUM(d_id)")},
+        ):
+            with self.subTest(keys=str(keys)):
+                with self.assertRaisesRegex(ValueError, "row-wise"):
+                    self.left.join_asof(right, on="ts", **keys)
 
 
 class DataFrameJoinTests(PyFlinkDataFrameUTTestCase):
@@ -3965,6 +4194,115 @@ class DataFrameExplodeStreamITTests(PyFlinkStreamDataFrameTestCase):
                         pf.lit(ignore).alias("ignore"), "id", "a", "b"))
                 expected_rows.extend(Row(ignore, *row) for row in expected)
         self.assertCountEqual(results[0].union_all(results[1]).collect(), expected_rows)
+
+
+class DataFrameAsOfJoinITTests(PyFlinkStreamDataFrameTestCase):
+    def test_lookup_join(self):
+        gateway = get_gateway()
+        factory = gateway.jvm.org.apache.flink.table.utils.TestCollectionTableFactory
+        factory.reset()
+        self.addCleanup(factory.reset)
+        rows = gateway.jvm.java.util.ArrayList()
+        for key, rate in [(1, 10), (2, 20)]:
+            row = gateway.jvm.org.apache.flink.types.Row(2)
+            row.setField(0, key)
+            row.setField(1, rate)
+            rows.add(row)
+        factory.initData(gateway.jvm.java.util.ArrayList(), rows, None)
+        self.t_env.execute_sql(
+            "CREATE TEMPORARY TABLE lookup_rates (id INT, rate INT) "
+            "WITH ('connector' = 'COLLECTION')")
+        left = pf.from_table(self.t_env.sql_query(
+            "SELECT *, PROCTIME() AS pt FROM (VALUES (1, 15), (2, 5), (3, 30)) T(id, amount)"))
+        right = pf.from_table(self.t_env.from_path("lookup_rates"))
+        renamed = right.rename_columns({"id": "d_id"})
+        results = [
+            left.join_asof(right, on=pf.proctime(), by="id"),
+            left.join_asof(renamed, on="pt", left_by="id", right_by="d_id", how="left"),
+            left.join_asof(right, on="pt", by=["id", pf.col("amount") > pf.col("rate")],
+                           how="left"),
+        ]
+        combined = results[0].select(pf.lit(0).alias("variant"), "id", "rate")
+        for index, result in enumerate(results[1:], 1):
+            combined = combined.union_all(result.select(
+                pf.lit(index).alias("variant"), "id", "rate"))
+        self.assertCountEqual(combined.collect(), [
+            Row(0, 1, 10), Row(0, 2, 20),
+            Row(1, 1, 10), Row(1, 2, 20), Row(1, 3, None),
+            Row(2, 1, 10), Row(2, 2, None), Row(2, 3, None),
+        ])
+
+    def test_event_time_join_selects_historical_versions(self):
+        orders_path = os.path.join(self.tempdir, "asof_orders.csv")
+        rates_path = os.path.join(self.tempdir, "asof_rates.csv")
+        with open(orders_path, "w", encoding="utf-8") as output:
+            output.write("1,2024-01-01 00:00:02\n2,2024-01-01 00:00:02\n"
+                         "1,2024-01-01 00:00:06\n3,2024-01-01 00:00:06\n")
+        with open(rates_path, "w", encoding="utf-8") as output:
+            output.write("1,10,2024-01-01 00:00:01\n2,30,2024-01-01 00:00:03\n"
+                         "1,20,2024-01-01 00:00:04\n")
+        self.t_env.execute_sql(
+            "CREATE TEMPORARY TABLE asof_orders (id INT, ts TIMESTAMP(3), "
+            "WATERMARK FOR ts AS ts - INTERVAL '1' SECOND) "
+            "WITH ('connector' = 'filesystem', 'format' = 'csv', 'path' = '%s')" % orders_path)
+        self.t_env.execute_sql(
+            "CREATE TEMPORARY TABLE asof_rates (id INT, rate INT, rt TIMESTAMP(3), "
+            "WATERMARK FOR rt AS rt - INTERVAL '1' SECOND, PRIMARY KEY (id) NOT ENFORCED) "
+            "WITH ('connector' = 'filesystem', 'format' = 'csv', 'path' = '%s')" % rates_path)
+        left = pf.from_table(self.t_env.from_path("asof_orders"))
+        right = pf.from_table(self.t_env.from_path("asof_rates"))
+        inner = left.join_asof(right, on="ts", by="id").select(
+            pf.lit("inner").alias("kind"), "id", "rate")
+        outer = left.join_asof(
+            right.rename_columns({"id": "d_id"}), on=pf.col("ts"),
+            left_by=pf.col("id"), right_by=pf.col("d_id").cast(TableDataTypes.INT()),
+            how="left").select(
+            pf.lit("left").alias("kind"), "id", "rate")
+        residual = left.join_asof(
+            right.rename_columns({"id": "d_id"}), on="ts", how="left",
+            by=(pf.col("id") == pf.col("d_id")) &
+            (pf.col("ts") > pf.col("rt") + pf.lit(1).seconds)).select(
+            pf.lit("residual").alias("kind"), "id", "rate")
+        self.assertCountEqual(inner.union_all(outer).union_all(residual).collect(), [
+            Row("inner", 1, 10), Row("inner", 1, 20),
+            Row("left", 1, 10), Row("left", 1, 20),
+            Row("left", 2, None), Row("left", 3, None),
+            Row("residual", 1, None), Row("residual", 1, 20),
+            Row("residual", 2, None), Row("residual", 3, None),
+        ])
+
+    def test_event_time_equality_matches_only_exact_versions(self):
+        orders_path = os.path.join(self.tempdir, "time_key_orders.csv")
+        rates_path = os.path.join(self.tempdir, "time_key_rates.csv")
+        with open(orders_path, "w", encoding="utf-8") as output:
+            output.write("1,2024-01-01 00:00:02\n1,2024-01-01 00:00:05\n"
+                         "1,2024-01-01 00:00:06\n2,2024-01-01 00:00:06\n")
+        with open(rates_path, "w", encoding="utf-8") as output:
+            output.write("1,10,2024-01-01 00:00:01\n1,20,2024-01-01 00:00:05\n")
+        self.t_env.execute_sql(
+            "CREATE TEMPORARY TABLE time_key_orders (id INT, ts TIMESTAMP(3), "
+            "WATERMARK FOR ts AS ts - INTERVAL '1' SECOND) "
+            "WITH ('connector' = 'filesystem', 'format' = 'csv', 'path' = '%s')" % orders_path)
+        self.t_env.execute_sql(
+            "CREATE TEMPORARY TABLE time_key_rates (d_id INT, rate INT, rt TIMESTAMP(3), "
+            "WATERMARK FOR rt AS rt - INTERVAL '1' SECOND, PRIMARY KEY (d_id) NOT ENFORCED) "
+            "WITH ('connector' = 'filesystem', 'format' = 'csv', 'path' = '%s')" % rates_path)
+        left = pf.from_table(self.t_env.from_path("time_key_orders"))
+        right = pf.from_table(self.t_env.from_path("time_key_rates"))
+        inner = left.join_asof(
+            right, on="ts",
+            by=(pf.col("id") == pf.col("d_id")) & (pf.col("ts") == pf.col("rt"))).select(
+            pf.lit("inner").alias("kind"), "id", "ts", "rate")
+        outer = left.join_asof(
+            right, on="ts", left_by=["id", "ts"], right_by=["d_id", "rt"],
+            how="left").select(pf.lit("left").alias("kind"), "id", "ts", "rate")
+        self.assertCountEqual(inner.union_all(outer).collect(), [
+            Row("inner", 1, datetime(2024, 1, 1, 0, 0, 5), 20),
+            Row("left", 1, datetime(2024, 1, 1, 0, 0, 2), None),
+            Row("left", 1, datetime(2024, 1, 1, 0, 0, 5), 20),
+            Row("left", 1, datetime(2024, 1, 1, 0, 0, 6), None),
+            Row("left", 2, datetime(2024, 1, 1, 0, 0, 6), None),
+        ])
 
 
 class DataFrameWindowITTests(PyFlinkStreamDataFrameTestCase):

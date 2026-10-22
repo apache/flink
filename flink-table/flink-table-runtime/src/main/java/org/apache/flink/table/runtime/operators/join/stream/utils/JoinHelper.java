@@ -68,6 +68,7 @@ public abstract class JoinHelper<STATE_VIEW, OUTER_STATE_VIEW extends STATE_VIEW
      *
      * <pre>
      * if input record is accumulate
+     * |  skip every state.add below if the join key can never match
      * |  if input side is outer
      * |  |  if there is no matched rows on the other side, send +I[record+null], state.add(record, 0)
      * |  |  if there are matched rows on the other side

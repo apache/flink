@@ -162,6 +162,15 @@ def lit(value: Any, data_type: Optional[DataType] = None) -> Expression:
 
 
 @PublicEvolving()
+def proctime() -> Expression:
+    """Return a processing-time attribute for a lookup :meth:`DataFrame.join_asof`.
+
+    .. versionadded:: 2.4.0
+    """
+    return call_sql("PROCTIME()")
+
+
+@PublicEvolving()
 class DataFrame:
     """
     A modern DataFrame API for PyFlink.
@@ -1319,6 +1328,95 @@ class DataFrame:
                     sql_factory,
                 )
             )
+
+    @PublicEvolving()
+    def join_asof(
+        self,
+        other: "DataFrame",
+        *,
+        how: str = "inner",
+        on: Optional[Union[str, Expression]] = None,
+        by: Optional[Union[str, Expression, List[Union[str, Expression]]]] = None,
+        left_by: Optional[Union[str, Expression, List[Union[str, Expression]]]] = None,
+        right_by: Optional[Union[str, Expression, List[Union[str, Expression]]]] = None,
+    ) -> "DataFrame":
+        """
+        Join a dimension table as of each left row's time attribute.
+
+        Use :func:`proctime` or a left processing-time column for a lookup join. The
+        right table must support lookups. Use a left event-time column for a temporal
+        join; both inputs need watermarks, and the right table's primary key must be
+        covered by the equality keys. These requirements follow the underlying Table API.
+
+        Shared named keys occur once in the result. Other duplicate column names must
+        be renamed before joining. The time attribute may also appear in equality keys
+        and residual conditions.
+        Conditions require an equality between the inputs, optionally AND-combined
+        with other conditions; OR conditions and purely non-equi conditions are rejected.
+
+        :param other: Dimension DataFrame in the same TableEnvironment.
+        :param how: Join type, ``"inner"`` or ``"left"``.
+        :param on: Required left time-attribute column or :func:`proctime` expression.
+        :param by: Shared key name, boolean join expression, or a list of these.
+        :param left_by: Left key name, expression, or list of names or expressions.
+        :param right_by: Right keys paired with ``left_by``, instead of ``by``.
+        :return: A new DataFrame containing the join result.
+        :raises TypeError: If an argument has an unsupported type.
+        :raises ValueError: If the time attribute, keys, or argument combination is invalid.
+
+        Example::
+
+            >>> enriched = orders.join_asof(
+            ...     customers, on=pf.proctime(), by="customer_id", how="left")
+            >>> historical = orders.join_asof(
+            ...     rates, on="event_time", left_by="currency", right_by="currency_id")
+
+        .. versionadded:: 2.4.0
+        """
+        if not isinstance(other, DataFrame):
+            raise TypeError("other must be a pyflink.dataframe.DataFrame")
+        if self._table._t_env._j_tenv != other._table._t_env._j_tenv:
+            raise ValueError("DataFrames must belong to the same TableEnvironment")
+        if not isinstance(how, str):
+            raise TypeError("how must be a string")
+        if how not in ("inner", "left"):
+            raise ValueError('how must be "inner" or "left"')
+        if on is None:
+            raise ValueError("on must specify a left time attribute")
+        if not isinstance(on, (str, Expression)):
+            raise TypeError("on must be a column name or expression")
+        if by is not None and (left_by is not None or right_by is not None):
+            raise ValueError("by cannot be combined with left_by or right_by")
+        if by is None and (left_by is None or right_by is None):
+            raise ValueError("join_asof requires by or left_by and right_by together")
+
+        left_table, time_name = _prepare_asof_time(self._table, on, other.columns)
+        join_keys: Union[List[str], Expression, None] = None
+        extra_conditions = []
+        named_keys = []
+        if by is not None:
+            for key in _normalize_join_keys(by, "by", allow_expressions=True):
+                if isinstance(key, str):
+                    named_keys.append(key)
+                else:
+                    extra_conditions.append(key)
+            if named_keys:
+                join_keys = named_keys
+            else:
+                join_keys = (and_(*extra_conditions)
+                             if len(extra_conditions) > 1 else extra_conditions[0])
+                extra_conditions = []
+        left_table, right_table, predicate, shared_keys = _prepare_join(
+            left_table, other._table, join_keys, left_by, right_by,
+            validate_column_conflicts=True, asof_time=time_name,
+        )
+        if extra_conditions:
+            predicate = and_(predicate, *extra_conditions)
+        with _JoinSqlFactory(self._table._t_env) as sql_factory:
+            return DataFrame(_build_regular_join_sql(
+                left_table, right_table, predicate, self.columns, other.columns,
+                shared_keys, how, sql_factory, asof_time=time_name,
+            ))
 
     @PublicEvolving()
     def join_lateral(
@@ -3321,18 +3419,25 @@ def _normalize_join_type(how: str) -> str:
     return aliases[how]
 
 
-def _normalize_join_keys(value, parameter_name: str) -> List[Union[str, Expression]]:
+def _normalize_join_keys(
+    value, parameter_name: str, *, allow_expressions: bool = False
+) -> List[Union[str, Expression]]:
     if isinstance(value, (str, Expression)):
         return [value]
     if isinstance(value, list):
         if not value:
             raise ValueError("%s must not be empty" % parameter_name)
-        if not all(isinstance(key, str) for key in value):
+        key_types = (str, Expression) if allow_expressions else (str,)
+        if not all(isinstance(key, key_types) for key in value):
             raise TypeError(
                 "%s must be a string, an expression, or a list of strings" % parameter_name
             )
-        if len(set(value)) != len(value):
-            raise ValueError("%s must not contain duplicate column names" % parameter_name)
+        names = set()
+        for key in value:
+            if isinstance(key, str):
+                if key in names:
+                    raise ValueError("%s must not contain duplicate column names" % parameter_name)
+                names.add(key)
         return value
     raise TypeError(
         "%s must be a string, an expression, or a list of strings" % parameter_name
@@ -3369,6 +3474,7 @@ def _prepare_join(
     right_on,
     *,
     validate_column_conflicts: bool,
+    asof_time: Optional[str] = None,
 ) -> Tuple[Table, Table, Expression, Dict[str, str]]:
     left_columns = list(left_table.get_resolved_schema().get_column_names())
     right_columns = list(right_table.get_resolved_schema().get_column_names())
@@ -3389,12 +3495,36 @@ def _prepare_join(
             raise ValueError("join() requires on or both left_on and right_on")
         if left_on is None or right_on is None:
             raise ValueError("left_on and right_on must be provided together")
-        left_keys = _normalize_join_keys(left_on, "left_on")
-        right_keys = _normalize_join_keys(right_on, "right_on")
+        left_keys = _normalize_join_keys(
+            left_on, "left_on", allow_expressions=asof_time is not None)
+        right_keys = _normalize_join_keys(
+            right_on, "right_on", allow_expressions=asof_time is not None)
         if len(left_keys) != len(right_keys):
             raise ValueError("left_on and right_on must have the same number of keys")
         _validate_join_columns(left_keys, left_columns, "left_on")
         _validate_join_columns(right_keys, right_columns, "right_on")
+
+    if asof_time is not None:
+        # Preserve direct field references so temporal joins retain the right primary key.
+        left_keys, right_keys = list(left_keys), list(right_keys)
+        for table, keys, columns in (
+            (left_table, left_keys, left_columns), (right_table, right_keys, right_columns)
+        ):
+            for index, key in enumerate(keys):
+                if isinstance(key, Expression):
+                    selected = table.select(key)
+                    if len(selected.get_resolved_schema().get_column_names()) != 1:
+                        raise ValueError("each join key must select a single column")
+                    projection = selected._j_table.getQueryOperation()
+                    if not projection.getChildren().get(0).equals(
+                        table._j_table.getQueryOperation()
+                    ):
+                        raise ValueError("join keys must be row-wise expressions, not aggregations")
+                    resolved = projection.getProjectList().get(0)
+                    _asof_expression_info(resolved, len(columns))
+                    field_index = _asof_field_index(resolved)
+                    if field_index is not None:
+                        keys[index] = columns[field_index]
 
     shared_names = {
         left_key
@@ -3456,6 +3586,102 @@ def _prepare_join(
     )
 
 
+def _asof_field_index(expression) -> Optional[int]:
+    definitions = get_gateway().jvm.org.apache.flink.table.functions.BuiltInFunctionDefinitions
+    checks = get_gateway().jvm.org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+    while (expression.getClass().getSimpleName() == "CallExpression" and
+           expression.getFunctionDefinition().equals(definitions.CAST)):
+        child = expression.getResolvedChildren().get(0)
+        # DataType equality ignores time-attribute kinds; casting materializes such attributes.
+        if (not expression.getOutputDataType().equals(child.getOutputDataType()) or
+                checks.isTimeAttribute(child.getOutputDataType().getLogicalType())):
+            return None
+        expression = child
+    if expression.getClass().getSimpleName() == "FieldReferenceExpression":
+        return expression.getFieldIndex()
+    if expression.getClass().getSimpleName() == "RexNodeExpression":
+        node = expression.getRexNode()
+        while node.getKind().name() == "CAST":
+            child = node.getOperands().get(0)
+            if not node.getType().equals(child.getType()):
+                return None
+            node = child
+        if node.getKind().name() == "INPUT_REF":
+            return node.getIndex()
+    return None
+
+
+def _prepare_asof_time(table: Table, on, right_columns: List[str]) -> Tuple[Table, str]:
+    expression = table_col(on) if isinstance(on, str) else on
+    selected = table.select(expression)
+    projection = selected._j_table.getQueryOperation()
+    if not projection.getChildren().get(0).equals(table._j_table.getQueryOperation()):
+        raise ValueError("on must be a row-wise time attribute, not an aggregation")
+    schema = selected._j_table.getResolvedSchema()
+    checks = get_gateway().jvm.org.apache.flink.table.types.logical.utils.LogicalTypeChecks
+    if schema.getColumnCount() != 1 or not checks.isTimeAttribute(
+        schema.getColumnDataTypes().get(0).getLogicalType()
+    ):
+        raise ValueError("on must be a left processing-time or event-time attribute")
+    resolved = projection.getProjectList().get(0)
+    columns = list(table.get_resolved_schema().get_column_names())
+    _asof_expression_info(resolved, len(columns))
+    field_index = _asof_field_index(resolved)
+    if field_index is not None:
+        return table, columns[field_index]
+    name = _unique_name("__pf_asof_time", set(columns) | set(right_columns))
+    return table.add_columns(expression.alias(name)), name
+
+
+def _asof_expression_info(expression, left_arity: int) -> Tuple[Set[int], bool]:
+    """Return referenced inputs and whether an equi-join key is present."""
+    class_name = expression.getClass().getSimpleName()
+    if class_name == "RexNodeExpression":
+        return _asof_expression_info(expression.getRexNode(), left_arity)
+    if class_name == "FieldReferenceExpression":
+        return {expression.getInputIndex()}, False
+    operator = None
+    if expression.getClass().getName().startswith("org.apache.calcite.rex."):
+        # SQL expressions use flattened input indices rather than Table API input/field pairs.
+        operator = expression.getKind().name()
+        if operator == "INPUT_REF":
+            index = expression.getIndex()
+            return {0 if index < left_arity else 1}, False
+        if operator == "LITERAL":
+            return set(), False
+        if operator == "FIELD_ACCESS":
+            children = [expression.getReferenceExpr()]
+        else:
+            if expression.getOperator().isAggregator():
+                raise ValueError("join expressions must be row-wise, not aggregations")
+            children = expression.getOperands()
+    else:
+        children = expression.getResolvedChildren()
+        if class_name == "CallExpression":
+            definitions = (
+                get_gateway().jvm.org.apache.flink.table.functions.BuiltInFunctionDefinitions
+            )
+            for name in ("AND", "OR", "EQUALS"):
+                if expression.getFunctionDefinition().equals(getattr(definitions, name)):
+                    operator = name
+                    break
+    if operator == "OR":
+        raise ValueError("join_asof does not support OR conditions")
+    child_info = []
+    references = set()
+    for child in children:
+        info = _asof_expression_info(child, left_arity)
+        references.update(info[0])
+        child_info.append(info)
+    has_equality = False
+    if operator == "AND":
+        has_equality = any(info[1] for info in child_info)
+    elif operator == "EQUALS":
+        left, right = child_info[0][0], child_info[1][0]
+        has_equality = (left == {0} and right == {1}) or (left == {1} and right == {0})
+    return references, has_equality
+
+
 class _JoinSqlFactory:
     """Keep inline UDFs registered until the join SQL has been resolved."""
 
@@ -3491,6 +3717,7 @@ def _serialize_join_predicate(
     right_table: Table,
     predicate: Expression,
     sql_factory: _JoinSqlFactory,
+    asof_time: Optional[str] = None,
 ) -> Tuple[str, str, str]:
     left_alias, right_alias = "__pf_join_left", "__pf_join_right"
     operation_tree_builder = (
@@ -3507,6 +3734,11 @@ def _serialize_join_predicate(
     resolved_predicate = operation_tree_builder.resolveExpression(
         _get_java_expression(predicate), query_operations
     )
+    if asof_time is not None:
+        columns = list(left_table.get_resolved_schema().get_column_names())
+        _, has_equality = _asof_expression_info(resolved_predicate, len(columns))
+        if not has_equality:
+            raise ValueError("join_asof requires an AND-combined equality between the inputs")
 
     aliases = gateway.jvm.java.util.HashMap()
     aliases.put(0, left_alias)
@@ -3529,9 +3761,11 @@ def _build_regular_join_sql(
     shared_keys: Dict[str, str],
     join_type: str,
     sql_factory: _JoinSqlFactory,
+    *,
+    asof_time: Optional[str] = None,
 ) -> Table:
     left_alias, right_alias, predicate_sql = _serialize_join_predicate(
-        left_table, right_table, predicate, sql_factory
+        left_table, right_table, predicate, sql_factory, asof_time
     )
     left_alias_sql = _quote_identifier(left_alias)
     right_alias_sql = _quote_identifier(right_alias)
@@ -3565,14 +3799,19 @@ def _build_regular_join_sql(
         "right": "RIGHT OUTER JOIN",
         "full": "FULL OUTER JOIN",
     }[join_type]
+    temporal_clause = ""
+    if asof_time is not None:
+        temporal_clause = " FOR SYSTEM_TIME AS OF %s.%s" % (
+            left_alias_sql, _quote_identifier(asof_time))
     query = (
-        "SELECT %s FROM %s AS %s %s %s AS %s ON %s"
+        "SELECT %s FROM %s AS %s %s %s%s AS %s ON %s"
         % (
             ", ".join(projections),
             _quote_identifier(str(left_table)),
             left_alias_sql,
             join_keyword,
             _quote_identifier(str(right_table)),
+            temporal_clause,
             right_alias_sql,
             predicate_sql,
         )
