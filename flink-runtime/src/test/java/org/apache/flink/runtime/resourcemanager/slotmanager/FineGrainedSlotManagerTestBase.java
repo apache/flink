@@ -41,8 +41,6 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.concurrent.ScheduledExecutor;
-import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -140,6 +138,18 @@ abstract class FineGrainedSlotManagerTestBase {
         return completableFuture.get(FUTURE_TIMEOUT_SECOND, TimeUnit.SECONDS);
     }
 
+    /**
+     * Runs every scheduled task once, in scheduling order. A task that schedules itself again is
+     * not run a second time, unlike with {@link
+     * ManuallyTriggeredComponentMainThreadExecutor#triggerNonPeriodicScheduledTasks()}.
+     */
+    static void triggerScheduledTasksOnce(ManuallyTriggeredComponentMainThreadExecutor executor) {
+        final int scheduledTasks = executor.getAllNonPeriodicScheduledTask().size();
+        for (int i = 0; i < scheduledTasks; i++) {
+            executor.triggerNonPeriodicScheduledTask();
+        }
+    }
+
     static void assertFutureNotComplete(CompletableFuture<?> completableFuture) {
         assertThatFuture(completableFuture)
                 .withFailMessage("Expected to fail with a timeout.")
@@ -157,8 +167,6 @@ abstract class FineGrainedSlotManagerTestBase {
         private SlotManagerMetricGroup slotManagerMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
         private BlockedTaskManagerChecker blockedTaskManagerChecker = resourceID -> false;
-        private ScheduledExecutor scheduledExecutor =
-                new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
         private ComponentMainThreadExecutor mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                         EXECUTOR_RESOURCE.getExecutor());
@@ -201,10 +209,6 @@ abstract class FineGrainedSlotManagerTestBase {
             this.blockedTaskManagerChecker = blockedTaskManagerChecker;
         }
 
-        public void setScheduledExecutor(ScheduledExecutor scheduledExecutor) {
-            this.scheduledExecutor = scheduledExecutor;
-        }
-
         /**
          * Makes the test thread the slot manager's main thread; call before {@link #runTest}.
          * {@link #runInMainThreadAndWait} triggers queued runnables, scheduled tasks are triggered
@@ -234,7 +238,7 @@ abstract class FineGrainedSlotManagerTestBase {
         protected final void runTest(RunnableWithException testMethod) throws Exception {
             SlotManagerConfiguration configuration = slotManagerConfigurationBuilder.build();
             slotManager =
-                    FineGrainedSlotManagerBuilder.newBuilder(scheduledExecutor)
+                    FineGrainedSlotManagerBuilder.newBuilder()
                             .setSlotManagerConfiguration(configuration)
                             .setSlotManagerMetricGroup(slotManagerMetricGroup)
                             .setResourceTracker(resourceTracker)
