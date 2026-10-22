@@ -37,6 +37,7 @@ import org.forstdb.WriteOptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -280,13 +281,14 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         }
     }
 
-    @Test
-    void testBatchFailureLeavesIteratorsToTheirOwners() throws Exception {
+    @ParameterizedTest
+    @ValueSource(ints = {3, ForStIterateOperation.CACHE_SIZE_LIMIT + 10})
+    void testBatchFailureLeavesIteratorsToTheirOwners(int heldEntryCount) throws Exception {
         ForStMapState<Integer, VoidNamespace, String, String> heldState =
-                buildForStMapState("held-map-state");
+                buildForStMapState("held-map-state-" + heldEntryCount);
         ForStMapState<Integer, VoidNamespace, String, String> failingState =
-                buildForStMapState("failing-map-state");
-        putEntries(heldState, 3, null);
+                buildForStMapState("failing-map-state-" + heldEntryCount);
+        putEntries(heldState, heldEntryCount, null);
         // Cannot be deserialized.
         putEntries(failingState, 1, new byte[0]);
         IteratorFault held = new IteratorFault(heldState.getColumnFamilyHandle(), NO_ERROR);
@@ -318,11 +320,18 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
             held.releaseNext.countDown();
             assertThat(((TestAsyncFuture<?>) heldRequest.getFuture()).future)
                     .succeedsWithin(30, TimeUnit.SECONDS);
-            assertThat(held.closes).hasValue(1);
+            if (heldEntryCount <= ForStIterateOperation.CACHE_SIZE_LIMIT) {
+                assertThat(held.closes).hasValue(1);
+            } else {
+                // A partial page keeps its iterator open until shutdown reclaims it after workers
+                // stop.
+                assertThat(held.closes).hasValue(0);
+            }
         } finally {
             held.releaseNext.countDown();
             forStStateExecutor.shutdown();
         }
+        assertThat(held.closes).hasValue(1);
     }
 
     @Test

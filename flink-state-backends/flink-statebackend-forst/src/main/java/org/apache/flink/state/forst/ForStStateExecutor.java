@@ -31,10 +31,13 @@ import org.forstdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -73,6 +76,13 @@ public class ForStStateExecutor implements StateExecutor {
     private final WriteOptions writeOptions;
 
     private Throwable executionError;
+
+    /**
+     * Iterate requests from failed batches whose partial-page iterators may still be open after the
+     * worker threads finish, reclaimed during {@link #shutdown()} once all workers have stopped.
+     */
+    private final Queue<ForStDBIterRequest<?, ?, ?, ?, ?>> cleanupIterRequests =
+            new ConcurrentLinkedQueue<>();
 
     /** The ongoing sub-processes count. */
     private final AtomicLong ongoing;
@@ -215,7 +225,11 @@ public class ForStStateExecutor implements StateExecutor {
                                     coordinatorThread)
                             .exceptionally(
                                     e -> {
-                                        // Iterators are closed only by their owner.
+                                        // Defer closing iterators of a failed batch until
+                                        // shutdown() has stopped the worker threads, so an active
+                                        // worker is never raced and any partial-page iterator left
+                                        // open by a sibling request is still reclaimed.
+                                        cleanupIterRequests.addAll(iterRequests);
                                         executionError = e;
                                         resultFuture.completeExceptionally(e);
                                         return null;
@@ -296,6 +310,14 @@ public class ForStStateExecutor implements StateExecutor {
         shutdownAndWait(readThreads);
         if (!sharedWriteThread) {
             shutdownAndWait(writeThreads);
+        }
+        ForStDBIterRequest<?, ?, ?, ?, ?> iterRequest;
+        while ((iterRequest = cleanupIterRequests.poll()) != null) {
+            try {
+                iterRequest.close();
+            } catch (IOException ioException) {
+                LOG.error("Close iterRequests fail", ioException);
+            }
         }
         LOG.info("Shutting down the ForStStateExecutor.");
     }
