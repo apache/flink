@@ -86,6 +86,7 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_PARTITION_BY_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_ON_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_POJO_STATE_TIME,
+                ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_STATE,
                 ProcessTableFunctionTestPrograms.PROCESS_EAGER_AND_VALUE_VIEW_STATE_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_CHAINED_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_CHAINED_TIME_TABLE_API,

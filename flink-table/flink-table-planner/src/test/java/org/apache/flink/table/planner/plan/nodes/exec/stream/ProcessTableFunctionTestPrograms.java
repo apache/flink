@@ -61,6 +61,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NotifyStatefulSetsRulesFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalOnTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalPartitionOnTimeFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OrderByFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoCreatingFunction;
@@ -1460,6 +1461,28 @@ public class ProcessTableFunctionTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_OPTIONAL_STATE =
+            TableTestProgram.of(
+                            "process-optional-state",
+                            "state entries excluded by the type inference depending on the call")
+                    .setupTemporarySystemFunction("f", OptionalStateFunction.class)
+                    .setupTableSource(TIMED_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, {+I[6]}]",
+                                            "+I[Alice, {+I[1]}]",
+                                            "+I[Bob, {+I[6], +I[6]}]",
+                                            "+I[Alice, {+I[1], +I[1]}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT name, `out` FROM f(r => TABLE t PARTITION BY name, mode => 1, uid => 'one', on_time => DESCRIPTOR(ts)) "
+                                    + "UNION ALL "
+                                    + "SELECT name, `out` FROM f(r => TABLE t PARTITION BY name, mode => 2, uid => 'two', on_time => DESCRIPTOR(ts))")
                     .build();
 
     public static final TableTestProgram PROCESS_EAGER_AND_VALUE_VIEW_STATE_TIME =

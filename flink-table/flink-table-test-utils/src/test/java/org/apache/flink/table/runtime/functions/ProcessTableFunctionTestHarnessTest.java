@@ -28,10 +28,15 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.api.dataview.ValueView;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.functions.ProcessTableFunctionTestHarness.TableArgument;
+import org.apache.flink.table.types.inference.StateTypeStrategy;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -42,9 +47,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -492,6 +500,43 @@ class ProcessTableFunctionTestHarnessTest {
                 sum += v;
             }
             collect(Row.of(counter.count, sum));
+        }
+    }
+
+    /** PTF that declares two state entries of which the type inference excludes the second one. */
+    public static class PTFWithExcludedState extends ProcessTableFunction<Row> {
+        @Override
+        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+            final LinkedHashMap<String, StateTypeStrategy> stateStrategies = new LinkedHashMap<>();
+            stateStrategies.put(
+                    "counter",
+                    StateTypeStrategy.of(
+                            callContext ->
+                                    Optional.of(
+                                            DataTypes.ROW(
+                                                    DataTypes.FIELD("count", DataTypes.INT())))));
+            stateStrategies.put("unused", StateTypeStrategy.of(callContext -> Optional.empty()));
+            return TypeInference.newBuilder()
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(StaticArgumentTrait.SET_SEMANTIC_TABLE)))
+                    .stateTypeStrategies(stateStrategies)
+                    .outputTypeStrategy(
+                            callContext ->
+                                    Optional.of(
+                                            DataTypes.ROW(
+                                                    DataTypes.FIELD("count", DataTypes.INT()))))
+                    .build();
+        }
+
+        public void eval(Row counter, Row input) {
+            final Integer count = counter.getFieldAs("count");
+            final int newCount = count == null ? 1 : count + 1;
+            counter.setField("count", newCount);
+            collect(Row.of(newCount));
         }
     }
 
@@ -1818,6 +1863,30 @@ class ProcessTableFunctionTestHarnessTest {
 
         ListView<Integer> historyA = harness.getStateForKey("history", Row.of("A"));
         assertThat(historyA.get()).containsExactly(10, 20);
+
+        harness.close();
+    }
+
+    @Test
+    void testStateEntryExcludedByTypeInference() throws Exception {
+        ProcessTableFunctionTestHarness<Row> harness =
+                ProcessTableFunctionTestHarness.ofClass(PTFWithExcludedState.class)
+                        .withTableArgument(
+                                TableArgument.forName("input")
+                                        .type(DataTypes.of("ROW<key STRING, value INT>"))
+                                        .partitionBy("key")
+                                        .build())
+                        .build();
+
+        harness.processElementForTable("input", Row.of("A", 10));
+        harness.processElementForTable("input", Row.of("A", 20));
+        harness.processElementForTable("input", Row.of("B", 5));
+
+        assertThat(harness.getOutput())
+                .containsExactly(Row.of("A", 1), Row.of("A", 2), Row.of("B", 1));
+
+        final Row counterA = harness.getStateForKey("counter", Row.of("A"));
+        assertThat(counterA.<Integer>getFieldAs("count")).isEqualTo(2);
 
         harness.close();
     }
