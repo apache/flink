@@ -489,6 +489,40 @@ class BinaryVariantTest {
     }
 
     @Test
+    void testGetFieldWithUnpairedSurrogate() {
+        // UTF-8 has no unpaired surrogates. The builder writes one as '?', and a lookup encodes its
+        // key the same way.
+        final Variant object = builder.object().add("a\uD800", builder.of(1)).build();
+
+        assertThat(object.getFieldNames()).containsExactly("a?");
+        assertThat(object.getField("a\uD800").getInt()).isEqualTo(1);
+        assertThat(object.getField("a?").getInt()).isEqualTo(1);
+    }
+
+    @Test
+    void testGetFieldWithEmptyKey() {
+        final Variant object =
+                builder.object().add("", builder.of(1)).add("b", builder.of(2)).build();
+
+        assertThat(object.getField("").getInt()).isEqualTo(1);
+        assertThat(object.getField("b").getInt()).isEqualTo(2);
+    }
+
+    @Test
+    void testGetFieldWithMalformedUtf8Key() {
+        final BinaryVariant object =
+                (BinaryVariant) builder.object().add("a", builder.of(1)).build();
+        // The key is the last metadata byte. 0xFF never occurs in UTF-8, so no lookup key encodes
+        // to it, even though getFieldNames decodes it to U+FFFD.
+        final byte[] metadata = object.getMetadata().clone();
+        metadata[metadata.length - 1] = (byte) 0xFF;
+        final Variant malformed = new BinaryVariant(object.getValue(), metadata);
+
+        assertThat(malformed.getFieldNames()).containsExactly("�");
+        assertThat(malformed.getField("�")).isNull();
+    }
+
+    @Test
     void testVariantException() {
         assertThatThrownBy(() -> new BinaryVariant(new byte[0], new byte[0]))
                 .isInstanceOf(RuntimeException.class)

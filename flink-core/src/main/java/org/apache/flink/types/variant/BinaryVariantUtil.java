@@ -850,6 +850,31 @@ public class BinaryVariantUtil {
      *     considered a malformed variant because it is read from the corresponding variant value.
      */
     public static String getMetadataKey(byte[] metadata, int id) {
+        long range = metadataKeyRange(metadata, id);
+        return new String(metadata, keyStart(range), keyLength(range), StandardCharsets.UTF_8);
+    }
+
+    /** Encodes an object key the way the variant metadata stores it. */
+    static byte[] encodeKey(String key) {
+        return key.getBytes(StandardCharsets.UTF_8);
+    }
+
+    /** Whether the key at {@code id} in the variant metadata is the UTF-8 encoded {@code key}. */
+    static boolean metadataKeyEquals(byte[] metadata, int id, byte[] key) {
+        long range = metadataKeyRange(metadata, id);
+        int start = keyStart(range);
+        int length = keyLength(range);
+        return length == key.length
+                && Arrays.equals(metadata, start, start + length, key, 0, length);
+    }
+
+    /**
+     * Locates the key at {@code id} in the variant metadata. The range is packed into a long so
+     * that a lookup allocates nothing.
+     *
+     * @return the start index of the key in the high 32 bits and its length in the low 32 bits
+     */
+    private static long metadataKeyRange(byte[] metadata, int id) {
         checkIndex(0, metadata.length);
         // Extracts the highest 2 bits in the metadata header to determine the integer size of the
         // offset list.
@@ -867,8 +892,15 @@ public class BinaryVariantUtil {
             throw malformedVariant();
         }
         checkIndex(stringStart + nextOffset - 1, metadata.length);
-        return new String(
-                metadata, stringStart + offset, nextOffset - offset, StandardCharsets.UTF_8);
+        return ((long) (stringStart + offset) << 32) | (nextOffset - offset);
+    }
+
+    private static int keyStart(long range) {
+        return (int) (range >>> 32);
+    }
+
+    private static int keyLength(long range) {
+        return (int) range;
     }
 
     /**
