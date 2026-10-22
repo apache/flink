@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.runtime.operators.join.stream;
 
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -48,6 +50,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
@@ -1121,6 +1124,177 @@ class StreamingJoinOperatorTest extends StreamingJoinOperatorTestBase {
      */
     private boolean increaseAssociationsOnReplace() {
         return enableAsyncState;
+    }
+
+    @TestTemplate
+    void testInnerJoinSkipsNullKeys() throws Exception {
+        useNullKeyJoinOperator(
+                JoinInputSideSpec.withoutUniqueKey(),
+                JoinInputSideSpec.withoutUniqueKey(),
+                false,
+                false,
+                true,
+                null);
+        testHarness.processElement1(insertRecord("Ord#1", null, ADDRESS));
+        testHarness.processElement2(insertRecord(null, "AIR"));
+        testHarness.processElement2(deleteRecord(null, "AIR"));
+        assertor.shouldEmitNothing(testHarness);
+        assertStoresOnlyNonNullKeys();
+    }
+
+    @TestTemplate
+    void testLeftOuterJoinSkipsNullKeys() throws Exception {
+        useNullKeyJoinOperator(leftHasUniqueKeySpec(), rightInputSpec, true, false, true, null);
+        testHarness.processElement1(insertRecord("Ord#1", null, ADDRESS));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.INSERT, "Ord#1", null, ADDRESS, null, null));
+        assertThat(numStateEntries()).isZero();
+        testHarness.processElement1(updateAfterRecord("Ord#1", null, NEW_ADDRESS));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.INSERT, "Ord#1", null, NEW_ADDRESS, null, null));
+        testHarness.processElement1(deleteRecord("Ord#1", null, NEW_ADDRESS));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.DELETE, "Ord#1", null, NEW_ADDRESS, null, null));
+        assertStoresOnlyNonNullKeys();
+    }
+
+    @TestTemplate
+    void testRightOuterJoinSkipsNullKeys() throws Exception {
+        useNullKeyJoinOperator(leftInputSpec, rightInputSpec, false, true, true, null);
+        testHarness.processElement2(insertRecord(null, "AIR"));
+        assertor.shouldEmit(testHarness, rowOfKind(RowKind.INSERT, null, null, null, null, "AIR"));
+        testHarness.processElement1(insertRecord("Ord#1", null, ADDRESS));
+        testHarness.processElement2(deleteRecord(null, "AIR"));
+        assertor.shouldEmit(testHarness, rowOfKind(RowKind.DELETE, null, null, null, null, "AIR"));
+        assertStoresOnlyNonNullKeys();
+    }
+
+    @TestTemplate
+    void testFullOuterJoinSkipsNullKeys() throws Exception {
+        useNullKeyJoinOperator(
+                JoinInputSideSpec.withoutUniqueKey(),
+                JoinInputSideSpec.withoutUniqueKey(),
+                true,
+                true,
+                true,
+                null);
+        testHarness.processElement1(insertRecord("Ord#1", null, ADDRESS));
+        testHarness.processElement2(insertRecord(null, "AIR"));
+        testHarness.processElement1(deleteRecord("Ord#1", null, ADDRESS));
+        assertor.shouldEmit(
+                testHarness,
+                rowOfKind(RowKind.INSERT, "Ord#1", null, ADDRESS, null, null),
+                rowOfKind(RowKind.INSERT, null, null, null, null, "AIR"),
+                rowOfKind(RowKind.DELETE, "Ord#1", null, ADDRESS, null, null));
+        assertStoresOnlyNonNullKeys();
+    }
+
+    @TestTemplate
+    void testNullSafeInnerJoinMatchesNullKeys() throws Exception {
+        useNullKeyJoinOperator(
+                JoinInputSideSpec.withoutUniqueKey(),
+                JoinInputSideSpec.withoutUniqueKey(),
+                false,
+                false,
+                false,
+                null);
+        testHarness.processElement1(insertRecord("Ord#1", null, ADDRESS));
+        testHarness.processElement2(insertRecord(null, "AIR"));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.INSERT, "Ord#1", null, ADDRESS, null, "AIR"));
+        assertThat(numStateEntries()).isEqualTo(2);
+    }
+
+    /**
+     * A row with a null key that a null-safe join stored is still removed by its retraction. Binary
+     * rows, because restored records are binary and compare unequal to generic ones.
+     */
+    @TestTemplate
+    void testLeftOuterJoinRetractsRestoredNullKeys() throws Exception {
+        final JoinInputSideSpec spec = JoinInputSideSpec.withoutUniqueKey();
+        useNullKeyJoinOperator(spec, spec, true, false, false, null);
+        testHarness.processElement1(binaryRecord(RowKind.INSERT, "Ord#1", null, ADDRESS));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.INSERT, "Ord#1", null, ADDRESS, null, null));
+        assertThat(numStateEntries()).isOne();
+        final OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
+
+        useNullKeyJoinOperator(spec, spec, true, false, true, snapshot);
+        assertThat(numStateEntries()).isOne();
+        testHarness.processElement1(binaryRecord(RowKind.DELETE, "Ord#1", null, ADDRESS));
+        assertor.shouldEmit(
+                testHarness, rowOfKind(RowKind.DELETE, "Ord#1", null, ADDRESS, null, null));
+        assertStoresOnlyNonNullKeys();
+    }
+
+    /** Asserts that nothing is stored, and that a row with a non-null key is. */
+    private void assertStoresOnlyNonNullKeys() throws Exception {
+        assertThat(numStateEntries()).isZero();
+        testHarness.processElement1(insertRecord("Ord#2", "LineOrd#2", ADDRESS));
+        assertThat(numStateEntries()).isOne();
+    }
+
+    private int numStateEntries() throws Exception {
+        if (testHarness instanceof AsyncKeyedTwoInputStreamOperatorTestHarness) {
+            ((AsyncKeyedTwoInputStreamOperatorTestHarness<?, ?, ?, ?>) testHarness)
+                    .drainStateRequests();
+        }
+        return testHarness.numKeyedStateEntries();
+    }
+
+    /** Uses a join of the given shape with the state API of the test, restored if given a state. */
+    private void useNullKeyJoinOperator(
+            JoinInputSideSpec leftSpec,
+            JoinInputSideSpec rightSpec,
+            boolean leftIsOuter,
+            boolean rightIsOuter,
+            boolean filterNullKeys,
+            @Nullable OperatorSubtaskState restoredState)
+            throws Exception {
+        final boolean[] filterNulls = {filterNullKeys};
+        testHarness.close();
+        if (enableAsyncState) {
+            testHarness =
+                    AsyncKeyedTwoInputStreamOperatorTestHarness.create(
+                            new AsyncStateStreamingJoinOperator(
+                                    leftTypeInfo,
+                                    rightTypeInfo,
+                                    joinCondition,
+                                    leftSpec,
+                                    rightSpec,
+                                    leftIsOuter,
+                                    rightIsOuter,
+                                    filterNulls,
+                                    0L,
+                                    0L),
+                            leftKeySelector,
+                            rightKeySelector,
+                            leftKeySelector.getProducedType());
+        } else {
+            testHarness =
+                    new KeyedTwoInputStreamOperatorTestHarness<>(
+                            new StreamingJoinOperator(
+                                    leftTypeInfo,
+                                    rightTypeInfo,
+                                    joinCondition,
+                                    leftSpec,
+                                    rightSpec,
+                                    leftIsOuter,
+                                    rightIsOuter,
+                                    null,
+                                    null,
+                                    false,
+                                    filterNulls,
+                                    0L,
+                                    0L),
+                            leftKeySelector,
+                            rightKeySelector,
+                            leftKeySelector.getProducedType());
+        }
+        if (restoredState != null) {
+            testHarness.initializeState(restoredState);
+        }
+        testHarness.open();
     }
 
     private void useStreamingJoinOperator(

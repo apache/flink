@@ -179,6 +179,10 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      *
      * <pre>
      * if input record is accumulate
+     * |  if the join key can never match
+     * |  |  if input side is outer, send +I[record+null]
+     * |  |  return without storing the record
+     * |  endif
      * |  if record replaces a stored record (upsert) and the condition is non-equi
      * |  |  for each other that the replaced record matches but the record does not
      * |  |  |  send -D[replaced+other]
@@ -260,6 +264,15 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
         if (isAccumulateMsg) { // record is accumulate
+            if (joinCondition.currentKeyCannotMatch()) {
+                // do not store a record that can never match
+                if (inputIsOuter) {
+                    // send +I[record+null]
+                    outRow.setRowKind(RowKind.INSERT);
+                    outputNullPadding(input, inputIsLeft);
+                }
+                return;
+            }
             final RowData replacedRecord =
                     replacedRecord(input, inputSideStateView, inputIsLeft, isSuppress);
             boolean replacedRecordHadNoMatches = false;

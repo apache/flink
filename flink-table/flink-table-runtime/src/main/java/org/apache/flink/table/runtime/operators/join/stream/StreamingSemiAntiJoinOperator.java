@@ -101,7 +101,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
      *   if anti join, send input record
      * if there are matched rows on the other side
      *   if semi join, send input record
-     * if the input record is accumulate, state.add(record, matched size)
+     * if the input record is accumulate, state.add(record, matched size), unless the join key can
+     * never match
      * if the input record is retract, state.retract(record)
      * </pre>
      */
@@ -123,7 +124,10 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
         if (RowDataUtil.isAccumulateMsg(input)) {
             // erase RowKind for state updating
             input.setRowKind(RowKind.INSERT);
-            leftRecordStateView.addRecord(input, Iterators.size(associatedRecords));
+            // do not store a record that can never match
+            if (!joinCondition.currentKeyCannotMatch()) {
+                leftRecordStateView.addRecord(input, Iterators.size(associatedRecords));
+            }
         } else { // input is retract
             // erase RowKind for state updating
             input.setRowKind(RowKind.INSERT);
@@ -142,7 +146,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
      *
      * <pre>
      * if input record is accumulate
-     * | state.add(record)
+     * | state.add(record), unless the join key can never match
      * | if there is no matched rows on the other side, skip
      * | if there are matched rows on the other side
      * | | if the matched num in the matched rows == 0
@@ -177,7 +181,10 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                 AbstractStreamingJoinOperator.iterator(
                         input, false, leftRecordStateView, joinCondition);
         if (isAccumulateMsg) { // record is accumulate
-            rightRecordStateView.addRecord(input);
+            // do not store a record that can never match
+            if (!joinCondition.currentKeyCannotMatch()) {
+                rightRecordStateView.addRecord(input);
+            }
             while (associatedRecords.hasNext()) {
                 OuterRecord outerRecord = associatedRecords.next();
                 RowData other = outerRecord.record;

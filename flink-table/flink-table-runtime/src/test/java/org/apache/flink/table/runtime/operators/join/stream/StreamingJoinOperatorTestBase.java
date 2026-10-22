@@ -51,7 +51,7 @@ public abstract class StreamingJoinOperatorTestBase {
                     RowType.of(
                             new LogicalType[] {
                                 new CharType(false, 20),
-                                new CharType(false, 20),
+                                new CharType(true, 20),
                                 VarCharType.STRING_TYPE
                             },
                             new String[] {"order_id", "line_order_id", "shipping_address"}));
@@ -59,7 +59,7 @@ public abstract class StreamingJoinOperatorTestBase {
     protected InternalTypeInfo<RowData> rightTypeInfo =
             InternalTypeInfo.of(
                     RowType.of(
-                            new LogicalType[] {new CharType(false, 20), new CharType(true, 10)},
+                            new LogicalType[] {new CharType(true, 20), new CharType(true, 10)},
                             new String[] {"line_order_id0", "line_order_ship_mode"}));
 
     protected RowDataKeySelector leftKeySelector =
@@ -77,7 +77,7 @@ public abstract class StreamingJoinOperatorTestBase {
             JoinInputSideSpec.withUniqueKeyContainedByJoinKey(rightTypeInfo, rightKeySelector);
 
     protected final InternalTypeInfo<RowData> joinKeyTypeInfo =
-            InternalTypeInfo.of(new CharType(false, 20));
+            InternalTypeInfo.of(new CharType(true, 20));
 
     protected final String funcCode =
             "public class ConditionFunction extends org.apache.flink.api.common.functions.AbstractRichFunction "
