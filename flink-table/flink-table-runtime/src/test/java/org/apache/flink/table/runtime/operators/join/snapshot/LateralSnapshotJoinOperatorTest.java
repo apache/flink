@@ -64,6 +64,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.BUILD_CHANGE_BUFFER_STATE_NAME;
 import static org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.BUILD_TABLE_STATE_NAME;
 import static org.apache.flink.table.runtime.operators.join.snapshot.LateralSnapshotJoinOperator.PROBE_BUFFER_STATE_NAME;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
@@ -1250,6 +1251,8 @@ class LateralSnapshotJoinOperatorTest {
                 newHarness(op)) {
             h.open();
             addBuildChange(h, insertRecord(null, "v_null", 1L));
+            // A build row that can never match is not stored
+            assertThat(bufferedChangesForKey(h, op, null)).hasSize(filterNullKey ? 0 : 1);
             addProbeRecord(h, 1L, null, "p_null");
             addProbeWm(h, 100L);
             addBuildWm(h, 100L);
@@ -1277,6 +1280,42 @@ class LateralSnapshotJoinOperatorTest {
             } else {
                 JOINED_ASSERTOR.shouldEmitAll(h, row(2L, null, "p_null", null, "v_null", 1L));
             }
+        }
+    }
+
+    @ParameterizedTest(name = "backend={0}")
+    @MethodSource("stateBackends")
+    void retractsNullKeyBuildRowStoredByEarlierVersion(StateBackend backend) throws Exception {
+        // Store a build row with a null key, as an earlier version did, by comparing it null-safely
+        LateralSnapshotJoinOperator op1 =
+                newOperator(false, newTrueCondition(), new boolean[] {false}, 100L, null, null);
+        OperatorSubtaskState state;
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op1)) {
+            h.setStateBackend(backend);
+            h.open();
+            addBuildChange(h, insertRecord(null, "v_null", 1L));
+            addBuildWm(h, 100L);
+            addProbeRecord(h, 1L, null, "p_null");
+            assertThat(buildTableForKey(h, op1, null))
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("v_null", 1L));
+            state = h.snapshot(0L, 0L);
+        }
+
+        LateralSnapshotJoinOperator op2 = newOperator(false, 100L, null, null);
+        try (KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> h =
+                newHarness(op2)) {
+            h.setStateBackend(backend);
+            h.initializeState(state);
+            h.open();
+            // Binary rows, as deserialized input is, so that they equal the restored rows on heap
+            addBuildChange(h, binaryRecord(RowKind.DELETE, null, "v_null", 1L));
+            addBuildChange(h, binaryRecord(RowKind.DELETE, null, "never_stored", 1L));
+            addProbeRecord(h, 2L, null, "p_null");
+
+            assertThat(buildTableForKey(h, op2, null)).isEmpty();
+            // Retractions of rows that can never match are not counted as unmatched
+            assertThat(op2.getNumUnmatchedBuildRetractions().getCount()).isZero();
         }
     }
 
