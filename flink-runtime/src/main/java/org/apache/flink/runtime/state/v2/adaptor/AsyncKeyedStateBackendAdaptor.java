@@ -91,6 +91,7 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
             throws Exception {
         org.apache.flink.api.common.state.StateDescriptor rawStateDesc =
                 StateDescriptorUtils.transformFromV2ToV1(stateDesc);
+        rawStateDesc.enableTimeToLive(stateDesc.getTtlConfig());
         org.apache.flink.api.common.state.State rawState =
                 keyedStateBackend.getPartitionedState(
                         defaultNamespace, namespaceSerializer, rawStateDesc);
