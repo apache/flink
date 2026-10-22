@@ -60,6 +60,7 @@ import java.util.function.Consumer;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests of {@link FineGrainedSlotManager}. */
@@ -211,6 +212,107 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                     triggerScheduledTasksOnce(mainThreadExecutor);
                     assertThat(reconciliations).hasValue(2);
                 });
+    }
+
+    @Test
+    void testSuspendClearsJobState() throws Exception {
+        final JobID jobId = new JobID();
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            runInMainThreadAndWait(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirementsForSingleSlot(
+                                                                    jobId)));
+                            assertThat(getSlotManager().getApplicationId(jobId)).isPresent();
+
+                            runInMainThreadAndWait(() -> getSlotManager().suspend());
+
+                            assertThat(getSlotManager().getApplicationId(jobId)).isEmpty();
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testClearResourceRequirementsRequiresStartedSlotManager() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            runInMainThreadAndWait(() -> getSlotManager().suspend());
+
+                            assertThatThrownBy(
+                                            () ->
+                                                    runInMainThreadAndWait(
+                                                            () ->
+                                                                    getSlotManager()
+                                                                            .clearResourceRequirements(
+                                                                                    new JobID())))
+                                    .hasCauseInstanceOf(IllegalStateException.class);
+                        });
+            }
+        };
+    }
+
+    @Test
+    void testIdleTaskManagerReplyForAnEarlierRegistrationIsIgnored() throws Exception {
+        final CompletableFuture<Boolean> canBeReleasedFuture = new CompletableFuture<>();
+        final TaskExecutorConnection taskExecutorConnection =
+                createTaskExecutorConnection(
+                        new TestingTaskExecutorGatewayBuilder()
+                                .setCanBeReleasedSupplier(() -> canBeReleasedFuture)
+                                .createTestingTaskExecutorGateway());
+        final Context context = new Context();
+        context.resourceAllocationStrategyBuilder.setTryReleaseUnusedResourcesFunction(
+                taskManagers -> {
+                    final ResourceReconcileResult.Builder result =
+                            ResourceReconcileResult.builder();
+                    taskManagers
+                            .getRegisteredTaskManagers()
+                            .forEach(result::addTaskManagerToRelease);
+                    return result.build();
+                });
+        final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
+                context.useManuallyTriggeredMainThread();
+
+        context.runTest(
+                () -> {
+                    context.runInMainThreadAndWait(
+                            () -> registerTaskManager(context, taskExecutorConnection));
+                    // the reconciliation asks the idle task manager whether it can be released
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(canBeReleasedFuture).isNotDone();
+
+                    context.runInMainThreadAndWait(
+                            () -> {
+                                context.getSlotManager()
+                                        .unregisterTaskManager(
+                                                taskExecutorConnection.getInstanceID(),
+                                                TEST_EXCEPTION);
+                                registerTaskManager(context, taskExecutorConnection);
+                            });
+
+                    canBeReleasedFuture.complete(true);
+                    context.runInMainThreadAndWait(() -> {});
+
+                    assertThat(context.getTaskManagerTracker().getUnWantedTaskManager()).isEmpty();
+                });
+    }
+
+    private static void registerTaskManager(
+            Context context, TaskExecutorConnection taskExecutorConnection) {
+        assertThat(
+                        context.getSlotManager()
+                                .registerTaskManager(
+                                        taskExecutorConnection,
+                                        new SlotReport(),
+                                        DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                        DEFAULT_SLOT_RESOURCE_PROFILE))
+                .isEqualTo(SlotManager.RegistrationResult.SUCCESS);
     }
 
     @Test

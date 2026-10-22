@@ -287,6 +287,9 @@ public class FineGrainedSlotManager implements SlotManager {
         resourceTracker.clear();
 
         unfulfillableJobs.clear();
+        jobMasterTargetAddresses.clear();
+        jobIdsToApplicationIds.clear();
+        sendNotEnoughResourceNotifications = true;
         resourceManagerId = null;
         resourceAllocator = null;
         resourceEventListener = null;
@@ -311,6 +314,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Override
     public void clearResourceRequirements(JobID jobId) {
+        checkInit();
         maybeReclaimInactiveSlots(jobId);
         jobMasterTargetAddresses.remove(jobId);
         resourceTracker.notifyResourceRequirements(jobId, Collections.emptyList());
@@ -873,9 +877,16 @@ public class FineGrainedSlotManager implements SlotManager {
                         canBeReleased ->
                                 runIfStarted(
                                         () -> {
+                                            // the reply may be about a registration that is gone
+                                            boolean stillRegistered =
+                                                    taskManagerTracker
+                                                            .getRegisteredTaskManager(
+                                                                    taskManagerInfo.getInstanceId())
+                                                            .filter(info -> info == taskManagerInfo)
+                                                            .isPresent();
                                             boolean stillIdle =
                                                     idleSince == taskManagerInfo.getIdleSince();
-                                            if (stillIdle && canBeReleased) {
+                                            if (stillRegistered && stillIdle && canBeReleased) {
                                                 releaseIdleTaskExecutor(
                                                         taskManagerInfo.getInstanceId());
                                                 declareNeededResourcesWithDelay();
