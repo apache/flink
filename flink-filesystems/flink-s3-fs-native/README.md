@@ -444,7 +444,7 @@ If `mvn` is unavailable, fetch the JAR by hand from Maven Central:
 `aws-crt-<version>.jar` (groupId: `software.amazon.awssdk.crt`) — the version is
 declared as the `<dependency>` on `software.amazon.awssdk.crt:aws-crt` inside
 `aws-crt-client-<version>.pom` on Maven Central. The `aws-crt` artifact uses an
-independent versioning scheme (e.g. `0.45.x`) that does **not** track the AWS SDK
+independent versioning scheme (e.g. `0.48.x`) that does **not** track the AWS SDK
 version.
 
 `aws-crt-client` does **not** need to be downloaded — it is bundled inside the fat JAR.
