@@ -37,6 +37,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.binary.BinarySegmentUtils;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.util.DataFormatTestUtil;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
@@ -81,6 +82,8 @@ import java.util.Set;
 import static org.apache.flink.table.data.StringData.fromBytes;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.data.util.DataFormatTestUtil.MyObj;
+import static org.apache.flink.table.data.util.DataFormatTestUtil.nonCompactBoundaryDecimals;
+import static org.apache.flink.table.data.util.DataFormatTestUtil.toSegments;
 import static org.apache.flink.table.data.util.MapDataUtil.convertToJavaMap;
 import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -458,20 +461,7 @@ class BinaryRowDataTest {
         {
             int precision = 38;
             int scale = 2;
-            for (String value :
-                    new String[] {
-                        "0.00",
-                        "-0.01",
-                        "1.28",
-                        "-1.29",
-                        "92233720368547758.07",
-                        "-92233720368547758.08",
-                        "92233720368547758.08",
-                        "-92233720368547758.09",
-                        "123456789012345678901234567890.12"
-                    }) {
-                DecimalData decimal =
-                        DecimalData.fromBigDecimal(new BigDecimal(value), precision, scale);
+            for (DecimalData decimal : nonCompactBoundaryDecimals(precision, scale)) {
                 BinaryRowData row = new BinaryRowData(1);
                 BinaryRowWriter writer = new BinaryRowWriter(row);
                 writer.writeDecimal(0, decimal, precision);
@@ -487,15 +477,12 @@ class BinaryRowDataTest {
 
                 // split the row so that the decimal bytes cross a segment boundary
                 int fixedSize = row.getFixedLengthPartSize();
+                byte[] bytes =
+                        BinarySegmentUtils.copyToBytes(row.getSegments(), 0, row.getSizeInBytes());
                 for (int split = 1; split < 8; split++) {
-                    int segmentSize = fixedSize + split;
-                    MemorySegment ms1 = MemorySegmentFactory.wrap(new byte[segmentSize]);
-                    MemorySegment ms2 = MemorySegmentFactory.wrap(new byte[segmentSize]);
-                    row.getSegments()[0].copyTo(0, ms1, 0, segmentSize);
-                    row.getSegments()[0].copyTo(
-                            segmentSize, ms2, 0, row.getSizeInBytes() - segmentSize);
                     BinaryRowData splitRow = new BinaryRowData(1);
-                    splitRow.pointTo(new MemorySegment[] {ms1, ms2}, 0, row.getSizeInBytes());
+                    splitRow.pointTo(
+                            toSegments(bytes, 0, fixedSize + split), 0, row.getSizeInBytes());
 
                     assertThat(splitRow.getDecimal(0, precision, scale).toBigDecimal())
                             .isEqualTo(decimal.toBigDecimal());

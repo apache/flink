@@ -19,6 +19,7 @@ package org.apache.flink.table.data.util;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -26,6 +27,10 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.commons.lang3.RandomStringUtils;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -118,6 +123,37 @@ public class DataFormatTestUtil {
 
         ret[0].put(baseOffset, bytes, 0, newSize - baseOffset);
         ret[1].put(0, bytes, newSize - baseOffset, bytes.length - (newSize - baseOffset));
+        return ret;
+    }
+
+    /** Non-compact decimals with unscaled values around the 8-byte boundary. */
+    public static DecimalData[] nonCompactBoundaryDecimals(int precision, int scale) {
+        return Stream.of(
+                        "0",
+                        "-1",
+                        "128",
+                        "-129",
+                        "9223372036854775807",
+                        "-9223372036854775808",
+                        "9223372036854775808",
+                        "-9223372036854775809",
+                        "12345678901234567890123456789012")
+                .map(v -> new BigDecimal(new BigInteger(v), scale))
+                .map(v -> DecimalData.fromBigDecimal(v, precision, scale))
+                .toArray(DecimalData[]::new);
+    }
+
+    /** Copies bytes to equally sized segments, starting at baseOffset of the first one. */
+    public static MemorySegment[] toSegments(byte[] bytes, int baseOffset, int segmentSize) {
+        MemorySegment[] ret =
+                new MemorySegment[(baseOffset + bytes.length + segmentSize - 1) / segmentSize];
+        for (int i = 0; i < ret.length; i++) {
+            ret[i] = MemorySegmentFactory.wrap(new byte[segmentSize]);
+        }
+        for (int i = 0; i < bytes.length; i++) {
+            int pos = baseOffset + i;
+            ret[pos / segmentSize].put(pos % segmentSize, bytes[i]);
+        }
         return ret;
     }
 

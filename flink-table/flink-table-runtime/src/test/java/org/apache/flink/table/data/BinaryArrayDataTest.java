@@ -45,6 +45,8 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 import static org.apache.flink.table.data.StringData.fromString;
+import static org.apache.flink.table.data.util.DataFormatTestUtil.nonCompactBoundaryDecimals;
+import static org.apache.flink.table.data.util.DataFormatTestUtil.toSegments;
 import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.HamcrestCondition.matching;
@@ -522,6 +524,36 @@ class BinaryArrayDataTest {
             assertThat(array.isNullAt(1)).isTrue();
             array.setDecimal(0, decimal2, precision);
             assertThat(array.getDecimal(0, precision, scale).toString()).isEqualTo("6.55000");
+        }
+
+        // 3.not compact, values around the 8-byte boundary, non-zero offset and across segments
+        {
+            int precision = 38;
+            int scale = 2;
+            DecimalData[] decimals = nonCompactBoundaryDecimals(precision, scale);
+            BinaryArrayData nonCompactArray = new BinaryArrayData();
+            BinaryArrayWriter nonCompactWriter =
+                    new BinaryArrayWriter(nonCompactArray, decimals.length, 8);
+            for (int i = 0; i < decimals.length; i++) {
+                nonCompactWriter.writeDecimal(i, decimals[i], precision);
+            }
+            nonCompactWriter.complete();
+
+            int size = nonCompactArray.getSizeInBytes();
+            byte[] bytes =
+                    BinarySegmentUtils.copyToBytes(
+                            nonCompactArray.getSegments(), nonCompactArray.getOffset(), size);
+            int baseOffset = 3;
+            for (int segmentSize = 1; segmentSize <= baseOffset + size; segmentSize++) {
+                BinaryArrayData splitArray = new BinaryArrayData();
+                splitArray.pointTo(toSegments(bytes, baseOffset, segmentSize), baseOffset, size);
+                for (int i = 0; i < decimals.length; i++) {
+                    DecimalData decimal = splitArray.getDecimal(i, precision, scale);
+                    assertThat(decimal.toBigDecimal()).isEqualTo(decimals[i].toBigDecimal());
+                    assertThat(decimal.longBacked)
+                            .isEqualTo(decimals[i].toUnscaledBytes().length <= 8);
+                }
+            }
         }
     }
 
