@@ -45,6 +45,9 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
                 joinCondition,
                 leftInputSpec,
                 rightInputSpec,
+                null,
+                null,
+                false,
                 new boolean[] {true},
                 ttl[0],
                 ttl[1]);
