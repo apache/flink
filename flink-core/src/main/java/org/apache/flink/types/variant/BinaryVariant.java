@@ -37,10 +37,12 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION_MASK;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
+import static org.apache.flink.types.variant.BinaryVariantUtil.encodeKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.getMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleArray;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleObject;
 import static org.apache.flink.types.variant.BinaryVariantUtil.malformedVariant;
+import static org.apache.flink.types.variant.BinaryVariantUtil.metadataKeyEquals;
 import static org.apache.flink.types.variant.BinaryVariantUtil.microsToInstant;
 import static org.apache.flink.types.variant.BinaryVariantUtil.nanosToInstant;
 import static org.apache.flink.types.variant.BinaryVariantUtil.readUnsigned;
@@ -344,9 +346,10 @@ public final class BinaryVariant implements Variant {
                     // Use linear search for a short list. Switch to binary search when the length
                     // reaches `BINARY_SEARCH_THRESHOLD`.
                     if (size < BINARY_SEARCH_THRESHOLD) {
+                        byte[] keyBytes = encodeKey(key);
                         for (int i = 0; i < size; ++i) {
                             int id = readUnsigned(value, idStart + idSize * i, idSize);
-                            if (key.equals(getMetadataKey(metadata, id))) {
+                            if (metadataKeyEquals(metadata, id, keyBytes)) {
                                 int offset =
                                         readUnsigned(
                                                 value, offsetStart + offsetSize * i, offsetSize);
@@ -362,6 +365,8 @@ public final class BinaryVariant implements Variant {
                             // handle the case where `low + high` overflows int.
                             int mid = (low + high) >>> 1;
                             int id = readUnsigned(value, idStart + idSize * mid, idSize);
+                            // Compare decoded Strings here. The builder sorts fields by
+                            // String.compareTo, which is not UTF-8 byte order.
                             int cmp = getMetadataKey(metadata, id).compareTo(key);
                             if (cmp < 0) {
                                 low = mid + 1;

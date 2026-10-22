@@ -74,6 +74,7 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.U8_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.arrayHeader;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
+import static org.apache.flink.types.variant.BinaryVariantUtil.encodeKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.fitsVariantDecimal;
 import static org.apache.flink.types.variant.BinaryVariantUtil.getMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleArray;
@@ -477,7 +478,7 @@ public class BinaryVariantInternalBuilder {
         } else {
             id = dictionaryKeys.size();
             dictionary.put(key, id);
-            dictionaryKeys.add(key.getBytes(StandardCharsets.UTF_8));
+            dictionaryKeys.add(encodeKey(key));
         }
         return id;
     }
