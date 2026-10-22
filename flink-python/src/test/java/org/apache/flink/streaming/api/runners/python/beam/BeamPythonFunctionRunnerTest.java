@@ -25,6 +25,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonDependencyInfo;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateHandler;
 import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateRequestHandler;
 import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateStore;
@@ -41,6 +42,8 @@ import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.util.construction.graph.TimerReference;
 import org.apache.beam.sdk.values.KV;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.lang.reflect.Field;
 import java.nio.file.Files;
@@ -54,6 +57,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -405,6 +410,119 @@ class BeamPythonFunctionRunnerTest {
         }
     }
 
+    @ParameterizedTest
+    @CsvSource({"false, false", "true, false", "false, true", "true, true"})
+    void testCancelWaitsForConcurrentFinalLeaseDisposal(
+            boolean failDisposal, boolean interruptCancel) throws Exception {
+        final AtomicInteger factoryCloseCalls = new AtomicInteger();
+        final AtomicBoolean cancelInterrupted = new AtomicBoolean();
+        final AtomicReference<Thread> cancelThread = new AtomicReference<>();
+        final CountDownLatch resourceCleanupStarted = new CountDownLatch(1);
+        final CountDownLatch releaseResourceCleanup = new CountDownLatch(1);
+        final RuntimeException disposalFailure = new RuntimeException("Resource disposal failed.");
+        final JobBundleFactory jobBundleFactory =
+                new TrackingJobBundleFactory(new AtomicBoolean()) {
+                    @Override
+                    public void close() {
+                        factoryCloseCalls.incrementAndGet();
+                        resourceCleanupStarted.countDown();
+                        try {
+                            assertThat(releaseResourceCleanup.await(10, TimeUnit.SECONDS)).isTrue();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new RuntimeException(e);
+                        }
+                        if (failDisposal) {
+                            throw disposalFailure;
+                        }
+                    }
+                };
+        final PythonSharedResources pythonSharedResources =
+                new PythonSharedResources(
+                        jobBundleFactory, RunnerApi.Environment.getDefaultInstance());
+        final SharedResources registry = new SharedResources();
+        final Object leaseHolder = new Object();
+        final SharedResources.ResourceAndSize<PythonSharedResources> resource =
+                registry.getOrAllocateSharedResource(
+                        "python", leaseHolder, ignored -> pythonSharedResources, 1L);
+        final OpaqueMemoryResource<PythonSharedResources> sharedResources =
+                new OpaqueMemoryResource<>(
+                        resource.resourceHandle(),
+                        resource.size(),
+                        () -> registry.release("python", leaseHolder, ignored -> {}));
+        final BeamStateRequestHandler stateRequestHandler =
+                createStateRequestHandler(new AtomicBoolean());
+        final TestingBeamPythonFunctionRunner runner =
+                new TestingBeamPythonFunctionRunner(createEnvironmentManager());
+        final ExecutorService cancellationExecutor =
+                new CleanupAwaitingExecutor(resourceCleanupStarted, interruptCancel);
+        setField(runner, "stateRequestHandler", stateRequestHandler);
+        setField(
+                runner,
+                "remoteBundle",
+                new TestingRemoteBundle(stateRequestHandler, new AtomicBoolean()));
+        setField(runner, "bundleStarted", true);
+        setField(runner, "sharedResources", sharedResources);
+        setField(runner, "cancellationBundleCloseExecutor", cancellationExecutor);
+        final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+        try {
+            final Future<?> cancelFuture =
+                    executor.submit(
+                            () -> {
+                                cancelThread.set(Thread.currentThread());
+                                try {
+                                    runner.cancel();
+                                } finally {
+                                    cancelInterrupted.set(Thread.currentThread().isInterrupted());
+                                }
+                                return null;
+                            });
+            assertThat(resourceCleanupStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThreadIsWaitingForBundleClose(
+                    cancelThread.get(), factoryCloseCalls, cancelFuture);
+            assertThat(cancelFuture.isDone()).isFalse();
+            assertThat(factoryCloseCalls).hasValue(1);
+
+            releaseResourceCleanup.countDown();
+            if (failDisposal) {
+                assertThatThrownBy(() -> cancelFuture.get(10, TimeUnit.SECONDS))
+                        .hasCause(disposalFailure);
+            } else {
+                cancelFuture.get(10, TimeUnit.SECONDS);
+            }
+            assertStateHandlerClosed(stateRequestHandler);
+            assertThat(factoryCloseCalls).hasValue(1);
+            assertThat(cancelInterrupted.get()).isEqualTo(interruptCancel);
+
+            final AtomicBoolean replacementFactoryClosed = new AtomicBoolean();
+            executor.submit(
+                            () -> {
+                                final Object replacementLeaseHolder = new Object();
+                                registry.getOrAllocateSharedResource(
+                                        "python",
+                                        replacementLeaseHolder,
+                                        ignored ->
+                                                new PythonSharedResources(
+                                                        new TrackingJobBundleFactory(
+                                                                replacementFactoryClosed),
+                                                        RunnerApi.Environment.getDefaultInstance()),
+                                        1L);
+                                registry.release("python", replacementLeaseHolder, ignored -> {});
+                                return null;
+                            })
+                    .get(10, TimeUnit.SECONDS);
+            assertThat(replacementFactoryClosed).isTrue();
+            assertThat(factoryCloseCalls).hasValue(1);
+        } finally {
+            releaseResourceCleanup.countDown();
+            cancellationExecutor.shutdownNow();
+            executor.shutdownNow();
+            assertThat(cancellationExecutor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
     @Test
     void testConcurrentCloseIsIdempotent() throws Exception {
         final AtomicInteger stateHandlerCloseCalls = new AtomicInteger();
@@ -744,6 +862,33 @@ class BeamPythonFunctionRunnerTest {
         @Override
         public void close() {
             closed.set(true);
+        }
+    }
+
+    private static class CleanupAwaitingExecutor extends ThreadPoolExecutor {
+
+        private final CountDownLatch resourceCleanupStarted;
+        private final boolean interruptCancel;
+
+        private CleanupAwaitingExecutor(
+                CountDownLatch resourceCleanupStarted, boolean interruptCancel) {
+            super(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+            this.resourceCleanupStarted = resourceCleanupStarted;
+            this.interruptCancel = interruptCancel;
+        }
+
+        @Override
+        public void execute(Runnable command) {
+            super.execute(command);
+            try {
+                assertThat(resourceCleanupStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+            if (interruptCancel) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

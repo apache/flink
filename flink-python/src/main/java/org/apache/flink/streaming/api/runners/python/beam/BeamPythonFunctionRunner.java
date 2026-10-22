@@ -39,6 +39,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistration;
 import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistrationAction;
 import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateRequestHandler;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.TemporaryClassLoaderContext;
@@ -94,6 +95,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -208,8 +210,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     /** Whether cancellation should skip waiting for an in-flight bundle close. */
     private transient boolean cancelRequested;
 
-    /** Prevents duplicate resource teardown from close and cancellation. */
-    private transient boolean resourcesClosed;
+    /** Coordinates resource teardown until lease disposal has finished. */
+    @Nullable private transient CompletableFuture<Void> resourceCloseCompletion;
 
     /** Coordinates duplicate close and cancel calls while the state handler drains requests. */
     @Nullable private transient CompletableFuture<Void> stateHandlerCloseCompletion;
@@ -630,35 +632,60 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private void closeResources() throws Exception {
         final JobBundleFactory ownedJobBundleFactory;
         final OpaqueMemoryResource<PythonSharedResources> currentSharedResources;
+        final CompletableFuture<Void> closeCompletion;
+        final boolean ownsClose;
         synchronized (this) {
-            if (resourcesClosed) {
-                return;
+            if (resourceCloseCompletion == null) {
+                closeCompletion = new CompletableFuture<>();
+                resourceCloseCompletion = closeCompletion;
+                ownedJobBundleFactory = jobBundleFactory;
+                currentSharedResources = sharedResources;
+                jobBundleFactory = null;
+                sharedResources = null;
+                ownsClose = true;
+            } else {
+                closeCompletion = resourceCloseCompletion;
+                ownedJobBundleFactory = null;
+                currentSharedResources = null;
+                ownsClose = false;
             }
-            resourcesClosed = true;
-            ownedJobBundleFactory = jobBundleFactory;
-            currentSharedResources = sharedResources;
-            jobBundleFactory = null;
-            sharedResources = null;
         }
 
-        if (currentSharedResources != null) {
+        if (!ownsClose) {
+            // Disposal holds the slot's SharedResources lock. Even an interrupted cancellation
+            // must wait for that lock to be released before task cleanup can finish.
             try {
-                currentSharedResources.close();
-            } finally {
-                clearBundleReferences();
+                closeCompletion.join();
+            } catch (CompletionException e) {
+                ExceptionUtils.rethrowException(e.getCause());
             }
-        } else {
-            try {
-                if (ownedJobBundleFactory != null) {
-                    ownedJobBundleFactory.close();
-                }
-            } finally {
+            return;
+        }
+
+        try {
+            if (currentSharedResources != null) {
                 try {
-                    environmentManager.close();
+                    currentSharedResources.close();
                 } finally {
                     clearBundleReferences();
                 }
+            } else {
+                try {
+                    if (ownedJobBundleFactory != null) {
+                        ownedJobBundleFactory.close();
+                    }
+                } finally {
+                    try {
+                        environmentManager.close();
+                    } finally {
+                        clearBundleReferences();
+                    }
+                }
             }
+            closeCompletion.complete(null);
+        } catch (Throwable t) {
+            closeCompletion.completeExceptionally(t);
+            throw t;
         }
     }
 
