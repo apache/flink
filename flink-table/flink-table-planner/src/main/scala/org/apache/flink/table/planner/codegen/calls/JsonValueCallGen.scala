@@ -19,9 +19,10 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.api.JsonValueOnEmptyOrError
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, CodeGenUtils, GeneratedExpression}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{qualifyEnum, qualifyMethod, BINARY_STRING}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{isPrimitiveNullable, primitiveDefaultValue, primitiveTypeTermForType, qualifyEnum, qualifyMethod, BINARY_STRING}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallWithStmtIfArgsNotNull
-import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
+import org.apache.flink.table.runtime.functions.SqlJsonUtils
+import org.apache.flink.table.types.logical.{DecimalType, LogicalType, LogicalTypeRoot}
 
 import org.apache.calcite.sql.SqlJsonEmptyOrError
 
@@ -66,43 +67,81 @@ class JsonValueCallGen extends CallGenerator {
 
     val parsed = JsonParseReuse.parseSharedInput(ctx, operands)
 
-    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable = true) {
-      argTerms =>
-        {
-          val emptyBehavior = getBehavior(operands, SqlJsonEmptyOrError.EMPTY)
-          val errorBehavior = getBehavior(operands, SqlJsonEmptyOrError.ERROR)
+    val generated =
+      generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable = true) {
+        argTerms =>
+          {
+            val emptyBehavior = getBehavior(operands, SqlJsonEmptyOrError.EMPTY)
+            val errorBehavior = getBehavior(operands, SqlJsonEmptyOrError.ERROR)
 
-          val terms = Seq(
-            parsed.resultTerm,
-            s"${argTerms(1)}.toString()",
-            qualifyEnum(emptyBehavior._1),
-            emptyBehavior._2,
-            qualifyEnum(errorBehavior._1),
-            errorBehavior._2
-          )
+            val terms = Seq(
+              parsed.resultTerm,
+              s"${argTerms(1)}.toString()",
+              qualifyEnum(emptyBehavior._1),
+              emptyBehavior._2,
+              qualifyEnum(errorBehavior._1),
+              errorBehavior._2
+            )
 
-          val rawResultTerm = CodeGenUtils.newName(ctx, "rawResult")
-          val call = s"""
-                        |Object $rawResultTerm =
-                        |    ${qualifyMethod(BuiltInMethods.JSON_VALUE)}(${terms
-                         .mkString(", ")});
+            val rawResultTerm = CodeGenUtils.newName(ctx, "rawResult")
+            val baseCall = s"""
+                              |Object $rawResultTerm =
+                              |    ${qualifyMethod(BuiltInMethods.JSON_VALUE)}(${terms
+                               .mkString(", ")});
            """.stripMargin
 
-          val convertedResult = returnType.getTypeRoot match {
-            case LogicalTypeRoot.VARCHAR =>
-              s"$BINARY_STRING.fromString(java.lang.String.valueOf($rawResultTerm))"
-            case LogicalTypeRoot.BOOLEAN => s"(java.lang.Boolean) $rawResultTerm"
-            case LogicalTypeRoot.INTEGER => s"(java.lang.Integer) $rawResultTerm"
-            case LogicalTypeRoot.DOUBLE => s"((java.math.BigDecimal) $rawResultTerm).doubleValue()"
-            case _ =>
-              throw new CodeGenException(
-                s"Unsupported type '$returnType' "
-                  + "for RETURNING in JSON_VALUE().")
-          }
+            returnType.getTypeRoot match {
+              case LogicalTypeRoot.VARCHAR =>
+                val result =
+                  s"($rawResultTerm == null) ? null : " +
+                    s"($BINARY_STRING.fromString(java.lang.String.valueOf($rawResultTerm)))"
+                (baseCall, result)
+              case typeRoot if !SqlJsonUtils.isSupportedJsonReturningType(typeRoot) =>
+                throw new CodeGenException(
+                  s"Unsupported type '$returnType' for RETURNING in JSON_VALUE().")
+              case _ =>
+                val jsonUtils =
+                  classOf[SqlJsonUtils].getName
+                val typeRootEnum =
+                  s"${classOf[LogicalTypeRoot].getName}.${returnType.getTypeRoot.name()}"
+                val (precisionStr, scaleStr) = returnType.getTypeRoot match {
+                  case LogicalTypeRoot.DECIMAL =>
+                    val dt = returnType.asInstanceOf[DecimalType]
+                    (dt.getPrecision.toString, dt.getScale.toString)
+                  case _ => ("0", "0")
+                }
+                val errorBehaviorEnum =
+                  qualifyEnum(errorBehavior._1.asInstanceOf[JsonValueOnEmptyOrError])
+                val defaultExpr =
+                  if (errorBehavior._2 != null) errorBehavior._2 else "null"
 
-          val result = s"($rawResultTerm == null) ? null : ($convertedResult)"
-          (call, result)
-        }
+                val boxedType = CodeGenUtils.boxedTypeTermForType(returnType)
+                val convertedTerm = CodeGenUtils.newName(ctx, "converted")
+                val call = baseCall +
+                  s"""
+                     |$boxedType $convertedTerm = ($boxedType) $jsonUtils.convertJsonScalar(
+                     |    $rawResultTerm, $typeRootEnum,
+                     |    $precisionStr, $scaleStr,
+                     |    $errorBehaviorEnum, $defaultExpr);
+                 """.stripMargin
+                (call, s"$convertedTerm")
+            }
+          }
+      }
+
+    if (isPrimitiveNullable(returnType)) {
+      generated
+    } else {
+      val unboxedTerm =
+        ctx.addReusableLocalVariable(primitiveTypeTermForType(returnType), "jsonValueUnboxed")
+      val unboxedCode =
+        s"""
+           |${generated.code}
+           |$unboxedTerm = ${generated.nullTerm}
+           |    ? ${primitiveDefaultValue(returnType)}
+           |    : ${generated.resultTerm};
+           |""".stripMargin
+      generated.copy(resultTerm = unboxedTerm, code = unboxedCode)
     }
   }
 

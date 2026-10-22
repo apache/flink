@@ -57,6 +57,12 @@
             <td>Forces Flink to register avro classes in kryo serializer.<br /><br />Important: Make sure to include the flink-avro module. Otherwise, nothing will be registered. For backward compatibility, the default value is empty to conform to the behavior of the older version. That is, always register avro with kryo, and if flink-avro is not in the class path, register a dummy serializer. In Flink-2.0, we will set the default value to true.</td>
         </tr>
         <tr>
+            <td><h5>pipeline.forward-edge.parallelism-mismatch-mode</h5></td>
+            <td style="word-wrap: break-word;">REBALANCE</td>
+            <td><p>Enum</p></td>
+            <td>Determines how the runtime handles a FORWARD (pointwise) edge whose producer and consumer parallelism no longer match, which can happen when the parallelism of connected operators is changed independently (for example via the AdaptiveScheduler or <code class="highlighter-rouge">pipeline.jobvertex-parallelism-overrides</code>). A FORWARD edge is only valid at equal parallelism; on a mismatch one of the following strategies is applied:<ul><li><code class="highlighter-rouge">REBALANCE</code>: replace the forward partitioner with a rebalance (round-robin) partitioner. This preserves throughput but reorders records, which is safe for append-only streams but corrupts order-sensitive (changelog) streams.</li><li><code class="highlighter-rouge">FAIL</code>: fail the job with an exception instead of silently changing the data distribution.</li><li><code class="highlighter-rouge">KEEP_FORWARD</code>: keep the forward partitioner. Record order is preserved but the records are funneled to a single consumer subtask, so the remaining consumer subtasks stay idle.</li></ul><br /><br />Possible values:<ul><li>"REBALANCE"</li><li>"FAIL"</li><li>"KEEP_FORWARD"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>pipeline.generic-types</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

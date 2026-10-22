@@ -133,7 +133,9 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INIT_C
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.INSTR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_FALSE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_JSON;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_FALSE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_NAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
@@ -183,6 +185,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVERLAY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_JSON;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_URL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_XML;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PERCENTILE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POSITION;
@@ -235,6 +238,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRUNCATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_CAST;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_PARSE_JSON;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.TRY_PARSE_XML;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UNHEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.UPPER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.URL_DECODE;
@@ -534,6 +538,16 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType isNotFalse() {
         return toApiSpecificExpression(unresolvedCall(IS_NOT_FALSE, toExpr()));
+    }
+
+    /** Returns true if the given numeric expression is NaN (Not-a-Number). Null if null. */
+    public OutType isNan() {
+        return toApiSpecificExpression(unresolvedCall(IS_NAN, toExpr()));
+    }
+
+    /** Returns true if the given numeric expression is not NaN (Not-a-Number). Null if null. */
+    public OutType isNotNan() {
+        return toApiSpecificExpression(unresolvedCall(IS_NOT_NAN, toExpr()));
     }
 
     /**
@@ -1418,6 +1432,53 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType tryParseJson(boolean allowDuplicateKeys) {
         return toApiSpecificExpression(
                 unresolvedCall(TRY_PARSE_JSON, toExpr(), valueLiteral(allowDuplicateKeys)));
+    }
+
+    /**
+     * Parses an XML string into a value of type {@link DataTypes#VARIANT()}. If the XML string is
+     * invalid, an error is thrown. To return {@code NULL} instead of an error, use {@link
+     * #tryParseXml()}.
+     *
+     * <p>This is a shortcut for {@code parseXml(false)}.
+     */
+    public OutType parseXml() {
+        return toApiSpecificExpression(unresolvedCall(PARSE_XML, objectToExpression(toExpr())));
+    }
+
+    /**
+     * Parses an XML string into a value of type {@link DataTypes#VARIANT()}. If the XML string is
+     * invalid, an error is thrown. To return {@code NULL} instead of an error, use {@code
+     * tryParseXml(forceArray)}.
+     *
+     * <p>If {@code forceArray} is {@code true}, every child element, text, and position in a {@code
+     * #} field is stored as an array, even if it occurs only once. {@code forceArray} can be a
+     * boolean or a boolean expression, and a {@code NULL} value is treated as {@code false}.
+     */
+    public OutType parseXml(InType forceArray) {
+        return toApiSpecificExpression(
+                unresolvedCall(PARSE_XML, toExpr(), objectToExpression(forceArray)));
+    }
+
+    /**
+     * Parses an XML string into a value of type {@link DataTypes#VARIANT()}. If the XML string is
+     * invalid, {@code NULL} is returned. To throw an error instead, use {@link #parseXml()}.
+     *
+     * <p>This is a shortcut for {@code tryParseXml(false)}.
+     */
+    public OutType tryParseXml() {
+        return toApiSpecificExpression(unresolvedCall(TRY_PARSE_XML, objectToExpression(toExpr())));
+    }
+
+    /**
+     * Parses an XML string into a value of type {@link DataTypes#VARIANT()}. If the XML string is
+     * invalid, {@code NULL} is returned. To throw an error instead, use {@code
+     * parseXml(forceArray)}.
+     *
+     * <p>See {@code parseXml(forceArray)} for the meaning of {@code forceArray}.
+     */
+    public OutType tryParseXml(InType forceArray) {
+        return toApiSpecificExpression(
+                unresolvedCall(TRY_PARSE_XML, toExpr(), objectToExpression(forceArray)));
     }
 
     /** Returns the base string decoded with base64. */
@@ -2375,8 +2436,13 @@ public abstract class BaseExpressions<InType, OutType> {
      * <ul>
      *   <li>{@link DataTypes#STRING()}
      *   <li>{@link DataTypes#BOOLEAN()}
+     *   <li>{@link DataTypes#TINYINT()}
+     *   <li>{@link DataTypes#SMALLINT()}
      *   <li>{@link DataTypes#INT()}
+     *   <li>{@link DataTypes#BIGINT()}
+     *   <li>{@link DataTypes#FLOAT()}
      *   <li>{@link DataTypes#DOUBLE()}
+     *   <li>{@link DataTypes#DECIMAL(int, int)}
      * </ul>
      *
      * <p>For empty path expressions or errors a behavior can be defined to either return {@code
@@ -2510,7 +2576,11 @@ public abstract class BaseExpressions<InType, OutType> {
      * Extracts JSON values from a JSON string.
      *
      * <p>This follows the ISO/IEC TR 19075-6 specification for JSON support in SQL. The result is
-     * always returned as a {@link DataTypes#STRING()}.
+     * returned as a {@link DataTypes#STRING()} by default. Using {@param returnType} it can also be
+     * returned as an {@link DataTypes#ARRAY(DataType)} whose element type is {@code STRING} or any
+     * of the scalar types supported by {@link #jsonValue(String, DataType)} ({@code BOOLEAN},
+     * {@code TINYINT}, {@code SMALLINT}, {@code INTEGER}, {@code BIGINT}, {@code FLOAT}, {@code
+     * DOUBLE}, {@code DECIMAL}).
      *
      * <p>The {@param wrappingBehavior} determines whether the extracted value should be wrapped
      * into an array, and whether to do so unconditionally or only if the value itself isn't an

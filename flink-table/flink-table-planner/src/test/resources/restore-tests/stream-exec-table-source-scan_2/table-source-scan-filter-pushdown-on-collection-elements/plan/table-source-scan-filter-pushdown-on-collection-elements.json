@@ -1,0 +1,163 @@
+{
+  "flinkVersion" : "2.4",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "arr",
+              "dataType" : "ARRAY<INT>"
+            }, {
+              "name" : "m",
+              "dataType" : "MAP<VARCHAR(2147483647), INT>"
+            }, {
+              "name" : "v",
+              "dataType" : "VARIANT"
+            } ]
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "FilterPushDown",
+        "predicates" : [ {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$>$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "syntax" : "SPECIAL",
+            "internalName" : "$ITEM$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 1,
+              "type" : "ARRAY<INT>"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 1,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "INT"
+          }, {
+            "kind" : "LITERAL",
+            "value" : 1,
+            "type" : "INT NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        }, {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$>$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "syntax" : "SPECIAL",
+            "internalName" : "$ITEM$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 2,
+              "type" : "MAP<VARCHAR(2147483647), INT>"
+            }, {
+              "kind" : "LITERAL",
+              "value" : "k",
+              "type" : "CHAR(1) NOT NULL"
+            } ],
+            "type" : "INT"
+          }, {
+            "kind" : "LITERAL",
+            "value" : 1,
+            "type" : "INT NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        }, {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$>$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "syntax" : "SPECIAL",
+            "internalName" : "$CAST$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$ITEM$1",
+              "operands" : [ {
+                "kind" : "INPUT_REF",
+                "inputIndex" : 3,
+                "type" : "VARIANT"
+              }, {
+                "kind" : "LITERAL",
+                "value" : "k",
+                "type" : "CHAR(1) NOT NULL"
+              } ],
+              "type" : "VARIANT"
+            } ],
+            "type" : "INT"
+          }, {
+            "kind" : "LITERAL",
+            "value" : 1,
+            "type" : "INT NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        } ]
+      }, {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ] ],
+        "producedType" : "ROW<`a` INT> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`a` INT> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`a` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, filter=[AND(AND(>(ITEM(arr, 1), 1), >(ITEM(m, _UTF-16LE'k'), 1)), >(CAST(ITEM(v, _UTF-16LE'k') AS INTEGER), 1))], project=[a], metadata=[]]], fields=[a])"
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-sink_2",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            } ]
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "upsertMaterializeStrategy" : "ADAPTIVE",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[a])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

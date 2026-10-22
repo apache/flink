@@ -33,6 +33,16 @@ DataFrame scalar UDFs support general synchronous and asynchronous callables,
 and synchronous pandas or Arrow vectorized callables. See :func:`pyflink.dataframe.udf`
 for declaration forms, type inference, execution modes, and examples.
 
+Use the ``concurrency`` argument to set the parallelism of the Python operator
+that executes a scalar UDF. UDFs with different explicit concurrency values are
+placed in separate operators. Explicit concurrency is supported only for
+insert-only streaming inputs. Batch mode and streaming inputs that can emit
+updates or deletes reject explicit concurrency.
+
+For pandas and Arrow scalar UDFs, ``batch_size`` sets the maximum Arrow batch size
+in both batch and streaming mode. If compatible vectorized UDFs share an operator,
+the smallest explicit batch size is used; otherwise the configured default applies.
+
 Table Functions
 ===============
 
@@ -45,6 +55,16 @@ DataFrame table UDFs support synchronous functions, callable classes and instanc
 declaration forms, type inference, lifecycle, and examples, and
 :meth:`~pyflink.dataframe.DataFrame.flat_map` for row input and output semantics.
 
+Aggregate Functions
+===================
+
+Use :func:`pyflink.dataframe.udaf` to declare an aggregate for
+:meth:`~pyflink.dataframe.DataFrame.agg`,
+:meth:`~pyflink.dataframe.GroupedDataFrame.agg`, or :func:`pyflink.dataframe.sql`.
+General UDAFs use the Table API's ``AggregateFunction`` accumulator protocol.
+Pandas UDAFs also accept ordinary functions and callable classes or instances.
+See :func:`pyflink.dataframe.udaf` for type declarations, execution modes, and examples.
+
 API Reference
 =============
 
@@ -55,3 +75,4 @@ API Reference
 
     udf
     udtf
+    udaf

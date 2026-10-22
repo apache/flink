@@ -39,6 +39,14 @@ Example::
     ...            .filter(pf.col("id") > 0)
     >>> names = df.select(df.name)
 
+Pass a list to :meth:`DataFrame.explode` to expand multiple ARRAY columns together by position.
+The arrays must have equal lengths in each row; empty and null arrays count as length zero.
+Unequal lengths fail during execution. If all arrays are empty or null, the default retains
+one row with null expanded values; ``ignore_empty_and_null=True`` drops that row::
+
+    >>> df = pf.from_dict({"items": [["apple", "pear"]], "counts": [[2, 3]]})
+    >>> result = df.explode(["items", "counts"])
+
 DataFrame
 ---------
 
@@ -65,6 +73,8 @@ Transformations
     DataFrame.rename_columns
     DataFrame.rename
     DataFrame.filter
+    DataFrame.map
+    DataFrame.map_batches
     DataFrame.where
     DataFrame.explode
     DataFrame.drop_duplicates
@@ -103,6 +113,20 @@ Joins
     :toctree: api/
 
     DataFrame.join
+    DataFrame.join_lateral
+
+Missing-Value Handling
+----------------------
+
+.. currentmodule:: pyflink.dataframe
+
+.. autosummary::
+    :toctree: api/
+
+    DataFrame.drop_null
+    DataFrame.drop_nan
+    DataFrame.fill_null
+    DataFrame.fill_nan
 
 Aggregations
 ------------
@@ -137,6 +161,7 @@ Properties
 
     DataFrame.schema
     DataFrame.columns
+    DataFrame.llm
 
 Results
 -------
@@ -149,6 +174,12 @@ Results
     DataFrame.collect
     DataFrame.to_table
     DataFrame.to_pandas
+    DataFrame.iter_rows
+    DataFrame.iter_batches
+    DataFrame.take
+    DataFrame.take_batch
+    CloseableIterator
+    CloseableIterator.close
 
 Windowing
 ---------
@@ -175,3 +206,49 @@ Functions for constructing column references and literal expressions.
 
     col
     lit
+
+OVER windows
+------------
+
+An aggregate expression can define an inline OVER window. The ordering column may be a column
+name or expression. Use the keyword ``order_by=`` to define an inline window; a single positional
+argument such as ``over(col("w"))`` or ``over(alias=col("w"))`` refers to a Table API named window.
+If neither ``rows`` nor ``range`` is provided, the default frame is unbounded RANGE through the
+current range. A scalar ``rows`` bound includes that many preceding rows and the current row, so
+``rows=10`` covers up to 11 rows. RANGE frames include all peers with the same ordering value.
+
+``rows`` uses integer row offsets. ``range`` accepts ``datetime.timedelta`` or a Flink duration
+string such as ``"1 hour"`` or ``"1 h"``; this is not SQL ``INTERVAL '1' HOUR`` syntax. Duration
+values are converted to milliseconds, truncating sub-millisecond precision. Use Table API frame
+constants from ``pyflink.table.expressions`` when matched to the frame type: ``*_ROW`` with
+``rows`` and ``*_RANGE`` with ``range``.
+
+The current expression layer requires a single time attribute in ``order_by``. Streaming OVER
+windows additionally require ascending order, and all OVER aggregates in the same projection must
+use the same frame. The upper bound must be the current row/range; FOLLOWING bounds are not
+supported in streaming. Without ``partition_by``, streaming OVER uses a singleton distribution and
+therefore runs with parallelism one, which can limit throughput. Batch plans support multiple
+different OVER frames in the same projection.
+
+.. code-block:: python
+
+    import pyflink.dataframe as pf
+
+    running = pf.col("amount").sum.over(
+        order_by="event_time",
+        partition_by="user_id",
+        rows=10,
+    )
+    explicit = pf.col("amount").sum.over(
+        order_by="event_time",
+        rows=(pf.preceding(2), pf.following(1)),
+    )
+
+The public frame-bound descriptor and helpers are:
+
+.. autosummary::
+    :toctree: api/
+
+    over_window.FrameBoundary
+    preceding
+    following

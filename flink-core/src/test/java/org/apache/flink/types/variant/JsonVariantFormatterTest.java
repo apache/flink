@@ -94,6 +94,20 @@ class JsonVariantFormatterTest {
         assertThat(variant.toString()).isEqualTo("[1,\"<INVALID>\"]");
     }
 
+    @Test
+    void testDeeplyNestedValueRenders() {
+        final int depth = 5000;
+        Variant nested = BUILDER.of(1);
+        for (int i = 0; i < depth; i++) {
+            nested = BUILDER.array().add(nested).build();
+        }
+        final Variant variant = nested;
+
+        final String expected = "[".repeat(depth) + "1" + "]".repeat(depth);
+        assertThat(variant.toJson()).isEqualTo(expected);
+        assertThat(variant.toString()).isEqualTo(expected);
+    }
+
     /** Replaces the header of the array's second element. */
     private static Variant withHeader(final BinaryVariant array, final byte header) {
         final byte[] value = array.getValue().clone();

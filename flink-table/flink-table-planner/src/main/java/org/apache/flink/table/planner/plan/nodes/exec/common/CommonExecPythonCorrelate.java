@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
@@ -55,6 +56,7 @@ import org.apache.calcite.rex.RexNode;
 import java.lang.reflect.Constructor;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -128,6 +130,11 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                 extractPythonTableFunctionInfo(classLoader);
         int[] pythonUdtfInputOffsets = extractResult.f0;
         PythonFunctionInfo pythonFunctionInfo = extractResult.f1;
+        final Optional<Integer> explicitParallelism =
+                CommonPythonUtil.deriveExplicitPythonFunctionParallelism(
+                        new PythonFunctionInfo[] {pythonFunctionInfo},
+                        "Python correlate functions",
+                        this instanceof BatchExecNode);
         InternalTypeInfo<RowData> pythonOperatorInputRowType =
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
         InternalTypeInfo<RowData> pythonOperatorOutputRowType =
@@ -146,8 +153,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                 createTransformationMeta(PYTHON_CORRELATE_TRANSFORMATION, pythonNodeConfig),
                 pythonOperator,
                 pythonOperatorOutputRowType,
-                inputTransform.getParallelism(),
-                false);
+                explicitParallelism.orElse(inputTransform.getParallelism()),
+                explicitParallelism.isPresent());
     }
 
     private Tuple2<int[], PythonFunctionInfo> extractPythonTableFunctionInfo(

@@ -37,6 +37,7 @@ import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.application.SingleJobApplication;
@@ -172,9 +173,6 @@ public class MiniCluster implements AutoCloseableAsync {
     @GuardedBy("lock")
     private final List<TaskExecutor> taskManagers;
 
-    private final TerminatingFatalErrorHandlerFactory
-            taskManagerTerminatingFatalErrorHandlerFactory =
-                    new TerminatingFatalErrorHandlerFactory();
     private final Supplier<Reference<RpcSystem>> rpcSystemSupplier;
 
     private CompletableFuture<Void> terminationFuture;
@@ -533,7 +531,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         delegationTokenManager,
                         metricRegistry,
                         metricQueryServiceRetriever,
-                        new ShutDownFatalErrorHandler()));
+                        createJobManagerFatalErrorHandler()));
 
         FutureUtils.completeAll(
                         dispatcherResourceManagerComponents.stream()
@@ -570,7 +568,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         metricRegistry,
                         new MemoryArchivedApplicationStore(),
                         metricQueryServiceRetriever,
-                        Collections.emptySet(),
+                        createFailureEnrichers(configuration),
                         fatalErrorHandler);
         FutureUtils.assertNoException(
                 dispatcherResourceManagerComponent
@@ -780,15 +778,49 @@ public class MiniCluster implements AutoCloseableAsync {
                             metricRegistry,
                             blobCacheService,
                             useLocalCommunication(),
-                            ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                            createExternalResourceInfoProvider(configuration),
                             workingDirectory.createSubWorkingDirectory("tm_" + taskManagers.size()),
-                            taskManagerTerminatingFatalErrorHandlerFactory.create(
-                                    taskManagers.size()),
+                            createTaskManagerFatalErrorHandler(taskManagers.size()),
                             delegationTokenReceiverRepository);
 
             taskExecutor.start();
             taskManagers.add(taskExecutor);
         }
+    }
+
+    /** Creates {@link FailureEnricher}s for the dispatcher's jobs. By default, none are created. */
+    protected Collection<FailureEnricher> createFailureEnrichers(Configuration configuration) {
+        return Collections.emptySet();
+    }
+
+    /**
+     * Creates {@link ExternalResourceInfoProvider} for the TaskManagers. By default, there are no
+     * external resources.
+     */
+    protected ExternalResourceInfoProvider createExternalResourceInfoProvider(
+            Configuration configuration) {
+        return ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
+    }
+
+    /**
+     * Creates the {@link FatalErrorHandler} for the JobManager components and the high availability
+     * services. By default, a fatal error closes the MiniCluster.
+     */
+    protected FatalErrorHandler createJobManagerFatalErrorHandler() {
+        return new ShutDownFatalErrorHandler();
+    }
+
+    /**
+     * Creates the {@link FatalErrorHandler} for the {@link TaskExecutor} with the given index. By
+     * default, a fatal error closes that TaskManager and leaves the rest of the MiniCluster
+     * running.
+     *
+     * @param index into the {@link #taskManagers} collection to identify the correct {@link
+     *     TaskExecutor}.
+     */
+    @GuardedBy("lock")
+    protected FatalErrorHandler createTaskManagerFatalErrorHandler(int index) {
+        return new TerminatingFatalErrorHandler(index);
     }
 
     @VisibleForTesting
@@ -1577,22 +1609,6 @@ public class MiniCluster implements AutoCloseableAsync {
         }
     }
 
-    private class TerminatingFatalErrorHandlerFactory {
-
-        /**
-         * Create a new {@link TerminatingFatalErrorHandler} for the {@link TaskExecutor} with the
-         * given index.
-         *
-         * @param index into the {@link #taskManagers} collection to identify the correct {@link
-         *     TaskExecutor}.
-         * @return {@link TerminatingFatalErrorHandler} for the given index
-         */
-        @GuardedBy("lock")
-        private TerminatingFatalErrorHandler create(int index) {
-            return new TerminatingFatalErrorHandler(index);
-        }
-    }
-
     /** HA Services to use. */
     public enum HaServices {
         /** Uses the configured HA Services in {@link HighAvailabilityOptions#HA_MODE} option. */
@@ -1645,7 +1661,7 @@ public class MiniCluster implements AutoCloseableAsync {
         public HighAvailabilityServices createHAServices(
                 Configuration configuration, Executor executor) throws Exception {
             return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-                    configuration, executor, new ShutDownFatalErrorHandler());
+                    configuration, executor, createJobManagerFatalErrorHandler());
         }
     }
 }

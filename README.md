@@ -203,6 +203,7 @@ Most Flink connectors have been externalized to individual repos under the [Apac
 * [flink-connector-gcp-pubsub](https://github.com/apache/flink-connector-gcp-pubsub)
 * [flink-connector-hbase](https://github.com/apache/flink-connector-hbase)
 * [flink-connector-hive](https://github.com/apache/flink-connector-hive)
+* [flink-connector-http](https://github.com/apache/flink-connector-http)
 * [flink-connector-jdbc](https://github.com/apache/flink-connector-jdbc)
 * [flink-connector-kafka](https://github.com/apache/flink-connector-kafka)
 * [flink-connector-mongodb](https://github.com/apache/flink-connector-mongodb)

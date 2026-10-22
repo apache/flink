@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
@@ -84,6 +85,36 @@ class StringUtf8UtilsTest {
         assertThatThrownBy(() -> BinaryStringData.fromUtf8Bytes(bytes('A', 'B', 0x80)))
                 .isInstanceOf(TableRuntimeException.class)
                 .hasMessageContaining("Invalid UTF-8 byte at index 2 of 3");
+    }
+
+    @Test
+    void testToValidUtf8Bytes() {
+        final byte[] valid = "Grüße, 世界 🚀".getBytes(StandardCharsets.UTF_8);
+
+        // Valid bytes are returned as they are.
+        assertThat(StringUtf8Utils.toValidUtf8Bytes(StringData.fromBytes(valid))).isSameAs(valid);
+
+        // Every malformed sequence becomes U+FFFD, as when the string is decoded.
+        assertThat(StringUtf8Utils.toValidUtf8Bytes(StringData.fromBytes(bytes('a', 0xFF, 'b'))))
+                .isEqualTo("a\uFFFDb".getBytes(StandardCharsets.UTF_8));
+        assertThat(StringUtf8Utils.toValidUtf8Bytes(StringData.fromBytes(bytes('a', 0xC3))))
+                .isEqualTo("a\uFFFD".getBytes(StandardCharsets.UTF_8));
+
+        // A Java string is encoded without building its binary form. An unpaired surrogate has no
+        // UTF-8 form, so encoding stores '?' in its place.
+        final BinaryStringData javaString = BinaryStringData.fromString("a\uD800b");
+        assertThat(StringUtf8Utils.toValidUtf8Bytes(javaString)).isEqualTo(bytes('a', '?', 'b'));
+        assertThat(javaString.getBinarySection()).isNull();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"Hello, world", "Café au lait", "é", "a😀b"})
+    void testDecodeUtf8RoundTrip(String input) {
+        final byte[] b = input.getBytes(StandardCharsets.UTF_8);
+        assertThat(StringUtf8Utils.decodeUTF8(b, 0, b.length)).isEqualTo(input);
+        final byte[] padded = new byte[b.length + 1];
+        System.arraycopy(b, 0, padded, 1, b.length);
+        assertThat(StringUtf8Utils.decodeUTF8(padded, 1, b.length)).isEqualTo(input);
     }
 
     private static byte[] bytes(int... values) {

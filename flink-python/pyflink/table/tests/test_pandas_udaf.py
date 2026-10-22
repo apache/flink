@@ -125,6 +125,25 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[5]"])
 
+    def test_row_result_with_non_nullable_fields(self):
+        source = self.t_env.from_elements(
+            [(1,), (2,), (3,)],
+            DataTypes.ROW([DataTypes.FIELD("value", DataTypes.BIGINT())]))
+
+        @udaf(result_type=DataTypes.ROW([
+            DataTypes.FIELD("total", DataTypes.BIGINT().not_null()),
+            DataTypes.FIELD("count", DataTypes.BIGINT().not_null()),
+            DataTypes.FIELD("label", DataTypes.STRING()),
+        ]).not_null(), func_type="pandas")
+        def stats(values):
+            return int(values.sum()), len(values), None
+
+        summary = source.select(stats(source.value).alias("summary"))
+        result = summary.select(col("summary").get("total"), col("summary").get("count"),
+                                col("summary").get("label"))
+        with result.execute().collect() as rows:
+            self.assertEqual(list(rows), [Row(6, 3, None)])
+
     def test_group_aggregate_with_aux_group(self):
         t = self.t_env.from_elements(
             [(1, 2, 3), (3, 2, 3), (2, 1, 3), (1, 5, 4), (1, 8, 6), (2, 3, 4)],

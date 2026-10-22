@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DistinctType;
@@ -28,13 +29,18 @@ import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.ZoneId;
+
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
+import static org.apache.flink.table.api.DataTypes.CHAR;
 import static org.apache.flink.table.api.DataTypes.DATE;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
+import static org.apache.flink.table.api.DataTypes.DOUBLE;
 import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.MAP;
@@ -48,6 +54,8 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.UUID;
+import static org.apache.flink.table.api.DataTypes.VARBINARY;
+import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,6 +89,40 @@ class CastRuleProviderTest {
         assertThat(CastRuleProvider.resolve(INT, INT)).isSameAs(IdentityCastRule.INSTANCE);
         assertThat(CastRuleProvider.resolve(ROW, ROW)).isSameAs(IdentityCastRule.INSTANCE);
         assertThat(CastRuleProvider.resolve(ROW, STRUCTURED)).isSameAs(IdentityCastRule.INSTANCE);
+    }
+
+    @Test
+    void testValuePreservingCastDoesNotCompile() {
+        // refusing classloader: compilation fails, so a value-preserving cast passes only if it
+        // skips compilation
+        final ClassLoader failing =
+                new ClassLoader(Thread.currentThread().getContextClassLoader()) {
+                    @Override
+                    protected Class<?> loadClass(String name, boolean resolve)
+                            throws ClassNotFoundException {
+                        throw new ClassNotFoundException("value-preserving cast must not compile");
+                    }
+                };
+
+        final CastRule.Context context =
+                CastRule.Context.create(false, false, ZoneId.of("UTC"), failing, null);
+
+        final BinaryStringData value = BinaryStringData.fromString("35709");
+        final BinaryStringData castedValue =
+                (BinaryStringData)
+                        CastRuleProvider.cast(
+                                context, CHAR(5).getLogicalType(), STRING_TYPE, value);
+        assertThat(castedValue).isSameAs(value);
+        assertThat(CastRuleProvider.cast(context, INT, INT, 42)).isEqualTo(42);
+
+        // IdentityCastRule treats these as identity too, unlike supportsAvoidingCast
+        final LogicalType yearMonth = INTERVAL(MONTH()).getLogicalType();
+        assertThat(CastRuleProvider.cast(context, yearMonth, INT, 12)).isEqualTo(12);
+        assertThat(CastRuleProvider.cast(context, INT, yearMonth, 12)).isEqualTo(12);
+        final LogicalType dayTime = INTERVAL(DataTypes.SECOND()).getLogicalType();
+        final LogicalType bigint = BIGINT().getLogicalType();
+        assertThat(CastRuleProvider.cast(context, dayTime, bigint, 1_000L)).isEqualTo(1_000L);
+        assertThat(CastRuleProvider.cast(context, bigint, dayTime, 1_000L)).isEqualTo(1_000L);
     }
 
     @Test
@@ -126,10 +168,9 @@ class CastRuleProviderTest {
 
     @Test
     void testResolveVariantToPrimitive() {
-        assertThat(CastRuleProvider.resolve(VARIANT, INT))
-                .isSameAs(VariantToPrimitiveCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(VARIANT, INT)).isSameAs(FromVariantCastRule.INSTANCE);
         assertThat(CastRuleProvider.resolve(VARIANT, BOOLEAN().getLogicalType()))
-                .isSameAs(VariantToPrimitiveCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
         assertThat(CastRuleProvider.exists(VARIANT, DECIMAL(10, 2).getLogicalType())).isTrue();
         assertThat(CastRuleProvider.exists(VARIANT, DATE().getLogicalType())).isTrue();
         assertThat(CastRuleProvider.exists(VARIANT, TIMESTAMP().getLogicalType())).isTrue();
@@ -142,15 +183,142 @@ class CastRuleProviderTest {
         // INTERVAL has no VARIANT counterpart, so it is not a castable target
         assertThat(CastRuleProvider.exists(VARIANT, INTERVAL(DataTypes.DAY()).getLogicalType()))
                 .isFalse();
-        // character strings keep going through the display-oriented rule
+        // character strings go through the same rule, including a bounded length
         assertThat(CastRuleProvider.resolve(VARIANT, STRING_TYPE))
-                .isSameAs(VariantToStringCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(VARIANT, CHAR(3).getLogicalType()))
+                .isSameAs(FromVariantCastRule.INSTANCE);
+    }
+
+    @Test
+    void testResolvePrimitiveToVariant() {
+        assertThat(CastRuleProvider.resolve(INT, VARIANT)).isSameAs(ToVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(STRING_TYPE, VARIANT))
+                .isSameAs(ToVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.exists(DECIMAL(10, 2).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.exists(TIMESTAMP(9).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.exists(TIMESTAMP_LTZ().getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.exists(TIME().getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.exists(BYTES().getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.exists(UUID().getLogicalType(), VARIANT)).isTrue();
+
+        // a nanosecond timestamp covers a limited range of years, and a TIME only one day
+        assertThat(CastRuleProvider.canFail(INT, VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(DOUBLE().getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(FLOAT().getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(TIMESTAMP(6).getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(TIMESTAMP(9).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(TIMESTAMP_LTZ(3).getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(TIMESTAMP_LTZ(7).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(TIME().getLogicalType(), VARIANT)).isTrue();
+        // a DISTINCT type fails like its source type
+        assertThat(CastRuleProvider.canFail(DISTINCT_INT, VARIANT)).isFalse();
+        assertThat(
+                        CastRuleProvider.canFail(
+                                DistinctType.newBuilder(
+                                                ObjectIdentifier.of("a", "b", "c"),
+                                                TIMESTAMP(9).getLogicalType())
+                                        .build(),
+                                VARIANT))
+                .isTrue();
+
+        // a string or binary type fails only when its declared length allows a value over 16 MiB,
+        // and a character takes up to 4 bytes in UTF-8
+        assertThat(CastRuleProvider.canFail(STRING_TYPE, VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(BYTES().getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(VARCHAR(100).getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(CHAR(100).getLogicalType(), VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(VARCHAR(4_194_302).getLogicalType(), VARIANT))
+                .isFalse();
+        assertThat(CastRuleProvider.canFail(VARCHAR(4_194_303).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(VARBINARY(16_777_211).getLogicalType(), VARIANT))
+                .isFalse();
+        assertThat(CastRuleProvider.canFail(VARBINARY(16_777_212).getLogicalType(), VARIANT))
+                .isTrue();
+
+        // INTERVAL has no VARIANT kind, so it is not a castable source
+        assertThat(CastRuleProvider.exists(INTERVAL(DataTypes.DAY()).getLogicalType(), VARIANT))
+                .isFalse();
+        // VARIANT to VARIANT stays the identity
+        assertThat(CastRuleProvider.resolve(VARIANT, VARIANT)).isSameAs(IdentityCastRule.INSTANCE);
+
+        // a constructed type casts element by element, through the rules for its children
+        assertThat(
+                        CastRuleProvider.resolve(
+                                ARRAY(INT()).getLogicalType(), ARRAY(VARIANT()).getLogicalType()))
+                .isSameAs(ArrayToArrayCastRule.INSTANCE);
+        assertThat(
+                        CastRuleProvider.resolve(
+                                ROW(FIELD("a", INT())).getLogicalType(),
+                                ROW(FIELD("a", VARIANT())).getLogicalType()))
+                .isSameAs(RowToRowCastRule.INSTANCE);
+        assertThat(
+                        CastRuleProvider.resolve(
+                                MAP(STRING(), INT()).getLogicalType(),
+                                MAP(STRING(), VARIANT()).getLogicalType()))
+                .isSameAs(MapToMapAndMultisetToMultisetCastRule.INSTANCE);
+        assertThat(
+                        CastRuleProvider.canFail(
+                                ARRAY(INT()).getLogicalType(), ARRAY(VARIANT()).getLogicalType()))
+                .isFalse();
+        assertThat(
+                        CastRuleProvider.canFail(
+                                ARRAY(TIMESTAMP(9)).getLogicalType(),
+                                ARRAY(VARIANT()).getLogicalType()))
+                .isTrue();
+    }
+
+    @Test
+    void testResolveConstructedToVariant() {
+        assertThat(CastRuleProvider.resolve(ARRAY(INT()).getLogicalType(), VARIANT))
+                .isSameAs(ToVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(MAP(STRING(), INT()).getLogicalType(), VARIANT))
+                .isSameAs(ToVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(ROW, VARIANT)).isSameAs(ToVariantCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(STRUCTURED, VARIANT))
+                .isSameAs(ToVariantCastRule.INSTANCE);
+
+        // every leaf needs a VARIANT kind, and a map key is never converted to a string
+        assertThat(CastRuleProvider.exists(ARRAY(INTERVAL(MONTH())).getLogicalType(), VARIANT))
+                .isFalse();
+        assertThat(CastRuleProvider.exists(MAP(INT(), STRING()).getLogicalType(), VARIANT))
+                .isFalse();
+        assertThat(CastRuleProvider.exists(MULTISET(STRING()).getLogicalType(), VARIANT)).isFalse();
+
+        // any ARRAY, MAP or nested VARIANT can exceed 16 MiB
+        assertThat(CastRuleProvider.canFail(ARRAY(INT()).getLogicalType(), VARIANT)).isTrue();
+        assertThat(CastRuleProvider.canFail(MAP(STRING(), INT()).getLogicalType(), VARIANT))
+                .isTrue();
+        assertThat(CastRuleProvider.canFail(ROW(FIELD("v", VARIANT())).getLogicalType(), VARIANT))
+                .isTrue();
+
+        // a ROW fails when a leaf can, or when the declared sizes of its fields add up past 16 MiB
+        assertThat(CastRuleProvider.canFail(ROW, VARIANT)).isFalse();
+        assertThat(CastRuleProvider.canFail(STRUCTURED, VARIANT)).isFalse();
+        assertThat(
+                        CastRuleProvider.canFail(
+                                ROW(FIELD("a", TIMESTAMP(9))).getLogicalType(), VARIANT))
+                .isTrue();
+        assertThat(CastRuleProvider.canFail(ROW(FIELD("a", TIME())).getLogicalType(), VARIANT))
+                .isTrue();
+        assertThat(CastRuleProvider.canFail(ROW(FIELD("a", STRING())).getLogicalType(), VARIANT))
+                .isTrue();
+        assertThat(
+                        CastRuleProvider.canFail(
+                                ROW(FIELD("a", VARCHAR(4_000_000))).getLogicalType(), VARIANT))
+                .isFalse();
+        assertThat(
+                        CastRuleProvider.canFail(
+                                ROW(FIELD("a", VARCHAR(4_000_000)), FIELD("b", VARCHAR(4_000_000)))
+                                        .getLogicalType(),
+                                VARIANT))
+                .isTrue();
     }
 
     @Test
     void testResolveVariantToArray() {
         assertThat(CastRuleProvider.resolve(VARIANT, ARRAY(INT()).getLogicalType()))
-                .isSameAs(VariantToArrayCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
 
         // the element recurses through the VARIANT rules, including the identity leaf and nesting
         assertThat(CastRuleProvider.exists(VARIANT, ARRAY(VARIANT()).getLogicalType())).isTrue();
@@ -167,10 +335,10 @@ class CastRuleProviderTest {
     @Test
     void testResolveVariantToRow() {
         assertThat(CastRuleProvider.resolve(VARIANT, ROW(FIELD("f0", INT())).getLogicalType()))
-                .isSameAs(VariantToRowCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
         // a structured target shares the ROW rule
         assertThat(CastRuleProvider.resolve(VARIANT, STRUCTURED))
-                .isSameAs(VariantToRowCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
 
         // a field with no variant counterpart makes the whole cast unresolvable
         assertThat(
@@ -182,7 +350,7 @@ class CastRuleProviderTest {
     @Test
     void testResolveVariantToMap() {
         assertThat(CastRuleProvider.resolve(VARIANT, MAP(STRING(), INT()).getLogicalType()))
-                .isSameAs(VariantToMapCastRule.INSTANCE);
+                .isSameAs(FromVariantCastRule.INSTANCE);
         // the value recurses through the VARIANT rules, including the identity leaf
         assertThat(CastRuleProvider.exists(VARIANT, MAP(STRING(), VARIANT()).getLogicalType()))
                 .isTrue();

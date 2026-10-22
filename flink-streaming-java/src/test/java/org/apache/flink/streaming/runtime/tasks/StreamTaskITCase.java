@@ -132,6 +132,7 @@ public class StreamTaskITCase {
                 new ResultPartitionDeploymentDescriptor(
                         PartitionDescriptorBuilder.newBuilder().build(),
                         NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
+                        1,
                         1);
         return new TestTaskBuilder(shuffleEnvironment)
                 .setInvokable(NoOpStreamTask.class)

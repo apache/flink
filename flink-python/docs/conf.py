@@ -246,3 +246,13 @@ epub_copyright = u'2019, Author'
 epub_exclude_files = ['search.html']
 
 # -- Extension configuration -------------------------------------------------
+
+
+def _set_zh_baseurl(app, config):
+    # -D language=zh is applied after this file is read
+    if config.language == 'zh':
+        config.html_baseurl += 'zh/'
+
+
+def setup(app):
+    app.connect('config-inited', _set_zh_baseurl)

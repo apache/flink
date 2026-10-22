@@ -390,8 +390,131 @@ class LogicalTypeCastsTest {
                 // numeric is not castable to or from UUID
                 Arguments.of(new UuidType(), new IntType(), false, false),
                 Arguments.of(new IntType(), new UuidType(), false, false),
-                // a UUID does not cast to VARIANT
-                Arguments.of(new UuidType(), new VariantType(), false, false));
+                // a type with a VARIANT kind casts to VARIANT, explicitly only
+                Arguments.of(new BooleanType(), new VariantType(), false, true),
+                Arguments.of(new TinyIntType(), new VariantType(), false, true),
+                Arguments.of(new SmallIntType(), new VariantType(), false, true),
+                Arguments.of(new IntType(), new VariantType(), false, true),
+                Arguments.of(new BigIntType(), new VariantType(), false, true),
+                Arguments.of(new FloatType(), new VariantType(), false, true),
+                Arguments.of(new DoubleType(), new VariantType(), false, true),
+                Arguments.of(new DecimalType(38, 10), new VariantType(), false, true),
+                Arguments.of(new CharType(5), new VariantType(), false, true),
+                Arguments.of(VarCharType.STRING_TYPE, new VariantType(), false, true),
+                Arguments.of(new BinaryType(4), new VariantType(), false, true),
+                Arguments.of(
+                        new VarBinaryType(VarBinaryType.MAX_LENGTH),
+                        new VariantType(),
+                        false,
+                        true),
+                Arguments.of(new DateType(), new VariantType(), false, true),
+                Arguments.of(new TimeType(), new VariantType(), false, true),
+                Arguments.of(new TimestampType(9), new VariantType(), false, true),
+                Arguments.of(new LocalZonedTimestampType(3), new VariantType(), false, true),
+                Arguments.of(new UuidType(), new VariantType(), false, true),
+                Arguments.of(new NullType(), new VariantType(), true, true),
+                // a type without a VARIANT kind does not cast to VARIANT
+                Arguments.of(
+                        new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.MONTH),
+                        new VariantType(),
+                        false,
+                        false),
+                Arguments.of(new ZonedTimestampType(), new VariantType(), false, false),
+                Arguments.of(
+                        new MultisetType(VarCharType.STRING_TYPE), new VariantType(), false, false),
+                // a constructed type casts element by element when each child casts to VARIANT
+                Arguments.of(
+                        new ArrayType(new IntType()),
+                        new ArrayType(new VariantType()),
+                        false,
+                        true),
+                Arguments.of(
+                        new RowType(List.of(new RowField("a", new IntType()))),
+                        new RowType(List.of(new RowField("a", new VariantType()))),
+                        false,
+                        true),
+                Arguments.of(
+                        new MapType(VarCharType.STRING_TYPE, new IntType()),
+                        new MapType(VarCharType.STRING_TYPE, new VariantType()),
+                        false,
+                        true),
+                Arguments.of(
+                        new ArrayType(
+                                new YearMonthIntervalType(
+                                        YearMonthIntervalType.YearMonthResolution.MONTH)),
+                        new ArrayType(new VariantType()),
+                        false,
+                        false),
+                // a whole constructed value casts into a single VARIANT when every leaf does
+                Arguments.of(new ArrayType(new IntType()), new VariantType(), false, true),
+                Arguments.of(new ArrayType(new VariantType()), new VariantType(), false, true),
+                Arguments.of(new ArrayType(new NullType()), new VariantType(), false, true),
+                Arguments.of(
+                        new MapType(VarCharType.STRING_TYPE, new IntType()),
+                        new VariantType(),
+                        false,
+                        true),
+                Arguments.of(
+                        new MapType(new CharType(3), new VariantType()),
+                        new VariantType(),
+                        false,
+                        true),
+                Arguments.of(
+                        new RowType(List.of(new RowField("a", new IntType()))),
+                        new VariantType(),
+                        false,
+                        true),
+                Arguments.of(new RowType(List.of()), new VariantType(), false, true),
+                Arguments.of(
+                        new RowType(
+                                List.of(
+                                        new RowField(
+                                                "a",
+                                                new ArrayType(
+                                                        new MapType(
+                                                                VarCharType.STRING_TYPE,
+                                                                new RowType(
+                                                                        List.of(
+                                                                                new RowField(
+                                                                                        "b",
+                                                                                        new TimestampType(
+                                                                                                9))))))))),
+                        new VariantType(),
+                        false,
+                        true),
+                Arguments.of(
+                        StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"))
+                                .attributes(
+                                        Arrays.asList(
+                                                new StructuredAttribute("f1", new TimestampType()),
+                                                new StructuredAttribute("f2", new IntType())))
+                                .build(),
+                        new VariantType(),
+                        false,
+                        true),
+                // a map key is never converted to a string, and every leaf needs a VARIANT kind
+                Arguments.of(
+                        new MapType(new IntType(), new IntType()), new VariantType(), false, false),
+                Arguments.of(
+                        new ArrayType(
+                                new YearMonthIntervalType(
+                                        YearMonthIntervalType.YearMonthResolution.MONTH)),
+                        new VariantType(),
+                        false,
+                        false),
+                Arguments.of(
+                        new MapType(VarCharType.STRING_TYPE, new ZonedTimestampType()),
+                        new VariantType(),
+                        false,
+                        false),
+                Arguments.of(
+                        new RowType(
+                                List.of(
+                                        new RowField(
+                                                "a", new MultisetType(VarCharType.STRING_TYPE)))),
+                        new VariantType(),
+                        false,
+                        false));
     }
 
     @ParameterizedTest(name = "{index}: [From: {0}, To: {1}, Implicit: {2}, Explicit: {3}]")

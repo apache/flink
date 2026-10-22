@@ -104,6 +104,32 @@ AND o.order_time BETWEEN s.ship_time - INTERVAL '4' HOUR AND s.ship_time
 对于流式查询，对比 regular join，interval join 只支持有时间属性的非更新表。
 由于时间属性是递增的，Flink 从状态中移除旧值也不会影响结果的正确性。
 
+### Outer Interval Join 的提前触发（Early Fire）
+
+默认情况下，outer interval join 会等到未匹配行的时间窗口完全关闭后，才将该行以 null 补齐的形式输出。`EARLY_FIRE` 提示可以缩短这个等待：未匹配的 outer 行会在可配置的 `delay` 之后被推测性地以 null 补齐输出，如果之后在窗口内出现真正的匹配，则会进行更正。这会将仅追加（append-only）的结果变为更新（updating）结果，因此下游 sink 必须能够接受更新。
+
+```sql
+SELECT /*+ EARLY_FIRE('delay'='5s') */ o.id, s.ship_time
+FROM Orders o
+LEFT OUTER JOIN Shipments s
+ON o.id = s.order_id
+AND o.order_time BETWEEN s.ship_time - INTERVAL '1' HOUR AND s.ship_time
+```
+
+当某个订单还没有对应的发货记录时，在 `delay` 时间过去后，join 会输出一次 `+I[id, NULL]`，而不必等到该订单一小时的窗口关闭。如果之后在窗口内到达了一条匹配的发货记录，则该推测行会先被 `-U[id, NULL]` 撤回，再以 `+U[id, ship_time]` 更正。每个 outer 行至多触发一次；该提示不会周期性地输出。
+
+该提示支持以下选项：
+
+| 选项 | 是否必填 | 描述 |
+| --- | --- | --- |
+| `target` | 否 | 该提示所作用的算子类型。目前仅支持 `interval_join`，其他取值会报错。省略时，该提示作用于 interval join。 |
+| `delay` | 是 | 一个至少为 1 毫秒的时间长度（例如 `'5s'`）。在 `rowtime` 模式下从行的时间属性开始计算；在 `proctime` 模式下从该行被处理时的墙上时钟时间开始计算。窗口内没有匹配时，在该延迟过去后输出推测性的 null 补齐行。 |
+| `time-mode` | 否 | 取值为 `rowtime` 或 `proctime`，用于控制延迟是相对水位线（`rowtime`）还是相对墙上时钟（`proctime`）来计算。事件时间 join 默认为 `rowtime`，处理时间 join 默认为 `proctime`。在事件时间 join 上设置 `'time-mode'='proctime'` 会改为按墙上时钟触发提前触发，适用于水位线稀疏或停滞的场景；匹配和状态清理仍按事件时间进行，并且 join 会在每一侧输入上额外维护状态，用于记录待触发的提前触发。在处理时间 join 上设置 `'time-mode'='rowtime'` 会报错。 |
+
+该提示仅对 outer join（`LEFT`、`RIGHT`、`FULL`）生效。在 inner join 以及窗口跨度为负的 join 上会被忽略，这些情况仍保持仅追加。
+
+**注意：** `EARLY_FIRE` 与 `table.exec.emit.early-fire.*` 配置无关，后者用于控制窗口聚合的提前触发，而非 interval join。
+
 Temporal Joins
 --------------
 
@@ -380,7 +406,7 @@ If a `LATERAL SNAPSHOT` join produces no output, first check whether it is stuck
 **Syntax**
 
 The build side is wrapped in the `SNAPSHOT` table function, which is called with `LATERAL`. The outer (probe-side) table must be an append-only table. 
-Both `INNER JOIN` and `LEFT [OUTER] JOIN` are supported. The join requires at least one conjunctive equality predicate; additional non-equi predicates are allowed in the `ON` clause.
+Both `INNER JOIN` and `LEFT [OUTER] JOIN` are supported. An equality predicate is recommended but not required: the `ON` clause may contain equality and non-equi predicates in any combination. In streaming mode, a join with at least one equality predicate is partitioned on the join key and runs in parallel, whereas a join without one runs single-threaded; prefer an equality predicate for better performance. In batch mode, a join without an equality predicate uses a broadcast nested-loop join that keeps the probe side parallel.
 
 ```sql
 SELECT [column_list]
@@ -412,7 +438,7 @@ The result is append-only and preserves the probe-side time attributes. A build-
 
 Because rows are joined against the build-side state that is current at processing time, the result is **not deterministic**. A given probe-side row may be joined with different build-side versions across different runs, depending on the relative timing of the two inputs. Probe and build-side inputs can be configured with watermark alignment to keep the two inputs roughly aligned on event time, so that a probe-side row tends to be joined with build-side changes of a similar event time. This is a best-effort alignment and does not make the result deterministic.
 
-The build-side state grows with the number of distinct build-side keys, and during the load phase the buffered probe-side rows add to the state footprint until the operator transitions to the join phase. Use `state_ttl` to bound the build-side state for keys that are no longer updated or joined. You can reduce the amount of data that is buffered and processed during the load phase by configuring scan start offsets on the build and probe-side inputs, for example with a `scan.startup.*` [dynamic table option hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options).
+The build-side state grows with the number of distinct build-side keys, and during the load phase the buffered probe-side rows add to the state footprint until the operator transitions to the join phase. Use `state_ttl` to bound the build-side state for keys that are no longer updated or joined. Without an equality predicate the join has no join key, so all build-side rows share a single state entry; `state_ttl` can then only evict the whole build side at once, once it has been idle (no probe- or build-side activity) for longer than the TTL, rather than per key. You can reduce the amount of data that is buffered and processed during the load phase by configuring scan start offsets on the build and probe-side inputs, for example with a `scan.startup.*` [dynamic table option hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options).
 
 **Monitoring**
 

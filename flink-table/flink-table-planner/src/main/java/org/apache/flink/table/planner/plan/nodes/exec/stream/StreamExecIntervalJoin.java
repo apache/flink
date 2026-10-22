@@ -430,7 +430,11 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                         joinFunction,
                         windowBounds.getLeftTimeIdx(),
                         windowBounds.getRightTimeIdx(),
-                        earlyFireDelay == null ? -1L : earlyFireDelay);
+                        earlyFireDelay == null ? -1L : earlyFireDelay,
+                        // Cross-domain flag: an event-time interval join early-fires on the wall
+                        // clock while keeping its event-time cleanup. The operator only acts on it
+                        // once early-firing is enabled (earlyFireDelay >= 0).
+                        earlyFireTimeMode == EarlyFireJoinHintOptions.TimeMode.PROCTIME);
         // TODO: add async version rowJoinFunc to use AsyncKeyedCoProcessOperator
         return ExecNodeUtil.createTwoInputTransformation(
                 leftInputTransform,

@@ -109,6 +109,32 @@ The following predicates are examples of valid interval join conditions:
 For streaming queries, compared to the regular join, interval join only supports append-only tables with time attributes.
 Since time attributes are quasi-monotonic increasing, Flink can remove old values from its state without affecting the correctness of the result.
 
+### Early Fire for Outer Interval Joins
+
+By default an outer interval join waits for the time window of an unmatched row to fully close before emitting that row null-padded. The `EARLY_FIRE` hint shortens this wait: an unmatched outer row is emitted speculatively with a null-padded counterpart after a configurable `delay`, and corrected later if a real match arrives within the window. This trades the append-only result for an updating one, so the downstream sink must accept updates.
+
+```sql
+SELECT /*+ EARLY_FIRE('delay'='5s') */ o.id, s.ship_time
+FROM Orders o
+LEFT OUTER JOIN Shipments s
+ON o.id = s.order_id
+AND o.order_time BETWEEN s.ship_time - INTERVAL '1' HOUR AND s.ship_time
+```
+
+When an order has no shipment yet, the join emits `+I[id, NULL]` once the `delay` has elapsed, instead of waiting for the order's one-hour window to close. If a matching shipment later arrives inside the window, the speculative row is corrected with `-U[id, NULL]` followed by `+U[id, ship_time]`. Each outer row fires at most once; the hint does not emit periodically.
+
+The hint accepts the following options:
+
+| Option | Required | Description |
+| --- | --- | --- |
+| `target` | no | The operator kind the hint applies to. Currently only `interval_join` is supported; any other value is an error. When omitted, the hint applies to the interval join. |
+| `delay` | yes | A duration of at least 1 millisecond (for example `'5s'`). In `rowtime` mode it is measured from the row's time attribute; in `proctime` mode it is measured from the wall-clock time at which the row is processed. The speculative null-padded row is emitted once this delay elapses without a match. |
+| `time-mode` | no | Either `rowtime` or `proctime`. Controls whether the delay is measured against the watermark (`rowtime`) or wall-clock time (`proctime`). Defaults to `rowtime` for an event-time join and `proctime` for a processing-time join. Setting `'time-mode'='proctime'` on an event-time join triggers early fire on wall-clock time instead of the watermark, which helps when watermarks are sparse or stalled; matching and state cleanup still follow event time, and the join keeps extra state on each input to track the pending early fires. Setting `'time-mode'='rowtime'` on a processing-time join is an error. |
+
+The hint only affects outer joins (`LEFT`, `RIGHT`, `FULL`). It is ignored on inner joins and on joins whose window has a negative span, both of which remain append-only.
+
+**Note:** `EARLY_FIRE` is unrelated to the `table.exec.emit.early-fire.*` configuration, which controls early firing for windowed aggregations rather than interval joins.
+
 Temporal Joins
 --------------
 
@@ -389,7 +415,7 @@ If a `LATERAL SNAPSHOT` join produces no output, first check whether it is stuck
 **Syntax**
 
 The build side is wrapped in the `SNAPSHOT` table function, which is called with `LATERAL`. The outer (probe-side) table must be an append-only table. 
-Both `INNER JOIN` and `LEFT [OUTER] JOIN` are supported. The join requires at least one conjunctive equality predicate; additional non-equi predicates are allowed in the `ON` clause.
+Both `INNER JOIN` and `LEFT [OUTER] JOIN` are supported. An equality predicate is recommended but not required: the `ON` clause may contain equality and non-equi predicates in any combination. In streaming mode, a join with at least one equality predicate is partitioned on the join key and runs in parallel, whereas a join without one runs single-threaded; prefer an equality predicate for better performance. In batch mode, a join without an equality predicate uses a broadcast nested-loop join that keeps the probe side parallel.
 
 ```sql
 SELECT [column_list]
@@ -421,7 +447,7 @@ The result is append-only and preserves the probe-side time attributes. A build-
 
 Because rows are joined against the build-side state that is current at processing time, the result is **not deterministic**. A given probe-side row may be joined with different build-side versions across different runs, depending on the relative timing of the two inputs. Probe and build-side inputs can be configured with watermark alignment to keep the two inputs roughly aligned on event time, so that a probe-side row tends to be joined with build-side changes of a similar event time. This is a best-effort alignment and does not make the result deterministic.
 
-The build-side state grows with the number of distinct build-side keys, and during the load phase the buffered probe-side rows add to the state footprint until the operator transitions to the join phase. Use `state_ttl` to bound the build-side state for keys that are no longer updated or joined. You can reduce the amount of data that is buffered and processed during the load phase by configuring scan start offsets on the build and probe-side inputs, for example with a `scan.startup.*` [dynamic table option hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options).
+The build-side state grows with the number of distinct build-side keys, and during the load phase the buffered probe-side rows add to the state footprint until the operator transitions to the join phase. Use `state_ttl` to bound the build-side state for keys that are no longer updated or joined. Without an equality predicate the join has no join key, so all build-side rows share a single state entry; `state_ttl` can then only evict the whole build side at once, once it has been idle (no probe- or build-side activity) for longer than the TTL, rather than per key. You can reduce the amount of data that is buffered and processed during the load phase by configuring scan start offsets on the build and probe-side inputs, for example with a `scan.startup.*` [dynamic table option hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options).
 
 **Monitoring**
 

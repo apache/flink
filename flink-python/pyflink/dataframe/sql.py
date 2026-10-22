@@ -27,6 +27,7 @@ from pyflink.dataframe.context import get_or_create_table_environment
 from pyflink.dataframe.dataframe import DataFrame
 from pyflink.dataframe.udf import _DataFrameUDFWrapper
 from pyflink.dataframe.udtf import _DataFrameUDTFWrapper
+from pyflink.dataframe.udaf import _DataFrameUDAFWrapper
 from pyflink.java_gateway import get_gateway
 from pyflink.table import Table, TableEnvironment
 from pyflink.table.expression import Expression
@@ -41,9 +42,9 @@ _LOG = logging.getLogger(__name__)
 # Scalar UDFs use the declared return type of :func:`pyflink.dataframe.udf`
 # so that its result type-checks as a binding; at runtime a binding must be an actual
 # UDF object, which is what _BINDABLE_TYPES enforces.
-_FunctionBinding = Union[_DataFrameUDFWrapper, _DataFrameUDTFWrapper]
+_FunctionBinding = Union[_DataFrameUDFWrapper, _DataFrameUDTFWrapper, _DataFrameUDAFWrapper]
 _Binding = Union[DataFrame, Callable[..., Expression], _DataFrameUDTFWrapper]
-_FUNCTION_TYPES = (_DataFrameUDFWrapper, _DataFrameUDTFWrapper)
+_FUNCTION_TYPES = (_DataFrameUDFWrapper, _DataFrameUDTFWrapper, _DataFrameUDAFWrapper)
 _BINDABLE_TYPES = (DataFrame, *_FUNCTION_TYPES)
 
 
@@ -55,7 +56,8 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: _Binding) -> DataFram
     The query must be a single statement that returns a result, such as SELECT or
     VALUES (no INSERT / DDL; use :meth:`TableEnvironment.execute_sql` for those).
     The referenced DataFrames are registered as temporary views and the referenced
-    UDFs (created with :func:`~pyflink.dataframe.udf` or :func:`~pyflink.dataframe.udtf`)
+    UDFs (created with :func:`~pyflink.dataframe.udf`, :func:`~pyflink.dataframe.udtf`,
+    or :func:`~pyflink.dataframe.udaf`)
     as temporary system functions for the duration of the call, and both are dropped
     afterwards. The result can be further transformed with the DataFrame API.
 
@@ -95,8 +97,8 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: _Binding) -> DataFram
                         auto-bound candidates belong to different TableEnvironments
                         when there are no explicit bindings.
     :raises TypeError: If an explicit binding is neither a :class:`DataFrame` nor a
-                       UDF created with :func:`~pyflink.dataframe.udf` or
-                       :func:`~pyflink.dataframe.udtf`.
+                       UDF created with :func:`~pyflink.dataframe.udf`,
+                       :func:`~pyflink.dataframe.udtf`, or :func:`~pyflink.dataframe.udaf`.
 
     Example::
 
@@ -148,7 +150,8 @@ def sql(query: str, *, auto_bind: bool = True, **bindings: _Binding) -> DataFram
         if not isinstance(value, _BINDABLE_TYPES):
             raise TypeError(
                 f"sql() binding '{name}' must be a DataFrame or a UDF created with "
-                f"pyflink.dataframe.udf or pyflink.dataframe.udtf, got {type(value).__name__}"
+                "pyflink.dataframe.udf, pyflink.dataframe.udtf or pyflink.dataframe.udaf, "
+                f"got {type(value).__name__}"
             )
     explicit_frames = _get_dataframes(bindings)
     explicit_udfs = _get_udfs(bindings)

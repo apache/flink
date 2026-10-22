@@ -36,25 +36,75 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class ArrowSchemaTests(unittest.TestCase):
-    def test_nested_types_require_arrow_mode(self):
+    def test_pandas_row_preserves_field_nullability(self):
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+        from pyflink.table.utils import pandas_to_arrow
+
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD("total", DataTypes.BIGINT().not_null()),
+            DataTypes.FIELD("label", DataTypes.STRING()),
+        ]).not_null()
+        schema = create_arrow_schema(["summary"], [row_type])
+        values = [{"total": 6, "label": None}, {"total": 9, "label": "ok"}]
+        dataframe = pd.DataFrame(values)
+        for size in (0, len(values)):
+            with self.subTest(size=size):
+                batch = pandas_to_arrow(schema, pytz.UTC, [row_type], [dataframe.iloc[:size]])
+                with pa.BufferOutputStream() as output:
+                    with pa.ipc.new_stream(output, schema) as writer:
+                        writer.write_batch(batch)
+                    decoded = pa.ipc.open_stream(output.getvalue()).read_next_batch()
+                self.assertEqual(decoded.schema, schema)
+                self.assertFalse(decoded.column(0).type.field("total").nullable)
+                self.assertTrue(decoded.column(0).type.field("label").nullable)
+                self.assertEqual(decoded.to_pylist(),
+                                 [{"summary": value} for value in values[:size]])
+
+    def test_pandas_positional_rows_require_matching_arity(self):
+        import pandas as pd
+        from pyflink.common import Row
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+        from pyflink.table.utils import pandas_to_arrow
+
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD("a", DataTypes.BIGINT()),
+            DataTypes.FIELD("b", DataTypes.BIGINT()),
+        ])
+        for data_type, wrap in (
+            (row_type, lambda value: value),
+            (DataTypes.MAP(DataTypes.STRING(), row_type), lambda value: {"key": value}),
+        ):
+            schema = create_arrow_schema(["value"], [data_type])
+            for value in ((1,), (1, 2, 3), [1], [1, 2, 3], Row(1), Row(1, 2, 3)):
+                with self.subTest(data_type=data_type, value=value):
+                    with self.assertRaises(RuntimeError):
+                        pandas_to_arrow(schema, pytz.UTC, [data_type],
+                                        [pd.Series([wrap(value)], dtype=object)])
+
+        schema = create_arrow_schema(["value"], [row_type])
+        self.assertEqual(pandas_to_arrow(
+            schema, pytz.UTC, [row_type], [pd.Series([{"a": 1}], dtype=object)]
+        ).to_pylist(), [{"value": {"a": 1, "b": None}}])
+
+    def test_pandas_row_ltz_and_arrow_array_ltz_schemas(self):
         from pyflink.table import DataTypes
         from pyflink.table.types import create_arrow_schema
 
-        for data_type, error, expected in (
-            (DataTypes.ARRAY(DataTypes.ROW([DataTypes.FIELD("v", DataTypes.INT())])), ValueError,
-             pa.list_(pa.field("item", pa.struct([pa.field("v", pa.int32())])))),
-            (DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(3)), ValueError, pa.list_(pa.timestamp('ms'))),
-            (DataTypes.ROW([DataTypes.FIELD("r", DataTypes.ROW([
-                DataTypes.FIELD("v", DataTypes.INT())]))]), TypeError,
-             pa.struct([pa.field("r", pa.struct([pa.field("v", pa.int32())]))])),
-            (DataTypes.ROW([DataTypes.FIELD("t", DataTypes.TIMESTAMP_LTZ(3))]), TypeError,
-             pa.struct([pa.field("t", pa.timestamp('ms'))])),
+        row = DataTypes.ROW([DataTypes.FIELD("v", DataTypes.BIGINT())])
+        for data_type, error in (
+            (DataTypes.ROW([DataTypes.FIELD("t", DataTypes.TIMESTAMP_LTZ(3))]), TypeError),
+            (DataTypes.ROW([DataTypes.FIELD("inner", row)]), TypeError),
+            (DataTypes.ARRAY(row), ValueError),
+            (DataTypes.ARRAY(DataTypes.TIMESTAMP_LTZ(3)), ValueError),
         ):
             with self.subTest(data_type=data_type):
                 with self.assertRaises(error):
                     create_arrow_schema(["value"], [data_type])
-                schema = create_arrow_schema(["value"], [data_type], allow_nested=True)
-                self.assertEqual(schema.field("value").type, expected)
+                self.assertEqual(len(create_arrow_schema(["value"], [data_type],
+                                                         allow_nested=True)), 1)
 
     def test_pandas_collection_schema_and_round_trip(self):
         import pandas as pd
@@ -252,6 +302,71 @@ class ArrowCodersTests(unittest.TestCase):
         values = pd.Series([[("value", 10)], [("value", 20)], None, []])
         result = coder.decode(coder.encode([values]))
         self.assertEqual(result[0].tolist(), [[("value", 10)], [("value", 20)], None, []])
+
+    def test_pandas_table_row_results_round_trip(self):
+        import datetime
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        result_type = DataTypes.ROW([
+            DataTypes.FIELD("ts", DataTypes.TIMESTAMP_LTZ(3)),
+            DataTypes.FIELD("payload", DataTypes.ROW([
+                DataTypes.FIELD("v", DataTypes.BIGINT()),
+                DataTypes.FIELD("other", DataTypes.BIGINT())])),
+            DataTypes.FIELD("other", DataTypes.ROW([DataTypes.FIELD("v", DataTypes.STRING())])),
+        ])
+        timezone = pytz.timezone("Asia/Shanghai")
+        columns = [
+            pd.Series(pd.to_datetime(["2020-01-01T00:00:00Z", None]).tz_convert(timezone)),
+            pd.DataFrame({"v": pd.Series([9007199254740993, None], dtype=object),
+                          "other": pd.Series([7, None], dtype=object)}),
+            pd.DataFrame({"v": ["other", None]}),
+        ]
+        cases = [
+            (columns, [
+                {"result": {"ts": datetime.datetime(2020, 1, 1, 8),
+                            "payload": {"v": 9007199254740993, "other": 7},
+                            "other": {"v": "other"}}},
+                {"result": {"ts": None, "payload": {"v": None, "other": None},
+                            "other": {"v": None}}},
+            ]),
+            ([column.head(0) for column in columns], []),
+        ]
+        for result, expected in cases:
+            with self.subTest(empty_batch=not expected):
+                row_type = DataTypes.ROW([DataTypes.FIELD("result", result_type)])
+                schema = create_arrow_schema(row_type.field_names(), row_type.field_types(),
+                                             allow_nested=True)
+                coder = self.implementation.ArrowCoderImpl(
+                    schema, row_type, timezone, "PANDAS", True)
+                restored = self.arrow_coder(schema, row_type).decode(
+                    coder.encode([pd.concat(result, axis=1)])).to_pylist()
+                self.assertEqual(restored, expected)
+
+    def test_pandas_row_collections_round_trip(self):
+        import numpy as np
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        mapping = DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT())
+        row_type = DataTypes.ROW([
+            DataTypes.FIELD("payload", DataTypes.ROW([DataTypes.FIELD("payload", mapping)])),
+            DataTypes.FIELD("legacy", DataTypes.ARRAY(DataTypes.BIGINT()))])
+        schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
+        coder = self.implementation.ArrowCoderImpl(schema, row_type, pytz.UTC)
+        columns = [pd.Series([{"payload": [("x", 1), ("y", 2)]}, {"payload": []}]),
+                   pd.Series([[1, None], []])]
+        encoded = coder.encode(columns)
+        restored = coder.decode(encoded)
+        self.assertEqual(restored[0]["payload"].tolist(), [[("x", 1), ("y", 2)], []])
+        self.assertEqual(restored[1].iloc[0].dtype, np.dtype("float64"))
+        self.assertEqual(restored[1].iloc[0][0], 1.0)
+        self.assertTrue(np.isnan(restored[1].iloc[0][1]))
+        arrow_coder = self.arrow_coder(schema, row_type)
+        self.assertEqual(arrow_coder.decode(coder.encode(restored)).to_pylist(),
+                         arrow_coder.decode(encoded).to_pylist())
 
     def test_inferred_struct_nullability(self):
         from pyflink.table import DataTypes

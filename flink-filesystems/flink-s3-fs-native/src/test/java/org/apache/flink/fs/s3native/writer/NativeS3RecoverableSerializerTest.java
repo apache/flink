@@ -20,6 +20,8 @@ package org.apache.flink.fs.s3native.writer;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -109,5 +111,41 @@ class NativeS3RecoverableSerializerTest {
     void testVersionIsConsistent() {
         NativeS3RecoverableSerializer serializer = NativeS3RecoverableSerializer.INSTANCE;
         assertThat(serializer.getVersion()).isGreaterThanOrEqualTo(1);
+    }
+
+    /**
+     * Checkpoints and savepoints hold the tail key as an opaque string, so state written earlier
+     * must stay readable whatever the key looks like, and the bytes written must not change.
+     */
+    @Test
+    void testVersion1BytesWithTailKeyAtBucketRoot() throws IOException {
+        NativeS3RecoverableSerializer serializer = NativeS3RecoverableSerializer.INSTANCE;
+        String tailKey = ".incomplete/upload-id/0f8fad5b-d9cb-469f-a165-70867728950e";
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(bytes);
+        out.writeUTF("dir/out.txt");
+        out.writeUTF("upload-id");
+        out.writeLong(5242880L);
+        out.writeInt(1);
+        out.writeInt(1);
+        out.writeUTF("etag1");
+        out.writeBoolean(true);
+        out.writeUTF(tailKey);
+        out.writeLong(1024L);
+        out.flush();
+        byte[] version1 = bytes.toByteArray();
+
+        NativeS3Recoverable deserialized = serializer.deserialize(1, version1);
+
+        assertThat(deserialized.getObjectName()).isEqualTo("dir/out.txt");
+        assertThat(deserialized.uploadId()).isEqualTo("upload-id");
+        assertThat(deserialized.numBytesInParts()).isEqualTo(5242880L);
+        assertThat(deserialized.parts()).hasSize(1);
+        assertThat(deserialized.parts().get(0).getPartNumber()).isEqualTo(1);
+        assertThat(deserialized.parts().get(0).getETag()).isEqualTo("etag1");
+        assertThat(deserialized.incompleteObjectName()).isEqualTo(tailKey);
+        assertThat(deserialized.incompleteObjectLength()).isEqualTo(1024L);
+        assertThat(serializer.serialize(deserialized)).isEqualTo(version1);
     }
 }

@@ -388,7 +388,7 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
         explicit = pf.sql(query, auto_bind=False, source=source, chars=chars)
         automatic = pf.sql(query)
         self.assertEqual(explicit.columns, ["ch"])
-        self.assertEqual(explicit.schema.get_field_data_types(), [DataTypes.STRING()])
+        self.assertEqual(explicit.schema.get_field_data_types(), [DataTypes.STRING().not_null()])
         self.assertCountEqual(explicit.union_all(automatic).collect(), [Row("a"), Row("b")] * 2)
         self.assertNotIn("chars", self.t_env.list_user_defined_functions())
         self.assertNotIn("source", self.t_env.list_temporary_views())
@@ -402,9 +402,12 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
             yield {"word": text, "size": len(text)}
 
         source = pf.from_dict({"text": ["ab"]})
-        for return_dtype in (None, "ROW<word STRING, size BIGINT>",
-                             pf.DataType.struct({"word": pf.DataType.string(),
-                                                 "size": pf.DataType.int64()})):
+        nullable = [DataTypes.STRING(), DataTypes.BIGINT()]
+        for return_dtype, expected_types in (
+                (None, [DataTypes.STRING().not_null(), DataTypes.BIGINT().not_null()]),
+                ("ROW<word STRING, size BIGINT>", nullable),
+                (pf.DataType.struct({"word": pf.DataType.string(), "size": pf.DataType.int64()}),
+                 nullable)):
             with self.subTest(return_dtype=return_dtype):
                 declaration = pf.udtf(expand, return_dtype=return_dtype)
                 named = pf.sql(
@@ -415,8 +418,7 @@ class SqlTests(PyFlinkDataFrameUTTestCase):
                     auto_bind=False, src=source, expand=declaration)
                 self.assertEqual(named.columns, ["word", "size"])
                 self.assertEqual(aliased.columns, ["w", "n"])
-                self.assertEqual(named.schema.get_field_data_types(),
-                                 [DataTypes.STRING(), DataTypes.BIGINT()])
+                self.assertEqual(named.schema.get_field_data_types(), expected_types)
                 self.assertEqual(named.union_all(aliased).collect(), [Row("ab", 2)] * 2)
                 self.assertNotIn("expand", self.t_env.list_user_defined_functions())
 

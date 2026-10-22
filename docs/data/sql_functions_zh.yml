@@ -40,6 +40,12 @@ comparison:
   - sql: value IS NOT NULL
     table: value.isNotNull
     description: 如果值不为 `NULL` 返回 `TRUE`。
+  - sql: IS_NAN(value)
+    table: value.isNan
+    description: 如果值为 `NaN` 返回 `TRUE`；如果值是非 `NaN` 的数值返回 `FALSE`；如果值为 `NULL` 返回 `NULL`。
+  - sql: IS_NOT_NAN(value)
+    table: value.isNotNan
+    description: 如果值是非 `NaN` 的数值返回 `TRUE`；如果值为 `NaN` 返回 `FALSE`；如果值为 `NULL` 返回 `NULL`。
   - sql: value1 IS DISTINCT FROM value2
     description: |
       A 和 B 的数据类型和值不完全相同返回 `TRUE`。A 和 B 的数据类型和值都相同返回 `FALSE`。`NULL` 视为与任何其他值相同。
@@ -1213,8 +1219,18 @@ json:
 
       * `VARCHAR` / `STRING`
       * `BOOLEAN`
+      * `TINYINT`
+      * `SMALLINT`
       * `INTEGER`
+      * `BIGINT`
+      * `FLOAT`
       * `DOUBLE`
+      * `DECIMAL`
+
+      JSON string values are coerced to the requested numeric or boolean type (for example `"42"`
+      to a number, or `"true"`/`"t"`/`"yes"`/`"y"`/`"1"` to `TRUE`).
+      Values that do not fit the requested type (overflow, non-numeric string, non-0/1 number for
+      `BOOLEAN`) are treated as an error and follow the `ON ERROR` behavior.
 
       对于空路径表达式或错误，可以将行为定义为返回 `null`、引发错误或返回定义的默认值。当省略时，默认为 `NULL ON EMPTY` 或
       `NULL ON ERROR`。默认值可以是文字或表达式。如果默认值本身引发错误，就会造成 `ON EMPTY` 的错误行为，并引发 `ON ERROR` 的错误。
@@ -1244,12 +1260,16 @@ json:
       -- "right"
       JSON_VALUE('{"contains blank": "right"}', 'strict $.[''contains blank'']' NULL ON EMPTY DEFAULT 'wrong' ON ERROR)
       ```
-  - sql: JSON_QUERY(jsonValue, path [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
-    table: STRING.jsonQuery(path [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ])
+  - sql: JSON_QUERY(jsonValue, path [RETURNING <dataType>] [ { WITHOUT | WITH CONDITIONAL | WITH UNCONDITIONAL } [ ARRAY ] WRAPPER ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON EMPTY ] [ { NULL | EMPTY ARRAY | EMPTY OBJECT | ERROR } ON ERROR ])
+    table: STRING.jsonQuery(path [, returnType [, JsonQueryWrapper [, JsonQueryOnEmptyOrError, JsonQueryOnEmptyOrError ] ] ])
     description: |
-      从 JSON 字符串中提取 JSON 值。
+      Extracts JSON values from a JSON string.
 
-      结果总是以 `STRING` 的形式返回。目前尚不支持 `RETURNING` 子句。
+      The result is returned as a `STRING` by default. Using the `RETURNING` clause it can also be
+      returned as an `ARRAY` whose element type is `STRING` or any of the scalar types supported by
+      `JSON_VALUE` (`BOOLEAN`, `TINYINT`, `SMALLINT`, `INTEGER`, `BIGINT`, `FLOAT`, `DOUBLE`,
+      `DECIMAL`). Array elements are converted with the same coercion and `ON ERROR` rules as
+      `JSON_VALUE`.
 
       `wrappingBehavior` 决定是否将提取的值包装到一个数组中，以及是否无条件地这样做，还是只有当值本身不是数组时才这样做。
 
@@ -1461,9 +1481,10 @@ variant:
       将 JSON 字符串解析为 Variant。如果 JSON 字符串无效，将抛出错误。如果希望返回 NULL 而不是抛出错误，
       请使用 `TRY_PARSE_JSON` 函数。  
       
-      如果输入的 JSON 字符串中存在重复的键，当 allowDuplicateKeys 为 true 时，解析器会保留最后一个出现的具有相
-      同键的字段，否则当 allowDuplicateKeys 为 false 时，它会抛出一个错误。默认情况下，
-      allowDuplicateKeys 的值为 false。
+      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
+      parser will keep the last occurrence of all fields with the same key, otherwise when
+      `allowDuplicateKeys` is false it will throw an error. The default value of
+      `allowDuplicateKeys` is false. A NULL `allowDuplicateKeys` is treated as false.
 
       See the `VARIANT` data type documentation for how JSON values are mapped to variant kinds.
 
@@ -1473,15 +1494,57 @@ variant:
       尽可能将 JSON 字符串解析为 Variant。如果 JSON 字符串无效，则返回 NULL。如果希望抛出错误而不是返回 NULL，
       请使用 `PARSE_JSON` 函数。  
       
-      如果输入的 JSON 字符串中存在重复的键，当 allowDuplicateKeys 为 true 时，解析器会保留最后一个出现的具有相
-      同键的字段，否则当 allowDuplicateKeys 为 false 时，它会抛出一个错误。默认情况下，
-      allowDuplicateKeys 的值为 false。
+      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the
+      parser will keep the last occurrence of all fields with the same key, otherwise when
+      `allowDuplicateKeys` is false it will return NULL. The default value of
+      `allowDuplicateKeys` is false. A NULL `allowDuplicateKeys` is treated as false.
 
       See the `VARIANT` data type documentation for how JSON values are mapped to variant kinds.
 
   - sql: JSON_STRING(variant)
     description: |
       Generate a json string from a Variant object.
+
+  - sql: PARSE_XML(xml_string[, force_array])
+    table: STRING.parseXml([forceArray])
+    description: |
+      Parses an XML string into a Variant. If the XML string is invalid, an error is thrown. To
+      return NULL instead of an error, use the `TRY_PARSE_XML` function.
+
+      The result is an object with a single field for the root element. Attributes are stored as
+      `@name` fields, text as a `$` field, and child elements as fields named after their tag. An
+      element without attributes and child elements is stored as its text directly. A tag that
+      occurs more than once in an element is stored as an array. The `#` field records the order
+      of the children and text of an element.
+
+      If `force_array` is true, every child element, text, and position in a `#` field is stored
+      as an array, even if it occurs only once. This keeps the structure the same across documents
+      that repeat an element a different number of times. The default value of `force_array` is
+      false. A NULL `force_array` is treated as false.
+
+      External entities and external DTDs are not supported, and a document that references one
+      fails to parse.
+
+      ```sql
+      -- {"book":{"#":{"price":1,"title":0},"@pages":"320","price":"12.50","title":"Dune"}}
+      PARSE_XML('<book pages="320"><title>Dune</title><price>12.50</price></book>')
+
+      -- 'Dune'
+      CAST(PARSE_XML('<book><title>Dune</title></book>')['book']['title'] AS STRING)
+
+      -- {"book":{"title":["Dune"]}}
+      PARSE_XML('<book><title>Dune</title></book>', TRUE)
+      ```
+
+      See the "XML to VARIANT" section below the function table for how XML is mapped to a Variant.
+
+  - sql: TRY_PARSE_XML(xml_string[, force_array])
+    table: STRING.tryParseXml([forceArray])
+    description: |
+      Parses an XML string into a Variant. If the XML string is invalid, returns NULL. To throw an
+      error instead of returning NULL, use the `PARSE_XML` function.
+
+      See `PARSE_XML` for the full documentation.
 
   - sql: variant '[' INT ']'
     table: VARIANT.at(INT)

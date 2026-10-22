@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import java.time.ZoneId;
+
 /**
  * Cast rule that has code generation capabilities.
  *
@@ -63,6 +65,11 @@ public interface CodeGeneratorCastRule<IN, OUT> extends CastRule<IN, OUT> {
         String getSessionTimeZoneTerm();
 
         /**
+         * @return the session time zone.
+         */
+        ZoneId getSessionZoneId();
+
+        /**
          * Declare a new variable accessible within the scope of the caller of {@link
          * #generateCodeBlock(Context, String, String, LogicalType, LogicalType)}.
          *
@@ -74,6 +81,15 @@ public interface CodeGeneratorCastRule<IN, OUT> extends CastRule<IN, OUT> {
          * @return the term for the type serializer.
          */
         String declareTypeSerializer(LogicalType type);
+
+        /**
+         * Declare a field that holds the given object. The class of the object must be public,
+         * because the generated code refers to it by name. The object must be serializable, because
+         * the planner copies it into the generated class and ships it with that class.
+         *
+         * @return the field term
+         */
+        String declareReusableObject(Object object, String fieldPrefix);
 
         /**
          * @return field term. The field is going to be declared as final.

@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
@@ -27,14 +25,6 @@ import java.util.List;
 
 /** Semantic tests for the built-in TO_CHANGELOG process table function. */
 public class ToChangelogSemanticTests extends SemanticTestBase {
-
-    @Override
-    protected void applyDefaultEnvironmentOptions(TableConfig config) {
-        super.applyDefaultEnvironmentOptions(config);
-        config.set(
-                OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
-                OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE);
-    }
 
     @Override
     public List<TableTestProgram> programs() {
@@ -49,12 +39,18 @@ public class ToChangelogSemanticTests extends SemanticTestBase {
                 ToChangelogTestPrograms.CUSTOM_OP_NAME,
                 ToChangelogTestPrograms.TABLE_API_DEFAULT,
                 ToChangelogTestPrograms.TABLE_API_RETRACT_PARTITION_BY,
+                ToChangelogTestPrograms.TABLE_API_CUSTOM_OP_MAPPING,
+                ToChangelogTestPrograms.TABLE_API_DELETION_FLAG,
+                ToChangelogTestPrograms.TABLE_API_PRODUCES_PARTIAL_DELETES,
                 ToChangelogTestPrograms.LAG_ON_UPSERT_VIA_CHANGELOG,
                 ToChangelogTestPrograms.LAG_ON_RETRACT_VIA_CHANGELOG,
                 ToChangelogTestPrograms.DELETION_FLAG,
                 ToChangelogTestPrograms.INVALID_DESCRIPTOR,
                 ToChangelogTestPrograms.INVALID_OP_MAPPING,
                 ToChangelogTestPrograms.DUPLICATE_ROW_KIND,
+                ToChangelogTestPrograms.TABLE_API_OP_MAPPING_WITH_NESTED_CALL,
+                ToChangelogTestPrograms.TABLE_API_OP_MAPPING_WITH_COLUMN_REFERENCE,
+                ToChangelogTestPrograms.TABLE_API_OP_MAPPING_WITH_NULL_ENTRY,
                 ToChangelogTestPrograms.RETRACT_PRODUCES_PARTIAL_DELETES,
                 ToChangelogTestPrograms.UPSERT_PRODUCES_FULL_DELETES,
                 ToChangelogTestPrograms.UPSERT_PRODUCES_PARTIAL_DELETES,

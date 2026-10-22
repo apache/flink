@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.functions.python.PythonAsyncScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.functions.python.PythonScalarFunction;
@@ -57,6 +58,42 @@ class PythonCalcSplitFunctionKindRuleTest extends TableTestBase {
     @Test
     void testBatchMapComposition() {
         verifyMapComposition(javaBatchTestUtil());
+    }
+
+    @Test
+    void testStreamingAsyncMapComposition() {
+        verifyAsyncMapComposition(javaStreamTestUtil());
+    }
+
+    @Test
+    void testBatchAsyncMapComposition() {
+        verifyAsyncMapComposition(javaBatchTestUtil());
+    }
+
+    private void verifyAsyncMapComposition(JavaTableTestUtil util) {
+        util.addTableSource("T", Schema.newBuilder().column("a", DataTypes.INT()).build());
+        final DataType resultType = DataTypes.ROW(DataTypes.FIELD("a", DataTypes.INT()));
+        registerFunctions(util, resultType, true);
+        util.tableEnv()
+                .createTemporarySystemFunction(
+                        "async_udf",
+                        new PythonAsyncScalarFunction(
+                                "async_udf",
+                                new byte[0],
+                                new DataType[] {DataTypes.INT()},
+                                resultType,
+                                PythonFunctionKind.GENERAL,
+                                true,
+                                true,
+                                new PythonEnv(PythonEnv.ExecType.PROCESS)));
+        final Table result =
+                util.tableEnv()
+                        .from("T")
+                        .map(call("general_udf", $("a")))
+                        .map(call("async_udf", $("a")))
+                        .map(call("async_udf", $("a")))
+                        .map(call("general_udf", $("a")));
+        util.verifyRelPlan(result);
     }
 
     private void verifyComposition(JavaTableTestUtil util) {

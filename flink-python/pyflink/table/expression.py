@@ -96,7 +96,8 @@ _string_doc_seealso = """
              :py:attr:`~Expression.from_base64`, :py:attr:`~Expression.to_base64`,
              :func:`~Expression.ltrim`, :func:`~Expression.rtrim`, :func:`~Expression.repeat`,
              :func:`~Expression.json_quote`, :func:`~Expression.json_unquote`,
-             :func:`~Expression.parse_json`, :func:`~Expression.try_parse_json`
+             :func:`~Expression.parse_json`, :func:`~Expression.try_parse_json`,
+             :func:`~Expression.parse_xml`, :func:`~Expression.try_parse_xml`
 """
 
 _temporal_doc_seealso = """
@@ -196,7 +197,8 @@ def _make_string_doc():
         Expression.regexp_extract, Expression.from_base64, Expression.to_base64,
         Expression.ltrim, Expression.rtrim, Expression.repeat,
         Expression.json_quote, Expression.json_unquote,
-        Expression.parse_json, Expression.try_parse_json
+        Expression.parse_json, Expression.try_parse_json,
+        Expression.parse_xml, Expression.try_parse_xml
     ]
 
     for func in string_funcs:
@@ -765,6 +767,24 @@ class Expression(Generic[T]):
                      :py:attr:`~Expression.is_not_true`
         """
         return _unary_op("isNotFalse")(self)
+
+    @property
+    def is_nan(self) -> 'Expression[bool]':
+        """
+        Returns true if the given numeric expression is NaN (Not-a-Number).
+
+        .. seealso:: :py:attr:`~Expression.is_not_nan`
+        """
+        return _unary_op("isNan")(self)
+
+    @property
+    def is_not_nan(self) -> 'Expression[bool]':
+        """
+        Returns true if the given numeric expression is not NaN (Not-a-Number).
+
+        .. seealso:: :py:attr:`~Expression.is_nan`
+        """
+        return _unary_op("isNotNan")(self)
 
     @property
     def distinct(self) -> 'Expression':
@@ -1579,22 +1599,97 @@ class Expression(Generic[T]):
         """
         return _binary_op("repeat")(self, n)
 
-    def over(self, alias) -> 'Expression':
+    def over(
+        self,
+        alias=None,
+        *,
+        order_by=None,
+        partition_by=None,
+        rows=None,
+        range=None,
+    ) -> 'Expression':
         """
-        Defines an aggregation to be used for a previously specified over window.
+        Defines an aggregation over a named Table API window or an inline DataFrame window.
 
-        Example:
-        ::
+        A positional ``alias`` or ``alias=`` refers to a named Table API window. Inline DataFrame
+        windows require ``order_by=`` and can use ``rows`` or ``range``. Matching Table API frame
+        constants are also accepted (``*_ROW`` with ``rows``, ``*_RANGE`` with ``range``).
 
-            >>> tab.window(Over
-            >>>         .partition_by(col('c'))
-            >>>         .order_by(col('rowtime'))
-            >>>         .preceding(row_interval(2))
-            >>>         .following(CURRENT_ROW)
-            >>>         .alias("w")) \\
-            >>>     .select(col('c'), col('a'), col('a').count.over(col('w')))
+        A scalar ``rows`` value is a positive integer describing the number of preceding rows. A
+        scalar ``range`` value is a non-negative :class:`datetime.timedelta` or Flink duration
+        string describing the preceding time interval. Both frames can instead be specified as a
+        two-element ``(lower, upper)`` tuple. Explicit bounds are created with
+        :func:`~pyflink.dataframe.over_window.preceding` and
+        :func:`~pyflink.dataframe.over_window.following`, or with matching constants from
+        :mod:`pyflink.table.expressions`.
+
+        :param alias: Expression identifying a previously declared Table API OVER window. It
+                      cannot be combined with inline window arguments.
+        :type alias: Optional[Expression]
+        :param order_by: Column name or expression identifying the single ordering time attribute
+                         of an inline window.
+        :type order_by: Optional[Union[str, Expression]]
+        :param partition_by: Optional column name, expression, or non-empty list or tuple of column
+                             names and expressions used as partition keys.
+        :type partition_by: Optional[Union[str, Expression, List[Union[str, Expression]],
+                            Tuple[Union[str, Expression], ...]]]
+        :param rows: Optional positive row count or two-element ROW-frame bound tuple.
+        :type rows: Optional[Union[int, Expression, Tuple[Union[FrameBoundary, Expression],
+                    Union[FrameBoundary, Expression]]]]
+        :param range: Optional Flink duration string, :class:`datetime.timedelta`, or two-element
+                      RANGE-frame bound tuple.
+        :type range: Optional[Union[str, datetime.timedelta, Expression,
+                     Tuple[Union[FrameBoundary, Expression],
+                     Union[FrameBoundary, Expression]]]]
+        :return: An OVER aggregation expression.
+        :raises TypeError: If named- and inline-window arguments are combined, a required
+                           ``order_by`` is missing, or an argument has an unsupported type.
+        :raises ValueError: If ``rows`` and ``range`` are both provided, or a frame bound has an
+                            invalid value, direction, or frame kind.
+
+        Given a DataFrame ``df`` containing ``key``, ``amount``, and ``rowtime``::
+
+            >>> import pyflink.dataframe as pf
+            >>> from pyflink.table.expressions import CURRENT_ROW, UNBOUNDED_ROW
+            >>> result = df.select(
+            ...     "key",
+            ...     running=pf.col("amount").sum.over(
+            ...         order_by="rowtime", partition_by="key",
+            ...         rows=(pf.preceding(2), CURRENT_ROW)))
+
+        Table API frame constants can also define the bounds::
+
+            >>> cumulative = pf.col("amount").sum.over(
+            ...     order_by="rowtime", rows=(UNBOUNDED_ROW, CURRENT_ROW))
+
+        For an existing named Table API window ``w``::
+
+            >>> pf.col("amount").sum.over(alias=pf.col("w"))
+
+        .. versionchanged:: 2.4.0
+           Added inline DataFrame window arguments while preserving named Table API windows.
         """
-        return _binary_op("over")(self, alias)
+        if alias is not None and order_by is not None:
+            raise TypeError("over() cannot specify both alias and order_by")
+        if alias is not None and (
+            partition_by is not None or rows is not None or range is not None
+        ):
+            raise TypeError("over() cannot combine alias with inline window arguments")
+        if alias is not None:
+            return _binary_op("over")(self, alias)
+
+        if order_by is None:
+            raise TypeError("over() missing required argument: order_by")
+
+        from pyflink.table._over_window import _build_over_expression
+
+        return _build_over_expression(
+            self,
+            order_by,
+            partition_by=partition_by,
+            rows=rows,
+            range_=range,
+        )
 
     @property
     def reverse(self) -> 'Expression[str]':
@@ -2210,8 +2305,13 @@ class Expression(Generic[T]):
 
         * `STRING`
         * `BOOLEAN`
+        * `TINYINT`
+        * `SMALLINT`
         * `INT`
+        * `BIGINT`
+        * `FLOAT`
         * `DOUBLE`
+        * `DECIMAL`
 
         For empty path expressions or errors a behavior can be defined to either return `null`,
         raise an error or return a defined default value instead.
@@ -2328,6 +2428,33 @@ class Expression(Generic[T]):
             return _unary_op("tryParseJson")(self)
         else:
             return _binary_op("tryParseJson")(self, allow_duplicate_keys)
+
+    def parse_xml(self, force_array=None) -> 'Expression':
+        """
+        Parses an XML string into a value of VARIANT type. If the XML string is invalid,
+        an error is thrown. To return None instead of an error, use
+        :func:`~Expression.try_parse_xml`.
+
+        If force_array is True, every child element, text, and position in a # field is stored
+        as an array, even if it occurs only once. force_array can be a bool or a boolean
+        expression, and its default value is False. A NULL value is treated as False.
+        """
+        if force_array is None:
+            return _unary_op("parseXml")(self)
+        else:
+            return _binary_op("parseXml")(self, force_array)
+
+    def try_parse_xml(self, force_array=None) -> 'Expression':
+        """
+        Parses an XML string into a value of VARIANT type. If the XML string is invalid,
+        None is returned. To throw an error instead, use :func:`~Expression.parse_xml`.
+
+        See :func:`~Expression.parse_xml` for the meaning of force_array.
+        """
+        if force_array is None:
+            return _unary_op("tryParseXml")(self)
+        else:
+            return _binary_op("tryParseXml")(self, force_array)
 
     def json_length(self, path=None) -> 'Expression':
         """

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -29,6 +30,10 @@ import org.apache.flink.types.RowKind;
 import java.time.Instant;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.descriptor;
+import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.map;
+import static org.apache.flink.table.api.Expressions.nullOf;
 
 /** {@link TableTestProgram} definitions for testing the built-in TO_CHANGELOG PTF. */
 public class ToChangelogTestPrograms {
@@ -481,6 +486,107 @@ public class ToChangelogTestPrograms {
                     .runTableApi(env -> env.from("t").partitionBy($("id")).toChangelog(), "sink")
                     .build();
 
+    public static final TableTestProgram TABLE_API_CUSTOM_OP_MAPPING =
+            TableTestProgram.of(
+                            "to-changelog-table-api-custom-op-mapping",
+                            "Table.toChangelog() with a map() op_mapping maps change operations to user-defined codes")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.all())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "Alice", 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("op_code STRING", "name STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[I, Alice, 10]",
+                                            "+I[I, Bob, 20]",
+                                            "+I[U, Alice, 30]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    descriptor("op_code").asArgument("op"),
+                                                    map("INSERT", "I", "UPDATE_AFTER", "U")
+                                                            .asArgument("op_mapping")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_DELETION_FLAG =
+            TableTestProgram.of(
+                            "to-changelog-table-api-deletion-flag",
+                            "Table.toChangelog() with a map() op_mapping produces deletion flag output")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.all())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "Alice", 10L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Alice", 30L),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("deleted STRING", "name STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[false, Alice, 10]",
+                                            "+I[false, Bob, 20]",
+                                            "+I[false, Alice, 30]",
+                                            "+I[true, Bob, 20]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    descriptor("deleted").asArgument("op"),
+                                                    map(
+                                                                    "INSERT, UPDATE_AFTER",
+                                                                    "false",
+                                                                    "DELETE",
+                                                                    "true")
+                                                            .asArgument("op_mapping")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_PRODUCES_PARTIAL_DELETES =
+            TableTestProgram.of(
+                            "to-changelog-table-api-produces-partial-deletes",
+                            "Table.toChangelog() with produces_full_deletes=false keeps only the "
+                                    + "upsert key on DELETE")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10L),
+                                            Row.ofKind(RowKind.DELETE, "Alice", 10L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("op STRING", "name STRING", "score BIGINT")
+                                    .consumedValues(
+                                            "+I[INSERT, Alice, 10]", "+I[DELETE, Alice, null]")
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    lit(false).asArgument("produces_full_deletes")),
+                            "sink")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Use case: LAG on updating streams via TO_CHANGELOG
     // --------------------------------------------------------------------------------------------
@@ -716,6 +822,54 @@ public class ToChangelogTestPrograms {
                                     + "op_mapping => MAP['INSERT, DELETE', 'A', 'DELETE', 'B'])",
                             ValidationException.class,
                             "Duplicate change operation: 'DELETE'")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_OP_MAPPING_WITH_NESTED_CALL =
+            TableTestProgram.of(
+                            "to-changelog-table-api-op-mapping-with-nested-call",
+                            "fails when a map() op_mapping entry is a nested call")
+                    .setupTableSource(SIMPLE_SOURCE)
+                    .runFailingTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    map("INSERT", lit("i").upperCase())
+                                                            .asArgument("op_mapping")),
+                            "sink",
+                            ValidationException.class,
+                            "The 'op_mapping' argument must be a constant MAP literal.")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_OP_MAPPING_WITH_COLUMN_REFERENCE =
+            TableTestProgram.of(
+                            "to-changelog-table-api-op-mapping-with-column-reference",
+                            "fails when a map() op_mapping entry is a non-literal column reference")
+                    .setupTableSource(SIMPLE_SOURCE)
+                    .runFailingTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    map("INSERT", $("name"))
+                                                            .asArgument("op_mapping")),
+                            "sink",
+                            ValidationException.class,
+                            "Cannot resolve field [name], input field list:[].")
+                    .build();
+
+    public static final TableTestProgram TABLE_API_OP_MAPPING_WITH_NULL_ENTRY =
+            TableTestProgram.of(
+                            "to-changelog-table-api-op-mapping-with-null-entry",
+                            "fails when a map() op_mapping entry is NULL")
+                    .setupTableSource(SIMPLE_SOURCE)
+                    .runFailingTableApi(
+                            env ->
+                                    env.from("t")
+                                            .toChangelog(
+                                                    map("INSERT", nullOf(DataTypes.STRING()))
+                                                            .asArgument("op_mapping")),
+                            "sink",
+                            ValidationException.class,
+                            "The 'op_mapping' argument must be a constant MAP literal.")
                     .build();
 
     // --------------------------------------------------------------------------------------------

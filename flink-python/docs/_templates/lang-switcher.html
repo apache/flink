@@ -17,15 +17,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 {# Language switcher: links to the same page in the other language #}
-<span class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" data-toggle="tooltip"
+<span class="btn btn-sm btn-outline-primary navbar-btn rounded-circle" data-toggle="tooltip"
   {% if language == 'zh' %}title="Switch to English"{% else %}title="切换到中文"{% endif %}>
-  <a id="lang-switch" href="#" style="display:flex">
+  <a href="#" style="display:flex">
     <i class="fa-solid fa-language"></i>
   </a>
 </span>
 <script>
 (function() {
-  var link = document.getElementById('lang-switch');
+  // The theme renders the navbar twice (header and mobile sidebar), so find this copy's link
+  var link = document.currentScript.previousElementSibling.querySelector('a');
   var path = window.location.pathname;
   {% if language == 'zh' %}
   // Chinese -> English: remove the /zh/ path segment

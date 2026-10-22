@@ -22,7 +22,7 @@ from pyflink.common.types import RowKind
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, LocalZonedTimestampType, Row, RowType, \
-    TimeType, DateType, ArrayType, MapType, TimestampType, FloatType, RawType
+    TimeType, DateType, ArrayType, MapType, TimestampType, FloatType, RawType, create_arrow_schema
 from pyflink.util.api_stability_decorators import Internal
 from pyflink.util.java_utils import to_jarray
 import datetime
@@ -161,6 +161,44 @@ def _get_offsets(column):
 
 
 @Internal()
+def create_pandas_table_row_schema(row_type):
+    import pyarrow as pa
+
+    if len(row_type) != 1 or not isinstance(row_type[0].data_type, RowType):
+        raise TypeError("A table-row result must have exactly one ROW field.")
+    field = row_type[0]
+    # Validate its children as physical columns, not as fields of a user ROW column.
+    child_schema = create_arrow_schema(
+        field.data_type.field_names(), field.data_type.field_types())
+    return pa.schema([pa.field(field.name, pa.struct(list(child_schema)),
+                               nullable=field.data_type._nullable)])
+
+
+@Internal()
+def pandas_table_row_to_arrow(schema, timezone, row_type, dataframe):
+    import pyarrow as pa
+
+    field_types = row_type.field_types()
+    widths = [len(field_type) if isinstance(field_type, RowType) else 1
+              for field_type in field_types]
+    field_count = sum(widths)
+    if dataframe.shape[1] != field_count:
+        raise ValueError(f"Pandas table-row result has {dataframe.shape[1]} columns, "
+                         f"expected {field_count}.")
+    columns = []
+    offset = 0
+    for field_type, width in zip(field_types, widths):
+        # Schema positions retain ROW boundaries even when flattened names are duplicated.
+        columns.append(dataframe.iloc[:, offset:offset + width]
+                       if isinstance(field_type, RowType) else dataframe.iloc[:, offset])
+        offset += width
+    batch = pandas_to_arrow(
+        pa.schema(list(schema[0].type)), timezone, field_types, columns)
+    array = pa.StructArray.from_arrays(batch.columns, fields=list(schema[0].type))
+    return pa.RecordBatch.from_arrays([array], schema=schema)
+
+
+@Internal()
 def pandas_to_arrow(schema, timezone, field_types, series):
     import pyarrow as pa
     import pandas as pd
@@ -179,10 +217,9 @@ def pandas_to_arrow(schema, timezone, field_types, series):
         field_type = field_types[i]
         schema_type = schema.types[i]
         if type(s) == pd.DataFrame:
-            array_names = [(create_array(s[s.columns[j]], field.type), field.name)
-                           for j, field in enumerate(schema_type)]
-            struct_arrays, struct_names = zip(*array_names)
-            arrays.append(pa.StructArray.from_arrays(struct_arrays, struct_names))
+            struct_arrays = [create_array(s[s.columns[j]], field.type)
+                             for j, field in enumerate(schema_type)]
+            arrays.append(pa.StructArray.from_arrays(struct_arrays, fields=list(schema_type)))
         else:
             arrays.append(create_array(
                 tz_convert_to_internal(s, field_type, timezone), schema_type))

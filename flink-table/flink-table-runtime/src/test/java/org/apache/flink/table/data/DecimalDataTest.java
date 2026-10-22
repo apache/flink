@@ -19,8 +19,12 @@
 package org.apache.flink.table.data;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigDecimal;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.data.DecimalDataUtils.abs;
 import static org.apache.flink.table.data.DecimalDataUtils.add;
@@ -45,9 +49,72 @@ import static org.apache.flink.table.data.DecimalDataUtils.signum;
 import static org.apache.flink.table.data.DecimalDataUtils.sround;
 import static org.apache.flink.table.data.DecimalDataUtils.subtract;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /** Test for {@link DecimalData}. */
 class DecimalDataTest {
+
+    private static Stream<Arguments> compactCastCases() {
+        return Stream.of(
+                // unscaled, srcPrecision, srcScale, targetPrecision, targetScale
+                arguments(0L, 5, 2, 3, 1),
+                arguments(123L, 5, 2, 6, 2),
+                arguments(12345L, 5, 0, 10, 2),
+                arguments(24L, 2, 1, 2, 0),
+                arguments(25L, 2, 1, 2, 0),
+                arguments(-25L, 2, 1, 2, 0),
+                arguments(995L, 3, 2, 2, 1),
+                arguments(-995L, 3, 2, 2, 1),
+                arguments(999_999_999_999_999_999L, 18, 0, 18, 2),
+                arguments(999_999_999_999_999_999L, 18, 0, 18, 0),
+                arguments(-999_999_999_999_999_999L, 18, 0, 18, 0),
+                arguments(12345L, 5, 2, 3, 2));
+    }
+
+    private static Stream<Arguments> longCastCases() {
+        return Stream.of(
+                // val, targetPrecision, targetScale
+                arguments(0L, 3, 1),
+                arguments(123L, 5, 2),
+                arguments(-123L, 5, 2),
+                arguments(Long.MAX_VALUE, 18, 0),
+                arguments(Long.MIN_VALUE, 18, 0),
+                arguments(999_999_999_999_999_999L, 18, 0),
+                arguments(99L, 2, 1));
+    }
+
+    @ParameterizedTest(name = "{0} -> DECIMAL({1},{2})")
+    @MethodSource("longCastCases")
+    void testCastFromLongCompactMatchesBigDecimal(long val, int targetPrecision, int targetScale) {
+        final DecimalData expected =
+                DecimalData.fromBigDecimal(BigDecimal.valueOf(val), targetPrecision, targetScale);
+        final DecimalData actual = castFrom(val, targetPrecision, targetScale);
+
+        assertCastMatches(actual, expected);
+    }
+
+    @ParameterizedTest(name = "unscaled={0} DECIMAL({1},{2}) -> DECIMAL({3},{4})")
+    @MethodSource("compactCastCases")
+    void testCastToDecimalCompactMatchesBigDecimal(
+            long unscaled, int srcPrecision, int srcScale, int targetPrecision, int targetScale) {
+        final DecimalData src = DecimalData.fromUnscaledLong(unscaled, srcPrecision, srcScale);
+        final DecimalData expected =
+                DecimalData.fromBigDecimal(src.toBigDecimal(), targetPrecision, targetScale);
+        final DecimalData actual = castToDecimal(src, targetPrecision, targetScale);
+
+        assertCastMatches(actual, expected);
+    }
+
+    private static void assertCastMatches(DecimalData actual, DecimalData expected) {
+        if (expected == null) {
+            assertThat(actual).isNull();
+        } else {
+            assertThat(actual).isNotNull();
+            assertThat(actual.precision()).isEqualTo(expected.precision());
+            assertThat(actual.scale()).isEqualTo(expected.scale());
+            assertThat(actual.toBigDecimal()).isEqualTo(expected.toBigDecimal());
+        }
+    }
 
     @SuppressWarnings("ConstantConditions")
     @Test

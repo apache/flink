@@ -291,6 +291,9 @@ abstract class BaseMappingExtractor {
             throw extractionError(
                     "Aggregating functions need exactly one state entry for the accumulator.");
         }
+        if (state.hasBroadcastState()) {
+            throw extractionError("Broadcast state is only supported for process table functions.");
+        }
     }
 
     protected static void checkScalarArgumentsOnly(FunctionSignatureTemplate arguments) {
@@ -648,7 +651,8 @@ abstract class BaseMappingExtractor {
         if (rootTrait.contains(ArgumentTrait.SCALAR)) {
             return extractScalarArgument(typeFactory, extractedClass, arg);
         } else if (rootTrait.contains(ArgumentTrait.ROW_SEMANTIC_TABLE)
-                || rootTrait.contains(ArgumentTrait.SET_SEMANTIC_TABLE)) {
+                || rootTrait.contains(ArgumentTrait.SET_SEMANTIC_TABLE)
+                || rootTrait.contains(ArgumentTrait.BROADCAST_SEMANTIC_TABLE)) {
             return extractTableArgument(typeFactory, argumentHint, extractedClass, arg);
         } else {
             throw extractionError("Unknown argument kind.");

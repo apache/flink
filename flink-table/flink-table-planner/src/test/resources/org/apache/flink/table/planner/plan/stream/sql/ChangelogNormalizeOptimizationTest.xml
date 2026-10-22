@@ -56,10 +56,10 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
 +- Calc(select=[id, col1, col2], changelogMode=[I,UA,D])
    +- Join(joinType=[InnerJoin], where=[=(id, id0)], select=[id, col1, col2, id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,D])
       :- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,D])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, project=[id, col1, col2]]], fields=[id, col1, col2], changelogMode=[UA,D])
       +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
          +- Calc(select=[id], changelogMode=[UA,D])
-            +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,D])
+            +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, project=[id, col1, col2]]], fields=[id, col1, col2], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -82,10 +82,10 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
 +- Calc(select=[id, col1, col2], changelogMode=[I,UA,PD])
    +- Join(joinType=[InnerJoin], where=[=(id, id0)], select=[id, col1, col2, id0], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA,PD])
       :- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2]]], fields=[id, col1, col2], changelogMode=[UA,PD])
       +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
          +- Calc(select=[id], changelogMode=[UA,PD])
-            +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+            +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2]]], fields=[id, col1, col2], changelogMode=[UA,PD])
 ]]>
     </Resource>
   </TestCase>
@@ -110,7 +110,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
       :- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
       :  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes]], fields=[id, col1, col2], changelogMode=[UA,D])
       +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
-         +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id], metadata=[]]], fields=[id], changelogMode=[UA,PD])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id]]], fields=[id], changelogMode=[UA,PD])
 ]]>
     </Resource>
   </TestCase>
@@ -135,7 +135,7 @@ Sink(table=[default_catalog.default_database.upsert_sink_table], fields=[id, col
       :- Exchange(distribution=[hash[id]], changelogMode=[I,UA,PD])
       :  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes]], fields=[id, col1, col2], changelogMode=[UA,PD])
       +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
-         +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, project=[id], metadata=[]]], fields=[id], changelogMode=[UA,D])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_full_deletes, project=[id]]], fields=[id], changelogMode=[UA,D])
 ]]>
     </Resource>
   </TestCase>
@@ -160,12 +160,12 @@ Sink(table=[default_catalog.default_database.upsert_sink_table_full_deletes], fi
       :- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
       :  +- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
       :     +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
-      :        +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2]]], fields=[id, col1, col2], changelogMode=[UA,PD])
       +- Exchange(distribution=[hash[id]], changelogMode=[I,UA,D])
          +- ChangelogNormalize(key=[id], changelogMode=[I,UA,D])
             +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
                +- Calc(select=[id], changelogMode=[UA,PD])
-                  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+                  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2]]], fields=[id, col1, col2], changelogMode=[UA,PD])
 ]]>
     </Resource>
   </TestCase>
@@ -190,12 +190,12 @@ Sink(table=[default_catalog.default_database.all_change_sink_table], fields=[id,
       :- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
       :  +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
       :     +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
-      :        +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2]]], fields=[id, col1, col2], changelogMode=[UA,PD])
       +- Exchange(distribution=[hash[id]], changelogMode=[I,UB,UA,D])
          +- ChangelogNormalize(key=[id], changelogMode=[I,UB,UA,D])
             +- Exchange(distribution=[hash[id]], changelogMode=[UA,PD])
                +- Calc(select=[id], changelogMode=[UA,PD])
-                  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2], metadata=[]]], fields=[id, col1, col2], changelogMode=[UA,PD])
+                  +- TableSourceScan(table=[[default_catalog, default_database, upsert_table_partial_deletes, project=[id, col1, col2]]], fields=[id, col1, col2], changelogMode=[UA,PD])
 ]]>
     </Resource>
   </TestCase>

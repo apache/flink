@@ -146,6 +146,7 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -1405,6 +1406,83 @@ public class DispatcherTest extends AbstractDispatcherTest {
         assertOnlyContainsRunningJobsWithOrder(
                 dispatcherGateway.requestMultipleJobDetails(TIMEOUT).get(),
                 Stream.of(jobId, secondJobID).sorted().collect(Collectors.toList()));
+    }
+
+    /**
+     * A JobMaster that fails or times out on {@code requestJobDetails} must not cause its running
+     * job to be silently omitted from an otherwise successful response: clients (such as the
+     * Kubernetes operator) treat absence from this list as "job not found".
+     */
+    @Test
+    public void testRequestMultipleJobDetails_doesNotSilentlyOmitJobWhoseJobMasterQueryFails()
+            throws Exception {
+        final JobID secondJobID = new JobID();
+        final DispatcherGateway dispatcherGateway =
+                createDispatcherWithUnresponsiveSecondJob(
+                        TestingJobManagerRunner.newBuilder()
+                                .setJobId(secondJobID)
+                                .setJobDetailsFutureFunction(
+                                        DispatcherTest::failedJobMasterQueryFuture));
+
+        assertFailsWithJobMasterQueryFailure(
+                dispatcherGateway.requestMultipleJobDetails(TIMEOUT), secondJobID);
+    }
+
+    /**
+     * A JobMaster that fails or times out on {@code requestJobStatus} must not cause its running
+     * job to be silently left out of the job counts of an otherwise successful response.
+     */
+    @Test
+    public void testRequestClusterOverview_doesNotSilentlyOmitJobWhoseJobMasterQueryFails()
+            throws Exception {
+        final JobID secondJobID = new JobID();
+        final DispatcherGateway dispatcherGateway =
+                createDispatcherWithUnresponsiveSecondJob(
+                        TestingJobManagerRunner.newBuilder()
+                                .setJobId(secondJobID)
+                                .setJobStatusFunction(DispatcherTest::failedJobMasterQueryFuture));
+
+        assertFailsWithJobMasterQueryFailure(
+                dispatcherGateway.requestClusterOverview(TIMEOUT), secondJobID);
+    }
+
+    /**
+     * Fails through {@code thenApply}, like the production {@code JobManagerRunner} queries do, so
+     * that the failure arrives wrapped in a {@link CompletionException}.
+     */
+    private static <T> CompletableFuture<T> failedJobMasterQueryFuture() {
+        return FutureUtils.<T>completedExceptionally(
+                        new TimeoutException("JobMaster did not answer in time"))
+                .thenApply(Function.identity());
+    }
+
+    private DispatcherGateway createDispatcherWithUnresponsiveSecondJob(
+            TestingJobManagerRunner.Builder unresponsiveJobManagerRunner) throws Exception {
+        final TestingJobManagerRunner secondJobManagerRunner = unresponsiveJobManagerRunner.build();
+        final JobGraph secondJobGraph = JobGraphTestUtils.streamingJobGraph();
+        secondJobGraph.setJobID(secondJobManagerRunner.getJobID());
+        secondJobGraph.setApplicationId(applicationId);
+        final JobManagerRunnerFactory jobManagerRunnerFactory =
+                new QueuedJobManagerRunnerFactory(
+                        runningJobManagerRunnerWithJobStatus(JobStatus.RUNNING, jobId, 10L),
+                        secondJobManagerRunner);
+
+        return createDispatcherAndStartJobs(
+                jobManagerRunnerFactory, Arrays.asList(jobGraph, secondJobGraph));
+    }
+
+    private static void assertFailsWithJobMasterQueryFailure(
+            CompletableFuture<?> future, JobID failedJobId) {
+        assertThatFuture(future)
+                .eventuallyFailsWith(ExecutionException.class)
+                .havingCause()
+                .isInstanceOf(FlinkException.class)
+                .withMessage(
+                        "Could not retrieve information about job %s from its JobMaster.",
+                        failedJobId)
+                .havingCause()
+                .isInstanceOf(TimeoutException.class)
+                .withMessage("JobMaster did not answer in time");
     }
 
     @Test

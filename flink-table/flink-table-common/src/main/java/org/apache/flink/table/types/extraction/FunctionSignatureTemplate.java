@@ -127,7 +127,9 @@ final class FunctionSignatureTemplate {
                                     final EnumSet<StaticArgumentTrait> traits = argumentTraits[pos];
                                     if (traits.contains(StaticArgumentTrait.ROW_SEMANTIC_TABLE)
                                             || traits.contains(
-                                                    StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+                                                    StaticArgumentTrait.SET_SEMANTIC_TABLE)
+                                            || traits.contains(
+                                                    StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE)) {
                                         return createTableArgument(
                                                 name,
                                                 isOptional,

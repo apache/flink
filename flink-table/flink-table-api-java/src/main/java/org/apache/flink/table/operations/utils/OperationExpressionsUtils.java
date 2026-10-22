@@ -167,6 +167,8 @@ public class OperationExpressionsUtils {
                 aggregates.computeIfAbsent(unresolvedCall, expr -> "EXPR$" + uniqueId++);
             } else if (WINDOW_PROPERTIES.contains(functionDefinition)) {
                 properties.computeIfAbsent(unresolvedCall, expr -> "EXPR$" + uniqueId++);
+            } else if (functionDefinition == BuiltInFunctionDefinitions.OVER) {
+                // OVER aggregates are evaluated by window processing, not as regular aggregates.
             } else {
                 unresolvedCall.getChildren().forEach(c -> c.accept(this));
             }

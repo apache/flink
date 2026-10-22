@@ -24,6 +24,7 @@ import org.apache.flink.table.runtime.generated.CompileUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
+import java.time.ZoneId;
 import java.util.Collections;
 
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.boxedTypeTermForType;
@@ -120,6 +121,11 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
             }
 
             @Override
+            public ZoneId getSessionZoneId() {
+                return ctx.getSessionZoneId();
+            }
+
+            @Override
             public String declareVariable(String type, String variablePrefix) {
                 throw new UnsupportedOperationException(
                         "No variable can be declared when using AbstractExpressionCodeGeneratorCastRule. You should use AbstractCodeGeneratorCastRule instead.");
@@ -129,6 +135,12 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
             public String declareTypeSerializer(LogicalType type) {
                 throw new UnsupportedOperationException(
                         "No type serializer can be declared when using AbstractExpressionCodeGeneratorCastRule. You should use AbstractCodeGeneratorCastRule instead.");
+            }
+
+            @Override
+            public String declareReusableObject(Object object, String fieldPrefix) {
+                throw new UnsupportedOperationException(
+                        "No reusable object can be declared when using AbstractExpressionCodeGeneratorCastRule. You should use AbstractCodeGeneratorCastRule instead.");
             }
 
             @Override

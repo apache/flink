@@ -79,12 +79,73 @@ public enum ArgumentTrait {
     SET_SEMANTIC_TABLE(true, StaticArgumentTrait.SET_SEMANTIC_TABLE),
 
     /**
+     * An argument that accepts a table with broadcast semantics. This trait only applies to {@link
+     * ProcessTableFunction} (PTF).
+     *
+     * <p>A table with broadcast semantics serves as a side input next to tables with {@link
+     * #ROW_SEMANTIC_TABLE} or {@link #SET_SEMANTIC_TABLE}. Every row of a broadcast table is sent
+     * to all virtual processors, independent of the key context defined by the PARTITION BY clause.
+     * The PTF can store the broadcast information in state entries of kind {@link
+     * StateKind#BROADCAST}. When processing rows of the main table(s), broadcast state entries are
+     * available for read access.
+     *
+     * <p>While processing a broadcast row, the PTF can only modify {@link StateKind#BROADCAST}
+     * state entries. State entries that are scoped to a set are passed as null. The PTF must not
+     * emit results via {@code collect()} or register/clear timers.
+     *
+     * <p>By default, a change to a broadcast state entry has no effect on rows of the main table(s)
+     * that have been processed before. Rows of different tables are not processed in a
+     * deterministic order. Use {@link #NOTIFY_STATEFUL_SETS} to re-evaluate all stateful sets based
+     * on the broadcast information.
+     *
+     * <p>A signature may declare multiple broadcast table arguments, but must declare at least one
+     * {@link #ROW_SEMANTIC_TABLE} or {@link #SET_SEMANTIC_TABLE} argument next to them.
+     */
+    BROADCAST_SEMANTIC_TABLE(true, StaticArgumentTrait.BROADCAST_SEMANTIC_TABLE),
+
+    /**
      * Defines that a PARTITION BY clause is optional for {@link #SET_SEMANTIC_TABLE}. By default,
      * it is mandatory for improving the parallel execution by distributing the table by key.
      *
      * <p>Note: This trait is only valid for {@link #SET_SEMANTIC_TABLE} arguments.
      */
     OPTIONAL_PARTITION_BY(false, StaticArgumentTrait.OPTIONAL_PARTITION_BY),
+
+    /**
+     * Notifies all existing stateful sets to re-evaluate based on the given broadcast row and the
+     * potentially updated broadcast state entries.
+     *
+     * <p>For every broadcast row, {@code eval()} is called multiple times:
+     *
+     * <ol>
+     *   <li>First, without scoping to a set (as described in {@link #BROADCAST_SEMANTIC_TABLE}):
+     *       This call updates the broadcast state, if available.
+     *   <li>Next, once for every set that holds at least one state entry: In this phase, the {@code
+     *       eval()} implementation has access to the incoming broadcast row, as well as all (keyed)
+     *       state entries.
+     * </ol>
+     *
+     * <p>At least one state entry scoped to a set must be declared. Sets without state entries are
+     * not notified. Registered timers alone don't count as state. Sets whose state entries have
+     * expired due to a time-to-live (TTL) might still be notified until the state backend has
+     * cleaned them up. In this case, the state entries of the set are empty, and writing to them
+     * during notification keeps the set alive.
+     *
+     * <p>During notification, state entries of the set and timers are accessible and broadcast
+     * state is read-only. Similar to processing a row of the main table(s), the PTF can emit
+     * results via {@code collect()} and register timers. Results contain the partition key of the
+     * set.
+     *
+     * <p>Note: Notifying stateful sets is expensive. For every broadcast row, all keys in state are
+     * loaded and a PTF's {@code eval()} is called for each of them. Processing of other rows and
+     * checkpointing is blocked until all sets have been notified. Thus, this trait should only be
+     * used if broadcast rows are rare compared to rows of the main table(s) and the overall key
+     * space is relatively low.
+     *
+     * <p>Note: This trait is only valid for {@link #BROADCAST_SEMANTIC_TABLE} arguments and
+     * requires at least one {@link #SET_SEMANTIC_TABLE} argument.
+     */
+    NOTIFY_STATEFUL_SETS(false, StaticArgumentTrait.NOTIFY_STATEFUL_SETS),
 
     /**
      * Defines that all columns of a table argument (i.e. {@link #ROW_SEMANTIC_TABLE} or {@link

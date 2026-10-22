@@ -36,7 +36,8 @@ from pyflink.datastream.window import CountWindow, TimeWindow, GlobalWindow
 from pyflink.fn_execution.formats.avro import FlinkAvroDecoder, FlinkAvroDatumReader, \
     FlinkAvroBufferWrapper, FlinkAvroEncoder, FlinkAvroDatumWriter
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas, validate_arrow_batch
+from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas, validate_arrow_batch, \
+    pandas_table_row_to_arrow
 
 ROW_KIND_BIT_SIZE = 2
 
@@ -431,8 +432,10 @@ cdef class ArrowCoderImpl(FieldCoderImpl):
     A coder for arrow format data.
     """
 
-    def __init__(self, schema, row_type, timezone, batch_format="PANDAS"):
+    def __init__(self, schema, row_type, timezone, batch_format="PANDAS",
+                 returns_table_row=False):
         self._batch_format = batch_format
+        self._returns_table_row = returns_table_row
         self._schema = schema
         self._field_types = row_type.field_types()
         self._timezone = timezone
@@ -446,6 +449,9 @@ cdef class ArrowCoderImpl(FieldCoderImpl):
         batch_writer = pa.RecordBatchStreamWriter(self._resettable_io, self._schema)
         if self._batch_format == "ARROW":
             batch = validate_arrow_batch(cols, self._schema, self._field_types)
+        elif self._returns_table_row:
+            batch = pandas_table_row_to_arrow(
+                self._schema, self._timezone, self._field_types[0], cols[0])
         else:
             batch = pandas_to_arrow(self._schema, self._timezone, self._field_types, cols)
         batch_writer.write_batch(batch)

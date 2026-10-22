@@ -27,6 +27,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -122,6 +123,7 @@ public class SingleThreadFetcherManager<E, SplitT extends SourceSplit>
     }
 
     protected SplitFetcher<E, SplitT> getRunningFetcher() {
-        return fetchers.isEmpty() ? null : fetchers.values().iterator().next();
+        Iterator<SplitFetcher<E, SplitT>> iter = fetchers.values().iterator();
+        return iter.hasNext() ? iter.next() : null;
     }
 }

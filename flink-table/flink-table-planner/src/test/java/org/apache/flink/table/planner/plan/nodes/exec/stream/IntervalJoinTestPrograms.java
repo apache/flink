@@ -23,6 +23,8 @@ import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
+import java.util.Map;
+
 /** {@link TableTestProgram} definitions for testing {@link StreamExecIntervalJoin}. */
 public class IntervalJoinTestPrograms {
 
@@ -150,6 +152,125 @@ public class IntervalJoinTestPrograms {
                                     + " FROM orders_t o\n"
                                     + " JOIN shipments_t s ON o.id = s.order_id\n"
                                     + " WHERE o.proc_time BETWEEN s.proc_time - INTERVAL '5' SECOND AND s.proc_time + INTERVAL '5' SECOND;")
+                    .build();
+
+    static final Row[] EARLY_FIRE_ORDER_BEFORE_DATA = {
+        Row.of(1, "2020-04-15 08:00:01"), Row.of(9, "2020-04-15 08:00:06"),
+    };
+
+    static final Row[] EARLY_FIRE_SHIPMENT_BEFORE_DATA = {
+        Row.of(100, 9, "2020-04-15 08:00:06"),
+    };
+
+    static final Row[] EARLY_FIRE_ORDER_AFTER_DATA = {
+        Row.of(20, "2020-04-15 08:00:20"),
+    };
+
+    static final Row[] EARLY_FIRE_SHIPMENT_AFTER_DATA = {
+        Row.of(101, 1, "2020-04-15 08:00:03"), Row.of(102, 20, "2020-04-15 08:00:20"),
+    };
+
+    static final TableTestProgram INTERVAL_JOIN_EARLY_FIRE =
+            TableTestProgram.of(
+                            "interval-join-early-fire",
+                            "validates the EARLY_FIRE hint on an outer interval join: an unmatched"
+                                    + " left row is speculatively padded before the savepoint and"
+                                    + " retracted when its match arrives after restore")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("orders_t")
+                                    .addSchema(ORDERS_EVENT_TIME_SCHEMA)
+                                    .producedBeforeRestore(EARLY_FIRE_ORDER_BEFORE_DATA)
+                                    .producedAfterRestore(EARLY_FIRE_ORDER_AFTER_DATA)
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("shipments_t")
+                                    .addSchema(SHIPMENTS_EVENT_TIME_SCHEMA)
+                                    .producedBeforeRestore(EARLY_FIRE_SHIPMENT_BEFORE_DATA)
+                                    .producedAfterRestore(EARLY_FIRE_SHIPMENT_AFTER_DATA)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[1, 2020-04-15 08:00:01, null]",
+                                            "+I[9, 2020-04-15 08:00:06, 2020-04-15 08:00:06]")
+                                    .consumedAfterRestore(
+                                            "-U[1, 2020-04-15 08:00:01, null]",
+                                            "+U[1, 2020-04-15 08:00:01, 2020-04-15 08:00:03]",
+                                            "+I[20, 2020-04-15 08:00:20, 2020-04-15 08:00:20]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT /*+ EARLY_FIRE('delay'='2s') */\n"
+                                    + "     o.id AS order_id,\n"
+                                    + "     o.order_ts_str,\n"
+                                    + "     s.shipment_ts_str\n"
+                                    + " FROM orders_t o LEFT OUTER JOIN shipments_t s\n"
+                                    + " ON o.id = s.order_id\n"
+                                    + " AND o.order_ts BETWEEN s.shipment_ts - INTERVAL '5' SECOND AND s.shipment_ts + INTERVAL '5' SECOND;")
+                    .build();
+
+    // Selects the watermark-push-down source runtime, the only values-source runtime that reports
+    // how many rows it has emitted. The savepoint trigger gates on that count because the query
+    // below emits nothing before the savepoint.
+    static final Map<String, String> PER_RECORD_WATERMARK_SOURCE_OPTIONS =
+            Map.of(
+                    "disable-lookup", "true",
+                    "enable-watermark-push-down", "true",
+                    "scan.watermark.emit.strategy", "on-event");
+
+    // The unmatched left row whose speculative pad is scheduled on the wall clock.
+    static final Row[] PROC_TIME_EARLY_FIRE_ORDER_BEFORE_DATA = {
+        Row.of(1, "2020-04-15 08:00:01"),
+    };
+
+    // A shipment for an order that does not exist: a restore test source must produce at least one
+    // row, and this one neither joins the left row's key nor produces output on a left outer join.
+    static final Row[] PROC_TIME_EARLY_FIRE_SHIPMENT_BEFORE_DATA = {
+        Row.of(100, 99, "2020-04-15 08:00:02"),
+    };
+
+    // The 30s delay has to outlast the savepoint trigger so the schedule entry is still pending
+    // when the snapshot is taken. It also bounds how long a freshly generated savepoint makes the
+    // restored job wait for its early-fire timer; a savepoint older than the delay fires at once.
+    static final TableTestProgram INTERVAL_JOIN_PROC_TIME_EARLY_FIRE =
+            TableTestProgram.of(
+                            "interval-join-proc-time-early-fire",
+                            "validates the EARLY_FIRE hint driving a row-time interval join from"
+                                    + " processing time: the savepoint captures the pending"
+                                    + " early-fire schedule of an unmatched left row, and the pad"
+                                    + " is emitted only once that schedule is restored")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("orders_t")
+                                    .addSchema(ORDERS_EVENT_TIME_SCHEMA)
+                                    .addOptions(PER_RECORD_WATERMARK_SOURCE_OPTIONS)
+                                    .producedBeforeRestore(PROC_TIME_EARLY_FIRE_ORDER_BEFORE_DATA)
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("shipments_t")
+                                    .addSchema(SHIPMENTS_EVENT_TIME_SCHEMA)
+                                    .addOptions(PER_RECORD_WATERMARK_SOURCE_OPTIONS)
+                                    .producedBeforeRestore(
+                                            PROC_TIME_EARLY_FIRE_SHIPMENT_BEFORE_DATA)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(SINK_SCHEMA)
+                                    // Nothing is emitted before the savepoint: the left row is
+                                    // still cached, its pad is still only scheduled, and the
+                                    // watermark has not closed its window.
+                                    .consumedBeforeRestore(new String[0])
+                                    // No data is ingested after restore, so this pad can only come
+                                    // from the restored schedule and cache.
+                                    .consumedAfterRestore("+I[1, 2020-04-15 08:00:01, null]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT /*+ EARLY_FIRE('delay'='30s', 'time-mode'='proctime') */\n"
+                                    + "     o.id AS order_id,\n"
+                                    + "     o.order_ts_str,\n"
+                                    + "     s.shipment_ts_str\n"
+                                    + " FROM orders_t o LEFT OUTER JOIN shipments_t s\n"
+                                    + " ON o.id = s.order_id\n"
+                                    + " AND o.order_ts BETWEEN s.shipment_ts - INTERVAL '5' SECOND AND s.shipment_ts + INTERVAL '5' SECOND;")
                     .build();
 
     static final TableTestProgram INTERVAL_JOIN_NEGATIVE_INTERVAL =

@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
@@ -30,7 +31,10 @@ import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecor
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.types.RowKind;
+
+import javax.annotation.Nullable;
 
 import java.util.Iterator;
 
@@ -43,6 +47,20 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
     protected final boolean leftIsOuter;
     // whether right side is outer side, e.g. right is outer but left is not when RIGHT OUTER JOIN
     protected final boolean rightIsOuter;
+    // changelog mode of the left input, null for compiled plans before Flink 2.4
+    @Nullable protected final RuntimeChangelogMode leftInputChangelogMode;
+    // changelog mode of the right input, null for compiled plans before Flink 2.4
+    @Nullable protected final RuntimeChangelogMode rightInputChangelogMode;
+    // whether the input may update a record without retracting it first (upsert), so that the
+    // record it replaces has to be looked up in state
+    private final boolean leftIsUpsertOrUnknown;
+    private final boolean rightIsUpsertOrUnknown;
+    // whether a DELETE of the input may contain only the unique key, so that the full record has
+    // to be looked up in state to evaluate a non-equi condition
+    private final boolean leftHasKeyOnlyDeletesOrUnknown;
+    private final boolean rightHasKeyOnlyDeletesOrUnknown;
+    // whether the join condition has a non-equi part, e.g. A JOIN B ON A.k = B.k AND A.v > B.v
+    protected final boolean hasNonEquiCondition;
 
     private transient JoinedRowData outRow;
     private transient RowData leftNullRow;
@@ -61,6 +79,9 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
             JoinInputSideSpec rightInputSideSpec,
             boolean leftIsOuter,
             boolean rightIsOuter,
+            @Nullable RuntimeChangelogMode leftInputChangelogMode,
+            @Nullable RuntimeChangelogMode rightInputChangelogMode,
+            boolean hasNonEquiCondition,
             boolean[] filterNullKeys,
             long leftStateRetentionTime,
             long rightStateRetentionTime) {
@@ -75,6 +96,13 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 rightStateRetentionTime);
         this.leftIsOuter = leftIsOuter;
         this.rightIsOuter = rightIsOuter;
+        this.leftInputChangelogMode = leftInputChangelogMode;
+        this.rightInputChangelogMode = rightInputChangelogMode;
+        this.leftIsUpsertOrUnknown = isUpsertOrUnknown(leftInputChangelogMode);
+        this.rightIsUpsertOrUnknown = isUpsertOrUnknown(rightInputChangelogMode);
+        this.leftHasKeyOnlyDeletesOrUnknown = hasKeyOnlyDeletesOrUnknown(leftInputChangelogMode);
+        this.rightHasKeyOnlyDeletesOrUnknown = hasKeyOnlyDeletesOrUnknown(rightInputChangelogMode);
+        this.hasNonEquiCondition = hasNonEquiCondition;
     }
 
     @Override
@@ -125,12 +153,12 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
 
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
-        processElement(element.getValue(), leftRecordStateView, rightRecordStateView, true, false);
+        processElement(element.getValue(), leftRecordStateView, rightRecordStateView, true, null);
     }
 
     @Override
     public void processElement2(StreamRecord<RowData> element) throws Exception {
-        processElement(element.getValue(), rightRecordStateView, leftRecordStateView, false, false);
+        processElement(element.getValue(), rightRecordStateView, leftRecordStateView, false, null);
     }
 
     /**
@@ -151,13 +179,24 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      *
      * <pre>
      * if input record is accumulate
+     * |  if record replaces a stored record (upsert) and the condition is non-equi
+     * |  |  for each other that the replaced record matches but the record does not
+     * |  |  |  send -D[replaced+other]
+     * |  |  |  if other side is outer
+     * |  |  |  |  if the matched num in the matched rows == 1, send +I[null+other]
+     * |  |  |  |  otherState.update(other, old - 1)
+     * |  |  |  endif
+     * |  |  endfor
+     * |  endif
      * |  if input side is outer
      * |  |  if there is no matched rows on the other side, send +I[record+null], state.add(record, 0)
      * |  |  if there are matched rows on the other side
+     * |  |  | if the replaced record was null padded, send -D[replaced+null]
      * |  |  | if other side is outer
-     * |  |  | |  if the matched num in the matched rows == 0, send -D[null+other]
+     * |  |  | |  if the matched num in the matched rows == 0, send -D[null+other] unless the paired
+     * |  |  | |  record matches other
      * |  |  | |  if the matched num in the matched rows > 0, skip
-     * |  |  | |  if matched num == 0 or record is an additional match, otherState.update(other, old + 1)
+     * |  |  | |  if the replaced record did not match other, otherState.update(other, old + 1)
      * |  |  | endif
      * |  |  | send +I[record+other]s, state.add(record, other.size)
      * |  |  endif
@@ -167,9 +206,10 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      * |  |  if there is no matched rows on the other side, skip
      * |  |  if there are matched rows on the other side
      * |  |  |  if other side is outer
-     * |  |  |  |  if the matched num in the matched rows == 0, send -D[null+other]
+     * |  |  |  |  if the matched num in the matched rows == 0, send -D[null+other] unless the
+     * |  |  |  |  paired record matches other
      * |  |  |  |  if the matched num in the matched rows > 0, skip
-     * |  |  |  |  if matched num == 0 or record is an additional match, otherState.update(other, old + 1)
+     * |  |  |  |  if the replaced record did not match other, otherState.update(other, old + 1)
      * |  |  |  |  send +I[record+other]s
      * |  |  |  else
      * |  |  |  |  send +I/+U[record+other]s (using input RowKind)
@@ -179,14 +219,18 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      * endif
      *
      * if input record is retract
-     * |  state.retract(record)
+     * |  if record is a DELETE that may contain only the unique key and the condition is non-equi
+     * |  |  record = the stored record with the same unique key, if there is one
+     * |  endif
+     * |  state.retract(record) if there is no paired record
      * |  if there is no matched rows on the other side
      * |  | if input side is outer, send -D[record+null]
      * |  endif
      * |  if there are matched rows on the other side, send -D[record+other]s if outer, send -D/-U[record+other]s if inner.
      * |  |  if other side is outer
      * |  |  |  if the matched num in the matched rows == 0, this should never happen!
-     * |  |  |  if the matched num in the matched rows == 1, send +I[null+other]
+     * |  |  |  if the matched num in the matched rows == 1, send +I[null+other] unless the paired
+     * |  |  |  record matches other
      * |  |  |  if the matched num in the matched rows > 1, skip
      * |  |  |  otherState.update(other, old - 1)
      * |  |  endif
@@ -198,16 +242,17 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      * @param inputSideStateView state of input side
      * @param otherSideStateView state of other side
      * @param inputIsLeft whether input side is left side
-     * @param isSuppress whether suppress the output of redundant messages when the other side is
-     *     outer join. This only applies to the case of mini-batch.
+     * @param pairedRecord the other record of a -U/+U pair in mini-batch mode, or null. Null
+     *     padding changes that the pair cancels out are suppressed.
      */
     protected void processElement(
             RowData input,
             JoinRecordStateView inputSideStateView,
             JoinRecordStateView otherSideStateView,
             boolean inputIsLeft,
-            boolean isSuppress)
+            @Nullable RowData pairedRecord)
             throws Exception {
+        final boolean isSuppress = pairedRecord != null;
         boolean inputIsOuter = inputIsLeft ? leftIsOuter : rightIsOuter;
         boolean otherIsOuter = inputIsLeft ? rightIsOuter : leftIsOuter;
         boolean isAccumulateMsg = RowDataUtil.isAccumulateMsg(input);
@@ -215,8 +260,13 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
         if (isAccumulateMsg) { // record is accumulate
-            final boolean isAdditionalMatch =
-                    isAdditionalMatch(input, inputSideStateView, inputIsLeft, isSuppress);
+            final RowData replacedRecord =
+                    replacedRecord(input, inputSideStateView, inputIsLeft, isSuppress);
+            boolean replacedRecordHadNoMatches = false;
+            if (replacedRecord != null && hasNonEquiCondition) {
+                replacedRecordHadNoMatches =
+                        !retractLostMatches(input, replacedRecord, otherSideStateView, inputIsLeft);
+            }
             if (inputIsOuter) { // input side is outer
                 Iterator<OuterRecord> associatedRecords =
                         AbstractStreamingJoinOperator.iterator(
@@ -229,19 +279,25 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                     ((OuterJoinRecordStateView) inputSideStateView).addRecord(input, 0);
                     return;
                 } else { // there are matched rows on the other side
+                    if (replacedRecordHadNoMatches) {
+                        // the replaced record was null padded, send -D[replaced+null]
+                        outRow.setRowKind(RowKind.DELETE);
+                        outputNullPadding(replacedRecord, inputIsLeft);
+                    }
                     int numAssociations = 0;
                     while (associatedRecords.hasNext()) {
                         OuterRecord outerRecord = associatedRecords.next();
                         RowData other = outerRecord.record;
                         if (otherIsOuter) { // other side is outer
                             // if the matched num in the matched rows == 0
-                            if (outerRecord.numOfAssociations == 0 && !isSuppress) {
+                            if (outerRecord.numOfAssociations == 0
+                                    && !pairCancelsNullPadding(pairedRecord, other, inputIsLeft)) {
                                 // send -D[null+other]
                                 outRow.setRowKind(RowKind.DELETE);
                                 outputNullPadding(other, !inputIsLeft);
                             } // ignore matched number > 0
                             // otherState.update(other, old + 1)
-                            if (outerRecord.numOfAssociations == 0 || isAdditionalMatch) {
+                            if (isNewMatch(outerRecord, replacedRecord, inputIsLeft)) {
                                 ((OuterJoinRecordStateView) otherSideStateView)
                                         .updateNumOfAssociations(
                                                 other, outerRecord.numOfAssociations + 1);
@@ -269,13 +325,14 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                         while (associatedRecords.hasNext()) {
                             OuterRecord outerRecord = associatedRecords.next();
                             if (outerRecord.numOfAssociations == 0
-                                    && !isSuppress) { // if the matched num in the matched rows == 0
+                                    && !pairCancelsNullPadding(
+                                            pairedRecord, outerRecord.record, inputIsLeft)) {
                                 // send -D[null+other]
                                 outRow.setRowKind(RowKind.DELETE);
                                 outputNullPadding(outerRecord.record, !inputIsLeft);
                             }
                             // otherState.update(other, old + 1)
-                            if (outerRecord.numOfAssociations == 0 || isAdditionalMatch) {
+                            if (isNewMatch(outerRecord, replacedRecord, inputIsLeft)) {
                                 otherSideOuterStateView.updateNumOfAssociations(
                                         outerRecord.record, outerRecord.numOfAssociations + 1);
                             }
@@ -295,18 +352,21 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                 // skip when there is no matched rows on the other side
             }
         } else { // input record is retract
+            final RowData retractedRecord =
+                    retractedRecord(
+                            input, inputRowKind, inputSideStateView, inputIsLeft, isSuppress);
             // state.retract(record)
             if (!isSuppress) {
-                inputSideStateView.retractRecord(input);
+                inputSideStateView.retractRecord(retractedRecord);
             }
             Iterator<OuterRecord> associatedRecords =
                     AbstractStreamingJoinOperator.iterator(
-                            input, inputIsLeft, otherSideStateView, joinCondition);
+                            retractedRecord, inputIsLeft, otherSideStateView, joinCondition);
             if (!associatedRecords.hasNext()) { // there is no matched rows on the other side
                 if (inputIsOuter) { // input side is outer
                     // send -D[record+null]
                     outRow.setRowKind(RowKind.DELETE);
-                    outputNullPadding(input, inputIsLeft);
+                    outputNullPadding(retractedRecord, inputIsLeft);
                 }
                 // nothing to do when input side is not outer
             } else { // there are matched rows on the other side
@@ -319,12 +379,14 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
                         outRow.setRowKind(inputRowKind);
                     }
                     OuterRecord outerRecord = associatedRecords.next();
-                    output(input, outerRecord.record, inputIsLeft);
+                    output(retractedRecord, outerRecord.record, inputIsLeft);
                     // if other side is outer
                     if (otherIsOuter) {
                         OuterJoinRecordStateView otherSideOuterStateView =
                                 (OuterJoinRecordStateView) otherSideStateView;
-                        if (outerRecord.numOfAssociations == 1 && !isSuppress) {
+                        if (outerRecord.numOfAssociations == 1
+                                && !pairCancelsNullPadding(
+                                        pairedRecord, outerRecord.record, inputIsLeft)) {
                             // send +I[null+other]
                             outRow.setRowKind(RowKind.INSERT);
                             outputNullPadding(outerRecord.record, !inputIsLeft);
@@ -339,26 +401,156 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
     }
 
     /**
-     * Returns whether the record adds a new match for other-side records, which indicates that we
-     * have to increase the number of associations for a specific key match.
+     * Returns the stored record that the given record replaces, or null if there is none. An upsert
+     * input updates a record by sending only the new version, without retracting the old one.
      *
-     * <p>Matches are only counted when the other side is outer, so the result is false otherwise
-     * and no lookup happens. If the join key contains the unique key, there is at most one record
-     * per join key, so a match is never additional and no lookup is needed either.
-     *
-     * <p>A suppressed retraction in mini-batch mode removes the matches of a record but keeps it in
-     * state, so the suppressed accumulate message that follows is always an additional match.
+     * <p>The lookup only happens if it can change the result. In a mini-batch pair, the retraction
+     * already handled the old version.
      */
-    private boolean isAdditionalMatch(
+    private @Nullable RowData replacedRecord(
             RowData record, JoinRecordStateView stateView, boolean isLeft, boolean isSuppress)
             throws Exception {
+        final boolean inputIsUpsertOrUnknown =
+                isLeft ? leftIsUpsertOrUnknown : rightIsUpsertOrUnknown;
         final boolean otherIsOuter = isLeft ? rightIsOuter : leftIsOuter;
-        final JoinInputSideSpec inputSideSpec = isLeft ? leftInputSideSpec : rightInputSideSpec;
-        // TODO FLINK-40841: assumes the replaced record had the same matches, not true for non-equi
-        return otherIsOuter
-                && (isSuppress
-                        || (!inputSideSpec.joinKeyContainsUniqueKey()
-                                && !stateView.hasRecord(record)));
+        // with at most one record per join key, the count of the other side is right without it
+        final boolean mayCountTwice = otherIsOuter && !joinKeyContainsUniqueKey(isLeft);
+        final boolean mayMatchDifferently = hasNonEquiCondition;
+        if (isSuppress || !inputIsUpsertOrUnknown || !(mayCountTwice || mayMatchDifferently)) {
+            return null;
+        }
+        return stateView.getRecord(record);
+    }
+
+    /**
+     * Returns the full record to retract.
+     *
+     * <p>A DELETE may contain only the unique key, e.g. from an upsert source, but a non-equi
+     * condition needs all fields. In that case, the stored record with the same unique key is
+     * returned, or the given retraction if nothing is stored. The retraction of a mini-batch pair
+     * is returned as it is.
+     */
+    private RowData retractedRecord(
+            RowData retraction,
+            RowKind retractionKind,
+            JoinRecordStateView stateView,
+            boolean isLeft,
+            boolean isSuppress)
+            throws Exception {
+        if (isSuppress) {
+            return retraction;
+        }
+        final boolean inputHasKeyOnlyDeletesOrUnknown =
+                isLeft ? leftHasKeyOnlyDeletesOrUnknown : rightHasKeyOnlyDeletesOrUnknown;
+        final boolean mayBeKeyOnlyDelete =
+                retractionKind == RowKind.DELETE
+                        && inputHasKeyOnlyDeletesOrUnknown
+                        && hasUniqueKey(isLeft);
+        if (!mayBeKeyOnlyDelete || !hasNonEquiCondition) {
+            return retraction;
+        }
+        final RowData storedRecord = stateView.getRecord(retraction);
+        return storedRecord != null ? storedRecord : retraction;
+    }
+
+    /**
+     * Retracts the joined rows that only the replaced record produced, i.e. with the rows of the
+     * other side that it matched but the new record does not. Returns whether the replaced record
+     * matched any row.
+     */
+    private boolean retractLostMatches(
+            RowData record,
+            RowData replacedRecord,
+            JoinRecordStateView otherSideStateView,
+            boolean inputIsLeft)
+            throws Exception {
+        final boolean otherIsOuter = inputIsLeft ? rightIsOuter : leftIsOuter;
+        final Iterator<OuterRecord> matchesOfReplacedRecord =
+                AbstractStreamingJoinOperator.iterator(
+                        replacedRecord, inputIsLeft, otherSideStateView, joinCondition);
+        final boolean replacedRecordHadMatches = matchesOfReplacedRecord.hasNext();
+        while (matchesOfReplacedRecord.hasNext()) {
+            final OuterRecord other = matchesOfReplacedRecord.next();
+            final boolean bothOldAndNewVersionsMatch = matches(record, other.record, inputIsLeft);
+            if (bothOldAndNewVersionsMatch) {
+                continue;
+            }
+            // send -D[replaced+other]
+            outRow.setRowKind(RowKind.DELETE);
+            output(replacedRecord, other.record, inputIsLeft);
+            if (otherIsOuter) {
+                final boolean wasLastMatch = other.numOfAssociations == 1;
+                if (wasLastMatch) {
+                    // send +I[null+other]
+                    outRow.setRowKind(RowKind.INSERT);
+                    outputNullPadding(other.record, !inputIsLeft);
+                }
+                // otherState.update(other, old - 1)
+                ((OuterJoinRecordStateView) otherSideStateView)
+                        .updateNumOfAssociations(other.record, other.numOfAssociations - 1);
+            }
+        }
+        return replacedRecordHadMatches;
+    }
+
+    /**
+     * Returns whether the other record gains a match, so that its number of associations increases.
+     * It does not if the replaced record matched it already.
+     */
+    private boolean isNewMatch(
+            OuterRecord other, @Nullable RowData replacedRecord, boolean inputIsLeft) {
+        if (other.numOfAssociations == 0) {
+            return true;
+        }
+        // with at most one record per join key, the existing match is the replaced record
+        if (joinKeyContainsUniqueKey(inputIsLeft)) {
+            return false;
+        }
+        return replacedRecord == null || !matches(replacedRecord, other.record, inputIsLeft);
+    }
+
+    /**
+     * Returns whether the paired record of a -U/+U pair cancels out the null padding change of the
+     * other record, which is the case if both records of the pair match it.
+     */
+    private boolean pairCancelsNullPadding(
+            @Nullable RowData pairedRecord, RowData other, boolean inputIsLeft) {
+        return pairedRecord != null
+                && (!hasNonEquiCondition || matches(pairedRecord, other, inputIsLeft));
+    }
+
+    /** Returns whether the input may update a record without retracting it first. */
+    private static boolean isUpsertOrUnknown(@Nullable RuntimeChangelogMode inputChangelogMode) {
+        // compiled plans before Flink 2.4 do not contain the changelog mode, and handling
+        // their inputs as upsert is always correct
+        if (inputChangelogMode == null) {
+            return true;
+        }
+        final ChangelogMode changelogMode = inputChangelogMode.deserialize();
+        return changelogMode.contains(RowKind.UPDATE_AFTER)
+                && !changelogMode.contains(RowKind.UPDATE_BEFORE);
+    }
+
+    /** Returns whether a DELETE of the input may contain only the unique key. */
+    private static boolean hasKeyOnlyDeletesOrUnknown(
+            @Nullable RuntimeChangelogMode inputChangelogMode) {
+        // compiled plans before Flink 2.4 do not contain the changelog mode, and handling
+        // their deletes as key-only is always correct
+        return inputChangelogMode == null || inputChangelogMode.deserialize().keyOnlyDeletes();
+    }
+
+    private boolean hasUniqueKey(boolean isLeft) {
+        return (isLeft ? leftInputSideSpec : rightInputSideSpec).hasUniqueKey();
+    }
+
+    private boolean joinKeyContainsUniqueKey(boolean isLeft) {
+        return (isLeft ? leftInputSideSpec : rightInputSideSpec).joinKeyContainsUniqueKey();
+    }
+
+    private boolean matches(RowData inputRecord, RowData otherRecord, boolean inputIsLeft) {
+        return inputIsLeft
+                ? joinCondition.apply(inputRecord, otherRecord)
+                : joinCondition.apply(otherRecord, inputRecord);
     }
 
     // -------------------------------------------------------------------------------------

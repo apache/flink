@@ -37,6 +37,7 @@ from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
     Module, ModuleEntry, Schema, ChangelogMode
 from pyflink.table.catalog import Catalog, CatalogDescriptor
+from pyflink.table.model import Model
 from pyflink.table.model_descriptor import ModelDescriptor
 from pyflink.table.compiled_plan import CompiledPlan
 from pyflink.table.plan_reference import PlanReference
@@ -1247,6 +1248,46 @@ class TableEnvironment(object):
         .. versionadded:: 2.1.0
         """
         self._j_tenv.createModel(model_path, model_descriptor._j_model_descriptor, ignore_if_exists)
+
+    @PublicEvolving()
+    def from_model(self, model_path: Union[str, ModelDescriptor]) -> 'Model':
+        """
+        Gets a registered model or creates an anonymous model from a descriptor.
+
+        A descriptor defines the provider options and input/output schemas directly,
+        without registering a model in the catalog.
+
+        Example:
+        ::
+
+            >>> from pyflink.table import ModelDescriptor, Schema
+            >>> model = t_env.from_model("my_model")
+            >>> input_table = t_env.from_path("src")
+            >>> result_table = model.predict(input_table, ["user_comment"])
+
+        Create an anonymous model:
+        ::
+
+            >>> from pyflink.table import DataTypes
+            >>> descriptor = (ModelDescriptor.for_provider("my-provider")
+            ...     .input_schema(Schema.new_builder()
+            ...                   .column("text", DataTypes.STRING()).build())
+            ...     .output_schema(Schema.new_builder()
+            ...                    .column("label", DataTypes.STRING()).build())
+            ...     .build())
+            >>> model = t_env.from_model(descriptor)
+
+        :param model_path: The path of the registered model, or a descriptor defining
+                           an anonymous model.
+        :return: The requested model instance.
+
+        .. versionadded:: 2.4.0
+        """
+        if isinstance(model_path, ModelDescriptor):
+            j_model = self._j_tenv.fromModel(model_path._j_model_descriptor)
+        else:
+            j_model = self._j_tenv.fromModel(model_path)
+        return Model(j_model)
 
     def create_temporary_model(self,
                                model_path: str,
