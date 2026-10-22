@@ -1251,8 +1251,9 @@ class LateralSnapshotJoinOperatorTest {
                 newHarness(op)) {
             h.open();
             addBuildChange(h, insertRecord(null, "v_null", 1L));
+            addBuildChange(h, updateAfterRecord(null, "v_null_u", 1L));
             // A build row that can never match is not stored
-            assertThat(bufferedChangesForKey(h, op, null)).hasSize(filterNullKey ? 0 : 1);
+            assertThat(bufferedChangesForKey(h, op, null)).hasSize(filterNullKey ? 0 : 2);
             addProbeRecord(h, 1L, null, "p_null");
             addProbeWm(h, 100L);
             addBuildWm(h, 100L);
@@ -1266,7 +1267,10 @@ class LateralSnapshotJoinOperatorTest {
                     assertThat(h.getOutput()).isEmpty();
                 }
             } else {
-                JOINED_ASSERTOR.shouldEmitAll(h, row(1L, null, "p_null", null, "v_null", 1L));
+                JOINED_ASSERTOR.shouldEmitAll(
+                        h,
+                        row(1L, null, "p_null", null, "v_null", 1L),
+                        row(1L, null, "p_null", null, "v_null_u", 1L));
             }
 
             // test joining in JOIN phase
@@ -1278,7 +1282,10 @@ class LateralSnapshotJoinOperatorTest {
                     assertThat(h.getOutput()).isEmpty();
                 }
             } else {
-                JOINED_ASSERTOR.shouldEmitAll(h, row(2L, null, "p_null", null, "v_null", 1L));
+                JOINED_ASSERTOR.shouldEmitAll(
+                        h,
+                        row(2L, null, "p_null", null, "v_null", 1L),
+                        row(2L, null, "p_null", null, "v_null_u", 1L));
             }
         }
     }
@@ -1309,7 +1316,7 @@ class LateralSnapshotJoinOperatorTest {
             h.initializeState(state);
             h.open();
             // Binary rows, as deserialized input is, so that they equal the restored rows on heap
-            addBuildChange(h, binaryRecord(RowKind.DELETE, null, "v_null", 1L));
+            addBuildChange(h, binaryRecord(RowKind.UPDATE_BEFORE, null, "v_null", 1L));
             addBuildChange(h, binaryRecord(RowKind.DELETE, null, "never_stored", 1L));
             addProbeRecord(h, 2L, null, "p_null");
 
