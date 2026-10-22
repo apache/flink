@@ -40,6 +40,7 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.util.ResourceCounter;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -73,7 +74,8 @@ import java.util.stream.Stream;
  * <p>Not thread-safe: every method, every future callback and all delayed and periodic work run on
  * the main thread of the {@link ComponentMainThreadExecutor} passed to {@link #start}. {@link
  * #suspend()} cancels everything that was scheduled and drops work that is already on its way to
- * the main thread, so a later {@link #start} begins a fresh session.
+ * the main thread, so a later {@link #start} begins a fresh session. A check that throws is logged
+ * and the next trigger or tick retries it.
  */
 public class FineGrainedSlotManager implements SlotManager {
     public static final Duration METRICS_UPDATE_INTERVAL = Duration.ofSeconds(1);
@@ -230,7 +232,10 @@ public class FineGrainedSlotManager implements SlotManager {
 
         if (resourceAllocator.isSupported()) {
             clusterReconciliationCheck =
-                    new PeriodicTask(this::checkClusterReconciliation, taskManagerTimeout);
+                    new PeriodicTask(
+                            "Cluster reconciliation",
+                            this::checkClusterReconciliation,
+                            taskManagerTimeout);
             clusterReconciliationCheck.schedule(Duration.ZERO);
         }
 
@@ -240,7 +245,8 @@ public class FineGrainedSlotManager implements SlotManager {
     private void registerSlotManagerMetrics() {
         // Because taskManagerTracker is not thread-safe, metrics must be updated periodically on
         // the main thread to prevent concurrent modification issues.
-        metricsUpdate = new PeriodicTask(this::updateMetrics, METRICS_UPDATE_INTERVAL);
+        metricsUpdate =
+                new PeriodicTask("Metrics update", this::updateMetrics, METRICS_UPDATE_INTERVAL);
         metricsUpdate.schedule(Duration.ZERO);
 
         slotManagerMetricGroup.gauge(MetricNames.TASK_SLOTS_AVAILABLE, () -> lastNumberFreeSlots);
@@ -437,7 +443,9 @@ public class FineGrainedSlotManager implements SlotManager {
         } else if (declareNeededResourceFuture == null || declareNeededResourceFuture.isDone()) {
             declareNeededResourceFuture =
                     mainThreadExecutor.schedule(
-                            () -> runIfStarted(this::declareNeededResources),
+                            () ->
+                                    runIfStarted(
+                                            "Resource declaration", this::declareNeededResources),
                             declareNeededResourceDelay.toMillis(),
                             TimeUnit.MILLISECONDS);
         }
@@ -623,7 +631,9 @@ public class FineGrainedSlotManager implements SlotManager {
         } else if (requirementsCheckFuture == null || requirementsCheckFuture.isDone()) {
             requirementsCheckFuture =
                     mainThreadExecutor.schedule(
-                            () -> runIfStarted(this::checkResourceRequirements),
+                            () ->
+                                    runIfStarted(
+                                            "Requirements check", this::checkResourceRequirements),
                             requirementsCheckDelay.toMillis(),
                             TimeUnit.MILLISECONDS);
         }
@@ -756,7 +766,9 @@ public class FineGrainedSlotManager implements SlotManager {
                         (s, t) -> {
                             if (t != null) {
                                 // If there is allocation failure, we need to trigger it again.
-                                runIfStarted(this::checkResourceRequirementsWithDelay);
+                                runIfStarted(
+                                        "Requirements check trigger",
+                                        this::checkResourceRequirementsWithDelay);
                             }
                         },
                         mainThreadExecutor);
@@ -880,6 +892,7 @@ public class FineGrainedSlotManager implements SlotManager {
                 .thenAcceptAsync(
                         canBeReleased ->
                                 runIfStarted(
+                                        "Idle task manager release",
                                         () -> {
                                             // the reply may be about a registration that is gone
                                             boolean stillRegistered =
@@ -941,9 +954,20 @@ public class FineGrainedSlotManager implements SlotManager {
      * handed to the main thread before {@link #suspend()} is dropped, so nothing of this class runs
      * after it has been suspended.
      */
-    private void runIfStarted(Runnable work) {
-        if (started) {
+    private void runIfStarted(String what, Runnable work) {
+        if (!started) {
+            return;
+        }
+        try {
             work.run();
+        } catch (Throwable t) {
+            // what throws here is a bug inside the JobManager, not a transient backend failure;
+            // those arrive asynchronously through the ResourceAllocator and are handled there
+            ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+            LOG.error(
+                    "{} failed. The slot manager keeps running and the next trigger retries it.",
+                    what,
+                    t);
         }
     }
 
@@ -953,11 +977,13 @@ public class FineGrainedSlotManager implements SlotManager {
      * #cancel()} is called, never because a run threw.
      */
     private final class PeriodicTask {
+        private final String name;
         private final Runnable work;
         private final Duration interval;
         @Nullable private ScheduledFuture<?> nextRun;
 
-        private PeriodicTask(Runnable work, Duration interval) {
+        private PeriodicTask(String name, Runnable work, Duration interval) {
+            this.name = name;
             this.work = work;
             this.interval = interval;
         }
@@ -969,7 +995,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
         private void run() {
             try {
-                runIfStarted(work);
+                runIfStarted(name, work);
             } finally {
                 if (started) {
                     schedule(interval);

@@ -42,9 +42,12 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.event.Level;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -65,6 +68,9 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests of {@link FineGrainedSlotManager}. */
 class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
+    @RegisterExtension
+    final LoggerAuditingExtension slotManagerErrors =
+            new LoggerAuditingExtension(FineGrainedSlotManager.class, Level.ERROR);
 
     private static final ResourceProfile LARGE_SLOT_RESOURCE_PROFILE =
             DEFAULT_TOTAL_RESOURCE_PROFILE.multiply(2);
@@ -313,6 +319,49 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                         DEFAULT_TOTAL_RESOURCE_PROFILE,
                                         DEFAULT_SLOT_RESOURCE_PROFILE))
                 .isEqualTo(SlotManager.RegistrationResult.SUCCESS);
+    }
+
+    @Test
+    void testFailedRequirementsCheckIsLoggedAndTheNextTriggerRetries() throws Exception {
+        final AtomicInteger requirementChecks = new AtomicInteger();
+        final Context context = new Context();
+        context.resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
+                (ignored0, ignored1) -> {
+                    if (requirementChecks.incrementAndGet() == 1) {
+                        throw new IllegalStateException("Expected test failure");
+                    }
+                    return ResourceAllocationResult.builder().build();
+                });
+        final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
+                context.useManuallyTriggeredMainThread();
+
+        context.runTest(
+                () -> {
+                    context.runInMainThreadAndWait(
+                            () ->
+                                    context.getSlotManager()
+                                            .processResourceRequirements(
+                                                    createResourceRequirementsForSingleSlot()));
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(requirementChecks).hasValue(1);
+                    assertThat(slotManagerErrors.getEvents())
+                            .singleElement()
+                            .satisfies(
+                                    event -> {
+                                        assertThat(event.getMessage().getFormattedMessage())
+                                                .startsWith("Requirements check failed");
+                                        assertThat(event.getThrown())
+                                                .isInstanceOf(IllegalStateException.class);
+                                    });
+
+                    context.runInMainThreadAndWait(
+                            () ->
+                                    context.getSlotManager()
+                                            .processResourceRequirements(
+                                                    createResourceRequirementsForSingleSlot()));
+                    triggerScheduledTasksOnce(mainThreadExecutor);
+                    assertThat(requirementChecks).hasValue(2);
+                });
     }
 
     @Test
