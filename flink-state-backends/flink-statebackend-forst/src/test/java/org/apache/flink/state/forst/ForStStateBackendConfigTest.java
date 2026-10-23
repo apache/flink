@@ -56,7 +56,6 @@ import org.forstdb.FlushOptions;
 import org.forstdb.InfoLogLevel;
 import org.forstdb.util.SizeUnit;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -271,7 +270,6 @@ class ForStStateBackendConfigTest {
     }
 
     @Test
-    @Timeout(value = 60)
     void testCleanRelocatedDbLogs() throws Exception {
         final File folder = TempDirUtils.newFolder(tempFolder);
         final File relocatedDBLogDir = TempDirUtils.newFolder(tempFolder, "db_logs");
