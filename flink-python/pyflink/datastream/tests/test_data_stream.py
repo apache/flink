@@ -1053,6 +1053,53 @@ class ProcessDataStreamTests(DataStreamTests):
         expected = ['+I[c, 1]', '+I[e, 2]']
         self.assert_equals_sorted(expected, results)
 
+    def test_map_state_contains_none_value(self):
+        config = Configuration(
+            j_configuration=get_j_env_configuration(self.env._j_stream_execution_environment))
+        # One record per bundle, so later checks read committed state. The environment is
+        # shared by the tests in this class, so restore the setting afterwards.
+        key = "python.fn-execution.bundle.size"
+        if config.contains_key(key):
+            self.addCleanup(config.set_string, key, config.get_string(key, None))
+        else:
+            self.addCleanup(config.remove_config, key)
+        config.set_integer(key, 1)
+        ds = self.env.from_collection(
+            [('k', 'put_none'), ('k', 'check'), ('k', 'remove'), ('k', 'clear_and_put_none')],
+            type_info=Types.TUPLE([Types.STRING(), Types.STRING()]))
+
+        class MyProcessFunction(KeyedProcessFunction):
+
+            def __init__(self):
+                self.map_state = None
+
+            def open(self, runtime_context: RuntimeContext):
+                self.map_state = runtime_context.get_map_state(
+                    MapStateDescriptor('map_state', Types.STRING(), Types.STRING()))
+
+            def process_element(self, value, ctx):
+                if value[1] == 'put_none':
+                    self.map_state.put('x', None)
+                elif value[1] == 'remove':
+                    self.map_state.remove('x')
+                elif value[1] == 'clear_and_put_none':
+                    self.map_state.clear()
+                    self.map_state.put('y', None)
+                yield '%s: x=%s, y=%s, missing=%s' % (
+                    value[1], self.map_state.contains('x'), self.map_state.contains('y'),
+                    self.map_state.contains('missing'))
+
+        ds.key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .process(MyProcessFunction(), output_type=Types.STRING()) \
+            .add_sink(self.test_sink)
+        self.env.execute('test_map_state_contains_none_value')
+        results = self.test_sink.get_results()
+        expected = ['put_none: x=True, y=False, missing=False',
+                    'check: x=True, y=False, missing=False',
+                    'remove: x=False, y=False, missing=False',
+                    'clear_and_put_none: x=False, y=True, missing=False']
+        self.assert_equals_sorted(expected, results)
+
     def test_multi_key_by(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
