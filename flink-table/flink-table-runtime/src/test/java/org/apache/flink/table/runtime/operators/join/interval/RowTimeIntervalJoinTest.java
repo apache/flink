@@ -32,6 +32,10 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.KeyedCoProcessOperatorWithWatermarkDelay;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 import org.junit.jupiter.api.Test;
@@ -578,6 +582,68 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         expectedOutput.add(insertRecord(1L, null, 1L, null));
         expectedOutput.add(new Watermark(91));
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    @Test
+    void testCachesRowsWithNullsOnlyInNullSafeKeyFields() throws Exception {
+        // The key (a, b) compares a with = and b with IS NOT DISTINCT FROM
+        final InternalTypeInfo<RowData> compositeKeyRowType =
+                InternalTypeInfo.ofFields(
+                        new BigIntType(), VarCharType.STRING_TYPE, VarCharType.STRING_TYPE);
+        final RowDataKeySelector compositeKeySelector =
+                HandwrittenSelectorUtil.getRowDataSelector(
+                        new int[] {1, 2}, compositeKeyRowType.toRowFieldTypes());
+        final RowTimeIntervalJoin joinProcessFunc =
+                new RowTimeIntervalJoin(
+                        FlinkJoinType.INNER,
+                        -5,
+                        9,
+                        0,
+                        7,
+                        compositeKeyRowType,
+                        compositeKeyRowType,
+                        newJoinFunction(new boolean[] {true, false}),
+                        0,
+                        0,
+                        -1L,
+                        false);
+        final KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
+                testHarness =
+                        new KeyedTwoInputStreamOperatorTestHarness<>(
+                                new KeyedCoProcessOperatorWithWatermarkDelay<>(
+                                        joinProcessFunc, joinProcessFunc.getMaxOutputDelay()),
+                                compositeKeySelector,
+                                compositeKeySelector,
+                                keyType);
+        testHarness.open();
+
+        testHarness.processElement1(insertRecord(1L, null, "x"));
+        testHarness.processElement2(insertRecord(1L, null, "x"));
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
+
+        testHarness.processElement1(insertRecord(1L, "a", null));
+        testHarness.processElement2(insertRecord(1L, "a", null));
+        assertThat(testHarness.numKeyedStateEntries()).isEqualTo(4);
+
+        testHarness.processWatermark1(new Watermark(100));
+        testHarness.processWatermark2(new Watermark(100));
+
+        final RowDataHarnessAssertor compositeKeyAssertor =
+                new RowDataHarnessAssertor(
+                        new LogicalType[] {
+                            new BigIntType(),
+                            VarCharType.STRING_TYPE,
+                            VarCharType.STRING_TYPE,
+                            new BigIntType(),
+                            VarCharType.STRING_TYPE,
+                            VarCharType.STRING_TYPE
+                        });
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(1L, "a", null, 1L, "a", null));
+        expectedOutput.add(new Watermark(91));
+        compositeKeyAssertor.assertOutputEqualsSorted(
+                "output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }
 
