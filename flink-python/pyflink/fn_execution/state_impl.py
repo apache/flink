@@ -785,7 +785,7 @@ class InternalSynchronousMapRuntimeState(object):
             self.commit()
 
     def put_all(self, dict_value):
-        for map_key, map_value in dict_value:
+        for map_key, map_value in dict_value.items():
             self._write_cache[map_key] = (True, map_value)
         self._is_empty = False
         self._mod_count += 1
