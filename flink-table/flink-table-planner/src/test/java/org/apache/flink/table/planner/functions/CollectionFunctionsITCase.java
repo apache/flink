@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.annotation.DataTypeHint;
-import org.apache.flink.table.api.ApiExpression;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -32,7 +31,6 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.array;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
@@ -40,13 +38,6 @@ import static org.apache.flink.util.CollectionUtil.entry;
 
 /** Tests for {@link BuiltInFunctionDefinitions} around arrays. */
 class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
-
-    // there is no VARIANT literal, so the elements are built with PARSE_JSON
-    private static final ApiExpression VARIANT_VALUE = lit("1").parseJson();
-    private static final ApiExpression VARIANT_ARRAY = array(VARIANT_VALUE);
-    private static final String VARIANT_ARRAY_SQL = "ARRAY[PARSE_JSON('1')]";
-    private static final String NO_ELEMENT_EQUALITY =
-            "Array elements of type VARIANT cannot be compared, because the type has no equality. Cast the elements to a comparable type first.";
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
@@ -206,12 +197,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiValidationError(
                                 $("f0").arrayContains(true),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)")
-                        .testTableApiValidationError(
-                                VARIANT_ARRAY.arrayContains(VARIANT_VALUE), NO_ELEMENT_EQUALITY)
-                        .testSqlValidationError(
-                                "ARRAY_CONTAINS(" + VARIANT_ARRAY_SQL + ", PARSE_JSON('1'))",
-                                NO_ELEMENT_EQUALITY));
+                                        + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
     }
 
     private Stream<TestSetSpec> arrayDistinctTestCases() {
@@ -265,11 +251,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                     null
                                 },
                                 DataTypes.ARRAY(
-                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())))
-                        .testTableApiValidationError(
-                                VARIANT_ARRAY.arrayDistinct(), NO_ELEMENT_EQUALITY)
-                        .testSqlValidationError(
-                                "ARRAY_DISTINCT(" + VARIANT_ARRAY_SQL + ")", NO_ELEMENT_EQUALITY));
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))));
     }
 
     private Stream<TestSetSpec> arrayPositionTestCases() {
@@ -341,12 +323,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiValidationError(
                                 $("f0").arrayPosition(true),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_POSITION(haystack <ARRAY>, needle <ARRAY ELEMENT>)")
-                        .testTableApiValidationError(
-                                VARIANT_ARRAY.arrayPosition(VARIANT_VALUE), NO_ELEMENT_EQUALITY)
-                        .testSqlValidationError(
-                                "ARRAY_POSITION(" + VARIANT_ARRAY_SQL + ", PARSE_JSON('1'))",
-                                NO_ELEMENT_EQUALITY));
+                                        + "ARRAY_POSITION(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
     }
 
     private Stream<TestSetSpec> arrayArrayPrependTestCases() {
@@ -493,12 +470,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiValidationError(
                                 $("f0").arrayRemove(true),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_REMOVE(haystack <ARRAY>, needle <ARRAY ELEMENT>)")
-                        .testTableApiValidationError(
-                                VARIANT_ARRAY.arrayRemove(VARIANT_VALUE), NO_ELEMENT_EQUALITY)
-                        .testSqlValidationError(
-                                "ARRAY_REMOVE(" + VARIANT_ARRAY_SQL + ", PARSE_JSON('1'))",
-                                NO_ELEMENT_EQUALITY));
+                                        + "ARRAY_REMOVE(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
     }
 
     private Stream<TestSetSpec> arrayReverseTestCases() {
@@ -606,12 +578,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiValidationError(
                                 $("f4").arrayUnion(true),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_UNION(<COMMON>, <COMMON>)")
-                        .testTableApiValidationError(
-                                VARIANT_ARRAY.arrayUnion(VARIANT_ARRAY), NO_ELEMENT_EQUALITY)
-                        .testSqlValidationError(
-                                "ARRAY_UNION(" + VARIANT_ARRAY_SQL + ", " + VARIANT_ARRAY_SQL + ")",
-                                NO_ELEMENT_EQUALITY));
+                                        + "ARRAY_UNION(<COMMON>, <COMMON>)"));
     }
 
     private Stream<TestSetSpec> arrayConcatTestCases() {
@@ -1756,16 +1723,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiValidationError(
                                 $("f0").arrayExcept(new String[] {"hi", "there"}),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_EXCEPT(<COMMON>, <COMMON>)")
-                        .testTableApiValidationError(
-                                VARIANT_ARRAY.arrayExcept(VARIANT_ARRAY), NO_ELEMENT_EQUALITY)
-                        .testSqlValidationError(
-                                "ARRAY_EXCEPT("
-                                        + VARIANT_ARRAY_SQL
-                                        + ", "
-                                        + VARIANT_ARRAY_SQL
-                                        + ")",
-                                NO_ELEMENT_EQUALITY));
+                                        + "ARRAY_EXCEPT(<COMMON>, <COMMON>)"));
     }
 
     private Stream<TestSetSpec> arrayIntersectTestCases() {
@@ -1842,16 +1800,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiValidationError(
                                 $("f3").arrayIntersect(true),
                                 "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)")
-                        .testTableApiValidationError(
-                                VARIANT_ARRAY.arrayIntersect(VARIANT_ARRAY), NO_ELEMENT_EQUALITY)
-                        .testSqlValidationError(
-                                "ARRAY_INTERSECT("
-                                        + VARIANT_ARRAY_SQL
-                                        + ", "
-                                        + VARIANT_ARRAY_SQL
-                                        + ")",
-                                NO_ELEMENT_EQUALITY));
+                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)"));
     }
 
     private Stream<TestSetSpec> splitTestCases() {

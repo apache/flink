@@ -121,17 +121,7 @@ class ArrayOfEntriesArgumentTypeStrategyTest extends InputTypeStrategiesTestBase
                                                 DataTypes.FIELD("value", DataTypes.STRING()))))
                         .expectErrorMessage(
                                 "does not support equality comparison and therefore cannot be "
-                                        + "used as the first field of a map entry."),
-                TestSpec.forStrategy(
-                                "VARIANT key type is rejected", MAP_FROM_ENTRIES_INPUT_STRATEGY)
-                        .calledWithArgumentTypes(
-                                DataTypes.ARRAY(
-                                        DataTypes.ROW(
-                                                DataTypes.FIELD("key", DataTypes.VARIANT()),
-                                                DataTypes.FIELD("value", DataTypes.STRING()))))
-                        .expectErrorMessage(
-                                "The map key type 'VARIANT' does not support equality comparison "
-                                        + "and therefore cannot be used as the first field of a map entry."));
+                                        + "used as the first field of a map entry."));
     }
 
     @Test

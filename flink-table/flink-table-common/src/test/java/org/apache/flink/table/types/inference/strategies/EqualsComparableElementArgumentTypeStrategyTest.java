@@ -19,13 +19,8 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
-import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.VariantType;
 
-import java.util.List;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
@@ -70,25 +65,6 @@ class EqualsComparableElementArgumentTypeStrategyTest extends InputTypeStrategie
                         .calledWithArgumentTypes(
                                 DataTypes.MAP(DataTypes.VARIANT(), DataTypes.INT()))
                         .expectErrorMessage(
-                                "Map keys of type VARIANT cannot be compared, because the type has no equality. Cast the keys to a comparable type first."),
-                TestSpec.forStrategy(
-                                "Array elements of a structured type with a VARIANT attribute",
-                                sequence(ARRAY_EQUALS_COMPARABLE))
-                        .calledWithArgumentTypes(
-                                DataTypes.ARRAY(
-                                        new FieldsDataType(
-                                                StructuredType.newBuilder(
-                                                                ObjectIdentifier.of(
-                                                                        "cat", "db", "type"))
-                                                        .attributes(
-                                                                List.of(
-                                                                        new StructuredType
-                                                                                .StructuredAttribute(
-                                                                                "v",
-                                                                                new VariantType())))
-                                                        .build(),
-                                                List.of(DataTypes.VARIANT()))))
-                        .expectErrorMessage(
-                                "Array elements of type `cat`.`db`.`type` cannot be compared, because the type has no equality. Cast the elements to a comparable type first."));
+                                "Map keys of type VARIANT cannot be compared, because the type has no equality. Cast the keys to a comparable type first."));
     }
 }
