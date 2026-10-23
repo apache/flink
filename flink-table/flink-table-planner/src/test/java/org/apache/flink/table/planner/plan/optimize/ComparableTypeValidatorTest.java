@@ -48,8 +48,8 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link KeyTypeValidator}. */
-class KeyTypeValidatorTest {
+/** Tests for {@link ComparableTypeValidator}. */
+class ComparableTypeValidatorTest {
 
     private static final String GROUPING_KEY =
             "Column 'v' of type VARIANT cannot be used as a grouping key";

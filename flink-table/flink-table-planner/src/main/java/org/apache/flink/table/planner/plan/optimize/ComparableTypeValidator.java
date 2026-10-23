@@ -55,22 +55,27 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * Rejects queries that group, join, partition, sort or compare values of a type that is not a
- * comparable key type, see {@link LogicalTypeChecks#isComparableKeyType(LogicalType)}.
+ * Rejects a query that compares values of a type that is not comparable, see {@link
+ * LogicalTypeChecks#isComparableType(LogicalType)}.
  *
- * <p>The check runs on the logical plan before optimization. Keys that the optimizer adds later
- * only match a value with copies of itself and need no check.
+ * <p>A query checks values for equality when it groups, joins or partitions by them, applies
+ * DISTINCT or a set operation other than UNION ALL to them, or compares them with an operator such
+ * as {@code =}, {@code <>}, {@code IN} or {@code IS DISTINCT FROM}. It orders values when it sorts
+ * by them with ORDER BY, or compares them with {@code <}, {@code <=}, {@code >} or {@code >=}.
+ *
+ * <p>The check runs on the logical plan before optimization. Comparisons that the optimizer adds
+ * later only match a value with copies of itself and need no check.
  */
-public final class KeyTypeValidator {
+public final class ComparableTypeValidator {
 
     private static final String EQUALITY = "equality";
     private static final String ORDER = "order";
 
-    private KeyTypeValidator() {}
+    private ComparableTypeValidator() {}
 
     /**
-     * Throws a {@link ValidationException} if a plan groups, joins, partitions, sorts or compares
-     * values of a type that is not a comparable key type.
+     * Throws a {@link ValidationException} if a plan checks values of a type that is not comparable
+     * for equality or orders them.
      */
     public static void validate(final List<RelNode> roots) {
         roots.forEach(root -> new PlanChecker().go(root));
@@ -264,7 +269,7 @@ public final class KeyTypeValidator {
             final String usage,
             final String requirement) {
         final LogicalType logicalType = FlinkTypeFactory.toLogicalType(type);
-        if (!LogicalTypeChecks.isComparableKeyType(logicalType)) {
+        if (!LogicalTypeChecks.isComparableType(logicalType)) {
             throw new ValidationException(
                     String.format(
                             "%s of type %s cannot be used %s, because the type has no %s. "

@@ -142,13 +142,13 @@ class LogicalTypeChecksTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("comparableKeyTypes")
-    void testIsComparableKeyType(DataType dataType, boolean expected) {
-        assertThat(LogicalTypeChecks.isComparableKeyType(dataType.getLogicalType()))
+    @MethodSource("comparableTypes")
+    void testIsComparableType(DataType dataType, boolean expected) {
+        assertThat(LogicalTypeChecks.isComparableType(dataType.getLogicalType()))
                 .isEqualTo(expected);
     }
 
-    private static Stream<Arguments> comparableKeyTypes() {
+    private static Stream<Arguments> comparableTypes() {
         return Stream.of(
                 Arguments.of(INT(), true),
                 Arguments.of(ROW(FIELD("f0", INT())), true),
