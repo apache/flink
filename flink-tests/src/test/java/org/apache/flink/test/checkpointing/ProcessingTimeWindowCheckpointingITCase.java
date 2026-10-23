@@ -88,7 +88,7 @@ class ProcessingTimeWindowCheckpointingITCase {
                                 TypeInformation.of(new TypeHint<Tuple2<Long, IntType>>() {}))
                         // the sink terminates the job once all windows are validated
                         .withIdleAfterEmission();
-        // like the legacy FailingSource, the source is non-parallel
+        // every subtask emits the full sequence, so a second one would duplicate the input
         return env.fromSource(source, WatermarkStrategy.noWatermarks(), "Failing Source")
                 .setParallelism(1);
     }
@@ -295,9 +295,9 @@ class ProcessingTimeWindowCheckpointingITCase {
                 long sequenceNo,
                 FailingCheckpointedSource.GeneratorOutput<Tuple2<Long, IntType>> output) {
             output.collect(new Tuple2<>(sequenceNo, new IntType((int) sequenceNo)));
-            // Spread the elements over many processing-time windows, like the legacy
-            // FailingSource did, so that every run restores open window state and rolls back
-            // sink output on recovery. Duplicate detection itself does not depend on this.
+            // Spread the elements over many processing-time windows so that every run restores
+            // open window state and rolls back sink output on recovery. Duplicate detection
+            // itself does not depend on this.
             try {
                 Thread.sleep(1);
             } catch (InterruptedException e) {
