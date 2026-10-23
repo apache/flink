@@ -430,6 +430,10 @@ public class ExecutionJobVertex
         return operatorCoordinators;
     }
 
+    public Collection<OperatorCoordinatorHolder> getOperatorCoordinatorsEvenIfUninitialized() {
+        return operatorCoordinators;
+    }
+
     public List<SourceCoordinator<?, ?>> getSourceCoordinators() {
         List<SourceCoordinator<?, ?>> sourceCoordinators = new ArrayList<>();
         for (OperatorCoordinatorHolder oph : operatorCoordinators) {
