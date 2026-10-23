@@ -87,7 +87,9 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
 
     @Override
     public void disposeAllOperatorCoordinators() {
-        coordinatorMap.values().forEach(IOUtils::closeQuietly);
+        executionGraph.getAllVertices().values().stream()
+                .flatMap(vertex -> vertex.getOperatorCoordinatorsEvenIfUninitialized().stream())
+                .forEach(IOUtils::closeQuietly);
     }
 
     @Override
