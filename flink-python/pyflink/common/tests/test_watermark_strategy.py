@@ -45,7 +45,9 @@ class WatermarkStrategyTests(PyFlinkTestCase):
 
         self.assertIsNot(idle_strategy, strategy)
         self.assertIs(idle_strategy._timestamp_assigner, timestamp_assigner)
-        idle_strategy.with_timestamp_assigner(IdentityTimestampAssigner())
+        replacement_assigner = IdentityTimestampAssigner()
+        idle_strategy.with_timestamp_assigner(replacement_assigner)
+        self.assertIs(idle_strategy._timestamp_assigner, replacement_assigner)
         self.assertIs(strategy._timestamp_assigner, timestamp_assigner)
 
     def test_with_watermark_alignment(self):
@@ -74,7 +76,9 @@ class WatermarkStrategyTests(PyFlinkTestCase):
 
                 self.assertIsNot(aligned_strategy, strategy)
                 self.assertIs(aligned_strategy._timestamp_assigner, timestamp_assigner)
-                aligned_strategy.with_timestamp_assigner(IdentityTimestampAssigner())
+                replacement_assigner = IdentityTimestampAssigner()
+                aligned_strategy.with_timestamp_assigner(replacement_assigner)
+                self.assertIs(aligned_strategy._timestamp_assigner, replacement_assigner)
                 self.assertIs(strategy._timestamp_assigner, timestamp_assigner)
 
     def test_with_timestamp_assigner_after_enrichment(self):
