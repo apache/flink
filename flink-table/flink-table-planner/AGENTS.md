@@ -93,6 +93,15 @@ Then:
 - Custom call generators for functions live in `codegen/calls/` (e.g., `JsonCallGen.scala`). Simple scalar functions typically don't need these; the planner handles them uniformly through the function definition.
 - Immutables library is used for rule configs (`@Value.Immutable`, `@Value.Enclosing`). See [README.md](README.md).
 
+**Query-controlled strings in generated code.** Generated code is compiled with Janino and executed in the job, so a query-controlled string that is embedded unescaped changes the code that runs. This includes identifiers and ROW field names (may contain `"` and `\`, and line breaks when they come from the Table API or a catalog), string literals, LIKE/regex/JSON path/format patterns, MATCH_RECOGNIZE pattern variables, and type names.
+
+- Prefer `ctx.addReusableObject(value, "prefix")` for serializable values. It passes them to the generated class through `references[]`, so nothing needs escaping.
+- Otherwise embed a string only inside `"..."`, escaped with `EncodingUtils.escapeJava`, for example via `GenerateUtils.generateLiteral`, `ctx.addReusablePreEscapedStringConstant(EncodingUtils.escapeJava(value))`, or `CastRuleUtils.strLiteral` in cast rules. This also applies to text in generated exception messages. The escaped output is not safe in a char literal (`'` is not escaped), nor as an identifier, type, or expression.
+- Name members with `newName(ctx, "prefix")` and reference classes with `className[...]`, never with names taken from the query.
+- `GeneratedExpression.literalValue` holds the raw, unescaped value. Use it for planning decisions only and reference the value in code through `resultTerm`.
+- Never put query-controlled text into generated comments, including `ctx.addReusableHeaderComment`. Janino resolves `\uXXXX` before lexing, so `\u000a` ends a `//` comment, and `escapeJava` does not escape `*/`.
+- Test with values containing `"`, `\`, `'`, a line break, and a literal `\u000a` (written `"\\u000a"` in Java), and assert the exact result. See the field name and pattern cases in `JsonFunctionsITCase` and `LikeFunctionITCase`.
+
 ### Plan serialization changes
 
 - ExecNode specs use Jackson for JSON serialization. Source/sink specs should use `@JsonIgnoreProperties(ignoreUnknown = true)` for forward compatibility.
