@@ -31,9 +31,12 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -80,6 +83,26 @@ class AdaptiveBatchSchedulerITCase {
     @Test
     void testSchedulingWithDynamicSourceParallelismInference() throws Exception {
         testSchedulingBase(true);
+    }
+
+    @Test
+    void testCancelInterruptsDynamicSourceParallelismInference() throws Exception {
+        BlockingParallelismInferenceSource.INFERRING.reset();
+        BlockingParallelismInferenceSource.INTERRUPTED.reset();
+
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createLocalEnvironment(createConfiguration());
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.fromSource(
+                        new BlockingParallelismInferenceSource(),
+                        WatermarkStrategy.noWatermarks(),
+                        "source")
+                .sinkTo(new DiscardingSink<>());
+
+        final JobClient jobClient = env.executeAsync();
+        BlockingParallelismInferenceSource.INFERRING.await();
+        jobClient.cancel().get();
+        BlockingParallelismInferenceSource.INTERRUPTED.await();
     }
 
     @Test
@@ -257,6 +280,29 @@ class AdaptiveBatchSchedulerITCase {
         @Override
         public int inferParallelism(Context context) {
             return expectedParallelism;
+        }
+    }
+
+    private static class BlockingParallelismInferenceSource extends NumberSequenceSource
+            implements DynamicParallelismInference {
+        private static final long serialVersionUID = 1L;
+        private static final OneShotLatch INFERRING = new OneShotLatch();
+        private static final OneShotLatch INTERRUPTED = new OneShotLatch();
+
+        BlockingParallelismInferenceSource() {
+            super(0, 1);
+        }
+
+        @Override
+        public int inferParallelism(Context context) {
+            INFERRING.trigger();
+            try {
+                new OneShotLatch().await();
+            } catch (InterruptedException e) {
+                INTERRUPTED.trigger();
+                Thread.currentThread().interrupt();
+            }
+            return 1;
         }
     }
 }
