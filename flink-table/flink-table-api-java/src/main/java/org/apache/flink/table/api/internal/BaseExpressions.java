@@ -135,7 +135,6 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_FAL
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_JSON;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_FALSE;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_NAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NOT_TRUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IS_NULL;
@@ -543,11 +542,6 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns true if the given numeric expression is NaN (Not-a-Number). Null if null. */
     public OutType isNan() {
         return toApiSpecificExpression(unresolvedCall(IS_NAN, toExpr()));
-    }
-
-    /** Returns true if the given numeric expression is not NaN (Not-a-Number). Null if null. */
-    public OutType isNotNan() {
-        return toApiSpecificExpression(unresolvedCall(IS_NOT_NAN, toExpr()));
     }
 
     /**

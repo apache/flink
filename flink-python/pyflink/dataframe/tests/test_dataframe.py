@@ -45,7 +45,7 @@ from pyflink.table import (
     TableSchema,
 )
 from pyflink.table.expression import Expression
-from pyflink.table.expressions import is_nan, is_not_nan
+from pyflink.table.expressions import is_nan
 from pyflink.table.types import LocalZonedTimestampType, TimestampType
 from pyflink.testing.test_case_utils import (
     PyFlinkDataFrameUTTestCase,
@@ -4641,7 +4641,7 @@ class DataFrameNullNanITTests(PyFlinkStreamDataFrameTestCase):
         )
 
         # "name" is a STRING column and should be silently ignored, not raise
-        # or attempt to apply is_not_nan to it.
+        # or attempt to apply is_nan to it.
         result = df.drop_nan(subset=["name", "score"]).collect()
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][0], 1)
@@ -4877,8 +4877,8 @@ class DataFrameNullNanITTests(PyFlinkStreamDataFrameTestCase):
         self.assertEqual(result[1][0], 2)
         self.assertIsNone(result[1][1])
 
-    def test_is_nan_and_is_not_nan_support_decimal_columns(self):
-        """Regression test: IsNanFunction/IsNotNanFunction must dispatch on DecimalData,
+    def test_is_nan_supports_decimal_columns(self):
+        """Regression test: IsNanFunction must dispatch on DecimalData,
         not BigDecimal, since BuiltInScalarFunction receives internal representations
         and DECIMAL columns never matched an eval(BigDecimal) overload."""
         df = pf.from_records(
@@ -4892,15 +4892,12 @@ class DataFrameNullNanITTests(PyFlinkStreamDataFrameTestCase):
         result = df.select(
             "id",
             is_nan_result=is_nan(pf.col("amount")),
-            is_not_nan_result=is_not_nan(pf.col("amount")),
         ).collect()
 
         self.assertEqual(result[0][0], 1)
         self.assertEqual(result[0][1], False)
-        self.assertEqual(result[0][2], True)
         self.assertEqual(result[1][0], 2)
         self.assertIsNone(result[1][1])
-        self.assertIsNone(result[1][2])
 
 
 if __name__ == "__main__":
