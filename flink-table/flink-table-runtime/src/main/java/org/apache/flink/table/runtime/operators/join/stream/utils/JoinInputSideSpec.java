@@ -38,15 +38,18 @@ public class JoinInputSideSpec implements Serializable {
 
     private final boolean inputSideHasUniqueKey;
     private final boolean joinKeyContainsUniqueKey;
+    private final boolean uniqueKeyContainsJoinKey;
     @Nullable private final InternalTypeInfo<RowData> uniqueKeyType;
     @Nullable private final KeySelector<RowData, RowData> uniqueKeySelector;
 
     private JoinInputSideSpec(
             boolean joinKeyContainsUniqueKey,
+            boolean uniqueKeyContainsJoinKey,
             @Nullable InternalTypeInfo<RowData> uniqueKeyType,
             @Nullable KeySelector<RowData, RowData> uniqueKeySelector) {
         this.inputSideHasUniqueKey = uniqueKeyType != null && uniqueKeySelector != null;
         this.joinKeyContainsUniqueKey = joinKeyContainsUniqueKey;
+        this.uniqueKeyContainsJoinKey = uniqueKeyContainsJoinKey;
         this.uniqueKeyType = uniqueKeyType;
         this.uniqueKeySelector = uniqueKeySelector;
     }
@@ -59,6 +62,14 @@ public class JoinInputSideSpec implements Serializable {
     /** Returns true if the join key contains the unique key of the input. */
     public boolean joinKeyContainsUniqueKey() {
         return joinKeyContainsUniqueKey;
+    }
+
+    /**
+     * Returns true if the unique key of the input is known to contain the join key, so that all
+     * versions of a record have the same join key.
+     */
+    public boolean uniqueKeyContainsJoinKey() {
+        return uniqueKeyContainsJoinKey;
     }
 
     /**
@@ -88,9 +99,24 @@ public class JoinInputSideSpec implements Serializable {
     public static JoinInputSideSpec withUniqueKey(
             InternalTypeInfo<RowData> uniqueKeyType,
             KeySelector<RowData, RowData> uniqueKeySelector) {
+        return withUniqueKey(uniqueKeyType, uniqueKeySelector, false);
+    }
+
+    /**
+     * Creates a {@link JoinInputSideSpec} that the input has an unique key.
+     *
+     * @param uniqueKeyType type information of the unique key
+     * @param uniqueKeySelector key selector to extract unique key from the input row
+     * @param uniqueKeyContainsJoinKey whether the unique key contains the join key
+     */
+    public static JoinInputSideSpec withUniqueKey(
+            InternalTypeInfo<RowData> uniqueKeyType,
+            KeySelector<RowData, RowData> uniqueKeySelector,
+            boolean uniqueKeyContainsJoinKey) {
         checkNotNull(uniqueKeyType);
         checkNotNull(uniqueKeySelector);
-        return new JoinInputSideSpec(false, uniqueKeyType, uniqueKeySelector);
+        return new JoinInputSideSpec(
+                false, uniqueKeyContainsJoinKey, uniqueKeyType, uniqueKeySelector);
     }
 
     /**
@@ -103,14 +129,30 @@ public class JoinInputSideSpec implements Serializable {
     public static JoinInputSideSpec withUniqueKeyContainedByJoinKey(
             InternalTypeInfo<RowData> uniqueKeyType,
             KeySelector<RowData, RowData> uniqueKeySelector) {
+        return withUniqueKeyContainedByJoinKey(uniqueKeyType, uniqueKeySelector, false);
+    }
+
+    /**
+     * Creates a {@link JoinInputSideSpec} that input has an unique key and the unique key is
+     * contained by the join key.
+     *
+     * @param uniqueKeyType type information of the unique key
+     * @param uniqueKeySelector key selector to extract unique key from the input row
+     * @param uniqueKeyContainsJoinKey whether the unique key also contains the join key
+     */
+    public static JoinInputSideSpec withUniqueKeyContainedByJoinKey(
+            InternalTypeInfo<RowData> uniqueKeyType,
+            KeySelector<RowData, RowData> uniqueKeySelector,
+            boolean uniqueKeyContainsJoinKey) {
         checkNotNull(uniqueKeyType);
         checkNotNull(uniqueKeySelector);
-        return new JoinInputSideSpec(true, uniqueKeyType, uniqueKeySelector);
+        return new JoinInputSideSpec(
+                true, uniqueKeyContainsJoinKey, uniqueKeyType, uniqueKeySelector);
     }
 
     /** Creates a {@link JoinInputSideSpec} that input hasn't any unique keys. */
     public static JoinInputSideSpec withoutUniqueKey() {
-        return new JoinInputSideSpec(false, null, null);
+        return new JoinInputSideSpec(false, false, null, null);
     }
 
     @Override

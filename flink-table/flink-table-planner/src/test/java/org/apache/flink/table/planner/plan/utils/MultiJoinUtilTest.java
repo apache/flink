@@ -92,6 +92,22 @@ class MultiJoinUtilTest {
                 .isEqualTo(new int[][] {{}, {}, {}});
     }
 
+    @Test
+    void testConditionFieldsIncludeNonEquiConditionsAndExcludeKeys() {
+        final RexNode greaterThan =
+                REX_BUILDER.makeCall(SqlStdOperatorTable.GREATER_THAN, inputRef(5), inputRef(1));
+        // input 1 has the key (0), input 2 has the keys (0, 1) and (0)
+        assertThat(
+                        MultiJoinUtil.createConditionFields(
+                                INPUT_TYPES,
+                                Arrays.asList(null, equals(0, 2), and(equals(2, 4), greaterThan)),
+                                List.of(
+                                        List.of(),
+                                        List.of(new int[] {0}),
+                                        List.of(new int[] {0, 1}, new int[] {0}))))
+                .isEqualTo(new int[][] {{0, 1}, {}, {1}});
+    }
+
     private static int[][] nullFilterFields(
             final List<FlinkJoinType> joinTypes, final List<RexNode> conditions) {
         // The condition of input 0 is TRUE

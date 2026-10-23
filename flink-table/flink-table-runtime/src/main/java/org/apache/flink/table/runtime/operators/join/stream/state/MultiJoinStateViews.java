@@ -75,7 +75,14 @@ public final class MultiJoinStateViews {
         if (inputSideSpec.hasUniqueKey()) {
             if (inputSideSpec.joinKeyContainsUniqueKey() && joinKeyType != null) {
                 return new JoinKeyContainsUniqueKey(
-                        ctx, stateName, joinKeyType, recordType, ttlConfig);
+                        ctx,
+                        stateName,
+                        joinKeyType,
+                        recordType,
+                        inputSideSpec.getUniqueKeyType(),
+                        inputSideSpec.getUniqueKeySelector(),
+                        !inputSideSpec.uniqueKeyContainsJoinKey(),
+                        ttlConfig);
             } else {
                 return new InputSideHasUniqueKey(
                         ctx,
@@ -84,6 +91,7 @@ public final class MultiJoinStateViews {
                         recordType,
                         inputSideSpec.getUniqueKeyType(),
                         inputSideSpec.getUniqueKeySelector(),
+                        !inputSideSpec.uniqueKeyContainsJoinKey(),
                         ttlConfig,
                         requiresKeyDeepCopy);
             }
@@ -131,12 +139,19 @@ public final class MultiJoinStateViews {
         // stores record in the mapping <JoinKey, Record>
         private final MapState<RowData, RowData> recordState;
         private final List<RowData> reusedList;
+        private final KeySelector<RowData, RowData> uniqueKeySelector;
+        private final RowDataSerializer uniqueKeySerializer;
+        // whether a new version of a record may be stored under another join key
+        private final boolean joinKeyMayChange;
 
         private JoinKeyContainsUniqueKey(
                 RuntimeContext ctx,
                 final String stateName,
                 final RowType joinKeyType,
                 final RowType recordType,
+                final InternalTypeInfo<RowData> uniqueKeyType,
+                final KeySelector<RowData, RowData> uniqueKeySelector,
+                final boolean joinKeyMayChange,
                 final StateTtlConfig ttlConfig) {
             MapStateDescriptor<RowData, RowData> recordStateDesc =
                     createStateDescriptor(
@@ -148,6 +163,9 @@ public final class MultiJoinStateViews {
             this.recordState = ctx.getMapState(recordStateDesc);
             // the result records always not more than 1 per joinKey
             this.reusedList = new ArrayList<>(1);
+            this.uniqueKeySelector = checkNotNull(uniqueKeySelector);
+            this.uniqueKeySerializer = new RowDataSerializer(uniqueKeyType.toRowType());
+            this.joinKeyMayChange = joinKeyMayChange;
         }
 
         @Override
@@ -169,6 +187,25 @@ public final class MultiJoinStateViews {
             }
             return reusedList;
         }
+
+        @Override
+        public @Nullable RowData getRecord(@Nullable RowData joinKey, RowData record)
+                throws Exception {
+            // the join key contains the unique key, so a record under it has the same unique key
+            final RowData storedRecord = recordState.get(joinKey);
+            if (storedRecord != null || !joinKeyMayChange) {
+                return storedRecord;
+            }
+            final BinaryRowData uniqueKey =
+                    uniqueKeySerializer.toBinaryRow(uniqueKeySelector.getKey(record), true);
+            for (RowData candidate : recordState.values()) {
+                if (uniqueKey.equals(
+                        uniqueKeySerializer.toBinaryRow(uniqueKeySelector.getKey(candidate)))) {
+                    return candidate;
+                }
+            }
+            return null;
+        }
     }
 
     /**
@@ -187,6 +224,9 @@ public final class MultiJoinStateViews {
         private RowDataSerializer joinKeySerializer; // Null if joinKeyType is null
         private RowDataSerializer stateKeySerializer; // Null if joinKeyType is null
         private int joinKeyFieldCount = 0; // 0 if joinKeyType is null
+        private final RowDataSerializer uniqueKeySerializer;
+        // whether a new version of a record may be stored under another join key
+        private final boolean joinKeyMayChange;
         private final boolean requiresKeyDeepCopy;
 
         private InputSideHasUniqueKey(
@@ -196,11 +236,14 @@ public final class MultiJoinStateViews {
                 final RowType recordType,
                 final InternalTypeInfo<RowData> uniqueKeyType,
                 final KeySelector<RowData, RowData> uniqueKeySelector,
+                final boolean joinKeyMayChange,
                 final StateTtlConfig ttlConfig,
                 final boolean requiresKeyDeepCopy) {
             checkNotNull(uniqueKeyType);
             checkNotNull(uniqueKeySelector);
             this.uniqueKeySelector = uniqueKeySelector;
+            this.uniqueKeySerializer = new RowDataSerializer(uniqueKeyType.toRowType());
+            this.joinKeyMayChange = joinKeyMayChange;
 
             // If joinKeyType is null, state will be keyed by UniqueKey.
             // Otherwise, it's keyed by CompositeKey<JoinKey, UniqueKey>.
@@ -262,6 +305,29 @@ public final class MultiJoinStateViews {
             final RowData uniqueKey = uniqueKeySelector.getKey(record);
             final RowData stateKey = getStateKey(joinKey, uniqueKey);
             recordState.remove(stateKey);
+        }
+
+        @Override
+        public @Nullable RowData getRecord(@Nullable RowData joinKey, RowData record)
+                throws Exception {
+            final RowData uniqueKey = uniqueKeySelector.getKey(record);
+            final RowData storedRecord = recordState.get(getStateKey(joinKey, uniqueKey));
+            if (storedRecord != null
+                    || !joinKeyMayChange
+                    || joinKey == null
+                    || this.joinKeySerializer == null) {
+                return storedRecord;
+            }
+            // the stored record may be under another join key
+            final BinaryRowData binaryUniqueKey = uniqueKeySerializer.toBinaryRow(uniqueKey, true);
+            final int uniqueKeyFieldCount = uniqueKeySerializer.getArity();
+            for (Map.Entry<RowData, RowData> entry : recordState.entries()) {
+                final RowData storedUniqueKey = entry.getKey().getRow(1, uniqueKeyFieldCount);
+                if (binaryUniqueKey.equals(uniqueKeySerializer.toBinaryRow(storedUniqueKey))) {
+                    return entry.getValue();
+                }
+            }
+            return null;
         }
 
         @Override
@@ -397,6 +463,12 @@ public final class MultiJoinStateViews {
                 currentCount = 0;
             }
             recordState.put(stateKey, currentCount + 1);
+        }
+
+        @Override
+        public @Nullable RowData getRecord(@Nullable RowData joinKey, RowData record) {
+            // without a unique key, no record replaces another one
+            return null;
         }
 
         @Override

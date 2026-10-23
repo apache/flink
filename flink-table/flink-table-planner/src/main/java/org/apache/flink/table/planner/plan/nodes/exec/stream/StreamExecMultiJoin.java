@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -46,6 +47,7 @@ import org.apache.flink.table.runtime.operators.join.stream.keyselector.Attribut
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.RuntimeChangelogMode;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -54,6 +56,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInc
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
@@ -85,6 +88,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     private static final String FIELD_NAME_JOIN_ATTRIBUTE_MAP = "joinAttributeMap";
     private static final String FIELD_NAME_INPUT_UNIQUE_KEYS = "inputUniqueKeys";
     private static final String FIELD_NAME_INPUT_UPSERT_KEYS = "inputUpsertKeys";
+    private static final String FIELD_NAME_INPUT_CHANGELOG_MODES = "inputChangelogModes";
     private static final String FIELD_NAME_MULTI_JOIN_CONDITION = "multiJoinCondition";
 
     @JsonProperty(FIELD_NAME_JOIN_TYPES)
@@ -118,6 +122,11 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<List<int[]>> inputUpsertKeys;
 
+    @Nullable
+    @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODES)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<ChangelogMode> inputChangelogModes;
+
     @JsonProperty(FIELD_NAME_STATE)
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<StateMetadata> stateMetadataList;
@@ -129,6 +138,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             @Nullable final RexNode multiJoinCondition,
             final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             final List<List<int[]>> inputUpsertKeys,
+            final List<ChangelogMode> inputChangelogModes,
             final Map<Integer, Long> stateTtlFromHint,
             final List<InputProperty> inputProperties,
             final RowType outputType,
@@ -143,6 +153,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 joinAttributeMap,
                 null,
                 inputUpsertKeys,
+                inputChangelogModes,
                 StateMetadata.getMultiInputOperatorDefaultMeta(
                         stateTtlFromHint, tableConfig, generateStateNames(inputProperties.size())),
                 inputProperties,
@@ -166,6 +177,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                     final List<List<int[]>> inputUniqueKeys,
             @Nullable @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEYS)
                     final List<List<int[]>> inputUpsertKeys,
+            @Nullable @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODES)
+                    final List<ChangelogMode> inputChangelogModes,
             @Nullable @JsonProperty(FIELD_NAME_STATE) final List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) final List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) final RowType outputType,
@@ -180,6 +193,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         this.joinConditions = checkNotNull(joinConditions);
         this.inputUniqueKeys = inputUniqueKeys;
         this.inputUpsertKeys = inputUpsertKeys;
+        this.inputChangelogModes = inputChangelogModes;
         this.multiJoinCondition = multiJoinCondition;
         this.joinAttributeMap = Objects.requireNonNullElseGet(joinAttributeMap, Map::of);
         this.stateMetadataList = stateMetadataList;
@@ -256,7 +270,15 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                         generatedJoinConditions,
                         keyExtractor,
                         MultiJoinUtil.createNullFilterFields(
-                                inputRowTypes, joinConditions, joinTypes));
+                                inputRowTypes, joinConditions, joinTypes),
+                        IntStream.range(0, numInputs)
+                                .mapToObj(
+                                        i ->
+                                                toRuntimeChangelogMode(
+                                                        i, inputKeys.get(i), keyExtractor))
+                                .collect(Collectors.toList()),
+                        MultiJoinUtil.createConditionFields(
+                                inputRowTypes, joinConditions, inputKeys));
 
         final List<KeySelector<RowData, RowData>> commonJoinKeySelectors =
                 createKeySelectors(planner, inputTypeInfos, keyExtractor);
@@ -311,7 +333,9 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             final List<JoinInputSideSpec> inputSideSpecs,
             final GeneratedJoinCondition[] joinConditions,
             final JoinKeyExtractor keyExtractor,
-            final int[][] nullFilterFields) {
+            final int[][] nullFilterFields,
+            final List<RuntimeChangelogMode> inputChangelogModes,
+            final int[][] conditionFields) {
         final List<Long> stateTtls =
                 StateMetadata.getStateTtlForMultiInputOperator(
                         config, inputTypeInfos.size(), stateMetadataList);
@@ -326,7 +350,28 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 joinConditions,
                 keyExtractor,
                 joinAttributeMap,
-                nullFilterFields);
+                nullFilterFields,
+                inputChangelogModes,
+                conditionFields);
+    }
+
+    /**
+     * Returns the changelog mode of the input, or null if it is unknown. Compiled plans before
+     * Flink 2.4 don't contain the changelog modes, but the planner only let an input omit
+     * UPDATE_BEFORE or delete by key if one of its keys contains the common join key.
+     */
+    private @Nullable RuntimeChangelogMode toRuntimeChangelogMode(
+            final int inputId, final List<int[]> inputKeys, final JoinKeyExtractor keyExtractor) {
+        if (inputChangelogModes != null) {
+            return RuntimeChangelogMode.serialize(inputChangelogModes.get(inputId));
+        }
+        final ImmutableBitSet commonJoinKey =
+                ImmutableBitSet.of(keyExtractor.getCommonJoinKeyIndices(inputId));
+        final boolean mayBeUpsert =
+                !commonJoinKey.isEmpty()
+                        && inputKeys.stream()
+                                .anyMatch(key -> ImmutableBitSet.of(key).contains(commonJoinKey));
+        return mayBeUpsert ? null : RuntimeChangelogMode.serialize(ChangelogMode.all());
     }
 
     private List<KeySelector<RowData, RowData>> createKeySelectors(

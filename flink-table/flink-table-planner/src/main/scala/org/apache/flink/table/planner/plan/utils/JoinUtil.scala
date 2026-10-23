@@ -185,17 +185,26 @@ object JoinUtil {
         val uniqueKeySelector =
           KeySelectorUtil.getRowDataSelector(classLoader, smallestUniqueKey, inputTypeInfo)
         val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
-        JoinInputSideSpec.withUniqueKey(uniqueKeyTypeInfo, uniqueKeySelector)
+        JoinInputSideSpec.withUniqueKey(
+          uniqueKeyTypeInfo,
+          uniqueKeySelector,
+          containsAll(smallestUniqueKey, joinKeys))
       } else {
         // join key contains unique key
         val smallestUniqueKey = getSmallestKey(uniqueKeysContainedByJoinKey)
         val uniqueKeySelector =
           KeySelectorUtil.getRowDataSelector(classLoader, smallestUniqueKey, inputTypeInfo)
         val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
-        JoinInputSideSpec.withUniqueKeyContainedByJoinKey(uniqueKeyTypeInfo, uniqueKeySelector)
+        JoinInputSideSpec.withUniqueKeyContainedByJoinKey(
+          uniqueKeyTypeInfo,
+          uniqueKeySelector,
+          containsAll(smallestUniqueKey, joinKeys))
       }
     }
   }
+
+  private def containsAll(key: Array[Int], fields: Array[Int]): Boolean =
+    fields.forall(key.contains(_))
 
   private def getSmallestKey(keys: util.List[Array[Int]]) = {
     keys.reduce((k1, k2) => if (k1.length <= k2.length) k1 else k2)

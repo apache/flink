@@ -20,6 +20,8 @@ package org.apache.flink.table.runtime.operators.join.stream.state;
 
 import org.apache.flink.table.data.RowData;
 
+import javax.annotation.Nullable;
+
 /**
  * Interface for state view handling records under a specific map key within the main join key's
  * context.
@@ -33,4 +35,12 @@ public interface MultiJoinStateView {
 
     /** Gets all the records under the given join key. */
     Iterable<RowData> getRecords(RowData joinKey) throws Exception;
+
+    /**
+     * Gets the stored record with the same unique key as the given record, or null if there is
+     * none. The stored record may be under another join key than the given one, which is the join
+     * key of the given record.
+     */
+    @Nullable
+    RowData getRecord(@Nullable RowData joinKey, RowData record) throws Exception;
 }
