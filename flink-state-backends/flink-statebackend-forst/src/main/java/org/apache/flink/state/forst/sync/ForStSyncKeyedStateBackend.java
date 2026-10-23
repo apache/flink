@@ -525,6 +525,12 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     }
 
     @Override
+    public void setCurrentKeyForStateAccess(K newKey) {
+        super.setCurrentKeyForStateAccess(newKey);
+        sharedRocksKeyBuilder.setKeyAndKeyGroup(getCurrentKey(), getCurrentKeyGroupIndex());
+    }
+
+    @Override
     public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
         super.setCurrentKeyAndKeyGroup(newKey, newKeyGroupIndex);
         sharedRocksKeyBuilder.setKeyAndKeyGroup(getCurrentKey(), getCurrentKeyGroupIndex());

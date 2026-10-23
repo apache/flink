@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -130,6 +131,24 @@ class TtlMapState<K, N, UK, UV>
     public boolean isEmpty() throws Exception {
         accessCallback.run();
         return original.isEmpty();
+    }
+
+    @Override
+    public boolean isEmptyExcluding(Set<?> excludedKeys) throws Exception {
+        // Ordinary TTL reads can clean up entries and invalidate another active iterator.
+        final Iterable<Map.Entry<UK, TtlValue<UV>>> entries = original.entries();
+        final long now = timeProvider.currentTimestamp();
+        if (entries != null) {
+            for (Map.Entry<UK, TtlValue<UV>> entry : entries) {
+                final TtlValue<UV> value = entry.getValue();
+                if (!excludedKeys.contains(entry.getKey())
+                        && value != null
+                        && (returnExpired || !TtlUtils.expired(value, ttl, now))) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     @Nullable
