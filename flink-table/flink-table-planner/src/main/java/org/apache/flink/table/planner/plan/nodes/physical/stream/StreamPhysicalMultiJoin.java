@@ -57,6 +57,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
@@ -86,7 +87,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
 
     // Cached derived properties to avoid recomputation
     private @Nullable RexNode multiJoinCondition;
-    private @Nullable List<List<int[]>> inputUniqueKeys;
+    private @Nullable List<List<int[]>> inputUpsertKeys;
 
     public StreamPhysicalMultiJoin(
             final RelOptCluster cluster,
@@ -111,7 +112,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         this.hints = hints;
         this.keyExtractor = keyExtractor;
         this.multiJoinCondition = getMultiJoinCondition();
-        this.inputUniqueKeys = getUniqueKeysForInputs();
+        this.inputUpsertKeys = getUpsertKeysForInputs();
     }
 
     @Override
@@ -132,7 +133,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         this.inputs = List.copyOf(newInputs);
         // Invalidate cached derived properties since inputs changed
         this.multiJoinCondition = null;
-        this.inputUniqueKeys = null;
+        this.inputUpsertKeys = null;
         recomputeDigest();
     }
 
@@ -186,7 +187,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
     @Override
     public ExecNode<?> translateToExecNode() {
         final RexNode multijoinCondition = getMultiJoinCondition();
-        final List<List<int[]>> localInputUniqueKeys = getUniqueKeysForInputs();
+        final List<List<int[]>> localInputUpsertKeys = getUpsertKeysForInputs();
         final List<FlinkJoinType> execJoinTypes = getExecJoinTypes();
         final List<InputProperty> inputProperties = createInputProperties();
 
@@ -196,7 +197,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 joinConditions,
                 multijoinCondition,
                 joinAttributeMap,
-                localInputUniqueKeys,
+                localInputUpsertKeys,
                 StateTtlHint.getStateTtlFromHintOnMultiRel(this.hints),
                 inputProperties,
                 FlinkTypeFactory.toLogicalRowType(getRowType()),
@@ -221,36 +222,43 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         return RexUtil.composeConjunction(getCluster().getRexBuilder(), conjunctions, true);
     }
 
-    public List<List<int[]>> getUniqueKeysForInputs() {
-        if (inputUniqueKeys == null) {
-            inputUniqueKeys =
-                    inputs.stream()
-                            .map(
-                                    input -> {
-                                        final Set<ImmutableBitSet> uniqueKeys =
-                                                getUniqueKeys(input);
+    public List<List<int[]>> getUpsertKeysForInputs() {
+        if (inputUpsertKeys == null) {
+            inputUpsertKeys =
+                    IntStream.range(0, inputs.size())
+                            .mapToObj(
+                                    inputId -> {
+                                        final Set<ImmutableBitSet> upsertKeys =
+                                                getUpsertKeys(inputId);
 
-                                        if (uniqueKeys == null) {
+                                        if (upsertKeys == null) {
                                             return Collections.<int[]>emptyList();
                                         }
 
-                                        return uniqueKeys.stream()
+                                        return upsertKeys.stream()
                                                 .map(ImmutableBitSet::toArray)
                                                 .collect(Collectors.toList());
                                     })
                             .collect(Collectors.toUnmodifiableList());
         }
-        return inputUniqueKeys;
+        return inputUpsertKeys;
     }
 
     public int[] getJoinKeyIndices(int inputId) {
         return keyExtractor.getJoinKeyIndices(inputId);
     }
 
-    private @Nullable Set<ImmutableBitSet> getUniqueKeys(RelNode input) {
+    /**
+     * Returns the upsert keys of the input, like {@link StreamPhysicalJoin} does. An input without
+     * UPDATE_BEFORE replaces the stored record with the same upsert key, which a unique key that
+     * isn't an upsert key doesn't identify.
+     */
+    private @Nullable Set<ImmutableBitSet> getUpsertKeys(int inputId) {
+        final RelNode input = inputs.get(inputId);
         final FlinkRelMetadataQuery fmq =
                 FlinkRelMetadataQuery.reuseOrCreate(input.getCluster().getMetadataQuery());
-        return fmq.getUniqueKeys(input);
+        return fmq.getUpsertKeysInKeyGroupRange(
+                input, keyExtractor.getCommonJoinKeyIndices(inputId));
     }
 
     public RexNode getMultiJoinCondition() {
@@ -349,13 +357,14 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
 
     private String formatInputUniqueKeysWithFieldNames() {
         final List<String> inputUniqueKeyStrings = new ArrayList<>();
-        for (final RelNode input : inputs) {
-            final Set<ImmutableBitSet> uniqueKeys = getUniqueKeys(input);
+        for (int inputId = 0; inputId < inputs.size(); inputId++) {
+            final RelNode input = inputs.get(inputId);
+            final Set<ImmutableBitSet> upsertKeys = getUpsertKeys(inputId);
 
-            if (uniqueKeys != null && !uniqueKeys.isEmpty()) {
+            if (upsertKeys != null && !upsertKeys.isEmpty()) {
                 final List<String> fieldNames = input.getRowType().getFieldNames();
                 final List<String> uniqueKeyStrings = new ArrayList<>();
-                for (final ImmutableBitSet uniqueKey : uniqueKeys) {
+                for (final ImmutableBitSet uniqueKey : upsertKeys) {
                     final List<String> keyFieldNames = new ArrayList<>();
                     for (final int index : uniqueKey.toArray()) {
                         if (index < fieldNames.size()) {
@@ -378,7 +387,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
 
     /**
      * This is mainly used in `FlinkChangelogModeInferenceProgram.SatisfyUpdateKindTraitVisitor`. If
-     * the unique key of input is a superset of the common join key, then we can ignore
+     * an upsert key of the input is a superset of the common join key, then we can ignore
      * UPDATE_BEFORE. Otherwise, we can't ignore UPDATE_BEFORE.
      *
      * <p>For example, if the input schema is [id, name, cnt] with the unique key (id) and the
@@ -394,9 +403,8 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
      * we use the common join key, since the multi join operator partitions on the common join key.
      */
     public boolean inputUniqueKeyContainsCommonJoinKey(int inputId) {
-        final RelNode input = getInputs().get(inputId);
-        final Set<ImmutableBitSet> inputUniqueKeysSet = getUniqueKeys(input);
-        if (inputUniqueKeysSet == null || inputUniqueKeysSet.isEmpty()) {
+        final Set<ImmutableBitSet> inputUpsertKeys = getUpsertKeys(inputId);
+        if (inputUpsertKeys == null || inputUpsertKeys.isEmpty()) {
             return false;
         }
 
@@ -406,8 +414,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         }
 
         final ImmutableBitSet commonJoinKeys = ImmutableBitSet.of(commonJoinKeyIndices);
-        return inputUniqueKeysSet.stream()
-                .anyMatch(uniqueKey -> uniqueKey.contains(commonJoinKeys));
+        return inputUpsertKeys.stream().anyMatch(uniqueKey -> uniqueKey.contains(commonJoinKeys));
     }
 
     private List<InputProperty> createInputProperties() {
