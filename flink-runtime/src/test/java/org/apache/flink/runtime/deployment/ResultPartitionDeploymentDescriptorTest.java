@@ -51,6 +51,8 @@ class ResultPartitionDeploymentDescriptorTest {
 
     private static final ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
     private static final int numberOfSubpartitions = 24;
+
+    private static final int consumerParallelism = 12;
     private static final int connectionIndex = 10;
     private static final boolean isBroadcast = false;
     private static final boolean isAllToAllDistribution = true;
@@ -112,7 +114,10 @@ class ResultPartitionDeploymentDescriptorTest {
                     ShuffleDescriptor shuffleDescriptor) throws IOException {
         ResultPartitionDeploymentDescriptor orig =
                 new ResultPartitionDeploymentDescriptor(
-                        partitionDescriptor, shuffleDescriptor, numberOfSubpartitions);
+                        partitionDescriptor,
+                        shuffleDescriptor,
+                        numberOfSubpartitions,
+                        consumerParallelism);
         ResultPartitionDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
         verifyResultPartitionDeploymentDescriptorCopy(copy);
         return copy;
@@ -125,5 +130,6 @@ class ResultPartitionDeploymentDescriptorTest {
         assertThat(partitionId).isEqualTo(copy.getPartitionId());
         assertThat(partitionType).isEqualTo(copy.getPartitionType());
         assertThat(numberOfSubpartitions).isEqualTo(copy.getNumberOfSubpartitions());
+        assertThat(consumerParallelism).isEqualTo(copy.getConsumerParallelism());
     }
 }
