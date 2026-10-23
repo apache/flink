@@ -156,6 +156,22 @@ public final class TestingBlobHelpers {
     }
 
     /**
+     * Returns the storage directory of the given blob service.
+     *
+     * <p>The file count checks build the job and application directory paths from it instead of
+     * using {@code getStorageLocation}, which creates the directory: a cleanup task may be deleting
+     * the directory at the same time, and creating it then can fail with a {@link
+     * java.nio.file.FileAlreadyExistsException}.
+     */
+    private static File getStorageDir(PermanentBlobService blobService) {
+        if (blobService instanceof BlobServer) {
+            return ((BlobServer) blobService).getStorageDir();
+        } else {
+            return ((PermanentBlobCache) blobService).getStorageDir();
+        }
+    }
+
+    /**
      * Checks how many of the files given by blob keys are accessible.
      *
      * @param expectedCount number of expected files in the blob service for the given job
@@ -165,14 +181,10 @@ public final class TestingBlobHelpers {
     public static void checkFileCountForJob(
             int expectedCount, JobID jobId, PermanentBlobService blobService) throws IOException {
 
-        final File jobDir;
-        if (blobService instanceof BlobServer) {
-            BlobServer server = (BlobServer) blobService;
-            jobDir = server.getStorageLocation(jobId, new PermanentBlobKey()).getParentFile();
-        } else {
-            PermanentBlobCache cache = (PermanentBlobCache) blobService;
-            jobDir = cache.getStorageLocation(jobId, new PermanentBlobKey()).getParentFile();
-        }
+        final File jobDir =
+                new File(
+                        BlobUtils.getStorageLocationPath(
+                                getStorageDir(blobService).getAbsolutePath(), jobId));
         File[] blobsForJob = jobDir.listFiles();
         if (blobsForJob == null) {
             if (expectedCount != 0) {
@@ -196,17 +208,10 @@ public final class TestingBlobHelpers {
             int expectedCount, ApplicationID applicationId, PermanentBlobService blobService)
             throws IOException {
 
-        final File applicationDir;
-        if (blobService instanceof BlobServer) {
-            BlobServer server = (BlobServer) blobService;
-            applicationDir =
-                    server.getStorageLocation(applicationId, new PermanentBlobKey())
-                            .getParentFile();
-        } else {
-            PermanentBlobCache cache = (PermanentBlobCache) blobService;
-            applicationDir =
-                    cache.getStorageLocation(applicationId, new PermanentBlobKey()).getParentFile();
-        }
+        final File applicationDir =
+                new File(
+                        BlobUtils.getStorageLocationPath(
+                                getStorageDir(blobService).getAbsolutePath(), applicationId));
         File[] blobsForApplication = applicationDir.listFiles();
         if (blobsForApplication == null) {
             if (expectedCount != 0) {
