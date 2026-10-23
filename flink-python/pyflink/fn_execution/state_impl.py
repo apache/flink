@@ -21,6 +21,8 @@ from abc import ABC, abstractmethod
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.bundle_processor import SynchronousBagRuntimeState
+from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler
+from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.transforms import userstate
 from enum import Enum
 from functools import partial
@@ -120,10 +122,6 @@ class SynchronousKvRuntimeState(InternalKvState, ABC):
         elif ttl_config.get_update_type() == StateTtlConfig.UpdateType.OnReadAndWrite:
             self._cache_type = SynchronousKvRuntimeState.CacheType.ENABLE_WRITE_CACHE
 
-        if self._cache_type != SynchronousKvRuntimeState.CacheType.ENABLE_READ_WRITE_CACHE:
-            # disable read cache
-            self._remote_state_backend._state_handler._state_cache._cache._max_entries = 0
-
     @abstractmethod
     def get_internal_state(self):
         pass
@@ -145,7 +143,7 @@ class SynchronousBagKvRuntimeState(SynchronousKvRuntimeState, ABC):
     def get_internal_state(self):
         if self._internal_state is None:
             self._internal_state = self._remote_state_backend._get_internal_bag_state(
-                self.name, self.namespace, self._value_coder, self._ttl_config)
+                self.name, self.namespace, self._value_coder, self._ttl_config, self._cache_type)
         return self._internal_state
 
     def _maybe_clear_write_cache(self):
@@ -736,8 +734,10 @@ class InternalSynchronousMapRuntimeState(object):
                  state_key,
                  map_key_coder,
                  map_value_coder,
-                 max_write_cache_entries):
+                 max_write_cache_entries,
+                 read_cache_enabled=True):
         self._map_state_handler = map_state_handler
+        self._read_cache_enabled = read_cache_enabled
         self._state_key = state_key
         self._map_key_coder = map_key_coder
         if isinstance(map_key_coder, FieldCoder):
@@ -815,8 +815,8 @@ class InternalSynchronousMapRuntimeState(object):
             return True
 
     def is_empty(self):
-        if self._is_empty is None:
-            if len(self._write_cache) > 0:
+        if self._is_empty is None or (not self._read_cache_enabled and not self._is_empty):
+            if self._cleared or self._write_cache:
                 self.commit()
             self._is_empty = self._map_state_handler.check_empty(self._state_key)
         return self._is_empty
@@ -960,6 +960,11 @@ class RemoteKeyedStateBackend(object):
         self._state_handler = state_handler
         self._map_state_handler = CachingMapStateHandler(
             state_handler, map_state_read_cache_size)
+        # TTL reads must reach the state backend without disabling other states' caches.
+        self._uncached_state_handler = GlobalCachingStateHandler(
+            StateCache(0), state_handler._underlying)
+        self._uncached_map_state_handler = CachingMapStateHandler(
+            self._uncached_state_handler, map_state_read_cache_size)
         self._key_coder_impl = key_coder.get_impl()
         self.namespace_coder = namespace_coder
         if namespace_coder:
@@ -1052,7 +1057,7 @@ class RemoteKeyedStateBackend(object):
         self._all_states[name] = wrapped_state
         return wrapped_state
 
-    def _get_internal_bag_state(self, name, namespace, element_coder, ttl_config):
+    def _get_internal_bag_state(self, name, namespace, element_coder, ttl_config, cache_type):
         encoded_namespace = self._encode_namespace(namespace)
         cached_state = self._internal_state_cache.get(
             (name, self._encoded_current_key, encoded_namespace))
@@ -1065,7 +1070,8 @@ class RemoteKeyedStateBackend(object):
         if isinstance(element_coder, FieldCoder):
             element_coder = FlinkCoder(element_coder)
         state_spec = userstate.BagStateSpec(name, element_coder)
-        internal_state = self._create_bag_state(state_spec, encoded_namespace, ttl_config)
+        internal_state = self._create_bag_state(
+            state_spec, encoded_namespace, ttl_config, cache_type)
         return internal_state
 
     def _get_internal_map_state(
@@ -1079,11 +1085,15 @@ class RemoteKeyedStateBackend(object):
             name, encoded_namespace, map_key_coder, map_value_coder, ttl_config, cache_type)
         return internal_map_state
 
-    def _create_bag_state(self, state_spec: userstate.StateSpec, encoded_namespace, ttl_config) \
+    def _create_bag_state(
+            self, state_spec: userstate.StateSpec, encoded_namespace, ttl_config, cache_type) \
             -> userstate.AccumulatingRuntimeState:
         if isinstance(state_spec, userstate.BagStateSpec):
+            state_handler = self._state_handler
+            if cache_type != SynchronousKvRuntimeState.CacheType.ENABLE_READ_WRITE_CACHE:
+                state_handler = self._uncached_state_handler
             bag_state = SynchronousBagRuntimeState(
-                self._state_handler,
+                state_handler,
                 state_key=self.get_bag_state_key(
                     state_spec.name, self._encoded_current_key, encoded_namespace, ttl_config),
                 value_coder=state_spec.coder)
@@ -1109,12 +1119,18 @@ class RemoteKeyedStateBackend(object):
             write_cache_size = 0
         else:
             write_cache_size = self._map_state_write_cache_size
+        read_cache_enabled = \
+            cache_type == SynchronousKvRuntimeState.CacheType.ENABLE_READ_WRITE_CACHE
+        map_state_handler = self._map_state_handler
+        if not read_cache_enabled:
+            map_state_handler = self._uncached_map_state_handler
         return InternalSynchronousMapRuntimeState(
-            self._map_state_handler,
+            map_state_handler,
             state_key,
             map_key_coder,
             map_value_coder,
-            write_cache_size)
+            write_cache_size,
+            read_cache_enabled)
 
     def _encode_namespace(self, namespace):
         if namespace is not None:
@@ -1154,7 +1170,8 @@ class RemoteKeyedStateBackend(object):
                 self.commit_internal_state(state._internal_state)
 
     def clear_cached_iterators(self):
-        if self._map_state_handler.get_cached_iterators_num() > 0:
+        if self._map_state_handler.get_cached_iterators_num() > 0 or \
+                self._uncached_map_state_handler.get_cached_iterators_num() > 0:
             self._clear_iterator_mark.multimap_side_input.key = self._encoded_current_key
             self._map_state_handler.clear(self._clear_iterator_mark)
 
