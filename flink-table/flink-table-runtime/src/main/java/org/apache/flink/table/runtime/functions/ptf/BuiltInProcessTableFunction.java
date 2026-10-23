@@ -19,21 +19,32 @@
 package org.apache.flink.table.runtime.functions.ptf;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ValueView;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
+import org.apache.flink.table.runtime.dataview.DataViewUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
+import javax.annotation.Nullable;
+
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 /**
@@ -59,6 +70,18 @@ public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunctio
 
     protected BuiltInProcessTableFunction(
             final BuiltInFunctionDefinition definition, final SpecializedContext context) {
+        this(definition, context, null);
+    }
+
+    /**
+     * Creates a function whose state entries are declared by the specialized function itself
+     * instead of the definition. Use {@link #internalState(Map.Entry[])} or {@link
+     * #customState(Map.Entry[])} to create the strategies.
+     */
+    protected BuiltInProcessTableFunction(
+            final BuiltInFunctionDefinition definition,
+            final SpecializedContext context,
+            @Nullable final LinkedHashMap<String, StateTypeStrategy> internalStateStrategies) {
         this.definition = definition;
         final CallContext callContext = context.getCallContext();
         final TypeInference definitionTypeInference =
@@ -76,7 +99,85 @@ public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunctio
                         .orElseThrow(IllegalStateException::new);
 
         this.internalStateStrategies =
-                toInternalStateStrategies(definitionTypeInference, callContext);
+                internalStateStrategies != null
+                        ? internalStateStrategies
+                        : toInternalStateStrategies(definitionTypeInference);
+    }
+
+    /**
+     * Declares the state entries of a specialized function in order. The strategies may infer
+     * external data types, they are converted to internal ones.
+     */
+    @SafeVarargs
+    protected static LinkedHashMap<String, StateTypeStrategy> internalState(
+            final Map.Entry<String, StateTypeStrategy>... entries) {
+        return state(BuiltInProcessTableFunction::toInternalStateStrategy, entries);
+    }
+
+    /**
+     * Declares the state entries of a specialized function in order. The strategies must already
+     * infer the data types that the function works on, no internal conversion is applied.
+     */
+    @SafeVarargs
+    protected static LinkedHashMap<String, StateTypeStrategy> customState(
+            final Map.Entry<String, StateTypeStrategy>... entries) {
+        return state(UnaryOperator.identity(), entries);
+    }
+
+    private static LinkedHashMap<String, StateTypeStrategy> state(
+            final UnaryOperator<StateTypeStrategy> mapper,
+            final Map.Entry<String, StateTypeStrategy>[] entries) {
+        final LinkedHashMap<String, StateTypeStrategy> result = new LinkedHashMap<>();
+        for (final Map.Entry<String, StateTypeStrategy> entry : entries) {
+            result.put(entry.getKey(), mapper.apply(entry.getValue()));
+        }
+        return result;
+    }
+
+    private static StateTypeStrategy toInternalStateStrategy(final StateTypeStrategy strategy) {
+        return new StateTypeStrategy() {
+            @Override
+            public Optional<DataType> inferType(final CallContext callContext) {
+                return strategy.inferType(callContext)
+                        .map(BuiltInProcessTableFunction::toInternalStateType);
+            }
+
+            @Override
+            public Optional<Duration> getTimeToLive(final CallContext callContext) {
+                return strategy.getTimeToLive(callContext);
+            }
+
+            @Override
+            public boolean isBroadcast() {
+                return strategy.isBroadcast();
+            }
+        };
+    }
+
+    /**
+     * Converts a state type to its internal representation. For {@link ValueView}/{@link
+     * MapView}/{@link ListView} only the value/key/element types are internalized; the view wrapper
+     * is preserved, unlike {@link DataTypeUtils#toInternalDataType} which would rewrite the whole
+     * view to {@code RowData}.
+     */
+    private static DataType toInternalStateType(final DataType stateType) {
+        final LogicalType logicalType = stateType.getLogicalType();
+        if (DataViewUtils.isDataView(logicalType, ValueView.class)) {
+            final DataType valueType = stateType.getChildren().get(0);
+            return ValueView.newValueViewDataType(DataTypeUtils.toInternalDataType(valueType));
+        }
+        if (DataViewUtils.isDataView(logicalType, MapView.class)) {
+            final DataType mapType = stateType.getChildren().get(0);
+            return MapView.newMapViewDataType(
+                    DataTypeUtils.toInternalDataType(mapType.getChildren().get(0)),
+                    DataTypeUtils.toInternalDataType(mapType.getChildren().get(1)));
+        }
+        if (DataViewUtils.isDataView(logicalType, ListView.class)) {
+            final DataType arrayType = stateType.getChildren().get(0);
+            return ListView.newListViewDataType(
+                    DataTypeUtils.toInternalDataType(arrayType.getChildren().get(0)));
+        }
+        return DataTypeUtils.toInternalDataType(stateType);
     }
 
     // Uses deprecated typedArguments() because staticArguments() does not apply the conversion
@@ -95,23 +196,13 @@ public abstract class BuiltInProcessTableFunction<T> extends ProcessTableFunctio
                 .build();
     }
 
-    /** Wraps each state type strategy to produce internal data types, preserving TTL. */
+    /** Wraps each state type strategy to produce internal data types. */
     private static LinkedHashMap<String, StateTypeStrategy> toInternalStateStrategies(
-            final TypeInference definitionTypeInference, final CallContext callContext) {
+            final TypeInference definitionTypeInference) {
         final LinkedHashMap<String, StateTypeStrategy> result = new LinkedHashMap<>();
         definitionTypeInference
                 .getStateTypeStrategies()
-                .forEach(
-                        (name, strategy) ->
-                                result.put(
-                                        name,
-                                        StateTypeStrategy.of(
-                                                ctx ->
-                                                        strategy.inferType(ctx)
-                                                                .map(
-                                                                        DataTypeUtils
-                                                                                ::toInternalDataType),
-                                                strategy.getTimeToLive(callContext).orElse(null))));
+                .forEach((name, strategy) -> result.put(name, toInternalStateStrategy(strategy)));
         return result;
     }
 
