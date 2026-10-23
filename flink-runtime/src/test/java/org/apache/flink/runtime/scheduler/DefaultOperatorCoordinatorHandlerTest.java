@@ -78,6 +78,45 @@ class DefaultOperatorCoordinatorHandlerTest {
         assertThat(handler.getCoordinatorMap().keySet()).contains(operatorId1, operatorId2);
     }
 
+    @Test
+    void testDisposeAllOperatorCoordinatorsClosesThoseOfEveryVertex() throws Exception {
+        final JobVertex[] jobVertices = createJobVertices(BLOCKING);
+        final JobVertex unconnected = createNoOpVertex(3);
+        unconnected.addOperatorCoordinator(
+                new SerializedValue<>(
+                        new TestingOperatorCoordinator.Provider(
+                                OperatorID.fromJobVertexID(unconnected.getID()))));
+
+        final ExecutionGraph executionGraph =
+                createDynamicGraph(jobVertices[0], jobVertices[1], unconnected);
+        final ExecutionJobVertex registered = executionGraph.getJobVertex(jobVertices[0].getID());
+        final ExecutionJobVertex neverRegistered =
+                executionGraph.getJobVertex(jobVertices[1].getID());
+        final ExecutionJobVertex uninitialized = executionGraph.getJobVertex(unconnected.getID());
+        executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        executionGraph.initializeJobVertex(registered, 0L);
+        final DefaultOperatorCoordinatorHandler handler =
+                new DefaultOperatorCoordinatorHandler(executionGraph, throwable -> {});
+        executionGraph.initializeJobVertex(neverRegistered, 0L);
+
+        handler.disposeAllOperatorCoordinators();
+
+        assertClosed(registered);
+        assertClosed(neverRegistered);
+        assertClosed(uninitialized);
+    }
+
+    private static void assertClosed(ExecutionJobVertex vertex) {
+        assertThat(vertex.getOperatorCoordinatorsEvenIfUninitialized())
+                .singleElement()
+                .satisfies(
+                        holder ->
+                                assertThat(
+                                                ((TestingOperatorCoordinator) holder.coordinator())
+                                                        .isClosed())
+                                        .isTrue());
+    }
+
     private JobVertex[] createJobVertices(ResultPartitionType resultPartitionType)
             throws IOException {
         final JobVertex[] jobVertices = new JobVertex[2];
