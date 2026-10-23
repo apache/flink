@@ -520,6 +520,12 @@ object BuiltInMethods {
     classOf[StringData],
     classOf[Boolean])
 
+  val PARSE_JSON_ERROR = Types.lookupMethod(
+    classOf[SqlJsonUtils],
+    "parseJsonError",
+    classOf[StringData],
+    classOf[Throwable])
+
   val JSON_TYPE =
     Types.lookupMethod(classOf[SqlJsonUtils], "jsonType", classOf[SqlJsonUtils.JsonValueContext])
 
