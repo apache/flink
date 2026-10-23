@@ -21,13 +21,14 @@ import unittest
 from unittest import mock
 
 from apache_beam.coders import VarIntCoder, StrUtf8Coder
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler, StateHandler
 from apache_beam.runners.worker.statecache import StateCache
 
 from pyflink.common import Time, Types
 from pyflink.datastream.state import StateTtlConfig, MapStateDescriptor
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend, RemoteOperatorStateBackend, \
-    CachingMapStateHandler
+    CachingMapStateHandler, InternalSynchronousMapRuntimeState
 
 
 class StateTtlReadCacheTests(unittest.TestCase):
@@ -430,6 +431,75 @@ class StateTtlReadCacheTests(unittest.TestCase):
             self.assertIsNone(state.value())
         self.assertEqual(remote.get_raw.call_count, 2)
         self.assertFalse(handler._state_cache.is_cache_enabled())
+
+
+class InternalSynchronousMapRuntimeStateTests(unittest.TestCase):
+
+    def setUp(self):
+        self.state = InternalSynchronousMapRuntimeState(
+            InMemoryMapStateHandler(), beam_fn_api_pb2.StateKey(),
+            StrUtf8Coder(), StrUtf8Coder(), 16)
+
+    def test_contains_distinguishes_missing_keys_from_none_values(self):
+        values = {'none': None, 'empty': '', 'value': 'value'}
+        for key, value in values.items():
+            self.state.put(key, value)
+
+        for committed in (False, True):
+            if committed:
+                self.state.commit()
+            with self.subTest(committed=committed):
+                for key, value in values.items():
+                    self.assertEqual(self.state.get(key), value)
+                    self.assertTrue(self.state.contains(key))
+                self.assertIsNone(self.state.get('missing'))
+                self.assertFalse(self.state.contains('missing'))
+
+    def test_contains_after_remove(self):
+        self.state.put('x', None)
+        self.state.commit()
+        self.state.remove('x')
+
+        self.assertFalse(self.state.contains('x'))
+        self.state.commit()
+        self.assertFalse(self.state.contains('x'))
+
+    def test_contains_after_clear_and_put(self):
+        self.state.put('x', 'old')
+        self.state.commit()
+        self.state.clear()
+        self.assertFalse(self.state.contains('x'))
+
+        self.state.put('y', None)
+
+        self.assertFalse(self.state.contains('x'))
+        self.assertTrue(self.state.contains('y'))
+        self.state.commit()
+        self.assertFalse(self.state.contains('x'))
+        self.assertTrue(self.state.contains('y'))
+
+
+class InMemoryMapStateHandler:
+
+    def __init__(self):
+        self.values = {}
+
+    def blocking_get(self, state_key, map_key, map_key_encoder, map_value_decoder):
+        return map_key in self.values, self.values.get(map_key)
+
+    def extend(self, state_key, items, map_key_encoder, map_value_encoder):
+        for flag, key, value in items:
+            if flag == CachingMapStateHandler.DELETE:
+                self.values.pop(key, None)
+            elif flag == CachingMapStateHandler.SET_NONE:
+                self.values[key] = None
+            elif flag == CachingMapStateHandler.SET_VALUE:
+                self.values[key] = value
+            else:
+                raise ValueError('Unknown map state update flag: %s' % flag)
+
+    def clear(self, state_key):
+        self.values.clear()
 
 
 if __name__ == '__main__':
