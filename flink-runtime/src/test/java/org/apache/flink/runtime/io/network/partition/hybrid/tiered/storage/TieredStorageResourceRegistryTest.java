@@ -45,7 +45,9 @@ class TieredStorageResourceRegistryTest {
 
     private static final int NUM_REGISTRATIONS_PER_THREAD = 5000;
 
-    private static final int NUM_OWNERS = 4;
+    // Fewer owners than threads, so that the threads share owners and their registrations and
+    // removals can overlap.
+    private static final int NUM_OWNERS = NUM_THREADS / 2;
 
     private TieredStorageResourceRegistry resourceRegistry;
 
@@ -142,25 +144,22 @@ class TieredStorageResourceRegistryTest {
 
         runConcurrently(
                 threadIndex -> {
-                    // The threads share owners so that registrations and removals of the same
-                    // owner are interleaved.
+                    // The threads share owners so that a registration of one thread overlaps a
+                    // removal of the other.
                     final TieredStorageSubpartitionId owner = owners[threadIndex % NUM_OWNERS];
-                    for (int i = 0; i < NUM_REGISTRATIONS_PER_THREAD; i++) {
+                    for (int round = 0; round < NUM_REGISTRATIONS_PER_THREAD; round++) {
                         final AtomicInteger releaseCounter =
-                                releaseCounters[threadIndex * NUM_REGISTRATIONS_PER_THREAD + i];
-                        if (i % 2 == 0) {
-                            resourceRegistry.registerResource(
-                                    owner, releaseCounter::incrementAndGet);
-                        } else {
-                            resourceRegistry.clearResourceFor(owner);
-                        }
+                                releaseCounters[threadIndex * NUM_REGISTRATIONS_PER_THREAD + round];
+                        resourceRegistry.registerResource(owner, releaseCounter::incrementAndGet);
+                        resourceRegistry.clearResourceFor(owner);
                     }
                 });
 
-        // A registration may legally land after the last removal of its owner, so the exact
-        // number of releases is not asserted here; a resource must never be released twice.
+        // A resource is registered and then removed on the same thread, so it cannot outlive the
+        // loop: it is released exactly once, by whichever removal removes the list it was
+        // registered in. A lost (never released) or twice released resource fails here.
         for (AtomicInteger releaseCounter : releaseCounters) {
-            assertThat(releaseCounter).hasValueLessThanOrEqualTo(1);
+            assertThat(releaseCounter).hasValue(1);
         }
     }
 
