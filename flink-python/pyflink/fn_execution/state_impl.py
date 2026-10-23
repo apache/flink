@@ -1190,7 +1190,7 @@ class RemoteKeyedStateBackend(object):
                     (name, self._encoded_current_key, encoded_namespace))
                 # currently all the SynchronousMergingRuntimeState is based on bag state
                 state_key = self.get_bag_state_key(
-                    name, self._encoded_current_key, encoded_namespace, None)
+                    name, self._encoded_current_key, encoded_namespace, state._ttl_config)
                 # clear the read cache, the read cache is shared between map state handler and bag
                 # state handler. So we can use the map state handler instead.
                 self._map_state_handler.clear_read_cache(state_key)
