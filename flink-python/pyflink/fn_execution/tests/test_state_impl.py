@@ -479,6 +479,57 @@ class InternalSynchronousMapRuntimeStateTests(unittest.TestCase):
         self.assertTrue(self.state.contains('y'))
 
 
+class KeySwitchWithoutStateCacheTests(unittest.TestCase):
+
+    def setUp(self):
+        remote = InMemoryStateHandler()
+        self.handler = GlobalCachingStateHandler(StateCache(0), remote)
+        self.backend = RemoteKeyedStateBackend(
+            self.handler, StrUtf8Coder(), StrUtf8Coder(), 0, 16, 16)
+
+    def test_clear_is_flushed_before_key_switch(self):
+        with self.handler.process_instruction_id('bundle', []):
+            self.backend.set_current_key('a')
+            value_state = self.backend.get_value_state('value', VarIntCoder())
+            list_state = self.backend.get_list_state('list', VarIntCoder())
+            value_state.update(100)
+            list_state.add(100)
+            self.backend.commit()
+
+            value_state.clear()
+            list_state.clear()
+            self.assertIsNone(value_state.value())
+            self.assertEqual(list(list_state.get()), [])
+
+            self.backend.set_current_key('b')
+            self.assertIsNone(value_state.value())
+            self.assertEqual(list(list_state.get()), [])
+
+            self.backend.set_current_key('a')
+            self.assertIsNone(value_state.value())
+            self.assertEqual(list(list_state.get()), [])
+
+
+class InMemoryStateHandler:
+
+    def __init__(self):
+        self.values = {}
+
+    @contextlib.contextmanager
+    def process_instruction_id(self, bundle_id):
+        yield
+
+    def get_raw(self, state_key, continuation_token=None):
+        return self.values.get(state_key.SerializeToString(), b''), None
+
+    def append_raw(self, state_key, data):
+        key = state_key.SerializeToString()
+        self.values[key] = self.values.get(key, b'') + data
+
+    def clear(self, state_key):
+        self.values.pop(state_key.SerializeToString(), None)
+
+
 class InMemoryMapStateHandler:
 
     def __init__(self):
