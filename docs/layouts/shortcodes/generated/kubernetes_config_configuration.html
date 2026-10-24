@@ -327,6 +327,12 @@
             <td>Service account that is used by taskmanager within kubernetes cluster. The task manager uses this service account when watching config maps on the API server to retrieve leader address of jobmanager and resourcemanager. If not explicitly configured, config option 'kubernetes.service-account' will be used.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.taskmanager.termination-grace-period</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>If set, the TaskManager pod's <code class="highlighter-rouge">terminationGracePeriodSeconds</code> is set to this value, and a <code class="highlighter-rouge">preStop</code> lifecycle hook is added that signals the TaskExecutor to proactively disconnect from the ResourceManager - instead of waiting to be timed out - so its slots are freed immediately rather than after the heartbeat timeout elapses. Left unset, no lifecycle hook is added and Kubernetes' own default grace period behavior applies. Has no effect if the pod template already configures <code class="highlighter-rouge">terminationGracePeriodSeconds</code> or a <code class="highlighter-rouge">preStop</code> hook.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.taskmanager.tolerations</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;Map&gt;</td>
