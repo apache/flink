@@ -46,17 +46,17 @@ under the License.
 			<exclusions>
 				<!--
 				"mvn dependency:tree" as of Calcite 1.41.0:
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.41.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.41.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.42.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.42.0:compile
 				[INFO] |  +- org.locationtech.jts:jts-core:jar:1.19.0:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.21:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.27.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.28.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.21.3:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.21.3:compile
 				[INFO] |  +- commons-codec:commons-codec:jar:1.15:runtime
 				[INFO] |  +- org.apache.commons:commons-math3:jar:3.6.1:runtime
-				[INFO] |  +- org.jooq:joou-java-6:jar:0.9.4:compile
+				[INFO] |  +- org.jooq:joou-java-6:jar:0.9.5:compile
 				[INFO] |  \- commons-io:commons-io:jar:2.15.1:runtime
 				[INFO] +- com.jayway.jsonpath:json-path:jar:2.9.0:compile
 				[INFO] |  \- net.minidev:json-smart:jar:2.5.0:runtime
@@ -166,6 +166,10 @@ under the License.
 					<groupId>org.apache.commons</groupId>
 					<artifactId>commons-text</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.jooq</groupId>
+					<artifactId>joou-java-6</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -178,6 +182,13 @@ under the License.
 			<groupId>com.jayway.jsonpath</groupId>
 			<artifactId>json-path</artifactId>
 			<version>2.9.0</version>
+		</dependency>
+
+		<!-- For dependency convergence -->
+		<dependency>
+			<groupId>org.jooq</groupId>
+			<artifactId>joou-java-6</artifactId>
+			<version>0.9.5</version>
 		</dependency>
 
 		<dependency>

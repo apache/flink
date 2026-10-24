@@ -949,8 +949,8 @@ Join(joinType=[LeftSemiJoin], where=[((b = rk) AND (a <> d))], select=[a, b, c],
 :- Exchange(distribution=[hash[b]])
 :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[rk]])
-   +- Calc(select=[w0$o0 AS rk, d])
-      +- OverAggregate(partitionBy=[d], orderBy=[e ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, f, RANK(*) AS w0$o0])
+   +- Calc(select=[rk, d])
+      +- OverAggregate(partitionBy=[d], orderBy=[e ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, f, RANK(*) AS rk])
          +- Exchange(distribution=[hash[d]])
             +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
@@ -1485,12 +1485,12 @@ LogicalProject(EXPR$0=[MAX($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)], 
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[LeftSemiJoin], where=[((a = $0) AND (b = $1))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[LeftSemiJoin], where=[((a = EXPR$0) AND (b = EXPR$1))], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a, b]])
 :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
-+- Exchange(distribution=[hash[$0, $1]])
-   +- Calc(select=[w0$o0 AS $0, w0$o1 AS $1])
-      +- OverAggregate(partitionBy=[f], orderBy=[d ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, f, MAX(d) AS w0$o0, MIN(e) AS w0$o1])
++- Exchange(distribution=[hash[EXPR$0, EXPR$1]])
+   +- Calc(select=[EXPR$0, EXPR$1])
+      +- OverAggregate(partitionBy=[f], orderBy=[d ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, f, MAX(d) AS EXPR$0, MIN(e) AS EXPR$1])
          +- Exchange(distribution=[hash[f]])
             +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
