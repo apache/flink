@@ -703,14 +703,15 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
 
         taskManagerGateway.setCancelConsumer(createCancelConsumer(scheduler));
 
-        startTestInstanceInMainThread();
         runInMainThread(
-                () ->
-                        offerSlots(
-                                declarativeSlotPool,
-                                createSlotOffersForResourceRequirements(
-                                        ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)),
-                                taskManagerGateway));
+                () -> {
+                    scheduler.startScheduling();
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)),
+                            taskManagerGateway);
+                });
 
         // wait for the first task submission
         taskManagerGateway.waitForSubmissions(1);
