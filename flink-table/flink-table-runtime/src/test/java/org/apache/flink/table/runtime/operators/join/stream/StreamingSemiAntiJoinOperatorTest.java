@@ -18,12 +18,23 @@
 
 package org.apache.flink.table.runtime.operators.join.stream;
 
+import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import javax.annotation.Nullable;
 
 import java.util.function.Predicate;
 
@@ -45,6 +56,9 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
                 joinCondition,
                 leftInputSpec,
                 rightInputSpec,
+                null,
+                null,
+                false,
                 new boolean[] {true},
                 ttl[0],
                 ttl[1]);
@@ -88,10 +102,6 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
         assertor.shouldEmitNothing(testHarness);
 
         testHarness.processElement2(deleteRecord("LineOrd#2", "TRUCK"));
-        assertor.shouldEmitNothing(testHarness);
-
-        // numOfAssociations is reduced to 1, retract the record
-        testHarness.processElement2(deleteRecord("LineOrd#2", "AIR"));
         assertor.shouldEmit(
                 testHarness,
                 rowOfKind(
@@ -141,10 +151,6 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
         assertor.shouldEmitNothing(testHarness);
 
         testHarness.processElement2(deleteRecord("LineOrd#2", "TRUCK"));
-        assertor.shouldEmitNothing(testHarness);
-
-        // numOfAssociations is reduced to 1, retract the record
-        testHarness.processElement2(deleteRecord("LineOrd#2", "AIR"));
         assertor.shouldEmit(
                 testHarness,
                 rowOfKind(
@@ -326,6 +332,201 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
         testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
         assertThat(testHarness.numKeyedStateEntries()).isOne();
     }
+
+    /** A right row replaced without UPDATE_BEFORE is counted once, so its DELETE removes it. */
+    @ParameterizedTest(name = "isAntiJoin = {0}")
+    @ValueSource(booleans = {false, true})
+    void testRightUpsertIsCountedOnce(boolean isAntiJoin) throws Exception {
+        useSemiAntiJoinOperator(isAntiJoin, rightInputSpec, joinCondition, false);
+        assertRightUpsertIsCountedOnce(isAntiJoin, "TRUCK");
+    }
+
+    /** The same holds if the unique key of the right side contains more than the join key. */
+    @ParameterizedTest(name = "isAntiJoin = {0}")
+    @ValueSource(booleans = {false, true})
+    void testRightUpsertWithUniqueKeyIsCountedOnce(boolean isAntiJoin) throws Exception {
+        useSemiAntiJoinOperator(isAntiJoin, rightHasUniqueKeySpec(), joinCondition, false);
+        assertRightUpsertIsCountedOnce(isAntiJoin, "AIR");
+    }
+
+    private void assertRightUpsertIsCountedOnce(boolean isAntiJoin, String newShipMode)
+            throws Exception {
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(updateAfterRecord("LineOrd#1", newShipMode));
+        assertor.shouldEmitNothing(testHarness);
+
+        testHarness.processElement2(deleteRecord("LineOrd#1", newShipMode));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS),
+                        rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS)));
+    }
+
+    /** A right row replaced without UPDATE_BEFORE that no longer matches removes its match. */
+    @ParameterizedTest(name = "isAntiJoin = {0}")
+    @ValueSource(booleans = {false, true})
+    void testRightUpsertRemovesLostMatch(boolean isAntiJoin) throws Exception {
+        useSemiAntiJoinOperator(isAntiJoin, rightInputSpec, knownValuesNonEquiCondition(), true);
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(updateAfterRecord("LineOrd#1", UNKNOWN));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS),
+                        rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS)));
+
+        testHarness.processElement2(updateAfterRecord("LineOrd#1", "SHIP"));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.UPDATE_AFTER, "Ord#1", "LineOrd#1", ADDRESS),
+                        rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS)));
+    }
+
+    /** A DELETE of only the key of a right row is joined with the stored row. */
+    @ParameterizedTest(name = "isAntiJoin = {0}")
+    @ValueSource(booleans = {false, true})
+    void testRightKeyOnlyDeleteRemovesMatch(boolean isAntiJoin) throws Exception {
+        useSemiAntiJoinOperator(isAntiJoin, rightInputSpec, knownValuesNonEquiCondition(), true);
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.getOutput().clear();
+
+        testHarness.processElement2(deleteRecord("LineOrd#1", null));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS),
+                        rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS)));
+    }
+
+    /**
+     * A left row replaced without UPDATE_BEFORE retracts the old version if it was emitted but the
+     * new version is not.
+     */
+    @ParameterizedTest(name = "isAntiJoin = {0}")
+    @ValueSource(booleans = {false, true})
+    void testLeftUpsertRetractsOldVersion(boolean isAntiJoin) throws Exception {
+        useSemiAntiJoinOperator(isAntiJoin, rightInputSpec, knownValuesNonEquiCondition(), true);
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS),
+                        null));
+
+        testHarness.processElement1(updateAfterRecord("Ord#1", "LineOrd#1", UNKNOWN));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS),
+                        rowOfKind(RowKind.UPDATE_AFTER, "Ord#1", "LineOrd#1", UNKNOWN)));
+
+        testHarness.processElement1(updateAfterRecord("Ord#1", "LineOrd#1", NEW_ADDRESS));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.UPDATE_AFTER, "Ord#1", "LineOrd#1", NEW_ADDRESS),
+                        rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", UNKNOWN)));
+    }
+
+    /**
+     * A DELETE of only the key of a left row is joined with the stored row, so it is emitted with
+     * all fields if the row was emitted, and not at all otherwise.
+     */
+    @ParameterizedTest(name = "isAntiJoin = {0}")
+    @ValueSource(booleans = {false, true})
+    void testLeftKeyOnlyDelete(boolean isAntiJoin) throws Exception {
+        useSemiAntiJoinOperator(isAntiJoin, rightInputSpec, knownValuesNonEquiCondition(), true);
+        testHarness.processElement2(insertRecord("LineOrd#1", "AIR"));
+        testHarness.processElement1(insertRecord("Ord#1", "LineOrd#1", ADDRESS));
+        testHarness.processElement1(insertRecord("Ord#2", "LineOrd#2", ADDRESS));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.INSERT, "Ord#1", "LineOrd#1", ADDRESS),
+                        rowOfKind(RowKind.INSERT, "Ord#2", "LineOrd#2", ADDRESS)));
+
+        testHarness.processElement1(deleteRecord("Ord#1", "LineOrd#1", null));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        rowOfKind(RowKind.DELETE, "Ord#1", "LineOrd#1", ADDRESS),
+                        null));
+
+        testHarness.processElement1(deleteRecord("Ord#2", "LineOrd#2", null));
+        assertor.shouldEmit(
+                testHarness,
+                emitted(
+                        isAntiJoin,
+                        null,
+                        rowOfKind(RowKind.DELETE, "Ord#2", "LineOrd#2", ADDRESS)));
+    }
+
+    private void useSemiAntiJoinOperator(
+            boolean isAntiJoin,
+            JoinInputSideSpec rightSpec,
+            GeneratedJoinCondition condition,
+            boolean hasNonEquiCondition)
+            throws Exception {
+        testHarness.close();
+        testHarness =
+                new KeyedTwoInputStreamOperatorTestHarness<>(
+                        new StreamingSemiAntiJoinOperator(
+                                isAntiJoin,
+                                leftTypeInfo,
+                                rightTypeInfo,
+                                condition,
+                                leftInputSpec,
+                                rightSpec,
+                                UPSERT_WITH_KEY_ONLY_DELETES,
+                                UPSERT_WITH_KEY_ONLY_DELETES,
+                                hasNonEquiCondition,
+                                new boolean[] {true},
+                                0L,
+                                0L),
+                        leftKeySelector,
+                        rightKeySelector,
+                        joinKeyTypeInfo);
+        testHarness.open();
+    }
+
+    /** The unique key (line_order_id, line_order_ship_mode) contains the join key. */
+    private JoinInputSideSpec rightHasUniqueKeySpec() {
+        final RowDataKeySelector uniqueKeySelector =
+                HandwrittenSelectorUtil.getRowDataSelector(
+                        new int[] {0, 1},
+                        rightTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
+        return JoinInputSideSpec.withUniqueKey(
+                uniqueKeySelector.getProducedType(), uniqueKeySelector);
+    }
+
+    /** Returns the row that the semi or the anti join emits, if any. */
+    private static RowData[] emitted(
+            boolean isAntiJoin, @Nullable RowData semiJoinRow, @Nullable RowData antiJoinRow) {
+        final RowData row = isAntiJoin ? antiJoinRow : semiJoinRow;
+        return row == null ? new RowData[0] : new RowData[] {row};
+    }
+
+    private static final String ADDRESS = "3 Bellevue Drive, Pottstown, PA 19464";
+    private static final String NEW_ADDRESS = "68 Manor Station Street, Honolulu, HI 96815";
 
     private static final Predicate<String> ANTI_JOIN_CHECKER =
             (testDisplayName) -> testDisplayName.contains("Anti");
