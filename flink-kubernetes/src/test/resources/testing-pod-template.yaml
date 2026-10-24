@@ -95,3 +95,4 @@ spec:
     - name: flink-logs
       emptyDir: { }
   dnsPolicy: None
+  enableServiceLinks: false

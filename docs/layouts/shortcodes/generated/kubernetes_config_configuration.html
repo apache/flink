@@ -243,6 +243,12 @@
             <td>Specify a local file that contains the taskmanager pod template definition. It will be used to initialize the taskmanager pod. The main container should be defined with name 'flink-main-container'. If not explicitly configured, config option 'kubernetes.pod-template-file.default' will be used.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.pod.service-links.enabled</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Boolean</td>
+            <td>Whether information about Kubernetes services should be injected into the environment variables of the JobManager and TaskManager pods, i.e. the 'enableServiceLinks' field of the pod spec. If not configured, the value defined in the pod template will be used, and Kubernetes enables it by default when the pod template does not define it either. Disabling it could speed up the startup of the pods when there are many services in the same namespace, since every service adds several environment variables to each pod.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.rest-service.annotations</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>

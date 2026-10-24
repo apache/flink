@@ -593,6 +593,12 @@ All the fields defined in the pod template that are not listed in the tables wil
     </thead>
     <tbody>
         <tr>
+            <td>enableServiceLinks</td>
+            <td>Defined by the user</td>
+            <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-pod-service-links-enabled">kubernetes.pod.service-links.enabled</a></td>
+            <td>Flink will overwrite the value defined in the pod template if the Flink configuration option is explicitly configured.</td>
+        </tr>
+        <tr>
             <td>imagePullSecrets</td>
             <td>Defined by the user</td>
             <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image-pull-secrets">kubernetes.container.image.pull-secrets</a></td>
