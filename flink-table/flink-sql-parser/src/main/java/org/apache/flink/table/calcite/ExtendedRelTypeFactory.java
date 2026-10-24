@@ -44,4 +44,7 @@ public interface ExtendedRelTypeFactory extends RelDataTypeFactory {
 
     /** Creates a BITMAP type. */
     RelDataType createBitmapType();
+
+    /** Creates a GEOGRAPHY type. */
+    RelDataType createGeographyType();
 }
