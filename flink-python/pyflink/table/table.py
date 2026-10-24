@@ -32,7 +32,7 @@ from pyflink.table.table_pipeline import TablePipeline
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.catalog import ResolvedSchema
-from pyflink.table.types import create_arrow_schema
+from pyflink.table.types import LocalZonedTimestampType, create_arrow_schema
 from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
     UserDefinedAggregateFunctionWrapper, UserDefinedTableFunctionWrapper, \
     UserDefinedAsyncScalarFunctionWrapper
@@ -950,25 +950,25 @@ class Table(object):
         batches_iterator = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
             .collectAsPandasDataFrame(self._j_table, max_arrow_batch_size)
         schema = self.get_schema()
-        if batches_iterator.hasNext():
+        field_types = schema.get_field_data_types()
+        arrow_schema = create_arrow_schema(schema.get_field_names(), field_types)
+        timezone = None
+        if any(isinstance(field_type, LocalZonedTimestampType) for field_type in field_types):
             import pytz
             timezone = pytz.timezone(
                 self._j_table.getTableEnvironment().getConfig().getLocalTimeZone().getId())
-            serializer = ArrowSerializer(
-                create_arrow_schema(schema.get_field_names(), schema.get_field_data_types()),
-                schema.to_row_data_type(),
-                timezone)
+        if batches_iterator.hasNext():
+            serializer = ArrowSerializer(arrow_schema, schema.to_row_data_type(), timezone)
             import pyarrow as pa
             table = pa.Table.from_batches(serializer.load_from_iterator(batches_iterator))
-            pdf = table.to_pandas()
-
-            for field_name in schema.get_field_names():
-                pdf[field_name] = tz_convert_from_internal(
-                    pdf[field_name], schema.get_field_data_type(field_name), timezone)
-            return pdf
         else:
-            import pandas as pd
-            return pd.DataFrame.from_records([], columns=schema.get_field_names())
+            table = arrow_schema.empty_table()
+        pdf = table.to_pandas()
+
+        for field_name in schema.get_field_names():
+            pdf[field_name] = tz_convert_from_internal(
+                pdf[field_name], schema.get_field_data_type(field_name), timezone)
+        return pdf
 
     @Deprecated(since="2.1.0", detail="Use :func:`Table.get_resolved_schema` instead.")
     def get_schema(self) -> TableSchema:
