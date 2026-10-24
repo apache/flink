@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.highavailability.nonha;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -58,7 +59,15 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
     private boolean shutdown;
 
     public AbstractNonHaServices() {
-        this.jobResultStore = new EmbeddedJobResultStore();
+        this(new EmbeddedJobResultStore());
+    }
+
+    public AbstractNonHaServices(Configuration configuration) {
+        this(new EmbeddedJobResultStore(configuration));
+    }
+
+    private AbstractNonHaServices(JobResultStore jobResultStore) {
+        this.jobResultStore = jobResultStore;
         this.applicationStore = new StandaloneApplicationStore();
         this.applicationResultStore = new EmbeddedApplicationResultStore();
         this.voidBlobStore = new VoidBlobStore();
