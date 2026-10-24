@@ -96,6 +96,7 @@ public abstract class JavaProgramTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
         // execution environment and how the object reuse mode is enabled
         TestStreamEnvironment env = MINI_CLUSTER_RESOURCE.getTestStreamEnvironment();
         env.getConfig().enableObjectReuse();
+        env.setAsContext();
 
         // Possibly run the test multiple times
         for (int i = 0; i < numberOfTestRepetitions; i++) {
@@ -140,6 +141,7 @@ public abstract class JavaProgramTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
         // execution environment and how the object reuse mode is enabled
         TestStreamEnvironment env = MINI_CLUSTER_RESOURCE.getTestStreamEnvironment();
         env.getConfig().disableObjectReuse();
+        env.setAsContext();
 
         // Possibly run the test multiple times
         for (int i = 0; i < numberOfTestRepetitions; i++) {
