@@ -30,6 +30,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.MonotonicCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 
 import io.prometheus.client.Collector;
@@ -165,6 +166,10 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
                 + CHARACTER_FILTER.filterCharacters(metricName);
     }
 
+    private static boolean isMonotonicCounter(Metric metric) {
+        return metric instanceof MonotonicCounter;
+    }
+
     private Collector createCollector(
             Metric metric,
             List<String> dimensionKeys,
@@ -173,8 +178,18 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
             String helpString) {
         Collector collector;
         switch (metric.getMetricType()) {
-            case GAUGE:
             case COUNTER:
+                if (isMonotonicCounter(metric)) {
+                    collector =
+                            io.prometheus.client.Counter.build()
+                                    .name(scopedMetricName)
+                                    .help(helpString)
+                                    .labelNames(toArray(dimensionKeys))
+                                    .create();
+                    break;
+                }
+            // else fall through: a plain Counter is exported as a Gauge, like GAUGE/METER
+            case GAUGE:
             case METER:
                 collector =
                         io.prometheus.client.Gauge.build()
@@ -208,8 +223,13 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
                         .setChild(gaugeFrom((Gauge<?>) metric), toArray(dimensionValues));
                 break;
             case COUNTER:
-                ((io.prometheus.client.Gauge) collector)
-                        .setChild(gaugeFrom((Counter) metric), toArray(dimensionValues));
+                if (isMonotonicCounter(metric)) {
+                    ((io.prometheus.client.Counter) collector)
+                            .setChild(counterFrom((Counter) metric), toArray(dimensionValues));
+                } else {
+                    ((io.prometheus.client.Gauge) collector)
+                            .setChild(gaugeFrom((Counter) metric), toArray(dimensionValues));
+                }
                 break;
             case METER:
                 ((io.prometheus.client.Gauge) collector)
@@ -231,7 +251,11 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
                 ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
                 break;
             case COUNTER:
-                ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
+                if (isMonotonicCounter(metric)) {
+                    ((io.prometheus.client.Counter) collector).remove(toArray(dimensionValues));
+                } else {
+                    ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
+                }
                 break;
             case METER:
                 ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
@@ -314,6 +338,15 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     private static io.prometheus.client.Gauge.Child gaugeFrom(Counter counter) {
         return new io.prometheus.client.Gauge.Child() {
+            @Override
+            public double get() {
+                return (double) counter.getCount();
+            }
+        };
+    }
+
+    private static io.prometheus.client.Counter.Child counterFrom(Counter counter) {
+        return new io.prometheus.client.Counter.Child() {
             @Override
             public double get() {
                 return (double) counter.getCount();
