@@ -174,7 +174,7 @@ public class FileCache {
     // ------------------------------------------------------------------------
 
     /**
-     * If the file doesn't exists locally, retrieve the file from the blob-service.
+     * If the file doesn't exist locally, retrieve the file from the blob-service.
      *
      * @param entry The cache entry descriptor (path, executable flag)
      * @param jobID The ID of the job for which the file is copied.
