@@ -20,6 +20,8 @@ package org.apache.flink.table.data;
 
 import org.apache.flink.table.types.logical.DecimalType;
 
+import javax.annotation.Nullable;
+
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -46,7 +48,7 @@ public final class DecimalDataUtils {
         if (decimal.isCompact()) {
             return ((double) decimal.longVal) / POW10[decimal.scale];
         } else {
-            return decimal.decimalVal.doubleValue();
+            return decimal.toBigDecimal().doubleValue();
         }
     }
 
@@ -57,35 +59,35 @@ public final class DecimalDataUtils {
      * @return the signum function of this decimal.
      */
     public static int signum(DecimalData decimal) {
-        if (decimal.isCompact()) {
-            return Long.signum(decimal.toUnscaledLong());
+        if (decimal.longBacked) {
+            return Long.signum(decimal.longVal);
         } else {
             return decimal.toBigDecimal().signum();
         }
     }
 
     public static DecimalData negate(DecimalData decimal) {
-        if (decimal.isCompact()) {
+        if (decimal.longBacked && decimal.longVal != Long.MIN_VALUE) {
             return new DecimalData(decimal.precision, decimal.scale, -decimal.longVal, null);
         } else {
             return new DecimalData(
-                    decimal.precision, decimal.scale, -1, decimal.decimalVal.negate());
+                    decimal.precision, decimal.scale, -1, decimal.toBigDecimal().negate());
         }
     }
 
     public static DecimalData abs(DecimalData decimal) {
-        if (decimal.isCompact()) {
+        if (decimal.longBacked && decimal.longVal != Long.MIN_VALUE) {
             if (decimal.longVal >= 0) {
                 return decimal;
             } else {
                 return new DecimalData(decimal.precision, decimal.scale, -decimal.longVal, null);
             }
         } else {
-            if (decimal.decimalVal.signum() >= 0) {
+            final BigDecimal bd = decimal.toBigDecimal();
+            if (bd.signum() >= 0) {
                 return decimal;
             } else {
-                return new DecimalData(
-                        decimal.precision, decimal.scale, -1, decimal.decimalVal.negate());
+                return new DecimalData(decimal.precision, decimal.scale, -1, bd.negate());
             }
         }
     }
@@ -104,11 +106,7 @@ public final class DecimalDataUtils {
     }
 
     public static DecimalData add(DecimalData v1, DecimalData v2, int precision, int scale) {
-        if (v1.isCompact()
-                && v2.isCompact()
-                && v1.scale == v2.scale
-                && DecimalData.isCompact(precision)) {
-            assert scale == v1.scale; // no need to rescale
+        if (canAddOrSubtractAsLong(v1, v2, precision, scale)) {
             try {
                 long ls = Math.addExact(v1.longVal, v2.longVal); // checks overflow
                 return new DecimalData(precision, scale, ls, null);
@@ -121,11 +119,7 @@ public final class DecimalDataUtils {
     }
 
     public static DecimalData subtract(DecimalData v1, DecimalData v2, int precision, int scale) {
-        if (v1.isCompact()
-                && v2.isCompact()
-                && v1.scale == v2.scale
-                && DecimalData.isCompact(precision)) {
-            assert scale == v1.scale; // no need to rescale
+        if (canAddOrSubtractAsLong(v1, v2, precision, scale)) {
             try {
                 long ls = Math.subtractExact(v1.longVal, v2.longVal); // checks overflow
                 return new DecimalData(precision, scale, ls, null);
@@ -135,6 +129,15 @@ public final class DecimalDataUtils {
         }
         BigDecimal bd = v1.toBigDecimal().subtract(v2.toBigDecimal());
         return fromBigDecimal(bd, precision, scale);
+    }
+
+    private static boolean canAddOrSubtractAsLong(
+            DecimalData v1, DecimalData v2, int precision, int scale) {
+        return (DecimalData.isCompact(precision)
+                        ? v1.isCompact() && v2.isCompact()
+                        : v1.longBacked && v2.longBacked)
+                && v1.scale == scale
+                && v2.scale == scale;
     }
 
     public static DecimalData multiply(DecimalData v1, DecimalData v2, int precision, int scale) {
@@ -180,10 +183,35 @@ public final class DecimalDataUtils {
     }
 
     public static DecimalData castToDecimal(DecimalData dec, int precision, int scale) {
-        if (dec.isCompact() && precision <= DecimalData.MAX_COMPACT_PRECISION) {
-            return DecimalData.fromCompactRescale(dec.longVal, dec.scale, precision, scale);
+        if (dec.longBacked) {
+            if (DecimalData.isCompact(precision)) {
+                if (dec.scale < POW10.length) {
+                    return DecimalData.fromCompactRescale(dec.longVal, dec.scale, precision, scale);
+                }
+            } else {
+                final DecimalData scaled =
+                        rescaleUpAsLong(dec.longVal, dec.scale, precision, scale);
+                if (scaled != null) {
+                    return scaled;
+                }
+            }
         }
         return fromBigDecimal(dec.toBigDecimal(), precision, scale);
+    }
+
+    // scale must not decrease; null if the result overflows a long
+    private static @Nullable DecimalData rescaleUpAsLong(
+            long unscaled, int fromScale, int precision, int scale) {
+        final int scaleDiff = scale - fromScale;
+        if (scaleDiff < 0 || scaleDiff >= POW10.length) {
+            return null;
+        }
+        try {
+            return new DecimalData(
+                    precision, scale, Math.multiplyExact(unscaled, POW10[scaleDiff]), null);
+        } catch (ArithmeticException e) {
+            return null;
+        }
     }
 
     public static DecimalData castFrom(DecimalData dec, int precision, int scale) {
@@ -199,8 +227,12 @@ public final class DecimalDataUtils {
     }
 
     public static DecimalData castFrom(long val, int p, int s) {
-        if (p <= DecimalData.MAX_COMPACT_PRECISION) {
+        if (DecimalData.isCompact(p)) {
             return DecimalData.fromCompactRescale(val, 0, p, s);
+        }
+        final DecimalData scaled = rescaleUpAsLong(val, 0, p, s);
+        if (scaled != null) {
+            return scaled;
         }
         return fromBigDecimal(BigDecimal.valueOf(val), p, s);
     }
@@ -225,8 +257,8 @@ public final class DecimalDataUtils {
     }
 
     public static int compare(DecimalData b1, long n2) {
-        if (!b1.isCompact()) {
-            return b1.decimalVal.compareTo(BigDecimal.valueOf(n2));
+        if (!b1.longBacked || b1.scale >= POW10.length) {
+            return b1.toBigDecimal().compareTo(BigDecimal.valueOf(n2));
         }
         if (b1.scale == 0) {
             return Long.compare(b1.longVal, n2);
