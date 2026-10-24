@@ -392,6 +392,31 @@ public class MetricOptions {
                                     + "Warning, increasing this value may bring the main Flink components down.");
 
     /**
+     * Metrics matching one of these filters are not exposed through Flink's internal metric query
+     * service and therefore neither through the REST API nor the web UI. They are still reported to
+     * configured metric reporters.
+     */
+    public static final ConfigOption<List<String>> QUERY_SERVICE_EXCLUDES =
+            key("metrics.internal.query-service.filter.excludes")
+                    .stringType()
+                    .asList()
+                    .defaultValues("*.operator.split.watermark:*:*")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The metrics that should be excluded from Flink's internal metric query service,"
+                                                    + " which backs the metrics exposed via the REST API and the web UI."
+                                                    + " Excluded metrics are still reported to configured metric reporters."
+                                                    + " Filters use the same format as %s.",
+                                            code("metrics.reporter.<name>.filter.excludes"))
+                                    .linebreak()
+                                    .text(
+                                            "By default the per-split watermark metrics of sources are excluded, because the"
+                                                    + " number of splits a source reads over its lifetime is unbounded and the"
+                                                    + " REST API retains the metrics of every split it has ever seen.")
+                                    .build());
+
+    /**
      * The config parameter defining the update interval for the metric fetcher used by the web UI
      * in milliseconds.
      */

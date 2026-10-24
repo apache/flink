@@ -30,6 +30,7 @@ import org.apache.flink.metrics.MetricType;
 import org.apache.flink.traces.SpanBuilder;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -38,7 +39,8 @@ import java.util.stream.Collectors;
 
 /**
  * Default {@link ReporterFilter} implementation that filters metrics based on {@link
- * MetricOptions#REPORTER_INCLUDES}/{@link MetricOptions#REPORTER_EXCLUDES}.
+ * MetricOptions#REPORTER_INCLUDES}/{@link MetricOptions#REPORTER_EXCLUDES}, or on {@link
+ * MetricOptions#QUERY_SERVICE_EXCLUDES} for the metric query service.
  */
 public class DefaultReporterFilters {
 
@@ -136,6 +138,21 @@ public class DefaultReporterFilters {
                 MetricOptions.REPORTER_INCLUDES,
                 MetricOptions.REPORTER_EXCLUDES,
                 MetricReporterFilter::new);
+    }
+
+    /**
+     * Creates the filter applied to metrics before they are exposed through the metric query
+     * service. The query service has no include list; everything not excluded via {@link
+     * MetricOptions#QUERY_SERVICE_EXCLUDES} is exposed.
+     */
+    public static ReporterFilter<Metric> queryServiceMetricsFromConfiguration(
+            Configuration configuration) {
+        final List<FilterSpec> excludeFilters =
+                configuration.get(MetricOptions.QUERY_SERVICE_EXCLUDES).stream()
+                        .map(DefaultReporterFilters::parse)
+                        .collect(Collectors.toList());
+
+        return new MetricReporterFilter(Collections.singletonList(parse("*:*:*")), excludeFilters);
     }
 
     public static ReporterFilter<SpanBuilder> tracesFromConfiguration(Configuration configuration) {
