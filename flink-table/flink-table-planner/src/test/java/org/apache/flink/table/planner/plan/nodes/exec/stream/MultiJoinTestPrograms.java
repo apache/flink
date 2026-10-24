@@ -434,6 +434,18 @@ public class MultiJoinTestPrograms {
                                             + "INNER JOIN Payments p ON u.user_id = p.user_id")
                             .build();
 
+    public static final TableTestProgram MULTI_JOIN_UPSERT_INPUTS_WITH_RESTORE =
+            multiJoinWithUpsertInputs(
+                    "three-way-join-upsert-inputs-with-restore",
+                    "three way join with an upsert input that updates and deletes by key");
+
+    // its plan and savepoint are compiled before the multi-way join stored the upsert keys and
+    // changelog modes of its inputs
+    public static final TableTestProgram MULTI_JOIN_UPSERT_INPUTS_PRE_2_4_WITH_RESTORE =
+            multiJoinWithUpsertInputs(
+                    "three-way-join-upsert-inputs-pre-2-4-with-restore",
+                    "three way join with an upsert input that updates and deletes by key restored from a plan without changelog modes");
+
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_NO_JOIN_KEY =
             TableTestProgram.of(
                             "three-way-inner-join-no-join-key",
@@ -1853,4 +1865,69 @@ public class MultiJoinTestPrograms {
                                     + "INNER JOIN Orders o ON u.user_id = o.user_id "
                                     + "INNER JOIN Payments p ON u.user_id = p.user_id")
                     .build();
+
+    /**
+     * After the restore, an order moves to another region and an order is deleted by key, without
+     * UPDATE_BEFORE. Their joined rows are retracted, although their full images are only in the
+     * restored state.
+     */
+    private static TableTestProgram multiJoinWithUpsertInputs(
+            final String id, final String description) {
+        return TableTestProgram.of(id, description)
+                .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                .setupTableSource(
+                        SourceTestStep.newBuilder("Users")
+                                .addSchema("user_id INT PRIMARY KEY NOT ENFORCED", "region STRING")
+                                .addOption("changelog-mode", "I,UA,D")
+                                .addOption("source.produces-delete-by-key", "true")
+                                .producedBeforeRestore(Row.ofKind(RowKind.INSERT, 1, "EU"))
+                                .build())
+                .setupTableSource(
+                        SourceTestStep.newBuilder("Orders")
+                                .addSchema(
+                                        "user_id INT",
+                                        "order_id INT",
+                                        "region STRING",
+                                        "PRIMARY KEY (user_id, order_id) NOT ENFORCED")
+                                .addOption("changelog-mode", "I,UA,D")
+                                .addOption("source.produces-delete-by-key", "true")
+                                .producedBeforeRestore(
+                                        Row.ofKind(RowKind.INSERT, 1, 10, "EU"),
+                                        Row.ofKind(RowKind.INSERT, 1, 11, "EU"))
+                                .producedAfterRestore(
+                                        Row.ofKind(RowKind.UPDATE_AFTER, 1, 10, "US"),
+                                        Row.ofKind(RowKind.DELETE, 1, 11, null))
+                                .build())
+                .setupTableSource(
+                        SourceTestStep.newBuilder("Payments")
+                                .addSchema(
+                                        "user_id INT PRIMARY KEY NOT ENFORCED",
+                                        "payment_type STRING")
+                                .addOption("changelog-mode", "I,UA,D")
+                                .addOption("source.produces-delete-by-key", "true")
+                                .producedBeforeRestore(Row.ofKind(RowKind.INSERT, 1, "card"))
+                                .build())
+                .setupTableSink(
+                        SinkTestStep.newBuilder("sink")
+                                .addSchema(
+                                        "user_id INT",
+                                        "order_id INT",
+                                        "region STRING",
+                                        "payment_type STRING",
+                                        "PRIMARY KEY (user_id, order_id) NOT ENFORCED")
+                                .addOption("changelog-mode", "I,UA,D")
+                                .addOption("sink.supports-delete-by-key", "true")
+                                .consumedBeforeRestore("+I[1, 10, EU, card]", "+I[1, 11, EU, card]")
+                                // deletes by key only contain the primary key of the sink
+                                .consumedAfterRestore(
+                                        "-D[1, 10, null, null]", "-D[1, 11, null, null]")
+                                .build())
+                .runSql(
+                        "INSERT INTO sink "
+                                + "SELECT o.user_id, o.order_id, o.region, p.payment_type "
+                                + "FROM Users u "
+                                + "JOIN Orders o ON u.user_id = o.user_id AND u.region = o.region "
+                                + "JOIN Payments p ON u.user_id = p.user_id")
+                .build();
+    }
 }

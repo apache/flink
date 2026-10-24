@@ -614,13 +614,14 @@ class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorT
                         "payment_3",
                         "Payment 3 Details"));
 
+        // the delete retracts the stored version of the user, which replaced the deleted one
         deleteUser("2", "Bob", "User 2 Details");
         emits(
                 DELETE,
                 r(
                         "2",
                         "Bob",
-                        "User 2 Details",
+                        "User 2 Details Updated",
                         "2",
                         "order_2",
                         "Order 2 Details",
@@ -631,7 +632,7 @@ class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorT
                 r(
                         "2",
                         "Bob",
-                        "User 2 Details",
+                        "User 2 Details Updated",
                         "2",
                         "order_2",
                         "Order 2 Details",
@@ -642,7 +643,7 @@ class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorT
                 r(
                         "2",
                         "Bob",
-                        "User 2 Details",
+                        "User 2 Details Updated",
                         "2",
                         "order_3",
                         "Order 3 Details",
@@ -653,7 +654,7 @@ class StreamingThreeWayOuterJoinOperatorTest extends StreamingMultiJoinOperatorT
                 r(
                         "2",
                         "Bob",
-                        "User 2 Details",
+                        "User 2 Details Updated",
                         "2",
                         "order_3",
                         "Order 3 Details",
