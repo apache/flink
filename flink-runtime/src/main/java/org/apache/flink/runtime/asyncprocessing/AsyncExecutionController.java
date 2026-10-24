@@ -562,6 +562,11 @@ public class AsyncExecutionController<K, REQUEST extends AsyncRequest<?>> implem
         return mailboxExecutor;
     }
 
+    @VisibleForTesting
+    public boolean isBufferTimeoutScheduled() {
+        return asyncRequestsBuffer.currentScheduledFuture != null;
+    }
+
     @Override
     public void close() throws IOException {
         asyncRequestsBuffer.close();
