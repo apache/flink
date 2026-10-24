@@ -21,7 +21,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
@@ -126,6 +126,50 @@ class AggregateITCase(
     env.execute()
 
     val expected = List("5")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testGroupByOrdinal(): Unit = {
+    // "GROUP BY 1, 2" resolves to the 1st and 2nd SELECT expressions (a, b); the streaming
+    // aggregate produces the same final per-group counts as an explicit "GROUP BY a, b".
+    tEnv.getConfig.set(TableConfigOptions.TABLE_GROUP_BY_ORDINAL_ENABLED, Boolean.box(true))
+
+    val data = List((1, 2L), (1, 2L), (3, 4L))
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporaryView("OrdinalT", t)
+
+    val sink = new TestingRetractSink
+    tEnv
+      .sqlQuery("SELECT a, b, COUNT(*) FROM OrdinalT GROUP BY 1, 2")
+      .toRetractStream[Row]
+      .addSink(sink)
+      .setParallelism(1)
+    env.execute()
+
+    val expected = List("1,2,2", "3,4,1")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testGroupByOrdinalOnExpression(): Unit = {
+    // Ordinal 1 resolves to the whole expression "a + b" (alias stripped), so grouping is by
+    // the computed value.
+    tEnv.getConfig.set(TableConfigOptions.TABLE_GROUP_BY_ORDINAL_ENABLED, Boolean.box(true))
+
+    val data = List((1, 2L), (3, 4L), (1, 2L))
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporaryView("OrdinalExprT", t)
+
+    val sink = new TestingRetractSink
+    tEnv
+      .sqlQuery("SELECT a + b AS s, COUNT(*) FROM OrdinalExprT GROUP BY 1")
+      .toRetractStream[Row]
+      .addSink(sink)
+      .setParallelism(1)
+    env.execute()
+
+    val expected = List("3,2", "7,1")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
