@@ -59,9 +59,11 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /** Builder for {@link AdaptiveScheduler}. */
 public class AdaptiveSchedulerBuilder {
@@ -71,6 +73,8 @@ public class AdaptiveSchedulerBuilder {
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
     private final ScheduledExecutorService executorService;
+    private Executor recoveryExecutor;
+    private ScheduledExecutorService futureExecutor;
 
     @Nullable private JobResourceRequirements jobResourceRequirements;
 
@@ -82,6 +86,8 @@ public class AdaptiveSchedulerBuilder {
     private DeclarativeSlotPool declarativeSlotPool;
     private Duration rpcTimeout = DEFAULT_TIMEOUT;
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
+    private UnaryOperator<ExecutionGraphFactory> executionGraphFactoryDecorator =
+            UnaryOperator.identity();
     private JobManagerJobMetricGroup jobManagerJobMetricGroup =
             UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
     private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
@@ -130,6 +136,18 @@ public class AdaptiveSchedulerBuilder {
                         Duration.ZERO,
                         mainThreadExecutor);
         this.executorService = executorService;
+        this.recoveryExecutor = executorService;
+        this.futureExecutor = executorService;
+    }
+
+    public AdaptiveSchedulerBuilder setRecoveryExecutor(Executor recoveryExecutor) {
+        this.recoveryExecutor = recoveryExecutor;
+        return this;
+    }
+
+    public AdaptiveSchedulerBuilder setFutureExecutor(ScheduledExecutorService futureExecutor) {
+        this.futureExecutor = futureExecutor;
+        return this;
     }
 
     public AdaptiveSchedulerBuilder setJobResourceRequirements(
@@ -250,13 +268,19 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
+    public AdaptiveSchedulerBuilder setExecutionGraphFactoryDecorator(
+            UnaryOperator<ExecutionGraphFactory> executionGraphFactoryDecorator) {
+        this.executionGraphFactoryDecorator = executionGraphFactoryDecorator;
+        return this;
+    }
+
     public AdaptiveScheduler build() throws Exception {
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
                         jobMasterConfiguration,
                         userCodeLoader,
                         new DefaultExecutionDeploymentTracker(),
-                        executorService,
+                        futureExecutor,
                         executorService,
                         rpcTimeout,
                         jobManagerJobMetricGroup,
@@ -288,6 +312,7 @@ public class AdaptiveSchedulerBuilder {
                                         TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE))
                         : slotAllocator,
                 executorService,
+                recoveryExecutor,
                 userCodeLoader,
                 checkpointsCleaner,
                 checkpointRecoveryFactory,
@@ -298,6 +323,6 @@ public class AdaptiveSchedulerBuilder {
                 fatalErrorHandler,
                 jobStatusListener,
                 failureEnrichers,
-                executionGraphFactory);
+                executionGraphFactoryDecorator.apply(executionGraphFactory));
     }
 }

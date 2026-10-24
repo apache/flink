@@ -45,10 +45,16 @@ import java.util.concurrent.ScheduledExecutorService;
 /** Factory for {@link SchedulerNG}. */
 public interface SchedulerNGFactory {
 
+    /**
+     * Creates a scheduler borrowing the supplied executors. The recovery executor is reserved for
+     * adaptive graph creation and state assignment; it must not replace the graph/coordinator IO
+     * executor or be shut down by the scheduler. Other scheduler types do not use it.
+     */
     SchedulerNG createInstance(
             Logger log,
             ExecutionPlan executionPlan,
             Executor ioExecutor,
+            Executor recoveryExecutor,
             Configuration jobMasterConfiguration,
             SlotPoolService slotPoolService,
             ScheduledExecutorService futureExecutor,
