@@ -118,6 +118,40 @@ No available advice...
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCurrentTimestampFilterPushedIntoChangelogNormalizeOnUpsertSource[[1] TRY_RESOLVE]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_without_pk SELECT a, b, c FROM upsert_src2 WHERE ts >= CURRENT_TIMESTAMP - INTERVAL '90' DAY]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- Calc(select=[a, b, c])
+   +- ChangelogNormalize(key=[a], condition=[>=(ts, -(CURRENT_TIMESTAMP(), 7776000000:INTERVAL DAY TO SECOND))])
+      +- Exchange(distribution=[hash[a]])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_src2, filter=[]]], fields=[a, b, c, ts])
+
+No available advice...
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCurrentTimestampFilterPushedIntoChangelogNormalizeOnUpsertSource[[2] IGNORE]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_without_pk SELECT a, b, c FROM upsert_src2 WHERE ts >= CURRENT_TIMESTAMP - INTERVAL '90' DAY]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
++- Calc(select=[a, b, c])
+   +- ChangelogNormalize(key=[a], condition=[>=(ts, -(CURRENT_TIMESTAMP(), 7776000000:INTERVAL DAY TO SECOND))])
+      +- Exchange(distribution=[hash[a]])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_src2, filter=[]]], fields=[a, b, c, ts])
+
+No available advice...
+
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testGroupByNonDeterministicFuncWithCdcSource">
     <Resource name="sql">
       <![CDATA[insert into sink_with_pk
@@ -180,6 +214,40 @@ related rel plan:
 Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), _UTF-16LE'yyMMdd') AS day], changelogMode=[I,UB,UA,D])
 +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a]]], fields=[a], changelogMode=[I,UB,UA,D])
 
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNowFilterPushedIntoChangelogNormalizeOnUpsertSource[[1] TRY_RESOLVE]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_with_pk SELECT a, b, c FROM upsert_src WHERE ts >= NOW() - INTERVAL '90' DAY]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
++- Calc(select=[a, b, c])
+   +- ChangelogNormalize(key=[a], condition=[>=(ts, -(NOW(), 7776000000:INTERVAL DAY TO SECOND))])
+      +- Exchange(distribution=[hash[a]])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, filter=[]]], fields=[a, b, c, ts])
+
+No available advice...
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNowFilterPushedIntoChangelogNormalizeOnUpsertSource[[2] IGNORE]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_with_pk SELECT a, b, c FROM upsert_src WHERE ts >= NOW() - INTERVAL '90' DAY]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c])
++- Calc(select=[a, b, c])
+   +- ChangelogNormalize(key=[a], condition=[>=(ts, -(NOW(), 7776000000:INTERVAL DAY TO SECOND))])
+      +- Exchange(distribution=[hash[a]])
+         +- TableSourceScan(table=[[default_catalog, default_database, upsert_src, filter=[]]], fields=[a, b, c, ts])
+
+No available advice...
 
 ]]>
     </Resource>
