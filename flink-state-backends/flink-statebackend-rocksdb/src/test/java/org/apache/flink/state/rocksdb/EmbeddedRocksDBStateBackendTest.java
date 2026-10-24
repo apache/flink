@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.state.rocksdb.sstmerge.RocksDBManualCompactionOptions;
@@ -96,6 +97,7 @@ import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.state.v2.AsyncKeyedStateBackendAdaptorTest.assertMapStateNullRemovals;
 import static org.apache.flink.state.rocksdb.RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE;
 import static org.apache.flink.state.rocksdb.RocksDBConfigurableOptions.USE_DELETE_FILES_IN_RANGE_DURING_RESCALING;
 import static org.apache.flink.state.rocksdb.RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
@@ -683,6 +685,26 @@ public class EmbeddedRocksDBStateBackendTest
                 .newIterator(any(ColumnFamilyHandle.class), any(ReadOptions.class));
 
         assertThatThrownBy(state::clear).isInstanceOf(FlinkRuntimeException.class);
+    }
+
+    @TestTemplate
+    public void testAsyncMapStateNullRemovals() throws Exception {
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
+        try (AsyncKeyedStateBackendAdaptor<Integer> adaptor =
+                new AsyncKeyedStateBackendAdaptor<>(backend)) {
+            backend.setCurrentKey(1);
+            assertMapStateNullRemovals(
+                    adaptor.getOrCreateKeyedState(
+                            VoidNamespace.INSTANCE,
+                            VoidNamespaceSerializer.INSTANCE,
+                            new org.apache.flink.api.common.state.v2.MapStateDescriptor<>(
+                                    "nullRemovals",
+                                    IntSerializer.INSTANCE,
+                                    IntSerializer.INSTANCE)));
+        } finally {
+            backend.dispose();
+        }
     }
 
     /** Test for all configs that use {@link org.apache.flink.util.TernaryBoolean}. */
