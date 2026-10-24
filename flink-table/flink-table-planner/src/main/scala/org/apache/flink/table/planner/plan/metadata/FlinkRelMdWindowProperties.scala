@@ -413,7 +413,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
 
   def getWindowProperties(rel: FlinkLogicalJoin, mq: RelMetadataQuery): RelWindowProperties = {
     if (satisfyWindowJoin(rel)) {
-      getJoinWindowProperties(rel.getLeft, rel.getRight, mq)
+      getJoinWindowProperties(rel.getJoinType, rel.getLeft, rel.getRight, mq)
     } else {
       null
     }
@@ -422,10 +422,11 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
   def getWindowProperties(
       rel: StreamPhysicalWindowJoin,
       mq: RelMetadataQuery): RelWindowProperties = {
-    getJoinWindowProperties(rel.getLeft, rel.getRight, mq)
+    getJoinWindowProperties(rel.getJoinType, rel.getLeft, rel.getRight, mq)
   }
 
   private def getJoinWindowProperties(
+      joinType: JoinRelType,
       left: RelNode,
       right: RelNode,
       mq: RelMetadataQuery): RelWindowProperties = {
@@ -435,10 +436,16 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     def inferWindowPropertyAfterWindowJoin(
         leftWindowProperty: ImmutableBitSet,
         rightWindowProperty: ImmutableBitSet): ImmutableBitSet = {
+      // window columns on an outer join's null-generating side become nullable, so they are no
+      // longer valid window properties
+      val preservedLeft =
+        if (joinType.generatesNullsOnLeft) ImmutableBitSet.of() else leftWindowProperty
+      val preservedRight =
+        if (joinType.generatesNullsOnRight) ImmutableBitSet.of() else rightWindowProperty
       val fieldMapping = new JHashMap[Integer, Integer]()
       (0 until rightFieldCnt).foreach(idx => fieldMapping.put(idx, leftFieldCnt + idx))
-      val rightWindowPropertyAfterWindowJoin = rightWindowProperty.permute(fieldMapping)
-      leftWindowProperty.union(rightWindowPropertyAfterWindowJoin)
+      val rightWindowPropertyAfterWindowJoin = preservedRight.permute(fieldMapping)
+      preservedLeft.union(rightWindowPropertyAfterWindowJoin)
     }
 
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
