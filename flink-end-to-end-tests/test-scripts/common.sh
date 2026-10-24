@@ -1001,6 +1001,10 @@ internal_run_with_timeout() {
       # invoke
       $command
   )
+  local exit_code=$?
+  # Stop this watchdog when the command ends; job_watchdog.pid only tracks the last one.
+  kill_test_watchdog
+  return $exit_code
 }
 
 run_on_test_failure() {
