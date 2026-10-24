@@ -144,11 +144,10 @@ public class MappingEntry extends ReferenceCounted {
             if (parentDir != null) {
                 parentDir.release();
             }
-            if (fileOwnership == FileOwnership.NOT_OWNED) {
-                // If the source file is not owned by DB, do not delete it.
-                return;
+            if (fileOwnership != FileOwnership.NOT_OWNED) {
+                source.delete(isDirectory);
             }
-            source.delete(isDirectory);
+            // The cached copy belongs to the DB even if a checkpoint owns the source file.
             if (cache != null && !isDirectory && source.cacheable()) {
                 cache.delete(source.getFilePath());
             }
