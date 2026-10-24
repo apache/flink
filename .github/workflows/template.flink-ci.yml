@@ -39,6 +39,8 @@ on:
         required: false
       s3_secret_key:
         required: false
+      develocity_access_key:
+        required: false
 
 permissions: read-all
 
@@ -105,6 +107,8 @@ jobs:
       - name: "Compile Flink"
         uses: "./.github/actions/run_mvn"
         timeout-minutes: ${{ fromJSON(env.GHA_JOB_TIMEOUT) }}
+        env:
+          DEVELOCITY_ACCESS_KEY: ${{ secrets.develocity_access_key }}
         with:
           working_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
           maven-parameters: "-T 1C test-compile -Dflink.markBundledAsOptional=false -Dfast"
@@ -176,6 +180,8 @@ jobs:
 
       - name: "Test"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+        env:
+          DEVELOCITY_ACCESS_KEY: ${{ secrets.develocity_access_key }}
         run: |
           ${{ inputs.environment }} ./tools/ci/compile_ci.sh -Dmaven.clean.skip=true || exit $?
 
@@ -301,6 +307,7 @@ jobs:
           IT_CASE_S3_BUCKET: ${{ secrets.s3_bucket }}
           IT_CASE_S3_ACCESS_KEY: ${{ secrets.s3_access_key }}
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
+          DEVELOCITY_ACCESS_KEY: ${{ secrets.develocity_access_key }}
           DOCKER_HOST: unix:///var/run/docker.sock
         timeout-minutes: ${{ fromJSON(env.GHA_JOB_TIMEOUT) }}
         run: |
@@ -448,6 +455,8 @@ jobs:
 
       - name: "Build Flink"
         uses: "./.github/actions/run_mvn"
+        env:
+          DEVELOCITY_ACCESS_KEY: ${{ secrets.develocity_access_key }}
         with:
           maven-parameters: "install -DskipTests -Dfast $PROFILE -Pskip-webui-build -T1C"
           env: "${{ inputs.environment }}"
@@ -458,6 +467,7 @@ jobs:
           IT_CASE_S3_BUCKET: ${{ secrets.s3_bucket }}
           IT_CASE_S3_ACCESS_KEY: ${{ secrets.s3_access_key }}
           IT_CASE_S3_SECRET_KEY: ${{ secrets.s3_secret_key }}
+          DEVELOCITY_ACCESS_KEY: ${{ secrets.develocity_access_key }}
         timeout-minutes: ${{ fromJSON(env.GHA_JOB_TIMEOUT) }}
         run: |
           ${{ inputs.environment }} FLINK_DIR=`pwd`/build-target PROFILE="$PROFILE -Pgithub-actions" ./tools/ci/uploading_watchdog.sh \
