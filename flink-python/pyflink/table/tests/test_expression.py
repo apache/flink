@@ -279,6 +279,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("TRY_PARSE_XML(a, false)", str(expr1.try_parse_xml(False)))
         self.assertEqual("PARSE_XML(a, b)", str(expr1.parse_xml(expr2)))
         self.assertEqual("TRY_PARSE_XML(a, b)", str(expr1.try_parse_xml(expr2)))
+        self.assertEqual("XML_STRING(a)", str(expr1.xml_string()))
 
         # bitmap functions
         self.assertEqual("BITMAP_AND(a, b)", str(expr1.bitmap_and(expr2)))
