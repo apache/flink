@@ -41,25 +41,25 @@ import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackendBuilder;
 import org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.DummyCheckpointingStorageAccess;
 import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationRunnable;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.RunnableFuture;
 
 import static java.util.Collections.emptyList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link ChangelogKeyedStateBackend} test. */
-@RunWith(Parameterized.class)
-public class ChangelogKeyedStateBackendTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class ChangelogKeyedStateBackendTest {
 
-    @Parameterized.Parameters(name = "checkpointID={0}, materializationId={1}")
+    @Parameters(name = "checkpointID={0}, materializationId={1}")
     public static Object[][] parameters() {
         return new Object[][] {
             {0L, 200L},
@@ -73,8 +73,8 @@ public class ChangelogKeyedStateBackendTest {
     @Parameter(1)
     public long materializationId;
 
-    @Test
-    public void testCheckpointConfirmation() throws Exception {
+    @TestTemplate
+    void testCheckpointConfirmation() throws Exception {
         MockKeyedStateBackend<Integer> mock = createMock();
         ChangelogKeyedStateBackend<Integer> changelog = createChangelog(mock);
         try {
@@ -83,7 +83,7 @@ public class ChangelogKeyedStateBackendTest {
             checkpoint(changelog, checkpointId).get().discardState();
 
             changelog.notifyCheckpointComplete(checkpointId);
-            assertEquals(materializationId, mock.getLastCompletedCheckpointID());
+            assertThat(mock.getLastCompletedCheckpointID()).isEqualTo(materializationId);
 
         } finally {
             changelog.close();
@@ -91,8 +91,8 @@ public class ChangelogKeyedStateBackendTest {
         }
     }
 
-    @Test
-    public void testInitMaterialization() throws Exception {
+    @TestTemplate
+    void testInitMaterialization() throws Exception {
         MockKeyedStateBackend<Integer> delegatedBackend = createMock();
         ChangelogKeyedStateBackend<Integer> backend = createChangelog(delegatedBackend);
 
@@ -103,12 +103,12 @@ public class ChangelogKeyedStateBackendTest {
 
             runnable = backend.initMaterialization();
             // 1. should trigger first materialization
-            assertTrue("first materialization should be trigger.", runnable.isPresent());
+            assertThat(runnable).as("first materialization should be trigger.").isPresent();
 
             appendMockStateChange(backend); // ensure there is non-materialized changelog
 
             // 2. should not trigger new one until the previous one has been confirmed or failed
-            assertFalse(backend.initMaterialization().isPresent());
+            assertThat(backend.initMaterialization()).isNotPresent();
 
             backend.handleMaterializationFailureOrCancellation(
                     runnable.get().getMaterializationID(),
@@ -116,12 +116,12 @@ public class ChangelogKeyedStateBackendTest {
                     null);
             runnable = backend.initMaterialization();
             // 3. should trigger new one after previous one failed
-            assertTrue(runnable.isPresent());
+            assertThat(runnable).isPresent();
 
             appendMockStateChange(backend); // ensure there is non-materialized changelog
 
             // 4. should not trigger new one until the previous one has been confirmed or failed
-            assertFalse(backend.initMaterialization().isPresent());
+            assertThat(backend.initMaterialization()).isNotPresent();
 
             backend.handleMaterializationResult(
                     SnapshotResult.empty(),
@@ -130,7 +130,7 @@ public class ChangelogKeyedStateBackendTest {
             checkpoint(backend, checkpointId).get().discardState();
             backend.notifyCheckpointComplete(checkpointId);
             // 5. should trigger new one after previous one has been confirmed
-            assertTrue(backend.initMaterialization().isPresent());
+            assertThat(backend.initMaterialization()).isPresent();
         } finally {
             backend.close();
             backend.dispose();
