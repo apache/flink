@@ -240,6 +240,9 @@ arithmetic:
   - sql: UUID_V7()
     table: uuidV7()
     description: Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current timestamp and a random component. Compared to UUID(), this function returns a value of the UUID data type.
+  - sql: CBRT(numeric)
+    table: NUMERIC.cbrt()
+    description: Returns the cube root as DOUBLE, including for negative values. Returns NULL for NULL input. E.g., CBRT(-27) returns -3.0.
   - sql: BIN(INT)
     table: INT.bin()
     description: Returns a string representation of INTEGER in binary format. Returns NULL if INTEGER is NULL. E.g., 4.bin() returns "100" and 12.bin() returns "1100".
