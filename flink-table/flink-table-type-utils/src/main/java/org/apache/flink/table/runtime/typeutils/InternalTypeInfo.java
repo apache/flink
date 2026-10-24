@@ -66,22 +66,38 @@ public final class InternalTypeInfo<T> extends TypeInformation<T> implements Dat
 
     private final TypeSerializer<T> typeSerializer;
 
+    /**
+     * Whether the row's field names were generated from the field positions by {@link
+     * #ofFields(LogicalType...)}. Not transient, because a state descriptor may be shipped before
+     * its serializer is created; not part of equality, like the serializer's evolution flags.
+     */
+    private final boolean syntheticFieldNames;
+
     private InternalTypeInfo(
-            LogicalType type, Class<T> typeClass, TypeSerializer<T> typeSerializer) {
+            LogicalType type,
+            Class<T> typeClass,
+            TypeSerializer<T> typeSerializer,
+            boolean syntheticFieldNames) {
         this.type = Preconditions.checkNotNull(type);
         this.typeClass = Preconditions.checkNotNull(typeClass);
         this.typeSerializer = Preconditions.checkNotNull(typeSerializer);
+        this.syntheticFieldNames = syntheticFieldNames;
     }
 
     /**
      * Creates type information for a {@link LogicalType} that is represented by internal data
      * structures.
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public static <T> InternalTypeInfo<T> of(LogicalType type) {
+        return of(type, false);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static <T> InternalTypeInfo<T> of(LogicalType type, boolean syntheticFieldNames) {
         final Class<?> typeClass = LogicalTypeUtils.toInternalConversionClass(type);
         final TypeSerializer<?> serializer = InternalSerializers.create(type);
-        return (InternalTypeInfo<T>) new InternalTypeInfo(type, typeClass, serializer);
+        return (InternalTypeInfo<T>)
+                new InternalTypeInfo(type, typeClass, serializer, syntheticFieldNames);
     }
 
     /** Creates type information for a {@link RowType} represented by internal data structures. */
@@ -89,9 +105,18 @@ public final class InternalTypeInfo<T> extends TypeInformation<T> implements Dat
         return of((LogicalType) type);
     }
 
-    /** Creates type information for {@link RowType} represented by internal data structures. */
+    /**
+     * Creates type information for {@link RowType} represented by internal data structures, naming
+     * the fields {@code f0}, {@code f1}, ... by position.
+     *
+     * <p>The generated names are positional and do not identify a field, so a field inserted before
+     * others would look like one appended at the end. Such type information therefore never takes
+     * part in state schema evolution: a restore keeps rejecting any change in the number or types
+     * of fields. Use {@link #ofFields(LogicalType[], String[])} or {@link #of(RowType)} when the
+     * field names are stable.
+     */
     public static InternalTypeInfo<RowData> ofFields(LogicalType... fieldTypes) {
-        return of(RowType.of(fieldTypes));
+        return of(RowType.of(fieldTypes), true);
     }
 
     /** Creates type information for {@link RowType} represented by internal data structures. */
@@ -194,7 +219,21 @@ public final class InternalTypeInfo<T> extends TypeInformation<T> implements Dat
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public TypeSerializer<T> createSerializer(SerializerConfig config) {
+        if (config != null
+                && config.isStateSchemaEvolutionEnabled()
+                && !syntheticFieldNames
+                && typeSerializer instanceof RowDataSerializer) {
+            // The cached instance is shared by every use of this type information, so the opt-in
+            // is recorded on a copy rather than in place. The copy goes to every caller, not only
+            // to state registration, so with the option on this method stops handing out the
+            // shared instance for row types; callers compare serializers by equality, which
+            // neither evolution flag affects. Positional names from ofFields(LogicalType...) never
+            // opt in, as they cannot tell an inserted field from an appended one.
+            return (TypeSerializer<T>)
+                    ((RowDataSerializer) typeSerializer).withSchemaEvolutionAllowed();
+        }
         return typeSerializer;
     }
 
