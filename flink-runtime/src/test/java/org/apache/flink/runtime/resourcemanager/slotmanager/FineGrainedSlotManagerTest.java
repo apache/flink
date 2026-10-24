@@ -680,6 +680,79 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
         };
     }
 
+    /**
+     * Tests that a requirements check whose strategy call fails does not prevent later checks from
+     * being scheduled.
+     */
+    @Test
+    void testRequirementsCheckIsScheduledAgainAfterAFailedCheck() throws Exception {
+        final AtomicInteger strategyCalls = new AtomicInteger();
+        final CompletableFuture<Void> firstCheck = new CompletableFuture<>();
+        final CompletableFuture<Void> secondCheck = new CompletableFuture<>();
+        new Context() {
+            {
+                resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
+                        (ignored1, ignored2) -> {
+                            if (strategyCalls.incrementAndGet() == 1) {
+                                firstCheck.complete(null);
+                                throw new IllegalStateException("Expected test failure");
+                            }
+                            secondCheck.complete(null);
+                            return ResourceAllocationResult.builder().build();
+                        });
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirementsForSingleSlot()));
+                            assertFutureCompleteAndReturn(firstCheck);
+
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirementsForSingleSlot()));
+                            assertFutureCompleteAndReturn(secondCheck);
+                        });
+            }
+        };
+    }
+
+    /**
+     * Tests that a resource declaration that fails does not prevent later declarations from being
+     * scheduled.
+     */
+    @Test
+    void testResourceDeclarationIsScheduledAgainAfterAFailedDeclaration() throws Exception {
+        final AtomicInteger declarations = new AtomicInteger();
+        final CompletableFuture<Void> firstDeclaration = new CompletableFuture<>();
+        final CompletableFuture<Void> secondDeclaration = new CompletableFuture<>();
+        new Context() {
+            {
+                resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
+                        ignored -> {
+                            if (declarations.incrementAndGet() == 1) {
+                                firstDeclaration.complete(null);
+                                throw new IllegalStateException("Expected test failure");
+                            }
+                            secondDeclaration.complete(null);
+                        });
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () -> getSlotManager().clearResourceRequirements(new JobID()));
+                            assertFutureCompleteAndReturn(firstDeclaration);
+
+                            runInMainThread(
+                                    () -> getSlotManager().clearResourceRequirements(new JobID()));
+                            assertFutureCompleteAndReturn(secondDeclaration);
+                        });
+            }
+        };
+    }
+
     @Test
     void testMaxTotalResourceCpuExceeded() throws Exception {
         Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter =
