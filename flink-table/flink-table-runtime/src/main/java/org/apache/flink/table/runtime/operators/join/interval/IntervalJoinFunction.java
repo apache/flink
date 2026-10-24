@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.NullAwareGetters;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
@@ -46,7 +46,7 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
 
     private transient JoinCondition joinCondition;
     private transient JoinedRowData reusedJoinRowData;
-    private transient NullAwareGetters joinKey;
+    private transient BinaryRowData joinKey;
 
     public IntervalJoinFunction(
             GeneratedJoinCondition joinCondition,
@@ -71,11 +71,8 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
 
     @Override
     public void join(RowData first, RowData second, Collector<RowData> out) throws Exception {
-        if (!nullSafe) { // is not null safe, return false if any null exists
-            if (filterAllNulls ? joinKey.anyNull() : joinKey.anyNull(nullFilterKeys)) {
-                // find null present, return false directly
-                return;
-            }
+        if (currentKeyCannotMatch()) {
+            return;
         }
         if (joinCondition.apply(first, second)) {
             out.collect(reusedJoinRowData.replace(first, second));
@@ -88,6 +85,15 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
     }
 
     public void setJoinKey(RowData currentKey) {
-        this.joinKey = (NullAwareGetters) currentKey;
+        // the key is always BinaryRowData
+        this.joinKey = (BinaryRowData) currentKey;
+    }
+
+    /**
+     * Returns whether no record of the current join key can ever match, because the key has a null
+     * in a field that is not null-safe. The join key must be set.
+     */
+    public boolean currentKeyCannotMatch() {
+        return NullAwareJoinHelper.shouldFilter(nullSafe, filterAllNulls, nullFilterKeys, joinKey);
     }
 }
