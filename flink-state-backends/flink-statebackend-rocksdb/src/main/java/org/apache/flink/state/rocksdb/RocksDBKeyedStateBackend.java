@@ -1146,6 +1146,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     @Override
+    public boolean supportsObjectLevelValueMigration() {
+        // A compatibleAfterMigration verdict routes every restored entry through
+        // migrateStateValues, whose per-entry migrateSerializedValue call reaches the migrate hook
+        // on the state's value serializer, or on the element serializer of a list state and the
+        // value serializer of a map state.
+        return true;
+    }
+
+    @Override
     public String getBackendTypeIdentifier() {
         return StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME;
     }
