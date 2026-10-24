@@ -21,10 +21,12 @@ package org.apache.flink.table.api;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedDoubleMaxFunction;
 import org.apache.flink.table.test.program.SqlTestStep;
 import org.apache.flink.table.test.program.TableApiTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -35,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,7 +47,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -151,6 +156,271 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
     }
 
     @Test
+    void testComputedGroupingExpressionCanBeSelected() {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+        final Expression key = $("a").isGreater(10);
+
+        final Table result = env.from("s").groupBy(key).select(key, $("a").count().as("n"));
+
+        assertGeneratedSqlCanBeParsed(env, result);
+    }
+
+    @Test
+    void testStructurallyEquivalentComputedGroupingExpressionCanBeSelected() {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+
+        final Table result =
+                env.from("s")
+                        .groupBy($("a").isGreater(10))
+                        .select($("a").isGreater(10).as("flag"), $("a").count().as("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames()).containsExactly("flag", "n");
+        assertGeneratedSqlCanBeParsed(env, result);
+    }
+
+    @Test
+    void testComputedGroupingExpressionCanBeSelectedAfterAggregate() {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+        final Expression key = $("a").isGreater(10);
+
+        final Table result =
+                env.from("s").groupBy(key).aggregate($("a").count().as("n")).select(key, $("n"));
+
+        assertGeneratedSqlCanBeParsed(env, result);
+    }
+
+    @Test
+    void testColumnFunctionGroupingKeepsExpandedFields() {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+
+        final Table result =
+                env.from("s")
+                        .groupBy(withColumns(1, 2))
+                        .select(withColumns(1, 2), $("a").count().as("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames()).containsExactly("a", "b", "n");
+        assertGeneratedSqlCanBeParsed(env, result);
+    }
+
+    @Test
+    void testNonGroupingExpressionStillCannotBeSelected() {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+
+        assertThatThrownBy(() -> env.from("s").groupBy($("a").isGreater(10)).select($("a")))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Cannot resolve field [a]");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testGroupingAliasDoesNotConflictWithGeneratedName(boolean aliasFirst) {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+        final Table result =
+                env.from("s")
+                        .groupBy(groupingsWithExplicitAlias(aliasFirst))
+                        .select($("TMP_0"), $("b").upperCase().as("upper"), $("a").count().as("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames())
+                .containsExactly("TMP_0", "upper", "n");
+        assertGeneratedSqlCanBeParsed(env, result);
+        assertThatCode(result::explain).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testGroupingAliasAfterAggregateDoesNotConflictWithGeneratedName(boolean aliasFirst) {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+        final Table result =
+                env.from("s")
+                        .groupBy(groupingsWithExplicitAlias(aliasFirst))
+                        .aggregate($("a").count().as("n"))
+                        .select($("TMP_0"), $("b").upperCase().as("upper"), $("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames())
+                .containsExactly("TMP_0", "upper", "n");
+        assertGeneratedSqlCanBeParsed(env, result);
+        assertThatCode(result::explain).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testGroupingAliasInTableAggregateDoesNotConflictWithGeneratedName(boolean aliasFirst) {
+        final TableEnvironment env = setupEnv(QueryOperationTestPrograms.AGGREGATE_QUERY_OPERATION);
+        final Table result =
+                env.from("s")
+                        .groupBy(groupingsWithExplicitAlias(aliasFirst))
+                        .flatAggregate(call(OverloadedDoubleMaxFunction.class, $("a")).as("max"))
+                        .select(withColumns(1, 2), $("max"));
+
+        assertThat(result.getResolvedSchema().getColumnNames()).doesNotHaveDuplicates();
+        assertThatCode(result::explain).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testWindowGroupingAliasDoesNotConflictWithGeneratedName(boolean aliasFirst) {
+        final TableEnvironment env =
+                setupEnv(QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION);
+        final Expression[] groupings = groupingsWithExplicitAlias(aliasFirst);
+        final Table result =
+                env.from("s")
+                        .window(Tumble.over(lit(5).seconds()).on($("ts")).as("w"))
+                        .groupBy($("w"), groupings[0], groupings[1])
+                        .select($("TMP_0"), $("b").upperCase().as("upper"), $("a").count().as("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames())
+                .containsExactly("TMP_0", "upper", "n");
+        assertGeneratedSqlCanBeParsed(env, result);
+        assertThatCode(result::explain).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testWindowGroupingAliasAfterAggregateDoesNotConflictWithGeneratedName(boolean aliasFirst) {
+        final TableEnvironment env =
+                setupEnv(QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION);
+        final Expression[] groupings = groupingsWithExplicitAlias(aliasFirst);
+        final Table result =
+                env.from("s")
+                        .window(Tumble.over(lit(5).seconds()).on($("ts")).as("w"))
+                        .groupBy($("w"), groupings[0], groupings[1])
+                        .aggregate($("a").count().as("n"))
+                        .select($("TMP_0"), $("b").upperCase().as("upper"), $("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames())
+                .containsExactly("TMP_0", "upper", "n");
+        assertGeneratedSqlCanBeParsed(env, result);
+        assertThatCode(result::explain).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testWindowGroupingAliasInTableAggregateDoesNotConflictWithGeneratedName(
+            boolean aliasFirst) {
+        final TableEnvironment env =
+                setupEnv(QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION);
+        final Expression[] groupings = groupingsWithExplicitAlias(aliasFirst);
+        final Table result =
+                env.from("s")
+                        .window(Tumble.over(lit(5).seconds()).on($("ts")).as("w"))
+                        .groupBy($("w"), groupings[0], groupings[1])
+                        .flatAggregate(call(OverloadedDoubleMaxFunction.class, $("a")).as("max"))
+                        .select(withColumns(1, 2), $("max"));
+
+        assertThat(result.getResolvedSchema().getColumnNames()).doesNotHaveDuplicates();
+        assertThatCode(result::explain).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testComputedWindowGroupingExpressionCanBeSelected(boolean explicitAggregate) {
+        final TableEnvironment env =
+                setupEnv(QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION);
+        final WindowGroupedTable grouped =
+                env.from("s")
+                        .window(Tumble.over(lit(5).seconds()).on($("ts")).as("w"))
+                        .groupBy($("w"), $("a").isGreater(10));
+        final Table result =
+                explicitAggregate
+                        ? grouped.aggregate($("a").count().as("n"))
+                                .select(
+                                        $("a").isGreater(10).as("flag"),
+                                        $("w").start().as("start"),
+                                        $("n"))
+                        : grouped.select(
+                                $("a").isGreater(10).as("flag"),
+                                $("w").start().as("start"),
+                                $("a").count().as("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames())
+                .containsExactly("flag", "start", "n");
+        assertGeneratedSqlCanBeParsed(env, result);
+        assertThatCode(result::explain).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testNonGroupingExpressionStillCannotBeSelectedFromWindow(boolean explicitAggregate) {
+        final TableEnvironment env =
+                setupEnv(QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION);
+        final WindowGroupedTable grouped =
+                env.from("s")
+                        .window(Tumble.over(lit(5).seconds()).on($("ts")).as("w"))
+                        .groupBy($("w"), $("a").isGreater(10));
+
+        assertThatThrownBy(
+                        () -> {
+                            if (explicitAggregate) {
+                                grouped.aggregate($("a").count().as("n")).select($("a"), $("n"));
+                            } else {
+                                grouped.select($("a"), $("a").count().as("n"));
+                            }
+                        })
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Cannot resolve field [a]");
+    }
+
+    @Test
+    void testWindowColumnFunctionGroupingKeepsExpandedFields() {
+        final TableEnvironment env =
+                setupEnv(QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION);
+        final Table result =
+                env.from("s")
+                        .window(Tumble.over(lit(5).seconds()).on($("ts")).as("w"))
+                        .groupBy($("w"), withColumns(1, 2), $("a").isGreater(10))
+                        .select(
+                                withColumns(1, 2),
+                                $("a").isGreater(10).as("flag"),
+                                $("a").count().as("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames())
+                .containsExactly("a", "b", "flag", "n");
+        assertGeneratedSqlCanBeParsed(env, result);
+        assertThatCode(result::explain).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testLiteralGroupingDoesNotRewriteAlias(boolean windowed) {
+        final TableEnvironment env =
+                setupEnv(QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION);
+        final Table source = env.from("s");
+        final Table result =
+                windowed
+                        ? source.window(Tumble.over(lit(5).seconds()).on($("ts")).as("w"))
+                                .groupBy($("w"), lit("n"))
+                                .select($("a").count().as("n"))
+                        : source.groupBy(lit("n")).select($("a").count().as("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames()).containsExactly("n");
+        assertThatCode(result::explain).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testLiteralGroupingDoesNotRewriteColumnPositions(boolean windowed) {
+        final TableEnvironment env =
+                setupEnv(QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION);
+        final Table source = env.from("s");
+        final Table result =
+                windowed
+                        ? source.window(Tumble.over(lit(5).seconds()).on($("ts")).as("w"))
+                                .groupBy($("w"), $("b"), lit(1))
+                                .select(withColumns(1), $("a").count().as("n"))
+                        : source.groupBy($("b"), lit(1))
+                                .select(withColumns(1), $("a").count().as("n"));
+
+        assertThat(result.getResolvedSchema().getColumnNames()).containsExactly("b", "n");
+        assertThatCode(result::explain).doesNotThrowAnyException();
+    }
+
+    private static Expression[] groupingsWithExplicitAlias(boolean aliasFirst) {
+        final Expression alias = $("a").as("TMP_0");
+        final Expression computed = $("b").upperCase();
+        return aliasFirst ? new Expression[] {alias, computed} : new Expression[] {computed, alias};
+    }
+
+    @Test
     void testProctimePropertyOfEventTimeWindowCannotBeExpressedInWindowingTvfSyntax() {
         final TableEnvironment env =
                 setupEnv(QueryOperationTestPrograms.WINDOW_AGGREGATE_ROWTIME_QUERY_OPERATION);
@@ -169,6 +439,12 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 .hasMessageContaining(
                         "The processing-time property of the event-time group window 'w' cannot be "
                                 + "expressed in windowing-TVF syntax.");
+    }
+
+    private static void assertGeneratedSqlCanBeParsed(TableEnvironment env, Table table) {
+        final String generatedSql =
+                table.getQueryOperation().asSerializableString(new InlineFunctionSqlFactory());
+        assertThatCode(() -> env.sqlQuery(generatedSql)).doesNotThrowAnyException();
     }
 
     private static TableEnvironment setupEnv(TableTestProgram program) {
