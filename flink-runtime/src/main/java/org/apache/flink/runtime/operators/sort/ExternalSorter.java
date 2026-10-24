@@ -224,6 +224,7 @@ public class ExternalSorter<E> implements Sorter<E> {
         try {
             thread.close();
         } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
             LOG.debug(
                     String.format(
                             "Closing of %s was interrupted. "

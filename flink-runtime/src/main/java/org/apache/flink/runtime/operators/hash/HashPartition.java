@@ -570,6 +570,7 @@ public class HashPartition<BT, PT> extends AbstractPagedInputView implements See
                 try {
                     next = this.writer.getReturnQueue().take();
                 } catch (InterruptedException iex) {
+                    Thread.currentThread().interrupt();
                     throw new IOException(
                             "Hash Join Partition was interrupted while grabbing a new write-behind buffer.");
                 }

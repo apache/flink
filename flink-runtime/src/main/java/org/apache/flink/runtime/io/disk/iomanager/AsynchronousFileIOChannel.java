@@ -136,6 +136,7 @@ public abstract class AsynchronousFileIOChannel<T, R extends IORequest>
                         this.closeLock.wait(1000);
                         checkErroneous();
                     } catch (InterruptedException iex) {
+                        Thread.currentThread().interrupt();
                         throw new IOException(
                                 "Closing of asynchronous file channel was interrupted.");
                     }

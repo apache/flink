@@ -146,7 +146,7 @@ public class FileCache {
                 try {
                     es.awaitTermination(cleanupInterval, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
-                    // may happen
+                    Thread.currentThread().interrupt();
                 }
             }
 

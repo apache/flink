@@ -252,6 +252,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                                 false)
                         .get(INITIALIZATION_SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 strippedThrowable.addSuppressed(e);
             }
 

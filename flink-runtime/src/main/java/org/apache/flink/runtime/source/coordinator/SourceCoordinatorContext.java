@@ -606,6 +606,9 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
                 return coordinatorExecutor.submit(guardedCallable).get();
             } catch (InterruptedException | ExecutionException e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 throw new FlinkRuntimeException(errorMessage, e);
             }
         }
