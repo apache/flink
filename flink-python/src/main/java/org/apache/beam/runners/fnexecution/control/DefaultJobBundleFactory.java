@@ -57,6 +57,7 @@ import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -642,6 +643,9 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
      */
     protected static class WrappedSdkHarnessClient {
 
+        /** How long closing an environment waits for the SDK harness to send its last logs. */
+        private static final long LOGGING_DRAIN_TIMEOUT_MS = 1000L;
+
         private final RemoteEnvironment environment;
         private final SdkHarnessClient client;
         private final ServerInfo serverInfo;
@@ -688,10 +692,13 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                     AutoCloseable retrievalServer = serverInfo.getRetrievalServer();
                     AutoCloseable stateServer = serverInfo.getStateServer();
                     AutoCloseable dataServer = serverInfo.getDataServer();
-                    AutoCloseable controlServer = serverInfo.getControlServer();
-                    // Close the logging server first to prevent spaming the logs with error
-                    // messages
-                    AutoCloseable loggingServer = serverInfo.getLoggingServer()) {
+                    AutoCloseable loggingServer = serverInfo.getLoggingServer();
+                    AutoCloseable loggingDrain = () -> awaitLoggingClients(serverInfo);
+                    // Close the control server first. The SDK harness then leaves its
+                    // control loop, flushes its buffered log entries and hangs up the
+                    // logging stream, which loggingDrain waits for before the logging
+                    // server closes.
+                    AutoCloseable controlServer = serverInfo.getControlServer()) {
                 // Wrap resources in try-with-resources to ensure all are cleaned up.
                 // This will close _all_ of these even in the presence of exceptions.
                 // The first exception encountered will be the base exception,
@@ -701,6 +708,24 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                 LOG.warn("Error cleaning up servers {}", environment.getEnvironment().getUrn(), e);
             }
             // TODO: Wait for executor shutdown?
+        }
+
+        /**
+         * Stops accepting logging calls and waits, up to {@link #LOGGING_DRAIN_TIMEOUT_MS}, for the
+         * SDK harness to hang up its logging stream after sending the entries it buffered.
+         */
+        private static void awaitLoggingClients(ServerInfo serverInfo) {
+            Server server = serverInfo.getLoggingServer().getServer();
+            server.shutdown();
+            try {
+                if (!server.awaitTermination(LOGGING_DRAIN_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                    LOG.debug(
+                            "Logging stream still open after {} ms, closing it.",
+                            LOGGING_DRAIN_TIMEOUT_MS);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
 
         private int ref() {
