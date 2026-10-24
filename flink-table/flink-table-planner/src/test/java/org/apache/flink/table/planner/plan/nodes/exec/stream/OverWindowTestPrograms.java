@@ -990,4 +990,92 @@ public class OverWindowTestPrograms {
                                     + "AS sum_val "
                                     + "FROM source_t")
                     .build();
+
+    // Written out rather than built as maps, a multiset literal in Java adds no clarity here
+    static final String[] COLLECT_BEFORE_DATA = {
+        "+I[key1, 1, {a=1}]",
+        "+I[key1, 2, {a=1, b=1}]",
+        "+I[key1, 5, {a=2, b=1}]",
+        "+I[key1, 6, {a=2, b=1, c=1}]",
+        "+I[key2, 1, {a=1}]",
+        "+I[key2, 2, {a=2}]"
+    };
+
+    static final String[] COLLECT_AFTER_DATA = {
+        "+I[key1, 4, {a=1, b=2}]",
+        "-U[key1, 5, {a=2, b=1}]",
+        "+U[key1, 5, {a=2, b=2}]",
+        "-U[key1, 6, {a=2, b=1, c=1}]",
+        "+U[key1, 6, {a=2, b=2, c=1}]"
+    };
+
+    static final Row[] COUNT_DISTINCT_BEFORE_DATA =
+            new Row[] {
+                Row.of("key1", 1L, 1L),
+                Row.of("key1", 2L, 2L),
+                Row.of("key1", 5L, 2L),
+                Row.of("key1", 6L, 3L),
+                Row.of("key2", 1L, 1L),
+                Row.of("key2", 2L, 1L)
+            };
+
+    // Sort keys 5 and 6 keep their count, so the accumulator equaliser drops those updates
+    static final Row[] COUNT_DISTINCT_AFTER_DATA = new Row[] {Row.of("key1", 4L, 2L)};
+
+    // A value column that repeats within a partition, so that a multiset and a distinct count
+    // differ from a plain row count. Value 4 arrives after the restore and sorts between 2 and 5,
+    // which is the case that makes the window reread an accumulator it already stored.
+    static final SourceTestStep APPEND_SOURCE_WITH_REPEATED_NAMES =
+            SourceTestStep.newBuilder("source_t")
+                    .addSchema("key STRING", "val BIGINT", "name STRING")
+                    .addOption("changelog-mode", "I")
+                    .producedBeforeRestore(
+                            Row.of("key1", 1L, "a"),
+                            Row.of("key1", 2L, "b"),
+                            Row.of("key1", 5L, "a"),
+                            Row.of("key1", 6L, "c"),
+                            Row.of("key2", 1L, "a"),
+                            Row.of("key2", 2L, "a"))
+                    .producedAfterRestore(Row.of("key1", 4L, "b"))
+                    .build();
+
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_COLLECT =
+            TableTestProgram.of(
+                            "over-aggregate-non-time-range-unbounded-collect",
+                            "validates restoring a non-time unbounded preceding collect function, whose accumulator keeps a map view")
+                    .setupTableSource(APPEND_SOURCE_WITH_REPEATED_NAMES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("key STRING", "val BIGINT", "names MULTISET<STRING>")
+                                    .consumedBeforeRestore(COLLECT_BEFORE_DATA)
+                                    .consumedAfterRestore(COLLECT_AFTER_DATA)
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT key, val, COLLECT(name) OVER ("
+                                    + "PARTITION BY key "
+                                    + "ORDER BY val "
+                                    + "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) "
+                                    + "AS names "
+                                    + "FROM source_t")
+                    .build();
+
+    static final TableTestProgram OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_COUNT_DISTINCT =
+            TableTestProgram.of(
+                            "over-aggregate-non-time-range-unbounded-count-distinct",
+                            "validates restoring a non-time unbounded preceding distinct count, whose accumulator keeps a map view")
+                    .setupTableSource(APPEND_SOURCE_WITH_REPEATED_NAMES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("key STRING", "val BIGINT", "distinct_names BIGINT")
+                                    .consumedBeforeRestore(COUNT_DISTINCT_BEFORE_DATA)
+                                    .consumedAfterRestore(COUNT_DISTINCT_AFTER_DATA)
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT key, val, COUNT(DISTINCT name) OVER ("
+                                    + "PARTITION BY key "
+                                    + "ORDER BY val "
+                                    + "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) "
+                                    + "AS distinct_names "
+                                    + "FROM source_t")
+                    .build();
 }
