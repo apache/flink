@@ -200,6 +200,7 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
                 RowData next = iter.next();
                 if (RowDataUtil.isAccumulateMsg(next)) {
                     isSuppress = true;
+                    current = pairedRetraction(current, inputSideStateView, inputIsLeft);
                 } else {
                     // retract + retract
                     pre = next;
@@ -219,6 +220,7 @@ public abstract class MiniBatchStreamingJoinOperator extends StreamingJoinOperat
                 if (pre != null) {
                     if (RowDataUtil.isAccumulateMsg(current)) {
                         isSuppress = true;
+                        pre = pairedRetraction(pre, inputSideStateView, inputIsLeft);
                     }
                     processElement(
                             pre,

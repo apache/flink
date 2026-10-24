@@ -441,7 +441,7 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
      * <p>A DELETE may contain only the unique key, e.g. from an upsert source, but a non-equi
      * condition needs all fields. In that case, the stored record with the same unique key is
      * returned, or the given retraction if nothing is stored. The retraction of a mini-batch pair
-     * is returned as it is.
+     * is returned as it is, because {@link #pairedRetraction} resolved it already.
      */
     private RowData retractedRecord(
             RowData retraction,
@@ -464,6 +464,21 @@ public class StreamingJoinOperator extends AbstractStreamingJoinOperator {
         }
         final RowData storedRecord = stateView.getRecord(retraction);
         return storedRecord != null ? storedRecord : retraction;
+    }
+
+    /**
+     * Returns the full record of a retraction that is paired with an accumulation in mini-batch
+     * mode, see {@link #retractedRecord}. It is looked up before the pair is processed, while the
+     * accumulation has not replaced the stored record yet, and both records of the pair use it.
+     */
+    protected RowData pairedRetraction(
+            RowData retraction, JoinRecordStateView stateView, boolean isLeft) throws Exception {
+        final RowKind retractionKind = retraction.getRowKind();
+        final RowData record =
+                retractedRecord(retraction, retractionKind, stateView, isLeft, false);
+        // the stored record may be the object in state, processElement() sets it back to INSERT
+        record.setRowKind(retractionKind);
+        return record;
     }
 
     /**
