@@ -53,7 +53,8 @@ SELECT * FROM FROM_CHANGELOG(
       'ua', 'UPDATE_AFTER',
       'd', 'DELETE'
   ],]
-  [error_handling => 'FAIL' | 'SKIP']
+  [error_handling => 'FAIL' | 'SKIP',]
+  [uid => 'my-id']
 )
 ```
 
@@ -65,6 +66,7 @@ SELECT * FROM FROM_CHANGELOG(
 | `op`         | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`. The column must exist in the input table and be of type STRING.                                                                                                                                                                                                                                                                                                                                       |
 | `op_mapping` | No       | A `MAP<STRING, STRING>` mapping user-defined codes to Flink change operation names. Keys are user-defined codes (e.g., `'c'`, `'u'`, `'d'`), values are Flink change operation names (`INSERT`, `UPDATE_BEFORE`, `UPDATE_AFTER`, `DELETE`). Keys can contain comma-separated codes to map multiple codes to the same operation (e.g., `'c, r'`). Each change operation may appear at most once across all entries. |
 | `error_handling` | No | Controls behavior when an input row's operation code is `NULL` or not present in the `op_mapping`. Valid values: `FAIL` (default) — throw a `TableRuntimeException`, `SKIP` — silently drop the row. |
+| `uid` | No | A `STRING` literal that uniquely identifies the PTF's state. With `PARTITION BY`, defaults to `FROM_CHANGELOG`. Must be unique across the entire Flink job if the PTF is invoked multiple times. See [Multiple Invocations](#multiple-invocations) for more details. |
 
 #### Default op_mapping
 
@@ -297,7 +299,8 @@ SELECT * FROM TO_CHANGELOG(
   input => TABLE source_table [PARTITION BY key_col],
   [op => DESCRIPTOR(op_column_name),]
   [op_mapping => MAP['INSERT', 'I', 'DELETE', 'D', ...],]
-  [produces_full_deletes => BOOLEAN]
+  [produces_full_deletes => BOOLEAN,]
+  [uid => 'my-id']
 )
 ```
 
@@ -309,6 +312,7 @@ SELECT * FROM TO_CHANGELOG(
 | `op`                    | No       | A `DESCRIPTOR` with a single column name for the operation code column. Defaults to `op`.                                                                                                                                                                                                                                                                |
 | `op_mapping`            | No       | A `MAP<STRING, STRING>` mapping change operation names to custom output codes. Keys can contain comma-separated names to map multiple operations to the same code (e.g., `'INSERT, UPDATE_AFTER'`). When provided, only mapped operations are forwarded - unmapped events are dropped. Each change operation may appear at most once across all entries. |
 | `produces_full_deletes` | No       | A `BOOLEAN` literal that controls how DELETE rows are emitted. When `true` (default), DELETE rows carry all columns, the full image. When `false`, only the identifying key columns are preserved and the rest are nulled. See [Full vs partial deletes](#full-vs-partial-deletes) for more details.                                                     |
+| `uid` | No | A `STRING` literal that uniquely identifies the PTF's state. With `PARTITION BY`, defaults to `TO_CHANGELOG`. Must be unique across the entire Flink job if the PTF is invoked multiple times. See [Multiple Invocations](#multiple-invocations) for more details. |
 
 #### Default op_mapping
 
@@ -531,5 +535,22 @@ Table result = myTable.toChangelog(
 // Equivalent to PARTITION BY in SQL. The partition keys are prepended to the output columns.
 Table result = myTable.partitionBy($("id")).toChangelog();
 ```
+
+## Multiple Invocations
+
+With `PARTITION BY` (set semantics), the framework identifies the state of both PTFs with a unique identifier (UID). The UID can be provided through the implicit `uid` string argument. If the `uid` argument is not specified, the function name is used. If the same PTF is invoked multiple times, for example within a `STATEMENT SET`, each invocation requires a `uid` that is unique across the entire Flink job:
+
+```sql
+EXECUTE STATEMENT SET
+BEGIN
+  INSERT INTO orders_sink
+    SELECT * FROM FROM_CHANGELOG(input => TABLE orders_cdc PARTITION BY id, uid => 'orders-changelog');
+
+  INSERT INTO customers_sink
+    SELECT * FROM FROM_CHANGELOG(input => TABLE customers_cdc PARTITION BY id, uid => 'customers-changelog');
+END;
+```
+
+See [Query Evolution with UIDs]({{< ref "docs/dev/table/functions/ptfs" >}}#query-evolution-with-uids) for more details.
 
 {{< top >}}
