@@ -34,6 +34,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * Timer and watermark manager for {@link ProcessTableFunctionTestHarness}.
  *
@@ -43,12 +45,15 @@ import java.util.stream.Collectors;
 @Internal
 class TestHarnessTimerManager {
 
+    private final TestHarnessStateManager.PartitionKeyInfo partitionKeyInfo;
     private final Map<Row, Set<Timer>> pendingTimersByPartition = new HashMap<>();
     private final List<Timer> firedTimers = new ArrayList<>();
     private final Map<String, Long> watermarkByTable = new HashMap<>();
     @Nullable private Long globalWatermark;
 
-    TestHarnessTimerManager() {}
+    TestHarnessTimerManager(TestHarnessStateManager.PartitionKeyInfo partitionKeyInfo) {
+        this.partitionKeyInfo = partitionKeyInfo;
+    }
 
     // -------------------------------------------------------------------------
     // Watermark
@@ -143,6 +148,73 @@ class TestHarnessTimerManager {
 
     void clearFiredTimers() {
         firedTimers.clear();
+    }
+
+    // -------------------------------------------------------------------------
+    // Snapshotting
+    // -------------------------------------------------------------------------
+
+    /**
+     * An isolated copy of all timer and watermark state. Later mutations of the live state are not
+     * visible through the snapshot.
+     */
+    static class TimerSnapshot {
+        private final Map<Row, Set<Timer>> pendingTimersByPartition;
+        private final List<Timer> firedTimers;
+        private final Map<String, Long> watermarkByTable;
+        @Nullable private final Long globalWatermark;
+
+        private TimerSnapshot(
+                Map<Row, Set<Timer>> pendingTimersByPartition,
+                List<Timer> firedTimers,
+                Map<String, Long> watermarkByTable,
+                @Nullable Long globalWatermark) {
+            this.pendingTimersByPartition = pendingTimersByPartition;
+            this.firedTimers = firedTimers;
+            this.watermarkByTable = watermarkByTable;
+            this.globalWatermark = globalWatermark;
+        }
+    }
+
+    TimerSnapshot snapshot() {
+        return new TimerSnapshot(
+                copyPendingTimers(pendingTimersByPartition),
+                copyTimers(firedTimers),
+                new HashMap<>(watermarkByTable),
+                globalWatermark);
+    }
+
+    /**
+     * Installs a deep copy of the given timers and watermarks. Called while a harness is being
+     * built, before it holds any timers of its own.
+     */
+    void restore(TimerSnapshot snapshot) {
+        checkState(
+                pendingTimersByPartition.isEmpty()
+                        && firedTimers.isEmpty()
+                        && watermarkByTable.isEmpty()
+                        && globalWatermark == null,
+                "Timers have already been populated.");
+        pendingTimersByPartition.putAll(copyPendingTimers(snapshot.pendingTimersByPartition));
+        firedTimers.addAll(copyTimers(snapshot.firedTimers));
+        watermarkByTable.putAll(snapshot.watermarkByTable);
+        globalWatermark = snapshot.globalWatermark;
+    }
+
+    private Map<Row, Set<Timer>> copyPendingTimers(Map<Row, Set<Timer>> source) {
+        Map<Row, Set<Timer>> copy = new HashMap<>();
+        for (Map.Entry<Row, Set<Timer>> entry : source.entrySet()) {
+            copy.put(
+                    partitionKeyInfo.copyKey(entry.getKey()),
+                    new HashSet<>(copyTimers(entry.getValue())));
+        }
+        return copy;
+    }
+
+    private List<Timer> copyTimers(Collection<Timer> timers) {
+        return timers.stream()
+                .map(timer -> timer.copy(partitionKeyInfo::copyKey))
+                .collect(Collectors.toList());
     }
 
     // -------------------------------------------------------------------------
