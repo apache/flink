@@ -64,6 +64,10 @@ public class ForStDBMapCheckRequest<K, N, V> extends ForStDBGetRequest<K, N, V, 
                 if (iter.isValid() && startWithKeyPrefix(key, iter.key(), keyGroupPrefixBytes)) {
                     completeStateFuture(VALID_PLACEHOLDER);
                 } else {
+                    if (!iter.isValid()) {
+                        // Invalid means either no data or a read error.
+                        iter.status();
+                    }
                     completeStateFuture(null);
                 }
             }
