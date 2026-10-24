@@ -25,7 +25,7 @@ import { JobVertexSubTask } from '@flink-runtime-web/interfaces';
 import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobOverviewSubtasksTableAction } from '@flink-runtime-web/pages/job/overview/subtasks/table-action/subtasks-table-action.component';
 import { TaskManagerService } from '@flink-runtime-web/services';
-import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 
 @Component({
@@ -33,7 +33,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
   templateUrl: './completed-job-subtasks-table-action.component.html',
   styleUrls: ['./completed-job-subtasks-table-action.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, NzDropDownModule, NzIconModule]
+  imports: [NgIf, NzDropdownModule, NzIconModule]
 })
 export class CompletedJobSubtasksTableActionComponent implements OnInit, OnDestroy, JobOverviewSubtasksTableAction {
   @Input() subtask?: JobVertexSubTask;

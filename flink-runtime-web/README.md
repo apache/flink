@@ -57,7 +57,7 @@ Depending on your version of Linux, Windows or MacOS, you may need to manually i
 
 Install *node.js* by following [these instructions](https://nodejs.org/en/download/).
 
-Verify that the installed version is at least *20.19.0*, via `node --version`.
+Verify that the installed version is at least *22.22.3*, via `node --version`.
 
 
 #### MacOS
