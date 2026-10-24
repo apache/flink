@@ -23,6 +23,7 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.webmonitor.handlers.JarPlanRequestBody;
@@ -36,12 +37,16 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.net.URI;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
@@ -124,6 +129,51 @@ class JarHandlerUtilsTest {
     }
 
     @Test
+    void testApplyingRequestConfigurationDoesNotOpenJar() throws Exception {
+        final JarPlanRequestBody requestBody = getDummyJarPlanRequestBody("entry-class", 3, null);
+        final HandlerRequest<JarPlanRequestBody> request = getDummyRequest(requestBody);
+        // "someJar" does not exist, so building a PackagedProgram here would fail
+        final JarHandlerUtils.JarHandlerContext context =
+                JarHandlerUtils.JarHandlerContext.fromRequest(request, tempDir, LOG);
+        final Configuration configuration = new Configuration();
+
+        context.applyToConfiguration(configuration, request);
+
+        assertThat(configuration.get(CoreOptions.DEFAULT_PARALLELISM)).isEqualTo(3);
+        assertThat(configuration.get(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID))
+                .isEqualTo(requestBody.getJobId().toHexString());
+        assertThat(configuration.contains(PipelineOptions.JARS)).isFalse();
+        assertThat(configuration.contains(PipelineOptions.CLASSPATHS)).isFalse();
+    }
+
+    @Test
+    void testApplyingProgramToConfigurationSetsJarsAndClasspaths() throws Exception {
+        final Path jar = Files.createFile(tempDir.resolve("someJar"));
+        try (JarOutputStream ignored = new JarOutputStream(Files.newOutputStream(jar))) {
+            // an empty jar is sufficient
+        }
+        final URL classpath = new URL("file:/tmp/some.jar");
+        final Configuration programConfiguration = new Configuration();
+        programConfiguration.set(
+                PipelineOptions.CLASSPATHS, Collections.singletonList(classpath.toString()));
+
+        final HandlerRequest<JarPlanRequestBody> request =
+                getDummyRequest(getDummyJarPlanRequestBody(EntryPoint.class.getName(), null, null));
+        final JarHandlerUtils.JarHandlerContext context =
+                JarHandlerUtils.JarHandlerContext.fromRequest(request, tempDir, LOG);
+
+        final Configuration configuration = new Configuration();
+        try (PackagedProgram program = context.toPackagedProgram(programConfiguration)) {
+            context.applyProgramToConfiguration(configuration, program);
+
+            assertThat(configuration.get(PipelineOptions.JARS))
+                    .containsExactly(jar.toUri().toURL().toString());
+            assertThat(configuration.get(PipelineOptions.CLASSPATHS))
+                    .containsExactly(classpath.toString());
+        }
+    }
+
+    @Test
     void testClasspathsConfigNotErased() throws Exception {
         final JarPlanRequestBody requestBody =
                 getDummyJarPlanRequestBody(
@@ -166,6 +216,41 @@ class JarHandlerUtilsTest {
 
         assertThatThrownBy(() -> jarHandlerContext.initPackagedProgramBuilder(originalConfig))
                 .satisfies(anyCauseMatches(RestHandlerException.class, "invalid|:/jar"));
+    }
+
+    @Test
+    void testExtractedNestedLibrariesLiveUntilProgramIsClosed() throws Exception {
+        final Path jar = tempDir.resolve("someJar");
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar))) {
+            out.putNextEntry(new JarEntry("lib/nested.jar"));
+            out.write(new byte[] {1, 2, 3});
+            out.closeEntry();
+        }
+        final HandlerRequest<JarPlanRequestBody> request =
+                getDummyRequest(getDummyJarPlanRequestBody(EntryPoint.class.getName(), null, null));
+        final JarHandlerUtils.JarHandlerContext context =
+                JarHandlerUtils.JarHandlerContext.fromRequest(request, tempDir, LOG);
+
+        final Configuration configuration = new Configuration();
+        final PackagedProgram program = context.toPackagedProgram(new Configuration());
+        context.applyProgramToConfiguration(configuration, program);
+
+        final List<Path> jars =
+                configuration.get(PipelineOptions.JARS).stream()
+                        .map(url -> Path.of(URI.create(url)))
+                        .collect(Collectors.toList());
+        assertThat(jars).hasSize(2);
+        assertThat(jars).allSatisfy(path -> assertThat(path).exists());
+
+        program.close();
+
+        assertThat(jars.get(0)).exists();
+        assertThat(jars.get(1)).doesNotExist();
+    }
+
+    /** Program entry point used to build a {@link PackagedProgram}. */
+    public static class EntryPoint {
+        public static void main(String[] args) {}
     }
 
     private HandlerRequest<JarPlanRequestBody> getDummyRequest(

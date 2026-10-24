@@ -35,16 +35,19 @@ public class TestingApplication extends AbstractApplication {
     private final Function<ExecuteParams, CompletableFuture<Acknowledge>> executeFunction;
     private final Function<Void, Void> cancelFunction;
     private final Function<Void, ApplicationState> getApplicationStatusFunction;
+    private final Runnable disposeRunnable;
 
     private TestingApplication(
             ApplicationID applicationId,
             Function<ExecuteParams, CompletableFuture<Acknowledge>> executeFunction,
             Function<Void, Void> cancelFunction,
-            Function<Void, ApplicationState> getApplicationStatusFunction) {
+            Function<Void, ApplicationState> getApplicationStatusFunction,
+            Runnable disposeRunnable) {
         super(applicationId);
         this.executeFunction = executeFunction;
         this.cancelFunction = cancelFunction;
         this.getApplicationStatusFunction = getApplicationStatusFunction;
+        this.disposeRunnable = disposeRunnable;
     }
 
     @Override
@@ -66,7 +69,9 @@ public class TestingApplication extends AbstractApplication {
     }
 
     @Override
-    public void dispose() {}
+    public void dispose() {
+        disposeRunnable.run();
+    }
 
     @Override
     public String getName() {
@@ -108,6 +113,7 @@ public class TestingApplication extends AbstractApplication {
         static final Function<Void, Void> DEFAULT_CANCEL_FUNCTION = ignored -> null;
         static final Function<Void, ApplicationState> DEFAULT_GET_APPLICATION_STATUS_FUNCTION =
                 ignored -> ApplicationState.RUNNING;
+        static final Runnable DEFAULT_DISPOSE_RUNNABLE = () -> {};
 
         private ApplicationID applicationId = new ApplicationID();
         private Function<ExecuteParams, CompletableFuture<Acknowledge>> executeFunction =
@@ -115,6 +121,7 @@ public class TestingApplication extends AbstractApplication {
         private Function<Void, Void> cancelFunction = DEFAULT_CANCEL_FUNCTION;
         private Function<Void, ApplicationState> getApplicationStatusFunction =
                 DEFAULT_GET_APPLICATION_STATUS_FUNCTION;
+        private Runnable disposeRunnable = DEFAULT_DISPOSE_RUNNABLE;
 
         public Builder setApplicationId(ApplicationID applicationId) {
             this.applicationId = applicationId;
@@ -138,9 +145,18 @@ public class TestingApplication extends AbstractApplication {
             return this;
         }
 
+        public Builder setDisposeRunnable(Runnable disposeRunnable) {
+            this.disposeRunnable = disposeRunnable;
+            return this;
+        }
+
         public TestingApplication build() {
             return new TestingApplication(
-                    applicationId, executeFunction, cancelFunction, getApplicationStatusFunction);
+                    applicationId,
+                    executeFunction,
+                    cancelFunction,
+                    getApplicationStatusFunction,
+                    disposeRunnable);
         }
     }
 }

@@ -46,6 +46,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -54,9 +55,13 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -72,6 +77,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import static org.apache.flink.streaming.api.graph.StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,6 +124,109 @@ public class PackagedProgramApplicationTest {
         assertException(application.getApplicationCompletionFuture(), FlinkRuntimeException.class);
         application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertApplicationFailed(application);
+    }
+
+    @Test
+    void testProgramIsClosedWhenApplicationFinishes(@TempDir Path tempDir) throws Throwable {
+        final PackagedProgram program = getProgramWithNestedLibrary(tempDir);
+        final Path extractedLibrary = getExtractedLibrary(program);
+        assertThat(extractedLibrary).exists();
+        final PackagedProgramApplication application = createApplication(program);
+        final CompletableFuture<Throwable> fatalError = new CompletableFuture<>();
+
+        executeApplication(
+                application,
+                finishedJobGatewayBuilder().build(),
+                scheduledExecutor,
+                fatalError::complete);
+        application.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+        assertApplicationFinished(application);
+        assertThat(fatalError).isNotDone();
+        assertThat(extractedLibrary).doesNotExist();
+    }
+
+    @Test
+    void testProgramIsClosedWhenApplicationIsDisposed(@TempDir Path tempDir) throws Throwable {
+        final PackagedProgram program = getProgramWithNestedLibrary(tempDir);
+        final Path extractedLibrary = getExtractedLibrary(program);
+        final PackagedProgramApplication application = createApplication(program);
+
+        application.dispose();
+        application.dispose();
+
+        // dispose clears the field so the closed program is no longer observable
+        assertThat(application.getPackagedProgram()).isNull();
+        assertThat(extractedLibrary).doesNotExist();
+    }
+
+    @Test
+    void testReconstructedProgramIsClosedWhenRecoveredApplicationFinishes(@TempDir Path tempDir)
+            throws Throwable {
+        final PackagedProgram program = getProgramWithNestedLibrary(tempDir);
+        final PackagedProgramApplication original = createApplication(program);
+        // the program is transient, so a recovered application has to rebuild it
+        final PackagedProgramApplication recovered =
+                InstantiationUtil.deserializeObject(
+                        InstantiationUtil.serializeObject(original), getClass().getClassLoader());
+        assertThat(recovered.getPackagedProgram()).isNull();
+        recovered.dispose();
+
+        final CompletableFuture<Throwable> fatalError = new CompletableFuture<>();
+        executeApplication(
+                recovered,
+                finishedJobGatewayBuilder().build(),
+                scheduledExecutor,
+                fatalError::complete);
+        // the execute path reconstructs the program from the descriptor
+        final long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
+        PackagedProgram reconstructed = recovered.getPackagedProgram();
+        while (reconstructed == null && System.nanoTime() < deadlineNanos) {
+            Thread.sleep(10);
+            reconstructed = recovered.getPackagedProgram();
+        }
+        assertThat(reconstructed).isNotNull();
+        final Path extractedLibrary = getExtractedLibrary(reconstructed);
+        assertThat(extractedLibrary).exists();
+
+        recovered.getFinishApplicationFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+        assertThat(fatalError).isNotDone();
+        // finishing the application closed and cleared the reconstructed program
+        assertThat(recovered.getPackagedProgram()).isNull();
+        assertThat(extractedLibrary).doesNotExist();
+        program.close();
+    }
+
+    private PackagedProgramApplication createApplication(PackagedProgram program) {
+        return new PackagedProgramApplication(
+                new ApplicationID(),
+                program,
+                getConfiguration(),
+                Integer.MAX_VALUE,
+                1,
+                true,
+                false,
+                true);
+    }
+
+    private static Path getExtractedLibrary(PackagedProgram program) throws Exception {
+        final List<URL> dependencies = program.getJobJarAndDependencies();
+        return Path.of(dependencies.get(dependencies.size() - 1).toURI());
+    }
+
+    private static PackagedProgram getProgramWithNestedLibrary(Path tempDir) throws Exception {
+        final Path jar = tempDir.resolve("job.jar");
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar))) {
+            out.putNextEntry(new JarEntry("lib/nested.jar"));
+            out.write(new byte[] {1, 2, 3});
+            out.closeEntry();
+        }
+        return PackagedProgram.newBuilder()
+                .setJarFile(jar.toFile())
+                .setEntryPointClassName(MultiExecuteJob.class.getName())
+                .setArguments("1", Boolean.toString(true), Boolean.toString(false))
+                .build();
     }
 
     @Test
