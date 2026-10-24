@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.TO_CHANGELOG_OUTPUT_TYPE_STRATEGY;
+import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_INCLUDE_OP_COLUMN;
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_OP;
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_OP_MAPPING;
 import static org.apache.flink.table.types.inference.strategies.ToChangelogTypeStrategy.ARG_PRODUCES_FULL_DELETES;
@@ -76,10 +77,35 @@ class ToChangelogOutputTypeStrategyTest extends TypeStrategiesTestBase {
                                                         "score", DataTypes.BIGINT().notNull()))
                                         .notNull()),
                 TestSpec.forStrategy(
+                                "include_op_column=false omits the operation column",
+                                TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
+                        .inputTypes(
+                                TABLE_TYPE_NOT_NULL_SCORE,
+                                DESCRIPTOR_TYPE,
+                                MAP_TYPE,
+                                BOOLEAN_TYPE,
+                                BOOLEAN_TYPE)
+                        .calledWithTableSemanticsAt(
+                                ARG_TABLE, new TableSemanticsMock(TABLE_TYPE_NOT_NULL_SCORE))
+                        .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
+                        .calledWithLiteralAt(ARG_OP_MAPPING, null)
+                        .calledWithLiteralAt(ARG_INCLUDE_OP_COLUMN, false)
+                        .expectDataType(
+                                DataTypes.ROW(
+                                                DataTypes.FIELD(
+                                                        "name", DataTypes.STRING().notNull()),
+                                                DataTypes.FIELD(
+                                                        "score", DataTypes.BIGINT().notNull()))
+                                        .notNull()),
+                TestSpec.forStrategy(
                                 "produces_full_deletes=false widens non-upsert-key columns to nullable",
                                 TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                         .inputTypes(
-                                TABLE_TYPE_NOT_NULL_SCORE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
+                                TABLE_TYPE_NOT_NULL_SCORE,
+                                DESCRIPTOR_TYPE,
+                                MAP_TYPE,
+                                BOOLEAN_TYPE,
+                                BOOLEAN_TYPE)
                         .calledWithTableSemanticsAt(
                                 ARG_TABLE,
                                 new TableSemanticsMock(
@@ -103,7 +129,11 @@ class ToChangelogOutputTypeStrategyTest extends TypeStrategiesTestBase {
                                 "produces_full_deletes=false without upsert key widens all columns",
                                 TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                         .inputTypes(
-                                TABLE_TYPE_NOT_NULL_SCORE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
+                                TABLE_TYPE_NOT_NULL_SCORE,
+                                DESCRIPTOR_TYPE,
+                                MAP_TYPE,
+                                BOOLEAN_TYPE,
+                                BOOLEAN_TYPE)
                         .calledWithTableSemanticsAt(
                                 ARG_TABLE, new TableSemanticsMock(TABLE_TYPE_NOT_NULL_SCORE))
                         .calledWithLiteralAt(ARG_OP, ColumnList.of("op"))
@@ -123,7 +153,11 @@ class ToChangelogOutputTypeStrategyTest extends TypeStrategiesTestBase {
                                 "produces_full_deletes=true in set semantics preserves NOT NULL on non-partition columns",
                                 TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                         .inputTypes(
-                                TABLE_TYPE_NOT_NULL_SCORE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
+                                TABLE_TYPE_NOT_NULL_SCORE,
+                                DESCRIPTOR_TYPE,
+                                MAP_TYPE,
+                                BOOLEAN_TYPE,
+                                BOOLEAN_TYPE)
                         .calledWithTableSemanticsAt(
                                 ARG_TABLE,
                                 new TableSemanticsMock(
@@ -146,7 +180,11 @@ class ToChangelogOutputTypeStrategyTest extends TypeStrategiesTestBase {
                                 "produces_full_deletes=false in set semantics widens non-partition-key columns",
                                 TO_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                         .inputTypes(
-                                TABLE_TYPE_NOT_NULL_SCORE, DESCRIPTOR_TYPE, MAP_TYPE, BOOLEAN_TYPE)
+                                TABLE_TYPE_NOT_NULL_SCORE,
+                                DESCRIPTOR_TYPE,
+                                MAP_TYPE,
+                                BOOLEAN_TYPE,
+                                BOOLEAN_TYPE)
                         .calledWithTableSemanticsAt(
                                 ARG_TABLE,
                                 new TableSemanticsMock(
