@@ -40,8 +40,13 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.DECIMAL4;
 import static org.apache.flink.types.variant.BinaryVariantUtil.DECIMAL8;
 import static org.apache.flink.types.variant.BinaryVariantUtil.MAX_SHORT_STR_SIZE;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
+import static org.apache.flink.types.variant.BinaryVariantUtil.U16_MAX;
+import static org.apache.flink.types.variant.BinaryVariantUtil.U24_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U32_SIZE;
+import static org.apache.flink.types.variant.BinaryVariantUtil.U8_MAX;
+import static org.apache.flink.types.variant.BinaryVariantUtil.arrayHeader;
 import static org.apache.flink.types.variant.BinaryVariantUtil.primitiveHeader;
+import static org.apache.flink.types.variant.BinaryVariantUtil.writeLong;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -245,6 +250,65 @@ class BinaryVariantInternalBuilderTest {
                         .add("y", source.getField("a").getElement(2))
                         .build();
         assertThat(object.toJson()).isEqualTo("{\"x\":true,\"y\":9}");
+    }
+
+    @Test
+    void testAppendDeeplyNestedVariant() {
+        // Deep enough that a recursive copy overflows any default stack with StackOverflowError.
+        final int depth = 100_000;
+        final VariantBuilder builder = Variant.newBuilder();
+        final BinaryVariant leaf = (BinaryVariant) builder.of(1);
+        final byte[] leafValue = leaf.getValue();
+
+        // Encodes [[...[1]...]] directly, from the leaf outwards, since building it level by
+        // level would copy the value once per level.
+        final byte[] buffer = new byte[leafValue.length + depth * (2 + 2 * U32_SIZE)];
+        int start = buffer.length - leafValue.length;
+        System.arraycopy(leafValue, 0, buffer, start, leafValue.length);
+        for (int i = 0; i < depth; i++) {
+            final int childSize = buffer.length - start;
+            final int offsetSize =
+                    childSize <= U8_MAX
+                            ? 1
+                            : childSize <= U16_MAX ? 2 : childSize <= U24_MAX ? 3 : U32_SIZE;
+            start -= 2 + 2 * offsetSize;
+            buffer[start] = arrayHeader(false, offsetSize);
+            buffer[start + 1] = 1;
+            writeLong(buffer, start + 2, 0, offsetSize);
+            writeLong(buffer, start + 2 + offsetSize, childSize, offsetSize);
+        }
+        final BinaryVariant nested =
+                new BinaryVariant(
+                        Arrays.copyOfRange(buffer, start, buffer.length), leaf.getMetadata());
+
+        final Variant wrapped = builder.array().add(nested).build();
+
+        assertThat(wrapped.toJson()).isEqualTo("[".repeat(depth + 1) + "1" + "]".repeat(depth + 1));
+    }
+
+    @Test
+    void testAppendNestedObjectsAndArraysWithSiblings() {
+        final VariantBuilder builder = Variant.newBuilder();
+        Variant nested = builder.of(0);
+        String expected = "0";
+        // Each level copies the previous one, with siblings before and after the nested value.
+        for (int i = 1; i <= 1000; i++) {
+            if (i % 2 == 0) {
+                // Keys out of order, so field order differs from data order.
+                nested = builder.object().add("v", builder.of(i)).add("k", nested).build();
+                expected = "{\"k\":" + expected + ",\"v\":" + i + "}";
+            } else {
+                nested =
+                        builder.array()
+                                .add(builder.of(i))
+                                .add(nested)
+                                .add(builder.ofNull())
+                                .build();
+                expected = "[" + i + "," + expected + ",null]";
+            }
+        }
+
+        assertThat(nested.toJson()).isEqualTo(expected);
     }
 
     @Test
