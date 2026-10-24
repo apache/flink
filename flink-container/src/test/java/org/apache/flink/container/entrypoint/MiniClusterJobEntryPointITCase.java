@@ -59,6 +59,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
 import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
@@ -68,14 +69,16 @@ import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogS
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -152,7 +155,6 @@ class MiniClusterJobEntryPointITCase {
     private Path markerFile;
     private JobID jobId;
     private Path log4jConfig;
-    private int restPort;
     private String haClusterId;
 
     @BeforeEach
@@ -160,9 +162,6 @@ class MiniClusterJobEntryPointITCase {
         confDir = Files.createDirectories(tempDir.resolve("conf"));
         markerFile = tempDir.resolve("main-invocations");
         jobId = JobID.generate();
-        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
-            restPort = port.getPort();
-        }
 
         log4jConfig = tempDir.resolve("log4j2.properties");
         Files.write(
@@ -192,8 +191,7 @@ class MiniClusterJobEntryPointITCase {
                         entry(JobResultStoreOptions.DELETE_ON_COMMIT, false),
                         entry(ApplicationResultStoreOptions.DELETE_ON_COMMIT, false),
                         entry(RestOptions.ADDRESS, "localhost"),
-                        entry(RestOptions.PORT, restPort),
-                        entry(RestOptions.BIND_PORT, restPort)));
+                        entry(RestOptions.BIND_PORT, 0)));
     }
 
     @Test
@@ -479,14 +477,14 @@ class MiniClusterJobEntryPointITCase {
 
         // a separate HA cluster, as for a job moved to a new deployment, so that the job can only
         // be restored from the savepoint and not recovered from HA metadata
+        haClusterId = haClusterId + "-restored";
         final List<String> arguments =
                 new ArrayList<>(
                         List.of(
                                 "--fromSavepoint",
                                 savepointPath,
                                 dynamicProperty(
-                                        HighAvailabilityOptions.HA_CLUSTER_ID,
-                                        haClusterId + "-restored")));
+                                        HighAvailabilityOptions.HA_CLUSTER_ID, haClusterId)));
         arguments.addAll(unboundedJobArguments());
 
         final Process second = startProcess("second", MiniClusterJobEntryPoint.class, arguments);
@@ -818,10 +816,6 @@ class MiniClusterJobEntryPointITCase {
 
     @Test
     void startsJmxServerOnConfiguredPort() throws Exception {
-        final int jmxPort;
-        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
-            jmxPort = port.getPort();
-        }
         final Process process =
                 startProcess(
                         "process",
@@ -830,9 +824,18 @@ class MiniClusterJobEntryPointITCase {
                                 RecordingJob.class,
                                 List.of(
                                         dynamicProperty(
-                                                JMXServerOptions.JMX_SERVER_PORT, jmxPort))));
+                                                JMXServerOptions.JMX_SERVER_PORT, "21010-21110"))));
         try {
-            awaitClusterServing(process, "process");
+            final int jmxPort =
+                    awaitRest(
+                                    process,
+                                    "process",
+                                    "/taskmanagers",
+                                    "a TaskManager with a JMX server",
+                                    json -> json.at("/taskmanagers/0/jmxPort").asInt(-1) > 0)
+                            .at("/taskmanagers/0/jmxPort")
+                            .asInt();
+            assertThat(jmxPort).isBetween(21010, 21110);
             final JMXServiceURL url =
                     new JMXServiceURL(
                             "service:jmx:rmi://localhost:"
@@ -1148,7 +1151,7 @@ class MiniClusterJobEntryPointITCase {
                 jobId, expectedState, name, TIMEOUT, lastState.orElse("none"));
     }
 
-    private Optional<String> queryJobState() throws InterruptedException {
+    private Optional<String> queryJobState() throws Exception {
         return queryRest("/jobs/" + jobId).map(json -> json.get("state").asText());
     }
 
@@ -1210,9 +1213,34 @@ class MiniClusterJobEntryPointITCase {
         }
     }
 
-    private Optional<JsonNode> queryRest(String path) throws InterruptedException {
+    /**
+     * Returns the REST address published by the cluster's leader. After a process is killed, this
+     * may briefly be its stale address until its ZooKeeper session expires; requests to it are
+     * refused and retried.
+     */
+    private Optional<String> restUrl() throws Exception {
+        final String path =
+                "/flink/"
+                        + haClusterId
+                        + ZooKeeperUtils.generateConnectionInformationPath(
+                                ZooKeeperUtils.getLeaderPath(ZooKeeperUtils.getRestServerNode()));
+        try {
+            final LeaderInformation leader =
+                    ZooKeeperUtils.readLeaderInformation(zooKeeperClient().getData().forPath(path));
+            return leader.isEmpty() ? Optional.empty() : Optional.of(leader.getLeaderAddress());
+        } catch (KeeperException e) {
+            // not yet published, or ZooKeeper is briefly unavailable
+            return Optional.empty();
+        }
+    }
+
+    private Optional<JsonNode> queryRest(String path) throws Exception {
+        final Optional<String> url = restUrl();
+        if (url.isEmpty()) {
+            return Optional.empty();
+        }
         final HttpRequest request =
-                HttpRequest.newBuilder(URI.create("http://localhost:" + restPort + path))
+                HttpRequest.newBuilder(URI.create(url.get() + path))
                         .timeout(REQUEST_TIMEOUT)
                         .GET()
                         .build();
@@ -1224,14 +1252,16 @@ class MiniClusterJobEntryPointITCase {
             }
             return Optional.of(OBJECT_MAPPER.readTree(response.body()));
         } catch (IOException e) {
-            // REST endpoint not up yet
+            // endpoint is busy, killed, or shutting down
             return Optional.empty();
         }
     }
 
     private JsonNode postRest(String path, JsonNode body) throws Exception {
+        final String url =
+                restUrl().orElseThrow(() -> new IllegalStateException("No REST leader published."));
         final HttpRequest request =
-                HttpRequest.newBuilder(URI.create("http://localhost:" + restPort + path))
+                HttpRequest.newBuilder(URI.create(url + path))
                         .timeout(REQUEST_TIMEOUT)
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
@@ -1295,13 +1325,14 @@ class MiniClusterJobEntryPointITCase {
     }
 
     private boolean zooKeeperNodeExists(String path) throws Exception {
+        return zooKeeperClient().checkExists().forPath(path) != null;
+    }
+
+    private static CuratorFramework zooKeeperClient() {
         return ZOOKEEPER
-                        .getCustomExtension()
-                        .getZooKeeperClient(new TestingFatalErrorHandler())
-                        .usingNamespace(null)
-                        .checkExists()
-                        .forPath(path)
-                != null;
+                .getCustomExtension()
+                .getZooKeeperClient(new TestingFatalErrorHandler())
+                .usingNamespace(null);
     }
 
     private String executionPlanZooKeeperPath() {
