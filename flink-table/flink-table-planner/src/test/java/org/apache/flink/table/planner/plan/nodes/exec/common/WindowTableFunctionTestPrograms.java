@@ -79,7 +79,7 @@ public class WindowTableFunctionTestPrograms {
         "item STRING",
         "window_start TIMESTAMP(3)",
         "window_end TIMESTAMP(3)",
-        "window_time TIMESTAMP_LTZ"
+        "window_time TIMESTAMP(3)"
     };
 
     static final String[] SINK_TVF_AGG_SCHEMA = {
@@ -145,14 +145,15 @@ public class WindowTableFunctionTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema(
-                                            "window_start TIMESTAMP(3)", "window_end TIMESTAMP(3)")
+                                            "window_start TIMESTAMP_LTZ(3)",
+                                            "window_end TIMESTAMP_LTZ(3)")
                                     .consumedBeforeRestore(
-                                            "+I[2024-01-01T09:59, 2024-01-01T10:01]",
-                                            "+I[2024-01-01T10:00, 2024-01-01T10:02]",
-                                            "+I[2024-01-01T10:04, 2024-01-01T10:06]",
-                                            "+I[2024-01-01T10:05, 2024-01-01T10:07]",
-                                            "+I[2024-01-01T10:09, 2024-01-01T10:11]",
-                                            "+I[2024-01-01T10:10, 2024-01-01T10:12]")
+                                            "+I[2024-01-01T09:59Z, 2024-01-01T10:01Z]",
+                                            "+I[2024-01-01T10:00Z, 2024-01-01T10:02Z]",
+                                            "+I[2024-01-01T10:04Z, 2024-01-01T10:06Z]",
+                                            "+I[2024-01-01T10:05Z, 2024-01-01T10:07Z]",
+                                            "+I[2024-01-01T10:09Z, 2024-01-01T10:11Z]",
+                                            "+I[2024-01-01T10:10Z, 2024-01-01T10:12Z]")
                                     .build())
                     .setupConfig(TableConfigOptions.LOCAL_TIME_ZONE, "UTC")
                     .runSql(QUERY_TVF_UNION_ALL_VALUES)
