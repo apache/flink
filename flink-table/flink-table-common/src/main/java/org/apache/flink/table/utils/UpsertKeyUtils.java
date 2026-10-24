@@ -32,7 +32,7 @@ public final class UpsertKeyUtils {
      * candidates with fewer columns come first; ties between equal-cardinality candidates are
      * broken by the column indices in ascending order, leading column first.
      */
-    private static final Comparator<int[]> SMALLEST_FIRST =
+    public static final Comparator<int[]> SMALLEST_FIRST =
             Comparator.<int[]>comparingInt(a -> a.length)
                     .thenComparing(
                             (a, b) -> {
