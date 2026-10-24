@@ -48,6 +48,7 @@ public class WindowAggregateReduceFunctionsRule extends AggregateReduceFunctions
     public static final WindowAggregateReduceFunctionsRule INSTANCE =
             new WindowAggregateReduceFunctionsRule(
                     Config.DEFAULT
+                            .withExtraCondition(FlinkAggregateReduceFunctionsRule::canReduce)
                             .withRelBuilderFactory(LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE)
                             .withOperandSupplier(
                                     b -> b.operand(LogicalWindowAggregate.class).anyInputs())
