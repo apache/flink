@@ -148,6 +148,13 @@ public class SavepointRestoreSettings implements Serializable {
                     + ", recoveryClaimMode="
                     + getRecoveryClaimMode()
                     + ')';
+        } else if (recoveryClaimMode != null) {
+            return "SavepointRestoreSettings.forRecoveryClaimMode("
+                    + "allowNonRestoredState="
+                    + allowNonRestoredState()
+                    + ", recoveryClaimMode="
+                    + getRecoveryClaimMode()
+                    + ')';
         } else {
             return "SavepointRestoreSettings.none()";
         }
@@ -189,6 +196,22 @@ public class SavepointRestoreSettings implements Serializable {
                 savepointPath, allowNonRestoredState, recoveryClaimMode);
     }
 
+    /**
+     * Creates restore settings that carry an explicitly requested {@link RecoveryClaimMode} without
+     * a savepoint restore path, as used when {@code --claimMode} is passed but {@code
+     * --fromSavepoint} is not. Such a claim mode would otherwise have to be represented as {@link
+     * #none()}, which discards it.
+     *
+     * @param allowNonRestoredState whether to allow non-restored state, or {@code null} if not
+     *     explicitly set by the user.
+     * @param recoveryClaimMode how to restore from the checkpoint.
+     */
+    public static SavepointRestoreSettings forRecoveryClaimMode(
+            @Nullable Boolean allowNonRestoredState, @Nonnull RecoveryClaimMode recoveryClaimMode) {
+        checkNotNull(recoveryClaimMode, "Recovery claim mode.");
+        return new SavepointRestoreSettings(null, allowNonRestoredState, recoveryClaimMode);
+    }
+
     // -------------------------- Parsing to and from a configuration object
     // ------------------------------------
 
@@ -212,15 +235,18 @@ public class SavepointRestoreSettings implements Serializable {
 
     public static SavepointRestoreSettings fromConfiguration(final ReadableConfig configuration) {
         final String savepointPath = configuration.get(StateRecoveryOptions.SAVEPOINT_PATH);
-        if (savepointPath == null) {
+        final RecoveryClaimMode recoveryClaimMode =
+                configuration.getOptional(StateRecoveryOptions.RESTORE_MODE).orElse(null);
+        if (savepointPath == null && recoveryClaimMode == null) {
             return SavepointRestoreSettings.none();
         }
         final Boolean allowNonRestored =
                 configuration
                         .getOptional(StateRecoveryOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE)
                         .orElse(null);
-        final RecoveryClaimMode recoveryClaimMode =
-                configuration.getOptional(StateRecoveryOptions.RESTORE_MODE).orElse(null);
-        return SavepointRestoreSettings.forPath(savepointPath, allowNonRestored, recoveryClaimMode);
+        return savepointPath == null
+                ? SavepointRestoreSettings.forRecoveryClaimMode(allowNonRestored, recoveryClaimMode)
+                : SavepointRestoreSettings.forPath(
+                        savepointPath, allowNonRestored, recoveryClaimMode);
     }
 }
