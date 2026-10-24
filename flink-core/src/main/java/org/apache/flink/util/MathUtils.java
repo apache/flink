@@ -98,7 +98,7 @@ public final class MathUtils {
      * @return True, if the value is a power of two, false otherwise.
      */
     public static boolean isPowerOf2(long value) {
-        return (value & (value - 1)) == 0;
+        return value > 0 && (value & (value - 1)) == 0;
     }
 
     /**
