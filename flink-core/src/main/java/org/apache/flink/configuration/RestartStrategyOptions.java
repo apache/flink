@@ -27,9 +27,9 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.configuration.description.TextElement;
 
-import org.apache.commons.compress.utils.Sets;
-
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.apache.flink.configuration.RestartStrategyOptions.RESTART_STRATEGY_CONFIG_PREFIX;
@@ -67,18 +67,18 @@ public class RestartStrategyOptions {
     /** The restart strategy type. */
     @Internal
     public enum RestartStrategyType {
-        NO_RESTART_STRATEGY("disable", Sets.newHashSet("none", "off")),
-        FIXED_DELAY("fixed-delay", Sets.newHashSet("fixeddelay")),
-        FAILURE_RATE("failure-rate", Sets.newHashSet("failurerate")),
-        EXPONENTIAL_DELAY("exponential-delay", Sets.newHashSet("exponentialdelay"));
+        NO_RESTART_STRATEGY("disable", new HashSet<>(List.of("none", "off"))),
+        FIXED_DELAY("fixed-delay", new HashSet<>(List.of("fixeddelay"))),
+        FAILURE_RATE("failure-rate", new HashSet<>(List.of("failurerate"))),
+        EXPONENTIAL_DELAY("exponential-delay", new HashSet<>(List.of("exponentialdelay")));
 
         private final String mainValue;
         private final Set<String> allAvailableValues;
 
         RestartStrategyType(String mainValue, Set<String> otherAvailableValues) {
             this.mainValue = mainValue;
-            this.allAvailableValues = Sets.newHashSet(mainValue);
-            allAvailableValues.addAll(otherAvailableValues);
+            this.allAvailableValues = new HashSet<>(otherAvailableValues);
+            allAvailableValues.add(mainValue);
         }
 
         /** Return the corresponding RestartStrategyType based on the displayed value. */
