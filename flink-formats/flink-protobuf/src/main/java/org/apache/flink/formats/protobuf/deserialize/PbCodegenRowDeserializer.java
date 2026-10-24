@@ -72,7 +72,11 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
                     PbCodegenDeserializeFactory.getPbCodegenDes(elementFd, subType, formatContext);
             splitAppender.appendLine("Object " + flinkRowEleVar + " = null");
             boolean readDefaultValues = formatContext.getPbFormatConfig().isReadDefaultValues();
-            if (PbFormatUtils.isSimpleType(subType)) {
+            // A recursive message field is stored as VARBINARY, so it looks like a "simple type",
+            // but it is still a MESSAGE. Don't force the proto3 primitive default path on it, or an
+            // absent sub-message would round-trip back as a present (empty) one. See FLINK-34620.
+            if (PbFormatUtils.isSimpleType(subType)
+                    && elementFd.getJavaType() != FieldDescriptor.JavaType.MESSAGE) {
                 readDefaultValues = formatContext.getReadDefaultValuesForPrimitiveTypes();
             }
 
