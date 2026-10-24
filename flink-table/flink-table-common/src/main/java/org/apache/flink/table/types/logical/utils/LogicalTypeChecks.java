@@ -249,6 +249,12 @@ public final class LogicalTypeChecks {
         }
     }
 
+    /**
+     * Checks whether two types support the required comparison with each other.
+     *
+     * <p>NULL is comparable with every type. A type that is not comparable on its own is never
+     * comparable with another type, see {@link #isComparableType(LogicalType)}.
+     */
     public static boolean areComparable(
             LogicalType firstType,
             LogicalType secondType,
@@ -258,13 +264,13 @@ public final class LogicalTypeChecks {
     }
 
     /**
-     * Checks whether a (possibly nested) logical type contains no VARIANT, which every grouping,
-     * join, partition and sort key and every operand of a comparison operator needs.
+     * Checks whether values of a type can be compared at all. A type that is not comparable has
+     * neither equality nor order.
      *
-     * <p>A VARIANT value has many valid binary encodings, so two equal values can differ in their
-     * bytes.
+     * <p>VARIANT and types that contain a VARIANT are not comparable, because one VARIANT value has
+     * many valid binary encodings.
      */
-    public static boolean isComparableKeyType(LogicalType logicalType) {
+    public static boolean isComparableType(LogicalType logicalType) {
         return !hasNested(logicalType, t -> t.is(LogicalTypeRoot.VARIANT));
     }
 
@@ -281,6 +287,10 @@ public final class LogicalTypeChecks {
         // everything is comparable with null, it should return null in that case
         if (firstType.is(LogicalTypeRoot.NULL) || secondType.is(LogicalTypeRoot.NULL)) {
             return true;
+        }
+
+        if (!isComparableType(firstType) || !isComparableType(secondType)) {
+            return false;
         }
 
         if (firstType.getTypeRoot() == secondType.getTypeRoot()) {
