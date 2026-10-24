@@ -1756,10 +1756,8 @@ public class ProcessTableFunctionTestHarness<OUT> implements AutoCloseable {
 
                 Optional<DataType> dataTypeOpt = strategy.inferType(callContext);
                 if (dataTypeOpt.isEmpty()) {
-                    throw new IllegalStateException(
-                            String.format(
-                                    "Could not infer data type for state parameter '%s'",
-                                    stateName));
+                    // state entry is not used by this call
+                    continue;
                 }
                 DataType stateDataType = dataTypeOpt.get();
 

@@ -39,6 +39,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator.RunnerContext;
 import org.apache.flink.table.test.program.SourceTestStep;
+import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -55,6 +56,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -840,6 +842,80 @@ public class ProcessTableFunctionTestUtils {
             final TimeContext<Long> timeCtx = ctx.timeContext(Long.class);
             collectOnTimerEvent(ctx);
             s.i *= 10;
+        }
+    }
+
+    /**
+     * Testing function that declares two state entries but only uses the second one if the {@code
+     * mode} argument is 2. The state type strategy of the unused entry returns {@link
+     * Optional#empty()}, such that {@code eval()} and {@code onTimer()} are resolved to the
+     * overload without a parameter for it. Both overloads count the processed rows and emit the
+     * state once at the end of the input.
+     */
+    public static class OptionalStateFunction extends AppendProcessTableFunctionBase {
+        @Override
+        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+            final LinkedHashMap<String, StateTypeStrategy> stateStrategies = new LinkedHashMap<>();
+            stateStrategies.put(
+                    "s1",
+                    StateTypeStrategy.of(
+                            callContext ->
+                                    Optional.of(
+                                            DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT())))));
+            stateStrategies.put(
+                    "s2",
+                    StateTypeStrategy.of(
+                            callContext ->
+                                    callContext.getArgumentValue(1, Integer.class).orElse(1) == 2
+                                            ? Optional.of(
+                                                    DataTypes.ROW(
+                                                            DataTypes.FIELD(
+                                                                    "s", DataTypes.STRING())))
+                                            : Optional.empty()));
+            return TypeInference.newBuilder()
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "r",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.REQUIRE_ON_TIME)),
+                            StaticArgument.scalar("mode", DataTypes.INT(), false))
+                    .stateTypeStrategies(stateStrategies)
+                    .outputTypeStrategy(
+                            callContext ->
+                                    Optional.of(
+                                            DataTypes.ROW(
+                                                    DataTypes.FIELD("out", DataTypes.STRING()))))
+                    .build();
+        }
+
+        public void eval(Context ctx, Row s1, Row r, Integer mode) {
+            mutateFirstState(ctx, s1);
+        }
+
+        public void eval(Context ctx, Row s1, Row s2, Row r, Integer mode) {
+            mutateFirstState(ctx, s1);
+            s2.setField("s", String.valueOf(s1.<Integer>getFieldAs("i")));
+        }
+
+        public void onTimer(OnTimerContext ctx, Row s1) {
+            collectObjects(s1);
+        }
+
+        public void onTimer(OnTimerContext ctx, Row s1, Row s2) {
+            collectObjects(s1, s2);
+        }
+
+        private void mutateFirstState(Context ctx, Row s1) {
+            final Integer i = s1.getFieldAs("i");
+            if (i == null) {
+                ctx.timeContext(Long.class).registerOnTime("end", Long.MAX_VALUE);
+                s1.setField("i", 1);
+            } else {
+                s1.setField("i", i + 1);
+            }
         }
     }
 
