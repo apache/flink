@@ -187,6 +187,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             outputObject = ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
         } else if (runtimeProvider instanceof SinkV2Provider) {
             outputObject = ((SinkV2Provider) runtimeProvider).createSink();
+        } else if (runtimeProvider instanceof DataStreamSinkProvider) {
+            outputObject = runtimeProvider;
         }
 
         Optional<LineageVertex> lineageVertexOpt =
