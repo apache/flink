@@ -37,6 +37,7 @@ public class TemporalJoinRestoreTest extends RestoreTestBase {
                 TemporalJoinTestPrograms.TEMPORAL_JOIN_TABLE_JOIN,
                 TemporalJoinTestPrograms.TEMPORAL_JOIN_TABLE_JOIN_NESTED_KEY,
                 TemporalJoinTestPrograms.TEMPORAL_JOIN_TABLE_JOIN_KEY_FROM_MAP,
-                TemporalJoinTestPrograms.TEMPORAL_JOIN_TEMPORAL_FUNCTION);
+                TemporalJoinTestPrograms.TEMPORAL_JOIN_TEMPORAL_FUNCTION,
+                TemporalJoinTestPrograms.TEMPORAL_JOIN_TABLE_JOIN_V2);
     }
 }
