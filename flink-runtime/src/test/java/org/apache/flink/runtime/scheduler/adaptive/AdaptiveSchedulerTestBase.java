@@ -22,9 +22,11 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.TestingDeclarativeSlotPoolBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.TestingFreeSlotTracker;
@@ -145,12 +147,18 @@ public class AdaptiveSchedulerTestBase {
      * Executing state.
      */
     protected static DeclarativeSlotPool getSlotPoolWithFreeSlots(int freeSlots) {
+        return getSlotPoolWithFreeSlots(freeSlots, new SimpleAckingTaskManagerGateway());
+    }
+
+    protected static DeclarativeSlotPool getSlotPoolWithFreeSlots(
+            int freeSlots, TaskManagerGateway taskManagerGateway) {
         return new TestingDeclarativeSlotPoolBuilder()
                 .setContainsFreeSlotFunction(allocationID -> true)
                 .setReserveFreeSlotFunction(
                         (allocationId, resourceProfile) ->
                                 TestingPhysicalSlot.builder()
                                         .withAllocationID(allocationId)
+                                        .withTaskManagerGateway(taskManagerGateway)
                                         .build())
                 .setGetFreeSlotTrackerSupplier(
                         () ->

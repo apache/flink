@@ -30,6 +30,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.failover.TestRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -51,6 +52,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generateKeyGroupState;
@@ -58,7 +60,6 @@ import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowled
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.setAllExecutionsToRunning;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForAllTasksDeploymentDescriptorsCreated;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForAllTasksRunning;
-import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForCheckpointInProgress;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForCompletedCheckpoint;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForJobStatusRunning;
 import static org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator.getArgumentCapturingDelegatingSlotAllocator;
@@ -72,7 +73,18 @@ public class LocalRecoveryTest extends AdaptiveSchedulerTestBase {
                 createJobGraphWithCheckpointing(
                         // disable automatic checkpointing to avoid races with manual checkpoints
                         Long.MAX_VALUE, JOB_VERTEX);
-        final DeclarativeSlotPool slotPool = getSlotPoolWithFreeSlots(PARALLELISM);
+        final AtomicInteger triggeredTasks = new AtomicInteger();
+        final CompletableFuture<Void> checkpointTriggeredOnAllTasks = new CompletableFuture<>();
+        final SimpleAckingTaskManagerGateway taskManagerGateway =
+                new SimpleAckingTaskManagerGateway();
+        taskManagerGateway.setCheckpointConsumer(
+                (executionAttemptId, jobId, checkpointId, timestamp, checkpointOptions) -> {
+                    if (triggeredTasks.incrementAndGet() == PARALLELISM) {
+                        checkpointTriggeredOnAllTasks.complete(null);
+                    }
+                });
+        final DeclarativeSlotPool slotPool =
+                getSlotPoolWithFreeSlots(PARALLELISM, taskManagerGateway);
         final List<JobAllocationsInformation> capturedAllocations = new ArrayList<>();
         final boolean localRecoveryEnabled = true;
         final String executionTarget = "local";
@@ -127,9 +139,10 @@ public class LocalRecoveryTest extends AdaptiveSchedulerTestBase {
         CompletableFuture<CompletedCheckpoint> completedCheckpointFuture =
                 supplyInMainThread(() -> scheduler.triggerCheckpoint(CheckpointType.FULL));
 
-        // Verify that checkpoint was registered by scheduler. Required to prevent race condition
-        // when checkpoint is acknowledged before start.
-        waitForCheckpointInProgress(scheduler);
+        // Tasks acknowledge only after they are triggered, which is after the coordinator has set
+        // the storage location, and completing the checkpoint without one fails. The checkpoint
+        // future ends the wait if the checkpoint fails first.
+        CompletableFuture.anyOf(checkpointTriggeredOnAllTasks, completedCheckpointFuture).join();
 
         // Acknowledge the checkpoint for all tasks with the fake state.
         final Map<OperatorID, OperatorSubtaskState> operatorStates =
