@@ -66,6 +66,7 @@ jobs:
     # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
     - bash: |
         mkdir -p $(MAVEN_CACHE_FOLDER)
+        mkdir -p $(MAVEN_USER_HOME)/wrapper
         mkdir -p $(E2E_CACHE_FOLDER)
         mkdir -p $(E2E_TARBALL_CACHE)
         mkdir -p $(DOCKER_IMAGES_CACHE_FOLDER)
@@ -76,6 +77,13 @@ jobs:
         restoreKeys: $(PIPELINE_START_YEAR) | $(CACHE_FALLBACK_KEY)
         path: $(MAVEN_CACHE_FOLDER)
       displayName: Cache Maven local repo
+      continueOnError: true
+      condition: not(eq(variables['SKIP'], '1'))
+    - task: Cache@2
+      inputs:
+        key: maven-wrapper | .mvn/wrapper/maven-wrapper.properties
+        path: $(MAVEN_USER_HOME)/wrapper
+      displayName: Cache Maven distribution
       continueOnError: true
       condition: not(eq(variables['SKIP'], '1'))
     - task: Cache@2
