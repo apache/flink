@@ -39,7 +39,7 @@ resources:
   # Container with SSL to have the same environment everywhere.
   # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
   - container: flink-build-container
-    image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_noble
+    image: apache/flink-ci-docker:java_8_11_17_21_25_maven_386_3916_noble_v2
     # the testcontainers based tests need the host Docker daemon, which the agent does
     # not map into job containers by default
     mapDockerSocket: true
@@ -52,6 +52,7 @@ resources:
 #   to understand why the secrets are handled like this
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+  MAVEN_USER_HOME: $(Pipeline.Workspace)/.m2
   E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
   E2E_TARBALL_CACHE: $(Pipeline.Workspace)/e2e_artifact_cache
   MAVEN_ARGS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
