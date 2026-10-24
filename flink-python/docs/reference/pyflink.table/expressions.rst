@@ -153,6 +153,7 @@ arithmetic functions
     Expression.in_
     Expression.start
     Expression.end
+    Expression.bit_count
     Expression.bin
     Expression.hex
     Expression.unhex

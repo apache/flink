@@ -300,6 +300,11 @@ arithmetic:
       Returns a time-ordered RFC 9562 version 7 UUID value, generated from the current
       timestamp and a random component. Compared to UUID(), this function returns a value
       of the UUID data type.
+  - sql: BIT_COUNT(expr)
+    table: expr.bitCount()
+    description: |
+      Returns an INT containing the number of set bits in the 64-bit two's-complement representation of an integer. Accepts TINYINT, SMALLINT, INT, BIGINT, or BOOLEAN. Negative integers are sign-extended to 64 bits before counting, regardless of their input type. TRUE returns 1 and FALSE returns 0. Returns NULL if expr is NULL.
+      E.g., BIT_COUNT(3) returns 2, BIT_COUNT(-1) returns 64, and BIT_COUNT(CAST(-128 AS TINYINT)) returns 57.
   - sql: BIN(INT)
     table: INT.bin()
     description: |

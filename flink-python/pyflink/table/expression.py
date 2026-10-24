@@ -1044,6 +1044,17 @@ class Expression(Generic[T]):
         return _unary_op("end")(self)
 
     @property
+    def bit_count(self) -> 'Expression[int]':
+        """
+        Returns the number of set bits in the 64-bit two's-complement representation of an integer.
+        Negative TINYINT, SMALLINT, and INT values are sign-extended to 64 bits before counting.
+        Boolean true and false return 1 and 0, respectively. Returns null if the argument is null.
+
+        For example, 3 returns 2 and -1 returns 64.
+        """
+        return _unary_op("bitCount")(self)
+
+    @property
     def bin(self) -> 'Expression[str]':
         """
         Returns a string representation of an integer numeric value in binary format. Returns null
