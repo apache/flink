@@ -312,6 +312,31 @@ public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAwar
                                     + "configured backoff and retry count are exhausted. Disabled by default "
                                     + "so the retry/backoff settings above fully govern retry behavior.");
 
+    /** How the AWS SDK clients retry failed requests, see {@link #RETRY_MODE}. */
+    public enum RetryMode {
+        STANDARD,
+        ADAPTIVE
+    }
+
+    public static final ConfigOption<RetryMode> RETRY_MODE =
+            ConfigOptions.key("s3.retry.mode")
+                    .enumType(RetryMode.class)
+                    .defaultValue(RetryMode.STANDARD)
+                    .withDescription(
+                            "How the AWS SDK retries failed requests. 'standard' (default): every "
+                                    + "request retries on its own, with the delays set by the "
+                                    + "s3.retry.* options above. 'adaptive': the same delays, plus a "
+                                    + "client-side rate limiter shared by all requests of the S3 "
+                                    + "client (one per TaskManager): throttling answers (HTTP 429, "
+                                    + "S3 SlowDown) cut its send rate, successful answers let it "
+                                    + "recover, and a request may wait before its first attempt. "
+                                    + "Many parallel writers that meet a request limit of the object "
+                                    + "store settle at the rate it accepts instead of all retrying "
+                                    + "at full speed and adding to the load. It trades latency for "
+                                    + "success rate and assumes that the client talks to one object "
+                                    + "store. The AWS CRT async client (s3.crt.enabled) has retries "
+                                    + "of its own and ignores this option.");
+
     public static final ConfigOption<Duration> CONNECTION_TIMEOUT =
             ConfigOptions.key("s3.connection.timeout")
                     .durationType()
@@ -722,6 +747,7 @@ public class NativeS3FileSystemFactory implements FileSystemFactory, MetricsAwar
                         .retryThrottleBaseDelay(config.get(RETRY_THROTTLE_BASE_DELAY))
                         .retryMaxBackoff(config.get(RETRY_MAX_BACKOFF))
                         .retryCircuitBreakerEnabled(config.get(RETRY_CIRCUIT_BREAKER_ENABLED))
+                        .retryMode(config.get(RETRY_MODE))
                         .credentialsProviderClasses(credentialsProviderClasses)
                         .encryptionConfig(encryptionConfig)
                         .metricPublisher(resolveMetricBridge(config))
