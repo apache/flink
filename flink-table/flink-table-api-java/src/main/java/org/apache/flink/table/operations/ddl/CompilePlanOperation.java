@@ -24,23 +24,34 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.util.Preconditions;
 
-/** Operation to describe an {@code COMPILE PLAN} statement. */
+import javax.annotation.Nullable;
+
+/**
+ * Operation to describe a {@code COMPILE PLAN} statement. When {@code filePath} is null, the
+ * compiled plan should be returned inline as a single-row, single-column {@code STRING} result set
+ * instead of being written to disk.
+ */
 @Internal
 public class CompilePlanOperation implements Operation {
 
-    private final String filePath;
+    @Nullable private final String filePath;
     private final boolean ifNotExists;
     private final Operation operation;
 
-    public CompilePlanOperation(String filePath, boolean ifNotExists, Operation operation) {
+    public CompilePlanOperation(
+            @Nullable String filePath, boolean ifNotExists, Operation operation) {
         Preconditions.checkArgument(
                 operation instanceof StatementSetOperation || operation instanceof ModifyOperation,
                 "child operation of CompileOperation must be either a ModifyOperation or a StatementSetOperation");
+        Preconditions.checkArgument(
+                filePath != null || !ifNotExists,
+                "IF NOT EXISTS is only valid when a file path is specified");
         this.filePath = filePath;
         this.ifNotExists = ifNotExists;
         this.operation = operation;
     }
 
+    @Nullable
     public String getFilePath() {
         return filePath;
     }
@@ -55,6 +66,9 @@ public class CompilePlanOperation implements Operation {
 
     @Override
     public String asSummaryString() {
+        if (filePath == null) {
+            return String.format("COMPILE PLAN FOR %s", operation.asSummaryString());
+        }
         return String.format(
                 ifNotExists ? "COMPILE PLAN '%s' IF NOT EXISTS FOR %s" : "COMPILE PLAN '%s' FOR %s",
                 filePath,
