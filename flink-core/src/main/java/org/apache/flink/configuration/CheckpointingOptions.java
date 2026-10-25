@@ -754,6 +754,11 @@ public class CheckpointingOptions {
                                                     + "checkpoints disabled for the new execution.",
                                             TextElement.code(
                                                     UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM.key()))
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Checkpointing during recovery is currently not supported when %s is greater than 0, and will be disabled in this case.",
+                                            TextElement.code(ALIGNED_CHECKPOINT_TIMEOUT.key()))
                                     .build());
 
     /**
@@ -857,7 +862,8 @@ public class CheckpointingOptions {
      *
      * <p>Requires both {@link #UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM} and unaligned checkpoints to
      * be enabled, because checkpointing during recovery is only supported on the unaligned
-     * barrier-handler path.
+     * barrier-handler path. It is also disabled when {@link #ALIGNED_CHECKPOINT_TIMEOUT} is
+     * positive.
      *
      * @param config the configuration to check
      * @return {@code true} if unaligned checkpointing during recovery is enabled, {@code false}
@@ -866,6 +872,10 @@ public class CheckpointingOptions {
     @Internal
     public static boolean isCheckpointingDuringRecoveryEnabled(Configuration config) {
         if (!config.get(UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM)) {
+            return false;
+        }
+        // TODO FLINK-40526: Support checkpointing during recovery with aligned checkpoint timeout.
+        if (!config.get(ALIGNED_CHECKPOINT_TIMEOUT).isZero()) {
             return false;
         }
         return config.get(CHECKPOINTING_DURING_RECOVERY_ENABLED)
