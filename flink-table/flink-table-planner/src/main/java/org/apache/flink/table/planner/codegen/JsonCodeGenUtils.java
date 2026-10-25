@@ -43,7 +43,9 @@ public final class JsonCodeGenUtils {
      *
      * <p>The input is parsed at most once per record for a given (input, allowDuplicateKeys) pair
      * and shared across all such calls; {@code PARSE_JSON} rethrows a parse error while {@code
-     * TRY_PARSE_JSON} returns NULL.
+     * TRY_PARSE_JSON} returns NULL. The shared parse keeps the parser's exception as is. Only a
+     * {@code PARSE_JSON} call site turns it into the user-facing error, so a row that {@code
+     * TRY_PARSE_JSON} rejects costs no more than the failed parse.
      *
      * <p>For {@code PARSE_JSON(str)} the generated code looks like:
      *
@@ -66,7 +68,7 @@ public final class JsonCodeGenUtils {
      *         SqlJsonUtils.parseJsonToVariant(in, java.lang.Boolean.TRUE.equals(allowDup));
      *   } catch (Exception e) {
      *     variantParsed$0 = null;
-     *     variantParseError$0 = t;
+     *     variantParseError$0 = e;
      *   }
      *   return variantParsed$0;
      * }
@@ -77,7 +79,7 @@ public final class JsonCodeGenUtils {
      * if (!inIsNull) {
      *   result$0 = parseVariant$0(in, null);
      *   if (variantParseError$0 != null) { // only emitted for PARSE_JSON, not TRY_PARSE_JSON
-     *     org.apache.flink.util.ExceptionUtils.rethrow(variantParseError$0);
+     *     throw SqlJsonUtils.parseJsonError(in, variantParseError$0);
      *   }
      *   isNull$0 = result$0 == null;
      * }
@@ -207,7 +209,11 @@ public final class JsonCodeGenUtils {
                         : "  if ("
                                 + errorTerm
                                 + " != null) {\n"
-                                + "    org.apache.flink.util.ExceptionUtils.rethrow("
+                                + "    throw "
+                                + CodeGenUtils.qualifyMethod(BuiltInMethods.PARSE_JSON_ERROR())
+                                + "("
+                                + input.resultTerm()
+                                + ", "
                                 + errorTerm
                                 + ");\n"
                                 + "  }\n";

@@ -58,6 +58,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -632,24 +633,34 @@ public class SqlJsonUtils {
         return jsonValueExpression(input);
     }
 
-    /** Parses a JSON string into a {@link Variant}, throwing on malformed input. */
-    public static Variant parseJsonToVariant(StringData jsonStr, boolean allowDuplicateKeys) {
+    /**
+     * Parses a JSON string into a {@link Variant}.
+     *
+     * <p>Malformed input fails with the parser's own exception, which {@code TRY_PARSE_JSON} can
+     * drop cheaply. {@code PARSE_JSON} reports it through {@link #parseJsonError}.
+     */
+    public static Variant parseJsonToVariant(StringData jsonStr, boolean allowDuplicateKeys)
+            throws IOException {
+        return BinaryVariantInternalBuilder.parseJson(jsonStr.toBytes(), allowDuplicateKeys);
+    }
+
+    /**
+     * Builds the error that {@code PARSE_JSON} throws when {@link #parseJsonToVariant} rejects
+     * {@code jsonStr}. Input that is not valid UTF-8 is reported by the index of its first invalid
+     * byte rather than by its content.
+     */
+    public static TableRuntimeException parseJsonError(StringData jsonStr, Throwable cause) {
         final byte[] bytes = jsonStr.toBytes();
-        try {
-            return BinaryVariantInternalBuilder.parseJson(bytes, allowDuplicateKeys);
-        } catch (Exception e) {
-            final int invalidIndex =
-                    StringUtf8Utils.firstInvalidUtf8ByteIndex(bytes, 0, bytes.length);
-            if (invalidIndex >= 0) {
-                throw new TableRuntimeException(
-                        String.format(
-                                "Failed to parse JSON string: Invalid UTF-8 byte at index %d of %d.",
-                                invalidIndex, bytes.length),
-                        e);
-            }
-            throw new TableRuntimeException(
-                    String.format("Failed to parse JSON string: %s", jsonStr), e);
+        final int invalidIndex = StringUtf8Utils.firstInvalidUtf8ByteIndex(bytes, 0, bytes.length);
+        if (invalidIndex >= 0) {
+            return new TableRuntimeException(
+                    String.format(
+                            "Failed to parse JSON string: Invalid UTF-8 byte at index %d of %d.",
+                            invalidIndex, bytes.length),
+                    cause);
         }
+        return new TableRuntimeException(
+                String.format("Failed to parse JSON string: %s", jsonStr), cause);
     }
 
     private static JsonValueContext jsonValueExpression(String input) {
