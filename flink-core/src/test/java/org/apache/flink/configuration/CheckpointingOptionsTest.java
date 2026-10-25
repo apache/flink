@@ -386,6 +386,15 @@ class CheckpointingOptionsTest {
                 .as("During-recovery should be disabled when unaligned checkpoints are disabled")
                 .isFalse();
 
+        // Test when all three prerequisites are enabled but aligned checkpoint timeout is positive
+        Configuration alignedTimeoutConfig = new Configuration(allEnabledConfig);
+        alignedTimeoutConfig.set(
+                CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, Duration.ofSeconds(1));
+        assertThat(CheckpointingOptions.isCheckpointingDuringRecoveryEnabled(alignedTimeoutConfig))
+                .as(
+                        "During-recovery should be disabled when aligned checkpoint timeout is positive")
+                .isFalse();
+
         // Test when recover-output-on-downstream is explicitly false and during-recovery is true
         Configuration explicitlyDisabledConfig = new Configuration();
         explicitlyDisabledConfig.set(
