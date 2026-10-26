@@ -1769,16 +1769,8 @@ CAST(ARRAY[INTERVAL '1' DAY] AS VARIANT)     -- fails at validation
 A `VARIANT` has no equality and no order, because one value has many valid binary encodings. The
 objects `{"a": 1, "b": 2}` and `{"b": 2, "a": 1}` hold the same value, and so do a `1` stored as a
 `TINYINT` and a `1` stored as a `BIGINT`. So a query cannot use a `VARIANT`, or a type that contains
-one, where it compares values:
-
-- as a grouping key, including `GROUPING SETS`, window aggregations, and `SELECT DISTINCT`
-- as the argument of a `DISTINCT` aggregate, such as `COUNT(DISTINCT v)`
-- in `UNION`, `INTERSECT`, `INTERSECT ALL`, `EXCEPT`, and `EXCEPT ALL`, while `UNION ALL` is allowed
-- as an `ORDER BY` key
-- as a `PARTITION BY` or `ORDER BY` key of an `OVER` window, of `MATCH_RECOGNIZE`, or of a table
-  argument
-- as an operand of a comparison such as `=`, `<>`, `<`, `IS DISTINCT FROM`, or `IN`, which includes
-  join conditions
+one, where it compares values. Examples are a `GROUP BY`, `ORDER BY`, or join key,
+`SELECT DISTINCT`, a comparison such as `=` or `<`, and the array elements of `ARRAY_CONTAINS`.
 
 Such a query fails before it runs. Cast the value to a concrete type first, or use `TRY_CAST` when
 some values do not fit the type. A `VARIANT` can still be selected, read with field access, checked
