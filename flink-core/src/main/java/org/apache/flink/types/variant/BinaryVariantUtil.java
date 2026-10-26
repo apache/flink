@@ -86,7 +86,7 @@ public class BinaryVariantUtil {
      * Object value. The content contains a size, a list of field ids, a list of field offsets, and
      * the actual field data. The length of the id list is {@code size}, while the length of the
      * offset list is {@code size + 1}, where the last offset represent the total size of the field
-     * data. The fields in an object must be sorted by the field name in alphabetical order.
+     * data. The fields in an object must be sorted by the unsigned UTF-8 bytes of their names.
      * Duplicate field names in one object are not allowed.
      *
      * <p>We use 5 bits in the type info to specify the integer type of the object header: it should
@@ -866,6 +866,33 @@ public class BinaryVariantUtil {
         int length = keyLength(range);
         return length == key.length
                 && Arrays.equals(metadata, start, start + length, key, 0, length);
+    }
+
+    /**
+     * Compares the key at {@code id} in the variant metadata with the UTF-8 encoded {@code key} by
+     * their unsigned bytes, the order of object fields in the variant spec.
+     */
+    static int compareMetadataKey(byte[] metadata, int id, byte[] key) {
+        long range = metadataKeyRange(metadata, id);
+        int start = keyStart(range);
+        return Arrays.compareUnsigned(
+                metadata, start, start + keyLength(range), key, 0, key.length);
+    }
+
+    /**
+     * Whether the UTF-8 encoded {@code key} has a code point from U+E000 up, which encodes to a
+     * lead byte of 0xEE or above. UTF-16 order differs from UTF-8 byte order only between a code
+     * point from U+E000 to U+FFFF and one from U+10000 up, whose UTF-16 surrogates sort below
+     * U+E000. So a binary search for a key without such a code point finds the same field in either
+     * order, and a miss is final.
+     */
+    static boolean hasCodePointFromE000(byte[] key) {
+        for (byte b : key) {
+            if ((b & 0xFF) >= 0xEE) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
