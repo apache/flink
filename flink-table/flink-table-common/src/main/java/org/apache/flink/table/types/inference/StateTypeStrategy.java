@@ -19,13 +19,25 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.types.DataType;
 
 import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Optional;
 
-/** Strategy for inferring a function call's intermediate result data type (i.e. state entry). */
+/**
+ * Strategy for inferring a function call's intermediate result data type (i.e. state entry).
+ *
+ * <p>For {@link ProcessTableFunction}, returning {@link Optional#empty()} from {@link
+ * #inferType(CallContext)} excludes the state entry from a specific call. A function's {@code
+ * eval()} and {@code onTimer()} methods must not declare a parameter for it. This allows declaring
+ * a superset of state entries while the strategy decides what a call needs.
+ *
+ * <p>For aggregating functions, returning {@link Optional#empty()} from {@link
+ * #inferType(CallContext)} is not supported as the accumulator must always be inferable.
+ */
 @PublicEvolving
 public interface StateTypeStrategy extends TypeStrategy {
 
@@ -41,6 +53,19 @@ public interface StateTypeStrategy extends TypeStrategy {
             TypeStrategy typeStrategy, @Nullable Duration timeToLive, boolean broadcast) {
         return new DefaultStateTypeStrategy(typeStrategy, timeToLive, broadcast);
     }
+
+    /**
+     * Infers the data type of the state entry from the given function call.
+     *
+     * <p>For {@link ProcessTableFunction}, returning {@link Optional#empty()} means that the state
+     * entry is not used by this call. It is then excluded from the call's state, and the function's
+     * {@code eval()} and {@code onTimer()} methods must not declare a parameter for it.
+     *
+     * <p>For aggregating functions, the accumulator must always be inferable. Returning {@link
+     * Optional#empty()} fails with a validation exception.
+     */
+    @Override
+    Optional<DataType> inferType(CallContext callContext);
 
     /**
      * The time-to-live (TTL) duration that automatically cleans up the state entry.
