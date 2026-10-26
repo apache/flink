@@ -186,9 +186,7 @@ public class BinaryVariantBuilder implements VariantBuilder {
 
         @Override
         public VariantObjectBuilder add(String key, Variant value) {
-            int id = builder.addKey(key);
-            entries.add(
-                    new BinaryVariantInternalBuilder.FieldEntry(key, id, builder.getWritePos()));
+            builder.addField(entries, 0, key);
             builder.appendVariant((BinaryVariant) value);
             return this;
         }

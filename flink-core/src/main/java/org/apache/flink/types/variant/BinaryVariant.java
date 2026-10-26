@@ -37,10 +37,12 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION;
 import static org.apache.flink.types.variant.BinaryVariantUtil.VERSION_MASK;
 import static org.apache.flink.types.variant.BinaryVariantUtil.checkIndex;
+import static org.apache.flink.types.variant.BinaryVariantUtil.compareMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.encodeKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.getMetadataKey;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleArray;
 import static org.apache.flink.types.variant.BinaryVariantUtil.handleObject;
+import static org.apache.flink.types.variant.BinaryVariantUtil.hasCodePointFromE000;
 import static org.apache.flink.types.variant.BinaryVariantUtil.malformedVariant;
 import static org.apache.flink.types.variant.BinaryVariantUtil.metadataKeyEquals;
 import static org.apache.flink.types.variant.BinaryVariantUtil.microsToInstant;
@@ -339,49 +341,65 @@ public final class BinaryVariant implements Variant {
     // Find the field value whose key is equal to `key`. Return null if the key is not found.
     // It is only legal to call it when `getType()` is `Type.OBJECT`.
     private BinaryVariant getFieldByKey(String key) {
+        byte[] keyBytes = encodeKey(key);
         return handleObject(
                 value,
                 pos,
                 (size, idSize, offsetSize, idStart, offsetStart, dataStart) -> {
+                    int index;
                     // Use linear search for a short list. Switch to binary search when the length
                     // reaches `BINARY_SEARCH_THRESHOLD`.
                     if (size < BINARY_SEARCH_THRESHOLD) {
-                        byte[] keyBytes = encodeKey(key);
-                        for (int i = 0; i < size; ++i) {
-                            int id = readUnsigned(value, idStart + idSize * i, idSize);
-                            if (metadataKeyEquals(metadata, id, keyBytes)) {
-                                int offset =
-                                        readUnsigned(
-                                                value, offsetStart + offsetSize * i, offsetSize);
-                                return new BinaryVariant(value, metadata, dataStart + offset);
-                            }
-                        }
+                        index = findFieldLinear(keyBytes, size, idSize, idStart);
                     } else {
-                        int low = 0;
-                        int high = size - 1;
-                        while (low <= high) {
-                            // Use unsigned right shift to compute the middle of `low` and `high`.
-                            // This is not only a performance optimization, because it can properly
-                            // handle the case where `low + high` overflows int.
-                            int mid = (low + high) >>> 1;
-                            int id = readUnsigned(value, idStart + idSize * mid, idSize);
-                            // Compare decoded Strings here. The builder sorts fields by
-                            // String.compareTo, which is not UTF-8 byte order.
-                            int cmp = getMetadataKey(metadata, id).compareTo(key);
-                            if (cmp < 0) {
-                                low = mid + 1;
-                            } else if (cmp > 0) {
-                                high = mid - 1;
-                            } else {
-                                int offset =
-                                        readUnsigned(
-                                                value, offsetStart + offsetSize * mid, offsetSize);
-                                return new BinaryVariant(value, metadata, dataStart + offset);
-                            }
+                        index = findFieldBinary(keyBytes, size, idSize, idStart);
+                        // Objects that earlier Flink versions wrote are sorted in UTF-16 order
+                        // instead. Only a miss for a key with a code point from U+E000 up can be
+                        // wrong there, see `hasCodePointFromE000`. Such a miss scans all fields,
+                        // because an object does not record which order it uses.
+                        if (index < 0 && hasCodePointFromE000(keyBytes)) {
+                            index = findFieldLinear(keyBytes, size, idSize, idStart);
                         }
                     }
-                    return null;
+                    if (index < 0) {
+                        return null;
+                    }
+                    int offset = readUnsigned(value, offsetStart + offsetSize * index, offsetSize);
+                    return new BinaryVariant(value, metadata, dataStart + offset);
                 });
+    }
+
+    // Return the index of the field whose key has the UTF-8 bytes `key`, or -1 if there is none.
+    private int findFieldLinear(byte[] key, int size, int idSize, int idStart) {
+        for (int i = 0; i < size; ++i) {
+            int id = readUnsigned(value, idStart + idSize * i, idSize);
+            if (metadataKeyEquals(metadata, id, key)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // Like `findFieldLinear`, for fields sorted by the unsigned UTF-8 bytes of their keys.
+    private int findFieldBinary(byte[] key, int size, int idSize, int idStart) {
+        int low = 0;
+        int high = size - 1;
+        while (low <= high) {
+            // Use unsigned right shift to compute the middle of `low` and `high`. This is not only
+            // a performance optimization, because it can properly handle the case where
+            // `low + high` overflows int.
+            int mid = (low + high) >>> 1;
+            int id = readUnsigned(value, idStart + idSize * mid, idSize);
+            int cmp = compareMetadataKey(metadata, id, key);
+            if (cmp < 0) {
+                low = mid + 1;
+            } else if (cmp > 0) {
+                high = mid - 1;
+            } else {
+                return mid;
+            }
+        }
+        return -1;
     }
 
     // Get the array element at the `index` slot. Return null if `index` is out of the bound of
