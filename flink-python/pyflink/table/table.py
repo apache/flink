@@ -16,8 +16,10 @@
 # limitations under the License.
 ################################################################################
 
+from datetime import tzinfo
+
 from py4j.java_gateway import get_method
-from typing import Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pandas
@@ -952,7 +954,7 @@ class Table(object):
         schema = self.get_schema()
         field_types = schema.get_field_data_types()
         arrow_schema = create_arrow_schema(schema.get_field_names(), field_types)
-        timezone = None
+        timezone: Optional[tzinfo] = None
         if any(isinstance(field_type, LocalZonedTimestampType) for field_type in field_types):
             import pytz
             j_timezone = self._j_table.getTableEnvironment().getConfig().getLocalTimeZone()
