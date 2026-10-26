@@ -43,7 +43,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.TemporaryClassLoaderContext;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.LongFunctionWithException;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -97,8 +96,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -215,9 +212,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     /** Coordinates duplicate close and cancel calls while the state handler drains requests. */
     @Nullable private transient CompletableFuture<Void> stateHandlerCloseCompletion;
-
-    /** Owns a detached bundle close after cancellation returns to the task cleanup path. */
-    @Nullable private transient ExecutorService cancellationBundleCloseExecutor;
 
     /**
      * The bundle close currently owned by a flush thread.
@@ -395,12 +389,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     @Override
     public void cancel() throws Exception {
-        final BundleCloseClaim bundleCloseClaim = requestCancel();
+        requestCancel();
 
         try {
-            if (bundleCloseClaim != null && bundleCloseClaim.ownsBundleClose) {
-                closeBundleAfterCancellation(bundleCloseClaim.closeOperation);
-            }
             // Release only this runner's resource lease. If it is the final lease, the shared
             // resource disposer owns factory teardown; otherwise co-located runners keep using the
             // shared worker.
@@ -577,32 +568,19 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         return true;
     }
 
-    /**
-     * Starts cancellation without waiting for a concurrent bundle close.
-     *
-     * <p>If no flush thread owns the active bundle yet, cancellation detaches it and becomes
-     * responsible for finishing it asynchronously.
-     */
-    @Nullable
-    private synchronized BundleCloseClaim requestCancel() {
+    /** Stops accepting work without starting or waiting for a graceful bundle close. */
+    private synchronized void requestCancel() {
         cancelRequested = true;
         closed = true;
         if (closeCompletion == null) {
             closeCompletion = new CompletableFuture<>();
         }
 
-        if (bundleStarted) {
-            final BundleCloseOperation closeOperation = new BundleCloseOperation(remoteBundle);
-            bundleCloseOperation = closeOperation;
-            bundleStarted = false;
-            clearBundleReferences();
-            return new BundleCloseClaim(closeOperation, true);
-        }
-        if (bundleCloseOperation != null && !bundleCloseOperation.isDone()) {
-            return new BundleCloseClaim(bundleCloseOperation, false);
-        }
+        // RemoteBundle.close() flushes buffered input and waits for Python processing. An
+        // unclaimed bundle must instead be abandoned during cancellation. Beam has no separate
+        // abort operation; its remaining registrations are released when the factory is closed.
+        bundleStarted = false;
         clearBundleReferences();
-        return null;
     }
 
     private synchronized boolean isCancelRequested() {
@@ -689,28 +667,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         }
     }
 
-    private void closeBundleAfterCancellation(BundleCloseOperation closeOperation) {
-        final ExecutorService executor;
-        synchronized (this) {
-            if (cancellationBundleCloseExecutor == null) {
-                cancellationBundleCloseExecutor =
-                        Executors.newSingleThreadExecutor(
-                                new ExecutorThreadFactory("beam-python-bundle-cancellation"));
-            }
-            executor = cancellationBundleCloseExecutor;
-        }
-        executor.execute(
-                () -> {
-                    try {
-                        finishBundle(closeOperation);
-                    } catch (Throwable t) {
-                        LOG.debug("Beam bundle close failed during cancellation.", t);
-                    } finally {
-                        executor.shutdown();
-                    }
-                });
-    }
-
     private void closeStateRequestHandler() throws Exception {
         final BeamStateRequestHandler currentStateRequestHandler;
         final CompletableFuture<Void> closeCompletion;
@@ -791,17 +747,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
         private void await() throws Exception {
             awaitCompletion(completion);
-        }
-    }
-
-    private static final class BundleCloseClaim {
-
-        private final BundleCloseOperation closeOperation;
-        private final boolean ownsBundleClose;
-
-        private BundleCloseClaim(BundleCloseOperation closeOperation, boolean ownsBundleClose) {
-            this.closeOperation = closeOperation;
-            this.ownsBundleClose = ownsBundleClose;
         }
     }
 
