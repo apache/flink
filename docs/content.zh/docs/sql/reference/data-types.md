@@ -1732,8 +1732,8 @@ leaf is stored by the rules above, so the cast is supported only when every leaf
 - A `ROW` or `STRUCTURED` value is keyed by its field names.
 - A `MAP` needs a character string key, which becomes the object key. A `NULL` key fails the cast.
   If a key appears twice, the last value is kept.
-- A variant object sorts its keys, so neither the field order of a `ROW` nor the entry order of a
-  `MAP` is kept.
+- A variant object sorts its keys by their UTF-8 bytes, so neither the field order of a `ROW` nor
+  the entry order of a `MAP` is kept.
 - A `NULL` element, field, or map value becomes a variant null, so an array keeps its length and an
   object keeps its keys. A cast element by element differs here: `ARRAY<INT>` to `ARRAY<VARIANT>`
   keeps a SQL `NULL`, while `ARRAY<INT>` to `VARIANT` turns it into a variant null.
