@@ -169,6 +169,54 @@ class ArrowSchemaTests(unittest.TestCase):
 class ArrowCodersTests(unittest.TestCase):
     from pyflink.fn_execution import coder_impl_slow as implementation
 
+    def test_pandas_ltz_decode_preserves_instants(self):
+        import pandas as pd
+        from pandas.testing import assert_series_equal
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        epochs = [-1, 1704067200123, 1730611800123, 1730615400123, None]
+        row_type = DataTypes.ROW([DataTypes.FIELD('ltz', DataTypes.TIMESTAMP_LTZ(3))])
+        schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            timezone = pytz.timezone(zone)
+            for size in [0, len(epochs)]:
+                with self.subTest(timezone=zone, size=size):
+                    batch = pa.record_batch(
+                        [pa.array(epochs[:size], type=pa.timestamp('ms'))], schema=schema)
+                    with pa.BufferOutputStream() as output:
+                        with pa.ipc.new_stream(output, schema) as writer:
+                            writer.write_batch(batch)
+                        data = output.getvalue().to_pybytes()
+                    coder = self.implementation.ArrowCoderImpl(schema, row_type, timezone)
+                    result = coder.decode(data)[0]
+                    expected = pd.Series(pd.to_datetime(epochs[:size], unit='ms', utc=True),
+                                         name='ltz') \
+                        .dt.tz_convert(timezone)
+                    self.assertEqual(zone, str(result.dt.tz))
+                    assert_series_equal(result, expected.astype(result.dtype))
+
+    def test_pandas_ltz_encode_preserves_epoch_values(self):
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        epochs = [-1, 1704067200123, 1730611800123, 1730615400123, None]
+        row_type = DataTypes.ROW([DataTypes.FIELD('ltz', DataTypes.TIMESTAMP_LTZ(3))])
+        schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
+        aware = pd.Series(pd.to_datetime(epochs, unit='ms', utc=True)) \
+            .dt.tz_convert('Asia/Shanghai')
+        naive = pd.Series(pd.to_datetime(epochs, unit='ms'))
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            for values in [aware, naive]:
+                for size in [0, len(epochs)]:
+                    with self.subTest(timezone=zone, dtype=values.dtype, size=size):
+                        coder = self.implementation.ArrowCoderImpl(
+                            schema, row_type, pytz.timezone(zone))
+                        encoded = coder.encode([values.iloc[:size]])
+                        result = pa.ipc.open_stream(encoded).read_all().column(0)
+                        self.assertEqual(epochs[:size], result.cast(pa.int64()).to_pylist())
+
     def arrow_coder(self, schema, row_type):
         return self.implementation.ArrowCoderImpl(schema, row_type, pytz.UTC, "ARROW")
 
@@ -325,7 +373,7 @@ class ArrowCodersTests(unittest.TestCase):
         ]
         cases = [
             (columns, [
-                {"result": {"ts": datetime.datetime(2020, 1, 1, 8),
+                {"result": {"ts": datetime.datetime(2020, 1, 1, 0),
                             "payload": {"v": 9007199254740993, "other": 7},
                             "other": {"v": "other"}}},
                 {"result": {"ts": None, "payload": {"v": None, "other": None},
