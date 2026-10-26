@@ -53,6 +53,10 @@ class JsonParseReuseTest {
     private static final Pattern PARSE_JSON_PATTERN =
             Pattern.compile("\\b" + Pattern.quote(BuiltInMethods.PARSE_JSON().getName()) + "\\(");
 
+    private static final Pattern PARSE_JSON_ERROR_PATTERN =
+            Pattern.compile(
+                    "\\b" + Pattern.quote(BuiltInMethods.PARSE_JSON_ERROR().getName()) + "\\(");
+
     private StreamTableEnvironment tEnv;
 
     private static final String JSON_ROW1 =
@@ -82,6 +86,10 @@ class JsonParseReuseTest {
 
     private static int countParseJson(final String code) {
         return count(PARSE_JSON_PATTERN, code);
+    }
+
+    private static int countParseJsonError(final String code) {
+        return count(PARSE_JSON_ERROR_PATTERN, code);
     }
 
     private static int count(final Pattern pattern, final String code) {
@@ -529,14 +537,31 @@ class JsonParseReuseTest {
         final String badSrc = "(VALUES ('not json')) AS t(j)";
         final String sharedSql =
                 "SELECT JSON_STRING(TRY_PARSE_JSON(j)), JSON_STRING(PARSE_JSON(j)) FROM " + badSrc;
-        assertThat(countParseJson(extractGeneratedCode(sharedSql)))
+        final String sharedCode = extractGeneratedCode(sharedSql);
+        assertThat(countParseJson(sharedCode))
                 .as("PARSE_JSON + TRY_PARSE_JSON on the same input should parse once")
                 .isOne();
+        assertThat(countParseJsonError(sharedCode))
+                .as("Only the PARSE_JSON call site builds the parse error")
+                .isOne();
         assertThatThrownBy(() -> collect(sharedSql))
-                .hasStackTraceContaining("Failed to parse JSON string");
+                .hasStackTraceContaining("Failed to parse JSON string: not json");
+    }
 
-        assertThat(collect("SELECT JSON_STRING(TRY_PARSE_JSON(j)) FROM " + badSrc))
-                .containsExactly(Row.of((String) null));
+    @Test
+    void testTryParseJsonDoesNotBuildParseError() {
+        tEnv.createTemporaryView(
+                "mixed_src", tEnv.fromValues(Row.of("not json"), Row.of("{\"a\":1}")).as("j"));
+        final String sql = "SELECT JSON_STRING(TRY_PARSE_JSON(j)) FROM mixed_src";
+        assertThat(collect(sql))
+                .containsExactlyInAnyOrder(Row.of((String) null), Row.of("{\"a\":1}"));
+        final String code = extractGeneratedCode(sql);
+        assertThat(countParseJson(code))
+                .as("TRY_PARSE_JSON must be generated, not constant-folded away")
+                .isOne();
+        assertThat(countParseJsonError(code))
+                .as("TRY_PARSE_JSON drops the parser's exception without building the error")
+                .isZero();
     }
 
     @Test
