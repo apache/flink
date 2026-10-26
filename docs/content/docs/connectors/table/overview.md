@@ -121,6 +121,26 @@ Flink natively support various connectors. The following tables list all availab
 
 Please refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section on how to add connectors as a dependency. 
 
+Fault Tolerance Guarantees
+------------
+
+Flink recovers from failures by restarting from the last [checkpoint]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}). Checkpointing is
+disabled by default. For exactly-once results, the source must be able to rewind to the position
+stored in the checkpoint, and the sink must take part in checkpointing, either by committing its
+writes transactionally or by writing idempotently. See
+[Stateful Stream Processing]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) for how checkpoints work.
+
+Connectors that support more than one guarantee expose it as the `sink.delivery-guarantee` option,
+for example [Kafka]({{< ref "docs/connectors/table/kafka" >}}). Exactly-once on Kafka uses Kafka
+transactions and also requires `sink.transactional-id-prefix`. Sinks that write by primary key, such
+as [JDBC]({{< ref "docs/connectors/table/jdbc" >}}) with a primary key defined, overwrite the same
+rows when records are replayed after a failure; while the replay runs, readers can briefly see older
+values for those rows.
+
+Each connector's page documents the guarantees it provides.
+
+{{< top >}}
+
 How to use connectors
 --------
 

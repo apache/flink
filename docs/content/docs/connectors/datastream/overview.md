@@ -70,6 +70,19 @@ If you need to run examples locally, make sure that the flink-connector-base dep
 provided and can be found in your own classpath.
 {{< /hint >}}
 
+## Fault Tolerance Guarantees
+
+Flink recovers from failures by restarting from the last [checkpoint]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}). Checkpointing is
+disabled by default. For exactly-once results, the source must be able to rewind to the position
+stored in the checkpoint, and the sink must take part in checkpointing, either by committing its
+writes transactionally or by writing idempotently. See [Stateful Stream Processing]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) for how checkpoints work.
+
+Sinks built on the [Sink API]({{< ref "docs/internals/sinks" >}}) that support more than one
+guarantee take a {{< javadoc file="org/apache/flink/connector/base/DeliveryGuarantee.html" name="DeliveryGuarantee" >}}
+(`NONE`, `AT_LEAST_ONCE` or `EXACTLY_ONCE`) in their builder, for example the
+[Kafka sink]({{< ref "docs/connectors/datastream/kafka" >}}). Each connector's page documents the
+guarantees it provides.
+
 ## Connectors in Apache Bahir
 
 Additional streaming connectors for Flink are being released through [Apache Bahir](https://bahir.apache.org/), including:

@@ -66,6 +66,19 @@ Currently these systems are supported as part of the Apache Flink project:
 如果需要在本地环境测试运行，请确保 flink-connector-base 依赖被正确的提供，而且能在 classpath 下找到。
 {{< /hint >}}
 
+## Fault Tolerance Guarantees
+
+Flink recovers from failures by restarting from the last [checkpoint]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}). Checkpointing is
+disabled by default. For exactly-once results, the source must be able to rewind to the position
+stored in the checkpoint, and the sink must take part in checkpointing, either by committing its
+writes transactionally or by writing idempotently. See [Stateful Stream Processing]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) for how checkpoints work.
+
+Sinks built on the [Sink API]({{< ref "docs/internals/sinks" >}}) that support more than one
+guarantee take a {{< javadoc file="org/apache/flink/connector/base/DeliveryGuarantee.html" name="DeliveryGuarantee" >}}
+(`NONE`, `AT_LEAST_ONCE` or `EXACTLY_ONCE`) in their builder, for example the
+[Kafka sink]({{< ref "docs/connectors/datastream/kafka" >}}). Each connector's page documents the
+guarantees it provides.
+
 ## Apache Bahir 中的连接器
 
 Flink 还有些一些额外的连接器通过 [Apache Bahir](https://bahir.apache.org/) 发布, 包括:
