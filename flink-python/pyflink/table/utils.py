@@ -281,6 +281,9 @@ def to_expression_jarray(exprs):
 
 @Internal()
 def pickled_bytes_to_python_converter(data, field_type: DataType):
+    # PythonBridgeUtils encodes NULL as an empty byte array at every nesting level.
+    if len(data) == 0:
+        return None
     if isinstance(field_type, RowType):
         row_kind = RowKind(int.from_bytes(data[0], byteorder='big', signed=False))
         data = zip(list(data[1:]), field_type.field_types())
