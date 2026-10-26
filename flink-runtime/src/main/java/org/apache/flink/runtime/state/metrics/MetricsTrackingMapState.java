@@ -29,6 +29,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This class wraps map state with latency tracking logic.
@@ -258,6 +259,22 @@ class MetricsTrackingMapState<K, N, UK, UV>
                     () -> original.isEmpty(), MapStateMetrics.MAP_STATE_IS_EMPTY_LATENCY);
         } else {
             return original.isEmpty();
+        }
+    }
+
+    @Override
+    public boolean isEmptyExcluding(Set<?> excludedKeys) throws Exception {
+        if (sizeTrackingStateMetric != null && sizeTrackingStateMetric.trackMetricsOnIsEmpty()) {
+            sizeTrackingStateMetric.updateMetrics(
+                    MapStateMetrics.MAP_STATE_IS_EMPTY_KEY_SIZE, super.sizeOfKey());
+        }
+        if (latencyTrackingStateMetric != null
+                && latencyTrackingStateMetric.trackMetricsOnIsEmpty()) {
+            return trackLatencyWithException(
+                    () -> original.isEmptyExcluding(excludedKeys),
+                    MapStateMetrics.MAP_STATE_IS_EMPTY_LATENCY);
+        } else {
+            return original.isEmptyExcluding(excludedKeys);
         }
     }
 

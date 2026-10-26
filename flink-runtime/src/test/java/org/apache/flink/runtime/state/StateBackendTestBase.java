@@ -3589,6 +3589,37 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
     }
 
     @TestTemplate
+    void testMapStateReadOnlyKeyContext() throws Exception {
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
+        try {
+            MapState<Integer, Long> state =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE,
+                            VoidNamespaceSerializer.INSTANCE,
+                            new MapStateDescriptor<>("map", Integer.class, Long.class));
+            backend.setCurrentKey(1);
+            state.put(1, 100L);
+            backend.setCurrentKey(2);
+            state.put(1, 200L);
+
+            int[] selections = {0};
+            backend.registerKeySelectionListener(ignored -> selections[0]++);
+            for (int key : new int[] {1, 3, 2, 1}) {
+                backend.setCurrentKeyForStateAccess(key);
+                assertThat(backend.getCurrentKey()).isEqualTo(key);
+                assertThat(state.get(1)).isEqualTo(key == 3 ? null : key * 100L);
+            }
+            assertThat(selections[0]).isZero();
+            backend.setCurrentKey(1);
+            assertThat(selections[0]).isEqualTo(1);
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
+    }
+
+    @TestTemplate
     void testMapStateIsEmpty() throws Exception {
         MapStateDescriptor<Integer, Long> kvId =
                 new MapStateDescriptor<>("id", Integer.class, Long.class);

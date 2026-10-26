@@ -203,6 +203,11 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
             }
 
             @Override
+            public void setCurrentKeyForStateAccess(K newKey) {
+                keyedStateBackend.setCurrentKeyForStateAccess(newKey);
+            }
+
+            @Override
             public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
                 keyedStateBackend.setCurrentKeyAndKeyGroup(newKey, newKeyGroupIndex);
             }

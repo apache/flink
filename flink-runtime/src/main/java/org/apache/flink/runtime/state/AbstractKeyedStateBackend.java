@@ -263,6 +263,13 @@ public abstract class AbstractKeyedStateBackend<K>
     }
 
     @Override
+    public void setCurrentKeyForStateAccess(K newKey) {
+        this.keyContext.setCurrentKey(newKey);
+        this.keyContext.setCurrentKeyGroupIndex(
+                KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups));
+    }
+
+    @Override
     public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
         notifyKeySelected(newKey);
         this.keyContext.setCurrentKey(newKey);

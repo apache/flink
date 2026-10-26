@@ -152,7 +152,12 @@ public class BeamKeyedStateStore implements BeamStateStore {
         byte[] keyBytes = mapUserState.getKey().toByteArray();
         bais.setBuffer(keyBytes, 0, keyBytes.length);
         Object key = keySerializer.deserialize(baisWrapper);
-        setCurrentKey(key);
+        boolean readOnly =
+                request.hasGet()
+                        && !request.getGet().getContinuationToken().isEmpty()
+                        && request.getGet().getContinuationToken().byteAt(0)
+                                == BeamMapStateHandler.CHECK_EMPTY_EXCLUDING_KEYS_FLAG;
+        setCurrentKey(key, readOnly);
 
         // Retrieve state descriptor
         byte[] data = Base64.getDecoder().decode(mapUserState.getSideInputId());
@@ -198,13 +203,19 @@ public class BeamKeyedStateStore implements BeamStateStore {
     }
 
     private void setCurrentKey(Object key) {
+        setCurrentKey(key, false);
+    }
+
+    private void setCurrentKey(Object key, boolean forStateAccess) {
         if (keyedStateBackend.getKeySerializer() instanceof RowDataSerializer) {
             setCurrentKeyForStreaming(
                     (KeyedStateBackend<? super BinaryRowData>) keyedStateBackend,
                     ((RowDataSerializer) keyedStateBackend.getKeySerializer())
-                            .toBinaryRow((RowData) key));
+                            .toBinaryRow((RowData) key),
+                    forStateAccess);
         } else {
-            setCurrentKeyForStreaming((KeyedStateBackend<Object>) keyedStateBackend, key);
+            setCurrentKeyForStreaming(
+                    (KeyedStateBackend<Object>) keyedStateBackend, key, forStateAccess);
         }
     }
 }

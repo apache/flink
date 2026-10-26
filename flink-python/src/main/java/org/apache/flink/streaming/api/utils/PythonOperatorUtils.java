@@ -31,8 +31,18 @@ public class PythonOperatorUtils {
     /** Set the current key for streaming operator. */
     public static <K> void setCurrentKeyForStreaming(
             KeyedStateBackend<K> stateBackend, K currentKey) {
+        setCurrentKeyForStreaming(stateBackend, currentKey, false);
+    }
+
+    /** Selects a state-request key without treating a read-only query as another input record. */
+    public static <K> void setCurrentKeyForStreaming(
+            KeyedStateBackend<K> stateBackend, K currentKey, boolean forStateAccess) {
         if (!inBatchExecutionMode(stateBackend)) {
-            stateBackend.setCurrentKey(currentKey);
+            if (forStateAccess) {
+                stateBackend.setCurrentKeyForStateAccess(currentKey);
+            } else {
+                stateBackend.setCurrentKey(currentKey);
+            }
         }
     }
 
