@@ -39,22 +39,25 @@ The [predefined data sinks]({{< ref "docs/dev/datastream/overview" >}}#data-sink
 Connectors provide code for interfacing with various third-party systems. 
 Currently these systems are supported as part of the Apache Flink project:
 
- * [Apache Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
- * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (source/sink)
- * [Amazon DynamoDB]({{< ref "docs/connectors/datastream/dynamodb" >}}) (sink)
- * [Amazon Kinesis Data Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
- * [Amazon Kinesis Data Firehose]({{< ref "docs/connectors/datastream/firehose" >}}) (sink)
+ * [Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (source/sink)
  * [DataGen]({{< ref "docs/connectors/datastream/datagen" >}}) (source)
+ * [Dynamic Kafka]({{< ref "docs/connectors/datastream/dynamic-kafka" >}}) (source)
+ * [DynamoDB]({{< ref "docs/connectors/datastream/dynamodb" >}}) (sink)
  * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
- * [Opensearch]({{< ref "docs/connectors/datastream/opensearch" >}}) (sink)
  * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (source/sink)
- * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
- * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
+ * [Firehose]({{< ref "docs/connectors/datastream/firehose" >}}) (sink)
+ * [Google Cloud PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
+ * [HTTP]({{< ref "docs/connectors/datastream/http" >}}) (sink)
  * [Hybrid Source]({{< ref "docs/connectors/datastream/hybridsource" >}}) (source)
- * [Apache Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source)
- * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (sink)
+ * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (source/sink)
+ * [Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
+ * [Kinesis]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
  * [MongoDB]({{< ref "docs/connectors/datastream/mongodb" >}}) (source/sink)
+ * [Opensearch]({{< ref "docs/connectors/datastream/opensearch" >}}) (sink)
  * [Prometheus]({{< ref "docs/connectors/datastream/prometheus" >}}) (sink)
+ * [Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source/sink)
+ * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
+ * [SQS]({{< ref "docs/connectors/datastream/sqs" >}}) (sink)
 
 Keep in mind that to use one of these connectors in an application, additional third party
 components are usually required, e.g. servers for the data stores or message queues.
