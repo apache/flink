@@ -493,6 +493,56 @@ class FastArrowCodersTests(ArrowCodersTests):
     implementation = coder_impl_fast
 
 
+class LocalZonedTimestampCodersTests(unittest.TestCase):
+    from pyflink.fn_execution import coder_impl_slow as implementation
+
+    def test_decode_preserves_instants(self):
+        import datetime
+        import struct
+
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            for precision in [3, 6]:
+                for millis in [1704067200123, 1710052200123, 1710055800123,
+                               1730611800123, 1730615400123]:
+                    with self.subTest(zone=zone, precision=precision, millis=millis):
+                        nanos = 456000 if precision == 6 else 0
+                        data = struct.pack('>q', millis)
+                        if precision == 6:
+                            data += struct.pack('>i', nanos)
+                        coder = self.implementation.LocalZonedTimestampCoderImpl(
+                            precision, pytz.timezone(zone))
+                        result = coder.decode(data)
+                        expected = datetime.datetime(1970, 1, 1, tzinfo=pytz.UTC) + \
+                            datetime.timedelta(milliseconds=millis, microseconds=nanos // 1000)
+                        self.assertEqual(expected, result)
+                        self.assertEqual(zone, str(result.tzinfo))
+
+    def test_encode_preserves_epoch_values(self):
+        import datetime
+        import struct
+
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            for precision in [3, 6]:
+                for millis in [1704067200123, 1730611800123, 1730615400123]:
+                    nanos = 456000 if precision == 6 else 0
+                    instant = datetime.datetime(1970, 1, 1, tzinfo=pytz.UTC) + \
+                        datetime.timedelta(milliseconds=millis, microseconds=nanos // 1000)
+                    expected = struct.pack('>q', millis)
+                    if precision == 6:
+                        expected += struct.pack('>i', nanos)
+                    coder = self.implementation.LocalZonedTimestampCoderImpl(
+                        precision, pytz.timezone(zone))
+                    for value in [instant.astimezone(pytz.timezone('America/New_York')),
+                                  instant.replace(tzinfo=None)]:
+                        with self.subTest(zone=zone, precision=precision, value=value):
+                            self.assertEqual(expected, coder.encode(value))
+
+
+@unittest.skipIf(coder_impl_fast is None, "Compiled coders are not installed")
+class FastLocalZonedTimestampCodersTests(LocalZonedTimestampCodersTests):
+    implementation = coder_impl_fast
+
+
 class CodersTest(PyFlinkTestCase):
 
     def check_coder(self, coder, *values):

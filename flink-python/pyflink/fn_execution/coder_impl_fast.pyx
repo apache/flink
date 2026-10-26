@@ -734,7 +734,13 @@ cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
         self._timezone = timezone
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
-        return self._timezone.localize(self._decode_timestamp_data_from_stream(in_stream))
+        return self._decode_timestamp_data_from_stream(in_stream) \
+            .replace(tzinfo=datetime.timezone.utc).astimezone(self._timezone)
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        if value.tzinfo is not None:
+            value = value.astimezone(datetime.timezone.utc)
+        TimestampCoderImpl.encode_to_stream(self, value, out_stream)
 
 cdef class InstantCoderImpl(FieldCoderImpl):
     """

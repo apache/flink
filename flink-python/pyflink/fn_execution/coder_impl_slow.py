@@ -607,9 +607,15 @@ class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
         self.timezone = timezone
 
     def internal_to_timestamp(self, milliseconds, nanoseconds):
-        return self.timezone.localize(
-            super(LocalZonedTimestampCoderImpl, self).internal_to_timestamp(
-                milliseconds, nanoseconds))
+        return super(LocalZonedTimestampCoderImpl, self).internal_to_timestamp(
+            milliseconds, nanoseconds).replace(tzinfo=datetime.timezone.utc) \
+            .astimezone(self.timezone)
+
+    @staticmethod
+    def timestamp_to_internal(timestamp):
+        if timestamp.tzinfo is not None:
+            timestamp = timestamp.astimezone(datetime.timezone.utc)
+        return TimestampCoderImpl.timestamp_to_internal(timestamp)
 
 
 class InstantCoderImpl(FieldCoderImpl):
