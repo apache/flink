@@ -988,12 +988,18 @@ public class PythonTypeUtils {
         private static final long serialVersionUID = 1L;
 
         private final DataConverter[] fieldDataConverters;
+        private final boolean reuse;
         private final Row reuseRow;
         private final Object[] reuseExternalRow;
         private final Object[] reuseExternalRowData;
 
         RowDataConverter(DataConverter[] dataConverters) {
+            this(dataConverters, true);
+        }
+
+        RowDataConverter(DataConverter[] dataConverters, boolean reuse) {
             this.fieldDataConverters = dataConverters;
+            this.reuse = reuse;
             this.reuseRow = new Row(fieldDataConverters.length);
             this.reuseExternalRowData = new Object[fieldDataConverters.length];
             this.reuseExternalRow = new Object[2];
@@ -1007,13 +1013,14 @@ public class PythonTypeUtils {
                 return null;
             }
 
+            Row row = reuse ? reuseRow : new Row(fieldDataConverters.length);
             RowKind rowKind = RowKind.fromByteValue(((Long) value[0]).byteValue());
-            reuseRow.setKind(rowKind);
+            row.setKind(rowKind);
             Object[] fieldValues = (Object[]) value[1];
             for (int i = 0; i < fieldValues.length; i++) {
-                reuseRow.setField(i, fieldDataConverters[i].toInternal(fieldValues[i]));
+                row.setField(i, fieldDataConverters[i].toInternal(fieldValues[i]));
             }
-            return reuseRow;
+            return row;
         }
 
         @SuppressWarnings("unchecked")
@@ -1023,11 +1030,15 @@ public class PythonTypeUtils {
                 return null;
             }
 
-            reuseExternalRow[0] = (long) value.getKind().toByteValue();
+            Object[] externalRow = reuse ? reuseExternalRow : new Object[2];
+            Object[] externalRowData =
+                    reuse ? reuseExternalRowData : new Object[fieldDataConverters.length];
+            externalRow[0] = (long) value.getKind().toByteValue();
+            externalRow[1] = externalRowData;
             for (int i = 0; i < value.getArity(); i++) {
-                reuseExternalRowData[i] = fieldDataConverters[i].toExternal(value.getField(i));
+                externalRowData[i] = fieldDataConverters[i].toExternal(value.getField(i));
             }
-            return reuseExternalRow;
+            return externalRow;
         }
 
         @Override
@@ -1041,7 +1052,8 @@ public class PythonTypeUtils {
             }
 
             final RowDataConverter other = (RowDataConverter) o;
-            if (other.fieldDataConverters.length != this.fieldDataConverters.length) {
+            if (other.reuse != this.reuse
+                    || other.fieldDataConverters.length != this.fieldDataConverters.length) {
                 return false;
             }
 
@@ -1101,11 +1113,17 @@ public class PythonTypeUtils {
     public static final class TupleDataConverter extends DataConverter<Tuple, Object[]> {
 
         private final DataConverter[] fieldDataConverters;
+        private final boolean reuse;
         private final Tuple reuseTuple;
         private final Object[] reuseExternalTuple;
 
         TupleDataConverter(DataConverter[] dataConverters) {
+            this(dataConverters, true);
+        }
+
+        TupleDataConverter(DataConverter[] dataConverters, boolean reuse) {
             this.fieldDataConverters = dataConverters;
+            this.reuse = reuse;
             this.reuseTuple = Tuple.newInstance(dataConverters.length);
             this.reuseExternalTuple = new Object[dataConverters.length];
         }
@@ -1117,10 +1135,11 @@ public class PythonTypeUtils {
                 return null;
             }
 
+            Tuple tuple = reuse ? reuseTuple : Tuple.newInstance(fieldDataConverters.length);
             for (int i = 0; i < value.length; i++) {
-                reuseTuple.setField(fieldDataConverters[i].toInternal(value[i]), i);
+                tuple.setField(fieldDataConverters[i].toInternal(value[i]), i);
             }
-            return reuseTuple;
+            return tuple;
         }
 
         @SuppressWarnings("unchecked")
@@ -1130,10 +1149,12 @@ public class PythonTypeUtils {
                 return null;
             }
 
+            Object[] externalTuple =
+                    reuse ? reuseExternalTuple : new Object[fieldDataConverters.length];
             for (int i = 0; i < value.getArity(); i++) {
-                reuseExternalTuple[i] = fieldDataConverters[i].toExternal(value.getField(i));
+                externalTuple[i] = fieldDataConverters[i].toExternal(value.getField(i));
             }
-            return reuseExternalTuple;
+            return externalTuple;
         }
 
         @Override
@@ -1147,7 +1168,8 @@ public class PythonTypeUtils {
             }
 
             final TupleDataConverter other = (TupleDataConverter) o;
-            if (other.fieldDataConverters.length != this.fieldDataConverters.length) {
+            if (other.reuse != this.reuse
+                    || other.fieldDataConverters.length != this.fieldDataConverters.length) {
                 return false;
             }
 
@@ -1358,9 +1380,19 @@ public class PythonTypeUtils {
                     BasicTypeInfo.BYTE_TYPE_INFO.getTypeClass(), ByteDataConverter.INSTANCE);
         }
 
-        @SuppressWarnings("unchecked")
         public static <IN, OUT> DataConverter<IN, OUT> typeInfoDataConverter(
                 TypeInformation<IN> typeInformation) {
+            return typeInfoDataConverter(typeInformation, true);
+        }
+
+        /**
+         * Row and Tuple converters reuse one object per converter only when {@code reuse} is true.
+         * Converters below an array, a list or a map don't reuse, since the container keeps every
+         * converted element.
+         */
+        @SuppressWarnings("unchecked")
+        private static <IN, OUT> DataConverter<IN, OUT> typeInfoDataConverter(
+                TypeInformation<IN> typeInformation, boolean reuse) {
             DataConverter<IN, OUT> dataConverter =
                     typeInfoToDataConverterMap.get(typeInformation.getTypeClass());
 
@@ -1374,27 +1406,29 @@ public class PythonTypeUtils {
                 if (typeInformation instanceof RowTypeInfo) {
                     DataConverter[] fieldDataConverters =
                             Arrays.stream(((RowTypeInfo) typeInformation).getFieldTypes())
-                                    .map(TypeInfoToDataConverter::typeInfoDataConverter)
+                                    .map(fieldType -> typeInfoDataConverter(fieldType, reuse))
                                     .toArray(DataConverter[]::new);
-                    return (DataConverter<IN, OUT>) new RowDataConverter(fieldDataConverters);
+                    return (DataConverter<IN, OUT>)
+                            new RowDataConverter(fieldDataConverters, reuse);
                 }
 
                 if (typeInformation instanceof TupleTypeInfo) {
                     Object[] fieldDataConverters =
                             Arrays.stream(((TupleTypeInfo) typeInformation).getFieldTypes())
-                                    .map(TypeInfoToDataConverter::typeInfoDataConverter)
+                                    .map(fieldType -> typeInfoDataConverter(fieldType, reuse))
                                     .toArray(DataConverter[]::new);
                     return (DataConverter<IN, OUT>)
-                            new TupleDataConverter((DataConverter[]) fieldDataConverters);
+                            new TupleDataConverter((DataConverter[]) fieldDataConverters, reuse);
                 }
 
                 if (typeInformation instanceof BasicArrayTypeInfo) {
                     return (DataConverter<IN, OUT>)
                             new ArrayDataConverter(
                                     ((BasicArrayTypeInfo) typeInformation).getComponentTypeClass(),
-                                    TypeInfoToDataConverter.typeInfoDataConverter(
+                                    typeInfoDataConverter(
                                             ((BasicArrayTypeInfo) typeInformation)
-                                                    .getComponentInfo()));
+                                                    .getComponentInfo(),
+                                            false));
                 }
 
                 if (typeInformation instanceof ObjectArrayTypeInfo) {
@@ -1403,25 +1437,29 @@ public class PythonTypeUtils {
                                     ((ObjectArrayTypeInfo) typeInformation)
                                             .getComponentInfo()
                                             .getTypeClass(),
-                                    TypeInfoToDataConverter.typeInfoDataConverter(
+                                    typeInfoDataConverter(
                                             ((ObjectArrayTypeInfo) typeInformation)
-                                                    .getComponentInfo()));
+                                                    .getComponentInfo(),
+                                            false));
                 }
 
                 if (typeInformation instanceof ListTypeInfo) {
                     return (DataConverter<IN, OUT>)
                             new ListDataConverter(
-                                    TypeInfoToDataConverter.typeInfoDataConverter(
-                                            ((ListTypeInfo) typeInformation).getElementTypeInfo()));
+                                    typeInfoDataConverter(
+                                            ((ListTypeInfo) typeInformation).getElementTypeInfo(),
+                                            false));
                 }
 
                 if (typeInformation instanceof MapTypeInfo) {
                     return (DataConverter<IN, OUT>)
                             new MapDataConverter(
-                                    TypeInfoToDataConverter.typeInfoDataConverter(
-                                            ((MapTypeInfo) typeInformation).getKeyTypeInfo()),
-                                    TypeInfoToDataConverter.typeInfoDataConverter(
-                                            ((MapTypeInfo) typeInformation).getValueTypeInfo()));
+                                    typeInfoDataConverter(
+                                            ((MapTypeInfo) typeInformation).getKeyTypeInfo(),
+                                            false),
+                                    typeInfoDataConverter(
+                                            ((MapTypeInfo) typeInformation).getValueTypeInfo(),
+                                            false));
                 }
 
                 if (typeInformation instanceof InternalTypeInfo) {
@@ -1433,9 +1471,10 @@ public class PythonTypeUtils {
 
                 if (typeInformation instanceof ExternalTypeInfo) {
                     return (DataConverter<IN, OUT>)
-                            TypeInfoToDataConverter.typeInfoDataConverter(
+                            typeInfoDataConverter(
                                     LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
-                                            ((ExternalTypeInfo<?>) typeInformation).getDataType()));
+                                            ((ExternalTypeInfo<?>) typeInformation).getDataType()),
+                                    reuse);
                 }
             }
 
