@@ -219,7 +219,7 @@ class BinaryVariantInternalBuilderTest {
         final ArrayList<BinaryVariantInternalBuilder.FieldEntry> fields =
                 new ArrayList<>(
                         Collections.singletonList(
-                                new BinaryVariantInternalBuilder.FieldEntry("a", id, 0)));
+                                new BinaryVariantInternalBuilder.FieldEntry(id, 0)));
         assertThatThrownBy(() -> objectBuilder.finishWritingObject(0, fields))
                 .isSameAs(BinaryVariantInternalBuilder.VARIANT_SIZE_LIMIT_EXCEPTION);
     }
