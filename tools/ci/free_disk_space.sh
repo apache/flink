@@ -58,7 +58,8 @@ echo "Removing large packages"
   remove_pkgs temurin-8-jdk
   sudo apt-get remove -y '^libllvm.*' '^libclang1.*' || true
   remove_pkgs snapd python3-botocore podman buildah skopeo mecab-ipadic gh git-lfs
-  remove_pkgs azure-cli google-cloud-sdk google-chrome-stable google-cloud-cli firefox microsoft-edge-stable powershell mono-devel libgl1-mesa-dri  sudo apt-get autoremove -y || true
+  remove_pkgs azure-cli google-cloud-sdk google-chrome-stable google-cloud-cli firefox microsoft-edge-stable powershell mono-devel libgl1-mesa-dri
+  sudo apt-get autoremove -y || true
   sudo apt-get clean || true
 ) > "${LOG_DIR}/apt.log" 2>&1 &
 
