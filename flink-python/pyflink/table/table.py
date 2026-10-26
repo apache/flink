@@ -955,8 +955,12 @@ class Table(object):
         timezone = None
         if any(isinstance(field_type, LocalZonedTimestampType) for field_type in field_types):
             import pytz
-            timezone = pytz.timezone(
-                self._j_table.getTableEnvironment().getConfig().getLocalTimeZone().getId())
+            j_timezone = self._j_table.getTableEnvironment().getConfig().getLocalTimeZone()
+            timezone_id = j_timezone.getId()
+            if timezone_id.startswith(('GMT+', 'GMT-')):
+                timezone = pytz.FixedOffset(j_timezone.normalized().getTotalSeconds() // 60)
+            else:
+                timezone = pytz.timezone(timezone_id)
         if batches_iterator.hasNext():
             serializer = ArrowSerializer(arrow_schema, schema.to_row_data_type(), timezone)
             import pyarrow as pa

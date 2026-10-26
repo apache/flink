@@ -190,7 +190,7 @@ class PandasConversionITTests(PandasConversionTestBase):
     def test_empty_to_pandas_with_timestamps(self):
         original_timezone = self.t_env.get_config().get_local_timezone()
         self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
-        for timezone in ['UTC', 'Asia/Shanghai']:
+        for timezone in ['UTC', 'Asia/Shanghai', 'Etc/GMT-8']:
             with self.subTest(timezone=timezone):
                 self.t_env.get_config().set_local_timezone(timezone)
                 table = self.t_env.sql_query("""
@@ -209,6 +209,27 @@ class PandasConversionITTests(PandasConversionTestBase):
                 result = table.filter(table.a < 0).to_pandas()
                 assert_frame_equal(result, expected)
                 self.assertEqual(timezone, str(result['ltz'].dt.tz))
+
+    def test_to_pandas_with_fixed_offset_timezones(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone, named_timezone, offset_seconds in [
+                ('GMT+08:00', 'Asia/Shanghai', 28800),
+                ('GMT+05:30', 'Asia/Kolkata', 19800),
+                ('GMT-03:30', 'America/St_Johns', -12600)]:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(named_timezone)
+                table = self.t_env.sql_query("""
+                    SELECT 1 AS a, TO_TIMESTAMP_LTZ(1704067200123, 3) AS ltz
+                """)
+                expected_timestamp = table.to_pandas()['ltz'].iloc[0]
+                self.t_env.get_config().set_local_timezone(timezone)
+                result = table.to_pandas()
+                timestamp = result['ltz'].iloc[0]
+                self.assertEqual(expected_timestamp, timestamp)
+                self.assertEqual(datetime.timedelta(seconds=offset_seconds), timestamp.utcoffset())
+                empty_result = table.filter(table.a < 0).to_pandas()
+                assert_frame_equal(empty_result, result.iloc[:0])
 
     def test_to_pandas_for_retract_table(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
