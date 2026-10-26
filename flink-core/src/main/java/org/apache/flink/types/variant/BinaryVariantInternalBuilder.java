@@ -633,58 +633,9 @@ public class BinaryVariantInternalBuilder {
             return;
         }
         final Deque<AppendFrame> stack = new ArrayDeque<>();
-        int next = pos;
-        while (true) {
-            if (next >= 0) {
-                checkIndex(next, value.length);
-                int basicType = value[next] & BASIC_TYPE_MASK;
-                switch (basicType) {
-                    case OBJECT:
-                        stack.push(
-                                handleObject(
-                                        value,
-                                        next,
-                                        (size,
-                                                idSize,
-                                                offsetSize,
-                                                idStart,
-                                                offsetStart,
-                                                dataStart) ->
-                                                new AppendFrame(
-                                                        size,
-                                                        idSize,
-                                                        idStart,
-                                                        offsetSize,
-                                                        offsetStart,
-                                                        dataStart,
-                                                        writePos,
-                                                        true)));
-                        break;
-                    case ARRAY:
-                        stack.push(
-                                handleArray(
-                                        value,
-                                        next,
-                                        (size, offsetSize, offsetStart, dataStart) ->
-                                                new AppendFrame(
-                                                        size,
-                                                        0,
-                                                        0,
-                                                        offsetSize,
-                                                        offsetStart,
-                                                        dataStart,
-                                                        writePos,
-                                                        false)));
-                        break;
-                    default:
-                        shallowAppendVariantImpl(value, next);
-                        break;
-                }
-            }
+        appendOrPush(value, pos, stack);
+        while (!stack.isEmpty()) {
             final AppendFrame frame = stack.peek();
-            if (frame == null) {
-                return;
-            }
             if (frame.index == frame.size) {
                 stack.pop();
                 if (frame.fields != null) {
@@ -692,7 +643,6 @@ public class BinaryVariantInternalBuilder {
                 } else {
                     finishWritingArray(frame.start, frame.offsets);
                 }
-                next = -1;
                 continue;
             }
             int i = frame.index++;
@@ -704,7 +654,51 @@ public class BinaryVariantInternalBuilder {
             } else {
                 frame.offsets.add(writePos - frame.start);
             }
-            next = frame.dataStart + offset;
+            int elementPos = frame.dataStart + offset;
+            checkIndex(elementPos, value.length);
+            appendOrPush(value, elementPos, stack);
+        }
+    }
+
+    // Copies a scalar right away; for an object or array, pushes a frame whose children are
+    // copied by the loop above.
+    private void appendOrPush(byte[] value, int pos, Deque<AppendFrame> stack) {
+        switch (value[pos] & BASIC_TYPE_MASK) {
+            case OBJECT:
+                stack.push(
+                        handleObject(
+                                value,
+                                pos,
+                                (size, idSize, offsetSize, idStart, offsetStart, dataStart) ->
+                                        new AppendFrame(
+                                                size,
+                                                idSize,
+                                                idStart,
+                                                offsetSize,
+                                                offsetStart,
+                                                dataStart,
+                                                writePos,
+                                                true)));
+                break;
+            case ARRAY:
+                stack.push(
+                        handleArray(
+                                value,
+                                pos,
+                                (size, offsetSize, offsetStart, dataStart) ->
+                                        new AppendFrame(
+                                                size,
+                                                0,
+                                                0,
+                                                offsetSize,
+                                                offsetStart,
+                                                dataStart,
+                                                writePos,
+                                                false)));
+                break;
+            default:
+                shallowAppendVariantImpl(value, pos);
+                break;
         }
     }
 
