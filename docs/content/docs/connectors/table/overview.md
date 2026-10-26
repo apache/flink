@@ -121,6 +121,16 @@ Flink natively support various connectors. The following tables list all availab
 
 Please refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section on how to add connectors as a dependency. 
 
+Flink CDC
+------------
+
+[Flink CDC](https://nightlies.apache.org/flink/flink-cdc-docs-stable/) is an Apache Flink sub-project with its own releases. Its source connectors read
+changes directly from databases such as MySQL, PostgreSQL, Oracle, SQL Server, MongoDB and Db2, and
+it can run complete data integration pipelines defined in YAML. See the
+[Flink CDC sources](https://nightlies.apache.org/flink/flink-cdc-docs-stable/docs/connectors/flink-sources/overview/) for the supported databases and Flink versions.
+
+{{< top >}}
+
 Fault Tolerance Guarantees
 ------------
 

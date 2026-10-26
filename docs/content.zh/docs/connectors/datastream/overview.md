@@ -66,6 +66,12 @@ Currently these systems are supported as part of the Apache Flink project:
 如果需要在本地环境测试运行，请确保 flink-connector-base 依赖被正确的提供，而且能在 classpath 下找到。
 {{< /hint >}}
 
+## Flink CDC
+
+[Flink CDC](https://nightlies.apache.org/flink/flink-cdc-docs-stable/) is an Apache Flink sub-project with its own releases. Its source connectors read
+changes directly from databases such as MySQL, PostgreSQL, Oracle, SQL Server, MongoDB and Db2. See
+the [Flink CDC sources](https://nightlies.apache.org/flink/flink-cdc-docs-stable/docs/connectors/flink-sources/overview/) for the supported databases and Flink versions.
+
 ## Fault Tolerance Guarantees
 
 Flink recovers from failures by restarting from the last [checkpoint]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}). Checkpointing is
