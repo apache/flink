@@ -585,7 +585,7 @@ class TimestampCoderImpl(FieldCoderImpl):
 
     @staticmethod
     def timestamp_to_internal(timestamp):
-        seconds = int(timestamp.replace(tzinfo=datetime.timezone.utc).timestamp())
+        seconds = int(timestamp.replace(microsecond=0, tzinfo=datetime.timezone.utc).timestamp())
         microseconds_of_second = timestamp.microsecond
         milliseconds = seconds * 1000 + microseconds_of_second // 1000
         nanoseconds = microseconds_of_second % 1000 * 1000
