@@ -89,15 +89,10 @@ guarantee take a {{< javadoc file="org/apache/flink/connector/base/DeliveryGuara
 [Kafka sink]({{< ref "docs/connectors/datastream/kafka" >}}). Each connector's page documents the
 guarantees it provides.
 
-## Connectors in Apache Bahir
+## Integrations Maintained by Other Projects
 
-Additional streaming connectors for Flink are being released through [Apache Bahir](https://bahir.apache.org/), including:
-
- * [Apache ActiveMQ](https://bahir.apache.org/docs/flink/current/flink-streaming-activemq/) (source/sink)
- * [Apache Flume](https://bahir.apache.org/docs/flink/current/flink-streaming-flume/) (sink)
- * [Redis](https://bahir.apache.org/docs/flink/current/flink-streaming-redis/) (sink)
- * [Akka](https://bahir.apache.org/docs/flink/current/flink-streaming-akka/) (sink)
- * [Netty](https://bahir.apache.org/docs/flink/current/flink-streaming-netty/) (source)
+Some projects maintain their own Flink integration, such as Apache Iceberg and Apache Paimon. See
+[Integrations Maintained by Other Projects]({{< ref "docs/connectors/other-projects/overview" >}}).
 
 ## Other Ways to Connect to Flink
 

@@ -117,6 +117,15 @@ Flink natively support various connectors. The following tables list all availab
     </tbody>
 </table>
 
+The following integrations are maintained by other projects, not by the Apache Flink community. See
+[Integrations Maintained by Other Projects]({{< ref "docs/connectors/other-projects/overview" >}}).
+
+ * [Apache Doris]({{< ref "docs/connectors/other-projects/doris" >}})
+ * [Apache Fluss]({{< ref "docs/connectors/other-projects/fluss" >}})
+ * [Apache Hudi]({{< ref "docs/connectors/other-projects/hudi" >}})
+ * [Apache Iceberg]({{< ref "docs/connectors/other-projects/iceberg" >}})
+ * [Apache Paimon]({{< ref "docs/connectors/other-projects/paimon" >}})
+
 {{< top >}}
 
 请查阅[配置]({{< ref "docs/dev/configuration/connector" >}})小节了解如何添加连接器依赖。
