@@ -44,6 +44,15 @@ public interface KeyedStateBackend<K>
     void setCurrentKey(K newKey);
 
     /**
+     * Restores the key context for a state request rather than selecting a key for another input
+     * record. Backends with record-triggered maintenance should override this method to avoid
+     * running that maintenance for the request.
+     */
+    default void setCurrentKeyForStateAccess(K newKey) {
+        setCurrentKey(newKey);
+    }
+
+    /**
      * @return Current key.
      */
     K getCurrentKey();

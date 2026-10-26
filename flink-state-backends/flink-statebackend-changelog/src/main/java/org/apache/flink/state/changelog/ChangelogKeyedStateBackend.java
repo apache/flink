@@ -295,6 +295,11 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     @Override
+    public void setCurrentKeyForStateAccess(K newKey) {
+        keyedStateBackend.setCurrentKeyForStateAccess(newKey);
+    }
+
+    @Override
     public K getCurrentKey() {
         return keyedStateBackend.getCurrentKey();
     }
