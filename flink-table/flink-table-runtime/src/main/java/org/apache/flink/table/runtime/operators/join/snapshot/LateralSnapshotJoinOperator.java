@@ -49,6 +49,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
@@ -86,7 +87,8 @@ import java.util.concurrent.ScheduledFuture;
  *       once the build watermark reaches it; changes sharing a row-time are applied in arrival
  *       order, which mirrors the upstream emit order (a retraction directly precedes its
  *       accumulation). Gating application on the row-time preserves atomic update visibility across
- *       {@code -U}/{@code +U} pairs in JOIN phase.
+ *       {@code -U}/{@code +U} pairs in JOIN phase. Accumulations whose join key can never match are
+ *       not stored.
  *   <li>Probe-side (input1 / left) records are handled differently per phase. During LOAD each is
  *       buffered in {@code probeBuffer} under a synthetic, increasing timestamp with one event-time
  *       timer registered per record. At the flip these timers fire (one record each, interruptibly)
@@ -577,10 +579,15 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
     @Override
     public void processElement2(StreamRecord<RowData> element) throws Exception {
         armIdleFlipTimerIfNotArmed();
+        RowData build = element.getValue();
+        if (RowDataUtil.isAccumulateMsg(build) && joinCondition.currentKeyCannotMatch()) {
+            // A build row that can never match is not stored. Its retraction is still applied, to
+            // remove the row if an earlier version stored it.
+            return;
+        }
         // Apply any buffered build-side changes if the build-side watermark has advanced.
         Long bufferedAt = applyBufferedChangesUpToCurrentWm();
         // Buffer the change under its build row-time (grouping changes that share a row-time).
-        RowData build = element.getValue();
         long rowtime = build.getLong(buildRowtimeIndex);
         List<RowData> atRowtime = buildChangeBuffer.get(rowtime);
         if (atRowtime == null) {
@@ -947,7 +954,11 @@ public class LateralSnapshotJoinOperator extends AbstractStreamOperator<RowData>
                 buildTableState.put(change, currentCnt == null ? 1L : currentCnt + 1L);
             } else {
                 if (currentCnt == null || currentCnt <= 0L) {
-                    numUnmatchedBuildRetractions.inc();
+                    // Rows that can never match are not stored, so their retractions are expected
+                    // to find nothing.
+                    if (!joinCondition.currentKeyCannotMatch()) {
+                        numUnmatchedBuildRetractions.inc();
+                    }
                     continue;
                 }
                 if (currentCnt == 1L) {

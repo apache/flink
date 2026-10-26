@@ -454,7 +454,7 @@ The operator exposes metrics that help you understand which phase the join is in
 | `maxJoinFanOut` | Gauge | The largest number of joined rows emitted for a single probe-side row. |
 | `avgJoinFanOut` | Gauge | The average number of joined rows emitted per probe-side row. |
 | `numUnmatchedProbeRecords` | Counter | The number of probe-side rows that found no build-side match. For an `INNER JOIN` these produce no output; for a `LEFT JOIN` they are emitted null-padded. |
-| `numUnmatchedBuildRetractions` | Counter | The number of build-side retractions (`-U`/`-D`) for a row that was not present in state. |
+| `numUnmatchedBuildRetractions` | Counter | The number of build-side retractions (`-U`/`-D`) for a row that was not present in state. Retractions of rows with a `NULL` in a join key compared with `=` are not counted, since such rows are never stored. |
 
 To diagnose a join that emits no output, check `currentPhase` first. If it is `0` while `numProbeSideRecordsBuffered` keeps growing, the join is stuck in the load phase. 
 Compare `currentBuildSideWatermark` against your `load_completed_time`: if the build-side watermark has stopped advancing below it, the build side has become static or idle and the event-time gate will never be crossed. 
