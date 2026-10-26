@@ -227,7 +227,7 @@ object FlinkStreamRuleSets {
     // removes constant keys from an Agg
     CoreRules.AGGREGATE_PROJECT_PULL_UP_CONSTANTS,
     // push project through a Union
-    CoreRules.PROJECT_SET_OP_TRANSPOSE,
+    FlinkProjectSetOpTransposeRule.INSTANCE,
     // push a projection to the child of a WindowTableFunctionScan
     ProjectWindowTableFunctionTransposeRule.INSTANCE
   )

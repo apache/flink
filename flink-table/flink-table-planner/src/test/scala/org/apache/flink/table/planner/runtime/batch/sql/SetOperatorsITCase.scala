@@ -133,6 +133,22 @@ class SetOperatorsITCase extends BatchTestBase {
         row("Hello world"))
     )
   }
+
+  @TestTemplate
+  def testMinusAllWithOuterProject(): Unit = {
+    BatchTableEnvUtil.registerCollection(tEnv, "T1", Seq((1, 10), (3, 20)), "x, y")
+    BatchTableEnvUtil.registerCollection(tEnv, "T2", Seq((2, 10), (4, 20)), "x, y")
+    checkResult(
+      "SELECT y FROM (SELECT x, y FROM T1 EXCEPT ALL SELECT x, y FROM T2)",
+      Seq(row(10), row(20)))
+  }
+
+  @TestTemplate
+  def testIntersectAllWithOuterProject(): Unit = {
+    BatchTableEnvUtil.registerCollection(tEnv, "T1", Seq((1, 10), (3, 20)), "x, y")
+    BatchTableEnvUtil.registerCollection(tEnv, "T2", Seq((2, 10), (4, 20)), "x, y")
+    checkResult("SELECT y FROM (SELECT x, y FROM T1 INTERSECT ALL SELECT x, y FROM T2)", Seq())
+  }
 }
 
 object SetOperatorsITCase {
