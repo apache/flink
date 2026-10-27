@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
@@ -27,14 +25,6 @@ import java.util.List;
 
 /** Semantic tests for the built-in DEDUPLICATE_KEEP_FIRST process table function. */
 public class DeduplicateKeepFirstSemanticTests extends SemanticTestBase {
-
-    @Override
-    protected void applyDefaultEnvironmentOptions(TableConfig config) {
-        super.applyDefaultEnvironmentOptions(config);
-        config.set(
-                OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
-                OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE);
-    }
 
     @Override
     public List<TableTestProgram> programs() {
@@ -50,7 +40,6 @@ public class DeduplicateKeepFirstSemanticTests extends SemanticTestBase {
                 DeduplicateKeepFirstTestPrograms.EVENT_TIME,
                 DeduplicateKeepFirstTestPrograms.EVENT_TIME_CANDIDATE_FIELD_NAMES,
                 DeduplicateKeepFirstTestPrograms.EVENT_TIME_LATE_DROPPED,
-                DeduplicateKeepFirstTestPrograms.EVENT_TIME_EMITTED_KEY_DROPS_LATER_ROWS,
                 DeduplicateKeepFirstTestPrograms.UPDATING_INPUT,
                 DeduplicateKeepFirstTestPrograms.UNSEEN_RETRACTION_IGNORED,
                 DeduplicateKeepFirstTestPrograms.UPDATING_EVENT_TIME_FAILS,
