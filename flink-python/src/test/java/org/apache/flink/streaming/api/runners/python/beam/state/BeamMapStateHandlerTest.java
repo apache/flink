@@ -41,7 +41,7 @@ import org.apache.flink.streaming.api.utils.ByteArrayWrapperSerializer;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
