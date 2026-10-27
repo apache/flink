@@ -248,6 +248,48 @@ class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         testHarness.close();
     }
 
+    @Test
+    void testDoesNotCacheRowsThatCanNeverMatch() throws Exception {
+        // Only rows of an outer input are cached, to pad them with nulls when their window closes
+        assertNullKeyRows(FlinkJoinType.INNER, 0);
+        assertNullKeyRows(FlinkJoinType.LEFT, 2, insertRecord(null, "a", null, null));
+        assertNullKeyRows(FlinkJoinType.RIGHT, 2, insertRecord(null, null, null, "b"));
+        assertNullKeyRows(
+                FlinkJoinType.FULL,
+                4,
+                insertRecord(null, "a", null, null),
+                insertRecord(null, null, null, "b"));
+    }
+
+    /**
+     * Processes a row with a null key on each input and checks the number of state entries and the
+     * output once the windows of the rows have closed.
+     */
+    private void assertNullKeyRows(
+            FlinkJoinType joinType, int expectedStateEntries, Object... expectedRows)
+            throws Exception {
+        ProcTimeIntervalJoin joinProcessFunc =
+                new ProcTimeIntervalJoin(
+                        joinType, -5, 9, 0, rowType, rowType, newJoinFunction(), -1L);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+        testHarness.open();
+
+        testHarness.setProcessingTime(1);
+        testHarness.processElement1(insertRecord(null, "a"));
+        testHarness.processElement2(insertRecord(null, "b"));
+        assertThat(testHarness.numKeyedStateEntries())
+                .as("state entries for %s", joinType)
+                .isEqualTo(expectedStateEntries);
+
+        testHarness.setProcessingTime(100);
+
+        assertor.assertOutputEqualsSorted(
+                "output wrong for " + joinType, List.of(expectedRows), testHarness.getOutput());
+        assertThat(testHarness.numKeyedStateEntries()).isZero();
+        testHarness.close();
+    }
+
     private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
             createTestHarness(ProcTimeIntervalJoin intervalJoinFunc) throws Exception {
         KeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator =
