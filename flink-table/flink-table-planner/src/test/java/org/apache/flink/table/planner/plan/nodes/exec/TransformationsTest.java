@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
@@ -45,6 +46,7 @@ import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.table.planner.factories.TableFactoryHarness.ScanSourceBase;
 import org.apache.flink.table.planner.lineage.TableSourceLineageVertex;
 import org.apache.flink.table.planner.utils.JsonTestUtils;
+import org.apache.flink.table.runtime.operators.values.ValuesSource;
 import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -90,8 +92,9 @@ class TransformationsTest {
                                 .schema(dummySchema())
                                 .build());
 
-        final LegacySourceTransformation<?> sourceTransform =
-                toLegacySourceTransformation(env, table);
+        final Transformation<?> leaf = toLeaf(env.toChangelogStream(table).getTransformation());
+        assertThat(leaf).isInstanceOf(LegacySourceTransformation.class);
+        final LegacySourceTransformation<?> sourceTransform = (LegacySourceTransformation<?>) leaf;
 
         assertBoundedness(Boundedness.BOUNDED, sourceTransform);
         assertThat(sourceTransform.getOperator().emitsProgressiveWatermarks()).isFalse();
@@ -120,8 +123,9 @@ class TransformationsTest {
                                 .schema(dummySchema())
                                 .build());
 
-        final LegacySourceTransformation<?> sourceTransform =
-                toLegacySourceTransformation(env, table);
+        final Transformation<?> leaf = toLeaf(env.toChangelogStream(table).getTransformation());
+        assertThat(leaf).isInstanceOf(LegacySourceTransformation.class);
+        final LegacySourceTransformation<?> sourceTransform = (LegacySourceTransformation<?>) leaf;
 
         assertBoundedness(Boundedness.CONTINUOUS_UNBOUNDED, sourceTransform);
         assertThat(sourceTransform.getOperator().emitsProgressiveWatermarks()).isTrue();
@@ -145,10 +149,58 @@ class TransformationsTest {
 
         final Table table = env.fromValues(1, 2, 3);
 
-        final LegacySourceTransformation<?> sourceTransform =
-                toLegacySourceTransformation(env, table);
+        final Transformation<?> leaf = toLeaf(env.toChangelogStream(table).getTransformation());
+        assertThat(leaf).isInstanceOf(LegacySourceTransformation.class);
+        assertBoundedness(Boundedness.BOUNDED, leaf);
+    }
 
-        assertBoundedness(Boundedness.BOUNDED, sourceTransform);
+    @Test
+    void testStreamValues() {
+        final StreamTableEnvironment env =
+                StreamTableEnvironment.create(
+                        StreamExecutionEnvironment.getExecutionEnvironment(),
+                        EnvironmentSettings.newInstance().inStreamingMode().build());
+
+        final Table table = env.fromValues(1, 2, 3);
+
+        final Transformation<?> leaf = toLeaf(env.toChangelogStream(table).getTransformation());
+        assertThat(leaf).isInstanceOf(SourceTransformation.class);
+        assertThat(((SourceTransformation<?, ?, ?>) leaf).getSource())
+                .isInstanceOf(ValuesSource.class);
+        assertBoundedness(Boundedness.CONTINUOUS_UNBOUNDED, leaf);
+    }
+
+    @Test
+    void testStreamValuesWithoutRows() {
+        final StreamTableEnvironment env =
+                StreamTableEnvironment.create(
+                        StreamExecutionEnvironment.getExecutionEnvironment(),
+                        EnvironmentSettings.newInstance().inStreamingMode().build());
+
+        final String query = "SELECT * FROM (VALUES (1)) AS v(id) WHERE id < 0";
+        // The planner reduces the query to a VALUES without rows.
+        assertThat(env.explainSql(query)).contains("Values(tuples=[[]])");
+
+        final Table table = env.sqlQuery(query);
+
+        final Transformation<?> leaf = toLeaf(env.toChangelogStream(table).getTransformation());
+        assertThat(leaf).isInstanceOf(SourceTransformation.class);
+        assertThat(((SourceTransformation<?, ?, ?>) leaf).getSource())
+                .isInstanceOf(ValuesSource.class);
+        assertBoundedness(Boundedness.CONTINUOUS_UNBOUNDED, leaf);
+    }
+
+    /** A plan with version 1 of the VALUES node keeps the legacy source and its job graph. */
+    @Test
+    void testLegacyStreamValuesFromFlink1_15Plan() {
+        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+        final Transformation<?> fromFlink115 =
+                CompiledPlanUtils.toTransformations(env, planFromFlink1_15Values(env)).get(0);
+        assertThat(toLeaf(fromFlink115)).isInstanceOf(LegacySourceTransformation.class);
+        final Transformation<?> fromCurrentFlink =
+                CompiledPlanUtils.toTransformations(env, planFromCurrentFlinkValues(env)).get(0);
+        assertThat(toLeaf(fromCurrentFlink)).isInstanceOf(SourceTransformation.class);
     }
 
     @Test
@@ -190,7 +242,7 @@ class TransformationsTest {
                 env -> planFromCurrentFlinkValues(env).asJsonString(),
                 "\\d+_stream-exec-sink_2_sink",
                 "\\d+_stream-exec-sink_2_constraint-validator",
-                "\\d+_stream-exec-values_1_values");
+                "\\d+_stream-exec-values_2_values");
     }
 
     @Test
@@ -486,14 +538,13 @@ class TransformationsTest {
         env.createTemporaryTable("T", sourceDescriptor);
     }
 
-    private static LegacySourceTransformation<?> toLegacySourceTransformation(
-            StreamTableEnvironment env, Table table) {
-        Transformation<?> transform = env.toChangelogStream(table).getTransformation();
+    /** Follows the inputs of a transformation with a single input down to the source. */
+    private static Transformation<?> toLeaf(Transformation<?> transformation) {
+        Transformation<?> transform = transformation;
         while (transform.getInputs().size() == 1) {
             transform = transform.getInputs().get(0);
         }
-        assertThat(transform).isInstanceOf(LegacySourceTransformation.class);
-        return (LegacySourceTransformation<?>) transform;
+        return transform;
     }
 
     private static void assertBoundedness(Boundedness boundedness, Transformation<?> transform) {

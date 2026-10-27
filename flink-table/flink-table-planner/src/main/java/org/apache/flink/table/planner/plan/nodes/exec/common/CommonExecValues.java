@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
@@ -29,6 +30,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.runtime.operators.values.ValuesInputFormat;
+import org.apache.flink.table.runtime.operators.values.ValuesSource;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -62,21 +65,43 @@ public abstract class CommonExecValues extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
-        final ValuesInputFormat inputFormat =
-                ValuesCodeGenerator.generatorInputFormat(
-                        config,
-                        planner.getFlinkContext().getClassLoader(),
-                        (RowType) getOutputType(),
-                        tuples,
-                        getClass().getSimpleName());
-        final Transformation<RowData> transformation =
-                planner.getExecEnv()
-                        .createInput(inputFormat, inputFormat.getProducedType())
-                        .getTransformation();
+        final ClassLoader classLoader = planner.getFlinkContext().getClassLoader();
+        final RowType outputType = (RowType) getOutputType();
+        final String description = getClass().getSimpleName();
+        final Transformation<RowData> transformation;
+        if (legacySourceEnabled()) {
+            final ValuesInputFormat inputFormat =
+                    ValuesCodeGenerator.generatorInputFormat(
+                            config, classLoader, outputType, tuples, description);
+            transformation =
+                    planner.getExecEnv()
+                            .createInput(inputFormat, inputFormat.getProducedType())
+                            .getTransformation();
+        } else {
+            final ValuesSource source =
+                    new ValuesSource(
+                            ValuesCodeGenerator.generatorFunction(
+                                    config, classLoader, outputType, tuples, description),
+                            InternalTypeInfo.of(outputType),
+                            tuples.size());
+            transformation =
+                    planner.getExecEnv()
+                            .fromSource(
+                                    source, WatermarkStrategy.noWatermarks(), VALUES_TRANSFORMATION)
+                            .getTransformation();
+        }
         createTransformationMeta(VALUES_TRANSFORMATION, config).fill(transformation);
         transformation.setParallelism(1);
         transformation.setMaxParallelism(1);
         return transformation;
+    }
+
+    /**
+     * Whether VALUES runs as an {@code InputFormatSourceFunction} instead of a {@link
+     * ValuesSource}, which checkpoints the position of the next row to emit.
+     */
+    protected boolean legacySourceEnabled() {
+        return true;
     }
 
     @JsonProperty(value = FIELD_NAME_TUPLES)
