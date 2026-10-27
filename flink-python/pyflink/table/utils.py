@@ -51,7 +51,7 @@ def pandas_to_arrow(schema, timezone, field_types, series):
             arrays.append(pa.StructArray.from_arrays(struct_arrays, struct_names))
         else:
             arrays.append(create_array(
-                tz_convert_to_internal(s, field_type, timezone), schema_type))
+                tz_convert_to_internal(s, field_type), schema_type))
     return pa.RecordBatch.from_arrays(arrays, schema=schema)
 
 
@@ -72,27 +72,27 @@ def arrow_to_pandas(timezone, field_types, batches):
 
 def tz_convert_from_internal(s, t: DataType, local_tz):
     """
-    Converts the timestamp series from internal according to the specified local timezone.
+    Converts UTC-backed TIMESTAMP_LTZ series to the specified local timezone.
 
-    Returns the same series if the series is not a timestamp series. Otherwise,
-    returns a converted series.
+    Returns the same series for other data types.
     """
     if type(t) == LocalZonedTimestampType:
-        return s.dt.tz_localize(local_tz)
+        return s.dt.tz_localize('UTC').dt.tz_convert(local_tz)
     else:
         return s
 
 
-def tz_convert_to_internal(s, t: DataType, local_tz):
+def tz_convert_to_internal(s, t: DataType):
     """
-    Converts the timestamp series to internal according to the specified local timezone.
+    Converts timezone-aware TIMESTAMP_LTZ series to UTC and removes the timezone.
+    Timezone-naive series and other data types are left unchanged.
     """
     if type(t) == LocalZonedTimestampType:
         from pandas.api.types import is_datetime64_dtype, is_datetime64tz_dtype
         if is_datetime64_dtype(s.dtype):
             return s.dt.tz_localize(None)
         elif is_datetime64tz_dtype(s.dtype):
-            return s.dt.tz_convert(local_tz).dt.tz_localize(None)
+            return s.dt.tz_convert('UTC').dt.tz_localize(None)
     return s
 
 

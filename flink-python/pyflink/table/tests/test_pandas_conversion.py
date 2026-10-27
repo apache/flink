@@ -166,6 +166,62 @@ class PandasConversionITTests(PandasConversionTestBase):
         pdf = table.filter(table.f1 < 0).to_pandas()
         self.assertTrue(pdf.empty)
 
+    def test_to_pandas_preserves_local_zoned_timestamp_instants(self):
+        import pandas as pd
+
+        timestamps = pd.to_datetime([
+            '1969-12-31 23:59:59.999',
+            '2024-01-01 00:00:00.123',
+            '2024-03-10 06:30:00.000',
+            '2024-03-10 07:30:00.000',
+            '2024-11-03 05:30:00.000',
+            '2024-11-03 06:30:00.000',
+        ], utc=True)
+        values = ', '.join('(%d, %d)' % (i, timestamp.value // 1000000)
+                           for i, timestamp in enumerate(timestamps))
+        values += ', (%d, CAST(NULL AS BIGINT))' % len(timestamps)
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(timezone)
+                table = self.t_env.sql_query("""
+                    SELECT id, TO_TIMESTAMP_LTZ(epoch_millis, 3) AS ltz,
+                        TIMESTAMP '2024-01-01 00:00:00.123' AS ts
+                    FROM (VALUES %s) AS v(id, epoch_millis)
+                """ % values)
+                result = table.to_pandas().sort_values('id')
+
+                self.assertEqual(len(timestamps) + 1, len(result))
+                self.assertEqual(timezone, str(result['ltz'].dt.tz))
+                self.assertEqual(list(timestamps), result['ltz'].iloc[:-1].tolist())
+                self.assertTrue(pd.isna(result['ltz'].iloc[-1]))
+                self.assertIsNone(result['ts'].dt.tz)
+                self.assertTrue((result['ts'] == pd.Timestamp('2024-01-01 00:00:00.123')).all())
+
+    def test_from_pandas_preserves_local_zoned_timestamp_instants(self):
+        import pandas as pd
+
+        epochs = [-1, 1704067200123, 1730611800123, 1730615400123, None]
+        pdf = pd.DataFrame({'ltz': pd.to_datetime(epochs, unit='ms', utc=True)
+                            .tz_convert('Asia/Shanghai')})
+        schema = DataTypes.ROW([DataTypes.FIELD('ltz', DataTypes.TIMESTAMP_LTZ(3))])
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(timezone)
+                table = self.t_env.from_pandas(pdf, schema)
+                results = table._j_table.execute().collect()
+                actual = []
+                try:
+                    while results.hasNext():
+                        timestamp = results.next().getField(0)
+                        actual.append(None if timestamp is None else timestamp.toEpochMilli())
+                finally:
+                    results.close()
+                self.assertCountEqual(epochs, actual)
+
     def test_to_pandas_for_retract_table(self):
         table = self.t_env.from_pandas(self.pdf, self.data_type)
         result_pdf = table.group_by(table.f1).select(table.f2.max.alias('f2')).to_pandas()
