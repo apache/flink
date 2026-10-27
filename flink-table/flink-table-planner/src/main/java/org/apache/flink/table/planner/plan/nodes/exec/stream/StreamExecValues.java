@@ -35,12 +35,21 @@ import org.apache.calcite.rex.RexLiteral;
 import java.util.List;
 
 /** Stream {@link ExecNode} that read records from given values. */
+// Version 1: Initial version
 @ExecNodeMetadata(
         name = "stream-exec-values",
         version = 1,
         producedTransformations = CommonExecValues.VALUES_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
+// Version 2: VALUES runs as a FLIP-27 source that checkpoints the position of the next row to
+// emit, so a restored job doesn't emit the rows again.
+@ExecNodeMetadata(
+        name = "stream-exec-values",
+        version = 2,
+        producedTransformations = CommonExecValues.VALUES_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v2_5,
+        minStateVersion = FlinkVersion.v2_5)
 public class StreamExecValues extends CommonExecValues implements StreamExecNode<RowData> {
 
     public StreamExecValues(
@@ -66,5 +75,12 @@ public class StreamExecValues extends CommonExecValues implements StreamExecNode
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(id, context, persistedConfig, tuples, outputType, description);
+    }
+
+    // A compiled plan with version 1 keeps the legacy source, so that it can still be restored
+    // from its checkpoints.
+    @Override
+    protected final boolean legacySourceEnabled() {
+        return getVersion() == 1;
     }
 }
