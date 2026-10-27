@@ -38,6 +38,31 @@ class PandasUDFTests(PyFlinkTestCase):
 
 class PandasUDFITTests(object):
 
+    def test_local_zoned_timestamp_instants(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone in ['Asia/Shanghai', 'America/New_York']:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(timezone)
+
+                @udf(result_type=DataTypes.TIMESTAMP_LTZ(3), func_type='pandas')
+                def add_hour(values):
+                    import pandas as pd
+
+                    assert str(values.dt.tz) == timezone
+                    assert (values == pd.Timestamp(1730611800123, unit='ms', tz='UTC')).all()
+                    return values + pd.Timedelta(hours=1)
+
+                table = self.t_env.sql_query(
+                    'SELECT TO_TIMESTAMP_LTZ(1730611800123, 3) AS ltz')
+                results = table.select(add_hour(table.ltz))._j_table.execute().collect()
+                try:
+                    self.assertTrue(results.hasNext())
+                    self.assertEqual(1730615400123, results.next().getField(0).toEpochMilli())
+                    self.assertFalse(results.hasNext())
+                finally:
+                    results.close()
+
     def test_basic_functionality(self):
         # pandas UDF
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), func_type="pandas")
@@ -353,8 +378,8 @@ class PandasUDFITTests(object):
         import pandas as pd
 
         timezone = self.t_env.get_config().get_local_timezone()
-        local_datetime = pytz.timezone(timezone).localize(
-            datetime.datetime(1970, 1, 2, 0, 0, 0, 123000))
+        local_datetime = datetime.datetime(
+            1970, 1, 2, 0, 0, 0, 123000, tzinfo=pytz.UTC).astimezone(pytz.timezone(timezone))
 
         @udf(result_type=DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3), func_type="pandas")
         def local_zoned_timestamp_func(local_zoned_timestamp_param):
@@ -372,9 +397,7 @@ class PandasUDFITTests(object):
         """
         self.t_env.execute_sql(sink_table_ddl)
 
-        t = self.t_env.from_elements(
-            [(local_datetime,)],
-            DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
+        t = self.t_env.sql_query('SELECT TO_TIMESTAMP_LTZ(86400123, 3) AS a')
 
         t.select(local_zoned_timestamp_func(local_zoned_timestamp_func(t.a))) \
             .execute_insert("Results_test_data_types").wait()
