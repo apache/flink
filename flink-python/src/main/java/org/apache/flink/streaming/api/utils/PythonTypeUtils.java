@@ -1003,7 +1003,6 @@ public class PythonTypeUtils {
             this.reuseRow = new Row(fieldDataConverters.length);
             this.reuseExternalRowData = new Object[fieldDataConverters.length];
             this.reuseExternalRow = new Object[2];
-            this.reuseExternalRow[1] = reuseExternalRowData;
         }
 
         @SuppressWarnings("unchecked")
@@ -1116,10 +1115,6 @@ public class PythonTypeUtils {
         private final boolean reuse;
         private final Tuple reuseTuple;
         private final Object[] reuseExternalTuple;
-
-        TupleDataConverter(DataConverter[] dataConverters) {
-            this(dataConverters, true);
-        }
 
         TupleDataConverter(DataConverter[] dataConverters, boolean reuse) {
             this.fieldDataConverters = dataConverters;
@@ -1413,12 +1408,12 @@ public class PythonTypeUtils {
                 }
 
                 if (typeInformation instanceof TupleTypeInfo) {
-                    Object[] fieldDataConverters =
+                    DataConverter[] fieldDataConverters =
                             Arrays.stream(((TupleTypeInfo) typeInformation).getFieldTypes())
                                     .map(fieldType -> typeInfoDataConverter(fieldType, reuse))
                                     .toArray(DataConverter[]::new);
                     return (DataConverter<IN, OUT>)
-                            new TupleDataConverter((DataConverter[]) fieldDataConverters, reuse);
+                            new TupleDataConverter(fieldDataConverters, reuse);
                 }
 
                 if (typeInformation instanceof BasicArrayTypeInfo) {
