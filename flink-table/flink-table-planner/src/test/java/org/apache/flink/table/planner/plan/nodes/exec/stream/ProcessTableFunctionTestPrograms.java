@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ClearAllTimersKeepsStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ClearAllUnnamedTimersPerKeyFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ClearStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ComplexValueViewFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
@@ -2137,6 +2138,38 @@ public class ProcessTableFunctionTestPrograms {
                                             "+I[Bob, count 2, 1970-01-01T00:00:00.002Z]",
                                             "+I[Bob, count 3, 1970-01-01T00:00:00.003Z]",
                                             "+I[Alice, timeout with count 1, 1970-01-01T00:00:01.001Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_CLEAR_ALL_UNNAMED_TIMERS_PER_KEY =
+            TableTestProgram.of(
+                            "process-clear-all-unnamed-timers-per-key",
+                            "clearing all timers only affects the timers of the current key")
+                    .setupTemporarySystemFunction("f", ClearAllUnnamedTimersPerKeyFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(TIMED_SOURCE_SCHEMA)
+                                    .producedValues(
+                                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                                            Row.of("Charly", 1, Instant.ofEpochMilli(2)),
+                                            Row.of("Bob", 2, Instant.ofEpochMilli(3)),
+                                            Row.of("Alice", 2, Instant.ofEpochMilli(4)),
+                                            Row.of("Bob", 3, Instant.ofEpochMilli(5)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedValues(
+                                            "+I[Bob, count 1, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, count 1, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Charly, count 1, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, count 2, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Alice, count 2, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, count 3, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Charly, timeout with count 1, 1970-01-01T00:00:01Z]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
