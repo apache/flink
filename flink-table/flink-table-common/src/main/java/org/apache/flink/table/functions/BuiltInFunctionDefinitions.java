@@ -38,6 +38,7 @@ import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TraitCondition;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.DeduplicateKeepFirstTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FromChangelogTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
@@ -937,6 +938,30 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(FROM_CHANGELOG_OUTPUT_TYPE_STRATEGY)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.ptf.FromChangelogFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition DEDUPLICATE_KEEP_FIRST =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("DEDUPLICATE_KEEP_FIRST")
+                    .kind(PROCESS_TABLE)
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "input",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(
+                                            StaticArgumentTrait.TABLE,
+                                            StaticArgumentTrait.SET_SEMANTIC_TABLE,
+                                            StaticArgumentTrait.OPTIONAL_PARTITION_BY,
+                                            StaticArgumentTrait.SUPPORT_UPDATES)),
+                            StaticArgument.scalar(
+                                    "state_ttl", DataTypes.INTERVAL(DataTypes.SECOND()), true),
+                            StaticArgument.scalar(
+                                    "reset_ttl_on_duplicate", DataTypes.BOOLEAN(), true))
+                    .inputTypeStrategy(DeduplicateKeepFirstTypeStrategy.INPUT_TYPE_STRATEGY)
+                    .outputTypeStrategy(DeduplicateKeepFirstTypeStrategy.OUTPUT_TYPE_STRATEGY)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.ptf.DeduplicateKeepFirst")
                     .build();
 
     /**
