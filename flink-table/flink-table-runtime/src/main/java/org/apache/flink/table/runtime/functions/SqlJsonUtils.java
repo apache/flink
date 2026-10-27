@@ -39,6 +39,7 @@ import org.apache.flink.shaded.com.jayway.jsonpath.Configuration;
 import org.apache.flink.shaded.com.jayway.jsonpath.DocumentContext;
 import org.apache.flink.shaded.com.jayway.jsonpath.InvalidPathException;
 import org.apache.flink.shaded.com.jayway.jsonpath.JsonPath;
+import org.apache.flink.shaded.com.jayway.jsonpath.JsonPathException;
 import org.apache.flink.shaded.com.jayway.jsonpath.Option;
 import org.apache.flink.shaded.com.jayway.jsonpath.PathNotFoundException;
 import org.apache.flink.shaded.com.jayway.jsonpath.spi.cache.CacheProvider;
@@ -437,7 +438,7 @@ public class SqlJsonUtils {
             final String pathSpec,
             final boolean isPathDefinite) {
         // An empty path is ruled out up front because JsonPath rejects it with an
-        // IllegalArgumentException instead of the InvalidPathException caught below.
+        // IllegalArgumentException instead of the JsonPathException caught below.
         if (parsedInput == null || parsedInput.hasException() || pathSpec.isEmpty()) {
             return null;
         }
@@ -450,8 +451,9 @@ public class SqlJsonUtils {
         final Object value;
         try {
             value = JsonPath.parse(parsedInput.obj, JSON_PATH_LENGTH_CONFIG).read(pathSpec);
-        } catch (InvalidPathException e) {
-            // The path does not exist, or is not a valid path at all.
+        } catch (JsonPathException e) {
+            // The path does not exist, is not a valid path at all, or applies a path function
+            // that fails on the value it reaches, e.g. min() on an empty array.
             return null;
         }
 
@@ -596,9 +598,9 @@ public class SqlJsonUtils {
 
         final Object value;
         try {
-            // PathNotFoundException extends InvalidPathException (covers both exceptions)
             value = JsonPath.parse(parsedInput.obj, JSON_PATH_TYPE_CONFIG).read(path);
-        } catch (InvalidPathException e) {
+        } catch (JsonPathException e) {
+            // Same cases as in jsonLength: a missing or invalid path, or a failing path function.
             return null;
         }
 
