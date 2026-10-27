@@ -211,12 +211,8 @@ class CloseableIterator(object):
         row_kind = RowKind(int.from_bytes(pickle_bytes[0], byteorder='big', signed=False))
         pickle_bytes = list(pickle_bytes[1:])
         field_data = zip(pickle_bytes, self._data_types)
-        fields = []
-        for data, field_type in field_data:
-            if len(data) == 0:
-                fields.append(None)
-            else:
-                fields.append(pickled_bytes_to_python_converter(data, field_type))
+        fields = [pickled_bytes_to_python_converter(data, field_type)
+                  for data, field_type in field_data]
         result_row = Row(*fields)
         result_row.set_row_kind(row_kind)
         return result_row
