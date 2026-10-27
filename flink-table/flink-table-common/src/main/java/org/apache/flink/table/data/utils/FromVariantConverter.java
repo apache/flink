@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantFieldGetter;
 import org.apache.flink.types.variant.VariantTypeException;
 
 import java.io.Serializable;
@@ -254,8 +255,10 @@ public final class FromVariantConverter implements Serializable {
         final String[] fieldNames = LogicalTypeChecks.getFieldNames(type).toArray(new String[0]);
         final int fieldCount = fieldTypes.size();
         final String rowType = type.asSummaryString();
+        final VariantFieldGetter[] fieldGetters = new VariantFieldGetter[fieldCount];
         final ValueReader[] fieldReaders = new ValueReader[fieldCount];
         for (int i = 0; i < fieldCount; i++) {
+            fieldGetters[i] = new VariantFieldGetter(fieldNames[i]);
             fieldReaders[i] =
                     createChildReader(
                             fieldTypes.get(i),
@@ -268,7 +271,7 @@ public final class FromVariantConverter implements Serializable {
             final GenericRowData row = new GenericRowData(fieldCount);
             for (int i = 0; i < fieldCount; i++) {
                 // getField returns null for a field the object does not have.
-                final Variant field = variant.getField(fieldNames[i]);
+                final Variant field = fieldGetters[i].getField(variant);
                 if (field == null) {
                     throw new TableRuntimeException(missingFieldError(rowType, fieldNames[i]));
                 }
