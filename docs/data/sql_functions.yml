@@ -1297,9 +1297,10 @@ json:
     description: |
       Returns the number of elements in a JSON document, or the length of the value at the specified path if one is provided.
       
-      The input can be a JSON STRING or a VARIANT. Returns NULL if the argument is NULL, the json is invalid, or the path is empty, malformed or does not locate a value.
+      The input can be a JSON STRING or a VARIANT. Returns NULL if the argument is NULL, the json is invalid, a path function fails (e.g., .min(), .avg()), or the path is empty, malformed or does not locate a value.
       The path must be a plain path literal such as '$.a.b'. A path carrying a 'lax'/'strict' path mode prefix raises an error.
       eg.
+      ```sql
         -- 2
         JSON_LENGTH('{"1": "hello", "2": "bye bye"}')
       
@@ -1320,6 +1321,7 @@ json:
 
         -- error: JSON_LENGTH does not support the 'lax'/'strict' path mode prefix
         JSON_LENGTH('{"1": "hello", "2": "bye bye"}', 'strict $.1')
+      ```
 
       The length is determined as follows:
       
@@ -1340,7 +1342,7 @@ json:
     table: jsonType(jsonValue[, path])
     description: |
       Returns a string value indicating the type of jsonValue, optionally at the given JSON
-      `path`. Returns SQL `NULL` if jsonValue is SQL `NULL`, is not valid JSON, or the path
+      `path`. Returns SQL `NULL` if jsonValue is SQL `NULL`, is not valid JSON, a path function fails (e.g., .min(), .avg()), or the path
       does not resolve to exactly one value.
 
       The possible results are `object`, `array`, `string`, `number`, `boolean` and `null` for
