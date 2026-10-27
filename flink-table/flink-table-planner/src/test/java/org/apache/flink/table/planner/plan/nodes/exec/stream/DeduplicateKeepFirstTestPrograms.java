@@ -327,6 +327,30 @@ public class DeduplicateKeepFirstTestPrograms {
                                     + "on_time => DESCRIPTOR(ts))")
                     .build();
 
+    public static final TableTestProgram EVENT_TIME_EMITTED_KEY_DROPS_LATER_ROWS =
+            TableTestProgram.of(
+                            "deduplicate-keep-first-event-time-emitted-key-drops-later-rows",
+                            "with on_time, an on-time row for a key whose first row was already "
+                                    + "emitted is dropped")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("user_events")
+                                    .addSchema(TIMED_EVENTS_SCHEMA)
+                                    .producedValues(
+                                            Row.of("Vas", "click", Instant.ofEpochMilli(1000)),
+                                            Row.of("Vas", "advance", Instant.ofEpochMilli(20000)),
+                                            Row.of("Vas", "view", Instant.ofEpochMilli(15000)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("user_name STRING", "action STRING")
+                                    .consumedValues(Row.ofKind(RowKind.INSERT, "Vas", "click"))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT user_name, action FROM DEDUPLICATE_KEEP_FIRST("
+                                    + "input => TABLE user_events PARTITION BY user_name, "
+                                    + "on_time => DESCRIPTOR(ts))")
+                    .build();
+
     public static final TableTestProgram UPDATING_INPUT =
             TableTestProgram.of(
                             "deduplicate-keep-first-updating-input",

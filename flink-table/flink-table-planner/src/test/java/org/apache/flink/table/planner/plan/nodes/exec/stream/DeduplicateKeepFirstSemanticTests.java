@@ -50,6 +50,7 @@ public class DeduplicateKeepFirstSemanticTests extends SemanticTestBase {
                 DeduplicateKeepFirstTestPrograms.EVENT_TIME,
                 DeduplicateKeepFirstTestPrograms.EVENT_TIME_CANDIDATE_FIELD_NAMES,
                 DeduplicateKeepFirstTestPrograms.EVENT_TIME_LATE_DROPPED,
+                DeduplicateKeepFirstTestPrograms.EVENT_TIME_EMITTED_KEY_DROPS_LATER_ROWS,
                 DeduplicateKeepFirstTestPrograms.UPDATING_INPUT,
                 DeduplicateKeepFirstTestPrograms.UNSEEN_RETRACTION_IGNORED,
                 DeduplicateKeepFirstTestPrograms.UPDATING_EVENT_TIME_FAILS,

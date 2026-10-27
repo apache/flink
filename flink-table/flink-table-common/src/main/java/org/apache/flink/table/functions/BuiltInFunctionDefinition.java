@@ -23,7 +23,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
-import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
@@ -32,7 +31,6 @@ import javax.annotation.Nullable;
 
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -344,12 +342,6 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
         public Builder outputTypeStrategy(TypeStrategy outputTypeStrategy) {
             this.typeInferenceBuilder.outputTypeStrategy(outputTypeStrategy);
-            return this;
-        }
-
-        public Builder stateTypeStrategies(
-                LinkedHashMap<String, StateTypeStrategy> stateTypeStrategies) {
-            this.typeInferenceBuilder.stateTypeStrategies(stateTypeStrategies);
             return this;
         }
 

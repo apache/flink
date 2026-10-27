@@ -960,7 +960,6 @@ public final class BuiltInFunctionDefinitions {
                                     "reset_ttl_on_duplicate", DataTypes.BOOLEAN(), true))
                     .inputTypeStrategy(DeduplicateKeepFirstTypeStrategy.INPUT_TYPE_STRATEGY)
                     .outputTypeStrategy(DeduplicateKeepFirstTypeStrategy.OUTPUT_TYPE_STRATEGY)
-                    .stateTypeStrategies(DeduplicateKeepFirstTypeStrategy.stateTypeStrategies())
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.ptf.DeduplicateKeepFirst")
                     .build();

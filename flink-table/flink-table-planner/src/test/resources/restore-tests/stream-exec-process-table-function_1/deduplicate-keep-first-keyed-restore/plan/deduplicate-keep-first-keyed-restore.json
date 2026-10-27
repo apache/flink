@@ -1,5 +1,5 @@
 {
-  "flinkVersion" : "2.4",
+  "flinkVersion" : "2.5",
   "nodes" : [ {
     "id" : 1,
     "type" : "stream-exec-table-source-scan_2",
@@ -108,7 +108,6 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "upsertMaterializeStrategy" : "ADAPTIVE",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
