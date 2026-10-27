@@ -35,6 +35,38 @@ def generate_random_table_name():
     return "Table{0}".format(str(uuid.uuid1()).replace("-", "_"))
 
 
+class ProcessModeLocalZonedTimestampTests(object):
+
+    def test_local_zoned_timestamp_instants(self):
+        original_timezone = self.t_env.get_config().get_local_timezone()
+        self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)
+        for timezone in ['Asia/Shanghai', 'America/New_York']:
+            with self.subTest(timezone=timezone):
+                self.t_env.get_config().set_local_timezone(timezone)
+
+                @udf(result_type=DataTypes.TIMESTAMP_LTZ(3))
+                def add_hour(value):
+                    if value is None:
+                        return None
+                    assert str(value.tzinfo) == timezone
+                    assert value == datetime.datetime(2024, 11, 3, 5, 30, 0, 123000,
+                                                      tzinfo=pytz.UTC)
+                    return value + datetime.timedelta(hours=1)
+
+                table = self.t_env.sql_query(
+                    'SELECT TO_TIMESTAMP_LTZ(epoch_millis, 3) AS ltz '
+                    'FROM (VALUES (1730611800123), (CAST(NULL AS BIGINT))) AS v(epoch_millis)')
+                results = table.select(add_hour(table.ltz))._j_table.execute().collect()
+                actual = []
+                try:
+                    while results.hasNext():
+                        value = results.next().getField(0)
+                        actual.append(None if value is None else value.toEpochMilli())
+                finally:
+                    results.close()
+                self.assertCountEqual([1730615400123, None], actual)
+
+
 class UserDefinedFunctionTests(object):
 
     def test_scalar_function(self):
@@ -932,8 +964,8 @@ def float_equal(a, b, rel_tol=1e-09, abs_tol=0.0):
     return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
-class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
-                                            PyFlinkStreamTableTestCase):
+class PyFlinkStreamUserDefinedFunctionTests(
+        ProcessModeLocalZonedTimestampTests, UserDefinedFunctionTests, PyFlinkStreamTableTestCase):
     def test_deterministic(self):
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
         self.assertTrue(add_one._deterministic)
@@ -1000,8 +1032,8 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
 
     def test_data_types(self):
         timezone = self.t_env.get_config().get_local_timezone()
-        local_datetime = pytz.timezone(timezone).localize(
-            datetime.datetime(1970, 1, 1, 0, 0, 0, 123000))
+        local_datetime = datetime.datetime(
+            1970, 1, 1, 0, 0, 0, 123000, tzinfo=pytz.UTC).astimezone(pytz.timezone(timezone))
 
         @udf(result_type=DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))
         def local_zoned_timestamp_func(local_zoned_timestamp_param):
@@ -1015,9 +1047,7 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         """
         self.t_env.execute_sql(sink_table_ddl)
 
-        t = self.t_env.from_elements(
-            [(local_datetime,)],
-            DataTypes.ROW([DataTypes.FIELD("a", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]))
+        t = self.t_env.sql_query('SELECT TO_TIMESTAMP_LTZ(123, 3) AS a')
 
         t.select(local_zoned_timestamp_func(local_zoned_timestamp_func(t.a))) \
             .execute_insert(sink_table) \
@@ -1116,8 +1146,8 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         self.assert_equals(actual, ['+I[42]', '+I[5]', '+I[1000]', '+I[1000]'])
 
 
-class PyFlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
-                                           PyFlinkBatchTableTestCase):
+class PyFlinkBatchUserDefinedFunctionTests(
+        ProcessModeLocalZonedTimestampTests, UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
     pass
 
 

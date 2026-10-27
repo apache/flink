@@ -21,6 +21,9 @@ import decimal
 import logging
 import unittest
 
+import pyarrow as pa
+import pytz
+
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
     TimeCoder, TimestampCoder, GenericArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, \
@@ -28,6 +31,134 @@ from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder,
     TimeWindowCoder, CountWindowCoder, InstantCoder
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.testing.test_case_utils import PyFlinkTestCase
+
+
+class ArrowCodersTests(unittest.TestCase):
+    from pyflink.fn_execution import coder_impl_slow as implementation
+
+    def test_pandas_ltz_decode_preserves_instants(self):
+        import pandas as pd
+        from pandas.testing import assert_series_equal
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        epochs = [-1, 1704067200123, 1730611800123, 1730615400123, None]
+        row_type = DataTypes.ROW([DataTypes.FIELD('ltz', DataTypes.TIMESTAMP_LTZ(3))])
+        schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            timezone = pytz.timezone(zone)
+            for size in [0, len(epochs)]:
+                with self.subTest(timezone=zone, size=size):
+                    batch = pa.record_batch(
+                        [pa.array(epochs[:size], type=pa.timestamp('ms'))], schema=schema)
+                    with pa.BufferOutputStream() as output:
+                        with pa.ipc.new_stream(output, schema) as writer:
+                            writer.write_batch(batch)
+                        data = output.getvalue().to_pybytes()
+                    coder = self.implementation.ArrowCoderImpl(schema, row_type, timezone)
+                    result = coder.decode(data)[0]
+                    expected = pd.Series(pd.to_datetime(epochs[:size], unit='ms', utc=True),
+                                         name='ltz') \
+                        .dt.tz_convert(timezone)
+                    self.assertEqual(zone, str(result.dt.tz))
+                    assert_series_equal(result, expected.astype(result.dtype))
+
+    def test_pandas_ltz_encode_preserves_epoch_values(self):
+        import pandas as pd
+        from pyflink.table import DataTypes
+        from pyflink.table.types import create_arrow_schema
+
+        epochs = [-1, 1704067200123, 1730611800123, 1730615400123, None]
+        row_type = DataTypes.ROW([DataTypes.FIELD('ltz', DataTypes.TIMESTAMP_LTZ(3))])
+        schema = create_arrow_schema(row_type.field_names(), row_type.field_types())
+        aware = pd.Series(pd.to_datetime(epochs, unit='ms', utc=True)) \
+            .dt.tz_convert('Asia/Shanghai')
+        naive = pd.Series(pd.to_datetime(epochs, unit='ms'))
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            for values in [aware, naive]:
+                for size in [0, len(epochs)]:
+                    with self.subTest(timezone=zone, dtype=values.dtype, size=size):
+                        coder = self.implementation.ArrowCoderImpl(
+                            schema, row_type, pytz.timezone(zone))
+                        encoded = coder.encode([values.iloc[:size]])
+                        result = pa.ipc.open_stream(encoded).read_all().column(0)
+                        self.assertEqual(epochs[:size], result.cast(pa.int64()).to_pylist())
+
+
+try:
+    from pyflink.fn_execution import coder_impl_fast
+except ImportError:
+    coder_impl_fast = None
+
+
+@unittest.skipIf(coder_impl_fast is None, "Compiled coders are not installed")
+class FastArrowCodersTests(ArrowCodersTests):
+    implementation = coder_impl_fast
+
+
+class LocalZonedTimestampCodersTests(unittest.TestCase):
+    from pyflink.fn_execution import coder_impl_slow as implementation
+
+    def test_timestamp_before_epoch(self):
+        import datetime
+        import struct
+
+        for precision, micros in [(3, 999000), (6, 999456)]:
+            with self.subTest(precision=precision):
+                coder = self.implementation.TimestampCoderImpl(precision)
+                value = datetime.datetime(1969, 12, 31, 23, 59, 59, micros)
+                data = struct.pack('>q', -1)
+                if precision == 6:
+                    data += struct.pack('>i', 456000)
+                self.assertEqual(data, coder.encode(value))
+                self.assertEqual(value, coder.decode(data))
+
+    def test_decode_preserves_instants(self):
+        import datetime
+        import struct
+
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            for precision in [3, 6]:
+                for millis in [-1001, -1000, -1, 0, 1, 1704067200123, 1710052200123, 1710055800123,
+                               1730611800123, 1730615400123]:
+                    with self.subTest(zone=zone, precision=precision, millis=millis):
+                        nanos = 456000 if precision == 6 else 0
+                        data = struct.pack('>q', millis)
+                        if precision == 6:
+                            data += struct.pack('>i', nanos)
+                        coder = self.implementation.LocalZonedTimestampCoderImpl(
+                            precision, pytz.timezone(zone))
+                        result = coder.decode(data)
+                        expected = datetime.datetime(1970, 1, 1, tzinfo=pytz.UTC) + \
+                            datetime.timedelta(milliseconds=millis, microseconds=nanos // 1000)
+                        self.assertEqual(expected, result)
+                        self.assertEqual(zone, str(result.tzinfo))
+
+    def test_encode_preserves_epoch_values(self):
+        import datetime
+        import struct
+
+        for zone in ['UTC', 'Asia/Shanghai', 'America/New_York']:
+            for precision in [3, 6]:
+                for millis in [-1001, -1000, -1, 0, 1, 1704067200123, 1730611800123, 1730615400123]:
+                    nanos = 456000 if precision == 6 else 0
+                    instant = datetime.datetime(1970, 1, 1, tzinfo=pytz.UTC) + \
+                        datetime.timedelta(milliseconds=millis, microseconds=nanos // 1000)
+                    expected = struct.pack('>q', millis)
+                    if precision == 6:
+                        expected += struct.pack('>i', nanos)
+                    coder = self.implementation.LocalZonedTimestampCoderImpl(
+                        precision, pytz.timezone(zone))
+                    for value in [instant.astimezone(pytz.timezone('Asia/Shanghai')),
+                                  instant.astimezone(pytz.timezone('America/New_York')),
+                                  instant.replace(tzinfo=None)]:
+                        with self.subTest(zone=zone, precision=precision, value=value):
+                            self.assertEqual(expected, coder.encode(value))
+
+
+@unittest.skipIf(coder_impl_fast is None, "Compiled coders are not installed")
+class FastLocalZonedTimestampCodersTests(LocalZonedTimestampCodersTests):
+    implementation = coder_impl_fast
 
 
 class CodersTest(PyFlinkTestCase):
