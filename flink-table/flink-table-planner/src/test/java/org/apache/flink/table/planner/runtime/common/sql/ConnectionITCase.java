@@ -34,6 +34,8 @@ import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 import java.util.Map;
@@ -153,20 +155,20 @@ class ConnectionITCase {
                         connectionIdentifier("my_conn").asSummaryString());
     }
 
-    @Test
-    void testDropTemporarySystemConnectionRejected() {
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "DROP TEMPORARY SYSTEM CONNECTION my_conn",
+                "DROP TEMPORARY SYSTEM CONNECTION IF EXISTS my_conn",
+                "DROP TEMPORARY SYSTEM CONNECTION IF EXISTS missing_conn"
+            })
+    void testDropTemporarySystemConnectionRejected(String statement) {
         tEnv.executeSql("CREATE TEMPORARY CONNECTION my_conn WITH ('k' = 'v')");
 
-        for (String statement :
-                List.of(
-                        "DROP TEMPORARY SYSTEM CONNECTION my_conn",
-                        "DROP TEMPORARY SYSTEM CONNECTION IF EXISTS my_conn",
-                        "DROP TEMPORARY SYSTEM CONNECTION IF EXISTS missing_conn")) {
-            assertThatThrownBy(() -> tEnv.executeSql(statement))
-                    .isInstanceOf(ValidationException.class)
-                    .hasMessageContaining("DROP TEMPORARY SYSTEM CONNECTION is not supported");
-            assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isPresent();
-        }
+        assertThatThrownBy(() -> tEnv.executeSql(statement))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("DROP TEMPORARY SYSTEM CONNECTION is not supported");
+        assertThat(catalogManager().getConnection(connectionIdentifier("my_conn"))).isPresent();
     }
 
     @Test
