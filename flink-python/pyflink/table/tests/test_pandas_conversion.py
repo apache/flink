@@ -187,6 +187,19 @@ class PandasConversionITTests(PandasConversionTestBase):
         pdf = table.filter(table.f1 < 0).to_pandas()
         assert_frame_equal(pdf, table.to_pandas().iloc[:0])
 
+    def test_to_pandas_with_nested_types(self):
+        import pandas as pd
+
+        for expression, error in [('ARRAY[ROW(1)]', ValueError), ('ROW(ROW(1))', TypeError)]:
+            with self.subTest(expression=expression):
+                query = 'SELECT 1 AS a, %s AS payload FROM (VALUES (1)) AS t(x)' % expression
+                result = self.t_env.sql_query(query + ' WHERE FALSE').to_pandas()
+                expected = pd.DataFrame({'a': pd.Series(dtype='int32'),
+                                         'payload': pd.Series(dtype='object')})
+                assert_frame_equal(result, expected)
+                with self.assertRaisesRegex(error, 'ROW is not supported'):
+                    self.t_env.sql_query(query).to_pandas()
+
     def test_empty_to_pandas_with_timestamps(self):
         original_timezone = self.t_env.get_config().get_local_timezone()
         self.addCleanup(self.t_env.get_config().set_local_timezone, original_timezone)

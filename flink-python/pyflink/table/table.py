@@ -953,7 +953,9 @@ class Table(object):
             .collectAsPandasDataFrame(self._j_table, max_arrow_batch_size)
         schema = self.get_schema()
         field_types = schema.get_field_data_types()
-        arrow_schema = create_arrow_schema(schema.get_field_names(), field_types)
+        has_rows = batches_iterator.hasNext()
+        arrow_schema = create_arrow_schema(
+            schema.get_field_names(), field_types, allow_nested=not has_rows)
         timezone: Optional[tzinfo] = None
         if any(isinstance(field_type, LocalZonedTimestampType) for field_type in field_types):
             import pytz
@@ -963,7 +965,7 @@ class Table(object):
                 timezone = pytz.FixedOffset(j_timezone.normalized().getTotalSeconds() // 60)
             else:
                 timezone = pytz.timezone(timezone_id)
-        if batches_iterator.hasNext():
+        if has_rows:
             serializer = ArrowSerializer(arrow_schema, schema.to_row_data_type(), timezone)
             import pyarrow as pa
             table = pa.Table.from_batches(serializer.load_from_iterator(batches_iterator))
